@@ -1,9 +1,17 @@
+import logging
+
 import pandas as pd
 from django.conf import settings
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
+from .services.decision_engine import (
+    calculate_risk_profile,
+    optimize_rows,
+    simulate_rows,
+    summarize_rows,
+)
 from .services.local_advisor import generar_analisis_local
 from src.analysis.metrics import calcular_metricas
 from src.cleaning.limpia_datos import limpiar_datos
@@ -13,6 +21,14 @@ try:
     from .services.ai_advisor import generar_analisis_ia
 except Exception:
     generar_analisis_ia = None
+
+
+logger = logging.getLogger(__name__)
+
+
+def safe_error_response(exc, user_message="No se pudo procesar la solicitud", status=400):
+    logger.exception("API error: %s", exc)
+    return Response({"error": user_message}, status=status)
 
 
 def build_dashboard_response(df):
@@ -140,7 +156,11 @@ def dashboard_data(request):
         df = pd.read_csv(settings.DATOS_EMISIONES_PATH)
         return Response(build_dashboard_response(df))
     except Exception as exc:
-        return Response({"error": str(exc)}, status=400)
+        return safe_error_response(
+            exc,
+            user_message="No se pudo cargar el dataset base",
+            status=400,
+        )
 
 
 @api_view(["POST"])
@@ -154,8 +174,14 @@ def upload_dashboard_data(request):
     try:
         df = read_uploaded_dataset(archivo)
         return Response(build_dashboard_response(df))
+    except ValueError as exc:
+        return safe_error_response(exc, user_message=str(exc), status=400)
     except Exception as exc:
-        return Response({"error": str(exc)}, status=400)
+        return safe_error_response(
+            exc,
+            user_message="No se pudo procesar el archivo cargado",
+            status=400,
+        )
 
 
 @api_view(["POST"])
@@ -174,8 +200,14 @@ def compare_dashboard_data(request):
         df_actual = read_uploaded_dataset(dataset_actual)
         df_simulado = read_uploaded_dataset(dataset_simulado)
         return Response(comparar_escenarios(df_actual, df_simulado))
+    except ValueError as exc:
+        return safe_error_response(exc, user_message=str(exc), status=400)
     except Exception as exc:
-        return Response({"error": str(exc)}, status=400)
+        return safe_error_response(
+            exc,
+            user_message="No se pudo comparar los escenarios cargados",
+            status=400,
+        )
 
 
 @api_view(["POST"])
@@ -191,3 +223,58 @@ def ai_advisor(request):
         fuente = "huella_engine"
 
     return Response({"analisis": analisis, "fuente": fuente})
+
+
+@api_view(["POST"])
+def simulate_dashboard_data(request):
+    rows = request.data.get("rows") or []
+
+    if not rows:
+        return Response({"error": "Debes enviar filas para simular"}, status=400)
+
+    try:
+        simulated_rows = simulate_rows(
+            rows,
+            diesel_reduction=request.data.get("diesel_reduction", 0),
+            electricity_increase=request.data.get("electricity_increase", 0),
+            selected_company=request.data.get("selected_company", "Todas"),
+        )
+        return Response(summarize_rows(simulated_rows))
+    except Exception as exc:
+        return safe_error_response(
+            exc,
+            user_message="No se pudo ejecutar la simulacion",
+            status=400,
+        )
+
+
+@api_view(["POST"])
+def optimize_dashboard_data(request):
+    rows = request.data.get("rows") or []
+
+    if not rows:
+        return Response({"error": "Debes enviar filas para optimizar"}, status=400)
+
+    try:
+        return Response(optimize_rows(rows))
+    except Exception as exc:
+        return safe_error_response(
+            exc,
+            user_message="No se pudo optimizar el escenario",
+            status=400,
+        )
+
+
+@api_view(["POST"])
+def risk_score_data(request):
+    summary = request.data.get("summary") or request.data
+    optimized_scenario = request.data.get("optimized_scenario")
+
+    try:
+        return Response(calculate_risk_profile(summary, optimized_scenario))
+    except Exception as exc:
+        return safe_error_response(
+            exc,
+            user_message="No se pudo calcular el perfil de riesgo",
+            status=400,
+        )

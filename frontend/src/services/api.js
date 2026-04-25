@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: "http://127.0.0.1:8000/api",
+  baseURL: import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api",
 });
 
 export async function uploadDataFile(file) {
@@ -33,5 +33,20 @@ export async function compareScenarioFiles(datasetActual, datasetSimulado) {
 
 export async function getAiAdvisor(payload) {
   const response = await api.post("/ai-advisor/", payload);
+  return response.data;
+}
+
+export async function simulateScenario(payload) {
+  const response = await api.post("/simulate/", payload);
+  return response.data;
+}
+
+export async function optimizeScenarioApi(rows) {
+  const response = await api.post("/optimize/", { rows });
+  return response.data;
+}
+
+export async function getRiskScore(payload) {
+  const response = await api.post("/risk-score/", payload);
   return response.data;
 }

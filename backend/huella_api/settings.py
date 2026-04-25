@@ -28,16 +28,34 @@ load_dotenv(PROJECT_ROOT / ".env")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 
+def str_to_bool(value, default=False):
+    if value is None:
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def csv_to_list(value, default=None):
+    if not value:
+        return default or []
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-c9(c(a92p85qux_6$(epj9mpq@v2nt03h#6&0w%#sg#1)lj12+'
+SECRET_KEY = os.getenv(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-change-me-in-dev-only",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = str_to_bool(os.getenv("DJANGO_DEBUG"), default=True)
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
+ALLOWED_HOSTS = csv_to_list(
+    os.getenv("DJANGO_ALLOWED_HOSTS"),
+    default=["localhost", "127.0.0.1", "testserver"],
+)
 
 
 # Application definition
@@ -131,7 +149,23 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = str_to_bool(
+    os.getenv("CORS_ALLOW_ALL_ORIGINS"),
+    default=DEBUG,
+)
+CORS_ALLOWED_ORIGINS = csv_to_list(os.getenv("CORS_ALLOWED_ORIGINS"))
+CSRF_TRUSTED_ORIGINS = csv_to_list(os.getenv("CSRF_TRUSTED_ORIGINS"))
+
+if not DEBUG:
+    SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_SSL_REDIRECT = str_to_bool(
+        os.getenv("SECURE_SSL_REDIRECT"),
+        default=True,
+    )
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 DATA_DIR = PROJECT_ROOT / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
