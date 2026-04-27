@@ -139,7 +139,7 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
   ]);
 
   return (
-    <section className="rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl">
+    <section className="rounded-3xl bg-slate-900 border border-slate-800 p-4 sm:p-6 shadow-xl">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -212,7 +212,7 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-4">
-          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5">
+          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 sm:p-5">
             <p className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
               <Lightbulb size={18} />
               Recomendacion ejecutiva
@@ -227,11 +227,11 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 sm:p-5">
             <h3 className="text-sm font-semibold text-slate-200">
               Emisiones simuladas por empresa
             </h3>
-            <div className="mt-4 h-64">
+            <div className="mt-4 h-64 sm:h-72 lg:h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={simulation.companyChart}>
                   <XAxis dataKey="empresa" stroke="#94a3b8" />
@@ -266,7 +266,7 @@ function SliderControl({ color, label, max, onChange, value }) {
   const accent = color === "sky" ? "text-sky-300" : "text-emerald-300";
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+    <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 sm:p-5">
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm font-semibold text-slate-200">{label}</p>
         <p className={`text-lg font-bold ${accent}`}>{value}%</p>
@@ -299,7 +299,7 @@ function SimulatorCard({
       : "border-emerald-400/20 bg-emerald-400/10 text-emerald-200";
 
   return (
-    <div className={`rounded-2xl border p-5 transition ${toneClass}`}>
+    <div className={`rounded-2xl border p-4 sm:p-5 transition ${toneClass}`}>
       <div className="mb-4">{icon}</div>
       <p className="text-sm text-slate-400">{label}</p>
       <h3 className="mt-1 text-2xl font-bold">

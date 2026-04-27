@@ -42,7 +42,7 @@ function ComparacionEscenario() {
   };
 
   return (
-    <section className="rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl">
+    <section className="rounded-3xl bg-slate-900 border border-slate-800 p-4 sm:p-6 shadow-xl">
       <div className="flex flex-col gap-6">
         <div>
           <p className="text-sm font-semibold text-emerald-300">
@@ -70,7 +70,7 @@ function ComparacionEscenario() {
             type="button"
             onClick={handleCompare}
             disabled={!canCompare}
-            className="h-full min-h-24 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-6 font-semibold text-emerald-200 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-950 disabled:text-slate-600"
+            className="w-full lg:w-auto h-full min-h-16 lg:min-h-24 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-6 font-semibold text-emerald-200 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-950 disabled:text-slate-600"
           >
             {loading ? "Comparando..." : "Comparar"}
           </button>
@@ -152,7 +152,7 @@ function ComparisonResult({ comparison }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 sm:p-5">
           <div className="flex items-center gap-3 text-slate-300">
             <AlertTriangle size={18} className="text-amber-300" />
             <p className="text-sm font-semibold">Actividad critica</p>
@@ -173,7 +173,7 @@ function ComparisonResult({ comparison }) {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5">
+        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 sm:p-5">
           <div className="flex items-center gap-3 text-emerald-200">
             <Factory size={18} />
             <p className="text-sm font-semibold">Empresa mas optimizada</p>
@@ -188,7 +188,7 @@ function ComparisonResult({ comparison }) {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-sky-400/20 bg-sky-400/10 p-5">
+      <div className="rounded-2xl border border-sky-400/20 bg-sky-400/10 p-4 sm:p-5">
         <p className="text-sm font-semibold text-sky-200">
           Recomendacion estrategica
         </p>
@@ -205,7 +205,7 @@ function ComparisonCard({ icon, label, tone, value }) {
       : "border-emerald-400/20 bg-emerald-400/10 text-emerald-200";
 
   return (
-    <div className={`rounded-2xl border p-5 ${toneClass}`}>
+    <div className={`rounded-2xl border p-4 sm:p-5 ${toneClass}`}>
       <div className="mb-4">{icon}</div>
       <p className="text-sm text-slate-400">{label}</p>
       <h3 className="mt-1 text-2xl font-bold">{value}</h3>

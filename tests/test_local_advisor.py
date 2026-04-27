@@ -19,9 +19,20 @@ class LocalAdvisorTest(unittest.TestCase):
         )
 
         self.assertIn("Diagnostico", analisis)
+        self.assertIn("Insight estrategico", analisis)
+        self.assertIn("Nivel de viabilidad", analisis)
+        self.assertIn("Recomendacion principal REALISTA", analisis)
+        self.assertIn("Escenario optimo (potencial maximo)", analisis)
+        self.assertIn("Escenario recomendado (realista)", analisis)
+        self.assertIn("Niveles de accion", analisis)
+        self.assertIn("Recomendacion estrategica", analisis)
         self.assertIn("diesel", analisis)
         self.assertIn("57.2", analisis)
         self.assertIn("Siguiente accion concreta", analisis)
+        self.assertIn("referencia estrategica", analisis.lower())
+        self.assertIn("🟢", analisis)
+        self.assertIn("🟡", analisis)
+        self.assertIn("🔴", analisis)
 
 
 if __name__ == "__main__":

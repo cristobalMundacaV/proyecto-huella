@@ -2,11 +2,11 @@ import { formatNumber } from "../utils/formatters";
 
 function DataTable({ rows }) {
   return (
-    <section className="rounded-3xl bg-slate-900 border border-slate-800 p-6">
+    <section className="rounded-3xl bg-slate-900 border border-slate-800 p-4 sm:p-6">
       <h2 className="text-xl font-semibold mb-4">Datos procesados</h2>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="min-w-[720px] w-full text-sm">
           <thead className="text-slate-400 border-b border-slate-800">
             <tr>
               <th className="text-left py-3">Empresa</th>

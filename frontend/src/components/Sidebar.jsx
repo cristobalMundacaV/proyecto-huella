@@ -18,7 +18,7 @@ function Sidebar({
   uploadError,
 }) {
   return (
-    <aside className="w-72 min-h-screen bg-slate-900 border-r border-slate-800 p-6 shrink-0">
+    <aside className="w-full lg:w-72 min-h-auto lg:min-h-screen bg-slate-900 border-b border-slate-800 lg:border-b-0 lg:border-r p-4 sm:p-6 shrink-0">
       <div className="flex items-center gap-3 mb-10">
         <div className="p-3 rounded-2xl bg-emerald-400/10 border border-emerald-400/20">
           <Database className="text-emerald-400" />

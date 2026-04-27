@@ -1,3 +1,63 @@
+def _pick_realistic_initial_reduction(max_reduction_pct):
+    if max_reduction_pct <= 0:
+        return 20
+    return min(35, max(15, round(max_reduction_pct * 0.4)))
+
+
+def _guess_optimal_activity_reduction(actividad_normalizada, optimizacion):
+    if actividad_normalizada == "diesel":
+        return optimizacion.get("dieselReduction")
+    if actividad_normalizada == "electricidad":
+        return optimizacion.get("electricityReduction")
+    return optimizacion.get("activityReduction")
+
+
+def _assess_viability(actividad_normalizada, max_reduction_pct, optimal_reduction_pct):
+    pressure = 0
+
+    if actividad_normalizada == "diesel":
+        pressure += 2
+
+    if max_reduction_pct > 50:
+        pressure += 2
+    elif max_reduction_pct > 35:
+        pressure += 1
+
+    if optimal_reduction_pct is not None and float(optimal_reduction_pct) >= 70:
+        pressure += 2
+
+    if pressure >= 4:
+        return "Baja"
+    if pressure >= 2:
+        return "Media"
+    return "Alta"
+
+
+def _recommended_range_by_viability(viability):
+    if viability == "Baja":
+        return (10, 20)
+    if viability == "Media":
+        return (15, 30)
+    return (20, 35)
+
+
+def _action_levels(actividad):
+    return {
+        "low": (
+            f"🟢 Bajo esfuerzo (5%-15% reduccion): ajustes operativos en {actividad}, "
+            "mejor control de consumo, mantenimiento preventivo y disciplina de seguimiento semanal."
+        ),
+        "medium": (
+            f"🟡 Medio impacto (15%-35% reduccion): optimizacion faseada de {actividad} con "
+            "cambios de procesos, analitica de desempeno y sustitucion parcial de tecnologia."
+        ),
+        "high": (
+            f"🔴 Transformacional (35%+ reduccion): rediseño estructural de {actividad}, "
+            "capex dedicado, renovacion tecnologica y plan de transicion plurianual."
+        ),
+    }
+
+
 def generar_analisis_local(payload):
     total = float(payload.get("total_emisiones", 0) or 0)
     empresa = payload.get("empresa_critica", "la empresa critica")
@@ -5,74 +65,86 @@ def generar_analisis_local(payload):
     actividad_normalizada = str(actividad).lower()
     optimizacion = payload.get("optimizacion") or {}
 
-    reduccion = optimizacion.get("reductionPct", None)
-    diesel = optimizacion.get("dieselReduction", None)
-    electricidad = optimizacion.get("electricityIncrease", None)
-
-    riesgo_score = min(100, total / 50)
-
-    if riesgo_score >= 70:
-        riesgo = "alto"
-    elif riesgo_score >= 35:
-        riesgo = "medio"
-    else:
-        riesgo = "bajo"
+    max_reduction_pct = float(optimizacion.get("reductionPct", 0) or 0)
+    optimal_reduction_pct = _guess_optimal_activity_reduction(
+        actividad_normalizada,
+        optimizacion,
+    )
+    realistic_reduction_pct = _pick_realistic_initial_reduction(max_reduction_pct)
+    viability = _assess_viability(
+        actividad_normalizada,
+        max_reduction_pct,
+        optimal_reduction_pct,
+    )
+    realistic_min, realistic_max = _recommended_range_by_viability(viability)
+    levels = _action_levels(actividad)
 
     if actividad_normalizada == "diesel" and total > 3000:
         insight = (
-            "La dependencia de diesel es critica y representa un riesgo "
-            "financiero, operacional y regulatorio elevado."
+            "La dependencia de diesel concentra riesgo operativo, de costos y de cumplimiento, "
+            "por lo que este frente define el resultado global de descarbonizacion."
         )
     elif actividad_normalizada == "diesel":
         insight = (
-            "El diesel concentra el mayor impacto y debe tratarse como el "
-            "primer foco de optimizacion operacional."
+            "El diesel sigue siendo la principal causa de impacto y conviene intervenirlo "
+            "antes de distribuir esfuerzos en multiples frentes menores."
         )
     elif actividad_normalizada == "electricidad":
         insight = (
-            "El consumo electrico domina el impacto, lo que abre oportunidades "
-            "claras de eficiencia energetica, gestion de demanda y abastecimiento renovable."
+            "El consumo electrico domina la huella; esto habilita mejoras escalables via eficiencia, "
+            "gestion de demanda y contratos de energia de menor factor de emision."
         )
     else:
         insight = (
-            f"{actividad} concentra el mayor impacto del dataset, por lo que "
-            "debe priorizarse en la siguiente iteracion de mejora."
+            f"{actividad} concentra la mayor parte del impacto y debe tratarse como frente prioritario "
+            "para capturar reducciones relevantes en el corto y mediano plazo."
         )
 
-    recomendacion_por_actividad = {
-        "diesel": "acelerar electrificacion, mejorar rutas, reducir uso de generadores y evaluar combustibles alternativos",
-        "electricidad": "implementar eficiencia energetica, gestion horaria de consumo y contratos de energia renovable",
-    }
-    recomendacion = recomendacion_por_actividad.get(
-        actividad_normalizada,
-        f"revisar procesos asociados a {actividad} y buscar sustitucion tecnologica o eficiencia operacional",
+    intervention_line = (
+        f"bajo una intervencion profunda en el uso de {actividad}."
+        if actividad_normalizada == "diesel"
+        else f"bajo una intervencion profunda sobre {actividad}."
     )
+
+    optimal_line = (
+        f"El potencial maximo identifica una reduccion agregada cercana al {round(max_reduction_pct, 1)}% "
+        f"de las emisiones totales, {intervention_line}"
+    )
+
+    if realistic_reduction_pct < realistic_min:
+        realistic_reduction_pct = realistic_min
+    if realistic_reduction_pct > realistic_max:
+        realistic_reduction_pct = realistic_max
 
     texto = f"""
 Diagnostico:
-Huella detecta que el mayor foco de emisiones se concentra en {actividad}, con una empresa critica identificada: {empresa}. El total analizado alcanza {round(total, 1)} kg CO2e.
+El principal foco de emisiones se concentra en {actividad}, con {empresa} como empresa critica. Sobre una base de {round(total, 1)} kg CO2e, este frente explica la mayor parte de la exposicion ambiental y operativa.
 
-Insight adaptativo:
+Insight estrategico:
 {insight}
 
-Riesgo principal:
-El score de riesgo estimado es {round(riesgo_score, 1)}/100, clasificado como riesgo {riesgo}. Este nivel exige priorizacion ejecutiva si la organizacion quiere reducir exposicion regulatoria y costos operacionales.
+Nivel de viabilidad:
+{viability}, la implementacion debe ser gradual, priorizada y progresiva para evitar fricciones operativas y mantener continuidad del negocio.
+
+Recomendacion principal REALISTA:
+Reducir consumo de {actividad} entre {realistic_min}% y {realistic_max}% en el corto/mediano plazo, iniciando con una fase priorizada alrededor de {realistic_reduction_pct}%, mediante medidas progresivas de eficiencia y sustitucion parcial.
+
+Escenario optimo (potencial maximo):
+{optimal_line} Este escenario se presenta unicamente como referencia estrategica de largo plazo, ya que implica cambios estructurales significativos, inversion relevante y una transicion operativa progresiva.
+
+Escenario recomendado (realista):
+En el corto plazo, la recomendacion implementable es una fase inicial de {realistic_reduction_pct}% sobre {actividad}, con foco en medidas de rapida adopcion, menor costo implicito y menor riesgo de continuidad operacional.
+
+Niveles de accion:
+{levels["low"]}
+{levels["medium"]}
+{levels["high"]}
 
 Recomendacion estrategica:
-Huella recomienda {recomendacion}.
-"""
-
-    if reduccion is not None:
-        texto += f"""
-
-Impacto esperado:
-El escenario optimizado sugiere una reduccion estimada de {round(reduccion, 1)}%. Para lograrlo, Huella recomienda reducir diesel en {diesel}% y ajustar electricidad en {electricidad}%.
-"""
-
-    texto += """
+Priorizar una hoja de ruta en dos velocidades: quick wins de eficiencia en 0-3 meses y decisiones estructurales en 3-18 meses para acercarse de forma creible al potencial maximo.
 
 Siguiente accion concreta:
-Implementar un plan piloto sobre la empresa critica, medir resultados durante un periodo corto y comparar contra la linea base actual.
+Ejecutar un piloto de 8-12 semanas en {empresa} sobre {actividad}, validar linea base y seguimiento semanal (consumo, emisiones y costo) antes de escalar la intervencion.
 """
 
     return texto.strip()

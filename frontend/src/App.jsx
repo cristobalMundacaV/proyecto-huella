@@ -4,6 +4,8 @@ import {
   AlertTriangle,
   Database,
   Factory,
+  Menu,
+  X,
 } from "lucide-react";
 import {
   Bar,
@@ -100,6 +102,7 @@ function App() {
   const [aiAnalysis, setAiAnalysis] = useState("");
   const [aiSource, setAiSource] = useState("");
   const [loadingAi, setLoadingAi] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
@@ -362,13 +365,15 @@ function App() {
   const handleAiAnalysis = async () => {
     try {
       setLoadingAi(true);
+      const analysisOptimizationScenario =
+        optimizedScenario || recommendedScenario;
 
       const response = await getAiAdvisor({
         total_emisiones: data.total_emisiones,
         empresa_critica: empresaCritica,
         actividad_critica: actividadCritica,
         simulacion: simulatedScenario,
-        optimizacion: optimizedScenario,
+        optimizacion: analysisOptimizationScenario,
       });
 
       setAiAnalysis(response.analisis);
@@ -385,34 +390,84 @@ function App() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 flex">
+    <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col lg:flex-row">
       <Toast
         message={toast?.message}
         onClose={() => setToast(null)}
         toastKey={toast?.id}
       />
 
-      <Sidebar
-        activeDatasetId={activeDatasetId}
-        datasets={datasets}
-        fileName={fileName}
-        loadingUpload={loadingUpload}
-        onCloseDataset={closeDataset}
-        onFileUpload={handleFileUpload}
-        onLoadDemo={handleLoadDemo}
-        onSelectDataset={selectDataset}
-        uploadError={uploadError}
-      />
+      <button
+        type="button"
+        onClick={() => setMobileMenuOpen(true)}
+        className="fixed right-4 top-4 z-50 rounded-2xl border border-slate-700 bg-slate-900/90 p-3 text-slate-100 shadow-xl backdrop-blur lg:hidden"
+      >
+        <Menu size={22} />
+      </button>
 
-      <section className="flex-1 px-10 py-12 overflow-y-auto">
-        <div className="max-w-7xl mx-auto space-y-8">
+      <div className="hidden lg:block">
+        <Sidebar
+          activeDatasetId={activeDatasetId}
+          datasets={datasets}
+          fileName={fileName}
+          loadingUpload={loadingUpload}
+          onCloseDataset={closeDataset}
+          onFileUpload={handleFileUpload}
+          onLoadDemo={handleLoadDemo}
+          onSelectDataset={selectDataset}
+          uploadError={uploadError}
+        />
+      </div>
+
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+
+          <div className="absolute right-0 top-0 h-full w-[85vw] max-w-sm overflow-y-auto border-l border-slate-800 bg-slate-900 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              className="absolute right-4 top-4 rounded-2xl border border-slate-700 bg-slate-950 p-3 text-slate-200"
+            >
+              <X size={20} />
+            </button>
+
+            <Sidebar
+              activeDatasetId={activeDatasetId}
+              datasets={datasets}
+              fileName={fileName}
+              loadingUpload={loadingUpload}
+              onCloseDataset={closeDataset}
+              onFileUpload={(event) => {
+                handleFileUpload(event);
+                setMobileMenuOpen(false);
+              }}
+              onLoadDemo={() => {
+                handleLoadDemo();
+                setMobileMenuOpen(false);
+              }}
+              onSelectDataset={(dataset) => {
+                selectDataset(dataset);
+                setMobileMenuOpen(false);
+              }}
+              uploadError={uploadError}
+            />
+          </div>
+        </div>
+      )}
+
+      <section className="flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-12 overflow-y-auto">
+        <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
           <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-2xl bg-emerald-400/10 border border-emerald-400/20">
                 <Database className="text-emerald-400" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold">Huella</h1>
+                <h1 className="text-3xl sm:text-4xl font-bold">Huella</h1>
                 <p className="text-slate-400">
                   Inteligencia para medir, analizar y optimizar la huella de
                   carbono empresarial.
@@ -422,7 +477,7 @@ function App() {
             <button
               type="button"
               onClick={handleExportReport}
-              className="w-fit rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-200"
+              className="w-full sm:w-fit rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-200"
             >
               Exportar reporte
             </button>
@@ -436,7 +491,7 @@ function App() {
             validationSummary={validationSummary}
           />
 
-          <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-4">
             <KpiCard
               icon={<Activity />}
               title="Emisiones Totales"
@@ -461,7 +516,7 @@ function App() {
             />
           </section>
 
-          <section className="rounded-3xl bg-emerald-400/10 border border-emerald-400/20 p-6">
+          <section className="rounded-3xl bg-emerald-400/10 border border-emerald-400/20 p-4 sm:p-6">
             <h2 className="text-xl font-semibold mb-2">Insight automatico</h2>
             <p className="text-emerald-300">
               La actividad <strong>{actividadCritica}</strong> concentra el
@@ -483,49 +538,53 @@ function App() {
             onGenerateAnalysis={handleAiAnalysis}
           />
 
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
             <ChartCard title="Emisiones por empresa">
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={empresas}>
-                  <XAxis dataKey="empresa" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" tickFormatter={formatNumber} />
-                  <Tooltip
-                    contentStyle={tooltipContentStyle}
-                    cursor={false}
-                    formatter={formatTooltipValue}
-                    labelStyle={{ color: "#F8FAFC" }}
-                    itemStyle={{ color: "#00D4AA" }}
-                  />
-                  <Bar
-                    activeBar={activeBarStyle}
-                    dataKey="emisiones"
-                    fill="#00D4AA"
-                    radius={[10, 10, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="h-64 sm:h-72 lg:h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={empresas}>
+                    <XAxis dataKey="empresa" stroke="#94a3b8" />
+                    <YAxis stroke="#94a3b8" tickFormatter={formatNumber} />
+                    <Tooltip
+                      contentStyle={tooltipContentStyle}
+                      cursor={false}
+                      formatter={formatTooltipValue}
+                      labelStyle={{ color: "#F8FAFC" }}
+                      itemStyle={{ color: "#00D4AA" }}
+                    />
+                    <Bar
+                      activeBar={activeBarStyle}
+                      dataKey="emisiones"
+                      fill="#00D4AA"
+                      radius={[10, 10, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </ChartCard>
 
             <ChartCard title="Emisiones por actividad">
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={actividades}>
-                  <XAxis dataKey="actividad" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" tickFormatter={formatNumber} />
-                  <Tooltip
-                    contentStyle={tooltipContentStyle}
-                    cursor={false}
-                    formatter={formatTooltipValue}
-                    labelStyle={{ color: "#F8FAFC" }}
-                    itemStyle={{ color: "#00D4AA" }}
-                  />
-                  <Bar
-                    activeBar={activeBarStyle}
-                    dataKey="emisiones"
-                    fill="#38BDF8"
-                    radius={[10, 10, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="h-64 sm:h-72 lg:h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={actividades}>
+                    <XAxis dataKey="actividad" stroke="#94a3b8" />
+                    <YAxis stroke="#94a3b8" tickFormatter={formatNumber} />
+                    <Tooltip
+                      contentStyle={tooltipContentStyle}
+                      cursor={false}
+                      formatter={formatTooltipValue}
+                      labelStyle={{ color: "#F8FAFC" }}
+                      itemStyle={{ color: "#00D4AA" }}
+                    />
+                    <Bar
+                      activeBar={activeBarStyle}
+                      dataKey="emisiones"
+                      fill="#38BDF8"
+                      radius={[10, 10, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </ChartCard>
           </section>
 
