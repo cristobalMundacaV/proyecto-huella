@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+table th:first-child,
+table td:first-child {
+  text-align: left;
+}
+
+table th:not(:first-child),
+table td:not(:first-child) {
+  text-align: center;
+}
+
+
+@media print {
+  aside,
+  button {
+    display: none !important;
+  }
+
+  main,
+  section {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  .shadow-xl,
+  .shadow-2xl {
+    box-shadow: none !important;
+  }
+}

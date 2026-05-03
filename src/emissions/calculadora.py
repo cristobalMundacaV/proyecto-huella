@@ -11,11 +11,13 @@ def calcular_emisiones(datos, ruta_factores):
         .str.replace(' ', '_')
     )
 
-    factores["actividad"] = factores["actividad"].astype(str).str.strip().str.lower()
+    factores["actividad_key"] = factores["actividad"].astype(str).str.strip().str.lower()
+    factores = factores.drop(columns=["actividad"])
+    datos["actividad_key"] = datos["actividad"].astype(str).str.strip().str.lower()
 
     datos = datos.merge(
         factores,
-        on="actividad",
+        on="actividad_key",
         how="left"
     )
 
@@ -28,5 +30,6 @@ def calcular_emisiones(datos, ruta_factores):
         )
         
     datos["emisiones"] = datos["cantidad"] * datos["factor_emision"]
+    datos = datos.drop(columns=["actividad_key"])
 
     return datos

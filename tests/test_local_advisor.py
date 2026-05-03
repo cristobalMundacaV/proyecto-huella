@@ -1,6 +1,12 @@
 import unittest
+import sys
+from pathlib import Path
 
-from backend.analytics.services.local_advisor import generar_analisis_local
+BACKEND_DIR = Path(__file__).resolve().parents[1] / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
+from apps.analytics.services.local_advisor import generar_analisis_local
 
 
 class LocalAdvisorTest(unittest.TestCase):

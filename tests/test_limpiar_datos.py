@@ -19,8 +19,8 @@ class LimpiarDatosTest(unittest.TestCase):
 
         self.assertEqual(list(resultado.columns), ["empresa", "actividad", "cantidad"])
         self.assertEqual(len(resultado), 1)
-        self.assertEqual(resultado.iloc[0]["empresa"], "EcoRetail")
-        self.assertEqual(resultado.iloc[0]["actividad"], "diesel")
+        self.assertEqual(resultado.iloc[0]["empresa"], "Ecoretail")
+        self.assertEqual(resultado.iloc[0]["actividad"], "Diesel")
         self.assertEqual(resultado.iloc[0]["cantidad"], 120.0)
 
     def test_rechaza_columnas_obligatorias_faltantes(self):

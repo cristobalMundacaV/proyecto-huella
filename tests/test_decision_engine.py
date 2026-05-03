@@ -1,6 +1,12 @@
 import unittest
+import sys
+from pathlib import Path
 
-from backend.analytics.services.decision_engine import (
+BACKEND_DIR = Path(__file__).resolve().parents[1] / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
+from apps.analytics.services.decision_engine import (
     calculate_risk_profile,
     optimize_rows,
     simulate_rows,

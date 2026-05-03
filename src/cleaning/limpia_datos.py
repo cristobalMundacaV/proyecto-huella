@@ -16,8 +16,20 @@ def limpiar_datos(datos):
         if columna not in datos.columns:
             raise ValueError(f"Falta la columna obligatoria: {columna}")
         
-    datos["empresa"] = datos["empresa"].astype(str).str.strip()
-    datos["actividad"] = datos["actividad"].astype(str).str.strip().str.lower()
+    datos["empresa"] = (
+        datos["empresa"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        .str.title()
+    )
+    datos["actividad"] = (
+        datos["actividad"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        .str.title()
+    )
     datos["cantidad"] = datos["cantidad"].astype(float)
 
     datos = datos.dropna(subset=columnas_obligatorias)
