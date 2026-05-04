@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import (
+    reporte_emisiones_tiempo,
     ai_advisor,
     calcular_distancia_ruta,
     dashboard_data,
@@ -127,5 +128,10 @@ urlpatterns = [
     path(
         "integraciones/lotes/<str:id_lote>/ficha-tecnica/",
         integracion_lote_ficha_tecnica,
+    ),
+    path(
+    "empresas/<str:empresa_id>/reportes/emisiones-tiempo/",
+    reporte_emisiones_tiempo,
+    name="reporte-emisiones-tiempo",
     ),
 ]

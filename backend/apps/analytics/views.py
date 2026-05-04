@@ -3,6 +3,8 @@ import csv
 import json
 from io import StringIO
 
+from decimal import Decimal
+from .models import Empresa, EmisionLote
 from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -11,6 +13,9 @@ from django.db.models import Q
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
+from django.db.models import Sum
+from collections import defaultdict
+from datetime import datetime
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 
@@ -1562,3 +1567,223 @@ def risk_score_data(request):
             user_message="No se pudo calcular el perfil de riesgo",
             status=400,
         )
+
+@api_view(["GET"])
+def reporte_emisiones_tiempo(request, empresa_id):
+    """
+    Reporte temporal de emisiones por empresa.
+    Agrupa emisiones por día, mes o año según query param.
+    """
+
+    agrupacion = request.GET.get("agrupacion", "mes")
+    fecha_inicio = request.GET.get("fecha_inicio")
+    fecha_fin = request.GET.get("fecha_fin")
+    unidad_id = request.GET.get("unidad_id")
+    categoria = request.GET.get("categoria")
+    actividad_query = request.GET.get("actividad")
+
+    # Ajusta estos nombres si tu modelo se llama distinto
+    actividades = EmisionLote.objects.filter(
+        Q(lote__empresa__empresa_id=empresa_id)
+        | Q(unidad_operativa__empresa__empresa_id=empresa_id)
+        | Q(empresa__empresa_id=empresa_id)
+    ).select_related("lote", "unidad_operativa", "empresa")
+
+    if fecha_inicio:
+        actividades = actividades.filter(fecha__gte=fecha_inicio)
+
+    if fecha_fin:
+        actividades = actividades.filter(fecha__lte=fecha_fin)
+
+    if unidad_id:
+        actividades = actividades.filter(unidad_operativa__unidad_id=unidad_id)
+
+    if categoria:
+        actividades = actividades.filter(categoria__iexact=categoria)
+
+    if actividad_query:
+        actividades = actividades.filter(actividad__icontains=actividad_query)
+
+    rows = []
+    serie_dict = defaultdict(lambda: {
+        "emisiones": 0,
+        "actividades": 0,
+        "lotes": set(),
+    })
+
+    categoria_dict = defaultdict(float)
+    unidad_dict = defaultdict(float)
+    actividad_dict = defaultdict(float)
+
+    emisiones_totales = 0
+
+    for act in actividades:
+        emisiones = float(getattr(act, "emisiones_kg_co2e", 0) or 0)
+        fecha = getattr(act, "fecha", None)
+
+        if not fecha:
+            continue
+
+        if agrupacion == "dia":
+            periodo = fecha.strftime("%Y-%m-%d")
+            label = fecha.strftime("%d-%m-%Y")
+        elif agrupacion == "anio":
+            periodo = fecha.strftime("%Y")
+            label = fecha.strftime("%Y")
+        else:
+            periodo = fecha.strftime("%Y-%m")
+            label = fecha.strftime("%b %Y")
+
+        lote = getattr(act, "lote", None)
+        unidad_obj = getattr(act, "unidad_operativa", None)
+
+        nombre_actividad = getattr(act, "actividad", "Sin actividad") or "Sin actividad"
+        categoria_act = getattr(act, "categoria", "Sin categoría") or "Sin categoría"
+        unidad_nombre = unidad_obj.nombre if unidad_obj else "Sin unidad"
+        lote_id = lote.id_lote if lote else "-"
+
+        emisiones_totales += emisiones
+
+        serie_dict[periodo]["emisiones"] += emisiones
+        serie_dict[periodo]["actividades"] += 1
+
+        if lote_id and lote_id != "-":
+            serie_dict[periodo]["lotes"].add(lote_id)
+
+        categoria_dict[categoria_act] += emisiones
+        unidad_dict[unidad_nombre] += emisiones
+        actividad_dict[nombre_actividad] += emisiones
+
+        rows.append({
+            "fecha": fecha.strftime("%Y-%m-%d"),
+            "periodo": periodo,
+            "unidad_nombre": unidad_nombre,
+            "id_lote": lote_id,
+            "categoria": categoria_act,
+            "actividad": nombre_actividad,
+            "cantidad": float(getattr(act, "cantidad", 0) or 0),
+            "unidad": getattr(act, "unidad", "") or "",
+            "emisiones": round(emisiones, 2),
+        })
+    serie_temporal = []
+    for periodo, data in sorted(serie_dict.items()):
+        serie_temporal.append({
+            "periodo": periodo,
+            "label": periodo,
+            "emisiones": round(data["emisiones"], 2),
+            "actividades": data["actividades"],
+            "lotes": len(data["lotes"]),
+        })
+
+    periodo_mayor = None
+    periodo_menor = None
+
+    if serie_temporal:
+        periodo_mayor = max(serie_temporal, key=lambda x: x["emisiones"])
+        periodo_menor = min(serie_temporal, key=lambda x: x["emisiones"])
+
+    if len(serie_temporal) >= 2:
+        anterior = serie_temporal[-2]["emisiones"]
+        ultimo = serie_temporal[-1]["emisiones"]
+
+        if anterior > 0:
+            variacion = ((ultimo - anterior) / anterior) * 100
+        else:
+            variacion = 0
+
+        if variacion > 5:
+            tendencia = "Al alza"
+        elif variacion < -5:
+            tendencia = "A la baja"
+        else:
+            tendencia = "Estable"
+    else:
+        variacion = 0
+        tendencia = "Sin comparación"
+
+    actividad_critica = max(actividad_dict.items(), key=lambda x: x[1])[0] if actividad_dict else "Sin datos"
+    unidad_critica = max(unidad_dict.items(), key=lambda x: x[1])[0] if unidad_dict else "Sin datos"
+
+    cantidad_periodos = len(serie_temporal)
+    promedio_periodo = emisiones_totales / cantidad_periodos if cantidad_periodos else 0
+
+    por_categoria = [
+        {
+            "categoria": key,
+            "emisiones": round(value, 2),
+            "porcentaje": round((value / emisiones_totales) * 100, 1) if emisiones_totales else 0,
+        }
+        for key, value in sorted(categoria_dict.items(), key=lambda x: x[1], reverse=True)
+    ]
+
+    por_unidad = [
+        {
+            "unidad_nombre": key,
+            "emisiones": round(value, 2),
+            "porcentaje": round((value / emisiones_totales) * 100, 1) if emisiones_totales else 0,
+        }
+        for key, value in sorted(unidad_dict.items(), key=lambda x: x[1], reverse=True)
+    ]
+
+    por_actividad = [
+        {
+            "actividad": key,
+            "emisiones": round(value, 2),
+            "porcentaje": round((value / emisiones_totales) * 100, 1) if emisiones_totales else 0,
+        }
+        for key, value in sorted(actividad_dict.items(), key=lambda x: x[1], reverse=True)
+    ]
+
+    insights = []
+
+    if emisiones_totales == 0:
+        insights.append("Esta empresa aún no tiene emisiones registradas para el periodo seleccionado.")
+    else:
+        if tendencia == "Al alza":
+            insights.append(f"Las emisiones muestran una tendencia al alza de {round(variacion, 1)}%.")
+        elif tendencia == "A la baja":
+            insights.append(f"Las emisiones disminuyeron {abs(round(variacion, 1))}% respecto al periodo anterior.")
+        elif tendencia == "Estable":
+            insights.append("Las emisiones se mantienen relativamente estables entre periodos.")
+        else:
+            insights.append("Se necesita más de un periodo para calcular una tendencia.")
+
+        if actividad_critica != "Sin datos":
+            insights.append(f"La actividad crítica del periodo es {actividad_critica}.")
+
+        if unidad_critica != "Sin datos":
+            insights.append(f"La unidad operativa con mayor carga de emisiones es {unidad_critica}.")
+
+    response = {
+        "empresa": {
+            "id": empresa_id,
+        },
+        "filtros": {
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin,
+            "unidad_id": unidad_id,
+            "categoria": categoria,
+            "actividad": actividad_query,
+            "agrupacion": agrupacion,
+        },
+        "kpis": {
+            "emisiones_totales_periodo": round(emisiones_totales, 2),
+            "periodo_mayor_emision": periodo_mayor["periodo"] if periodo_mayor else "Sin datos",
+            "emisiones_periodo_mayor": periodo_mayor["emisiones"] if periodo_mayor else 0,
+            "periodo_menor_emision": periodo_menor["periodo"] if periodo_menor else "Sin datos",
+            "emisiones_periodo_menor": periodo_menor["emisiones"] if periodo_menor else 0,
+            "variacion_periodo": round(variacion, 1),
+            "tendencia": tendencia,
+            "actividad_critica_periodo": actividad_critica,
+            "unidad_critica_periodo": unidad_critica,
+            "promedio_periodo": round(promedio_periodo, 2),
+        },
+        "serie_temporal": serie_temporal,
+        "por_categoria": por_categoria,
+        "por_unidad": por_unidad,
+        "por_actividad": por_actividad,
+        "rows": rows,
+        "insights": insights,
+    }
+
+    return Response(response, status=status.HTTP_200_OK)

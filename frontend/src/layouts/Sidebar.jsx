@@ -48,17 +48,17 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
       label: "Importacion de datos",
       view: "importaciones",
     },
+    
+    {
+      icon: BarChart3,
+      label: "Reportes",
+      view: "reportes",
+    },
     {
       disabled: true,
       icon: FileCheck2,
       label: "Evidencias",
       view: "evidencias",
-    },
-    {
-      disabled: true,
-      icon: BarChart3,
-      label: "Reportes",
-      view: "reportes",
     },
     {
       disabled: true,

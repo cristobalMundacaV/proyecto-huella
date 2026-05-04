@@ -59,6 +59,10 @@ export function calculateRiskProfile(data, optimizedScenario) {
     data?.emisiones_por_actividad,
     totalFromActivities
   );
+  const companyConcentration = maxShare(
+    data?.emisiones_por_empresa,
+    sumValues(data?.emisiones_por_empresa) || total || 1
+  );
   const unitConcentration = maxShare(
     data?.emisiones_por_unidad_operativa,
     sumValues(data?.emisiones_por_unidad_operativa) || total || 1
@@ -76,6 +80,7 @@ export function calculateRiskProfile(data, optimizedScenario) {
   const score = clamp(
       totalComponent * 0.3 +
       activityConcentration * 0.25 +
+      companyConcentration * 0.15 +
       unitConcentration * 0.2 +
       dieselComponent * 0.15 +
       potentialReduction * 0.1
@@ -91,6 +96,7 @@ export function calculateRiskProfile(data, optimizedScenario) {
         score: totalComponent,
       },
       activityConcentration,
+      companyConcentration,
       unitConcentration,
       dieselPresent,
       potentialReduction,

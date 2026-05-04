@@ -16,6 +16,29 @@ function buildEmpresaScopedPath(empresaId, path) {
   return `/empresas/${encodeURIComponent(empresaId)}${path}`;
 }
 
+export async function getReporteEmisionesTiempo(empresaId, params = {}) {
+  const query = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      query.append(key, value);
+    }
+  });
+
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+
+  try {
+    const response = await api.get(
+      `/empresas/${empresaId}/reportes/emisiones-tiempo/${suffix}`
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Error al cargar reporte de emisiones:", error);
+    throw error;
+  }
+}
+
 export function getLoteIntegracionUrl(idLote) {
   return buildApiUrl(`/integraciones/lotes/${encodeURIComponent(idLote)}/`);
 }

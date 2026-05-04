@@ -30,6 +30,7 @@ import FactoresView from "@/features/factores/pages/FactoresPage";
 import ImportacionesView from "@/features/importaciones/pages/ImportacionesPage";
 import LotesView from "@/features/lotes/pages/LotesPage";
 import UnidadesOperativasView from "@/features/unidades/pages/UnidadesPage";
+import ReportesView from "@/features/reportes/pages/ReportesView";
 import {
   api,
   getAiAdvisor,
@@ -215,7 +216,8 @@ const dashboardRows = Array.isArray(data?.datos) ? data.datos : [];
 
 const emisionesPorEmpresa = data?.emisiones_por_empresa ?? {};
 const emisionesPorActividad = data?.emisiones_por_actividad ?? {};
-const emisionesPorUnidad = data?.emisiones_por_unidad ?? data?.emisiones_por_empresa ?? {};
+const emisionesPorUnidad =
+  data?.emisiones_por_unidad_operativa ?? data?.emisiones_por_unidad ?? {};
 
 const empresas = Object.entries(emisionesPorEmpresa).map(
   ([empresa, emisiones]) => ({
@@ -242,9 +244,9 @@ const empresaBarSize = getBarSizeForRowCount(empresas.length);
 const actividadBarSize = getBarSizeForRowCount(actividades.length);
 const unidadBarSize = getBarSizeForRowCount(unidades.length);
 
-const empresaCritica = empresas[0]?.empresa || "Sin datos";
+const empresaCritica = data?.empresa_critica || data?.empresa_nombre || empresas[0]?.empresa || "Sin datos";
 const actividadCritica = actividades[0]?.actividad || "Sin datos";
-const unidadCritica = unidades[0]?.unidad || empresaCritica || "Sin datos";
+const unidadCritica = data?.unidad_critica || unidades[0]?.unidad || "Sin datos";
 const safeDashboardData = {
   ...data,
   datos: dashboardRows,
@@ -370,6 +372,11 @@ const validationSummary = {
           />
         ) : activeView === "unidades" ? (
           <UnidadesOperativasView />
+        ) : activeView === "reportes" ? (
+          <ReportesView 
+              activeEmpresaId={activeEmpresaId}
+              activeEmpresa={activeEmpresa}
+          />
         ) : activeView === "emisiones" ? (
           <EmisionesView onSetActiveView={handleSetActiveView} />
         ) : activeView === "factores" ? (
@@ -377,6 +384,7 @@ const validationSummary = {
         ) : activeView === "importaciones" ? (
           <ImportacionesView onImportConfirmed={refreshInternalDashboard} />
         ) : (
+
         <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
           <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3">
@@ -402,6 +410,7 @@ const validationSummary = {
 
           <ExecutiveSummary
             actividadCritica={actividadCritica}
+            empresaCritica={empresaCritica}
             unidadCritica={unidadCritica}
             optimizedScenario={recommendedScenario}
             riskProfile={riskProfile}
@@ -449,7 +458,7 @@ const validationSummary = {
           />
 
           <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-            <ChartCard title="Emisiones por unidad">
+            <ChartCard title="Emisiones por unidad operativa">
               <div className="h-64 sm:h-72 lg:h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
