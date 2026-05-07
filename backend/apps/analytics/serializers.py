@@ -2,8 +2,10 @@ from rest_framework import serializers
 
 from .models import (
     DocumentoLote,
+    Evidencia,
     EmisionLote,
     Empresa,
+    EmpresaConfiguracion,
     EspecieMadera,
     ExtraccionDocumento,
     FactorEmision,
@@ -127,27 +129,47 @@ class EmpresaSerializer(serializers.ModelSerializer):
         return list(empresa.actividades_emision.all())
 
     def get_unidades_count(self, empresa):
+        if self.context.get("is_list_view") and hasattr(empresa, "unidades_count_val"):
+            return empresa.unidades_count_val
         return empresa.unidades_operativas.count()
 
     def get_lotes_count(self, empresa):
+        if self.context.get("is_list_view") and hasattr(empresa, "lotes_count_val"):
+            return empresa.lotes_count_val
         return empresa.lotes.count()
 
     def get_actividades_count(self, empresa):
+        if self.context.get("is_list_view") and hasattr(empresa, "actividades_count_val"):
+            return empresa.actividades_count_val
         return empresa.actividades_emision.count()
 
     def get_emisiones_totales_kg_co2e(self, empresa):
+        # For list views we prefer using the annotated DB value when available
+        # to avoid iterating related objects in Python (heavy). The view
+        # annotates `emisiones_totales_val` when possible.
+        if self.context.get("is_list_view"):
+            annotated = getattr(empresa, "emisiones_totales_val", None)
+            if annotated is not None:
+                return float(annotated)
+            return 0
         return sum((actividad.emisiones_kg_co2e for actividad in self._actividades(empresa)), 0)
 
     def get_co2_almacenado_kg(self, empresa):
+        if self.context.get("is_list_view"):
+            return 0
         return sum(
             (calcular_carbono_almacenado(lote)["co2_almacenado_kg"] for lote in self._lotes(empresa)),
             0,
         )
 
     def get_balance_neto_kg_co2e(self, empresa):
+        if self.context.get("is_list_view"):
+            return 0
         return self.get_emisiones_totales_kg_co2e(empresa) - self.get_co2_almacenado_kg(empresa)
 
     def get_pasaportes_emitidos(self, empresa):
+        if self.context.get("is_list_view"):
+            return 0
         return sum(
             1
             for lote in self._lotes(empresa)
@@ -155,9 +177,13 @@ class EmpresaSerializer(serializers.ModelSerializer):
         )
 
     def get_evidencias_count(self, empresa):
+        if self.context.get("is_list_view"):
+            return 0
         return sum(lote.documentos.count() for lote in self._lotes(empresa))
 
     def get_unidades_resumen(self, empresa):
+        if self.context.get("is_list_view"):
+            return []
         return [
             {
                 "id": unidad.id,
@@ -178,6 +204,8 @@ class EmpresaSerializer(serializers.ModelSerializer):
         ]
 
     def get_lotes_resumen(self, empresa):
+        if self.context.get("is_list_view"):
+            return []
         lotes = []
         for lote in self._lotes(empresa):
             balance = calcular_balance_lote(lote)
@@ -200,6 +228,8 @@ class EmpresaSerializer(serializers.ModelSerializer):
         return lotes
 
     def get_actividades_resumen(self, empresa):
+        if self.context.get("is_list_view"):
+            return []
         return [
             {
                 "id": actividad.id,
@@ -221,6 +251,8 @@ class EmpresaSerializer(serializers.ModelSerializer):
         ]
 
     def get_evidencias_resumen(self, empresa):
+        if self.context.get("is_list_view"):
+            return []
         evidencias = []
         for lote in self._lotes(empresa):
             for documento in lote.documentos.all():
@@ -236,6 +268,8 @@ class EmpresaSerializer(serializers.ModelSerializer):
         return evidencias
 
     def get_unidad_inicial(self, empresa):
+        if self.context.get("is_list_view"):
+            return None
         unidad = empresa.unidades_operativas.order_by("created_at").first()
         if not unidad:
             return None
@@ -456,6 +490,71 @@ class DocumentoLoteSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+
+class EvidenciaSerializer(serializers.ModelSerializer):
+    empresa_nombre = serializers.CharField(source="empresa.nombre", read_only=True)
+    empresa_codigo = serializers.CharField(source="empresa.empresa_id", read_only=True)
+    unidad_nombre = serializers.CharField(source="unidad_operativa.nombre", read_only=True)
+    unidad_codigo = serializers.CharField(source="unidad_operativa.unidad_id", read_only=True)
+    lote_codigo = serializers.CharField(source="lote.id_lote", read_only=True)
+    archivo_url = serializers.SerializerMethodField()
+    alcance = serializers.CharField(read_only=False, required=False)
+    estado_sistema = serializers.CharField(read_only=True)
+    estado_revision = serializers.CharField(read_only=True)
+    alcance_label = serializers.CharField(source="get_alcance_display", read_only=True)
+    estado_sistema_label = serializers.CharField(source="get_estado_sistema_display", read_only=True)
+    estado_revision_label = serializers.CharField(source="get_estado_revision_display", read_only=True)
+
+    class Meta:
+        model = Evidencia
+        fields = [
+            "id",
+            "empresa",
+            "empresa_nombre",
+            "empresa_codigo",
+            "unidad_operativa",
+            "unidad_nombre",
+            "unidad_codigo",
+            "lote",
+            "lote_codigo",
+            "emision",
+            "tipo_documento",
+            "nombre",
+            "archivo",
+            "archivo_url",
+            "fecha_documento",
+            "estado",
+            "observaciones",
+            "alcance",
+            "alcance_label",
+            "estado_sistema",
+            "estado_sistema_label",
+            "estado_revision",
+            "estado_revision_label",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "empresa",
+            "empresa_nombre",
+            "empresa_codigo",
+            "unidad_nombre",
+            "unidad_codigo",
+            "lote_codigo",
+            "archivo_url",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_archivo_url(self, evidencia):
+        request = self.context.get("request")
+        if not evidencia.archivo:
+            return ""
+        if request:
+            return request.build_absolute_uri(evidencia.archivo.url)
+        return evidencia.archivo.url
         read_only_fields = [
             "id",
             "archivo_url",
@@ -574,12 +673,57 @@ class ExtraccionDocumentoSerializer(serializers.ModelSerializer):
         ]
 
 
+class EmpresaMiniSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Empresa
+        fields = [
+            "id",
+            "empresa_id",
+            "nombre",
+            "rut",
+            "region",
+            "comuna",
+            "rubro",
+            "activa",
+        ]
+        read_only_fields = fields
+
+
+class EmpresaConfiguracionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmpresaConfiguracion
+        fields = "__all__"
+        read_only_fields = ["id", "empresa", "created_at", "updated_at"]
+
+
+class UnidadOperativaMiniSerializer(serializers.ModelSerializer):
+    empresa_id = serializers.CharField(source="empresa.empresa_id", read_only=True)
+    empresa_nombre = serializers.CharField(source="empresa.nombre", read_only=True)
+
+    class Meta:
+        model = UnidadOperativa
+        fields = [
+            "id",
+            "unidad_id",
+            "empresa_id",
+            "empresa_nombre",
+            "nombre",
+            "tipo",
+            "region",
+            "comuna",
+            "direccion",
+            "descripcion",
+            "activa",
+        ]
+        read_only_fields = fields
+
+
 class LoteSerializer(serializers.ModelSerializer):
     empresa = serializers.CharField(source="empresa_aserradero", required=False)
     empresa_id = serializers.CharField(write_only=True, required=False, allow_blank=True)
     unidad_id = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    empresa_operacional = EmpresaSerializer(source="empresa", read_only=True)
-    unidad_operativa_detalle = UnidadOperativaSerializer(source="unidad_operativa", read_only=True)
+    empresa_operacional = EmpresaMiniSerializer(source="empresa", read_only=True)
+    unidad_operativa_detalle = UnidadOperativaMiniSerializer(source="unidad_operativa", read_only=True)
     actividades = EmisionLoteSerializer(many=True, read_only=True)
     documentos = DocumentoLoteSerializer(many=True, read_only=True)
     transportes = TransporteLoteSerializer(many=True, read_only=True)
@@ -735,68 +879,88 @@ class LoteSerializer(serializers.ModelSerializer):
 
         return attrs
 
+    def _carbono(self, lote):
+        if not hasattr(lote, "_serializer_carbono"):
+            lote._serializer_carbono = calcular_carbono_almacenado(lote)
+        return lote._serializer_carbono
+
+    def _balance(self, lote):
+        if not hasattr(lote, "_serializer_balance"):
+            lote._serializer_balance = calcular_balance_lote(lote)
+        return lote._serializer_balance
+
+    def _pasaporte(self, lote):
+        if not hasattr(lote, "_serializer_pasaporte"):
+            lote._serializer_pasaporte = calcular_pasaporte_lote(lote)
+        return lote._serializer_pasaporte
+
+    def _confianza(self, lote):
+        if not hasattr(lote, "_serializer_confianza"):
+            lote._serializer_confianza = calcular_confianza_lote(lote)
+        return lote._serializer_confianza
+
     def get_densidad_kg_m3(self, lote):
-        return calcular_carbono_almacenado(lote)["densidad_kg_m3"]
+        return self._carbono(lote)["densidad_kg_m3"]
 
     def get_porcentaje_carbono(self, lote):
-        return calcular_carbono_almacenado(lote)["porcentaje_carbono"]
+        return self._carbono(lote)["porcentaje_carbono"]
 
     def get_masa_madera_kg(self, lote):
-        return calcular_carbono_almacenado(lote)["masa_madera_kg"]
+        return self._carbono(lote)["masa_madera_kg"]
 
     def get_carbono_almacenado_kg(self, lote):
-        return calcular_carbono_almacenado(lote)["carbono_almacenado_kg"]
+        return self._carbono(lote)["carbono_almacenado_kg"]
 
     def get_co2_almacenado_kg(self, lote):
-        return calcular_carbono_almacenado(lote)["co2_almacenado_kg"]
+        return self._carbono(lote)["co2_almacenado_kg"]
 
     def get_balance_neto_kg_co2e(self, lote):
-        return calcular_balance_lote(lote)["balance_neto_kg_co2e"]
+        return self._balance(lote)["balance_neto_kg_co2e"]
 
     def get_estado_balance(self, lote):
-        return calcular_balance_lote(lote)["estado_balance"]
+        return self._balance(lote)["estado_balance"]
 
     def get_descripcion_balance(self, lote):
-        return calcular_balance_lote(lote)["descripcion_balance"]
+        return self._balance(lote)["descripcion_balance"]
 
     def get_trazabilidad_score(self, lote):
-        return calcular_pasaporte_lote(lote)["trazabilidad_score"]
+        return self._pasaporte(lote)["trazabilidad_score"]
 
     def get_completitud_score(self, lote):
-        return calcular_pasaporte_lote(lote)["completitud_score"]
+        return self._pasaporte(lote)["completitud_score"]
 
     def get_factor_score(self, lote):
-        return calcular_pasaporte_lote(lote)["factor_score"]
+        return self._pasaporte(lote)["factor_score"]
 
     def get_balance_calculado(self, lote):
-        return calcular_pasaporte_lote(lote)["balance_calculado"]
+        return self._pasaporte(lote)["balance_calculado"]
 
     def get_pasaporte_score(self, lote):
-        return calcular_pasaporte_lote(lote)["pasaporte_score"]
+        return self._pasaporte(lote)["pasaporte_score"]
 
     def get_estado_pasaporte(self, lote):
-        return calcular_pasaporte_lote(lote)["estado_pasaporte"]
+        return self._pasaporte(lote)["estado_pasaporte"]
 
     def get_razon_pasaporte(self, lote):
-        return calcular_pasaporte_lote(lote)["razon_pasaporte"]
+        return self._pasaporte(lote)["razon_pasaporte"]
 
     def get_datos_completos_score(self, lote):
-        return calcular_confianza_lote(lote)["datos_completos_score"]
+        return self._confianza(lote)["datos_completos_score"]
 
     def get_documentos_adjuntos_score(self, lote):
-        return calcular_confianza_lote(lote)["documentos_adjuntos_score"]
+        return self._confianza(lote)["documentos_adjuntos_score"]
 
     def get_factores_validos_score(self, lote):
-        return calcular_confianza_lote(lote)["factores_validos_score"]
+        return self._confianza(lote)["factores_validos_score"]
 
     def get_trazabilidad_confianza_score(self, lote):
-        return calcular_confianza_lote(lote)["trazabilidad_confianza_score"]
+        return self._confianza(lote)["trazabilidad_confianza_score"]
 
     def get_confianza_score(self, lote):
-        return calcular_confianza_lote(lote)["confianza_score"]
+        return self._confianza(lote)["confianza_score"]
 
     def get_estado_confianza(self, lote):
-        return calcular_confianza_lote(lote)["estado_confianza"]
+        return self._confianza(lote)["estado_confianza"]
 
     def get_descripcion_confianza(self, lote):
-        return calcular_confianza_lote(lote)["descripcion_confianza"]
+        return self._confianza(lote)["descripcion_confianza"]

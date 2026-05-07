@@ -117,10 +117,10 @@ function ActividadesTab({
             </tr>
           </thead>
           <tbody>
-            {selectedLote?.actividades?.length === 0 && (
+            {(selectedLote?.actividades?.length || 0) === 0 && (
               <tr>
                 <td colSpan="6" className="py-8 text-center text-slate-400">
-                  Este lote aun no tiene actividades asociadas.
+                  No se han registrado datos.
                 </td>
               </tr>
             )}

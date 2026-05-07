@@ -174,10 +174,10 @@ function TransporteTab({
               </tr>
             </thead>
             <tbody>
-              {selectedLote.transportes?.length === 0 && (
+              {(selectedLote.transportes?.length || 0) === 0 && (
                 <tr>
                   <td colSpan="5" className="py-8 text-center text-slate-400">
-                    Este lote aun no tiene rutas registradas.
+                    No se han registrado datos.
                   </td>
                 </tr>
               )}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import CrearLoteModal from "@/features/lotes/components/CrearLoteModal";
 import LoteDetailView from "@/features/lotes/components/LoteDetailView";
@@ -154,48 +154,68 @@ function LotesView() {
       return;
     }
 
-    let isCancelled = false;
+    const mounted = { current: true };
+    const mountedRef = mounted; // keep name for clarity
 
     async function loadLotes() {
       try {
         const [
           lotesData,
           especiesData,
-          factoresData,
           unidadesData,
         ] = await Promise.all([
           getEmpresaLotes(activeEmpresaId),
           getEspeciesMadera(),
-          getFactoresEmision(),
           getEmpresaUnidades(activeEmpresaId),
         ]);
 
-        if (isCancelled) {
-          return;
-        }
+        // Normalize responses to arrays in case API returns paginated objects
+        const normalizedLotes = Array.isArray(lotesData)
+          ? lotesData
+          : lotesData?.results || [];
+        const normalizedEspecies = Array.isArray(especiesData)
+          ? especiesData
+          : especiesData?.results || [];
+        const normalizedUnidades = Array.isArray(unidadesData)
+          ? unidadesData
+          : unidadesData?.results || [];
 
-        setLotes(lotesData);
-        setUnidadesOperativas(unidadesData);
-        setEspeciesMadera(especiesData);
-        setFactoresEmision(factoresData);
-        setSelectedLote(lotesData[0] || null);
+        if (!mountedRef.current) return;
+
+        setLotes(normalizedLotes);
+        setUnidadesOperativas(normalizedUnidades);
+        setEspeciesMadera(normalizedEspecies);
+        setFactoresEmision([]);
+        setSelectedLote(normalizedLotes[0] || null);
         setSelectedCarbono(null);
         setEmpresas(activeEmpresa ? [activeEmpresa] : []);
         setForm((currentForm) => ({
           ...currentForm,
           empresa_id: activeEmpresaId,
           empresa_aserradero: activeEmpresa?.nombre || currentForm.empresa_aserradero,
-          especie: currentForm.especie || especiesData[0]?.nombre || "",
+          especie: currentForm.especie || normalizedEspecies[0]?.nombre || "",
         }));
+
+        getFactoresEmision()
+          .then((factoresData) => {
+            if (!mountedRef.current) return;
+            setFactoresEmision(
+              Array.isArray(factoresData) ? factoresData : factoresData?.results || []
+            );
+          })
+          .catch(() => {
+            if (mountedRef.current) {
+              setFactoresEmision([]);
+            }
+          });
       } catch (requestError) {
-        if (!isCancelled) {
+        if (mountedRef.current) {
           setError(
-            requestError.response?.data?.error ||
-              "No se pudieron cargar los lotes."
+            requestError?.response?.data?.error || "No se pudieron cargar los lotes."
           );
         }
       } finally {
-        if (!isCancelled) {
+        if (mountedRef.current) {
           setLoading(false);
         }
       }
@@ -204,7 +224,7 @@ function LotesView() {
     loadLotes();
 
     return () => {
-      isCancelled = true;
+      mountedRef.current = false;
     };
   }, [activeEmpresa, activeEmpresaId]);
 

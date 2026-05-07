@@ -18,9 +18,17 @@ function HistorialTab({
       {historyLoading && <p className="text-slate-400">Cargando historial...</p>}
 
       {!historyLoading && history.length === 0 && (
-        <p className="text-slate-400">
-          No hay cambios registrados para este lote.
-        </p>
+        <div className="overflow-x-auto">
+          <table className="min-w-[760px] w-full text-sm">
+            <tbody>
+              <tr className="border-y border-slate-800/60">
+                <td className="py-8 text-center text-slate-400">
+                  No se han registrado datos.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       )}
 
       {!historyLoading && history.length > 0 && (

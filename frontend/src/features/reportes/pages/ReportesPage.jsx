@@ -1,12 +1,10 @@
-import EmptyState from "@/shared/components/EmptyState";
+import { useEmpresaActiva } from "@/features/empresas/context/EmpresaActivaContext";
+import ReportesView from "./ReportesView";
 
 function ReportesPage() {
-  return (
-    <EmptyState
-      title="Reportes"
-      description="La vista de reportes se alimentara de empresas, unidades, lotes y actividades."
-    />
-  );
+  const { activeEmpresa, activeEmpresaId } = useEmpresaActiva();
+
+  return <ReportesView activeEmpresa={activeEmpresa} activeEmpresaId={activeEmpresaId} />;
 }
 
 export default ReportesPage;

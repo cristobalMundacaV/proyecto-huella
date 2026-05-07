@@ -145,14 +145,23 @@ function EvidenciasTab({
           </p>
         )}
 
-        <div className="space-y-3">
-          {selectedLote.documentos?.length === 0 && (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-400">
-              Este lote aun no tiene evidencias documentales.
-            </p>
-          )}
+        {(selectedLote.documentos?.length || 0) === 0 && (
+          <div className="overflow-x-auto">
+            <table className="min-w-[760px] w-full text-sm">
+              <tbody>
+                <tr className="border-y border-slate-800/60">
+                  <td className="py-8 text-center text-slate-400">
+                    No se han registrado datos.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
 
-          {selectedLote.documentos?.map((documento) => (
+        {(selectedLote.documentos?.length || 0) > 0 && (
+          <div className="space-y-3">
+            {selectedLote.documentos?.map((documento) => (
             <div
               key={documento.id}
               className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-800 bg-slate-950 p-4 md:grid-cols-[minmax(0,1fr)_auto]"
@@ -209,8 +218,9 @@ function EvidenciasTab({
                 {documento.estado_validacion_label}
               </div>
             </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {activeExtraction && (
           <div className="mt-5 rounded-3xl border border-sky-400/20 bg-sky-400/10 p-4">

@@ -320,6 +320,178 @@ class AnalyticsApiIntegrationTest(APITestCase):
 			)
 		)
 
+	def test_empresa_import_unidades_uses_active_company_when_empresa_id_differs(self):
+		empresa_archivo = Empresa.objects.create(
+			empresa_id="EMP-ARCHIVO-UN",
+			nombre="Empresa Archivo Unidades",
+		)
+		empresa_activa = Empresa.objects.create(
+			empresa_id="EMP-ACTIVA-UN",
+			nombre="Empresa Activa Unidades",
+		)
+		uploaded_file = SimpleUploadedFile(
+			"unidades.csv",
+			(
+				"unidad_id,empresa_id,nombre,tipo\n"
+				f"UNI-TENANT-001,{empresa_archivo.empresa_id},Unidad Tenant,Secado\n"
+			).encode("utf-8"),
+			content_type="text/csv",
+		)
+
+		preview_response = self.client.post(
+			f"/api/empresas/{empresa_activa.empresa_id}/importaciones/unidades/preview/",
+			data={"file": uploaded_file},
+			format="multipart",
+		)
+		confirm_response = self.client.post(
+			f"/api/empresas/{empresa_activa.empresa_id}/importaciones/unidades/confirm/",
+			data={"batch_id": preview_response.data["batch_id"]},
+			format="json",
+		)
+
+		self.assertEqual(preview_response.status_code, status.HTTP_200_OK)
+		self.assertEqual(preview_response.data["summary"]["validas"], 1)
+		self.assertIn(
+			"empresa_id del archivo difiere de la empresa activa; se importara usando la empresa activa",
+			preview_response.data["rows"][0].get("warnings", []),
+		)
+		self.assertEqual(confirm_response.status_code, status.HTTP_200_OK)
+		unidad = UnidadOperativa.objects.get(unidad_id="UNI-TENANT-001")
+		self.assertEqual(unidad.empresa, empresa_activa)
+
+	def test_empresa_import_lotes_uses_active_company_when_empresa_id_differs(self):
+		empresa_archivo = Empresa.objects.create(
+			empresa_id="EMP-ARCHIVO-LOT",
+			nombre="Empresa Archivo Lotes",
+		)
+		empresa_activa = Empresa.objects.create(
+			empresa_id="EMP-ACTIVA-LOT",
+			nombre="Empresa Activa Lotes",
+		)
+		uploaded_file = SimpleUploadedFile(
+			"lotes.csv",
+			(
+				"id_lote,empresa_id,empresa,fecha,especie,volumen_m3,origen,destino\n"
+				f"LOTE-TENANT-001,{empresa_archivo.empresa_id},Empresa Archivo Lotes,2026-04-28,Pino radiata,10,Curico,Santiago\n"
+			).encode("utf-8"),
+			content_type="text/csv",
+		)
+
+		preview_response = self.client.post(
+			f"/api/empresas/{empresa_activa.empresa_id}/importaciones/lotes/preview/",
+			data={"file": uploaded_file},
+			format="multipart",
+		)
+		confirm_response = self.client.post(
+			f"/api/empresas/{empresa_activa.empresa_id}/importaciones/lotes/confirm/",
+			data={"batch_id": preview_response.data["batch_id"]},
+			format="json",
+		)
+
+		self.assertEqual(preview_response.status_code, status.HTTP_200_OK)
+		self.assertEqual(preview_response.data["summary"]["validas"], 1)
+		self.assertIn(
+			"empresa_id del archivo difiere de la empresa activa; se importara usando la empresa activa",
+			preview_response.data["rows"][0].get("warnings", []),
+		)
+		self.assertEqual(confirm_response.status_code, status.HTTP_200_OK)
+		lote = Lote.objects.get(id_lote="LOTE-TENANT-001")
+		self.assertEqual(lote.empresa, empresa_activa)
+
+	def test_empresa_import_actividades_uses_active_company_when_empresa_id_differs(self):
+		empresa_archivo = Empresa.objects.create(
+			empresa_id="EMP-ARCHIVO-ACT",
+			nombre="Empresa Archivo Actividades",
+		)
+		empresa_activa = Empresa.objects.create(
+			empresa_id="EMP-ACTIVA-ACT",
+			nombre="Empresa Activa Actividades",
+		)
+		unidad_activa = UnidadOperativa.objects.create(
+			unidad_id="UNI-TENANT-ACT",
+			empresa=empresa_activa,
+			nombre="Unidad Activa",
+			tipo=UnidadOperativa.Tipo.ASERRADERO,
+		)
+		FactorEmision.objects.create(
+			actividad="diesel",
+			unidad="litros",
+			factor_emision=2.68,
+			fuente="DEFRA",
+			anio=2025,
+		)
+		uploaded_file = SimpleUploadedFile(
+			"actividades.csv",
+			(
+				"unidad_id,empresa_id,actividad,cantidad,unidad,fecha\n"
+				f"{unidad_activa.unidad_id},{empresa_archivo.empresa_id},diesel,10,litros,2026-04-28\n"
+			).encode("utf-8"),
+			content_type="text/csv",
+		)
+
+		preview_response = self.client.post(
+			f"/api/empresas/{empresa_activa.empresa_id}/importaciones/actividades/preview/",
+			data={"file": uploaded_file},
+			format="multipart",
+		)
+		confirm_response = self.client.post(
+			f"/api/empresas/{empresa_activa.empresa_id}/importaciones/actividades/confirm/",
+			data={"batch_id": preview_response.data["batch_id"]},
+			format="json",
+		)
+
+		self.assertEqual(preview_response.status_code, status.HTTP_200_OK)
+		self.assertEqual(preview_response.data["summary"]["filas_validas"], 1)
+		self.assertIn(
+			"empresa_id del archivo difiere de la empresa activa; se importara usando la empresa activa",
+			preview_response.data["rows"][0].get("warnings", []),
+		)
+		self.assertEqual(confirm_response.status_code, status.HTTP_200_OK)
+		actividad = EmisionLote.objects.get()
+		self.assertEqual(actividad.empresa, empresa_activa)
+		self.assertEqual(actividad.unidad_operativa, unidad_activa)
+
+	def test_import_lotes_deduces_empresa_from_unidad_id_without_empresa_column(self):
+		"""Test that lote importer can deduce empresa from unidad_id when empresa column is missing."""
+		empresa = Empresa.objects.create(
+			empresa_id="EMP-LOTE-DEDUCE",
+			nombre="Empresa Deduccion",
+		)
+		unidad = UnidadOperativa.objects.create(
+			unidad_id="UNI-LOTE-DEDUCE",
+			empresa=empresa,
+			nombre="Unidad Deduccion",
+			tipo=UnidadOperativa.Tipo.ASERRADERO,
+		)
+		# CSV without "empresa" column - only id_lote, unidad_id, fecha, especie, volumen_m3, origen
+		uploaded_file = SimpleUploadedFile(
+			"lotes_no_empresa.csv",
+			(
+				"id_lote,unidad_id,fecha,especie,volumen_m3,origen\n"
+				f"LOTE-DEDUCE-001,{unidad.unidad_id},2026-04-28,Pino radiata,10,Curico\n"
+			).encode("utf-8"),
+			content_type="text/csv",
+		)
+
+		preview_response = self.client.post(
+			f"/api/empresas/{empresa.empresa_id}/importaciones/lotes/preview/",
+			data={"file": uploaded_file},
+			format="multipart",
+		)
+		confirm_response = self.client.post(
+			f"/api/empresas/{empresa.empresa_id}/importaciones/lotes/confirm/",
+			data={"batch_id": preview_response.data["batch_id"]},
+			format="json",
+		)
+
+		self.assertEqual(preview_response.status_code, status.HTTP_200_OK)
+		self.assertEqual(preview_response.data["summary"]["validas"], 1)
+		self.assertEqual(confirm_response.status_code, status.HTTP_200_OK)
+		lote = Lote.objects.get(id_lote="LOTE-DEDUCE-001")
+		self.assertEqual(lote.empresa, empresa)
+		self.assertEqual(lote.unidad_operativa, unidad)
+		self.assertEqual(lote.empresa_aserradero, empresa.nombre)
+
 	def test_dashboard_groups_by_unidad_operativa(self):
 		empresa = Empresa.objects.create(empresa_id="EMP-DASH-UN", nombre="Forestal Operativa")
 		aserradero = UnidadOperativa.objects.create(

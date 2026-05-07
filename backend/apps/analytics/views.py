@@ -9,11 +9,13 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Count, F, Sum as DBSum, ExpressionWrapper, DecimalField, Value, OuterRef, Subquery
+from django.db.models.functions import Coalesce
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from django.db.models import Sum
+from django.db.models.functions import TruncMonth, TruncYear, TruncDay
 from collections import defaultdict
 from datetime import datetime
 from rest_framework import status
@@ -21,8 +23,10 @@ from rest_framework.pagination import PageNumberPagination
 
 from .models import (
     DocumentoLote,
+    Evidencia,
     EmisionLote,
     Empresa,
+    EmpresaConfiguracion,
     EspecieMadera,
     ExtraccionDocumento,
     FactorEmision,
@@ -31,7 +35,9 @@ from .models import (
 )
 from .serializers import (
     DocumentoLoteSerializer,
+    EvidenciaSerializer,
     EmisionLoteSerializer,
+    EmpresaConfiguracionSerializer,
     EmpresaSerializer,
     EspecieMaderaSerializer,
     ExtraccionDocumentoSerializer,
@@ -88,7 +94,7 @@ def build_system_status():
         "unidades": UnidadOperativa.objects.count(),
         "lotes": Lote.objects.count(),
         "actividades": EmisionLote.objects.count(),
-        "evidencias": DocumentoLote.objects.count(),
+        "evidencias": DocumentoLote.objects.count() + Evidencia.objects.count(),
     }
 
 
@@ -135,18 +141,17 @@ def build_company_state_response(empresa):
 
 
 def build_company_dashboard_response(empresa):
-    lotes = list(
-        Lote.objects.select_related("empresa", "unidad_operativa").filter(
-            Q(empresa=empresa) | Q(unidad_operativa__empresa=empresa)
-        )
+    lotes_qs = Lote.objects.select_related("empresa", "unidad_operativa").filter(
+        Q(empresa=empresa) | Q(unidad_operativa__empresa=empresa)
     )
-    actividades_qs = list(EmisionLote.objects.select_related(
+
+    actividades_qs = EmisionLote.objects.select_related(
         "empresa",
         "unidad_operativa",
         "lote",
         "lote__empresa",
         "lote__unidad_operativa",
-    ).filter(Q(empresa=empresa) | Q(lote__empresa=empresa) | Q(unidad_operativa__empresa=empresa)))
+    ).filter(Q(empresa=empresa) | Q(lote__empresa=empresa) | Q(unidad_operativa__empresa=empresa))
 
     rows = []
     emisiones_por_actividad = {}
@@ -155,17 +160,38 @@ def build_company_dashboard_response(empresa):
     emisiones_por_empresa = {empresa.nombre: 0}
     emisiones_por_lote = {}
     total_emisiones = 0
-    co2_almacenado_total = 0
-    evidencias_count = 0
-    pasaportes_count = 0
 
-    for lote in lotes:
-        balance = calcular_balance_lote(lote)
-        pasaporte = calcular_pasaporte_lote(lote)
-        co2_almacenado_total += float(balance["co2_almacenado_kg"] or 0)
-        evidencias_count += lote.documentos.count()
-        if pasaporte["estado_pasaporte"] != "Sin pasaporte":
-            pasaportes_count += 1
+    # Calcular CO2 almacenado total con una sola agregacion en BD
+    # Usamos Coalesce para usar densidad/porcentaje del lote o de la especie
+    masa_expr = ExpressionWrapper(
+        F("volumen_m3") * Coalesce(F("densidad_kg_m3"), Value(0)),
+        output_field=DecimalField(max_digits=18, decimal_places=6),
+    )
+    carbono_expr = ExpressionWrapper(
+        masa_expr * Coalesce(F("porcentaje_carbono"), Value(0)),
+        output_field=DecimalField(max_digits=18, decimal_places=8),
+    )
+    CO2_FACTOR = Decimal("3.67")
+    co2_expr = ExpressionWrapper(
+        carbono_expr * Value(CO2_FACTOR),
+        output_field=DecimalField(max_digits=20, decimal_places=6),
+    )
+
+    co2_agg = lotes_qs.annotate(_co2=co2_expr).aggregate(total_co2=DBSum("_co2"))
+    co2_almacenado_total = float(co2_agg.get("total_co2") or 0)
+
+    # Evidencias totales y conteo de lotes
+    evidencias_count = DocumentoLote.objects.filter(lote__in=lotes_qs).count()
+    lotes_count = lotes_qs.count()
+
+    # Pasaportes (heuristica): lotes con actividades y con densidad/porcentaje disponibles
+    pasaportes_qs = lotes_qs.filter(
+        Q(volumen_m3__isnull=False)
+        & Q(densidad_kg_m3__isnull=False)
+        & Q(porcentaje_carbono__isnull=False)
+        & Q(actividades__isnull=False)
+    ).distinct()
+    pasaportes_count = pasaportes_qs.count()
 
     for actividad in actividades_qs:
         emisiones = float(actividad.emisiones_kg_co2e or 0)
@@ -218,18 +244,7 @@ def build_company_dashboard_response(empresa):
         sorted(emisiones_por_empresa.items(), key=lambda item: item[1], reverse=True)
     )
 
-    summary = {
-        "total_emisiones": total_emisiones,
-        "emisiones_por_empresa": emisiones_por_company_sorted,
-        "emisiones_por_actividad": emisiones_por_activity_sorted,
-        "datos": rows,
-    }
-    scenario_medio = summarize_rows(
-        simulate_rows(rows, diesel_reduction=10, electricity_increase=0, selected_company=empresa.nombre)
-    )
-    scenario_optimo = optimize_rows(rows)
-    risk = calculate_risk_profile(summary, scenario_optimo)
-
+    # Build summary without running simulate/optimize (heavy operations moved to separate endpoints)
     return {
         "empresa_id": empresa.empresa_id,
         "empresa_nombre": empresa.nombre,
@@ -238,16 +253,13 @@ def build_company_dashboard_response(empresa):
         "co2_almacenado_total": co2_almacenado_total,
         "balance_neto_total": total_emisiones - co2_almacenado_total,
         "unidades_count": empresa.unidades_operativas.count(),
-        "lotes_count": len(lotes),
+        "lotes_count": lotes_count,
         "actividades_count": len(rows),
         "evidencias_count": evidencias_count,
         "pasaportes_count": pasaportes_count,
         "actividad_critica": next(iter(emisiones_por_activity_sorted), "Sin datos"),
         "categoria_critica": next(iter(emisiones_por_category_sorted), "Sin datos"),
         "unidad_critica": next(iter(emisiones_por_unit_sorted), "Sin datos"),
-        "riesgo": risk,
-        "escenario_medio": scenario_medio,
-        "escenario_optimo": scenario_optimo,
         "datos": rows,
         "emisiones_por_actividad": emisiones_por_activity_sorted,
         "emisiones_por_categoria": emisiones_por_category_sorted,
@@ -261,14 +273,25 @@ def empresas(request):
     if request.method == "GET":
         queryset = Empresa.objects.prefetch_related(
             "unidades_operativas",
-            "unidades_operativas__lotes",
-            "unidades_operativas__actividades_emision",
             "lotes",
-            "lotes__documentos",
-            "lotes__actividades",
             "actividades_emision",
+        ).annotate(
+            # Avoid JOIN multiplication when counting several relations at once.
+            unidades_count_val=Count("unidades_operativas", distinct=True),
+            lotes_count_val=Count("lotes", distinct=True),
+            actividades_count_val=Count("actividades_emision", distinct=True),
+            # Annotate total emissions aggregated from actividades_emision to provide
+            # a lightweight value for list views (avoids heavy per-object iteration).
+            emisiones_totales_val=Coalesce(
+                DBSum("actividades_emision__emisiones_kg_co2e"),
+                Value(0, output_field=DecimalField()),
+            ),
         )
-        serializer = EmpresaSerializer(queryset, many=True)
+        serializer = EmpresaSerializer(
+            queryset,
+            many=True,
+            context={"is_list_view": True}
+        )
         return Response(serializer.data)
 
     serializer = EmpresaSerializer(data=request.data)
@@ -311,20 +334,300 @@ def empresa_estado(request, empresa_id):
     return Response(build_company_state_response(empresa))
 
 
+def build_empresa_configuracion_response(empresa, configuracion):
+    return {
+        "empresa": {
+            "nombre": empresa.nombre,
+            "empresa_id": empresa.empresa_id,
+            "rut": empresa.rut,
+            "rubro": empresa.rubro,
+            "region": empresa.region,
+            "comuna": empresa.comuna,
+            "direccion": empresa.direccion,
+            "contacto": empresa.contacto,
+            "email": empresa.email,
+            "telefono": empresa.telefono,
+            "observaciones": empresa.observaciones,
+        },
+        "calculo": {
+            "unidad_emisiones": configuracion.unidad_emisiones,
+            "unidad_volumen_madera": configuracion.unidad_volumen_madera,
+            "porcentaje_carbono_default": float(configuracion.porcentaje_carbono_default),
+            "densidad_madera_default": float(configuracion.densidad_madera_default),
+            "factor_electrico_default": configuracion.factor_electrico_default,
+            "region_electrica_default": configuracion.region_electrica_default,
+            "redondeo_decimales": configuracion.redondeo_decimales,
+            "mostrar_balance_neto": configuracion.mostrar_balance_neto,
+            "permitir_co2_almacenado": configuracion.permitir_co2_almacenado,
+        },
+        "importaciones": {
+            "modo_importacion": configuracion.modo_importacion,
+            "crear_unidades_automaticamente": configuracion.crear_unidades_automaticamente,
+            "crear_lotes_automaticamente": configuracion.crear_lotes_automaticamente,
+            "permitir_actividades_sin_factor": configuracion.permitir_actividades_sin_factor,
+            "actualizar_registros_existentes": configuracion.actualizar_registros_existentes,
+            "bloquear_duplicados": configuracion.bloquear_duplicados,
+            "requerir_unidad_lote": configuracion.requerir_unidad_lote,
+            "requerir_lote_actividad": configuracion.requerir_lote_actividad,
+            "permitir_evidencias_sin_vinculo": configuracion.permitir_evidencias_sin_vinculo,
+        },
+        "pasaporte": {
+            "pasaporte_activo": configuracion.pasaporte_activo,
+            "requiere_balance_favorable": configuracion.pasaporte_requiere_balance_favorable,
+            "requiere_evidencia": configuracion.pasaporte_requiere_evidencia,
+            "requiere_trazabilidad": configuracion.pasaporte_requiere_trazabilidad,
+            "score_verde": configuracion.score_pasaporte_verde,
+            "score_plus": configuracion.score_pasaporte_plus,
+            "score_confianza_minimo": configuracion.score_confianza_minimo,
+        },
+        "evidencias": {
+            "requerida_pasaporte": configuracion.evidencia_requerida_pasaporte,
+            "requerida_lotes_criticos": configuracion.evidencia_requerida_lotes_criticos,
+            "umbral_lote_critico": float(configuracion.umbral_lote_critico),
+            "permitir_empresa": configuracion.permitir_evidencia_empresa,
+            "permitir_unidad": configuracion.permitir_evidencia_unidad,
+            "permitir_lote": configuracion.permitir_evidencia_lote,
+            "permitir_emision": configuracion.permitir_evidencia_emision,
+            "formatos_permitidos": configuracion.formatos_evidencia_permitidos,
+            "max_file_size_mb": configuracion.max_file_size_mb,
+        },
+        "reportes": {
+            "agrupacion_default": configuracion.reporte_agrupacion_default,
+            "periodo_default": configuracion.reporte_periodo_default,
+            "mostrar_categoria": configuracion.reporte_mostrar_categoria,
+            "mostrar_unidad": configuracion.reporte_mostrar_unidad,
+            "mostrar_tabla": configuracion.reporte_mostrar_tabla,
+            "unidad_visual_emisiones": configuracion.reporte_unidad_visual_emisiones,
+            "lectura_ejecutiva": configuracion.reporte_lectura_ejecutiva,
+            "equivalencias": configuracion.reporte_equivalencias,
+        },
+        "updated_at": configuracion.updated_at,
+    }
+
+
+@api_view(["GET", "PUT"])
+def empresa_configuracion(request, empresa_id):
+    empresa = get_empresa_or_404(empresa_id)
+    configuracion, _ = EmpresaConfiguracion.objects.get_or_create(empresa=empresa)
+
+    if request.method == "GET":
+        return Response(build_empresa_configuracion_response(empresa, configuracion))
+
+    data = request.data or {}
+    empresa_data = data.get("empresa") or {}
+    for field in ["nombre", "rut", "rubro", "region", "comuna", "direccion", "contacto", "email", "telefono", "observaciones"]:
+        if field in empresa_data:
+            setattr(empresa, field, empresa_data.get(field) or "")
+    empresa.save()
+
+    flat_payload = {}
+    flat_payload.update(data.get("calculo") or {})
+    flat_payload.update(data.get("importaciones") or {})
+
+    pasaporte_data = data.get("pasaporte") or {}
+    flat_payload.update({
+        "pasaporte_activo": pasaporte_data.get("pasaporte_activo"),
+        "pasaporte_requiere_balance_favorable": pasaporte_data.get("requiere_balance_favorable"),
+        "pasaporte_requiere_evidencia": pasaporte_data.get("requiere_evidencia"),
+        "pasaporte_requiere_trazabilidad": pasaporte_data.get("requiere_trazabilidad"),
+        "score_pasaporte_verde": pasaporte_data.get("score_verde"),
+        "score_pasaporte_plus": pasaporte_data.get("score_plus"),
+        "score_confianza_minimo": pasaporte_data.get("score_confianza_minimo"),
+    })
+
+    evidencias_data = data.get("evidencias") or {}
+    flat_payload.update({
+        "evidencia_requerida_pasaporte": evidencias_data.get("requerida_pasaporte"),
+        "evidencia_requerida_lotes_criticos": evidencias_data.get("requerida_lotes_criticos"),
+        "umbral_lote_critico": evidencias_data.get("umbral_lote_critico"),
+        "permitir_evidencia_empresa": evidencias_data.get("permitir_empresa"),
+        "permitir_evidencia_unidad": evidencias_data.get("permitir_unidad"),
+        "permitir_evidencia_lote": evidencias_data.get("permitir_lote"),
+        "permitir_evidencia_emision": evidencias_data.get("permitir_emision"),
+        "formatos_evidencia_permitidos": evidencias_data.get("formatos_permitidos"),
+        "max_file_size_mb": evidencias_data.get("max_file_size_mb"),
+    })
+
+    reportes_data = data.get("reportes") or {}
+    flat_payload.update({
+        "reporte_agrupacion_default": reportes_data.get("agrupacion_default"),
+        "reporte_periodo_default": reportes_data.get("periodo_default"),
+        "reporte_mostrar_categoria": reportes_data.get("mostrar_categoria"),
+        "reporte_mostrar_unidad": reportes_data.get("mostrar_unidad"),
+        "reporte_mostrar_tabla": reportes_data.get("mostrar_tabla"),
+        "reporte_unidad_visual_emisiones": reportes_data.get("unidad_visual_emisiones"),
+        "reporte_lectura_ejecutiva": reportes_data.get("lectura_ejecutiva"),
+        "reporte_equivalencias": reportes_data.get("equivalencias"),
+    })
+
+    flat_payload = {key: value for key, value in flat_payload.items() if value is not None}
+    serializer = EmpresaConfiguracionSerializer(configuracion, data=flat_payload, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        configuracion.refresh_from_db()
+        return Response(build_empresa_configuracion_response(empresa, configuracion))
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 @api_view(["GET"])
 def empresa_dashboard(request, empresa_id):
     empresa = get_empresa_or_404(empresa_id)
-    return Response(build_company_dashboard_response(empresa))
+    # If client requests a light response, return aggregated KPIs without heavy processing
+    light = (request.GET.get("light") or "").lower() in ("1", "true", "yes")
+    debug = (request.GET.get("debug") or "").lower() in ("1", "true", "yes")
+    if light:
+        # Aggregations performed in DB for speed
+        t0 = __import__("time").perf_counter()
+        actividades_qs = EmisionLote.objects.filter(
+            Q(empresa=empresa) | Q(lote__empresa=empresa) | Q(unidad_operativa__empresa=empresa)
+        )
+        total_agg = actividades_qs.aggregate(total=Sum("emisiones_kg_co2e"))
+        total_emisiones = float(total_agg.get("total") or 0)
+
+        emisiones_por_actividad = {
+            item["actividad"] or "Sin actividad": float(item["emisiones"] or 0)
+            for item in actividades_qs.values("actividad")
+            .annotate(emisiones=Sum("emisiones_kg_co2e"))
+            .order_by("-emisiones")
+        }
+
+        emisiones_por_categoria = {
+            item["categoria"] or "Sin categoria": float(item["emisiones"] or 0)
+            for item in actividades_qs.values("categoria")
+            .annotate(emisiones=Sum("emisiones_kg_co2e"))
+            .order_by("-emisiones")
+        }
+
+        emisiones_por_unidad = {
+            item["unidad_nombre"] or "Sin unidad": float(item["emisiones"] or 0)
+            for item in actividades_qs.values(unidad_nombre=F("unidad_operativa__nombre"))
+            .annotate(emisiones=Sum("emisiones_kg_co2e"))
+            .order_by("-emisiones")
+        }
+
+        actividades_count = actividades_qs.count()
+        t1 = __import__("time").perf_counter()
+        payload = {
+            "empresa_id": empresa.empresa_id,
+            "empresa_nombre": empresa.nombre,
+            "total_emisiones": total_emisiones,
+            "actividades_count": actividades_count,
+            "emisiones_por_actividad": emisiones_por_actividad,
+            "emisiones_por_categoria": emisiones_por_categoria,
+            "emisiones_por_unidad_operativa": emisiones_por_unidad,
+        }
+        if debug:
+            payload["_timings"] = {"aggregation_seconds": t1 - t0}
+
+        return Response(payload)
+    # Full dashboard (non-light) — build response but avoid heavy simulations/optimizations
+    t_start = __import__("time").perf_counter()
+    resp = build_company_dashboard_response(empresa)
+    t_end = __import__("time").perf_counter()
+    if debug:
+        resp["_timings"] = {"build_seconds": t_end - t_start}
+    return Response(resp)
 
 
 @api_view(["GET"])
 def empresa_unidades(request, empresa_id):
     empresa = get_empresa_or_404(empresa_id)
-    serializer = UnidadOperativaSerializer(
-        empresa.unidades_operativas.select_related("empresa"),
-        many=True,
+    queryset = empresa.unidades_operativas.select_related("empresa")
+    unidad_id = request.query_params.get("unidad_id")
+    include_detail = (request.query_params.get("detail") or "").lower() in ("1", "true", "yes")
+
+    if unidad_id:
+        unidad_filter = Q(unidad_id=unidad_id)
+        if str(unidad_id).isdigit():
+            unidad_filter |= Q(id=int(unidad_id))
+        queryset = queryset.filter(unidad_filter)
+
+    if include_detail:
+        serializer = UnidadOperativaSerializer(
+            queryset.prefetch_related(
+                "lotes",
+                "lotes__actividades",
+                "lotes__documentos",
+                "actividades_emision",
+                "actividades_emision__lote",
+            ),
+            many=True,
+        )
+        return Response(serializer.data)
+
+    actividades_unidad = (
+        EmisionLote.objects.filter(unidad_operativa=OuterRef("pk"))
+        .values("unidad_operativa")
+        .annotate(total=DBSum("emisiones_kg_co2e"))
+        .values("total")[:1]
     )
-    return Response(serializer.data)
+
+    rows = (
+        queryset.annotate(
+            lotes_count_val=Count("lotes", distinct=True),
+            actividades_count_val=Count("actividades_emision", distinct=True),
+            evidencias_count_val=Count("lotes__documentos", distinct=True),
+            emisiones_totales_val=Coalesce(
+                Subquery(
+                    actividades_unidad,
+                    output_field=DecimalField(max_digits=18, decimal_places=3),
+                ),
+                Value(Decimal("0.0")),
+                output_field=DecimalField(max_digits=18, decimal_places=3),
+            ),
+        )
+        .values(
+            "id",
+            "unidad_id",
+            "empresa_id",
+            "empresa__empresa_id",
+            "empresa__nombre",
+            "nombre",
+            "tipo",
+            "region",
+            "comuna",
+            "direccion",
+            "descripcion",
+            "activa",
+            "lotes_count_val",
+            "actividades_count_val",
+            "evidencias_count_val",
+            "emisiones_totales_val",
+            "created_at",
+            "updated_at",
+        )
+        .order_by("empresa__nombre", "nombre")
+    )
+
+    payload = [
+        {
+            "id": row["id"],
+            "unidad_id": row["unidad_id"],
+            "empresa": row["empresa_id"],
+            "empresa_id": row["empresa__empresa_id"],
+            "empresa_nombre": row["empresa__nombre"],
+            "nombre": row["nombre"],
+            "tipo": row["tipo"],
+            "region": row["region"],
+            "comuna": row["comuna"],
+            "direccion": row["direccion"],
+            "descripcion": row["descripcion"],
+            "activa": row["activa"],
+            "lotes_count": row["lotes_count_val"],
+            "actividades_count": row["actividades_count_val"],
+            "emisiones_totales_kg_co2e": row["emisiones_totales_val"] or 0,
+            "pasaportes_count": 0,
+            "evidencias_count": row["evidencias_count_val"],
+            "lotes_resumen": [],
+            "actividades_resumen": [],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+        }
+        for row in rows
+    ]
+
+    return Response(payload)
 
 
 @api_view(["GET"])
@@ -333,8 +636,98 @@ def empresa_lotes(request, empresa_id):
     queryset = Lote.objects.select_related("empresa", "unidad_operativa").filter(
         Q(empresa=empresa) | Q(unidad_operativa__empresa=empresa)
     )
-    serializer = LoteSerializer(queryset, many=True)
-    return Response(serializer.data)
+
+    especie_densidad = EspecieMadera.objects.filter(nombre__iexact=OuterRef("especie")).values(
+        "densidad_kg_m3"
+    )[:1]
+    especie_porcentaje_carbono = EspecieMadera.objects.filter(
+        nombre__iexact=OuterRef("especie")
+    ).values("porcentaje_carbono")[:1]
+    densidad_expr = Coalesce(
+        F("densidad_kg_m3"),
+        Subquery(especie_densidad, output_field=DecimalField(max_digits=8, decimal_places=3)),
+        Value(Decimal("0.0")),
+        output_field=DecimalField(max_digits=8, decimal_places=3),
+    )
+    porcentaje_carbono_expr = Coalesce(
+        F("porcentaje_carbono"),
+        Subquery(
+            especie_porcentaje_carbono,
+            output_field=DecimalField(max_digits=5, decimal_places=4),
+        ),
+        Value(Decimal("0.0")),
+        output_field=DecimalField(max_digits=5, decimal_places=4),
+    )
+    masa_expr = ExpressionWrapper(
+        Coalesce(F("volumen_m3"), Value(Decimal("0.0"))) * densidad_expr,
+        output_field=DecimalField(max_digits=18, decimal_places=6),
+    )
+    carbono_expr = ExpressionWrapper(
+        masa_expr * porcentaje_carbono_expr,
+        output_field=DecimalField(max_digits=20, decimal_places=8),
+    )
+    co2_expr = ExpressionWrapper(
+        carbono_expr * Value(Decimal("3.67")),
+        output_field=DecimalField(max_digits=20, decimal_places=6),
+    )
+    balance_neto_expr = ExpressionWrapper(
+        Coalesce(
+            DBSum("actividades__emisiones_kg_co2e"),
+            Value(Decimal("0.0")),
+            output_field=DecimalField(max_digits=14, decimal_places=3),
+        )
+        - co2_expr,
+        output_field=DecimalField(max_digits=20, decimal_places=6),
+    )
+
+    rows = (
+        queryset.annotate(
+            emisiones_total=Coalesce(
+                DBSum("actividades__emisiones_kg_co2e"),
+                Value(Decimal("0.0")),
+                output_field=DecimalField(max_digits=14, decimal_places=3),
+            ),
+            masa_madera_calc=masa_expr,
+            co2_almacenado_calc=co2_expr,
+            balance_neto_calc=balance_neto_expr,
+        )
+        .values(
+            "id_lote",
+            "empresa_aserradero",
+            "fecha",
+            "especie",
+            "volumen_m3",
+            "origen",
+            "estado",
+            "observaciones",
+            "emisiones_total",
+            "masa_madera_calc",
+            "co2_almacenado_calc",
+            "balance_neto_calc",
+        )
+        .order_by("-fecha", "-id_lote")
+    )
+
+    payload = [
+        {
+            "id_lote": row.get("id_lote"),
+            "empresa_aserradero": row.get("empresa_aserradero"),
+            "fecha": row.get("fecha"),
+            "especie": row.get("especie"),
+            "volumen_m3": row.get("volumen_m3"),
+            "origen": row.get("origen"),
+            "estado": row.get("estado"),
+            "observaciones": row.get("observaciones"),
+            "emisiones_kg_co2e": row.get("emisiones_total") or 0,
+            "total_emisiones_kg_co2e": row.get("emisiones_total") or 0,
+            "masa_madera_kg": row.get("masa_madera_calc") or 0,
+            "co2_almacenado_kg": row.get("co2_almacenado_calc") or 0,
+            "balance_neto_kg_co2e": row.get("balance_neto_calc") or 0,
+        }
+        for row in rows
+    ]
+
+    return Response(payload)
 
 
 @api_view(["GET"])
@@ -344,50 +737,78 @@ def empresa_actividades(request, empresa_id):
         "empresa",
         "unidad_operativa",
         "lote",
-    ).filter(Q(empresa=empresa) | Q(lote__empresa=empresa) | Q(unidad_operativa__empresa=empresa))
-    serializer = EmisionLoteSerializer(queryset, many=True)
-    return Response(serializer.data)
+    ).filter(Q(empresa=empresa) | Q(lote__empresa=empresa) | Q(unidad_operativa__empresa=empresa)).order_by("-created_at")
+    paginator = PageNumberPagination()
+    try:
+        paginator.page_size = int(request.query_params.get("page_size", 50))
+    except Exception:
+        paginator.page_size = 50
+
+    page = paginator.paginate_queryset(queryset, request)
+    serializer = EmisionLoteSerializer(page, many=True, context={"request": request})
+    return paginator.get_paginated_response(serializer.data)
 
 
 @api_view(["GET"])
 def empresa_emisiones(request, empresa_id):
     empresa = get_empresa_or_404(empresa_id)
-    actividades = list(
-        EmisionLote.objects.select_related(
-            "empresa",
-            "unidad_operativa",
-            "lote",
-            "lote__empresa",
-            "lote__unidad_operativa",
-        ).filter(
-            Q(empresa=empresa)
-            | Q(lote__empresa=empresa)
-            | Q(unidad_operativa__empresa=empresa)
-        )
+    # Use DB aggregations for KPIs and provide paginated rows
+    debug = (request.GET.get("debug") or "").lower() in ("1", "true", "yes")
+    t0 = __import__("time").perf_counter()
+    actividades_qs = EmisionLote.objects.select_related(
+        "empresa",
+        "unidad_operativa",
+        "lote",
+        "lote__empresa",
+        "lote__unidad_operativa",
+    ).filter(
+        Q(empresa=empresa) | Q(lote__empresa=empresa) | Q(unidad_operativa__empresa=empresa)
     )
-    factor_keys = {
-        (actividad.actividad_key, actividad.unidad)
-        for actividad in actividades
-        if actividad.actividad_key and actividad.unidad
-    }
-    factor_lookup = {}
 
+    total_emisiones = float(actividades_qs.aggregate(total=Sum("emisiones_kg_co2e"))["total"] or 0)
+
+    actividad_top = (
+        actividades_qs.values("actividad").annotate(emisiones=Sum("emisiones_kg_co2e")).order_by("-emisiones").first()
+    ) or {"actividad": "Sin datos", "emisiones": 0}
+
+    categoria_top = (
+        actividades_qs.values("categoria").annotate(emisiones=Sum("emisiones_kg_co2e")).order_by("-emisiones").first()
+    ) or {"categoria": "Sin datos", "emisiones": 0}
+
+    unidad_top = (
+        actividades_qs.values(unidad_nombre=F("unidad_operativa__nombre")).annotate(emisiones=Sum("emisiones_kg_co2e")).order_by("-emisiones").first()
+    ) or {"unidad_nombre": "Sin datos", "emisiones": 0}
+
+    lote_top = (
+        actividades_qs.values(id_lote=F("lote__id_lote")).annotate(emisiones=Sum("emisiones_kg_co2e")).order_by("-emisiones").first()
+    ) or {"id_lote": "Sin datos", "emisiones": 0}
+
+    actividades_count = actividades_qs.count()
+
+    # Paginate rows
+    paginator = PageNumberPagination()
+    try:
+        paginator.page_size = int(request.query_params.get("page_size", 50))
+    except Exception:
+        paginator.page_size = 50
+
+    qs_rows = actividades_qs.order_by("-emisiones_kg_co2e")
+    page = paginator.paginate_queryset(qs_rows, request)
+
+    # Fetch factor lookup only for page
+    factor_keys = {(a.actividad_key, a.unidad) for a in page if a.actividad_key and a.unidad}
+    factor_lookup = {}
     if factor_keys:
         factor_q = Q()
         for actividad_key, unidad in factor_keys:
             factor_q |= Q(actividad_key=actividad_key, unidad=unidad)
-
         for factor in FactorEmision.objects.filter(factor_q).order_by("-anio", "-updated_at"):
             factor_lookup.setdefault((factor.actividad_key, factor.unidad), factor)
 
     rows = []
-    resumen_por_actividad = {}
-    resumen_por_categoria = {}
-    resumen_por_unidad = {}
-    resumen_por_lote = {}
     diesel_total = 0.0
-
-    for actividad in actividades:
+    actividades_sin_factor = 0
+    for actividad in page:
         lote = actividad.lote
         unidad_obj = actividad.unidad_operativa or getattr(lote, "unidad_operativa", None)
         emisiones = float(actividad.emisiones_kg_co2e or 0)
@@ -397,13 +818,14 @@ def empresa_emisiones(request, empresa_id):
         id_lote = lote.id_lote if lote else ""
         factor = factor_lookup.get((actividad.actividad_key, actividad.unidad))
 
+        if not actividad.factor_emision:
+            actividades_sin_factor += 1
+
         rows.append(
             {
                 "id": actividad.id,
                 "fecha": (
-                    actividad.fecha.isoformat()
-                    if actividad.fecha
-                    else actividad.created_at.date().isoformat()
+                    actividad.fecha.isoformat() if actividad.fecha else actividad.created_at.date().isoformat()
                 ),
                 "empresa": empresa.nombre,
                 "unidad_id": unidad_id,
@@ -421,129 +843,246 @@ def empresa_emisiones(request, empresa_id):
             }
         )
 
-        resumen_por_actividad[actividad.actividad] = (
-            resumen_por_actividad.get(actividad.actividad, 0.0) + emisiones
-        )
-        resumen_por_categoria[categoria] = resumen_por_categoria.get(categoria, 0.0) + emisiones
-        resumen_por_unidad[(unidad_id, unidad_nombre)] = (
-            resumen_por_unidad.get((unidad_id, unidad_nombre), 0.0) + emisiones
-        )
-        if id_lote:
-            resumen_por_lote[id_lote] = resumen_por_lote.get(id_lote, 0.0) + emisiones
-        if is_diesel_activity(
-            {
-                "actividad": actividad.actividad,
-                "actividad_key": actividad.actividad_key,
-                "categoria": categoria,
-            }
-        ):
+        if is_diesel_activity({"actividad": actividad.actividad, "actividad_key": actividad.actividad_key, "categoria": categoria}):
             diesel_total += emisiones
 
-    rows.sort(key=lambda row: row["emisiones"], reverse=True)
-    total_emisiones = sum(row["emisiones"] for row in rows)
+    lotes_con_emisiones_count = actividades_qs.values("lote__id_lote").annotate(total=Sum("emisiones_kg_co2e")).filter(total__gt=0).count()
 
     def percentage(value):
-        return (value / total_emisiones * 100) if total_emisiones else 0
+        return (float(value or 0) / total_emisiones * 100) if total_emisiones else 0
 
-    actividad_critica, actividad_critica_total = max(
-        resumen_por_actividad.items(),
-        key=lambda item: item[1],
-        default=("Sin datos", 0),
-    )
-    categoria_critica = max(
-        resumen_por_categoria.items(),
-        key=lambda item: item[1],
-        default=("Sin datos", 0),
-    )[0]
-    unidad_critica = max(
-        resumen_por_unidad.items(),
-        key=lambda item: item[1],
-        default=(("", "Sin datos"), 0),
-    )[0][1]
-    lote_critico = max(
-        resumen_por_lote.items(),
-        key=lambda item: item[1],
-        default=("Sin datos", 0),
-    )[0]
-    lotes_con_emisiones = [id_lote for id_lote, value in resumen_por_lote.items() if value > 0]
+    t1 = __import__("time").perf_counter()
 
-    return Response(
+    payload = paginator.get_paginated_response(rows).data
+    payload.update(
         {
-            "empresa": {
-                "id": empresa.empresa_id,
-                "nombre": empresa.nombre,
-            },
+            "empresa": {"id": empresa.empresa_id, "nombre": empresa.nombre},
             "kpis": {
                 "emisiones_totales": total_emisiones,
-                "actividad_critica": actividad_critica,
-                "categoria_critica": categoria_critica,
-                "unidad_critica": unidad_critica,
-                "lote_critico": lote_critico,
-                "cantidad_actividades": len(rows),
-                "cantidad_lotes_con_emisiones": len(lotes_con_emisiones),
-                "promedio_emision_por_lote": (
-                    total_emisiones / len(lotes_con_emisiones)
-                    if lotes_con_emisiones
-                    else 0
-                ),
+                "actividad_critica": actividad_top.get("actividad") or "Sin datos",
+                "categoria_critica": categoria_top.get("categoria") or "Sin datos",
+                "unidad_critica": unidad_top.get("unidad_nombre") or "Sin datos",
+                "lote_critico": lote_top.get("id_lote") or "Sin datos",
+                "cantidad_actividades": actividades_count,
+                "cantidad_lotes_con_emisiones": lotes_con_emisiones_count,
+                "promedio_emision_por_lote": (total_emisiones / lotes_con_emisiones_count) if lotes_con_emisiones_count else 0,
                 "porcentaje_diesel": percentage(diesel_total),
-                "porcentaje_top_actividad": percentage(actividad_critica_total),
-                "actividades_sin_factor": sum(
-                    1 for row in rows if not row["factor_emision"]
-                ),
+                "porcentaje_top_actividad": percentage(actividad_top.get("emisiones") or 0),
+                "actividades_sin_factor": actividades_sin_factor,
             },
-            "resumen_por_categoria": [
-                {
-                    "categoria": categoria,
-                    "emisiones": emisiones,
-                    "porcentaje": percentage(emisiones),
-                }
-                for categoria, emisiones in sorted(
-                    resumen_por_categoria.items(),
-                    key=lambda item: item[1],
-                    reverse=True,
-                )
-            ],
-            "resumen_por_unidad": [
-                {
-                    "unidad_id": unidad_id,
-                    "unidad_nombre": unidad_nombre,
-                    "emisiones": emisiones,
-                    "porcentaje": percentage(emisiones),
-                }
-                for (unidad_id, unidad_nombre), emisiones in sorted(
-                    resumen_por_unidad.items(),
-                    key=lambda item: item[1],
-                    reverse=True,
-                )
-            ],
-            "resumen_por_lote": [
-                {
-                    "id_lote": id_lote,
-                    "emisiones": emisiones,
-                    "porcentaje": percentage(emisiones),
-                }
-                for id_lote, emisiones in sorted(
-                    resumen_por_lote.items(),
-                    key=lambda item: item[1],
-                    reverse=True,
-                )
-            ],
-            "rows": rows,
         }
     )
+
+    if debug:
+        payload["_timings"] = {"total_seconds": t1 - t0}
+
+    return Response(payload)
 
 
 @api_view(["GET"])
 def empresa_evidencias(request, empresa_id):
-    empresa = get_empresa_or_404(empresa_id)
-    queryset = DocumentoLote.objects.select_related(
+    empresa = Empresa.objects.filter(empresa_id=empresa_id).first()
+    if not empresa:
+        return Response({"error": "Empresa no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+    queryset = Evidencia.objects.select_related(
+        "empresa",
+        "unidad_operativa",
         "lote",
-        "lote__empresa",
-        "lote__unidad_operativa",
-    ).filter(Q(lote__empresa=empresa) | Q(lote__unidad_operativa__empresa=empresa))
-    serializer = DocumentoLoteSerializer(queryset, many=True, context={"request": request})
+        "emision",
+    ).filter(empresa=empresa)
+
+    tipo = (request.query_params.get("tipo") or "").strip()
+    estado_f = (request.query_params.get("estado") or "").strip()
+    estado_sistema = (request.query_params.get("estado_sistema") or "").strip()
+    estado_revision = (request.query_params.get("estado_revision") or "").strip()
+    alcance = (request.query_params.get("alcance") or "").strip()
+    lote_id = (request.query_params.get("lote_id") or "").strip()
+    unidad_id = (request.query_params.get("unidad_id") or "").strip()
+    search = (request.query_params.get("search") or "").strip()
+
+    if tipo:
+        queryset = queryset.filter(tipo_documento=tipo)
+    if estado_f:
+        queryset = queryset.filter(Q(estado=estado_f) | Q(estado_sistema=estado_f) | Q(estado_revision=estado_f))
+    if estado_sistema:
+        queryset = queryset.filter(estado_sistema=estado_sistema)
+    if estado_revision:
+        queryset = queryset.filter(estado_revision=estado_revision)
+    if alcance:
+        queryset = queryset.filter(alcance=alcance)
+    if lote_id:
+        queryset = queryset.filter(lote__id_lote=lote_id)
+    if unidad_id:
+        queryset = queryset.filter(unidad_operativa__unidad_id=unidad_id)
+    if search:
+        queryset = queryset.filter(
+            Q(nombre__icontains=search)
+            | Q(observaciones__icontains=search)
+            | Q(lote__id_lote__icontains=search)
+            | Q(unidad_operativa__unidad_id__icontains=search)
+            | Q(unidad_operativa__nombre__icontains=search)
+        )
+
+    serializer = EvidenciaSerializer(queryset.order_by("-created_at"), many=True, context={"request": request})
     return Response(serializer.data)
+
+
+@api_view(["POST"])
+@parser_classes([MultiPartParser, FormParser])
+def crear_evidencia_empresa(request, empresa_id):
+    empresa = Empresa.objects.filter(empresa_id=empresa_id).first()
+    if not empresa:
+        return Response({"error": "Empresa no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+    lote_id = (request.data.get("lote_id") or "").strip()
+    unidad_id = (request.data.get("unidad_id") or "").strip()
+    emision_id = request.data.get("emision_id")
+    alcance = (request.data.get("alcance") or Evidencia.Alcance.EMPRESA).strip()
+    if alcance not in {choice[0] for choice in Evidencia.Alcance.choices}:
+        return Response({"error": "El alcance indicado no es valido."}, status=status.HTTP_400_BAD_REQUEST)
+
+    lote = None
+    unidad = None
+    emision = None
+
+    estado_sistema = Evidencia.EstadoSistema.SIN_VINCULO
+    estado_revision = Evidencia.EstadoRevision.SIN_REVISION
+
+    # Evaluate according to alcance rules
+    if alcance == Evidencia.Alcance.LOTE:
+        if not lote_id:
+            return Response({"error": "Debes indicar un ID de lote para alcance 'lote'"}, status=status.HTTP_400_BAD_REQUEST)
+        lote = Lote.objects.filter(Q(empresa=empresa) | Q(unidad_operativa__empresa=empresa), id_lote=lote_id).first()
+        if not lote:
+            return Response(
+                {"error": "El lote no existe dentro de la empresa activa"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if lote.unidad_operativa_id:
+            unidad = lote.unidad_operativa
+        estado_sistema = Evidencia.EstadoSistema.VINCULADA
+    elif alcance == Evidencia.Alcance.UNIDAD:
+        if not unidad_id:
+            return Response({"error": "Debes indicar un ID de unidad para alcance 'unidad'"}, status=status.HTTP_400_BAD_REQUEST)
+        unidad = UnidadOperativa.objects.filter(empresa=empresa, unidad_id=unidad_id).first()
+        if not unidad:
+            return Response(
+                {"error": "La unidad no existe dentro de la empresa activa"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        estado_sistema = Evidencia.EstadoSistema.VINCULADA
+    elif alcance == Evidencia.Alcance.EMISION:
+        if emision_id in (None, ""):
+            return Response({"error": "Debes indicar una ID de emisión para alcance 'emision'"}, status=status.HTTP_400_BAD_REQUEST)
+        emision = EmisionLote.objects.filter(
+            Q(empresa=empresa) | Q(lote__empresa=empresa) | Q(unidad_operativa__empresa=empresa),
+            id=emision_id,
+        ).first()
+        if not emision:
+            return Response({"error": "La emisión no existe dentro de la empresa activa"}, status=status.HTTP_400_BAD_REQUEST)
+        # inferir lote/unidad desde la emisión si están presentes
+        if emision.lote_id:
+            lote = emision.lote
+            if lote.unidad_operativa_id:
+                unidad = lote.unidad_operativa
+        elif emision.unidad_operativa_id:
+            unidad = emision.unidad_operativa
+        estado_sistema = Evidencia.EstadoSistema.VINCULADA
+    elif alcance == Evidencia.Alcance.TRANSPORTE:
+        # lote_id opcional; si se provee se valida; si no, se deja vinculada a empresa
+        if lote_id:
+            lote = Lote.objects.filter(Q(empresa=empresa) | Q(unidad_operativa__empresa=empresa), id_lote=lote_id).first()
+            if not lote:
+                return Response({"error": "El lote no existe dentro de la empresa activa"}, status=status.HTTP_400_BAD_REQUEST)
+            if lote.unidad_operativa_id:
+                unidad = lote.unidad_operativa
+            estado_sistema = Evidencia.EstadoSistema.VINCULADA
+        else:
+            estado_sistema = Evidencia.EstadoSistema.CORPORATIVA
+    else:
+        # alcance = empresa (por defecto)
+        estado_sistema = Evidencia.EstadoSistema.CORPORATIVA
+
+    # note: validation and inference done above per alcance
+
+    payload = {
+        "nombre": request.data.get("nombre"),
+        "tipo_documento": request.data.get("tipo_documento"),
+        "archivo": request.data.get("archivo"),
+        "fecha_documento": request.data.get("fecha_documento") or None,
+        "observaciones": request.data.get("observaciones") or "",
+        "unidad_operativa": unidad.id if unidad else None,
+        "lote": lote.id if lote else None,
+        "emision": emision.id if emision else None,
+        "alcance": alcance,
+        "estado": Evidencia.Estado.PENDIENTE,
+    }
+
+    serializer = EvidenciaSerializer(data=payload, context={"request": request})
+    if serializer.is_valid():
+        serializer.save(
+            empresa=empresa,
+            estado_sistema=estado_sistema,
+            estado_revision=estado_revision,
+        )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["GET"])
+def evidencias_kpis_empresa(request, empresa_id):
+    empresa = Empresa.objects.filter(empresa_id=empresa_id).first()
+    if not empresa:
+        return Response({"error": "Empresa no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+    evidencias = Evidencia.objects.filter(empresa=empresa)
+    total_evidencias = evidencias.count()
+    lotes_empresa = Lote.objects.filter(Q(empresa=empresa) | Q(unidad_operativa__empresa=empresa))
+    total_lotes = lotes_empresa.count()
+    lotes_con_evidencia = evidencias.exclude(lote__isnull=True).values("lote").distinct().count()
+    lotes_sin_evidencia = max(total_lotes - lotes_con_evidencia, 0)
+
+    cobertura_documental = (lotes_con_evidencia / total_lotes * 100) if total_lotes else 0
+
+    score_respaldo = cobertura_documental
+
+    por_estado_sistema = {
+        item["estado_sistema"]: item["total"]
+        for item in evidencias.values("estado_sistema").annotate(total=Count("id")).order_by("-total")
+    }
+    por_revision = {
+        item["estado_revision"]: item["total"]
+        for item in evidencias.values("estado_revision").annotate(total=Count("id")).order_by("-total")
+    }
+    por_alcance = {
+        item["alcance"]: item["total"]
+        for item in evidencias.values("alcance").annotate(total=Count("id")).order_by("-total")
+    }
+    por_tipo = {
+        item["tipo_documento"]: item["total"]
+        for item in evidencias.values("tipo_documento").annotate(total=Count("id")).order_by("-total")
+    }
+
+    return Response(
+        {
+            "total_evidencias": total_evidencias,
+            "total_lotes": total_lotes,
+            "lotes_con_evidencia": lotes_con_evidencia,
+            "lotes_sin_evidencia": lotes_sin_evidencia,
+            "cobertura_documental": round(cobertura_documental, 2),
+            "score_respaldo": round(score_respaldo, 2),
+            "corporativas": por_estado_sistema.get(Evidencia.EstadoSistema.CORPORATIVA, 0),
+            "vinculadas": por_estado_sistema.get(Evidencia.EstadoSistema.VINCULADA, 0),
+            "sin_vinculo": por_estado_sistema.get(Evidencia.EstadoSistema.SIN_VINCULO, 0),
+            "sin_revisar": por_revision.get(Evidencia.EstadoRevision.SIN_REVISION, 0),
+            "por_estado_sistema": por_estado_sistema,
+            "por_revision": por_revision,
+            "por_alcance": por_alcance,
+            "por_tipo": por_tipo,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -579,7 +1118,11 @@ def unidades_operativas(request):
 @api_view(["GET", "POST"])
 def lotes(request):
     if request.method == "GET":
-        queryset = Lote.objects.all()
+        queryset = Lote.objects.select_related(
+            "empresa",
+            "unidad_operativa",
+            "unidad_operativa__empresa",
+        ).prefetch_related("actividades", "documentos", "transportes")
         empresa_id = request.query_params.get("empresa_id")
         if empresa_id:
             queryset = queryset.filter(Q(empresa__empresa_id=empresa_id) | Q(unidad_operativa__empresa__empresa_id=empresa_id))
@@ -636,7 +1179,14 @@ def factores_catalogo(request):
 
 @api_view(["GET"])
 def lote_detail(request, id_lote):
-    lote = get_object_or_404(Lote, id_lote=id_lote)
+    lote = get_object_or_404(
+        Lote.objects.select_related(
+            "empresa",
+            "unidad_operativa",
+            "unidad_operativa__empresa",
+        ).prefetch_related("actividades", "documentos", "transportes"),
+        id_lote=id_lote,
+    )
     serializer = LoteSerializer(lote)
     return Response(serializer.data)
 
@@ -1554,6 +2104,66 @@ def optimize_dashboard_data(request):
         )
 
 
+@api_view(["GET"])
+def empresa_decision_optimo(request, empresa_id):
+    """Construct rows server-side for a company and run the optimizer (on-demand).
+    This endpoint is heavy and should be called only when user requests automatic optimization.
+    """
+    empresa = get_empresa_or_404(empresa_id)
+    debug = (request.GET.get("debug") or "").lower() in ("1", "true", "yes")
+
+    t0 = __import__("time").perf_counter()
+    actividades_qs = EmisionLote.objects.select_related(
+        "empresa",
+        "unidad_operativa",
+        "lote",
+    ).filter(Q(empresa=empresa) | Q(lote__empresa=empresa) | Q(unidad_operativa__empresa=empresa))
+
+    rows = []
+    for actividad in actividades_qs:
+        lote = actividad.lote
+        unidad_obj = actividad.unidad_operativa or getattr(lote, "unidad_operativa", None)
+        empresa_obj = actividad.empresa or getattr(lote, "empresa", None) or empresa
+        emisiones = float(actividad.emisiones_kg_co2e or 0)
+        rows.append(
+            {
+                "empresa": empresa_obj.nombre if empresa_obj else empresa.nombre,
+                "empresa_id": empresa_obj.empresa_id if empresa_obj else empresa.empresa_id,
+                "unidad_operativa": unidad_obj.nombre if unidad_obj else "Sin unidad",
+                "unidad_id": unidad_obj.unidad_id if unidad_obj else "",
+                "actividad": actividad.actividad,
+                "actividad_key": actividad.actividad_key,
+                "categoria": actividad.categoria or "Otros",
+                "cantidad": float(actividad.cantidad or 0),
+                "unidad": actividad.unidad,
+                "factor_emision": float(actividad.factor_emision or 0),
+                "emisiones": emisiones,
+                "fecha": (
+                    actividad.fecha.isoformat() if actividad.fecha else actividad.created_at.date().isoformat()
+                ),
+                "id_lote": lote.id_lote if lote else "",
+                "tipo_asignacion": actividad.tipo_asignacion,
+            }
+        )
+
+    t1 = __import__("time").perf_counter()
+
+    # Run optimizer (heavy) and measure
+    t_opt0 = __import__("time").perf_counter()
+    optimized = optimize_rows(rows)
+    t_opt1 = __import__("time").perf_counter()
+
+    result = {"optimized": optimized}
+    if debug:
+        result["_timings"] = {
+            "rows_build_seconds": t1 - t0,
+            "optimize_seconds": t_opt1 - t_opt0,
+            "total_seconds": (t_opt1 - t0),
+        }
+
+    return Response(result)
+
+
 @api_view(["POST"])
 def risk_score_data(request):
     summary = request.data.get("summary") or request.data
@@ -1604,75 +2214,41 @@ def reporte_emisiones_tiempo(request, empresa_id):
     if actividad_query:
         actividades = actividades.filter(actividad__icontains=actividad_query)
 
-    rows = []
-    serie_dict = defaultdict(lambda: {
-        "emisiones": 0,
-        "actividades": 0,
-        "lotes": set(),
-    })
+    # Usar agregaciones en BD en lugar de iterar todo en memoria
+    # Emisiones totales
+    total_agg = actividades.aggregate(total=Sum("emisiones_kg_co2e"))
+    emisiones_totales = float(total_agg.get("total") or 0)
 
-    categoria_dict = defaultdict(float)
-    unidad_dict = defaultdict(float)
-    actividad_dict = defaultdict(float)
+    # Serie temporal: agrupar por día/mes/año usando funciones de truncado
+    if agrupacion == "dia":
+        trunc_fn = TruncDay
+        label_fmt = lambda d: d.strftime("%d-%m-%Y")
+        periodo_key_fmt = lambda d: d.strftime("%Y-%m-%d")
+    elif agrupacion == "anio":
+        trunc_fn = TruncYear
+        label_fmt = lambda d: d.strftime("%Y")
+        periodo_key_fmt = lambda d: d.strftime("%Y")
+    else:
+        trunc_fn = TruncMonth
+        label_fmt = lambda d: d.strftime("%b %Y")
+        periodo_key_fmt = lambda d: d.strftime("%Y-%m")
 
-    emisiones_totales = 0
+    serie_qs = (
+        actividades.annotate(periodo=trunc_fn("fecha"))
+        .values("periodo")
+        .annotate(emisiones=Sum("emisiones_kg_co2e"), actividades=Count("id"), lotes=Count("lote__id_lote", distinct=True))
+        .order_by("periodo")
+    )
 
-    for act in actividades:
-        emisiones = float(getattr(act, "emisiones_kg_co2e", 0) or 0)
-        fecha = getattr(act, "fecha", None)
-
-        if not fecha:
-            continue
-
-        if agrupacion == "dia":
-            periodo = fecha.strftime("%Y-%m-%d")
-            label = fecha.strftime("%d-%m-%Y")
-        elif agrupacion == "anio":
-            periodo = fecha.strftime("%Y")
-            label = fecha.strftime("%Y")
-        else:
-            periodo = fecha.strftime("%Y-%m")
-            label = fecha.strftime("%b %Y")
-
-        lote = getattr(act, "lote", None)
-        unidad_obj = getattr(act, "unidad_operativa", None)
-
-        nombre_actividad = getattr(act, "actividad", "Sin actividad") or "Sin actividad"
-        categoria_act = getattr(act, "categoria", "Sin categoría") or "Sin categoría"
-        unidad_nombre = unidad_obj.nombre if unidad_obj else "Sin unidad"
-        lote_id = lote.id_lote if lote else "-"
-
-        emisiones_totales += emisiones
-
-        serie_dict[periodo]["emisiones"] += emisiones
-        serie_dict[periodo]["actividades"] += 1
-
-        if lote_id and lote_id != "-":
-            serie_dict[periodo]["lotes"].add(lote_id)
-
-        categoria_dict[categoria_act] += emisiones
-        unidad_dict[unidad_nombre] += emisiones
-        actividad_dict[nombre_actividad] += emisiones
-
-        rows.append({
-            "fecha": fecha.strftime("%Y-%m-%d"),
-            "periodo": periodo,
-            "unidad_nombre": unidad_nombre,
-            "id_lote": lote_id,
-            "categoria": categoria_act,
-            "actividad": nombre_actividad,
-            "cantidad": float(getattr(act, "cantidad", 0) or 0),
-            "unidad": getattr(act, "unidad", "") or "",
-            "emisiones": round(emisiones, 2),
-        })
     serie_temporal = []
-    for periodo, data in sorted(serie_dict.items()):
+    for item in serie_qs:
+        periodo_dt = item.get("periodo")
         serie_temporal.append({
-            "periodo": periodo,
-            "label": periodo,
-            "emisiones": round(data["emisiones"], 2),
-            "actividades": data["actividades"],
-            "lotes": len(data["lotes"]),
+            "periodo": periodo_key_fmt(periodo_dt),
+            "label": label_fmt(periodo_dt),
+            "emisiones": round(float(item.get("emisiones") or 0), 2),
+            "actividades": int(item.get("actividades") or 0),
+            "lotes": int(item.get("lotes") or 0),
         })
 
     periodo_mayor = None
@@ -1701,38 +2277,48 @@ def reporte_emisiones_tiempo(request, empresa_id):
         variacion = 0
         tendencia = "Sin comparación"
 
-    actividad_critica = max(actividad_dict.items(), key=lambda x: x[1])[0] if actividad_dict else "Sin datos"
-    unidad_critica = max(unidad_dict.items(), key=lambda x: x[1])[0] if unidad_dict else "Sin datos"
+    # Por categoria/unidad/actividad usando agregaciones en DB
+    por_categoria_qs = (
+        actividades.values("categoria").annotate(emisiones=Sum("emisiones_kg_co2e")).order_by("-emisiones")
+    )
+    por_categoria = [
+        {
+            "categoria": item.get("categoria") or "Sin categoría",
+            "emisiones": round(float(item.get("emisiones") or 0), 2),
+            "porcentaje": round((float(item.get("emisiones") or 0) / emisiones_totales) * 100, 1) if emisiones_totales else 0,
+        }
+        for item in por_categoria_qs
+    ]
+
+    por_unidad_qs = (
+        actividades.values(unidad_nombre=F("unidad_operativa__nombre")).annotate(emisiones=Sum("emisiones_kg_co2e")).order_by("-emisiones")
+    )
+    por_unidad = [
+        {
+            "unidad_nombre": item.get("unidad_nombre") or "Sin unidad",
+            "emisiones": round(float(item.get("emisiones") or 0), 2),
+            "porcentaje": round((float(item.get("emisiones") or 0) / emisiones_totales) * 100, 1) if emisiones_totales else 0,
+        }
+        for item in por_unidad_qs
+    ]
+
+    por_actividad_qs = (
+        actividades.values("actividad").annotate(emisiones=Sum("emisiones_kg_co2e")).order_by("-emisiones")
+    )
+    por_actividad = [
+        {
+            "actividad": item.get("actividad") or "Sin actividad",
+            "emisiones": round(float(item.get("emisiones") or 0), 2),
+            "porcentaje": round((float(item.get("emisiones") or 0) / emisiones_totales) * 100, 1) if emisiones_totales else 0,
+        }
+        for item in por_actividad_qs
+    ]
+
+    actividad_critica = por_actividad[0]["actividad"] if por_actividad else "Sin datos"
+    unidad_critica = por_unidad[0]["unidad_nombre"] if por_unidad else "Sin datos"
 
     cantidad_periodos = len(serie_temporal)
     promedio_periodo = emisiones_totales / cantidad_periodos if cantidad_periodos else 0
-
-    por_categoria = [
-        {
-            "categoria": key,
-            "emisiones": round(value, 2),
-            "porcentaje": round((value / emisiones_totales) * 100, 1) if emisiones_totales else 0,
-        }
-        for key, value in sorted(categoria_dict.items(), key=lambda x: x[1], reverse=True)
-    ]
-
-    por_unidad = [
-        {
-            "unidad_nombre": key,
-            "emisiones": round(value, 2),
-            "porcentaje": round((value / emisiones_totales) * 100, 1) if emisiones_totales else 0,
-        }
-        for key, value in sorted(unidad_dict.items(), key=lambda x: x[1], reverse=True)
-    ]
-
-    por_actividad = [
-        {
-            "actividad": key,
-            "emisiones": round(value, 2),
-            "porcentaje": round((value / emisiones_totales) * 100, 1) if emisiones_totales else 0,
-        }
-        for key, value in sorted(actividad_dict.items(), key=lambda x: x[1], reverse=True)
-    ]
 
     insights = []
 
@@ -1753,6 +2339,45 @@ def reporte_emisiones_tiempo(request, empresa_id):
 
         if unidad_critica != "Sin datos":
             insights.append(f"La unidad operativa con mayor carga de emisiones es {unidad_critica}.")
+
+    # Soporte de paginacion de filas para carga paulatina
+    page = int(request.GET.get("page", 1) or 1)
+    page_size = int(request.GET.get("page_size", 0) or 0)
+
+    rows = []
+    rows_count = 0
+    if page_size > 0:
+        # seleccionar solo las filas paginadas
+        rows_qs = actividades.order_by("-fecha").values(
+            "fecha",
+            "unidad_operativa__nombre",
+            "lote__id_lote",
+            "categoria",
+            "actividad",
+            "cantidad",
+            "unidad",
+            "emisiones_kg_co2e",
+        )
+        rows_count = actividades.count()
+        start = (page - 1) * page_size
+        end = start + page_size
+        for item in rows_qs[start:end]:
+            rows.append({
+                "fecha": item.get("fecha").strftime("%Y-%m-%d") if item.get("fecha") else None,
+                "periodo": None,
+                "unidad_nombre": item.get("unidad_operativa__nombre") or "Sin unidad",
+                "id_lote": item.get("lote__id_lote") or "-",
+                "categoria": item.get("categoria") or "Sin categoría",
+                "actividad": item.get("actividad") or "Sin actividad",
+                "cantidad": float(item.get("cantidad") or 0),
+                "unidad": item.get("unidad") or "",
+                "emisiones": round(float(item.get("emisiones_kg_co2e") or 0), 2),
+            })
+
+    else:
+        # cuando page_size == 0 no devolvemos filas (cliente puede solicitarlas paginadas)
+        rows = []
+        rows_count = actividades.count()
 
     response = {
         "empresa": {
@@ -1783,6 +2408,9 @@ def reporte_emisiones_tiempo(request, empresa_id):
         "por_unidad": por_unidad,
         "por_actividad": por_actividad,
         "rows": rows,
+        "rows_count": rows_count,
+        "page": page,
+        "page_size": page_size,
         "insights": insights,
     }
 

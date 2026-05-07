@@ -1,12 +1,30 @@
+import { useEffect, useMemo, useState } from "react";
+
+import Pagination from "@/shared/components/Pagination";
 import { formatNumber } from "@/shared/utils/formatters";
 
 function LotesTable({ loading, lotes, onOpenDetail, onSelectLote, selectedLote }) {
+  const pageSize = 8;
+  const [currentPage, setCurrentPage] = useState(1);
+
   const handleRowKeyDown = (event, idLote) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       onSelectLote(idLote);
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil((lotes?.length || 0) / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const visibleLotes = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * pageSize;
+    return (lotes || []).slice(startIndex, startIndex + pageSize);
+  }, [lotes, safeCurrentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [lotes]);
 
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
@@ -42,7 +60,7 @@ function LotesTable({ loading, lotes, onOpenDetail, onSelectLote, selectedLote }
               </tr>
             )}
 
-            {lotes.map((lote) => {
+            {visibleLotes.map((lote) => {
               const isSelected = lote.id_lote === selectedLote?.id_lote;
 
               return (
@@ -98,6 +116,14 @@ function LotesTable({ loading, lotes, onOpenDetail, onSelectLote, selectedLote }
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        currentPage={safeCurrentPage}
+        itemLabel="lotes"
+        onPageChange={setCurrentPage}
+        pageSize={pageSize}
+        totalItems={lotes.length}
+      />
     </section>
   );
 }

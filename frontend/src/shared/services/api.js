@@ -2,6 +2,7 @@ import axios from "axios";
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api",
+  timeout: 10000,
 });
 
 function buildApiUrl(path) {
@@ -359,8 +360,8 @@ export async function getEmpresas() {
   return response.data;
 }
 
-export async function getEmpresaDashboard(empresaId) {
-  const response = await api.get(buildEmpresaScopedPath(empresaId, "/dashboard/"));
+export async function getEmpresaDashboard(empresaId, params = {}) {
+  const response = await api.get(buildEmpresaScopedPath(empresaId, "/dashboard/"), { params });
   return response.data;
 }
 
@@ -369,8 +370,18 @@ export async function getEmpresaEstado(empresaId) {
   return response.data;
 }
 
-export async function getEmpresaUnidades(empresaId) {
-  const response = await api.get(buildEmpresaScopedPath(empresaId, "/unidades/"));
+export async function getEmpresaConfiguracion(empresaId) {
+  const response = await api.get(buildEmpresaScopedPath(empresaId, "/configuracion/"));
+  return response.data;
+}
+
+export async function updateEmpresaConfiguracion(empresaId, payload) {
+  const response = await api.put(buildEmpresaScopedPath(empresaId, "/configuracion/"), payload);
+  return response.data;
+}
+
+export async function getEmpresaUnidades(empresaId, params = {}) {
+  const response = await api.get(buildEmpresaScopedPath(empresaId, "/unidades/"), { params });
   return response.data;
 }
 
@@ -384,15 +395,38 @@ export async function getEmpresaActividades(empresaId) {
   return response.data;
 }
 
-export async function getEmpresaEmisiones(empresaId) {
+export async function getEmpresaEmisiones(empresaId, params = {}) {
   const response = await api.get(
-    buildEmpresaScopedPath(empresaId, "/emisiones/")
+    buildEmpresaScopedPath(empresaId, "/emisiones/"),
+    { params }
   );
   return response.data;
 }
 
-export async function getEmpresaEvidencias(empresaId) {
-  const response = await api.get(buildEmpresaScopedPath(empresaId, "/evidencias/"));
+export async function getEmpresaEvidencias(empresaId, params = {}) {
+  const response = await api.get(buildEmpresaScopedPath(empresaId, "/evidencias/"), { params });
+  return response.data;
+}
+
+export async function getEvidenciasEmpresa(empresaId, filters = {}) {
+  const params = {};
+  ["tipo", "estado", "estado_sistema", "estado_revision", "alcance", "lote_id", "unidad_id", "search"].forEach((key) => {
+    if (filters[key] !== undefined && filters[key] !== null && String(filters[key]).trim() !== "") {
+      params[key] = filters[key];
+    }
+  });
+
+  const response = await api.get(buildEmpresaScopedPath(empresaId, "/evidencias/"), { params });
+  return response.data;
+}
+
+export async function getEvidenciasKpisEmpresa(empresaId) {
+  const response = await api.get(buildEmpresaScopedPath(empresaId, "/evidencias/kpis/"));
+  return response.data;
+}
+
+export async function crearEvidenciaEmpresa(empresaId, formData) {
+  const response = await api.post(buildEmpresaScopedPath(empresaId, "/evidencias/crear/"), formData);
   return response.data;
 }
 

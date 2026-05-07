@@ -1,15 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Database, Loader2, Search } from "lucide-react";
 
 import FactorCategoryBadge from "@/features/factores/components/FactorCategoryBadge";
 import Pagination from "@/shared/components/Pagination";
-import { getFactoresEmision } from "@/shared/services/api";
+import { useFactores } from "@/features/factores/context/FactoresContext";
 import { formatNumber } from "@/shared/utils/formatters";
 
 function FactoresView() {
-  const [factores, setFactores] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { factores, loading, error } = useFactores();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -43,37 +41,6 @@ function FactoresView() {
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const startIndex = (safeCurrentPage - 1) * rowsPerPage;
   const visibleFactores = filteredFactores.slice(startIndex, startIndex + rowsPerPage);
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    async function loadFactores() {
-      try {
-        const data = await getFactoresEmision();
-
-        if (!isCancelled) {
-          setFactores(data);
-        }
-      } catch (requestError) {
-        if (!isCancelled) {
-          setError(
-            requestError.response?.data?.error ||
-              "No se pudieron cargar los factores de emision."
-          );
-        }
-      } finally {
-        if (!isCancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadFactores();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">

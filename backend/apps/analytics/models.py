@@ -10,6 +10,12 @@ def documento_lote_upload_path(instance, filename):
     return f"lotes/{instance.lote.id_lote}/documentos/{filename}"
 
 
+def evidencia_upload_path(instance, filename):
+    empresa_code = instance.empresa.empresa_id if instance.empresa_id else "SIN_EMPRESA"
+    lote_code = instance.lote.id_lote if instance.lote_id else "GENERAL"
+    return f"evidencias/{empresa_code}/{lote_code}/{filename}"
+
+
 class EspecieMadera(models.Model):
     nombre = models.CharField(max_length=120, unique=True)
     densidad_kg_m3 = models.DecimalField(max_digits=8, decimal_places=3)
@@ -45,6 +51,101 @@ class Empresa(models.Model):
 
     def __str__(self):
         return self.nombre
+
+
+def evidencia_formatos_default():
+    return ["PDF", "JPG", "PNG", "XLSX", "CSV", "DOCX"]
+
+
+class EmpresaConfiguracion(models.Model):
+    class ModoImportacion(models.TextChoices):
+        FLEXIBLE = "flexible", "Flexible"
+        ESTRICTO = "estricto", "Estricto"
+
+    class AgrupacionReporte(models.TextChoices):
+        DIA = "dia", "Dia"
+        SEMANA = "semana", "Semana"
+        MES = "mes", "Mes"
+        TRIMESTRE = "trimestre", "Trimestre"
+        ANIO = "anio", "Anio"
+
+    class PeriodoReporte(models.TextChoices):
+        ULTIMOS_30_DIAS = "ultimos_30_dias", "Ultimos 30 dias"
+        ULTIMOS_3_MESES = "ultimos_3_meses", "Ultimos 3 meses"
+        ULTIMOS_6_MESES = "ultimos_6_meses", "Ultimos 6 meses"
+        ULTIMOS_12_MESES = "ultimos_12_meses", "Ultimos 12 meses"
+        ANIO_ACTUAL = "anio_actual", "Anio actual"
+
+    empresa = models.OneToOneField(
+        Empresa,
+        on_delete=models.CASCADE,
+        related_name="configuracion",
+    )
+
+    unidad_emisiones = models.CharField(max_length=20, default="kg CO2e")
+    unidad_volumen_madera = models.CharField(max_length=10, default="m3")
+    porcentaje_carbono_default = models.DecimalField(max_digits=5, decimal_places=2, default=50)
+    densidad_madera_default = models.DecimalField(max_digits=8, decimal_places=2, default=420)
+    factor_electrico_default = models.CharField(max_length=160, blank=True, default="Factor electrico vigente")
+    region_electrica_default = models.CharField(max_length=120, blank=True, default="Biobio")
+    redondeo_decimales = models.PositiveSmallIntegerField(default=1)
+    mostrar_balance_neto = models.BooleanField(default=True)
+    permitir_co2_almacenado = models.BooleanField(default=True)
+
+    modo_importacion = models.CharField(
+        max_length=20,
+        choices=ModoImportacion.choices,
+        default=ModoImportacion.FLEXIBLE,
+    )
+    crear_unidades_automaticamente = models.BooleanField(default=True)
+    crear_lotes_automaticamente = models.BooleanField(default=True)
+    permitir_actividades_sin_factor = models.BooleanField(default=False)
+    actualizar_registros_existentes = models.BooleanField(default=True)
+    bloquear_duplicados = models.BooleanField(default=True)
+    requerir_unidad_lote = models.BooleanField(default=False)
+    requerir_lote_actividad = models.BooleanField(default=False)
+    permitir_evidencias_sin_vinculo = models.BooleanField(default=True)
+
+    pasaporte_activo = models.BooleanField(default=True)
+    pasaporte_requiere_balance_favorable = models.BooleanField(default=True)
+    pasaporte_requiere_evidencia = models.BooleanField(default=True)
+    pasaporte_requiere_trazabilidad = models.BooleanField(default=True)
+    score_pasaporte_verde = models.PositiveSmallIntegerField(default=70)
+    score_pasaporte_plus = models.PositiveSmallIntegerField(default=90)
+    score_confianza_minimo = models.PositiveSmallIntegerField(default=75)
+
+    evidencia_requerida_pasaporte = models.BooleanField(default=True)
+    evidencia_requerida_lotes_criticos = models.BooleanField(default=True)
+    umbral_lote_critico = models.DecimalField(max_digits=14, decimal_places=2, default=1000)
+    permitir_evidencia_empresa = models.BooleanField(default=True)
+    permitir_evidencia_unidad = models.BooleanField(default=True)
+    permitir_evidencia_lote = models.BooleanField(default=True)
+    permitir_evidencia_emision = models.BooleanField(default=True)
+    formatos_evidencia_permitidos = models.JSONField(default=evidencia_formatos_default)
+    max_file_size_mb = models.PositiveSmallIntegerField(default=10)
+
+    reporte_agrupacion_default = models.CharField(
+        max_length=20,
+        choices=AgrupacionReporte.choices,
+        default=AgrupacionReporte.MES,
+    )
+    reporte_periodo_default = models.CharField(
+        max_length=30,
+        choices=PeriodoReporte.choices,
+        default=PeriodoReporte.ULTIMOS_12_MESES,
+    )
+    reporte_mostrar_categoria = models.BooleanField(default=True)
+    reporte_mostrar_unidad = models.BooleanField(default=True)
+    reporte_mostrar_tabla = models.BooleanField(default=True)
+    reporte_unidad_visual_emisiones = models.CharField(max_length=20, default="kg CO2e")
+    reporte_lectura_ejecutiva = models.BooleanField(default=True)
+    reporte_equivalencias = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Configuracion - {self.empresa.empresa_id}"
 
 
 class UnidadOperativa(models.Model):
@@ -216,6 +317,13 @@ class EmisionLote(models.Model):
 
     class Meta:
         ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["empresa_id", "fecha"]),
+            models.Index(fields=["empresa_id", "categoria"]),
+            models.Index(fields=["empresa_id", "actividad_key"]),
+            models.Index(fields=["empresa_id", "unidad_operativa_id"]),
+            models.Index(fields=["empresa_id", "lote_id"]),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=[
@@ -361,9 +469,128 @@ class DocumentoLote(models.Model):
 
     class Meta:
         ordering = ["-fecha", "-created_at"]
+        indexes = [
+            models.Index(fields=["lote_id", "estado_validacion"]),
+            models.Index(fields=["lote_id", "tipo_documento"]),
+            models.Index(fields=["lote_id"]),
+        ]
 
     def __str__(self):
         return f"{self.lote.id_lote} - {self.get_tipo_documento_display()}"
+
+
+class Evidencia(models.Model):
+    class TipoDocumento(models.TextChoices):
+        GUIA_DESPACHO = "guia_despacho", "Guia de despacho"
+        FACTURA_COMBUSTIBLE = "factura_combustible", "Factura combustible"
+        FACTURA_ELECTRICA = "factura_electrica", "Factura electrica"
+        CERTIFICADO_ORIGEN = "certificado_origen", "Certificado de origen"
+        CERTIFICADO_FORESTAL = "certificado_forestal", "Certificado forestal"
+        DOCUMENTO_TRANSPORTE = "documento_transporte", "Documento transporte"
+        TICKET_PESAJE = "ticket_pesaje", "Ticket pesaje"
+        REGISTRO_GPS = "registro_gps", "Registro GPS"
+        FOTOGRAFIA = "fotografia", "Fotografia"
+        FICHA_TECNICA = "ficha_tecnica", "Ficha tecnica"
+        OTRO = "otro", "Otro"
+
+    class Estado(models.TextChoices):
+        PENDIENTE = "pendiente", "Pendiente"
+        VALIDADA = "validada", "Validada"
+        OBSERVADA = "observada", "Observada"
+        RECHAZADA = "rechazada", "Rechazada"
+
+    empresa = models.ForeignKey(
+        Empresa,
+        on_delete=models.CASCADE,
+        related_name="evidencias",
+    )
+    unidad_operativa = models.ForeignKey(
+        UnidadOperativa,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="evidencias",
+    )
+    lote = models.ForeignKey(
+        Lote,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="evidencias",
+    )
+    emision = models.ForeignKey(
+        EmisionLote,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="evidencias",
+    )
+    nombre = models.CharField(max_length=240)
+    tipo_documento = models.CharField(
+        max_length=40,
+        choices=TipoDocumento.choices,
+        default=TipoDocumento.OTRO,
+    )
+    archivo = models.FileField(upload_to=evidencia_upload_path)
+    fecha_documento = models.DateField(null=True, blank=True)
+    estado = models.CharField(
+        max_length=20,
+        choices=Estado.choices,
+        default=Estado.PENDIENTE,
+    )
+    observaciones = models.TextField(blank=True)
+    # Nuevo campo `alcance` indica el nivel que respalda la evidencia
+    class Alcance(models.TextChoices):
+        EMPRESA = "empresa", "Empresa"
+        UNIDAD = "unidad", "Unidad operativa"
+        LOTE = "lote", "Lote"
+        EMISION = "emision", "Emision"
+        TRANSPORTE = "transporte", "Transporte"
+
+    alcance = models.CharField(
+        max_length=20,
+        choices=Alcance.choices,
+        default=Alcance.EMPRESA,
+    )
+
+    # Estado del sistema que refleja si la evidencia está vinculada o es corporativa
+    class EstadoSistema(models.TextChoices):
+        CORPORATIVA = "corporativa", "Corporativa"
+        VINCULADA = "vinculada", "Vinculada"
+        SIN_VINCULO = "sin_vinculo", "Sin vinculo"
+
+    estado_sistema = models.CharField(
+        max_length=20,
+        choices=EstadoSistema.choices,
+        default=EstadoSistema.SIN_VINCULO,
+    )
+
+    # Estado de revisión humano (para futuro flujo). Por ahora por defecto sin_revisar
+    class EstadoRevision(models.TextChoices):
+        SIN_REVISION = "sin_revisar", "Sin revisar"
+        VALIDADA = "validada", "Validada"
+        OBSERVADA = "observada", "Observada"
+        RECHAZADA = "rechazada", "Rechazada"
+
+    estado_revision = models.CharField(
+        max_length=20,
+        choices=EstadoRevision.choices,
+        default=EstadoRevision.SIN_REVISION,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["empresa_id", "estado"]),
+            models.Index(fields=["empresa_id", "tipo_documento"]),
+            models.Index(fields=["empresa_id", "lote_id"]),
+            models.Index(fields=["empresa_id", "unidad_operativa_id"]),
+        ]
+
+    def __str__(self):
+        return f"{self.empresa.empresa_id} - {self.nombre}"
 
 
 class TransporteLote(models.Model):

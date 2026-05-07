@@ -16,6 +16,7 @@ from typing import Iterable
 
 from django.core.cache import cache
 from django.db import transaction
+from django.db.models import Q
 from openpyxl import load_workbook
 
 from ..factores import classify_factor, format_activity_display_name, normalize_activity_key
@@ -77,6 +78,9 @@ OPTIONAL_LOTE_COLUMNS = [
     "observaciones",
 ]
 OPTIONAL_UNIT_COLUMNS = ["region", "comuna", "direccion", "descripcion", "activa"]
+TENANT_MISMATCH_WARNING = (
+    "empresa_id del archivo difiere de la empresa activa; se importara usando la empresa activa"
+)
 
 
 @dataclass
@@ -303,16 +307,65 @@ def read_uploaded_factor_rows(uploaded_file) -> tuple[list[dict], str]:
     return rows, "xlsx"
 
 
+def _peek_lote_headers_csv(uploaded_file) -> list[str]:
+    """Peek at CSV headers without reading the entire file."""
+    raw_bytes = uploaded_file.read()
+    uploaded_file.seek(0)  # Reset for subsequent reads
+    
+    try:
+        text = raw_bytes.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw_bytes.decode("latin-1")
+    
+    reader = csv.DictReader(io.StringIO(text))
+    return [_normalize_header_key(header) for header in (reader.fieldnames or [])]
+
+
+def _peek_lote_headers_xlsx(uploaded_file) -> list[str]:
+    """Peek at XLSX headers without reading the entire file."""
+    raw_bytes = uploaded_file.read()
+    uploaded_file.seek(0)  # Reset for subsequent reads
+    
+    workbook = load_workbook(io.BytesIO(raw_bytes), data_only=True, read_only=True)
+    try:
+        sheet = workbook.active
+        rows_iter = sheet.iter_rows(values_only=True)
+        headers = next(rows_iter, [])
+        return [_normalize_header_key(value) if value is not None else "" for value in headers]
+    finally:
+        workbook.close()
+
+
+def _get_lote_required_columns(headers: list[str]) -> list[str]:
+    """Determine required lote columns based on presence of unidad_id in headers."""
+    required = list(REQUIRED_LOTE_COLUMNS)
+    
+    # If unidad_id is present, empresa becomes optional (can be deduced from unidad_operativa)
+    if "unidad_id" in headers and "empresa" in required:
+        required.remove("empresa")
+    
+    return required
+
+
 def read_uploaded_lote_rows(uploaded_file) -> tuple[list[dict], str]:
     name = Path(uploaded_file.name or "").suffix.lower()
     if name not in ALLOWED_FACTOR_IMPORT_EXTENSIONS:
         raise ValueError("Solo se permiten archivos CSV o XLSX")
 
+    # Peek at headers to determine which columns are required
     if name == ".csv":
-        rows, _ = _read_csv_rows_for_columns(uploaded_file, REQUIRED_LOTE_COLUMNS)
+        headers = _peek_lote_headers_csv(uploaded_file)
+    else:
+        headers = _peek_lote_headers_xlsx(uploaded_file)
+    
+    required_columns = _get_lote_required_columns(headers)
+
+    # Now read with the appropriate required columns
+    if name == ".csv":
+        rows, _ = _read_csv_rows_for_columns(uploaded_file, required_columns)
         return rows, "csv"
 
-    rows, _ = _read_xlsx_rows_for_columns(uploaded_file, REQUIRED_LOTE_COLUMNS)
+    rows, _ = _read_xlsx_rows_for_columns(uploaded_file, required_columns)
     return rows, "xlsx"
 
 
@@ -467,6 +520,31 @@ def _stringify_payload(payload: dict) -> dict:
     return result
 
 
+def _lote_belongs_to_empresa(lote: Lote, empresa: Empresa) -> bool:
+    if not lote or not empresa:
+        return False
+
+    return (
+        lote.empresa_id == empresa.id
+        or (
+            lote.unidad_operativa is not None
+            and lote.unidad_operativa.empresa_id == empresa.id
+        )
+    )
+
+
+def _find_lote_in_empresa_scope(id_lote: str, empresa: Empresa):
+    if not id_lote or not empresa:
+        return None
+
+    return (
+        Lote.objects.select_related("empresa", "unidad_operativa", "unidad_operativa__empresa")
+        .filter(id_lote=id_lote)
+        .filter(Q(empresa=empresa) | Q(unidad_operativa__empresa=empresa))
+        .first()
+    )
+
+
 def _build_lote_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[str], list[str]]:
     errors = []
     warnings = []
@@ -487,32 +565,52 @@ def _build_lote_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[
 
     empresa = None
     unidad_operativa = None
+    empresa_id_archivo = normalized["empresa_id"]
+
+    if (
+        empresa_activa is not None
+        and empresa_id_archivo
+        and empresa_id_archivo != empresa_activa.empresa_id
+    ):
+        warnings.append(TENANT_MISMATCH_WARNING)
+
     if normalized["unidad_id"]:
-        unidad_operativa = UnidadOperativa.objects.select_related("empresa").filter(
-            unidad_id=normalized["unidad_id"]
-        ).first()
-        if unidad_operativa is None:
-            errors.append("unidad_id no existe")
+        if empresa_activa is not None:
+            unidad_operativa = UnidadOperativa.objects.select_related("empresa").filter(
+                unidad_id=normalized["unidad_id"],
+                empresa=empresa_activa,
+            ).first()
         else:
-            empresa = unidad_operativa.empresa
+            unidad_operativa = UnidadOperativa.objects.select_related("empresa").filter(
+                unidad_id=normalized["unidad_id"]
+            ).first()
+
+        if unidad_operativa is None:
+            if empresa_activa is not None and UnidadOperativa.objects.filter(
+                unidad_id=normalized["unidad_id"]
+            ).exists():
+                errors.append("unidad_id no pertenece a la empresa activa")
+            else:
+                errors.append("unidad_id no existe")
+        else:
+            empresa = empresa_activa or unidad_operativa.empresa
             normalized["empresa_id"] = empresa.empresa_id
             normalized["empresa_aserradero"] = normalized["empresa_aserradero"] or empresa.nombre
+    elif empresa_activa is not None:
+        empresa = empresa_activa
+        normalized["empresa_id"] = empresa_activa.empresa_id
+        normalized["empresa_aserradero"] = normalized["empresa_aserradero"] or empresa_activa.nombre
     elif normalized["empresa_id"]:
         empresa = Empresa.objects.filter(empresa_id=normalized["empresa_id"]).first()
         if empresa is None:
             errors.append("empresa_id no existe")
         else:
             normalized["empresa_aserradero"] = normalized["empresa_aserradero"] or empresa.nombre
-    elif empresa_activa is not None:
+
+    if empresa_activa is not None:
         empresa = empresa_activa
         normalized["empresa_id"] = empresa_activa.empresa_id
         normalized["empresa_aserradero"] = normalized["empresa_aserradero"] or empresa_activa.nombre
-
-    if empresa_activa is not None and normalized["empresa_id"] and normalized["empresa_id"] != empresa_activa.empresa_id:
-        errors.append("empresa_id no coincide con la empresa activa")
-
-    if empresa_activa is not None and unidad_operativa and unidad_operativa.empresa_id != empresa_activa.id:
-        errors.append("unidad_id no pertenece a la empresa activa")
 
     normalized["empresa_obj"] = empresa
     normalized["unidad_operativa_obj"] = unidad_operativa
@@ -600,8 +698,9 @@ def _build_company_payload(raw_row: dict) -> tuple[dict, list[str]]:
     return normalized, errors
 
 
-def _build_unit_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[str]]:
+def _build_unit_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[str], list[str]]:
     errors = []
+    warnings = []
     normalized = {
         "unidad_id": _normalize_text(raw_row.get("unidad_id"), lower=False).upper(),
         "empresa_id": _normalize_text(raw_row.get("empresa_id"), lower=False).upper(),
@@ -622,18 +721,17 @@ def _build_unit_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[
         errors.append("tipo es obligatorio")
 
     empresa = None
-    if normalized["empresa_id"]:
+    if empresa_activa is not None:
+        if normalized["empresa_id"] and normalized["empresa_id"] != empresa_activa.empresa_id:
+            warnings.append(TENANT_MISMATCH_WARNING)
+        empresa = empresa_activa
+        normalized["empresa_id"] = empresa_activa.empresa_id
+    elif normalized["empresa_id"]:
         empresa = Empresa.objects.filter(empresa_id=normalized["empresa_id"]).first()
         if empresa is None:
             errors.append("empresa_id no existe")
-    elif empresa_activa is not None:
-        empresa = empresa_activa
-        normalized["empresa_id"] = empresa_activa.empresa_id
     else:
         errors.append("empresa_id es obligatorio")
-
-    if empresa_activa is not None and normalized["empresa_id"] and normalized["empresa_id"] != empresa_activa.empresa_id:
-        errors.append("empresa_id no coincide con la empresa activa")
 
     normalized["empresa_obj"] = empresa
 
@@ -641,7 +739,25 @@ def _build_unit_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[
     if normalized["tipo"] not in allowed_types:
         normalized["tipo"] = UnidadOperativa.Tipo.OTRO
 
-    return normalized, errors
+    return normalized, errors, warnings
+
+
+def _find_semantic_unit_duplicate(data: dict):
+    empresa = data.get("empresa_obj")
+    if not empresa or not data.get("nombre"):
+        return None
+
+    return (
+        UnidadOperativa.objects.filter(
+            empresa=empresa,
+            nombre__iexact=data.get("nombre", ""),
+            tipo=data.get("tipo", ""),
+            region__iexact=data.get("region", ""),
+            comuna__iexact=data.get("comuna", ""),
+        )
+        .exclude(unidad_id=data.get("unidad_id", ""))
+        .first()
+    )
 
 
 def _lote_response_row(row: ParsedLoteRow) -> dict:
@@ -678,10 +794,12 @@ def _find_factor_for_activity(actividad: str, unidad: str):
     )
 
 
-def _build_activity_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[str]]:
+def _build_activity_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[str], list[str]]:
     errors = []
+    warnings = []
     id_lote = _normalize_text(raw_row.get("id_lote"), lower=False).upper()
     empresa_id = _normalize_text(raw_row.get("empresa_id"), lower=False).upper()
+    empresa_id_archivo = empresa_id
     unidad_id = _normalize_text(raw_row.get("unidad_id"), lower=False).upper()
     actividad = format_activity_display_name(_normalize_text(raw_row.get("actividad"), lower=False))
     unidad = _normalize_text(raw_row.get("unidad"), lower=False)
@@ -705,50 +823,79 @@ def _build_activity_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, l
         fecha = ""
         errors.append(str(exc))
 
-    lote = Lote.objects.select_related("empresa", "unidad_operativa").filter(id_lote=id_lote).first() if id_lote else None
+    lote = None
     empresa = None
     unidad_operativa = None
     tipo_asignacion = EmisionLote.TipoAsignacion.EMPRESA
 
+    if (
+        empresa_activa is not None
+        and empresa_id_archivo
+        and empresa_id_archivo != empresa_activa.empresa_id
+    ):
+        warnings.append(TENANT_MISMATCH_WARNING)
+
     if id_lote:
-        if lote is None:
-            errors.append("id_lote no existe")
+        lote_global = (
+            Lote.objects.select_related("empresa", "unidad_operativa", "unidad_operativa__empresa")
+            .filter(id_lote=id_lote)
+            .first()
+        )
+        if empresa_activa is not None:
+            lote = _find_lote_in_empresa_scope(id_lote, empresa_activa)
         else:
-            empresa = lote.empresa
+            lote = lote_global
+
+        if lote is None:
+            if empresa_activa is not None and lote_global is not None:
+                errors.append("id_lote no pertenece a la empresa activa")
+            else:
+                errors.append("id_lote no existe")
+        else:
+            empresa = empresa_activa or lote.empresa
             unidad_operativa = lote.unidad_operativa
-            empresa_id = empresa.empresa_id if empresa else empresa_id
+            empresa_id = (
+                (empresa_activa.empresa_id if empresa_activa is not None else empresa.empresa_id)
+                if empresa
+                else empresa_id
+            )
             unidad_id = unidad_operativa.unidad_id if unidad_operativa else unidad_id
             tipo_asignacion = EmisionLote.TipoAsignacion.LOTE
     elif unidad_id:
-        unidad_operativa = UnidadOperativa.objects.select_related("empresa").filter(
-            unidad_id=unidad_id
-        ).first()
-        if unidad_operativa is None:
-            errors.append("unidad_id no existe")
+        if empresa_activa is not None:
+            unidad_operativa = UnidadOperativa.objects.select_related("empresa").filter(
+                unidad_id=unidad_id,
+                empresa=empresa_activa,
+            ).first()
         else:
-            empresa = unidad_operativa.empresa
+            unidad_operativa = UnidadOperativa.objects.select_related("empresa").filter(
+                unidad_id=unidad_id
+            ).first()
+
+        if unidad_operativa is None:
+            if empresa_activa is not None and UnidadOperativa.objects.filter(unidad_id=unidad_id).exists():
+                errors.append("unidad_id no pertenece a la empresa activa")
+            else:
+                errors.append("unidad_id no existe")
+        else:
+            empresa = empresa_activa or unidad_operativa.empresa
             empresa_id = empresa.empresa_id
             tipo_asignacion = EmisionLote.TipoAsignacion.UNIDAD
+    elif empresa_activa is not None:
+        empresa = empresa_activa
+        empresa_id = empresa_activa.empresa_id
+        tipo_asignacion = EmisionLote.TipoAsignacion.EMPRESA
     elif empresa_id:
         empresa = Empresa.objects.filter(empresa_id=empresa_id).first()
         if empresa is None:
             errors.append("empresa_id no existe")
         tipo_asignacion = EmisionLote.TipoAsignacion.EMPRESA
-    elif empresa_activa is not None:
-        empresa = empresa_activa
-        empresa_id = empresa_activa.empresa_id
-        tipo_asignacion = EmisionLote.TipoAsignacion.EMPRESA
     else:
         errors.append("id_lote, unidad_id o empresa_id es requerido")
 
-    if empresa_activa is not None and empresa_id and empresa_id != empresa_activa.empresa_id:
-        errors.append("empresa_id no coincide con la empresa activa")
-
-    if empresa_activa is not None and lote and lote.empresa_id and lote.empresa_id != empresa_activa.id:
-        errors.append("id_lote no pertenece a la empresa activa")
-
-    if empresa_activa is not None and unidad_operativa and unidad_operativa.empresa_id != empresa_activa.id:
-        errors.append("unidad_id no pertenece a la empresa activa")
+    if empresa_activa is not None:
+        empresa = empresa_activa
+        empresa_id = empresa_activa.empresa_id
 
     factor = _find_factor_for_activity(actividad, unidad) if actividad and unidad else None
 
@@ -770,7 +917,7 @@ def _build_activity_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, l
         "tipo_asignacion": tipo_asignacion,
     }
 
-    return data, errors
+    return data, errors, warnings
 
 
 def _activity_key(data: dict) -> tuple:
@@ -1129,7 +1276,7 @@ class ImportadorUnidadesOperativas:
         result_rows = []
 
         for raw_row in raw_rows:
-            data, errors = _build_unit_payload(raw_row, empresa_activa=empresa_activa)
+            data, errors, warnings = _build_unit_payload(raw_row, empresa_activa=empresa_activa)
             unidad_id = data.get("unidad_id")
             is_duplicate = False
             exists_in_db = False
@@ -1142,8 +1289,27 @@ class ImportadorUnidadesOperativas:
                 else:
                     seen_ids[unidad_id] = raw_row["row_number"]
 
-                exists_in_db = UnidadOperativa.objects.filter(unidad_id=unidad_id).exists()
-                db_action = "actualizar" if exists_in_db else "crear"
+                unidad_existente = UnidadOperativa.objects.select_related("empresa").filter(
+                    unidad_id=unidad_id
+                ).first()
+                if unidad_existente is not None:
+                    if (
+                        empresa_activa is not None
+                        and unidad_existente.empresa_id != empresa_activa.id
+                    ):
+                        errors.append("unidad_id ya existe en otra empresa")
+                    else:
+                        exists_in_db = True
+                        db_action = "actualizar"
+                else:
+                    db_action = "crear"
+
+            semantic_duplicate = _find_semantic_unit_duplicate(data)
+            if semantic_duplicate is not None:
+                errors.append(
+                    "Ya existe una unidad operativa con el mismo nombre, tipo, region y comuna "
+                    f"en esta empresa ({semantic_duplicate.unidad_id})."
+                )
 
             status = "valid" if not errors and not is_duplicate else "error"
             result_rows.append(
@@ -1151,6 +1317,7 @@ class ImportadorUnidadesOperativas:
                     "row_number": raw_row["row_number"],
                     "status": status,
                     "errors": errors,
+                    "warnings": warnings,
                     "is_duplicate": is_duplicate,
                     "exists_in_db": exists_in_db,
                     "db_action": db_action,
@@ -1204,25 +1371,71 @@ class ImportadorUnidadesOperativas:
                     errors.append({"row_number": row.get("row_number"), "errors": row.get("errors")})
                     continue
 
-                data, validation_errors = _build_unit_payload(row.get("data") or row, empresa_activa=empresa_activa)
+                data, validation_errors, _warnings = _build_unit_payload(
+                    row.get("data") or row,
+                    empresa_activa=empresa_activa,
+                )
                 if validation_errors:
                     rejected += 1
                     errors.append({"row_number": row.get("row_number"), "errors": validation_errors})
                     continue
 
-                unidad, was_created = UnidadOperativa.objects.update_or_create(
-                    unidad_id=data["unidad_id"],
-                    defaults={
-                        "empresa": data["empresa_obj"],
-                        "nombre": data["nombre"],
-                        "tipo": data["tipo"],
-                        "region": data["region"],
-                        "comuna": data["comuna"],
-                        "direccion": data["direccion"],
-                        "descripcion": data["descripcion"],
-                        "activa": data["activa"],
-                    },
-                )
+                semantic_duplicate = _find_semantic_unit_duplicate(data)
+                if semantic_duplicate is not None:
+                    rejected += 1
+                    errors.append(
+                        {
+                            "row_number": row.get("row_number"),
+                            "errors": [
+                                "Ya existe una unidad operativa con el mismo nombre, tipo, region y comuna "
+                                f"en esta empresa ({semantic_duplicate.unidad_id})."
+                            ],
+                        }
+                    )
+                    continue
+
+                unidad_existente = UnidadOperativa.objects.select_related("empresa").filter(
+                    unidad_id=data["unidad_id"]
+                ).first()
+                if (
+                    unidad_existente is not None
+                    and empresa_activa is not None
+                    and unidad_existente.empresa_id != empresa_activa.id
+                ):
+                    rejected += 1
+                    errors.append(
+                        {
+                            "row_number": row.get("row_number"),
+                            "errors": ["unidad_id ya existe en otra empresa"],
+                        }
+                    )
+                    continue
+
+                if unidad_existente is None:
+                    UnidadOperativa.objects.create(
+                        unidad_id=data["unidad_id"],
+                        empresa=data["empresa_obj"],
+                        nombre=data["nombre"],
+                        tipo=data["tipo"],
+                        region=data["region"],
+                        comuna=data["comuna"],
+                        direccion=data["direccion"],
+                        descripcion=data["descripcion"],
+                        activa=data["activa"],
+                    )
+                    was_created = True
+                else:
+                    unidad_existente.empresa = data["empresa_obj"]
+                    unidad_existente.nombre = data["nombre"]
+                    unidad_existente.tipo = data["tipo"]
+                    unidad_existente.region = data["region"]
+                    unidad_existente.comuna = data["comuna"]
+                    unidad_existente.direccion = data["direccion"]
+                    unidad_existente.descripcion = data["descripcion"]
+                    unidad_existente.activa = data["activa"]
+                    unidad_existente.save()
+                    was_created = False
+
                 created += 1 if was_created else 0
                 updated += 0 if was_created else 1
 
@@ -1256,8 +1469,22 @@ class ImportadorLotes:
                 else:
                     seen_ids[id_lote] = raw_row["row_number"]
 
-                exists_in_db = Lote.objects.filter(id_lote=id_lote).exists()
-                db_action = "actualizar" if exists_in_db else "crear"
+                lote_existente = (
+                    Lote.objects.select_related("empresa", "unidad_operativa", "unidad_operativa__empresa")
+                    .filter(id_lote=id_lote)
+                    .first()
+                )
+                if lote_existente is not None:
+                    if (
+                        empresa_activa is not None
+                        and not _lote_belongs_to_empresa(lote_existente, empresa_activa)
+                    ):
+                        errors.append("id_lote ya existe en otra empresa")
+                    else:
+                        exists_in_db = True
+                        db_action = "actualizar"
+                else:
+                    db_action = "crear"
 
             status = "valid" if not errors and not is_duplicate else "error"
             parsed_rows.append(
@@ -1353,6 +1580,20 @@ class ImportadorLotes:
                         errors.append({"row_number": row_number, "errors": validation_errors})
                         continue
 
+                    lote_existente = (
+                        Lote.objects.select_related("empresa", "unidad_operativa", "unidad_operativa__empresa")
+                        .filter(id_lote=normalized["id_lote"])
+                        .first()
+                    )
+                    if (
+                        lote_existente is not None
+                        and empresa_activa is not None
+                        and not _lote_belongs_to_empresa(lote_existente, empresa_activa)
+                    ):
+                        rejected += 1
+                        errors.append({"row_number": row_number, "errors": ["id_lote ya existe en otra empresa"]})
+                        continue
+
                     defaults = {
                         "empresa": normalized.get("empresa_obj"),
                         "unidad_operativa": normalized.get("unidad_operativa_obj"),
@@ -1367,10 +1608,16 @@ class ImportadorLotes:
                         "estado": normalized.get("estado") or "",
                         "observaciones": normalized.get("observaciones") or "",
                     }
-                    lote, was_created = Lote.objects.update_or_create(
-                        id_lote=normalized["id_lote"],
-                        defaults=defaults,
-                    )
+                    if lote_existente is None:
+                        lote = Lote.objects.create(id_lote=normalized["id_lote"], **defaults)
+                        was_created = True
+                    else:
+                        for field, value in defaults.items():
+                            setattr(lote_existente, field, value)
+                        lote_existente.save()
+                        lote = lote_existente
+                        was_created = False
+
                     created += 1 if was_created else 0
                     updated += 0 if was_created else 1
 
@@ -1414,7 +1661,7 @@ class ImportadorActividadesLote:
         result_rows = []
 
         for raw_row in raw_rows:
-            data, errors = _build_activity_payload(raw_row, empresa_activa=empresa_activa)
+            data, errors, warnings = _build_activity_payload(raw_row, empresa_activa=empresa_activa)
             key = _activity_key(data)
             is_duplicate = False
             exists_in_db = False
@@ -1440,12 +1687,18 @@ class ImportadorActividadesLote:
                     "row_number": raw_row["row_number"],
                     "status": status,
                     "errors": errors,
+                    "warnings": warnings,
                     "is_duplicate": is_duplicate,
                     "exists_in_db": exists_in_db,
                     "db_action": db_action,
                     "factor_found": bool(data.get("factor_emision")),
                     "lote_exists": (
-                        Lote.objects.filter(id_lote=data.get("id_lote")).exists()
+                        (
+                            _find_lote_in_empresa_scope(data.get("id_lote"), empresa_activa)
+                            is not None
+                            if empresa_activa is not None and data.get("id_lote")
+                            else Lote.objects.filter(id_lote=data.get("id_lote")).exists()
+                        )
                         if data.get("id_lote")
                         else False
                     ),
@@ -1533,7 +1786,10 @@ class ImportadorActividadesLote:
                     )
                     continue
 
-                data, validation_errors = _build_activity_payload(row.get("data") or row, empresa_activa=empresa_activa)
+                data, validation_errors, _warnings = _build_activity_payload(
+                    row.get("data") or row,
+                    empresa_activa=empresa_activa,
+                )
                 if validation_errors:
                     rejected += 1
                     errors.append({"row_number": row_number, "errors": validation_errors})

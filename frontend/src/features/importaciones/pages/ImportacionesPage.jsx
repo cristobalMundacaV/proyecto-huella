@@ -32,6 +32,7 @@ import {
 import { formatNumber } from "@/shared/utils/formatters";
 import EmptyState from "@/shared/components/EmptyState";
 import { useEmpresaActiva } from "@/features/empresas/context/EmpresaActivaContext";
+import { useFactores } from "@/features/factores/context/FactoresContext";
 
 const emptyImportState = {
   fileName: "",
@@ -697,7 +698,8 @@ function ImportacionesView({ onImportConfirmed }) {
   const [empresaCompleta, setEmpresaCompleta] = useState(emptyImportState);
   const [activities, setActivities] = useState(emptyImportState);
   const [toast, setToast] = useState(null);
-  const { activeEmpresa, activeEmpresaId } = useEmpresaActiva();
+  const { activeEmpresa, activeEmpresaId, refreshEmpresas } = useEmpresaActiva();
+  const { invalidate: invalidateFactores } = useFactores();
   const empresaCompletaInputRef = useRef(null);
 
   const previewFile = async (event, previewFn, setState) => {
@@ -812,6 +814,10 @@ function ImportacionesView({ onImportConfirmed }) {
       const msg = `Importación completa: ${formatNumber(created, 0)} creadas.`;
 
       showToast(msg);
+      
+      // Refresh empresas después de la importación completa
+      await refreshEmpresas().catch(() => undefined);
+      
       await onImportConfirmed?.();
 
       setEmpresaCompleta((current) => ({
@@ -829,7 +835,7 @@ function ImportacionesView({ onImportConfirmed }) {
     }
   };
 
-  const confirmRows = async (rows, confirmFn, setState, batchId = null) => {
+  const confirmRows = async (rows, confirmFn, setState, batchId = null, onSuccess = null) => {
     setState((current) => ({ ...current, saving: true, error: "", savedMessage: "" }));
 
     try {
@@ -843,6 +849,15 @@ function ImportacionesView({ onImportConfirmed }) {
       )} actualizados, ${formatNumber(result.rechazados || 0, 0)} rechazados.`;
       
       showToast(toastMessage);
+      
+      // Refresh empresas después de cualquier importación exitosa
+      await refreshEmpresas().catch(() => undefined);
+      
+      // Call onSuccess callback if provided (e.g., to invalidate factores)
+      if (onSuccess && typeof onSuccess === 'function') {
+        onSuccess();
+      }
+      
       await onImportConfirmed?.();
       
       setState((current) => ({
@@ -922,7 +937,8 @@ function ImportacionesView({ onImportConfirmed }) {
             rows,
             (payload) => confirmarImportFactores(payload),
             setFactors,
-            batchId
+            batchId,
+            invalidateFactores
           )
         }
       />

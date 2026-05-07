@@ -3,6 +3,18 @@ import { DetailItem } from "../common";
 import { balanceTone, confidenceTone } from "../constants";
 
 function ResumenTab({ balanceData, selectedLote }) {
+  const emisionesGeneradas = Number(
+    balanceData?.emisiones_generadas_kg_co2e ||
+      selectedLote.emisiones_kg_co2e ||
+      0
+  );
+  const co2Almacenado = Number(
+    balanceData?.co2_almacenado_kg ||
+      selectedLote.co2_almacenado_kg ||
+      0
+  );
+  const balanceNeto =
+    balanceData?.balance_neto_kg_co2e ?? emisionesGeneradas - co2Almacenado;
   const tone = balanceTone[balanceData?.estado_balance] || balanceTone.medio;
   const confidenceClass =
     confidenceTone[balanceData?.estado_confianza] ||
@@ -17,22 +29,13 @@ function ResumenTab({ balanceData, selectedLote }) {
               Balance neto del lote
             </p>
             <p className="mt-2 text-2xl font-bold">
-              {formatNumber(Number(balanceData?.balance_neto_kg_co2e || 0))} kg CO2e
+              {formatNumber(Number(balanceNeto || 0))} kg CO2e
             </p>
             <p className="mt-2 text-sm font-semibold">
               Lote {selectedLote.id_lote}: emisiones generadas{" "}
-              {formatNumber(
-                Number(
-                  balanceData?.emisiones_generadas_kg_co2e ||
-                    selectedLote.emisiones_kg_co2e ||
-                    0
-                )
-              )}{" "}
-              kg CO2e, CO2 almacenado{" "}
-              {formatNumber(Number(balanceData?.co2_almacenado_kg || 0))} kg,
-              balance neto{" "}
-              {formatNumber(Number(balanceData?.balance_neto_kg_co2e || 0))} kg
-              CO2e.
+              {formatNumber(emisionesGeneradas)} kg CO2e, CO2 almacenado{" "}
+              {formatNumber(co2Almacenado)} kg, balance neto{" "}
+              {formatNumber(Number(balanceNeto || 0))} kg CO2e.
             </p>
           </div>
           <div className="rounded-2xl border border-current/20 bg-slate-950/40 px-4 py-3 text-sm font-bold">

@@ -26,6 +26,8 @@ import AiAdvisor from "@/features/dashboard/components/AiAdvisor";
 import ExecutiveSummary from "@/features/dashboard/components/ExecutiveSummary";
 import EmisionesView from "@/features/emisiones/EmisionesView";
 import EmpresasView from "@/features/empresas/pages/EmpresasPage";
+import EvidenciasPage from "@/features/evidencias/pages/EvidenciasPage";
+import ConfiguracionPage from "@/features/configuracion/pages/ConfiguracionPage";
 import FactoresView from "@/features/factores/pages/FactoresPage";
 import ImportacionesView from "@/features/importaciones/pages/ImportacionesPage";
 import LotesView from "@/features/lotes/pages/LotesPage";
@@ -35,6 +37,7 @@ import {
   api,
   getAiAdvisor,
   getEmpresaDashboard,
+  getEmpresaEmisiones,
   getEmpresaEstado,
 } from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
@@ -91,6 +94,7 @@ function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeView, setActiveView] = useState("dashboard");
   const [empresaCreateSignal, setEmpresaCreateSignal] = useState(0);
+  const [dashboardTableRows, setDashboardTableRows] = useState([]);
   const { activeEmpresa, activeEmpresaId, loadingEmpresas } = useEmpresaActiva();
 
   const handleSetActiveView = useCallback((view, options = {}) => {
@@ -111,17 +115,35 @@ function App() {
     if (!activeEmpresaId) {
       setData(null);
       setCompanyStatus(null);
+      setDashboardTableRows([]);
       return null;
     }
 
-    const [dashboardResponse, estadoResponse] = await Promise.all([
-      getEmpresaDashboard(activeEmpresaId),
+    const [dashboardResult, estadoResult, emissionsResult] = await Promise.allSettled([
+      getEmpresaDashboard(activeEmpresaId, { light: "1" }),
       getEmpresaEstado(activeEmpresaId),
+      getEmpresaEmisiones(activeEmpresaId, { page: 1, page_size: 6 }),
     ]);
 
-    applyDashboardData(dashboardResponse);
-    setCompanyStatus(estadoResponse);
-    return dashboardResponse;
+    if (dashboardResult.status === "fulfilled") {
+      applyDashboardData(dashboardResult.value);
+    }
+
+    if (estadoResult.status === "fulfilled") {
+      setCompanyStatus(estadoResult.value);
+    }
+
+    if (emissionsResult.status === "fulfilled") {
+      setDashboardTableRows(emissionsResult.value?.results || []);
+    } else {
+      setDashboardTableRows([]);
+    }
+
+    if (dashboardResult.status === "rejected" && estadoResult.status === "rejected") {
+      throw dashboardResult.reason || estadoResult.reason;
+    }
+
+    return dashboardResult.status === "fulfilled" ? dashboardResult.value : null;
   }, [activeEmpresaId, applyDashboardData]);
 
   useEffect(() => {
@@ -138,13 +160,30 @@ function App() {
 
     const loadDashboard = async () => {
       try {
-        const [dashboardResponse, estadoResponse] = await Promise.all([
-          getEmpresaDashboard(activeEmpresaId),
+        const [dashboardResult, estadoResult, emissionsResult] = await Promise.allSettled([
+          getEmpresaDashboard(activeEmpresaId, { light: "1" }),
           getEmpresaEstado(activeEmpresaId),
+          getEmpresaEmisiones(activeEmpresaId, { page: 1, page_size: 6 }),
         ]);
+
         if (!isCancelled) {
-          applyDashboardData(dashboardResponse);
-          setCompanyStatus(estadoResponse);
+          if (dashboardResult.status === "fulfilled") {
+            applyDashboardData(dashboardResult.value);
+          }
+
+          if (estadoResult.status === "fulfilled") {
+            setCompanyStatus(estadoResult.value);
+          }
+
+          if (emissionsResult.status === "fulfilled") {
+            setDashboardTableRows(emissionsResult.value?.results || []);
+          } else {
+            setDashboardTableRows([]);
+          }
+
+          if (dashboardResult.status === "rejected" && estadoResult.status === "rejected" && emissionsResult.status === "rejected") {
+            throw dashboardResult.reason || estadoResult.reason || emissionsResult.reason;
+          }
         }
       } catch (error) {
         if (!isCancelled) {
@@ -166,10 +205,28 @@ function App() {
     window.print();
   };
 
-  const recommendedScenario = useMemo(
-    () => (data ? optimizeScenario(data.datos || []) : null),
-    [data]
-  );
+  const dashboardTotalEmissions = Number(data?.total_emisiones || 0);
+  const dashboardHasRows = Array.isArray(data?.datos) && data.datos.length > 0;
+
+  const recommendedScenario = useMemo(() => {
+    if (dashboardHasRows) {
+      return optimizeScenario(data.datos || []);
+    }
+
+    if (!dashboardTotalEmissions) {
+      return null;
+    }
+
+    const estimatedReductionPct = 25;
+    return {
+      currentTotal: dashboardTotalEmissions,
+      simulatedTotal: dashboardTotalEmissions * (1 - estimatedReductionPct / 100),
+      reductionPct: estimatedReductionPct,
+      dieselReduction: 0,
+      electricityIncrease: 0,
+      rows: [],
+    };
+  }, [dashboardHasRows, dashboardTotalEmissions, data]);
 
   if (loadingEmpresas) {
     return (
@@ -381,6 +438,10 @@ const validationSummary = {
           <EmisionesView onSetActiveView={handleSetActiveView} />
         ) : activeView === "factores" ? (
           <FactoresView />
+        ) : activeView === "evidencias" ? (
+          <EvidenciasPage />
+        ) : activeView === "configuracion" ? (
+          <ConfiguracionPage />
         ) : activeView === "importaciones" ? (
           <ImportacionesView onImportConfirmed={refreshInternalDashboard} />
         ) : (
@@ -541,7 +602,7 @@ const validationSummary = {
             </ChartCard>
           </section>
 
-          <DataTable rows={safeDashboardData.datos} />
+          <DataTable rows={dashboardTableRows} />
         </div>
         )}
           </motion.div>

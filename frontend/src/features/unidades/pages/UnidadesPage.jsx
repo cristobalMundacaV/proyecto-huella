@@ -27,6 +27,7 @@ function UnidadesOperativasView() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedUnidadId, setSelectedUnidadId] = useState("");
+  const [selectedUnidadLoading, setSelectedUnidadLoading] = useState(false);
   const [activeDetailTab, setActiveDetailTab] = useState("resumen");
   const { activeEmpresa, activeEmpresaId, loadingEmpresas } = useEmpresaActiva();
 
@@ -74,6 +75,41 @@ function UnidadesOperativasView() {
       isCancelled = true;
     };
   }, [activeEmpresaId]);
+
+  async function loadUnidadDetail(unidad) {
+    if (!activeEmpresaId || !unidad?.unidad_id) {
+      return;
+    }
+
+    setSelectedUnidadId(String(unidad.id));
+    setActiveDetailTab("resumen");
+    setSelectedUnidadLoading(true);
+
+    try {
+      const data = await getEmpresaUnidades(activeEmpresaId, {
+        detail: 1,
+        unidad_id: unidad.unidad_id,
+      });
+      const [detail] = Array.isArray(data) ? data : [];
+
+      if (detail) {
+        setUnidades((currentUnidades) =>
+          currentUnidades.map((currentUnidad) =>
+            String(currentUnidad.id) === String(detail.id)
+              ? { ...currentUnidad, ...detail }
+              : currentUnidad
+          )
+        );
+      }
+    } catch (requestError) {
+      setError(
+        requestError.response?.data?.error ||
+          "No se pudo cargar el detalle de la unidad operativa."
+      );
+    } finally {
+      setSelectedUnidadLoading(false);
+    }
+  }
 
   const filteredUnidades = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -268,10 +304,7 @@ function UnidadesOperativasView() {
                   <td className="px-4 py-4 text-center">
                     <button
                       type="button"
-                      onClick={() => {
-                        setSelectedUnidadId(String(unidad.id));
-                        setActiveDetailTab("resumen");
-                      }}
+                      onClick={() => loadUnidadDetail(unidad)}
                       className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 transition hover:bg-cyan-400/20"
                       aria-label={`Ver detalle de ${unidad.nombre}`}
                     >
@@ -302,6 +335,7 @@ function UnidadesOperativasView() {
 
       <UnidadDetailPanel
         activeTab={activeDetailTab}
+        loading={selectedUnidadLoading}
         onTabChange={setActiveDetailTab}
         unidad={selectedUnidad}
       />
@@ -419,7 +453,7 @@ function UnitTypeBadge({ type }) {
   );
 }
 
-function UnidadDetailPanel({ activeTab, onTabChange, unidad }) {
+function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
   if (!unidad) {
     return (
       <EmptyState
@@ -448,6 +482,13 @@ function UnidadDetailPanel({ activeTab, onTabChange, unidad }) {
         </div>
         <UnitTypeBadge type={unidad.tipo} />
       </div>
+
+      {loading && (
+        <div className="mb-5 flex items-center gap-2 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-100">
+          <Loader2 className="animate-spin" size={18} />
+          Cargando detalle operativo...
+        </div>
+      )}
 
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <UnitMiniMetric label="Lotes asociados" value={unidad.lotes_count || 0} />

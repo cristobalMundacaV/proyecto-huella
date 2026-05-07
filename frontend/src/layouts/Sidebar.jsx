@@ -44,24 +44,21 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
       view: "lotes",
     },
     {
-      icon: DatabaseZap,
-      label: "Importacion de datos",
-      view: "importaciones",
-    },
-    
-    {
       icon: BarChart3,
       label: "Reportes",
       view: "reportes",
     },
     {
-      disabled: true,
+      icon: DatabaseZap,
+      label: "Importacion de datos",
+      view: "importaciones",
+    },
+    {
       icon: FileCheck2,
       label: "Evidencias",
       view: "evidencias",
     },
     {
-      disabled: true,
       icon: Settings,
       label: "Configuracion",
       view: "configuracion",

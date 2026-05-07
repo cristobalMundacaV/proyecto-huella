@@ -54,13 +54,21 @@ export function EmpresaActivaProvider({ children }) {
 
     try {
       const data = await getEmpresas();
-      setEmpresas(data);
 
-      if (activeEmpresaId && !data.some((empresa) => String(empresa.empresa_id) === String(activeEmpresaId))) {
+      const normalized = Array.isArray(data)
+        ? data
+        : data?.results || data?.data || [];
+
+      setEmpresas(normalized);
+
+      if (
+        activeEmpresaId &&
+        !normalized.some((empresa) => String(empresa.empresa_id) === String(activeEmpresaId))
+      ) {
         clearActiveEmpresa();
       }
 
-      return data;
+      return normalized;
     } catch (error) {
       setErrorEmpresas(error.response?.data?.error || "No se pudieron cargar las empresas.");
       throw error;
@@ -78,10 +86,10 @@ export function EmpresaActivaProvider({ children }) {
       activeEmpresa,
       activeEmpresaId,
       clearActiveEmpresa,
+      refreshEmpresas,
       empresas,
       errorEmpresas,
       loadingEmpresas,
-      refreshEmpresas,
       setActiveEmpresa,
       setEmpresas,
     }),
