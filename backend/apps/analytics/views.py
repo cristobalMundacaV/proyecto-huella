@@ -9,7 +9,7 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.db import transaction
-from django.db.models import Q, Count, F, Sum as DBSum, ExpressionWrapper, DecimalField, Value, OuterRef, Subquery
+from django.db.models import Q, Count, F, Sum as DBSum, ExpressionWrapper, DecimalField, IntegerField, Value, OuterRef, Subquery
 from django.db.models.functions import Coalesce
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -271,19 +271,44 @@ def build_company_dashboard_response(empresa):
 @api_view(["GET", "POST"])
 def empresas(request):
     if request.method == "GET":
-        queryset = Empresa.objects.prefetch_related(
-            "unidades_operativas",
-            "lotes",
-            "actividades_emision",
-        ).annotate(
-            # Avoid JOIN multiplication when counting several relations at once.
-            unidades_count_val=Count("unidades_operativas", distinct=True),
-            lotes_count_val=Count("lotes", distinct=True),
-            actividades_count_val=Count("actividades_emision", distinct=True),
-            # Annotate total emissions aggregated from actividades_emision to provide
-            # a lightweight value for list views (avoids heavy per-object iteration).
+        unidades_count = (
+            UnidadOperativa.objects.filter(empresa=OuterRef("pk"))
+            .values("empresa")
+            .annotate(total=Count("pk"))
+            .values("total")
+        )
+        lotes_count = (
+            Lote.objects.filter(empresa=OuterRef("pk"))
+            .values("empresa")
+            .annotate(total=Count("pk"))
+            .values("total")
+        )
+        actividades_stats = (
+            EmisionLote.objects.filter(empresa=OuterRef("pk"))
+            .values("empresa")
+            .annotate(
+                total=Count("pk"),
+                emisiones=Coalesce(
+                    DBSum("emisiones_kg_co2e"),
+                    Value(0, output_field=DecimalField()),
+                ),
+            )
+        )
+        queryset = Empresa.objects.annotate(
+            unidades_count_val=Coalesce(
+                Subquery(unidades_count, output_field=IntegerField()),
+                Value(0, output_field=IntegerField()),
+            ),
+            lotes_count_val=Coalesce(
+                Subquery(lotes_count, output_field=IntegerField()),
+                Value(0, output_field=IntegerField()),
+            ),
+            actividades_count_val=Coalesce(
+                Subquery(actividades_stats.values("total"), output_field=IntegerField()),
+                Value(0, output_field=IntegerField()),
+            ),
             emisiones_totales_val=Coalesce(
-                DBSum("actividades_emision__emisiones_kg_co2e"),
+                Subquery(actividades_stats.values("emisiones"), output_field=DecimalField()),
                 Value(0, output_field=DecimalField()),
             ),
         )
