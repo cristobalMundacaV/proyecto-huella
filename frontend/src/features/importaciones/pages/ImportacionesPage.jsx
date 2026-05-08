@@ -123,7 +123,7 @@ function PreviewTable({ rows, type }) {
             <th className="px-3 py-4 text-left min-w-40 font-semibold">Actividad</th>
             {isFactors ? <th className="px-3 py-4 text-center min-w-40 font-semibold">Activity key</th> : null}
             <th className="px-3 py-4 text-center min-w-20 font-semibold">Unidad</th>
-            {isFactors ? <th className="px-3 py-4 text-center min-w-14 font-semibold">AÃ±o</th> : <th className="px-3 py-4 text-center min-w-32 font-semibold">Asignacion</th>}
+            {isFactors ? <th className="px-3 py-4 text-center min-w-14 font-semibold">Año</th> : <th className="px-3 py-4 text-center min-w-32 font-semibold">Asignacion</th>}
             <th className="px-3 py-4 text-center min-w-24 font-semibold">Factor</th>
             <th className="px-3 py-4 text-center min-w-64 font-semibold">Observaciones</th>
           </tr>
@@ -335,7 +335,7 @@ function EmpresaPreviewTable({ rows }) {
             <th className="px-3 py-4 text-left min-w-40 font-semibold">Dirección</th>
             <th className="px-3 py-4 text-left min-w-32 font-semibold">Rubro</th>
             <th className="px-3 py-4 text-left min-w-36 font-semibold">Email</th>
-            <th className="px-3 py-4 text-left min-w-28 font-semibold">TelÃ©fono</th>
+            <th className="px-3 py-4 text-left min-w-28 font-semibold">Teléfono</th>
             <th className="px-3 py-4 text-left min-w-36 font-semibold">Contacto</th>
             <th className="px-3 py-4 text-left min-w-64 font-semibold">Observaciones</th>
           </tr>
@@ -611,7 +611,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
     ["direccion", "Dirección"],
     ["rubro", "Rubro"],
     ["email", "Email"],
-    ["telefono", "TelÃ©fono"],
+    ["telefono", "Teléfono"],
     ["contacto", "Contacto"],
     ["observaciones", "Observaciones"],
   ];
@@ -1082,7 +1082,7 @@ function ImportacionesView({ onImportConfirmed }) {
           "Dirección",
           "Rubro",
           "Email",
-          "TelÃ©fono",
+          "Teléfono",
           "Contacto",
           "Observaciones",
         ]}
@@ -1100,7 +1100,7 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importador de factores"
         icon={<FileSpreadsheet size={18} />}
-        columns={["Actividad", "Unidad", "Factor de Emisión", "Fuente", "AÃ±o"]}
+        columns={["Actividad", "Unidad", "Factor de Emisión", "Fuente", "Año"]}
         state={factors}
         type="factors"
         summaryLabels={factorSummaryLabels}
@@ -1137,7 +1137,7 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importador de lotes"
         icon={<Boxes size={18} />}
-        columns={["ID Lote", "ID Unidad", "Fecha", "Especie", "Volumen (mÂ³)", "Origen"]}
+        columns={["ID Lote", "ID Unidad", "Fecha", "Especie", "Volumen (m³)", "Origen"]}
         state={lotes}
         type="lotes"
         summaryLabels={loteSummaryLabels}
