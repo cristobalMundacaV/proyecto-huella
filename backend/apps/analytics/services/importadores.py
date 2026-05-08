@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Iterable
 
 from django.core.cache import cache
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from openpyxl import load_workbook
 
@@ -1108,14 +1108,14 @@ class ImportadorFactores:
                     factor = FactorEmision.objects.filter(
                         actividad_key=normalized["actividad_key"],
                         unidad__iexact=normalized["unidad"],
-                        factor_emision=normalized["factor_emision"],
+                        fuente__iexact=normalized["fuente"],
                         anio=normalized["anio"],
                     ).first()
                     if factor is None:
                         factor = FactorEmision.objects.filter(
                             actividad_key=normalized["actividad_key"],
                             unidad__iexact=normalized["unidad"],
-                            fuente__iexact=normalized["fuente"],
+                            factor_emision=normalized["factor_emision"],
                             anio=normalized["anio"],
                         ).first()
                     was_created = factor is None
@@ -1138,12 +1138,33 @@ class ImportadorFactores:
                         {},
                     )
                     factor.factor_emision = normalized["factor_emision"]
-                    factor.save()
+                    try:
+                        with transaction.atomic():
+                            factor.save()
+                    except IntegrityError:
+                        rejected += 1
+                        errors.append(
+                            {
+                                "row_number": row_number,
+                                "errors": [
+                                    "Ya existe un factor de emision con la misma actividad, unidad, fuente y anio."
+                                ],
+                            }
+                        )
+                        continue
                     created += 1 if was_created else 0
                     updated += 0 if was_created else 1
-                except Exception as exc:
+                except Exception:
+                    logger.exception("Error al confirmar factor de emision")
                     rejected += 1
-                    errors.append({"row_number": row_number, "errors": [str(exc)]})
+                    errors.append(
+                        {
+                            "row_number": row_number,
+                            "errors": [
+                                "No se pudo guardar el factor de emision. Revisa sus datos y duplicados."
+                            ],
+                        }
+                    )
 
         summary = {
             "creados": created,
@@ -1638,9 +1659,17 @@ class ImportadorLotes:
                             "warnings": warnings,
                         },
                     )
-                except Exception as exc:
+                except Exception:
+                    logger.exception("Error al confirmar lote")
                     rejected += 1
-                    errors.append({"row_number": row_number, "errors": [str(exc)]})
+                    errors.append(
+                        {
+                            "row_number": row_number,
+                            "errors": [
+                                "No se pudo guardar el lote. Revisa sus datos y referencias."
+                            ],
+                        }
+                    )
 
         summary = {
             "creados": created,
@@ -1806,33 +1835,49 @@ class ImportadorActividadesLote:
                     omitted += 1
                     continue
 
-                lote = (
-                    Lote.objects.get(id_lote=data["id_lote"])
-                    if data.get("id_lote")
-                    else None
-                )
-                empresa = (
-                    Empresa.objects.get(empresa_id=data["empresa_id"])
-                    if data.get("empresa_id")
-                    else None
-                )
-                unidad_operativa = (
-                    UnidadOperativa.objects.get(unidad_id=data["unidad_id"])
-                    if data.get("unidad_id")
-                    else None
-                )
-                EmisionLote.objects.create(
-                    lote=lote,
-                    empresa=empresa,
-                    unidad_operativa=unidad_operativa,
-                    actividad=data["actividad"],
-                    categoria=data.get("categoria") or "",
-                    cantidad=data["cantidad"],
-                    unidad=data["unidad"],
-                    fecha=data["fecha"],
-                    factor_emision=data["factor_emision"],
-                )
-                created += 1
+                try:
+                    with transaction.atomic():
+                        lote = (
+                            Lote.objects.get(id_lote=data["id_lote"])
+                            if data.get("id_lote")
+                            else None
+                        )
+                        empresa = (
+                            Empresa.objects.get(empresa_id=data["empresa_id"])
+                            if data.get("empresa_id")
+                            else None
+                        )
+                        unidad_operativa = (
+                            UnidadOperativa.objects.get(unidad_id=data["unidad_id"])
+                            if data.get("unidad_id")
+                            else None
+                        )
+                        EmisionLote.objects.create(
+                            lote=lote,
+                            empresa=empresa,
+                            unidad_operativa=unidad_operativa,
+                            actividad=data["actividad"],
+                            categoria=data.get("categoria") or "",
+                            cantidad=data["cantidad"],
+                            unidad=data["unidad"],
+                            fecha=data["fecha"],
+                            factor_emision=data["factor_emision"],
+                        )
+                    created += 1
+                except IntegrityError:
+                    duplicated += 1
+                    omitted += 1
+                except Exception:
+                    logger.exception("Error al confirmar actividad")
+                    rejected += 1
+                    errors.append(
+                        {
+                            "row_number": row_number,
+                            "errors": [
+                                "No se pudo guardar la actividad. Revisa sus datos y referencias."
+                            ],
+                        }
+                    )
 
         if cache_key:
             cached = cache.get(cache_key) or {}

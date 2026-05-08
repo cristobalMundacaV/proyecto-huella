@@ -2024,6 +2024,8 @@ def import_empresa_completa_confirm(request):
         
         resultado = ImportadorEmpresaCompleta.confirmar(batch_id)
         return Response(resultado)
+    except ValueError as exc:
+        return safe_error_response(exc, user_message=str(exc), status=400)
     except Exception as exc:
         return safe_error_response(
             exc,

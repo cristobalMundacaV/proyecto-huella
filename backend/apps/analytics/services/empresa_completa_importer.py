@@ -133,8 +133,26 @@ def _apply_file_factor(data: dict, errors: list[str], factor_lookup: dict[tuple[
     _remove_error(errors, "factor de emision no encontrado")
 
 
-def _factor_row_with_defaults(row: dict) -> dict:
-    return {**row, "fuente": row.get("fuente") or "Archivo importado"}
+def _confirm_section(section_name: str, confirm_fn, **kwargs) -> dict:
+    try:
+        return confirm_fn(**kwargs)
+    except ValueError:
+        raise
+    except Exception as exc:
+        logger.exception("[IMPORT_COMPLETE] Error al guardar %s", section_name)
+        raise ValueError(
+            f"No se pudieron guardar {section_name}. Revisa duplicados o referencias invalidas en esa hoja."
+        ) from exc
+
+
+def _tag_section_errors(section_name: str, errors: list[dict]) -> list[dict]:
+    tagged_errors = []
+    for error in errors or []:
+        if isinstance(error, dict):
+            tagged_errors.append({"sheet": section_name, **error})
+        else:
+            tagged_errors.append({"sheet": section_name, "errors": [str(error)]})
+    return tagged_errors
 
 
 class ImportadorEmpresaCompleta:
@@ -231,7 +249,7 @@ class ImportadorEmpresaCompleta:
             "rows": []
         }
         for row in factores_rows:
-            data, errors = _build_row_payload(_factor_row_with_defaults(row))
+            data, errors = _build_row_payload(row)
             status = "valid" if not errors else "error"
             if status == "valid":
                 factores_preview["validos"] += 1
@@ -259,10 +277,6 @@ class ImportadorEmpresaCompleta:
             data, errors, warnings = _build_lote_payload(row)
             id_lote = data.get("id_lote")
             empresa_id = data.get("empresa_id")
-
-            if not row.get("origen"):
-                _remove_error(errors, "origen es obligatorio")
-                data["origen"] = "No informado"
 
             if empresa_activa is not None and (not empresa_id or empresa_id == empresa_activa.empresa_id):
                 _remove_error(errors, "empresa_id no existe")
@@ -429,7 +443,11 @@ class ImportadorEmpresaCompleta:
         ]
 
         logger.info(f"[IMPORT_COMPLETE] Guardando empresa: empresa_id={company_payload.get('empresa_id')}")
-        company_summary = ImportadorEmpresas.confirmar(rows=company_rows)
+        company_summary = _confirm_section(
+            "empresa",
+            ImportadorEmpresas.confirmar,
+            rows=company_rows,
+        )
         logger.info(f"[IMPORT_COMPLETE] Resultado empresa: {company_summary}")
         
         if company_summary.get("rechazados"):
@@ -445,14 +463,20 @@ class ImportadorEmpresaCompleta:
 
         # Guardar factores primero
         logger.info(f"[IMPORT_COMPLETE] Procesando {len(cached['factores'].get('rows', []))} factores")
-        factores_summary = ImportadorFactores.confirmar(rows=cached["factores"].get("rows", []))
+        factores_summary = _confirm_section(
+            "factores",
+            ImportadorFactores.confirmar,
+            rows=cached["factores"].get("rows", []),
+        )
         logger.info(f"[IMPORT_COMPLETE] Resultado factores: creados={factores_summary.get('creados', 0)}, errores={len(factores_summary.get('errores', []))}")
         if factores_summary.get("errores"):
             logger.warning(f"[IMPORT_COMPLETE] Errores en factores: {factores_summary.get('errores')}")
 
         # Guardar unidades
         logger.info(f"[IMPORT_COMPLETE] Procesando {len(cached['unidades'].get('rows', []))} unidades")
-        unidades_summary = ImportadorUnidadesOperativas.confirmar(
+        unidades_summary = _confirm_section(
+            "unidades",
+            ImportadorUnidadesOperativas.confirmar,
             rows=cached["unidades"].get("rows", []),
             empresa_activa=created_empresa,
         )
@@ -462,7 +486,9 @@ class ImportadorEmpresaCompleta:
 
         # Guardar lotes
         logger.info(f"[IMPORT_COMPLETE] Procesando {len(cached['lotes'].get('rows', []))} lotes")
-        lotes_summary = ImportadorLotes.confirmar(
+        lotes_summary = _confirm_section(
+            "lotes",
+            ImportadorLotes.confirmar,
             rows=cached["lotes"].get("rows", []),
             empresa_activa=created_empresa,
         )
@@ -472,7 +498,9 @@ class ImportadorEmpresaCompleta:
 
         # Guardar actividades
         logger.info(f"[IMPORT_COMPLETE] Procesando {len(cached['actividades'].get('rows', []))} actividades")
-        actividades_summary = ImportadorActividadesLote.confirmar(
+        actividades_summary = _confirm_section(
+            "actividades",
+            ImportadorActividadesLote.confirmar,
             rows=cached["actividades"].get("rows", []),
             empresa_activa=created_empresa,
         )
@@ -489,10 +517,10 @@ class ImportadorEmpresaCompleta:
             "actividades_creadas": actividades_summary.get("creados", 0),
             "factores_creados": factores_summary.get("creados", 0),
             "errores": [
-                *unidades_summary.get("errores", []),
-                *lotes_summary.get("errores", []),
-                *actividades_summary.get("errores", []),
-                *factores_summary.get("errores", []),
+                *_tag_section_errors("unidades", unidades_summary.get("errores", [])),
+                *_tag_section_errors("lotes", lotes_summary.get("errores", [])),
+                *_tag_section_errors("actividades", actividades_summary.get("errores", [])),
+                *_tag_section_errors("factores", factores_summary.get("errores", [])),
             ],
         }
         
