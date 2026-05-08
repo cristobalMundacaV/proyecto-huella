@@ -582,6 +582,37 @@ def empresa_dashboard(request, empresa_id):
         )
         total_agg = actividades_qs.aggregate(total=Sum("emisiones_kg_co2e"))
         total_emisiones = float(total_agg.get("total") or 0)
+        lotes_qs = Lote.objects.filter(Q(empresa=empresa) | Q(unidad_operativa__empresa=empresa))
+        especie_densidad = EspecieMadera.objects.filter(
+            nombre__iexact=OuterRef("especie")
+        ).values("densidad_kg_m3")[:1]
+        especie_porcentaje_carbono = EspecieMadera.objects.filter(
+            nombre__iexact=OuterRef("especie")
+        ).values("porcentaje_carbono")[:1]
+        densidad_expr = Coalesce(
+            F("densidad_kg_m3"),
+            Subquery(especie_densidad, output_field=DecimalField(max_digits=8, decimal_places=3)),
+            Value(Decimal("0.0")),
+            output_field=DecimalField(max_digits=8, decimal_places=3),
+        )
+        porcentaje_carbono_expr = Coalesce(
+            F("porcentaje_carbono"),
+            Subquery(
+                especie_porcentaje_carbono,
+                output_field=DecimalField(max_digits=5, decimal_places=4),
+            ),
+            Value(Decimal("0.0")),
+            output_field=DecimalField(max_digits=5, decimal_places=4),
+        )
+        co2_expr = ExpressionWrapper(
+            Coalesce(F("volumen_m3"), Value(Decimal("0.0")))
+            * densidad_expr
+            * porcentaje_carbono_expr
+            * Value(Decimal("3.67")),
+            output_field=DecimalField(max_digits=20, decimal_places=6),
+        )
+        co2_agg = lotes_qs.annotate(_co2=co2_expr).aggregate(total_co2=DBSum("_co2"))
+        co2_almacenado_total = float(co2_agg.get("total_co2") or 0)
 
         emisiones_por_actividad = {
             item["actividad"] or "Sin actividad": float(item["emisiones"] or 0)
@@ -610,6 +641,8 @@ def empresa_dashboard(request, empresa_id):
             "empresa_id": empresa.empresa_id,
             "empresa_nombre": empresa.nombre,
             "total_emisiones": total_emisiones,
+            "co2_almacenado_total": co2_almacenado_total,
+            "balance_neto_total": total_emisiones - co2_almacenado_total,
             "actividades_count": actividades_count,
             "emisiones_por_actividad": emisiones_por_actividad,
             "emisiones_por_categoria": emisiones_por_categoria,
