@@ -173,6 +173,11 @@ class ImportadorEmpresaCompleta:
                 )
                 # Actualizar empresa_data con el empresa_id generado
                 empresa_data["empresa_id"] = generated_empresa_id
+        else:
+            blocking_errors.append("La hoja empresa no contiene filas validas para importar")
+
+        if not empresa_data or not empresa_data.get("empresa_id"):
+            blocking_errors.append("No se encontro una empresa valida en la hoja empresa")
 
         # Procesar unidades
         unidades_preview = {
@@ -360,6 +365,10 @@ class ImportadorEmpresaCompleta:
         if not cached:
             raise ValueError("El batch_id no existe o expiró")
 
+        empresa_data = cached.get("empresa", {}).get("data", {})
+        if not empresa_data or not empresa_data.get("empresa_id"):
+            raise ValueError("La importación no contiene una empresa valida para guardar")
+
         created_empresa = None
         created_unidades = 0
         created_lotes = 0
@@ -369,7 +378,6 @@ class ImportadorEmpresaCompleta:
 
         with transaction.atomic():
             # Crear/actualizar empresa
-            empresa_data = cached["empresa"].get("data", {})
             if empresa_data.get("empresa_id"):
                 try:
                     empresa, was_created = Empresa.objects.update_or_create(

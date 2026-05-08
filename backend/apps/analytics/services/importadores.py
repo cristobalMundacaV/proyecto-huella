@@ -55,9 +55,9 @@ REQUIRED_LOTE_COLUMNS = [
     "origen",
 ]
 REQUIRED_ACTIVITY_COLUMNS = ["actividad", "cantidad", "unidad", "fecha"]
-REQUIRED_COMPANY_COLUMNS = ["empresa_id", "nombre"]
-REQUIRED_UNIT_COLUMNS = ["unidad_id", "empresa_id", "nombre", "tipo"]
-OPTIONAL_COMPANY_COLUMNS = [
+REQUIRED_COMPANY_COLUMNS = [
+    "empresa_id",
+    "nombre",
     "rut",
     "region",
     "comuna",
@@ -68,6 +68,8 @@ OPTIONAL_COMPANY_COLUMNS = [
     "contacto",
     "observaciones",
 ]
+REQUIRED_UNIT_COLUMNS = ["unidad_id", "empresa_id", "nombre", "tipo"]
+OPTIONAL_COMPANY_COLUMNS: list[str] = []
 OPTIONAL_LOTE_COLUMNS = [
     "empresa_id",
     "unidad_id",

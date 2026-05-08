@@ -328,8 +328,13 @@ function EmpresaPreviewTable({ rows }) {
             <th className="px-3 py-4 text-left min-w-32 font-semibold">Empresa ID</th>
             <th className="px-3 py-4 text-left min-w-48 font-semibold">Nombre</th>
             <th className="px-3 py-4 text-left min-w-28 font-semibold">RUT</th>
-            <th className="px-3 py-4 text-left min-w-32 font-semibold">Region</th>
+            <th className="px-3 py-4 text-left min-w-32 font-semibold">Región</th>
+            <th className="px-3 py-4 text-left min-w-32 font-semibold">Comuna</th>
+            <th className="px-3 py-4 text-left min-w-40 font-semibold">Dirección</th>
             <th className="px-3 py-4 text-left min-w-32 font-semibold">Rubro</th>
+            <th className="px-3 py-4 text-left min-w-36 font-semibold">Email</th>
+            <th className="px-3 py-4 text-left min-w-28 font-semibold">Teléfono</th>
+            <th className="px-3 py-4 text-left min-w-36 font-semibold">Contacto</th>
             <th className="px-3 py-4 text-left min-w-64 font-semibold">Observaciones</th>
           </tr>
         </thead>
@@ -353,7 +358,12 @@ function EmpresaPreviewTable({ rows }) {
               <td className="px-3 py-4 font-semibold text-slate-100">{row.data.nombre || "-"}</td>
               <td className="px-3 py-4 text-slate-300">{row.data.rut || "-"}</td>
               <td className="px-3 py-4 text-slate-300">{row.data.region || "-"}</td>
+              <td className="px-3 py-4 text-slate-300">{row.data.comuna || "-"}</td>
+              <td className="px-3 py-4 text-slate-300">{row.data.direccion || "-"}</td>
               <td className="px-3 py-4 text-slate-300">{row.data.rubro || "-"}</td>
+              <td className="px-3 py-4 text-slate-300">{row.data.email || "-"}</td>
+              <td className="px-3 py-4 text-slate-300">{row.data.telefono || "-"}</td>
+              <td className="px-3 py-4 text-slate-300">{row.data.contacto || "-"}</td>
               <td className="px-3 py-4 text-sm text-slate-300">
                 {row.errors?.length ? (
                   <span className="text-red-300">{row.errors.join("; ")}</span>
@@ -912,7 +922,19 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importador de empresas"
         icon={<Building2 size={18} />}
-        columns={["ID Empresa", "Nombre", "RUT", "Dirección"]}
+        columns={[
+          "ID Empresa",
+          "Nombre",
+          "RUT",
+          "Región",
+          "Comuna",
+          "Dirección",
+          "Rubro",
+          "Email",
+          "Teléfono",
+          "Contacto",
+          "Observaciones",
+        ]}
         state={empresas}
         type="empresas"
         summaryLabels={companySummaryLabels}

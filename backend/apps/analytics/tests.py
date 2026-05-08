@@ -182,6 +182,82 @@ class AnalyticsApiIntegrationTest(APITestCase):
 		self.assertEqual(unidad.tipo, UnidadOperativa.Tipo.GENERAL)
 		self.assertEqual(response.data["unidad_inicial"]["unidad_id"], unidad.unidad_id)
 
+	def test_import_empresas_requires_all_company_columns(self):
+		uploaded_file = SimpleUploadedFile(
+			"empresas.csv",
+			(
+				"empresa_id,nombre,rut,direccion\n"
+				"EMP-001,Empresa Demo,76.123.456-7,Calle 1\n"
+			).encode("utf-8"),
+			content_type="text/csv",
+		)
+
+		response = self.client.post(
+			"/api/importaciones/empresas/preview/",
+			data={"file": uploaded_file},
+			format="multipart",
+		)
+
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertIn("Faltan columnas obligatorias", response.data["error"])
+
+	def test_import_empresa_completa_rejects_empty_empresa_sheet(self):
+		workbook = Workbook()
+		for sheet_name, headers in {
+			"empresa": [
+				"empresa_id",
+				"nombre",
+				"rut",
+				"region",
+				"comuna",
+				"direccion",
+				"rubro",
+				"email",
+				"telefono",
+				"contacto",
+				"observaciones",
+			],
+			"unidades": ["unidad_id", "empresa_id", "nombre", "tipo"],
+			"lotes": ["id_lote", "empresa", "fecha", "especie", "volumen_m3", "origen"],
+			"actividades": ["id_lote", "actividad", "cantidad", "unidad", "fecha"],
+			"factores": ["actividad", "unidad", "factor_emision", "fuente", "anio"],
+		}.items():
+			sheet = workbook.active if workbook.sheetnames == ["Sheet"] and sheet_name == "empresa" else workbook.create_sheet(title=sheet_name)
+			sheet.title = sheet_name
+			sheet.append(headers)
+
+		buffer = BytesIO()
+		workbook.save(buffer)
+		buffer.seek(0)
+		uploaded_file = SimpleUploadedFile(
+			"empresa_completa_vacia.xlsx",
+			buffer.read(),
+			content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		)
+
+		preview_response = self.client.post(
+			"/api/importaciones/empresa-completa/preview/",
+			data={"file": uploaded_file},
+			format="multipart",
+		)
+		confirm_response = self.client.post(
+			"/api/importaciones/empresa-completa/confirm/",
+			data={"batch_id": preview_response.data["batch_id"]},
+			format="json",
+		)
+
+		self.assertEqual(preview_response.status_code, status.HTTP_200_OK)
+		self.assertTrue(preview_response.data["blocking_errors"])
+		self.assertTrue(
+			any(
+				message in error
+				for error in preview_response.data["blocking_errors"]
+				for message in ["No se encontro una empresa valida", "La hoja empresa no contiene filas validas para importar"]
+			)
+		)
+		self.assertEqual(confirm_response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertIn("No se pudo confirmar la importación de empresa completa", confirm_response.data["error"])
+
 	def test_empresa_dashboard_aisla_datos_por_empresa(self):
 		empresa_a = Empresa.objects.create(empresa_id="EMP-DASH-A", nombre="Empresa A")
 		empresa_b = Empresa.objects.create(empresa_id="EMP-DASH-B", nombre="Empresa B")
