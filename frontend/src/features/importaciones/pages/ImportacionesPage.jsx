@@ -623,7 +623,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
           </div>
           <div>
             <h2 className="text-xl font-semibold">Importador de empresa completa</h2>
-            <p className="text-sm text-slate-400">Empresa: ID Empresa, Nombre; Factores: Actividad, Unidad, Factor de Emisión, Año; Unidades: ID Unidad, Nombre, Tipo; Lotes: ID Lote, ID Unidad, Fecha, Especie, Volumen (m³); Actividades: ID Lote, Actividad, Cantidad, Unidad, Fecha</p>
+            <p className="text-sm text-slate-400">Empresa: ID Empresa, Nombre, RUT, Región, Comuna, Dirección, Rubro, Email, Teléfono, Contacto, Observaciones; Factores: Actividad, Unidad, Factor de Emisión, Fuente, Año, Categoría, Activity key, Descripción; Unidades: ID Unidad, Nombre, Tipo, Región, Comuna, Dirección, Descripción, Activa; Lotes: ID Lote, ID Empresa, ID Unidad, Empresa, Fecha, Especie, Volumen (m³), Origen, Tipo producto, Densidad kg/m3, Porcentaje carbono, Estado, Observaciones; Actividades: ID Empresa, ID Unidad, ID Lote, Actividad, Cantidad, Unidad, Fecha</p>
           </div>
         </div>
 
@@ -1083,7 +1083,7 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importador de factores"
         icon={<FileSpreadsheet size={18} />}
-        columns={["Actividad", "Unidad", "Factor de Emisión", "Fuente", "Año"]}
+        columns={["Actividad", "Unidad", "Factor de Emisión", "Fuente", "Año", "Categoría", "Activity key", "Descripción"]}
         state={factors}
         type="factors"
         summaryLabels={factorSummaryLabels}
@@ -1102,7 +1102,7 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importador de unidades operativas"
         icon={<Factory size={18} />}
-        columns={["ID Unidad", "Nombre", "Tipo"]}
+        columns={["ID Unidad", "Nombre", "Tipo", "Región", "Comuna", "Dirección", "Descripción", "Activa"]}
         state={units}
         type="unidades"
         summaryLabels={unitSummaryLabels}
@@ -1120,7 +1120,7 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importador de lotes"
         icon={<Boxes size={18} />}
-        columns={["ID Lote", "Fecha", "Especie", "Volumen (m³)", "Origen"]}
+        columns={["ID Lote", "ID Empresa", "ID Unidad", "Empresa", "Fecha", "Especie", "Volumen (m³)", "Origen", "Tipo producto", "Densidad kg/m3", "Porcentaje carbono", "Estado", "Observaciones"]}
         state={lotes}
         type="lotes"
         summaryLabels={loteSummaryLabels}
@@ -1138,7 +1138,7 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importador de actividades"
         icon={<DatabaseZap size={18} />}
-        columns={["ID Lote", "Actividad", "Cantidad", "Unidad", "Fecha"]}
+        columns={["ID Empresa", "ID Unidad", "ID Lote", "Actividad", "Cantidad", "Unidad", "Fecha"]}
         state={activities}
         type="activities"
         summaryLabels={activitySummaryLabels}

@@ -115,7 +115,7 @@ export default function EmpresaCompletaImport({ onImported }) {
         <input ref={inputRef} type="file" accept=".xlsx" onChange={onFile} className="hidden" />
       </label>
       <p className="mt-2 text-xs text-slate-500">
-        Empresa: ID Empresa, Nombre; Factores: Actividad, Unidad, Factor de Emisión, Año; Unidades: ID Unidad, Nombre, Tipo; Lotes: ID Lote, ID Unidad, Fecha, Especie, Volumen (m³); Actividades: ID Lote, Actividad, Cantidad, Unidad, Fecha.
+        Empresa: ID Empresa, Nombre, RUT, Región, Comuna, Dirección, Rubro, Email, Teléfono, Contacto, Observaciones; Factores: Actividad, Unidad, Factor de Emisión, Fuente, Año, Categoría, Activity key, Descripción; Unidades: ID Unidad, Nombre, Tipo, Región, Comuna, Dirección, Descripción, Activa; Lotes: ID Lote, ID Empresa, ID Unidad, Empresa, Fecha, Especie, Volumen (m³), Origen, Tipo producto, Densidad kg/m3, Porcentaje carbono, Estado, Observaciones; Actividades: ID Empresa, ID Unidad, ID Lote, Actividad, Cantidad, Unidad, Fecha.
       </p>
 
       {state.loading && (
