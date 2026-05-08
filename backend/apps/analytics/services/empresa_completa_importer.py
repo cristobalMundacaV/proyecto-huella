@@ -133,6 +133,10 @@ def _apply_file_factor(data: dict, errors: list[str], factor_lookup: dict[tuple[
     _remove_error(errors, "factor de emision no encontrado")
 
 
+def _factor_row_with_defaults(row: dict) -> dict:
+    return {**row, "fuente": row.get("fuente") or "Archivo importado"}
+
+
 class ImportadorEmpresaCompleta:
     @staticmethod
     def previsualizar(uploaded_file) -> dict:
@@ -227,7 +231,7 @@ class ImportadorEmpresaCompleta:
             "rows": []
         }
         for row in factores_rows:
-            data, errors = _build_row_payload(row)
+            data, errors = _build_row_payload(_factor_row_with_defaults(row))
             status = "valid" if not errors else "error"
             if status == "valid":
                 factores_preview["validos"] += 1
@@ -255,6 +259,10 @@ class ImportadorEmpresaCompleta:
             data, errors, warnings = _build_lote_payload(row)
             id_lote = data.get("id_lote")
             empresa_id = data.get("empresa_id")
+
+            if not row.get("origen"):
+                _remove_error(errors, "origen es obligatorio")
+                data["origen"] = "No informado"
 
             if empresa_activa is not None and (not empresa_id or empresa_id == empresa_activa.empresa_id):
                 _remove_error(errors, "empresa_id no existe")
@@ -313,7 +321,11 @@ class ImportadorEmpresaCompleta:
                 data["empresa_id"] = lote_data.get("empresa_id") or data.get("empresa_id")
                 data["unidad_id"] = lote_data.get("unidad_id") or data.get("unidad_id")
                 data["tipo_asignacion"] = EmisionLote.TipoAsignacion.LOTE
-            elif id_lote and not Lote.objects.filter(id_lote=id_lote).exists():
+            elif (
+                id_lote
+                and not Lote.objects.filter(id_lote=id_lote).exists()
+                and f"id_lote {id_lote} no existe" not in errors
+            ):
                 errors.append(f"id_lote {id_lote} no existe")
 
             if unidad_id in unidades_by_id:

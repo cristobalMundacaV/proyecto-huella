@@ -504,6 +504,8 @@ function ImportPanel({
   title,
   icon,
   columns,
+  optionalColumns = [],
+  note = "",
   state,
   type,
   summaryLabels,
@@ -524,7 +526,15 @@ function ImportPanel({
           </div>
           <div>
             <h2 className="text-xl font-semibold">{title}</h2>
-            <p className="text-sm text-slate-400">{columns.join(", ")}</p>
+            <p className="text-sm text-slate-400">
+              <span className="font-semibold text-slate-300">Obligatorias:</span> {columns.join(", ")}
+            </p>
+            {optionalColumns.length > 0 && (
+              <p className="mt-1 text-xs text-slate-500">
+                <span className="font-semibold text-slate-400">Opcionales:</span> {optionalColumns.join(", ")}
+              </p>
+            )}
+            {note && <p className="mt-1 text-xs text-amber-200">{note}</p>}
           </div>
         </div>
 
@@ -587,6 +597,11 @@ function ImportPanel({
 
 function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
   const blockingErrors = state.result?.blocking_errors || [];
+  const sectionErrors =
+    (state.result?.unidades?.errores || 0) +
+    (state.result?.lotes?.errores || 0) +
+    (state.result?.actividades?.errores || 0) +
+    (state.result?.factores?.errores || 0);
   const empresaData = state.result?.empresa?.data || {};
   const summaryCards = [
     { label: "Empresa", value: state.result?.empresa?.status === "valid" ? "Lista" : "Revisar" },
@@ -618,9 +633,17 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
           </div>
           <div>
             <h2 className="text-xl font-semibold">Importador de empresa completa</h2>
-            <p className="text-sm text-slate-400">
-              Archivo XLSX con hojas <span className="font-semibold text-slate-200">empresa</span>, <span className="font-semibold text-slate-200">unidades</span>, <span className="font-semibold text-slate-200">lotes</span>, <span className="font-semibold text-slate-200">actividades</span> y <span className="font-semibold text-slate-200">factores</span>.
-            </p>
+            <div className="space-y-1 text-sm text-slate-400">
+              <p>
+                XLSX con hojas <span className="font-semibold text-slate-200">empresa</span>, <span className="font-semibold text-slate-200">factores</span>, <span className="font-semibold text-slate-200">unidades</span>, <span className="font-semibold text-slate-200">lotes</span> y <span className="font-semibold text-slate-200">actividades</span>.
+              </p>
+              <p className="text-xs text-slate-500">
+                Minimo: empresa(ID Empresa, Nombre); factores(Actividad, Unidad, Factor de Emision, Anio); unidades(ID Unidad, Nombre, Tipo); lotes(ID Lote, ID Unidad, Fecha, Especie, Volumen m3); actividades(ID Lote o ID Unidad, Actividad, Cantidad, Unidad, Fecha).
+              </p>
+              <p className="text-xs text-amber-200">
+                En empresa completa, Origen y Fuente pueden omitirse; el sistema usa valores por defecto.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -786,7 +809,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
           <button
             type="button"
             onClick={() => onConfirm(state.result?.batch_id)}
-            disabled={!state.result?.batch_id || blockingErrors.length > 0 || state.saving}
+            disabled={!state.result?.batch_id || blockingErrors.length > 0 || sectionErrors > 0 || state.saving}
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 text-sm font-bold text-cyan-100 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {state.saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
@@ -1080,7 +1103,9 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importador de factores"
         icon={<FileSpreadsheet size={18} />}
-        columns={["Actividad", "Unidad", "Factor de Emisión", "Año"]}
+        columns={["Actividad", "Unidad", "Factor de Emisión", "Fuente", "Año"]}
+        optionalColumns={["Categoría", "Activity key", "Descripción"]}
+        note="En este importador individual, Fuente es obligatoria."
         state={factors}
         type="factors"
         summaryLabels={factorSummaryLabels}
@@ -1099,7 +1124,9 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importador de unidades operativas"
         icon={<Factory size={18} />}
-        columns={["ID Unidad", "Nombre", "Tipo", "Región", "Comuna", "Dirección"]}
+        columns={["ID Unidad", "Nombre", "Tipo"]}
+        optionalColumns={["Región", "Comuna", "Dirección", "Descripción", "Activa"]}
+        note="La empresa se toma desde la empresa activa."
         state={units}
         type="unidades"
         summaryLabels={unitSummaryLabels}
@@ -1117,7 +1144,9 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importador de lotes"
         icon={<Boxes size={18} />}
-        columns={["ID Lote", "ID Unidad", "Fecha", "Especie", "Volumen (m³)"]}
+        columns={["ID Lote", "Fecha", "Especie", "Volumen (m³)", "Origen"]}
+        optionalColumns={["ID Unidad", "Empresa", "Tipo producto", "Densidad kg/m3", "Porcentaje carbono", "Estado", "Observaciones"]}
+        note="Si envías ID Unidad, el sistema deduce la empresa activa."
         state={lotes}
         type="lotes"
         summaryLabels={loteSummaryLabels}
@@ -1135,7 +1164,9 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importador de actividades"
         icon={<DatabaseZap size={18} />}
-        columns={["ID Unidad", "ID Lote", "Actividad", "Cantidad", "Unidad", "Fecha"]}
+        columns={["Actividad", "Cantidad", "Unidad", "Fecha"]}
+        optionalColumns={["ID Lote", "ID Unidad", "ID Empresa"]}
+        note="Debe venir al menos uno: ID Lote, ID Unidad o ID Empresa. Si el factor no existe, importa factores primero."
         state={activities}
         type="activities"
         summaryLabels={activitySummaryLabels}

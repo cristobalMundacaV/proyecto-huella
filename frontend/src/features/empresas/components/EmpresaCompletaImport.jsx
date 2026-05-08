@@ -99,6 +99,11 @@ export default function EmpresaCompletaImport({ onImported }) {
   };
 
   const blocking = (state.result?.blocking_errors || []).length > 0;
+  const sectionErrors =
+    (state.result?.unidades?.errores || 0) +
+    (state.result?.lotes?.errores || 0) +
+    (state.result?.actividades?.errores || 0) +
+    (state.result?.factores?.errores || 0);
 
   return (
     <div>
@@ -107,8 +112,11 @@ export default function EmpresaCompletaImport({ onImported }) {
       <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-400/20">
         <Upload size={16} />
         Importar empresa completa
-        <input ref={inputRef} type="file" accept=".csv,.xlsx" onChange={onFile} className="hidden" />
+        <input ref={inputRef} type="file" accept=".xlsx" onChange={onFile} className="hidden" />
       </label>
+      <p className="mt-2 text-xs text-slate-500">
+        XLSX con hojas empresa, factores, unidades, lotes y actividades. Minimo: empresa(ID Empresa, Nombre); factores(Actividad, Unidad, Factor de Emision, Anio); unidades(ID Unidad, Nombre, Tipo); lotes(ID Lote, ID Unidad, Fecha, Especie, Volumen m3); actividades(ID Lote o ID Unidad, Actividad, Cantidad, Unidad, Fecha).
+      </p>
 
       {state.loading && (
         <div className="mt-3 text-sm text-slate-400 inline-flex items-center gap-2">
@@ -171,7 +179,7 @@ export default function EmpresaCompletaImport({ onImported }) {
             <button
               type="button"
               onClick={confirm}
-              disabled={blocking || state.saving}
+              disabled={blocking || sectionErrors > 0 || state.saving}
               className="inline-flex items-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200 disabled:opacity-60"
             >
               {state.saving ? <Loader2 className="animate-spin" /> : <Save size={16} />} Confirmar importación completa

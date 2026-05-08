@@ -1786,6 +1786,57 @@ class AnalyticsApiIntegrationTest(APITestCase):
 		self.assertEqual(EmisionLote.objects.count(), 1)
 		self.assertAlmostEqual(float(EmisionLote.objects.get().emisiones_kg_co2e), 26.8)
 
+	def test_import_empresa_completa_defaults_optional_origen_and_fuente(self):
+		workbook = Workbook()
+		empresa_sheet = workbook.active
+		empresa_sheet.title = "empresa"
+		empresa_sheet.append(["ID Empresa", "Nombre"])
+		empresa_sheet.append(["EMP-SIN-OPCIONALES", "Empresa Sin Opcionales"])
+
+		factores_sheet = workbook.create_sheet("factores")
+		factores_sheet.append(["Actividad", "Unidad", "Factor de Emision", "Anio"])
+		factores_sheet.append(["Diesel", "litros", 2.68, 2025])
+
+		unidades_sheet = workbook.create_sheet("unidades")
+		unidades_sheet.append(["ID Unidad", "Nombre", "Tipo"])
+		unidades_sheet.append(["UNI-SIN-OPCIONALES", "Aserradero", "Aserradero"])
+
+		lotes_sheet = workbook.create_sheet("lotes")
+		lotes_sheet.append(["ID Lote", "ID Unidad", "Fecha", "Especie", "Volumen (m3)"])
+		lotes_sheet.append(["LOTE-SIN-OPCIONALES", "UNI-SIN-OPCIONALES", "2025-01-15", "Pino radiata", 12.5])
+
+		actividades_sheet = workbook.create_sheet("actividades")
+		actividades_sheet.append(["ID Lote", "Actividad", "Cantidad", "Unidad", "Fecha"])
+		actividades_sheet.append(["LOTE-SIN-OPCIONALES", "Diesel", 10, "litros", "2025-01-15"])
+
+		buffer = BytesIO()
+		workbook.save(buffer)
+		workbook.close()
+		uploaded_file = SimpleUploadedFile(
+			"empresa_completa_sin_opcionales.xlsx",
+			buffer.getvalue(),
+			content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		)
+
+		preview_response = self.client.post(
+			"/api/importaciones/empresa-completa/preview/",
+			data={"file": uploaded_file},
+			format="multipart",
+		)
+		confirm_response = self.client.post(
+			"/api/importaciones/empresa-completa/confirm/",
+			data={"batch_id": preview_response.data["batch_id"]},
+			format="json",
+		)
+
+		self.assertEqual(preview_response.status_code, status.HTTP_200_OK)
+		self.assertEqual(preview_response.data["lotes"]["errores"], 0)
+		self.assertEqual(preview_response.data["actividades"]["errores"], 0)
+		self.assertEqual(confirm_response.status_code, status.HTTP_200_OK)
+		self.assertEqual(Lote.objects.get(id_lote="LOTE-SIN-OPCIONALES").origen, "No informado")
+		self.assertEqual(FactorEmision.objects.get(actividad_key="diesel").fuente, "Archivo importado")
+		self.assertEqual(EmisionLote.objects.count(), 1)
+
 	def test_import_empresa_completa_accepts_unit_names_in_lotes_and_activities(self):
 		workbook = Workbook()
 		empresa_sheet = workbook.active
