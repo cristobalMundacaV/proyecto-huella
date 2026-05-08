@@ -155,6 +155,12 @@ def _tag_section_errors(section_name: str, errors: list[dict]) -> list[dict]:
     return tagged_errors
 
 
+def _row_processing_error(sheet_name: str, row: dict, exc: Exception) -> tuple[dict, list[str], list[str]]:
+    row_number = row.get("row_number", "?") if isinstance(row, dict) else "?"
+    logger.exception("[IMPORT_COMPLETE] Error al procesar hoja=%s fila=%s", sheet_name, row_number)
+    return {}, [f"No se pudo procesar la fila {row_number} de la hoja {sheet_name}."], []
+
+
 class ImportadorEmpresaCompleta:
     @staticmethod
     def previsualizar(uploaded_file) -> dict:
@@ -179,7 +185,10 @@ class ImportadorEmpresaCompleta:
         empresa_activa = None
         if empresa_rows:
             row = empresa_rows[0]
-            empresa_data, empresa_errors = _build_company_payload(row)
+            try:
+                empresa_data, empresa_errors = _build_company_payload(row)
+            except Exception as exc:
+                empresa_data, empresa_errors, _warnings = _row_processing_error("empresa", row, exc)
             if empresa_errors:
                 blocking_errors.extend([f"Empresa: {e}" for e in empresa_errors])
             
@@ -219,7 +228,10 @@ class ImportadorEmpresaCompleta:
         unidades_by_id = {}
         unidades_by_name = {}
         for row in unidades_rows:
-            data, errors, warnings = _build_unit_payload(row, empresa_activa=empresa_activa)
+            try:
+                data, errors, warnings = _build_unit_payload(row, empresa_activa=empresa_activa)
+            except Exception as exc:
+                data, errors, warnings = _row_processing_error("unidades", row, exc)
             unidad_id = data.get("unidad_id")
             nombre_unidad = _normalize_text(data.get("nombre"), lower=True)
             status = "valid" if not errors else "error"
@@ -249,7 +261,10 @@ class ImportadorEmpresaCompleta:
             "rows": []
         }
         for row in factores_rows:
-            data, errors = _build_row_payload(row)
+            try:
+                data, errors = _build_row_payload(row)
+            except Exception as exc:
+                data, errors, _warnings = _row_processing_error("factores", row, exc)
             status = "valid" if not errors else "error"
             if status == "valid":
                 factores_preview["validos"] += 1
@@ -274,7 +289,10 @@ class ImportadorEmpresaCompleta:
         }
         lotes_by_id = {}
         for row in lotes_rows:
-            data, errors, warnings = _build_lote_payload(row)
+            try:
+                data, errors, warnings = _build_lote_payload(row)
+            except Exception as exc:
+                data, errors, warnings = _row_processing_error("lotes", row, exc)
             id_lote = data.get("id_lote")
             empresa_id = data.get("empresa_id")
 
@@ -322,7 +340,10 @@ class ImportadorEmpresaCompleta:
             "rows": []
         }
         for row in actividades_rows:
-            data, errors, warnings = _build_activity_payload(row)
+            try:
+                data, errors, warnings = _build_activity_payload(row)
+            except Exception as exc:
+                data, errors, warnings = _row_processing_error("actividades", row, exc)
             
             # Validar que lote existe si está referenciado
             id_lote = data.get("id_lote")
