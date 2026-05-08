@@ -1629,6 +1629,61 @@ class AnalyticsApiIntegrationTest(APITestCase):
 		self.assertEqual(confirm_response.data["actualizados"], 1)
 		self.assertEqual(str(factor.factor_emision), "2.680000")
 
+	def test_import_empresa_completa_accepts_ui_headers_and_file_factors(self):
+		workbook = Workbook()
+		empresa_sheet = workbook.active
+		empresa_sheet.title = "empresa"
+		empresa_sheet.append(["ID Empresa", "Nombre", "RUT", "Dirección"])
+		empresa_sheet.append(["EMP-COMPLETA", "Empresa Completa Demo", "76.543.210-9", "Ruta 5 Sur"])
+
+		factores_sheet = workbook.create_sheet("factores")
+		factores_sheet.append(["Actividad", "Unidad", "Factor de Emisión", "Fuente", "Año"])
+		factores_sheet.append(["Diesel", "litros", 2.68, "Demo", 2025])
+
+		unidades_sheet = workbook.create_sheet("unidades")
+		unidades_sheet.append(["ID Unidad", "Nombre", "Tipo", "Región", "Comuna", "Dirección"])
+		unidades_sheet.append(["UNI-COMPLETA", "Aserradero", "Aserradero", "Biobío", "Los Ángeles", "Ruta 5 Sur"])
+
+		lotes_sheet = workbook.create_sheet("lotes")
+		lotes_sheet.append(["ID Lote", "ID Unidad", "Fecha", "Especie", "Volumen (m³)", "Origen"])
+		lotes_sheet.append(["LOTE-COMPLETA", "UNI-COMPLETA", "2025-01-15", "Pino radiata", 12.5, "Predio Demo"])
+
+		actividades_sheet = workbook.create_sheet("actividades")
+		actividades_sheet.append(["ID Unidad", "ID Lote", "Actividad", "Cantidad", "Unidad", "Fecha"])
+		actividades_sheet.append(["UNI-COMPLETA", "LOTE-COMPLETA", "Diesel", 10, "litros", "2025-01-15"])
+
+		buffer = BytesIO()
+		workbook.save(buffer)
+		workbook.close()
+		uploaded_file = SimpleUploadedFile(
+			"empresa_completa.xlsx",
+			buffer.getvalue(),
+			content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		)
+
+		preview_response = self.client.post(
+			"/api/importaciones/empresa-completa/preview/",
+			data={"file": uploaded_file},
+			format="multipart",
+		)
+		confirm_response = self.client.post(
+			"/api/importaciones/empresa-completa/confirm/",
+			data={"batch_id": preview_response.data["batch_id"]},
+			format="json",
+		)
+
+		self.assertEqual(preview_response.status_code, status.HTTP_200_OK)
+		self.assertEqual(preview_response.data["blocking_errors"], [])
+		self.assertEqual(preview_response.data["factores"]["validos"], 1)
+		self.assertEqual(preview_response.data["actividades"]["validas"], 1)
+		self.assertEqual(confirm_response.status_code, status.HTTP_200_OK)
+		self.assertEqual(confirm_response.data["creados"], 1)
+		self.assertEqual(confirm_response.data["factores_creados"], 1)
+		self.assertEqual(Empresa.objects.get(empresa_id="EMP-COMPLETA").nombre, "Empresa Completa Demo")
+		self.assertEqual(UnidadOperativa.objects.get(unidad_id="UNI-COMPLETA").empresa.empresa_id, "EMP-COMPLETA")
+		self.assertEqual(Lote.objects.get(id_lote="LOTE-COMPLETA").unidad_operativa.unidad_id, "UNI-COMPLETA")
+		self.assertAlmostEqual(float(EmisionLote.objects.get().emisiones_kg_co2e), 26.8)
+
 	def test_import_actividades_preview_detects_missing_factor_and_lote(self):
 		Lote.objects.create(
 			id_lote="LOTE-IMP-001",

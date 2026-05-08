@@ -166,13 +166,18 @@ def _normalize_header_key(value) -> str:
     aliases = {
         "ano": "anio",
         "a_o": "anio",
+        "a_n": "anio",
         "id_empresa": "empresa_id",
         "id_de_empresa": "empresa_id",
         "id_unidad": "unidad_id",
         "id_unidad_operativa": "unidad_id",
         "lote_id": "id_lote",
         "factor_de_emision": "factor_emision",
+        "factor_de_emisi_n": "factor_emision",
         "emision_factor": "factor_emision",
+        "direcci_n": "direccion",
+        "regi_n": "region",
+        "volumen_m": "volumen_m3",
         "volumen_m_3": "volumen_m3",
     }
     return aliases.get(key, key)

@@ -8,13 +8,15 @@ from django.core.cache import cache
 from django.db import transaction
 from openpyxl import load_workbook
 
-from ..models import Empresa, UnidadOperativa, Lote, EmisionLote, normalize_identifier
+from ..factores import normalize_activity_key
+from ..models import Empresa, UnidadOperativa, Lote, EmisionLote, FactorEmision, normalize_identifier
 from .importadores import (
     _build_company_payload,
     _build_unit_payload,
     _build_lote_payload,
     _build_activity_payload,
     _build_row_payload,
+    _normalize_header_key,
     FACTOR_IMPORT_CACHE_TTL_SECONDS,
     _normalize_text,
 )
@@ -49,8 +51,78 @@ def _read_xlsx_sheet(uploaded_file, sheet_name: str) -> list[dict]:
         return rows
     except KeyError:
         return []
-    except Exception as e:
-        raise ValueError(f"Error leyendo hoja {sheet_name}: {str(e)}")
+    except Exception:
+        raise ValueError(f"No se pudo leer la hoja {sheet_name}. Revisa el formato del archivo.")
+
+
+def _read_normalized_xlsx_sheet(uploaded_file, sheet_name: str) -> list[dict]:
+    try:
+        uploaded_file.seek(0)
+        wb = load_workbook(uploaded_file, data_only=True, read_only=True)
+        try:
+            ws = wb[sheet_name]
+            rows = []
+            headers = None
+            for idx, row in enumerate(ws.iter_rows(values_only=True), 1):
+                if idx == 1:
+                    headers = [_normalize_header_key(h) if h is not None else "" for h in row]
+                    continue
+                if not headers or not any(row):
+                    continue
+
+                values = list(row or [])
+                data = {"row_number": idx}
+                for index, header in enumerate(headers):
+                    if header:
+                        data[header] = values[index] if index < len(values) else None
+                rows.append(data)
+            return rows
+        finally:
+            wb.close()
+    except KeyError:
+        return []
+    except Exception:
+        raise ValueError(f"No se pudo leer la hoja {sheet_name}. Revisa el formato del archivo.")
+
+
+def _strip_runtime_objects(data: dict) -> dict:
+    return {key: value for key, value in (data or {}).items() if not key.endswith("_obj")}
+
+
+def _remove_error(errors: list[str], message: str) -> None:
+    while message in errors:
+        errors.remove(message)
+
+
+def _factor_lookup_key(actividad: str, unidad: str) -> tuple[str, str]:
+    return (normalize_activity_key(actividad), _normalize_text(unidad, lower=True))
+
+
+def _build_factor_lookup(rows: list[dict]) -> dict[tuple[str, str], dict]:
+    lookup = {}
+    for row in rows:
+        data = row.get("data") or {}
+        if row.get("status") != "valid":
+            continue
+        key = _factor_lookup_key(data.get("actividad"), data.get("unidad"))
+        if all(key):
+            lookup[key] = data
+    return lookup
+
+
+def _apply_file_factor(data: dict, errors: list[str], factor_lookup: dict[tuple[str, str], dict]) -> None:
+    if data.get("factor_emision"):
+        return
+
+    factor = factor_lookup.get(_factor_lookup_key(data.get("actividad"), data.get("unidad")))
+    if not factor:
+        return
+
+    data["factor_emision"] = Decimal(str(factor.get("factor_emision")))
+    data["categoria"] = factor.get("categoria", "")
+    data["fuente"] = factor.get("fuente", "")
+    data["anio"] = factor.get("anio", "")
+    _remove_error(errors, "factor de emision no encontrado")
 
 
 class ImportadorEmpresaCompleta:
@@ -65,11 +137,11 @@ class ImportadorEmpresaCompleta:
         blocking_errors = []
         
         # Leer hojas
-        empresa_rows = _read_xlsx_sheet(uploaded_file, "empresa")
-        unidades_rows = _read_xlsx_sheet(uploaded_file, "unidades")
-        lotes_rows = _read_xlsx_sheet(uploaded_file, "lotes")
-        actividades_rows = _read_xlsx_sheet(uploaded_file, "actividades")
-        factores_rows = _read_xlsx_sheet(uploaded_file, "factores")
+        empresa_rows = _read_normalized_xlsx_sheet(uploaded_file, "empresa")
+        unidades_rows = _read_normalized_xlsx_sheet(uploaded_file, "unidades")
+        lotes_rows = _read_normalized_xlsx_sheet(uploaded_file, "lotes")
+        actividades_rows = _read_normalized_xlsx_sheet(uploaded_file, "actividades")
+        factores_rows = _read_normalized_xlsx_sheet(uploaded_file, "factores")
 
         # Procesar empresa
         empresa_data = None
@@ -111,12 +183,12 @@ class ImportadorEmpresaCompleta:
         }
         unidades_by_id = {}
         for row in unidades_rows:
-            data, errors = _build_unit_payload(row, empresa_activa=empresa_activa)
+            data, errors, warnings = _build_unit_payload(row, empresa_activa=empresa_activa)
             unidad_id = data.get("unidad_id")
             status = "valid" if not errors else "error"
             if status == "valid":
                 unidades_preview["validas"] += 1
-                unidades_by_id[unidad_id] = data
+                unidades_by_id[unidad_id] = _strip_runtime_objects(data)
             else:
                 unidades_preview["errores"] += 1
             
@@ -124,8 +196,33 @@ class ImportadorEmpresaCompleta:
                 "row_number": row.get("row_number"),
                 "status": status,
                 "errors": errors,
-                "data": data
+                "warnings": warnings,
+                "data": _strip_runtime_objects(data)
             })
+
+        # Procesar factores antes de actividades para que las actividades del mismo XLSX
+        # puedan usar factores que aun no existen en la base de datos.
+        factores_preview = {
+            "total": len(factores_rows),
+            "validos": 0,
+            "errores": 0,
+            "rows": []
+        }
+        for row in factores_rows:
+            data, errors = _build_row_payload(row)
+            status = "valid" if not errors else "error"
+            if status == "valid":
+                factores_preview["validos"] += 1
+            else:
+                factores_preview["errores"] += 1
+
+            factores_preview["rows"].append({
+                "row_number": row.get("row_number"),
+                "status": status,
+                "errors": errors,
+                "data": {**data, "factor_emision": str(data.get("factor_emision", ""))}
+            })
+        factor_lookup = _build_factor_lookup(factores_preview["rows"])
 
         # Procesar lotes
         lotes_preview = {
@@ -136,18 +233,27 @@ class ImportadorEmpresaCompleta:
         }
         lotes_by_id = {}
         for row in lotes_rows:
-            data, errors, warnings = _build_lote_payload(row, empresa_activa=empresa_activa)
+            data, errors, warnings = _build_lote_payload(row)
             id_lote = data.get("id_lote")
+            empresa_id = data.get("empresa_id")
+
+            if empresa_activa is not None and (not empresa_id or empresa_id == empresa_activa.empresa_id):
+                _remove_error(errors, "empresa_id no existe")
+                _remove_error(errors, "empresa es obligatoria")
+                data["empresa_id"] = empresa_activa.empresa_id
+                data["empresa_aserradero"] = data.get("empresa_aserradero") or empresa_activa.nombre
             
             # Validar que unidad existe
             unidad_id = data.get("unidad_id")
-            if unidad_id and unidad_id not in unidades_by_id and not UnidadOperativa.objects.filter(unidad_id=unidad_id).exists():
+            if unidad_id in unidades_by_id:
+                _remove_error(errors, "unidad_id no existe")
+            elif unidad_id and not UnidadOperativa.objects.filter(unidad_id=unidad_id).exists():
                 errors.append(f"unidad_id {unidad_id} no existe en el archivo ni en la base de datos")
             
             status = "valid" if not errors else "error"
             if status == "valid":
                 lotes_preview["validos"] += 1
-                lotes_by_id[id_lote] = data
+                lotes_by_id[id_lote] = _strip_runtime_objects(data)
             else:
                 lotes_preview["errores"] += 1
             
@@ -156,7 +262,7 @@ class ImportadorEmpresaCompleta:
                 "status": status,
                 "errors": errors,
                 "warnings": warnings,
-                "data": data
+                "data": _strip_runtime_objects(data)
             })
 
         # Procesar actividades
@@ -169,12 +275,34 @@ class ImportadorEmpresaCompleta:
             "rows": []
         }
         for row in actividades_rows:
-            data, errors = _build_activity_payload(row, empresa_activa=empresa_activa)
+            data, errors, warnings = _build_activity_payload(row)
             
             # Validar que lote existe si está referenciado
             id_lote = data.get("id_lote")
-            if id_lote and id_lote not in lotes_by_id and not Lote.objects.filter(id_lote=id_lote).exists():
+            unidad_id = data.get("unidad_id")
+            empresa_id = data.get("empresa_id")
+
+            if id_lote in lotes_by_id:
+                lote_data = lotes_by_id[id_lote]
+                _remove_error(errors, "id_lote no existe")
+                data["empresa_id"] = lote_data.get("empresa_id") or data.get("empresa_id")
+                data["unidad_id"] = lote_data.get("unidad_id") or data.get("unidad_id")
+                data["tipo_asignacion"] = EmisionLote.TipoAsignacion.LOTE
+            elif id_lote and not Lote.objects.filter(id_lote=id_lote).exists():
                 errors.append(f"id_lote {id_lote} no existe")
+
+            if unidad_id in unidades_by_id:
+                unidad_data = unidades_by_id[unidad_id]
+                _remove_error(errors, "unidad_id no existe")
+                data["empresa_id"] = unidad_data.get("empresa_id") or data.get("empresa_id")
+                if not data.get("id_lote"):
+                    data["tipo_asignacion"] = EmisionLote.TipoAsignacion.UNIDAD
+
+            if empresa_activa is not None and (not empresa_id or empresa_id == empresa_activa.empresa_id):
+                _remove_error(errors, "empresa_id no existe")
+                data["empresa_id"] = empresa_activa.empresa_id
+
+            _apply_file_factor(data, errors, factor_lookup)
             
             if data.get("factor_emision"):
                 actividades_preview["factores_encontrados"] += 1
@@ -191,29 +319,8 @@ class ImportadorEmpresaCompleta:
                 "row_number": row.get("row_number"),
                 "status": status,
                 "errors": errors,
-                "data": data
-            })
-
-        # Procesar factores
-        factores_preview = {
-            "total": len(factores_rows),
-            "validos": 0,
-            "errores": 0,
-            "rows": []
-        }
-        for row in factores_rows:
-            data, errors = _build_row_payload(row)
-            status = "valid" if not errors else "error"
-            if status == "valid":
-                factores_preview["validos"] += 1
-            else:
-                factores_preview["errores"] += 1
-            
-            factores_preview["rows"].append({
-                "row_number": row.get("row_number"),
-                "status": status,
-                "errors": errors,
-                "data": {**data, "factor_emision": str(data.get("factor_emision", ""))}
+                "warnings": warnings,
+                "data": _strip_runtime_objects(data)
             })
 
         # Cache el resultado
@@ -318,6 +425,41 @@ class ImportadorEmpresaCompleta:
                 except Exception as e:
                     errors.append({"section": "unidades", "row": row.get("row_number"), "error": str(e)})
 
+            # Crear/actualizar factores para que las actividades puedan referenciarlos.
+            for row in cached["factores"].get("rows", []):
+                if row.get("status") != "valid":
+                    continue
+                try:
+                    normalized, validation_errors = _build_row_payload(row.get("data", {}))
+                    if validation_errors:
+                        errors.append({"section": "factores", "row": row.get("row_number"), "error": "; ".join(validation_errors)})
+                        continue
+
+                    factor = FactorEmision.objects.filter(
+                        actividad_key=normalized["actividad_key"],
+                        unidad__iexact=normalized["unidad"],
+                        fuente__iexact=normalized["fuente"],
+                        anio=normalized["anio"],
+                    ).first()
+                    was_created = factor is None
+                    if factor is None:
+                        factor = FactorEmision(
+                            actividad_key=normalized["actividad_key"],
+                            unidad=normalized["unidad"],
+                            fuente=normalized["fuente"],
+                            anio=normalized["anio"],
+                        )
+                    factor.actividad = normalized["actividad"]
+                    factor.categoria = normalized["categoria"]
+                    factor.descripcion = normalized["descripcion"]
+                    factor.metadata_clasificacion = normalized.get("metadata_clasificacion", {})
+                    factor.factor_emision = normalized["factor_emision"]
+                    factor.save()
+                    if was_created:
+                        created_factores += 1
+                except Exception as e:
+                    errors.append({"section": "factores", "row": row.get("row_number"), "error": str(e)})
+
             # Crear lotes
             for row in cached["lotes"].get("rows", []):
                 if row.get("status") != "valid":
@@ -329,7 +471,7 @@ class ImportadorEmpresaCompleta:
                     
                     if not unidad and created_empresa:
                         # Usar unidad general de la empresa
-                        unidad = created_empresa.unidadoperativa_set.filter(
+                        unidad = created_empresa.unidades_operativas.filter(
                             tipo=UnidadOperativa.Tipo.GENERAL
                         ).first()
                     
@@ -376,8 +518,6 @@ class ImportadorEmpresaCompleta:
                             "fecha": data.get("fecha"),
                             "factor_emision": data.get("factor_emision", Decimal("0")),
                             "categoria": data.get("categoria", ""),
-                            "fuente": data.get("fuente", ""),
-                            "anio": data.get("anio"),
                             "tipo_asignacion": data.get("tipo_asignacion", EmisionLote.TipoAsignacion.EMPRESA),
                         }
                     )
@@ -390,7 +530,6 @@ class ImportadorEmpresaCompleta:
             "creados": 1 if created_empresa else 0,
             "empresa_id": created_empresa.empresa_id if created_empresa else None,
             "empresa_nombre": created_empresa.nombre if created_empresa else None,
-            "empresa": created_empresa,
             "unidades_creadas": created_unidades,
             "lotes_creados": created_lotes,
             "actividades_creadas": created_actividades,
