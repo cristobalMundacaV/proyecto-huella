@@ -1,10 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Calculator, Loader2, Plus, X } from "lucide-react";
 
 import FactorCategoryBadge from "@/features/factores/components/FactorCategoryBadge";
-import { normalizeActivityText } from "@/shared/utils/activitySemantics";
+import {
+  isTransportActivity,
+  normalizeActivityText,
+} from "@/shared/utils/activitySemantics";
 import { formatNumber } from "@/shared/utils/formatters";
 import { Field } from "../common";
+import RouteMapPicker from "../RouteMapPicker";
 
 function ActividadesTab({
   activityError,
@@ -20,6 +24,15 @@ function ActividadesTab({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [factorCategory, setFactorCategory] = useState("");
   const [factorSearch, setFactorSearch] = useState("");
+  const [routeDestination, setRouteDestination] = useState({
+    address: "",
+    coords: null,
+  });
+  const [routeOrigin, setRouteOrigin] = useState({
+    address: "",
+    coords: null,
+  });
+  const [routeResult, setRouteResult] = useState(null);
 
   const factorCategories = useMemo(
     () =>
@@ -67,6 +80,157 @@ function ActividadesTab({
 
     return categoriesByActivity;
   }, [factoresEmision]);
+
+  const selectedFactor = useMemo(
+    () =>
+      factoresEmision.find(
+        (factor) => String(factor.id) === String(activityForm.factor_emision_id)
+      ) || null,
+    [activityForm.factor_emision_id, factoresEmision]
+  );
+
+  const selectedFactorCategory = selectedFactor?.categoria || factorCategory;
+  const shouldShowRouteMap =
+    isTransportActivity({
+      actividad: activityForm.actividad || selectedFactor?.actividad,
+      actividad_key: selectedFactor?.actividad_key,
+      categoria: selectedFactorCategory,
+      unidad: activityForm.unidad || selectedFactor?.unidad,
+    }) || normalizeActivityText(activityForm.unidad) === "km";
+
+  useEffect(() => {
+    if (!isModalOpen || !shouldShowRouteMap) {
+      return;
+    }
+
+    setRouteOrigin((currentOrigin) => {
+      if (currentOrigin.address) {
+        return currentOrigin;
+      }
+
+      return {
+        address: selectedLote?.origen || selectedLote?.unidad_operativa_nombre || "",
+        coords: null,
+      };
+    });
+
+    setRouteDestination((currentDestination) => {
+      if (currentDestination.address) {
+        return currentDestination;
+      }
+
+      return {
+        address: selectedLote?.destino || "",
+        coords: null,
+      };
+    });
+  }, [isModalOpen, selectedLote, shouldShowRouteMap]);
+
+  useEffect(() => {
+    if (!shouldShowRouteMap) {
+      return;
+    }
+
+    onUpdateActivityForm({
+      target: {
+        name: "origen_transporte",
+        value: routeOrigin.address,
+      },
+    });
+    onUpdateActivityForm({
+      target: {
+        name: "origen_coords",
+        value: routeOrigin.coords,
+      },
+    });
+  }, [routeOrigin.address, routeOrigin.coords, shouldShowRouteMap]);
+
+  useEffect(() => {
+    if (!shouldShowRouteMap) {
+      return;
+    }
+
+    onUpdateActivityForm({
+      target: {
+        name: "destino_transporte",
+        value: routeDestination.address,
+      },
+    });
+    onUpdateActivityForm({
+      target: {
+        name: "destino_coords",
+        value: routeDestination.coords,
+      },
+    });
+  }, [routeDestination.address, routeDestination.coords, shouldShowRouteMap]);
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setRouteOrigin({ address: "", coords: null });
+    setRouteDestination({ address: "", coords: null });
+    setRouteResult(null);
+  };
+
+  const handleRouteDistanceCalculated = (km, result) => {
+    setRouteResult(result || null);
+
+    if (km == null) {
+      return;
+    }
+
+    onUpdateActivityForm({
+      target: {
+        name: "cantidad",
+        value: String(km),
+      },
+    });
+    onUpdateActivityForm({
+      target: {
+        name: "distancia_km",
+        value: String(km),
+      },
+    });
+    onUpdateActivityForm({
+      target: {
+        name: "ruta_geometry",
+        value: result?.route_geometry || [],
+      },
+    });
+  };
+
+  const handleRouteOriginChange = ({ address, coords }) => {
+    setRouteOrigin({ address, coords });
+    setRouteResult(null);
+    onUpdateActivityForm({
+      target: {
+        name: "origen_transporte",
+        value: address,
+      },
+    });
+    onUpdateActivityForm({
+      target: {
+        name: "origen_coords",
+        value: coords,
+      },
+    });
+  };
+
+  const handleRouteDestinationChange = ({ address, coords }) => {
+    setRouteDestination({ address, coords });
+    setRouteResult(null);
+    onUpdateActivityForm({
+      target: {
+        name: "destino_transporte",
+        value: address,
+      },
+    });
+    onUpdateActivityForm({
+      target: {
+        name: "destino_coords",
+        value: coords,
+      },
+    });
+  };
 
   const resolveActivityCategory = (actividad) => {
     if (actividad.categoria) {
@@ -153,7 +317,9 @@ function ActividadesTab({
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/80 p-4 backdrop-blur-sm">
           <form
             onSubmit={onActivitySubmit}
-            className="my-8 w-full max-w-2xl rounded-3xl border border-slate-800 bg-slate-900 p-4 shadow-2xl sm:p-6"
+            className={`my-8 w-full rounded-3xl border border-slate-800 bg-slate-900 p-4 shadow-2xl sm:p-6 ${
+              shouldShowRouteMap ? "max-w-5xl" : "max-w-2xl"
+            }`}
           >
             <div className="mb-5 flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -167,7 +333,7 @@ function ActividadesTab({
               </div>
               <button
                 type="button"
-                onClick={() => setIsModalOpen(false)}
+                onClick={closeModal}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-700 bg-slate-950 text-slate-300 transition hover:bg-slate-800"
                 aria-label="Cerrar modal"
               >
@@ -255,6 +421,7 @@ function ActividadesTab({
                   value={activityForm.cantidad}
                   onChange={onUpdateActivityForm}
                   required
+                  readOnly={shouldShowRouteMap}
                   disabled={!selectedLote}
                   className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60"
                 />
@@ -277,6 +444,29 @@ function ActividadesTab({
                 />
               </Field>
             </div>
+
+            {shouldShowRouteMap && (
+              <div className="mt-5">
+                <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3">
+                  <p className="text-sm font-bold text-cyan-100">
+                    Trazabilidad de transporte
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-cyan-200">
+                    Busca o marca origen y destino. La distancia calculada se usara como cantidad en kilometros.
+                  </p>
+                </div>
+                <RouteMapPicker
+                  destinationCoords={routeDestination.coords}
+                  destinationValue={routeDestination.address}
+                  onDestinationChange={handleRouteDestinationChange}
+                  onDistanceCalculated={handleRouteDistanceCalculated}
+                  onOriginChange={handleRouteOriginChange}
+                  originCoords={routeOrigin.coords}
+                  originValue={routeOrigin.address}
+                  routeGeometry={routeResult?.route_geometry || []}
+                />
+              </div>
+            )}
 
             {activityError && (
               <p className="mt-4 text-sm text-red-300">{activityError}</p>

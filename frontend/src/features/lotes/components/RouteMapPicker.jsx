@@ -242,11 +242,13 @@ function RouteMapPicker({
 
         if (!isCancelled) {
           setDistanceResult(result);
-          if (onDistanceCalculated) onDistanceCalculated(result.distancia_km || null);
+          if (onDistanceCalculated) {
+            onDistanceCalculated(result.distancia_km || null, result);
+          }
         }
       } catch (err) {
         setDistanceResult(null);
-        if (onDistanceCalculated) onDistanceCalculated(null);
+        if (onDistanceCalculated) onDistanceCalculated(null, null);
       } finally {
         if (!isCancelled) setCalculating(false);
       }

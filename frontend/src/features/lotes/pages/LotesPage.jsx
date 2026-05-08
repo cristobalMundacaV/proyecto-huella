@@ -47,6 +47,12 @@ const emptyActivityForm = {
   cantidad: "",
   unidad: "",
   factor_emision: "",
+  origen_transporte: "",
+  destino_transporte: "",
+  origen_coords: null,
+  destino_coords: null,
+  distancia_km: "",
+  ruta_geometry: [],
 };
 
 const emptyDocumentForm = {

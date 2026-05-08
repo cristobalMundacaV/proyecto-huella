@@ -309,6 +309,17 @@ class EmisionLote(models.Model):
     unidad = models.CharField(max_length=40)
     fecha = models.DateField(null=True, blank=True)
     factor_emision = models.DecimalField(max_digits=12, decimal_places=6)
+    origen_transporte = models.CharField(max_length=240, blank=True)
+    destino_transporte = models.CharField(max_length=240, blank=True)
+    origen_coords = models.JSONField(null=True, blank=True)
+    destino_coords = models.JSONField(null=True, blank=True)
+    distancia_km = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        null=True,
+        blank=True,
+    )
+    ruta_geometry = models.JSONField(default=list, blank=True)
     emisiones_kg_co2e = models.DecimalField(
         max_digits=14,
         decimal_places=3,
