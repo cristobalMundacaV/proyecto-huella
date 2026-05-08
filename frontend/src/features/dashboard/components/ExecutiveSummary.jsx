@@ -88,11 +88,12 @@ const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
 
 function ExecutiveSummary({
   actividadCritica,
-  empresaCritica,
+  unidadCritica,
   optimizedScenario,
   riskProfile,
   validationSummary,
 }) {
+  const unidadCriticaLabel = unidadCritica || "Sin datos";
   const strategicPlan = buildStrategicPlan(actividadCritica, optimizedScenario);
   const recommendedDecision = optimizedScenario
     ? strategicPlan.principalRecommendation
@@ -150,7 +151,7 @@ function ExecutiveSummary({
           </h2>
           <p className="mt-3 text-sm leading-6 text-emerald-100">
             El principal foco de impacto se concentra en {actividadCritica}, con{" "}
-            {empresaCritica} como empresa critica. Nivel de viabilidad: {" "}
+            {unidadCriticaLabel} como unidad operativa critica. Nivel de viabilidad:{" "}
             <strong>{strategicPlan.viability}</strong>. {estimatedImpact}
           </p>
         </div>
@@ -190,7 +191,7 @@ function ExecutiveSummary({
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <SummaryItem label="Principal causa" value={actividadCritica} />
-        <SummaryItem label="Empresa critica" value={empresaCritica} />
+        <SummaryItem label="Unidad critica" value={unidadCriticaLabel} />
         <SummaryItem
           label="Escenario recomendado"
           value={`${strategicPlan.recommendedRange.min}%-${strategicPlan.recommendedRange.max}%`}
@@ -248,7 +249,7 @@ function ExecutiveSummary({
             value={`${formatNumber(riskProfile.factors.activityConcentration, 0)}%`}
           />
           <ScoreFactor
-            label="Concentracion empresa"
+            label="Concentracion unidad"
             value={`${formatNumber(riskProfile.factors.companyConcentration, 0)}%`}
           />
           <ScoreFactor
@@ -263,7 +264,7 @@ function ExecutiveSummary({
       </div>
 
       <p className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm leading-6 text-emerald-100">
-        Carbono Zero recomienda priorizar una intervencion progresiva en {empresaCritica} sobre {actividadCritica}, empezando con quick wins y escalando por fases
+        Carbono Zero recomienda priorizar una intervencion progresiva en {unidadCriticaLabel} sobre {actividadCritica}, empezando con quick wins y escalando por fases
         segun resultados medidos.
         {optimizedScenario &&
           ` Si la hoja de ruta se consolida por etapas, el potencial acumulado equivale a aproximadamente ${formatNumber(

@@ -68,7 +68,7 @@ def _action_levels(actividad):
 
 def generar_analisis_local(payload):
     total = float(payload.get("total_emisiones", 0) or 0)
-    empresa = payload.get("empresa_critica", "la empresa critica")
+    unidad = payload.get("unidad_critica") or payload.get("empresa_critica") or "la unidad critica"
     actividad = payload.get("actividad_critica", "la actividad critica")
     actividad_row = _activity_row(actividad)
     optimizacion = payload.get("optimizacion") or {}
@@ -126,7 +126,7 @@ def generar_analisis_local(payload):
 
     texto = f"""
 Diagnostico:
-El principal foco de emisiones se concentra en {actividad}, con {empresa} como empresa critica. Sobre una base de {round(total, 1)} kg CO2e, este frente explica la mayor parte de la exposicion ambiental y operativa.
+El principal foco de emisiones se concentra en {actividad}, con {unidad} como unidad operativa critica. Sobre una base de {round(total, 1)} kg CO2e, este frente explica la mayor parte de la exposicion ambiental y operativa.
 
 Insight estrategico:
 {insight}
@@ -152,7 +152,7 @@ Recomendacion estrategica:
 Priorizar una hoja de ruta en dos velocidades: quick wins de eficiencia en 0-3 meses y decisiones estructurales en 3-18 meses para acercarse de forma creible al potencial maximo.
 
 Siguiente accion concreta:
-Ejecutar un piloto de 8-12 semanas en {empresa} sobre {actividad}, validar linea base y seguimiento semanal (consumo, emisiones y costo) antes de escalar la intervencion.
+Ejecutar un piloto de 8-12 semanas en {unidad} sobre {actividad}, validar linea base y seguimiento semanal (consumo, emisiones y costo) antes de escalar la intervencion.
 """
 
     return texto.strip()

@@ -23,7 +23,12 @@ import EmptyState from "@/shared/components/EmptyState";
 import Pagination from "@/shared/components/Pagination";
 import Tabs from "@/shared/components/Tabs";
 import Toast from "@/shared/components/Toast";
-import { createEmpresa, deleteEmpresa, getEmpresas } from "@/shared/services/api";
+import {
+  createEmpresa,
+  deleteEmpresa,
+  getEmpresaUnidades,
+  getEmpresas,
+} from "@/shared/services/api";
 import { useToast } from "@/shared/hooks/useToast";
 import { formatNumber } from "@/shared/utils/formatters";
 import {
@@ -65,7 +70,10 @@ function EmpresasView({
   const [activeDetailTab, setActiveDetailTab] = useState("resumen");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [unidadesOperativas, setUnidadesOperativas] = useState([]);
+  const [loadingUnidades, setLoadingUnidades] = useState(false);
   const {
+    activeEmpresa,
     activeEmpresaId,
     clearActiveEmpresa,
     refreshEmpresas,
@@ -73,7 +81,10 @@ function EmpresasView({
   } = useEmpresaActiva();
   const { clearToast, showToast, toast } = useToast();
 
-  const metrics = useMemo(() => buildCompanyMetrics(empresas), [empresas]);
+  const metrics = useMemo(
+    () => buildCompanyMetrics(empresas, unidadesOperativas, activeEmpresaId, activeEmpresa),
+    [activeEmpresa, activeEmpresaId, empresas, unidadesOperativas]
+  );
   const selectedEmpresa = useMemo(
     () => empresas.find((empresa) => String(empresa.id) === String(selectedEmpresaId)),
     [empresas, selectedEmpresaId]
@@ -137,6 +148,41 @@ function EmpresasView({
       isCancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadUnidades() {
+      if (!activeEmpresaId) {
+        setUnidadesOperativas([]);
+        return;
+      }
+
+      setLoadingUnidades(true);
+
+      try {
+        const data = await getEmpresaUnidades(activeEmpresaId, { detail: "1" });
+
+        if (!isCancelled) {
+          setUnidadesOperativas(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        if (!isCancelled) {
+          setUnidadesOperativas([]);
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoadingUnidades(false);
+        }
+      }
+    }
+
+    loadUnidades();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeEmpresaId]);
 
   useEffect(() => {
     if (openCreateSignal > 0) {
@@ -305,8 +351,8 @@ function EmpresasView({
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <CompanyKpi
           icon={<Building2 />}
-          label="Empresas registradas"
-          value={metrics.totalCompanies}
+          label="Empresa activa"
+          value={metrics.activeCompany?.nombre || "Sin datos"}
         />
         <CompanyKpi
           icon={<Factory />}
@@ -337,7 +383,7 @@ function EmpresasView({
             1
           )} kg CO2e`}
           icon={<BarChart3 />}
-          label="Empresa con mas emisiones"
+          label="Unidad con mas emisiones"
           value={metrics.topEmitter?.nombre || "Sin datos"}
         />
         <CompanyKpi
@@ -346,7 +392,7 @@ function EmpresasView({
             1
           )} kg CO2e`}
           icon={<ShieldCheck />}
-          label="Mayor balance favorable"
+          label="Unidad con mayor balance favorable"
           tone="emerald"
           value={metrics.bestBalance?.nombre || "Sin datos"}
         />
@@ -355,32 +401,32 @@ function EmpresasView({
       <section className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 sm:p-6">
         <p className="text-sm font-semibold text-cyan-200">Resumen estrategico</p>
         <h2 className="mt-2 text-2xl font-bold text-slate-100">
-          Ecosistema corporativo Carbono Zero
+          Operacion de la empresa activa
         </h2>
         <p className="mt-3 max-w-5xl text-sm leading-7 text-cyan-50">
-          {buildStrategicSummary(metrics)}
+          {loadingUnidades ? "Cargando unidades operativas..." : buildStrategicSummary(metrics)}
         </p>
       </section>
 
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-4">
         <InsightCard
           icon={<Gauge />}
-          label="Empresa lider en emisiones"
+          label="Unidad lider en emisiones"
           value={metrics.topEmitter?.nombre || "Sin datos"}
         />
         <InsightCard
           icon={<Factory />}
-          label="Mayor capacidad operativa"
+          label="Unidad con mayor actividad"
           value={metrics.topOperational?.nombre || "Sin datos"}
         />
         <InsightCard
           icon={<Leaf />}
-          label="Mayor CO2 almacenado"
+          label="Unidad con mayor CO2 almacenado"
           value={metrics.topStorage?.nombre || "Sin datos"}
         />
         <InsightCard
           icon={<FileCheck2 />}
-          label="Mayor trazabilidad"
+          label="Unidad con mayor trazabilidad"
           value={metrics.topTraceability?.nombre || "Sin datos"}
         />
       </section>
@@ -438,8 +484,8 @@ function EmpresasView({
             </thead>
             <tbody>
               {visibleEmpresas.map((empresa) => {
-                const isTopEmitter =
-                  metrics.topEmitter && metrics.topEmitter.id === empresa.id;
+                const isActiveEmpresa =
+                  metrics.activeCompany && metrics.activeCompany.id === empresa.id;
 
                 return (
                   <tr
@@ -447,7 +493,7 @@ function EmpresasView({
                     className={`group border-b border-slate-800/80 transition ${
                       String(selectedEmpresaId) === String(empresa.id)
                         ? "bg-emerald-400/5"
-                        : isTopEmitter
+                        : isActiveEmpresa
                           ? "bg-cyan-400/5 hover:bg-cyan-400/10"
                           : "hover:bg-slate-800/40"
                     }`}
@@ -564,47 +610,67 @@ function EmpresasView({
   );
 }
 
-function buildCompanyMetrics(empresas) {
-  const totals = empresas.reduce(
-    (acc, empresa) => ({
-      totalCompanies: acc.totalCompanies + 1,
-      totalUnits: acc.totalUnits + Number(empresa.unidades_count || 0),
-      totalLotes: acc.totalLotes + Number(empresa.lotes_count || 0),
-      totalActivities: acc.totalActivities + Number(empresa.actividades_count || 0),
-      totalEmissions: acc.totalEmissions + Number(empresa.emisiones_totales_kg_co2e || 0),
-      totalStoredCarbon: acc.totalStoredCarbon + Number(empresa.co2_almacenado_kg || 0),
-      totalPassports: acc.totalPassports + Number(empresa.pasaportes_emitidos || 0),
-      totalEvidence: acc.totalEvidence + Number(empresa.evidencias_count || 0),
-    }),
-    {
-      totalCompanies: 0,
-      totalUnits: 0,
-      totalLotes: 0,
-      totalActivities: 0,
-      totalEmissions: 0,
-      totalStoredCarbon: 0,
-      totalPassports: 0,
-      totalEvidence: 0,
+function buildCompanyMetrics(empresas, unidades = [], activeEmpresaId = "", activeEmpresa = null) {
+  const activeCompany =
+    empresas.find((empresa) => String(empresa.empresa_id) === String(activeEmpresaId)) ||
+    empresas.find((empresa) => String(empresa.id) === String(activeEmpresaId)) ||
+    activeEmpresa ||
+    empresas[0] ||
+    null;
+  const scopedUnits = unidades.filter((unidad) => {
+    if (!activeCompany) {
+      return true;
     }
-  );
 
-  const topEmitter = maxBy(empresas, (empresa) =>
-    Number(empresa.emisiones_totales_kg_co2e || 0)
+    return (
+      String(unidad.empresa_id || "") === String(activeCompany.empresa_id || "") ||
+      String(unidad.empresa || "") === String(activeCompany.id || "")
+    );
+  });
+  const totals = {
+    totalCompanies: empresas.length,
+    totalUnits: scopedUnits.length || Number(activeCompany?.unidades_count || 0),
+    totalLotes: scopedUnits.length
+      ? scopedUnits.reduce((acc, unidad) => acc + Number(unidad.lotes_count || 0), 0)
+      : Number(activeCompany?.lotes_count || 0),
+    totalActivities: scopedUnits.length
+      ? scopedUnits.reduce((acc, unidad) => acc + Number(unidad.actividades_count || 0), 0)
+      : Number(activeCompany?.actividades_count || 0),
+    totalEmissions: scopedUnits.length
+      ? scopedUnits.reduce(
+          (acc, unidad) => acc + Number(unidad.emisiones_totales_kg_co2e || 0),
+          0
+        )
+      : Number(activeCompany?.emisiones_totales_kg_co2e || 0),
+    totalStoredCarbon: scopedUnits.length
+      ? scopedUnits.reduce((acc, unidad) => acc + getUnitStoredCarbon(unidad), 0)
+      : Number(activeCompany?.co2_almacenado_kg || 0),
+    totalPassports: scopedUnits.length
+      ? scopedUnits.reduce((acc, unidad) => acc + Number(unidad.pasaportes_count || 0), 0)
+      : Number(activeCompany?.pasaportes_emitidos || 0),
+    totalEvidence: scopedUnits.length
+      ? scopedUnits.reduce((acc, unidad) => acc + Number(unidad.evidencias_count || 0), 0)
+      : Number(activeCompany?.evidencias_count || 0),
+  };
+
+  const topEmitter = maxBy(scopedUnits, (unidad) =>
+    Number(unidad.emisiones_totales_kg_co2e || 0)
   );
-  const topOperational = maxBy(empresas, (empresa) =>
-    Number(empresa.unidades_count || 0) +
-    Number(empresa.lotes_count || 0) +
-    Number(empresa.actividades_count || 0)
+  const topOperational = maxBy(scopedUnits, (unidad) =>
+    Number(unidad.lotes_count || 0) + Number(unidad.actividades_count || 0)
   );
-  const topStorage = maxBy(empresas, (empresa) =>
-    Number(empresa.co2_almacenado_kg || 0)
-  );
-  const topTraceability = maxBy(empresas, (empresa) =>
-    Number(empresa.pasaportes_emitidos || 0) + Number(empresa.evidencias_count || 0)
+  const topStorage = maxBy(scopedUnits, getUnitStoredCarbon);
+  const topTraceability = maxBy(scopedUnits, (unidad) =>
+    Number(unidad.pasaportes_count || 0) + Number(unidad.evidencias_count || 0)
   );
   const bestBalance =
-    empresas
-      .filter((empresa) => Number(empresa.balance_neto_kg_co2e || 0) < 0)
+    scopedUnits
+      .map((unidad) => ({
+        ...unidad,
+        balance_neto_kg_co2e:
+          Number(unidad.emisiones_totales_kg_co2e || 0) - getUnitStoredCarbon(unidad),
+      }))
+      .filter((unidad) => Number(unidad.balance_neto_kg_co2e || 0) < 0)
       .sort(
         (left, right) =>
           Number(left.balance_neto_kg_co2e || 0) -
@@ -618,6 +684,7 @@ function buildCompanyMetrics(empresas) {
 
   return {
     ...totals,
+    activeCompany,
     bestBalance,
     globalBalance,
     topEmitter,
@@ -629,8 +696,12 @@ function buildCompanyMetrics(empresas) {
 }
 
 function buildStrategicSummary(metrics) {
-  if (!metrics.totalCompanies) {
-    return "Aun no hay empresas registradas. Crea una empresa para comenzar a estructurar unidades, lotes, actividades y trazabilidad dentro del ecosistema Carbono Zero.";
+  if (!metrics.activeCompany) {
+    return "Aun no hay una empresa activa. Crea o selecciona una empresa para estructurar unidades, lotes, actividades y trazabilidad dentro del sistema Carbono Zero.";
+  }
+
+  if (!metrics.totalUnits) {
+    return `${metrics.activeCompany.nombre} aun no tiene unidades operativas registradas. Carga unidades para analizar emisiones, trazabilidad y cobertura territorial por operacion.`;
   }
 
   const concentration =
@@ -645,15 +716,39 @@ function buildStrategicSummary(metrics) {
       : "El balance global sigue siendo intensivo en emisiones y requiere priorizar acciones de reduccion.";
   const traceabilityText = metrics.topTraceability
     ? `${metrics.topTraceability.nombre} destaca por su nivel de trazabilidad disponible.`
-    : "Aun no hay una empresa claramente destacada en trazabilidad.";
+    : "Aun no hay una unidad claramente destacada en trazabilidad.";
 
-  return `El sistema registra ${formatNumber(
-    metrics.totalCompanies,
+  return `${metrics.activeCompany.nombre} registra ${formatNumber(
+    metrics.totalUnits,
     0
-  )} empresas activas. ${metrics.topOperational?.nombre || "Sin datos"} concentra la mayor carga operativa y ${metrics.topEmitter?.nombre || "Sin datos"} concentra la mayor huella de carbono, con ${formatNumber(
+  )} unidades operativas activas. ${metrics.topOperational?.nombre || "Sin datos"} concentra la mayor carga operativa y ${metrics.topEmitter?.nombre || "Sin datos"} concentra la mayor huella de carbono, con ${formatNumber(
     metrics.topEmissionShare,
     1
-  )}% de las emisiones agregadas. La estructura actual refleja ${concentration} del peso operativo. ${traceabilityText} ${balanceText}`;
+  )}% de las emisiones de la empresa. La estructura actual refleja ${concentration} del peso operativo entre unidades. ${traceabilityText} ${balanceText}`;
+}
+
+function getUnitStoredCarbon(unidad) {
+  const directValue = Number(unidad.co2_almacenado_kg || 0);
+
+  if (directValue) {
+    return directValue;
+  }
+
+  return (unidad.lotes_resumen || []).reduce((acc, lote) => {
+    const explicitCarbon = Number(lote.co2_almacenado_kg || 0);
+
+    if (explicitCarbon) {
+      return acc + explicitCarbon;
+    }
+
+    return (
+      acc +
+      Math.max(
+        Number(lote.emisiones_kg_co2e || 0) - Number(lote.balance_neto_kg_co2e || 0),
+        0
+      )
+    );
+  }, 0);
 }
 
 function maxBy(items, selector) {

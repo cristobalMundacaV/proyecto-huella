@@ -22,7 +22,7 @@ def generar_analisis_ia(payload):
     else:
         optimal_reduction_pct = optimizacion.get("activityReduction")
 
-     prompt = f"""
+    prompt = f"""
 Actua como un consultor experto en sostenibilidad y eficiencia operativa empresarial.
 
 Tu objetivo NO es maximizar la reduccion teorica de emisiones, sino generar recomendaciones REALISTAS, IMPLEMENTABLES y alineadas con la operacion actual de la empresa.
@@ -30,7 +30,7 @@ Tu objetivo NO es maximizar la reduccion teorica de emisiones, sino generar reco
 Contexto:
 - Emisiones totales: {payload.get("total_emisiones")} kg CO2e
 - Actividad critica: {payload.get("actividad_critica")}
-- Empresa critica: {payload.get("empresa_critica")}
+- Unidad operativa critica: {payload.get("unidad_critica") or payload.get("empresa_critica")}
 - Reduccion potencial maxima estimada: {max_reduction_pct}%
 - Escenario optimo detectado: reducir {actividad} en {optimal_reduction_pct}%
 

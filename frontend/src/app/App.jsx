@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Database,
   Factory,
+  Leaf,
   Menu,
   X,
 } from "lucide-react";
@@ -206,6 +207,7 @@ function App() {
   };
 
   const dashboardTotalEmissions = Number(data?.total_emisiones || 0);
+  const dashboardStoredCarbon = Number(data?.co2_almacenado_total || 0);
   const dashboardHasRows = Array.isArray(data?.datos) && data.datos.length > 0;
 
   const recommendedScenario = useMemo(() => {
@@ -276,13 +278,6 @@ const emisionesPorActividad = data?.emisiones_por_actividad ?? {};
 const emisionesPorUnidad =
   data?.emisiones_por_unidad_operativa ?? data?.emisiones_por_unidad ?? {};
 
-const empresas = Object.entries(emisionesPorEmpresa).map(
-  ([empresa, emisiones]) => ({
-    empresa,
-    emisiones,
-  })
-);
-
 const actividades = Object.entries(emisionesPorActividad).map(
   ([actividad, emisiones]) => ({
     actividad,
@@ -297,11 +292,9 @@ const unidades = Object.entries(emisionesPorUnidad).map(
   })
 );
 
-const empresaBarSize = getBarSizeForRowCount(empresas.length);
 const actividadBarSize = getBarSizeForRowCount(actividades.length);
 const unidadBarSize = getBarSizeForRowCount(unidades.length);
 
-const empresaCritica = data?.empresa_critica || data?.empresa_nombre || empresas[0]?.empresa || "Sin datos";
 const actividadCritica = actividades[0]?.actividad || "Sin datos";
 const unidadCritica = data?.unidad_critica || unidades[0]?.unidad || "Sin datos";
 const safeDashboardData = {
@@ -471,7 +464,6 @@ const validationSummary = {
 
           <ExecutiveSummary
             actividadCritica={actividadCritica}
-            empresaCritica={empresaCritica}
             unidadCritica={unidadCritica}
             optimizedScenario={recommendedScenario}
             riskProfile={riskProfile}
@@ -495,11 +487,10 @@ const validationSummary = {
               value={actividadCritica}
             />
             <KpiCard
-              icon={<AlertTriangle />}
-              title="Score de Riesgo"
-              value={`${formatNumber(riskProfile.score, 0)}/100`}
-              detail={riskProfile.label}
-              tone={riskProfile}
+              icon={<Leaf />}
+              title="Carbono Almacenado"
+              value={`${formatNumber(dashboardStoredCarbon)} kg`}
+              detail="CO2 almacenado en lotes"
             />
           </section>
 

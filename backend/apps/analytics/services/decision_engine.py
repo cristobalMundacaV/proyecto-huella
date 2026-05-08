@@ -132,13 +132,13 @@ def optimize_rows(rows):
 def calculate_risk_profile(summary, optimized_scenario=None):
     total = to_float(summary.get("total_emisiones"))
     by_activity = summary.get("emisiones_por_actividad") or {}
-    by_company = summary.get("emisiones_por_empresa") or {}
+    by_unit = summary.get("emisiones_por_unidad_operativa") or {}
     rows = summary.get("datos") or []
 
     max_activity = max(by_activity.values(), default=0)
-    max_company = max(by_company.values(), default=0)
+    max_unit = max(by_unit.values(), default=0)
     activity_concentration = (max_activity / total) * 100 if total > 0 else 0
-    company_concentration = (max_company / total) * 100 if total > 0 else 0
+    unit_concentration = (max_unit / total) * 100 if total > 0 else 0
     diesel_present = any(is_diesel_activity(row) for row in rows)
     potential_reduction = (
         max(to_float(optimized_scenario.get("reductionPct")), 0)
@@ -152,7 +152,7 @@ def calculate_risk_profile(summary, optimized_scenario=None):
     score = round(
         total_component * 0.3
         + activity_concentration * 0.25
-        + company_concentration * 0.2
+        + unit_concentration * 0.2
         + diesel_component * 0.15
         + potential_reduction * 0.1
     )
@@ -170,7 +170,8 @@ def calculate_risk_profile(summary, optimized_scenario=None):
         "factors": {
             "totalEmissions": total,
             "activityConcentration": activity_concentration,
-            "companyConcentration": company_concentration,
+            "companyConcentration": unit_concentration,
+            "unitConcentration": unit_concentration,
             "dieselPresent": diesel_present,
             "potentialReduction": potential_reduction,
         },
