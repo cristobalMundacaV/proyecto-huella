@@ -16,9 +16,32 @@ const formatTitleCase = (value) =>
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+const normalizePlanText = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const capRangeToPotential = (range, potentialReduction) => {
+  if (!potentialReduction || potentialReduction <= 0) {
+    return range;
+  }
+
+  const cappedMax = Math.max(1, Math.min(range.max, potentialReduction));
+  const cappedMin = Math.min(range.min, cappedMax);
+
+  return {
+    min: Math.round(cappedMin),
+    max: Math.round(cappedMax),
+  };
+};
+
+const formatPercentRange = ({ min, max }) =>
+  min === max ? `${min}%` : `${min}%-${max}%`;
+
 const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
   const activityLabel = actividadCritica || "la actividad critica";
-  const activityKey = String(activityLabel).toLowerCase();
+  const activityKey = normalizePlanText(activityLabel);
   const potentialReduction = Number(optimizedScenario?.reductionPct || 0);
   const optimalActivityReduction =
     activityKey === "diesel"
@@ -33,12 +56,16 @@ const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
     viability = "Baja";
   }
 
-  const recommendedRange =
+  const baseRecommendedRange =
     viability === "Baja"
       ? { min: 10, max: 20 }
       : viability === "Media"
         ? { min: 15, max: 30 }
         : { min: 20, max: 35 };
+  const recommendedRange = capRangeToPotential(
+    baseRecommendedRange,
+    potentialReduction
+  );
 
   const initialTarget = clamp(
     Math.round(potentialReduction > 0 ? potentialReduction * 0.4 : 20),
@@ -46,7 +73,7 @@ const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
     recommendedRange.max
   );
 
-  const principalRecommendation = `Reducir consumo de ${activityLabel} entre ${recommendedRange.min}% y ${recommendedRange.max}% de manera gradual , iniciando con un objetivo priorizado cercano a ${initialTarget}%.`;
+  const principalRecommendation = `Reducir consumo de ${activityLabel} entre ${formatPercentRange(recommendedRange)} de manera gradual , iniciando con un objetivo priorizado cercano a ${initialTarget}%.`;
 
   const optimalReference = potentialReduction > 0
     ? `El escenario optimo teorico muestra hasta ${formatNumber(
@@ -64,13 +91,16 @@ const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
     },
     {
       label: "Medio impacto",
-      range: "15%-35%",
+      range: formatPercentRange(recommendedRange),
       tone: "border-yellow-400/20 bg-yellow-400/10 text-yellow-200",
       detail: `Ajustes operativos en ${activityLabel} con analitica, rediseño parcial y sustitucion gradual.`,
     },
     {
       label: "Transformacional",
-      range: "35%+",
+      range:
+        potentialReduction > 0
+          ? `${formatNumber(potentialReduction, 1)}% teorico`
+          : "35%+",
       tone: "border-rose-400/20 bg-rose-400/10 text-rose-200",
       detail: `Cambios estructurales, inversion relevante y transicion tecnologica plurianual en ${activityLabel}.`,
     },
@@ -194,7 +224,7 @@ function ExecutiveSummary({
         <SummaryItem label="Unidad critica" value={unidadCriticaLabel} />
         <SummaryItem
           label="Escenario recomendado"
-          value={`${strategicPlan.recommendedRange.min}%-${strategicPlan.recommendedRange.max}%`}
+          value={formatPercentRange(strategicPlan.recommendedRange)}
         />
 
         <SummaryItem
