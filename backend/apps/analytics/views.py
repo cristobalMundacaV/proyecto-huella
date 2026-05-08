@@ -70,6 +70,7 @@ from .services.importadores import (
     ImportadorUnidadesOperativas,
 )
 from .services.empresa_completa_importer import ImportadorEmpresaCompleta
+from .services.template_generator import generate_complete_import_template
 from .services.decision_engine import (
     calculate_risk_profile,
     optimize_rows,
@@ -2014,6 +2015,25 @@ def empresa_import_actividades_confirm(request, empresa_id):
         return safe_error_response(
             exc,
             user_message="No se pudieron guardar las actividades",
+            status=400,
+        )
+
+
+@api_view(["GET"])
+def download_import_template(request):
+    """Descarga una plantilla XLSX para importación completa de empresa."""
+    try:
+        template_buffer = generate_complete_import_template()
+        response = HttpResponse(
+            template_buffer.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response['Content-Disposition'] = 'attachment; filename="plantilla_importacion_empresa.xlsx"'
+        return response
+    except Exception as exc:
+        return safe_error_response(
+            exc,
+            user_message="No se pudo generar la plantilla de importación",
             status=400,
         )
 
