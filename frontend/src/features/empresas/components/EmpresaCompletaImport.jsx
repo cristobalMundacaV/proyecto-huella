@@ -115,7 +115,7 @@ export default function EmpresaCompletaImport({ onImported }) {
         <input ref={inputRef} type="file" accept=".xlsx" onChange={onFile} className="hidden" />
       </label>
       <p className="mt-2 text-xs text-slate-500">
-        XLSX con hojas empresa, factores, unidades, lotes y actividades. Minimo: empresa(ID Empresa, Nombre); factores(Actividad, Unidad, Factor de Emision, Anio); unidades(ID Unidad, Nombre, Tipo); lotes(ID Lote, ID Unidad, Fecha, Especie, Volumen m3); actividades(ID Lote o ID Unidad, Actividad, Cantidad, Unidad, Fecha).
+        Empresa: ID Empresa, Nombre; Factores: Actividad, Unidad, Factor de Emisión, Año; Unidades: ID Unidad, Nombre, Tipo; Lotes: ID Lote, ID Unidad, Fecha, Especie, Volumen (m³); Actividades: ID Lote, Actividad, Cantidad, Unidad, Fecha.
       </p>
 
       {state.loading && (
