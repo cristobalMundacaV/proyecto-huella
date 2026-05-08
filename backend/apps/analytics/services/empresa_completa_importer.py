@@ -1,5 +1,6 @@
 """Importador de empresa completa desde XLSX con múltiples hojas."""
 
+import logging
 import uuid
 from decimal import Decimal
 from pathlib import Path
@@ -25,6 +26,8 @@ from .importadores import (
     ImportadorLotes,
     ImportadorUnidadesOperativas,
 )
+
+logger = logging.getLogger(__name__)
 
 COMPLETE_IMPORT_CACHE_PREFIX = "empresa_completa_import_batch:"
 
@@ -211,6 +214,7 @@ class ImportadorEmpresaCompleta:
                 "status": status,
                 "errors": errors,
                 "warnings": warnings,
+                "raw": {k: v for k, v in row.items() if k != "row_number"},
                 "data": _strip_runtime_objects(data)
             })
 
@@ -234,6 +238,7 @@ class ImportadorEmpresaCompleta:
                 "row_number": row.get("row_number"),
                 "status": status,
                 "errors": errors,
+                "raw": {k: v for k, v in row.items() if k != "row_number"},
                 "data": {**data, "factor_emision": str(data.get("factor_emision", ""))}
             })
         factor_lookup = _build_factor_lookup(factores_preview["rows"])
@@ -281,6 +286,7 @@ class ImportadorEmpresaCompleta:
                 "status": status,
                 "errors": errors,
                 "warnings": warnings,
+                "raw": {k: v for k, v in row.items() if k != "row_number"},
                 "data": _strip_runtime_objects(data)
             })
 
@@ -346,6 +352,7 @@ class ImportadorEmpresaCompleta:
                 "status": status,
                 "errors": errors,
                 "warnings": warnings,
+                "raw": {k: v for k, v in row.items() if k != "row_number"},
                 "data": _strip_runtime_objects(data)
             })
 
@@ -382,16 +389,23 @@ class ImportadorEmpresaCompleta:
     @staticmethod
     def confirmar(batch_id: str) -> dict:
         """Confirma la importación completa."""
+        logger.info(f"[IMPORT_COMPLETE] Iniciando confirmación para batch_id={batch_id}")
+        
         cached = cache.get(f"{COMPLETE_IMPORT_CACHE_PREFIX}{batch_id}")
         if not cached:
+            logger.error(f"[IMPORT_COMPLETE] batch_id no existe o expiró: {batch_id}")
             raise ValueError("El batch_id no existe o expiró")
+
+        logger.info(f"[IMPORT_COMPLETE] Cache data recuperado: empresa_data={bool(cached.get('empresa'))}, unidades={len(cached.get('unidades', {}).get('rows', []))}, lotes={len(cached.get('lotes', {}).get('rows', []))}, actividades={len(cached.get('actividades', {}).get('rows', []))}, factores={len(cached.get('factores', {}).get('rows', []))}")
 
         empresa_data = cached.get("empresa", {}).get("data", {})
         if not empresa_data or not empresa_data.get("empresa_id"):
+            logger.error(f"[IMPORT_COMPLETE] No contiene empresa válida para guardar")
             raise ValueError("La importación no contiene una empresa valida para guardar")
 
         company_payload, company_errors = _build_company_payload(empresa_data)
         if company_errors:
+            logger.error(f"[IMPORT_COMPLETE] Errores al validar empresa: {company_errors}")
             raise ValueError("; ".join(company_errors))
 
         company_rows = [
@@ -402,31 +416,59 @@ class ImportadorEmpresaCompleta:
             }
         ]
 
+        logger.info(f"[IMPORT_COMPLETE] Guardando empresa: empresa_id={company_payload.get('empresa_id')}")
         company_summary = ImportadorEmpresas.confirmar(rows=company_rows)
+        logger.info(f"[IMPORT_COMPLETE] Resultado empresa: {company_summary}")
+        
         if company_summary.get("rechazados"):
             errores = company_summary.get("errores") or []
+            logger.error(f"[IMPORT_COMPLETE] Empresa rechazada: {errores}")
             raise ValueError("No se pudo guardar la empresa: " + "; ".join(
                 ", ".join(err.get("errors", [])) if isinstance(err, dict) else str(err)
                 for err in errores
             ))
 
         created_empresa = Empresa.objects.get(empresa_id=company_payload["empresa_id"])
+        logger.info(f"[IMPORT_COMPLETE] Empresa creada/actualizada: {created_empresa.empresa_id}")
 
+        # Guardar factores primero
+        logger.info(f"[IMPORT_COMPLETE] Procesando {len(cached['factores'].get('rows', []))} factores")
+        factores_summary = ImportadorFactores.confirmar(rows=cached["factores"].get("rows", []))
+        logger.info(f"[IMPORT_COMPLETE] Resultado factores: creados={factores_summary.get('creados', 0)}, errores={len(factores_summary.get('errores', []))}")
+        if factores_summary.get("errores"):
+            logger.warning(f"[IMPORT_COMPLETE] Errores en factores: {factores_summary.get('errores')}")
+
+        # Guardar unidades
+        logger.info(f"[IMPORT_COMPLETE] Procesando {len(cached['unidades'].get('rows', []))} unidades")
         unidades_summary = ImportadorUnidadesOperativas.confirmar(
             rows=cached["unidades"].get("rows", []),
             empresa_activa=created_empresa,
         )
-        factores_summary = ImportadorFactores.confirmar(rows=cached["factores"].get("rows", []))
+        logger.info(f"[IMPORT_COMPLETE] Resultado unidades: creados={unidades_summary.get('creados', 0)}, errores={len(unidades_summary.get('errores', []))}")
+        if unidades_summary.get("errores"):
+            logger.warning(f"[IMPORT_COMPLETE] Errores en unidades: {unidades_summary.get('errores')}")
+
+        # Guardar lotes
+        logger.info(f"[IMPORT_COMPLETE] Procesando {len(cached['lotes'].get('rows', []))} lotes")
         lotes_summary = ImportadorLotes.confirmar(
             rows=cached["lotes"].get("rows", []),
             empresa_activa=created_empresa,
         )
+        logger.info(f"[IMPORT_COMPLETE] Resultado lotes: creados={lotes_summary.get('creados', 0)}, rechazados={lotes_summary.get('rechazados', 0)}, errores={len(lotes_summary.get('errores', []))}")
+        if lotes_summary.get("errores"):
+            logger.warning(f"[IMPORT_COMPLETE] Errores en lotes: {lotes_summary.get('errores')}")
+
+        # Guardar actividades
+        logger.info(f"[IMPORT_COMPLETE] Procesando {len(cached['actividades'].get('rows', []))} actividades")
         actividades_summary = ImportadorActividadesLote.confirmar(
             rows=cached["actividades"].get("rows", []),
             empresa_activa=created_empresa,
         )
+        logger.info(f"[IMPORT_COMPLETE] Resultado actividades: creados={actividades_summary.get('creados', 0)}, rechazados={actividades_summary.get('rechazados', 0)}, errores={len(actividades_summary.get('errores', []))}")
+        if actividades_summary.get("errores"):
+            logger.warning(f"[IMPORT_COMPLETE] Errores en actividades: {actividades_summary.get('errores')}")
 
-        return {
+        resultado = {
             "creados": 1,
             "empresa_id": created_empresa.empresa_id,
             "empresa_nombre": created_empresa.nombre,
@@ -441,3 +483,6 @@ class ImportadorEmpresaCompleta:
                 *factores_summary.get("errores", []),
             ],
         }
+        
+        logger.info(f"[IMPORT_COMPLETE] Importación completada: {resultado}")
+        return resultado

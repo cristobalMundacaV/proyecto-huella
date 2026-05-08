@@ -685,6 +685,104 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
             </div>
           )}
 
+          {/* Mostrar errores y validación de unidades */}
+          {state.result?.unidades && (
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+              <h3 className="text-base font-semibold text-slate-100">Unidades ({state.result.unidades.validas} válidas, {state.result.unidades.errores} errores)</h3>
+              {state.result.unidades.errores > 0 && (
+                <div className="mt-3 max-h-40 space-y-2 overflow-y-auto rounded border border-red-500/30 bg-red-500/10 p-2">
+                  {state.result.unidades.rows.filter(r => r.status === 'error').map((row) => (
+                    <div key={row.row_number} className="text-xs text-red-300">
+                      <p className="font-semibold">Fila {row.row_number}:</p>
+                      <p className="ml-2">{row.errors?.join(', ') || 'Error desconocido'}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Mostrar errores y validación de lotes */}
+          {state.result?.lotes && (
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+              <h3 className="text-base font-semibold text-slate-100">Lotes ({state.result.lotes.validos} válidos, {state.result.lotes.errores} errores)</h3>
+              {state.result.lotes.errores > 0 && (
+                <div className="mt-3 max-h-40 space-y-2 overflow-y-auto rounded border border-red-500/30 bg-red-500/10 p-2">
+                  {state.result.lotes.rows.filter(r => r.status === 'error').map((row) => (
+                    <div key={row.row_number} className="text-xs text-red-300">
+                      <p className="font-semibold">Fila {row.row_number}:</p>
+                      <p className="ml-2">{row.errors?.join(', ') || 'Error desconocido'}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Mostrar errores y validación de actividades */}
+          {state.result?.actividades && (
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+              <h3 className="text-base font-semibold text-slate-100">
+                Actividades ({state.result.actividades.validas} válidas, {state.result.actividades.errores} errores)
+                {state.result.actividades.factores_faltantes > 0 && (
+                  <span className="text-xs text-yellow-400"> - {state.result.actividades.factores_faltantes} sin factor de emisión</span>
+                )}
+              </h3>
+              {state.result.actividades.errores > 0 && (
+                <div className="mt-3 max-h-40 space-y-2 overflow-y-auto rounded border border-red-500/30 bg-red-500/10 p-2">
+                  {state.result.actividades.rows.filter(r => r.status === 'error').map((row) => (
+                    <div key={row.row_number} className="text-xs text-red-300">
+                      <p className="font-semibold">Fila {row.row_number}:</p>
+                      <p className="ml-2">{row.errors?.join(', ') || 'Error desconocido'}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Mostrar resumen de confirmación */}
+          {state.result?.unidades_creadas !== undefined && (
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+              <h3 className="text-base font-semibold text-slate-100">Resumen de confirmación</h3>
+              <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                <div className="rounded border border-slate-700 bg-slate-900/80 p-3 text-center">
+                  <p className="text-xs text-slate-500">Empresa creada</p>
+                  <p className="mt-1 text-2xl font-bold text-emerald-400">{state.result.creados || 0}</p>
+                </div>
+                <div className="rounded border border-slate-700 bg-slate-900/80 p-3 text-center">
+                  <p className="text-xs text-slate-500">Unidades</p>
+                  <p className="mt-1 text-2xl font-bold text-cyan-400">{state.result.unidades_creadas || 0}</p>
+                </div>
+                <div className="rounded border border-slate-700 bg-slate-900/80 p-3 text-center">
+                  <p className="text-xs text-slate-500">Lotes</p>
+                  <p className="mt-1 text-2xl font-bold text-cyan-400">{state.result.lotes_creados || 0}</p>
+                </div>
+                <div className="rounded border border-slate-700 bg-slate-900/80 p-3 text-center">
+                  <p className="text-xs text-slate-500">Actividades</p>
+                  <p className="mt-1 text-2xl font-bold text-cyan-400">{state.result.actividades_creadas || 0}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Mostrar errores de confirmación si existen */}
+          {state.result?.errores && state.result.errores.length > 0 && (
+            <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-200">
+              <p className="font-semibold">Errores durante confirmación ({state.result.errores.length})</p>
+              <div className="mt-2 max-h-48 space-y-1 overflow-y-auto">
+                {state.result.errores.slice(0, 20).map((error, idx) => (
+                  <div key={idx} className="text-xs font-mono">
+                    {typeof error === 'string' ? error : `Fila ${error.row_number}: ${error.errors?.join(', ')}`}
+                  </div>
+                ))}
+                {state.result.errores.length > 20 && (
+                  <p className="text-xs italic">... y {state.result.errores.length - 20} errores más</p>
+                )}
+              </div>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={() => onConfirm(state.result?.batch_id)}
@@ -821,7 +919,31 @@ function ImportacionesView({ onImportConfirmed }) {
     try {
       const result = await confirmarEmpresaCompleta({ batch_id: batchId });
       const created = result.creados ?? result.created ?? 0;
-      const msg = `Importación completa: ${formatNumber(created, 0)} creadas.`;
+      
+      // Agrupar errores por tipo
+      const errorsBySheet = {};
+      if (result.errores && result.errores.length > 0) {
+        result.errores.forEach(error => {
+          const sheetName = error.sheet || 'general';
+          if (!errorsBySheet[sheetName]) errorsBySheet[sheetName] = [];
+          errorsBySheet[sheetName].push(error);
+        });
+      }
+
+      // Si hay errores, mostrarlos pero no considerar como fallo total si se creó algo
+      let errorMessage = "";
+      if (Object.keys(errorsBySheet).length > 0) {
+        errorMessage = Object.entries(errorsBySheet)
+          .map(([sheet, errors]) => {
+            const errorList = errors.map(e => 
+              typeof e === 'string' ? e : `Fila ${e.row_number}: ${e.errors?.join(', ')}`
+            ).join('\n');
+            return `${sheet}:\n${errorList}`;
+          })
+          .join('\n\n');
+      }
+
+      const msg = `Importación completa: ${formatNumber(created, 0)} empresa${created !== 1 ? 's' : ''} creada${created !== 1 ? 's' : ''}.`;
 
       showToast(msg);
       
@@ -834,6 +956,15 @@ function ImportacionesView({ onImportConfirmed }) {
         ...current,
         saving: false,
         savedMessage: msg,
+        result: { 
+          ...current.result,
+          errores: result.errores || [],
+          unidades_creadas: result.unidades_creadas || 0,
+          lotes_creados: result.lotes_creados || 0,
+          actividades_creadas: result.actividades_creadas || 0,
+          factores_creados: result.factores_creados || 0,
+        },
+        error: errorMessage || ""
       }));
     } catch (err) {
       const resp = err.response?.data || {};
