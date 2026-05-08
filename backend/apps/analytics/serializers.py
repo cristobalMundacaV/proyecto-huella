@@ -156,6 +156,9 @@ class EmpresaSerializer(serializers.ModelSerializer):
 
     def get_co2_almacenado_kg(self, empresa):
         if self.context.get("is_list_view"):
+            annotated = getattr(empresa, "co2_almacenado_val", None)
+            if annotated is not None:
+                return float(annotated)
             return 0
         return sum(
             (calcular_carbono_almacenado(lote)["co2_almacenado_kg"] for lote in self._lotes(empresa)),
@@ -164,7 +167,7 @@ class EmpresaSerializer(serializers.ModelSerializer):
 
     def get_balance_neto_kg_co2e(self, empresa):
         if self.context.get("is_list_view"):
-            return 0
+            return self.get_emisiones_totales_kg_co2e(empresa) - self.get_co2_almacenado_kg(empresa)
         return self.get_emisiones_totales_kg_co2e(empresa) - self.get_co2_almacenado_kg(empresa)
 
     def get_pasaportes_emitidos(self, empresa):

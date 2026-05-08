@@ -295,6 +295,46 @@ def empresas(request):
                 ),
             )
         )
+        especie_densidad = EspecieMadera.objects.filter(
+            nombre__iexact=OuterRef("especie")
+        ).values("densidad_kg_m3")[:1]
+        especie_porcentaje_carbono = EspecieMadera.objects.filter(
+            nombre__iexact=OuterRef("especie")
+        ).values("porcentaje_carbono")[:1]
+        densidad_expr = Coalesce(
+            F("densidad_kg_m3"),
+            Subquery(especie_densidad, output_field=DecimalField(max_digits=8, decimal_places=3)),
+            Value(Decimal("0.0")),
+            output_field=DecimalField(max_digits=8, decimal_places=3),
+        )
+        porcentaje_carbono_expr = Coalesce(
+            F("porcentaje_carbono"),
+            Subquery(
+                especie_porcentaje_carbono,
+                output_field=DecimalField(max_digits=5, decimal_places=4),
+            ),
+            Value(Decimal("0.0")),
+            output_field=DecimalField(max_digits=5, decimal_places=4),
+        )
+        co2_lote_expr = ExpressionWrapper(
+            Coalesce(F("volumen_m3"), Value(Decimal("0.0")))
+            * densidad_expr
+            * porcentaje_carbono_expr
+            * Value(Decimal("3.67")),
+            output_field=DecimalField(max_digits=20, decimal_places=6),
+        )
+        co2_lotes_stats = (
+            Lote.objects.filter(empresa=OuterRef("pk"))
+            .annotate(co2_almacenado_calc=co2_lote_expr)
+            .values("empresa")
+            .annotate(
+                total=Coalesce(
+                    DBSum("co2_almacenado_calc"),
+                    Value(0, output_field=DecimalField()),
+                )
+            )
+            .values("total")
+        )
         queryset = Empresa.objects.annotate(
             unidades_count_val=Coalesce(
                 Subquery(unidades_count, output_field=IntegerField()),
@@ -310,6 +350,10 @@ def empresas(request):
             ),
             emisiones_totales_val=Coalesce(
                 Subquery(actividades_stats.values("emisiones"), output_field=DecimalField()),
+                Value(0, output_field=DecimalField()),
+            ),
+            co2_almacenado_val=Coalesce(
+                Subquery(co2_lotes_stats, output_field=DecimalField()),
                 Value(0, output_field=DecimalField()),
             ),
         )

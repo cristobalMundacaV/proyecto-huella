@@ -625,7 +625,9 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
           </div>
           <div>
             <h2 className="text-xl font-semibold">Importador de empresa completa</h2>
-            <p className="text-sm text-slate-400">Empresa: ID Empresa, Nombre; Factores: Actividad, Unidad, Factor de Emisión, Fuente, Año; Unidades: ID Unidad, ID Empresa, Nombre, Tipo, Región, Comuna, Dirección, Estado; Lotes: ID Lote, ID Unidad, Fecha, Especie, Volumen (m³), Origen; Actividades: ID Actividad, ID Lote, ID Unidad, Actividad, Cantidad, Unidad, Fecha, Observación, Fuente de dato</p>
+            <p className="text-sm text-slate-400">
+              Archivo XLSX con hojas <span className="font-semibold text-slate-200">empresa</span>, <span className="font-semibold text-slate-200">unidades</span>, <span className="font-semibold text-slate-200">lotes</span>, <span className="font-semibold text-slate-200">actividades</span> y <span className="font-semibold text-slate-200">factores</span>.
+            </p>
           </div>
         </div>
 
