@@ -880,21 +880,7 @@ function ImportacionesView({ onImportConfirmed }) {
           loading: false,
           error: preview.error || "El archivo tiene errores bloqueantes; revisa la previsualización antes de confirmar.",
         }));
-        return;
       }
-
-      const result = await confirmarEmpresaCompleta({ batch_id: preview.batch_id });
-
-      const created = result.creados ?? result.created ?? 0;
-      const msg = `${formatNumber(created, 0)} creadas.`;
-      showToast(msg);
-
-      setEmpresaCompleta((current) => ({
-        ...current,
-        loading: false,
-        saving: false,
-        savedMessage: msg,
-      }));
     } catch (err) {
       const resp = err.response?.data || {};
       setEmpresaCompleta((current) => ({

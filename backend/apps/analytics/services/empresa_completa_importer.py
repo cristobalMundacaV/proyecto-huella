@@ -9,7 +9,7 @@ from django.core.cache import cache
 from django.db import transaction
 from openpyxl import load_workbook
 
-from ..factores import normalize_activity_key
+from ..factores import format_activity_display_name, normalize_activity_key
 from ..models import Empresa, UnidadOperativa, Lote, EmisionLote, FactorEmision, normalize_identifier
 from .importadores import (
     _build_company_payload,
@@ -17,6 +17,8 @@ from .importadores import (
     _build_lote_payload,
     _build_activity_payload,
     _build_row_payload,
+    _parse_lote_date,
+    _parse_lote_decimal,
     _normalize_header_key,
     FACTOR_IMPORT_CACHE_TTL_SECONDS,
     _normalize_text,
@@ -93,6 +95,42 @@ def _read_normalized_xlsx_sheet(uploaded_file, sheet_name: str) -> list[dict]:
         raise ValueError(f"No se pudo leer la hoja {sheet_name}. Revisa el formato del archivo.")
 
 
+def _read_normalized_xlsx_sheets(uploaded_file, sheet_names: list[str]) -> dict[str, list[dict]]:
+    try:
+        uploaded_file.seek(0)
+        wb = load_workbook(uploaded_file, data_only=True, read_only=True)
+        try:
+            result = {}
+            for sheet_name in sheet_names:
+                if sheet_name not in wb.sheetnames:
+                    result[sheet_name] = []
+                    continue
+
+                ws = wb[sheet_name]
+                rows = []
+                headers = None
+                for idx, row in enumerate(ws.iter_rows(values_only=True), 1):
+                    if idx == 1:
+                        headers = [_normalize_header_key(h) if h is not None else "" for h in row]
+                        continue
+                    if not headers or not any(row):
+                        continue
+
+                    values = list(row or [])
+                    data = {"row_number": idx}
+                    for index, header in enumerate(headers):
+                        if header:
+                            data[header] = values[index] if index < len(values) else None
+                    rows.append(data)
+                result[sheet_name] = rows
+            return result
+        finally:
+            wb.close()
+    except Exception as exc:
+        logger.exception("[IMPORT_COMPLETE] No se pudo leer el archivo XLSX")
+        raise ValueError("No se pudo leer el archivo XLSX. Revisa que no este danado y que tenga las hojas requeridas.") from exc
+
+
 def _strip_runtime_objects(data: dict) -> dict:
     return {key: value for key, value in (data or {}).items() if not key.endswith("_obj")}
 
@@ -131,6 +169,53 @@ def _apply_file_factor(data: dict, errors: list[str], factor_lookup: dict[tuple[
     data["fuente"] = factor.get("fuente", "")
     data["anio"] = factor.get("anio", "")
     _remove_error(errors, "factor de emision no encontrado")
+
+
+def _build_complete_activity_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[str], list[str]]:
+    errors = []
+    warnings = []
+    id_lote = _normalize_text(raw_row.get("id_lote"), lower=False).upper()
+    empresa_id = _normalize_text(raw_row.get("empresa_id"), lower=False).upper()
+    unidad_id = _normalize_text(raw_row.get("unidad_id"), lower=False).upper()
+    actividad = format_activity_display_name(_normalize_text(raw_row.get("actividad"), lower=False))
+    unidad = _normalize_text(raw_row.get("unidad"), lower=False)
+
+    if not actividad:
+        errors.append("actividad es requerida")
+    if not unidad:
+        errors.append("unidad es requerida")
+
+    try:
+        cantidad = _parse_lote_decimal(raw_row.get("cantidad"), "cantidad")
+        if cantidad is None:
+            errors.append("cantidad es requerida")
+    except ValueError as exc:
+        cantidad = None
+        errors.append(str(exc))
+
+    try:
+        fecha = _parse_lote_date(raw_row.get("fecha"))
+    except ValueError as exc:
+        fecha = ""
+        errors.append(str(exc))
+
+    if empresa_activa is not None:
+        empresa_id = empresa_activa.empresa_id
+
+    return {
+        "empresa_id": empresa_id,
+        "unidad_id": unidad_id,
+        "id_lote": id_lote,
+        "actividad": actividad,
+        "cantidad": cantidad,
+        "unidad": unidad,
+        "fecha": fecha,
+        "factor_emision": None,
+        "categoria": "",
+        "fuente": "",
+        "anio": "",
+        "tipo_asignacion": EmisionLote.TipoAsignacion.LOTE if id_lote else EmisionLote.TipoAsignacion.EMPRESA,
+    }, errors, warnings
 
 
 def _confirm_section(section_name: str, confirm_fn, **kwargs) -> dict:
@@ -172,12 +257,16 @@ class ImportadorEmpresaCompleta:
         batch_id = uuid.uuid4().hex
         blocking_errors = []
         
-        # Leer hojas
-        empresa_rows = _read_normalized_xlsx_sheet(uploaded_file, "empresa")
-        unidades_rows = _read_normalized_xlsx_sheet(uploaded_file, "unidades")
-        lotes_rows = _read_normalized_xlsx_sheet(uploaded_file, "lotes")
-        actividades_rows = _read_normalized_xlsx_sheet(uploaded_file, "actividades")
-        factores_rows = _read_normalized_xlsx_sheet(uploaded_file, "factores")
+        # Leer todas las hojas en una sola pasada para evitar bloqueos con archivos grandes.
+        sheets = _read_normalized_xlsx_sheets(
+            uploaded_file,
+            ["empresa", "unidades", "lotes", "actividades", "factores"],
+        )
+        empresa_rows = sheets["empresa"]
+        unidades_rows = sheets["unidades"]
+        lotes_rows = sheets["lotes"]
+        actividades_rows = sheets["actividades"]
+        factores_rows = sheets["factores"]
 
         # Procesar empresa
         empresa_data = None
@@ -341,7 +430,7 @@ class ImportadorEmpresaCompleta:
         }
         for row in actividades_rows:
             try:
-                data, errors, warnings = _build_activity_payload(row)
+                data, errors, warnings = _build_complete_activity_payload(row, empresa_activa=empresa_activa)
             except Exception as exc:
                 data, errors, warnings = _row_processing_error("actividades", row, exc)
             
@@ -382,6 +471,8 @@ class ImportadorEmpresaCompleta:
                 data["empresa_id"] = empresa_activa.empresa_id
 
             _apply_file_factor(data, errors, factor_lookup)
+            if data.get("actividad") and data.get("unidad") and not data.get("factor_emision"):
+                errors.append("factor de emision no encontrado")
             
             if data.get("factor_emision"):
                 actividades_preview["factores_encontrados"] += 1
