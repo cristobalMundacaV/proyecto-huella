@@ -552,6 +552,21 @@ def _find_lote_in_empresa_scope(id_lote: str, empresa: Empresa):
     )
 
 
+def _find_unit_in_empresa_scope(identifier: str, empresa: Empresa | None = None):
+    if not identifier:
+        return None
+
+    queryset = UnidadOperativa.objects.select_related("empresa")
+    if empresa is not None:
+        queryset = queryset.filter(empresa=empresa)
+
+    unit = queryset.filter(unidad_id=identifier).first()
+    if unit is not None:
+        return unit
+
+    return queryset.filter(nombre__iexact=identifier).first()
+
+
 def _build_lote_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[str], list[str]]:
     errors = []
     warnings = []
@@ -582,20 +597,10 @@ def _build_lote_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[
         warnings.append(TENANT_MISMATCH_WARNING)
 
     if normalized["unidad_id"]:
-        if empresa_activa is not None:
-            unidad_operativa = UnidadOperativa.objects.select_related("empresa").filter(
-                unidad_id=normalized["unidad_id"],
-                empresa=empresa_activa,
-            ).first()
-        else:
-            unidad_operativa = UnidadOperativa.objects.select_related("empresa").filter(
-                unidad_id=normalized["unidad_id"]
-            ).first()
+        unidad_operativa = _find_unit_in_empresa_scope(normalized["unidad_id"], empresa_activa)
 
         if unidad_operativa is None:
-            if empresa_activa is not None and UnidadOperativa.objects.filter(
-                unidad_id=normalized["unidad_id"]
-            ).exists():
+            if empresa_activa is not None and _find_unit_in_empresa_scope(normalized["unidad_id"]) is not None:
                 errors.append("unidad_id no pertenece a la empresa activa")
             else:
                 errors.append("unidad_id no existe")
@@ -603,6 +608,7 @@ def _build_lote_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[
             empresa = empresa_activa or unidad_operativa.empresa
             normalized["empresa_id"] = empresa.empresa_id
             normalized["empresa_aserradero"] = normalized["empresa_aserradero"] or empresa.nombre
+            normalized["unidad_id"] = unidad_operativa.unidad_id
     elif empresa_activa is not None:
         empresa = empresa_activa
         normalized["empresa_id"] = empresa_activa.empresa_id
@@ -869,24 +875,17 @@ def _build_activity_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, l
             unidad_id = unidad_operativa.unidad_id if unidad_operativa else unidad_id
             tipo_asignacion = EmisionLote.TipoAsignacion.LOTE
     elif unidad_id:
-        if empresa_activa is not None:
-            unidad_operativa = UnidadOperativa.objects.select_related("empresa").filter(
-                unidad_id=unidad_id,
-                empresa=empresa_activa,
-            ).first()
-        else:
-            unidad_operativa = UnidadOperativa.objects.select_related("empresa").filter(
-                unidad_id=unidad_id
-            ).first()
+        unidad_operativa = _find_unit_in_empresa_scope(unidad_id, empresa_activa)
 
         if unidad_operativa is None:
-            if empresa_activa is not None and UnidadOperativa.objects.filter(unidad_id=unidad_id).exists():
+            if empresa_activa is not None and _find_unit_in_empresa_scope(unidad_id) is not None:
                 errors.append("unidad_id no pertenece a la empresa activa")
             else:
                 errors.append("unidad_id no existe")
         else:
             empresa = empresa_activa or unidad_operativa.empresa
             empresa_id = empresa.empresa_id
+            unidad_id = unidad_operativa.unidad_id
             tipo_asignacion = EmisionLote.TipoAsignacion.UNIDAD
     elif empresa_activa is not None:
         empresa = empresa_activa

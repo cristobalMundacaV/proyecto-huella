@@ -192,13 +192,17 @@ class ImportadorEmpresaCompleta:
             "rows": []
         }
         unidades_by_id = {}
+        unidades_by_name = {}
         for row in unidades_rows:
             data, errors, warnings = _build_unit_payload(row, empresa_activa=empresa_activa)
             unidad_id = data.get("unidad_id")
+            nombre_unidad = _normalize_text(data.get("nombre"), lower=True)
             status = "valid" if not errors else "error"
             if status == "valid":
                 unidades_preview["validas"] += 1
                 unidades_by_id[unidad_id] = _strip_runtime_objects(data)
+                if nombre_unidad:
+                    unidades_by_name[nombre_unidad] = _strip_runtime_objects(data)
             else:
                 unidades_preview["errores"] += 1
             
@@ -257,6 +261,11 @@ class ImportadorEmpresaCompleta:
             unidad_id = data.get("unidad_id")
             if unidad_id in unidades_by_id:
                 _remove_error(errors, "unidad_id no existe")
+            elif _normalize_text(unidad_id, lower=True) in unidades_by_name:
+                unidad_data = unidades_by_name[_normalize_text(unidad_id, lower=True)]
+                _remove_error(errors, "unidad_id no existe")
+                data["unidad_id"] = unidad_data.get("unidad_id")
+                data["empresa_id"] = unidad_data.get("empresa_id") or data.get("empresa_id")
             elif unidad_id and not UnidadOperativa.objects.filter(unidad_id=unidad_id).exists():
                 errors.append(f"unidad_id {unidad_id} no existe en el archivo ni en la base de datos")
             
@@ -304,6 +313,13 @@ class ImportadorEmpresaCompleta:
             if unidad_id in unidades_by_id:
                 unidad_data = unidades_by_id[unidad_id]
                 _remove_error(errors, "unidad_id no existe")
+                data["empresa_id"] = unidad_data.get("empresa_id") or data.get("empresa_id")
+                if not data.get("id_lote"):
+                    data["tipo_asignacion"] = EmisionLote.TipoAsignacion.UNIDAD
+            elif _normalize_text(unidad_id, lower=True) in unidades_by_name:
+                unidad_data = unidades_by_name[_normalize_text(unidad_id, lower=True)]
+                _remove_error(errors, "unidad_id no existe")
+                data["unidad_id"] = unidad_data.get("unidad_id")
                 data["empresa_id"] = unidad_data.get("empresa_id") or data.get("empresa_id")
                 if not data.get("id_lote"):
                     data["tipo_asignacion"] = EmisionLote.TipoAsignacion.UNIDAD
