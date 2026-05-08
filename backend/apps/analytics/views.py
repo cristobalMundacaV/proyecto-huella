@@ -162,14 +162,35 @@ def build_company_dashboard_response(empresa):
     emisiones_por_lote = {}
     total_emisiones = 0
 
-    # Calcular CO2 almacenado total con una sola agregacion en BD
-    # Usamos Coalesce para usar densidad/porcentaje del lote o de la especie
+    # Calcular CO2 almacenado total con una sola agregacion en BD.
+    # Primero usa valores del lote; si faltan, toma densidad/carbono de la especie.
+    especie_densidad = EspecieMadera.objects.filter(
+        nombre__iexact=OuterRef("especie")
+    ).values("densidad_kg_m3")[:1]
+    especie_porcentaje_carbono = EspecieMadera.objects.filter(
+        nombre__iexact=OuterRef("especie")
+    ).values("porcentaje_carbono")[:1]
+    densidad_expr = Coalesce(
+        F("densidad_kg_m3"),
+        Subquery(especie_densidad, output_field=DecimalField(max_digits=8, decimal_places=3)),
+        Value(Decimal("0.0")),
+        output_field=DecimalField(max_digits=8, decimal_places=3),
+    )
+    porcentaje_carbono_expr = Coalesce(
+        F("porcentaje_carbono"),
+        Subquery(
+            especie_porcentaje_carbono,
+            output_field=DecimalField(max_digits=5, decimal_places=4),
+        ),
+        Value(Decimal("0.0")),
+        output_field=DecimalField(max_digits=5, decimal_places=4),
+    )
     masa_expr = ExpressionWrapper(
-        F("volumen_m3") * Coalesce(F("densidad_kg_m3"), Value(0)),
+        Coalesce(F("volumen_m3"), Value(Decimal("0.0"))) * densidad_expr,
         output_field=DecimalField(max_digits=18, decimal_places=6),
     )
     carbono_expr = ExpressionWrapper(
-        masa_expr * Coalesce(F("porcentaje_carbono"), Value(0)),
+        masa_expr * porcentaje_carbono_expr,
         output_field=DecimalField(max_digits=18, decimal_places=8),
     )
     CO2_FACTOR = Decimal("3.67")
@@ -185,14 +206,21 @@ def build_company_dashboard_response(empresa):
     evidencias_count = DocumentoLote.objects.filter(lote__in=lotes_qs).count()
     lotes_count = lotes_qs.count()
 
-    # Pasaportes (heuristica): lotes con actividades y con densidad/porcentaje disponibles
-    pasaportes_qs = lotes_qs.filter(
-        Q(volumen_m3__isnull=False)
-        & Q(densidad_kg_m3__isnull=False)
-        & Q(porcentaje_carbono__isnull=False)
-        & Q(actividades__isnull=False)
-    ).distinct()
-    pasaportes_count = pasaportes_qs.count()
+    # Pasaportes (heuristica): lotes con actividades y balance de carbono calculable.
+    pasaportes_count = (
+        lotes_qs.annotate(
+            densidad_calc=densidad_expr,
+            porcentaje_carbono_calc=porcentaje_carbono_expr,
+        )
+        .filter(
+            Q(volumen_m3__isnull=False)
+            & Q(densidad_calc__gt=0)
+            & Q(porcentaje_carbono_calc__gt=0)
+            & Q(actividades__isnull=False)
+        )
+        .distinct()
+        .count()
+    )
 
     for actividad in actividades_qs:
         emisiones = float(actividad.emisiones_kg_co2e or 0)
