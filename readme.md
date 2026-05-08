@@ -221,6 +221,40 @@ Despliegue
 - Frontend: servir `dist` generado por `npm run build` desde CDN o servidor estático.
 - Asegurar `CORS` y `CSRF` en producción (ver `env.example` y `settings.py`).
 
+Backup y restauracion de datos
+------------------------------
+
+El proyecto incluye un exportador de datos que genera un archivo `backup_datos.json` en la raiz del repositorio. Ese archivo se puede copiar al servidor productivo y restaurar con Django.
+
+Exportar datos desde la raiz del proyecto:
+
+```bash
+cd backend
+python manage.py exportar_datos
+```
+
+Exportar a otra ruta:
+
+```bash
+cd backend
+python manage.py exportar_datos --output ../backup_datos.json
+```
+
+Restaurar en produccion desde la raiz del proyecto:
+
+```bash
+cd backend
+python manage.py migrate
+python manage.py importar_datos --input ../backup_datos.json
+```
+
+Si prefieres cargarlo directamente con `loaddata`, tambien funciona:
+
+```bash
+cd backend
+python manage.py loaddata ../backup_datos.json
+```
+
 Contribuir
 ----------
 
