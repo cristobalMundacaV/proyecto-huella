@@ -488,6 +488,7 @@ class ImportadorEmpresaCompleta:
                         defaults={
                             "empresa": created_empresa,
                             "unidad_operativa": unidad,
+                            "empresa_aserradero": data.get("empresa_aserradero") or (created_empresa.nombre if created_empresa else ""),
                             "fecha": data.get("fecha"),
                             "especie": data.get("especie", ""),
                             "volumen_m3": data.get("volumen_m3", Decimal("0")),

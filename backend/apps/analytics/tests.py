@@ -1709,8 +1709,32 @@ class AnalyticsApiIntegrationTest(APITestCase):
 		workbook = Workbook()
 		empresa_sheet = workbook.active
 		empresa_sheet.title = "empresa"
-		empresa_sheet.append(["ID Empresa", "Nombre", "RUT", "Dirección"])
-		empresa_sheet.append(["EMP-COMPLETA", "Empresa Completa Demo", "76.543.210-9", "Ruta 5 Sur"])
+		empresa_sheet.append([
+			"ID Empresa",
+			"Nombre",
+			"RUT",
+			"Región",
+			"Comuna",
+			"Dirección",
+			"Rubro",
+			"Email",
+			"Teléfono",
+			"Contacto",
+			"Observaciones",
+		])
+		empresa_sheet.append([
+			"EMP-COMPLETA",
+			"Empresa Completa Demo",
+			"76.543.210-9",
+			"Biobío",
+			"Concepción",
+			"Ruta 5 Sur",
+			"Forestal",
+			"demo@empresa.cl",
+			"+56 9 1111 2222",
+			"Contacto Demo",
+			"Importación completa de prueba",
+		])
 
 		factores_sheet = workbook.create_sheet("factores")
 		factores_sheet.append(["Actividad", "Unidad", "Factor de Emisión", "Fuente", "Año"])
@@ -1758,6 +1782,8 @@ class AnalyticsApiIntegrationTest(APITestCase):
 		self.assertEqual(Empresa.objects.get(empresa_id="EMP-COMPLETA").nombre, "Empresa Completa Demo")
 		self.assertEqual(UnidadOperativa.objects.get(unidad_id="UNI-COMPLETA").empresa.empresa_id, "EMP-COMPLETA")
 		self.assertEqual(Lote.objects.get(id_lote="LOTE-COMPLETA").unidad_operativa.unidad_id, "UNI-COMPLETA")
+		self.assertEqual(Lote.objects.get(id_lote="LOTE-COMPLETA").empresa_aserradero, "Empresa Completa Demo")
+		self.assertEqual(EmisionLote.objects.count(), 1)
 		self.assertAlmostEqual(float(EmisionLote.objects.get().emisiones_kg_co2e), 26.8)
 
 	def test_import_actividades_preview_detects_missing_factor_and_lote(self):
