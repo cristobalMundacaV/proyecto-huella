@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from "react";
+﻿import { useMemo, useState, useRef } from "react";
 import {
   AlertTriangle,
   Boxes,
@@ -121,7 +121,7 @@ function PreviewTable({ rows, type }) {
             <th className="px-3 py-4 text-left min-w-40 font-semibold">Actividad</th>
             {isFactors ? <th className="px-3 py-4 text-center min-w-40 font-semibold">Activity key</th> : null}
             <th className="px-3 py-4 text-center min-w-20 font-semibold">Unidad</th>
-            {isFactors ? <th className="px-3 py-4 text-center min-w-14 font-semibold">Año</th> : <th className="px-3 py-4 text-center min-w-32 font-semibold">Asignacion</th>}
+            {isFactors ? <th className="px-3 py-4 text-center min-w-14 font-semibold">AÃ±o</th> : <th className="px-3 py-4 text-center min-w-32 font-semibold">Asignacion</th>}
             <th className="px-3 py-4 text-center min-w-24 font-semibold">Factor</th>
             <th className="px-3 py-4 text-center min-w-64 font-semibold">Observaciones</th>
           </tr>
@@ -143,7 +143,7 @@ function PreviewTable({ rows, type }) {
                   ) : (
                     <AlertTriangle size={14} />
                   )}
-                  {row.status === "valid" ? "Válida" : "Error"}
+                  {row.status === "valid" ? "VÃ¡lida" : "Error"}
                 </span>
               </td>
               {isFactors ? (
@@ -328,12 +328,12 @@ function EmpresaPreviewTable({ rows }) {
             <th className="px-3 py-4 text-left min-w-32 font-semibold">Empresa ID</th>
             <th className="px-3 py-4 text-left min-w-48 font-semibold">Nombre</th>
             <th className="px-3 py-4 text-left min-w-28 font-semibold">RUT</th>
-            <th className="px-3 py-4 text-left min-w-32 font-semibold">Región</th>
+            <th className="px-3 py-4 text-left min-w-32 font-semibold">RegiÃ³n</th>
             <th className="px-3 py-4 text-left min-w-32 font-semibold">Comuna</th>
-            <th className="px-3 py-4 text-left min-w-40 font-semibold">Dirección</th>
+            <th className="px-3 py-4 text-left min-w-40 font-semibold">DirecciÃ³n</th>
             <th className="px-3 py-4 text-left min-w-32 font-semibold">Rubro</th>
             <th className="px-3 py-4 text-left min-w-36 font-semibold">Email</th>
-            <th className="px-3 py-4 text-left min-w-28 font-semibold">Teléfono</th>
+            <th className="px-3 py-4 text-left min-w-28 font-semibold">TelÃ©fono</th>
             <th className="px-3 py-4 text-left min-w-36 font-semibold">Contacto</th>
             <th className="px-3 py-4 text-left min-w-64 font-semibold">Observaciones</th>
           </tr>
@@ -604,12 +604,12 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
   const companyFields = [
     ["nombre", "Nombre"],
     ["rut", "RUT"],
-    ["region", "Región"],
+    ["region", "RegiÃ³n"],
     ["comuna", "Comuna"],
-    ["direccion", "Dirección"],
+    ["direccion", "DirecciÃ³n"],
     ["rubro", "Rubro"],
     ["email", "Email"],
-    ["telefono", "Teléfono"],
+    ["telefono", "TelÃ©fono"],
     ["contacto", "Contacto"],
     ["observaciones", "Observaciones"],
   ];
@@ -623,7 +623,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
           </div>
           <div>
             <h2 className="text-xl font-semibold">Importador de empresa completa</h2>
-            <p className="text-sm text-slate-400">Empresa: ID Empresa, Nombre; Factores: Actividad, Unidad, Factor de Emisión, Fuente, Año; Unidades: ID Unidad, Nombre, Tipo; Lotes: ID Lote, ID Unidad, Fecha, Especie, Volumen (m³), Origen; Actividades: ID Lote, Actividad, Cantidad, Unidad, Fecha</p>
+            <p className="text-sm text-slate-400">Empresa: ID Empresa, Nombre; Factores: Actividad, Unidad, Factor de EmisiÃ³n, Fuente, AÃ±o; Unidades: ID Unidad, Nombre, Tipo; Lotes: ID Lote, ID Unidad, Fecha, Especie, Volumen (mÂ³), Origen; Actividades: ID Lote, Actividad, Cantidad, Unidad, Fecha</p>
           </div>
         </div>
 
@@ -688,10 +688,10 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
             </div>
           )}
 
-          {/* Mostrar errores y validación de unidades */}
+          {/* Mostrar errores y validaciÃ³n de unidades */}
           {state.result?.unidades && (
             <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-              <h3 className="text-base font-semibold text-slate-100">Unidades ({state.result.unidades.validas} válidas, {state.result.unidades.errores} errores)</h3>
+              <h3 className="text-base font-semibold text-slate-100">Unidades ({state.result.unidades.validas} vÃ¡lidas, {state.result.unidades.errores} errores)</h3>
               {state.result.unidades.errores > 0 && (
                 <div className="mt-3 max-h-40 space-y-2 overflow-y-auto rounded border border-red-500/30 bg-red-500/10 p-2">
                   {state.result.unidades.rows.filter(r => r.status === 'error').map((row) => (
@@ -705,10 +705,10 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
             </div>
           )}
 
-          {/* Mostrar errores y validación de lotes */}
+          {/* Mostrar errores y validaciÃ³n de lotes */}
           {state.result?.lotes && (
             <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-              <h3 className="text-base font-semibold text-slate-100">Lotes ({state.result.lotes.validos} válidos, {state.result.lotes.errores} errores)</h3>
+              <h3 className="text-base font-semibold text-slate-100">Lotes ({state.result.lotes.validos} vÃ¡lidos, {state.result.lotes.errores} errores)</h3>
               {state.result.lotes.errores > 0 && (
                 <div className="mt-3 max-h-40 space-y-2 overflow-y-auto rounded border border-red-500/30 bg-red-500/10 p-2">
                   {state.result.lotes.rows.filter(r => r.status === 'error').map((row) => (
@@ -722,13 +722,13 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
             </div>
           )}
 
-          {/* Mostrar errores y validación de actividades */}
+          {/* Mostrar errores y validaciÃ³n de actividades */}
           {state.result?.actividades && (
             <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
               <h3 className="text-base font-semibold text-slate-100">
-                Actividades ({state.result.actividades.validas} válidas, {state.result.actividades.errores} errores)
+                Actividades ({state.result.actividades.validas} vÃ¡lidas, {state.result.actividades.errores} errores)
                 {state.result.actividades.factores_faltantes > 0 && (
-                  <span className="text-xs text-yellow-400"> - {state.result.actividades.factores_faltantes} sin factor de emisión</span>
+                  <span className="text-xs text-yellow-400"> - {state.result.actividades.factores_faltantes} sin factor de emisiÃ³n</span>
                 )}
               </h3>
               {state.result.actividades.errores > 0 && (
@@ -744,10 +744,10 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
             </div>
           )}
 
-          {/* Mostrar resumen de confirmación */}
+          {/* Mostrar resumen de confirmaciÃ³n */}
           {state.result?.unidades_creadas !== undefined && (
             <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-              <h3 className="text-base font-semibold text-slate-100">Resumen de confirmación</h3>
+              <h3 className="text-base font-semibold text-slate-100">Resumen de confirmaciÃ³n</h3>
               <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
                 <div className="rounded border border-slate-700 bg-slate-900/80 p-3 text-center">
                   <p className="text-xs text-slate-500">Empresa creada</p>
@@ -769,10 +769,10 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
             </div>
           )}
 
-          {/* Mostrar errores de confirmación si existen */}
+          {/* Mostrar errores de confirmaciÃ³n si existen */}
           {state.result?.errores && state.result.errores.length > 0 && (
             <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-200">
-              <p className="font-semibold">Errores durante confirmación ({state.result.errores.length})</p>
+              <p className="font-semibold">Errores durante confirmaciÃ³n ({state.result.errores.length})</p>
               <div className="mt-2 max-h-48 space-y-1 overflow-y-auto">
                 {state.result.errores.slice(0, 20).map((error, idx) => (
                   <div key={idx} className="text-xs font-mono">
@@ -780,7 +780,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
                   </div>
                 ))}
                 {state.result.errores.length > 20 && (
-                  <p className="text-xs italic">... y {state.result.errores.length - 20} errores más</p>
+                  <p className="text-xs italic">... y {state.result.errores.length - 20} errores mÃ¡s</p>
                 )}
               </div>
             </div>
@@ -793,7 +793,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 text-sm font-bold text-cyan-100 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {state.saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-            Confirmar importación completa
+            Confirmar importaciÃ³n completa
           </button>
         </div>
       )}
@@ -878,7 +878,7 @@ function ImportacionesView({ onImportConfirmed }) {
         setEmpresaCompleta((current) => ({
           ...current,
           loading: false,
-          error: preview.error || "El archivo tiene errores bloqueantes; revisa la previsualización antes de confirmar.",
+          error: preview.error || "El archivo tiene errores bloqueantes; revisa la previsualizaciÃ³n antes de confirmar.",
         }));
       }
     } catch (err) {
@@ -887,7 +887,7 @@ function ImportacionesView({ onImportConfirmed }) {
         ...current,
         loading: false,
         saving: false,
-        error: resp.error || resp.detail || "Error durante la importación completa.",
+        error: resp.error || resp.detail || "Error durante la importaciÃ³n completa.",
       }));
     } finally {
       if (event?.target) event.target.value = "";
@@ -898,7 +898,7 @@ function ImportacionesView({ onImportConfirmed }) {
     if (!batchId) {
       setEmpresaCompleta((current) => ({
         ...current,
-        error: "Falta batch_id para confirmar la importación.",
+        error: "Falta batch_id para confirmar la importaciÃ³n.",
       }));
       return;
     }
@@ -919,7 +919,7 @@ function ImportacionesView({ onImportConfirmed }) {
         });
       }
 
-      // Si hay errores, mostrarlos pero no considerar como fallo total si se creó algo
+      // Si hay errores, mostrarlos pero no considerar como fallo total si se creÃ³ algo
       let errorMessage = "";
       if (Object.keys(errorsBySheet).length > 0) {
         errorMessage = Object.entries(errorsBySheet)
@@ -932,11 +932,11 @@ function ImportacionesView({ onImportConfirmed }) {
           .join('\n\n');
       }
 
-      const msg = `Importación completa: ${formatNumber(created, 0)} empresa${created !== 1 ? 's' : ''} creada${created !== 1 ? 's' : ''}.`;
+      const msg = "Importacion de datos exitosas";
 
       showToast(msg);
       
-      // Refresh empresas después de la importación completa
+      // Refresh empresas despuÃ©s de la importaciÃ³n completa
       await refreshEmpresas().catch(() => undefined);
       
       await onImportConfirmed?.();
@@ -960,7 +960,7 @@ function ImportacionesView({ onImportConfirmed }) {
       setEmpresaCompleta((current) => ({
         ...current,
         saving: false,
-        error: resp.error || resp.detail || "Error al confirmar la importación completa.",
+        error: resp.error || resp.detail || "Error al confirmar la importaciÃ³n completa.",
       }));
     }
   };
@@ -980,7 +980,7 @@ function ImportacionesView({ onImportConfirmed }) {
       
       showToast(toastMessage);
       
-      // Refresh empresas después de cualquier importación exitosa
+      // Refresh empresas despuÃ©s de cualquier importaciÃ³n exitosa
       await refreshEmpresas().catch(() => undefined);
       
       // Call onSuccess callback if provided (e.g., to invalidate factores)
@@ -1046,12 +1046,12 @@ function ImportacionesView({ onImportConfirmed }) {
           "ID Empresa",
           "Nombre",
           "RUT",
-          "Región",
+          "RegiÃ³n",
           "Comuna",
-          "Dirección",
+          "DirecciÃ³n",
           "Rubro",
           "Email",
-          "Teléfono",
+          "TelÃ©fono",
           "Contacto",
           "Observaciones",
         ]}
@@ -1069,7 +1069,7 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importador de factores"
         icon={<FileSpreadsheet size={18} />}
-        columns={["Actividad", "Unidad", "Factor de Emisión", "Fuente", "Año"]}
+        columns={["Actividad", "Unidad", "Factor de EmisiÃ³n", "Fuente", "AÃ±o"]}
         state={factors}
         type="factors"
         summaryLabels={factorSummaryLabels}
@@ -1106,7 +1106,7 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importador de lotes"
         icon={<Boxes size={18} />}
-        columns={["ID Lote", "ID Unidad", "Fecha", "Especie", "Volumen (m³)", "Origen"]}
+        columns={["ID Lote", "ID Unidad", "Fecha", "Especie", "Volumen (mÂ³)", "Origen"]}
         state={lotes}
         type="lotes"
         summaryLabels={loteSummaryLabels}

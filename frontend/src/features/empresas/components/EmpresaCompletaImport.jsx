@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+﻿import { useState, useRef } from "react";
 import { Building2, Loader2, Upload, Save } from "lucide-react";
 import { previewEmpresaCompleta, confirmarEmpresaCompleta } from "@/shared/services/api";
 import { useEmpresaActiva } from "@/features/empresas/context/EmpresaActivaContext";
@@ -72,15 +72,14 @@ export default function EmpresaCompletaImport({ onImported }) {
 
   const confirm = async () => {
     if (!state.result?.batch_id) {
-      setState((s) => ({ ...s, error: "Falta batch_id para confirmar la importación." }));
+      setState((s) => ({ ...s, error: "Falta batch_id para confirmar la importaciÃ³n." }));
       return;
     }
 
     setState((s) => ({ ...s, saving: true, error: "" }));
     try {
       const res = await confirmarEmpresaCompleta({ batch_id: state.result.batch_id });
-      const created = res.creados ?? res.created ?? 0;
-      const msg = `Importación completa: ${created} creadas.`;
+      const msg = "Importacion de datos exitosas";
       setState((s) => ({ ...s, saving: false, savedMessage: msg }));
       showToast(msg);
 
@@ -94,7 +93,7 @@ export default function EmpresaCompletaImport({ onImported }) {
       onImported?.(res);
     } catch (err) {
       const resp = err.response?.data || {};
-      setState((s) => ({ ...s, saving: false, error: resp.error || resp.detail || "Error al confirmar importación." }));
+      setState((s) => ({ ...s, saving: false, error: resp.error || resp.detail || "Error al confirmar importaciÃ³n." }));
     }
   };
 
@@ -119,7 +118,7 @@ export default function EmpresaCompletaImport({ onImported }) {
       </p>
       {state.loading && (
         <div className="mt-3 text-sm text-slate-400 inline-flex items-center gap-2">
-          <Loader2 className="animate-spin" /> Procesando previsualización...
+          <Loader2 className="animate-spin" /> Procesando previsualizaciÃ³n...
         </div>
       )}
 
@@ -132,7 +131,7 @@ export default function EmpresaCompletaImport({ onImported }) {
           <div className="rounded-2xl border bg-slate-950 p-4">
             <h3 className="text-lg font-semibold">Resumen</h3>
             <p className="text-sm text-slate-400 mt-2">Empresa: {state.result.empresa?.data?.nombre || "(sin datos)"}</p>
-            <p className="text-sm text-slate-400">Unidades: {state.result.unidades?.total ?? 0} — Lotes: {state.result.lotes?.total ?? 0} — Actividades: {state.result.actividades?.total ?? 0}</p>
+            <p className="text-sm text-slate-400">Unidades: {state.result.unidades?.total ?? 0} â€” Lotes: {state.result.lotes?.total ?? 0} â€” Actividades: {state.result.actividades?.total ?? 0}</p>
             {state.result.blocking_errors && state.result.blocking_errors.length > 0 && (
               <div className="mt-2 text-sm text-red-300">Errores bloqueantes: {state.result.blocking_errors.join("; ")}</div>
             )}
@@ -181,7 +180,7 @@ export default function EmpresaCompletaImport({ onImported }) {
               disabled={blocking || sectionErrors > 0 || state.saving}
               className="inline-flex items-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200 disabled:opacity-60"
             >
-              {state.saving ? <Loader2 className="animate-spin" /> : <Save size={16} />} Confirmar importación completa
+              {state.saving ? <Loader2 className="animate-spin" /> : <Save size={16} />} Confirmar importaciÃ³n completa
             </button>
           </div>
         </div>
