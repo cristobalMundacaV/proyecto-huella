@@ -150,16 +150,21 @@ class EmpresaConfiguracion(models.Model):
 
 class UnidadOperativa(models.Model):
     class Tipo(models.TextChoices):
-        GENERAL = "General", "General"
-        PLANTA = "Planta", "Planta"
+        FUNDO_FORESTAL = "Fundo Forestal", "Fundo Forestal"
+        TRANSPORTE = "Transporte", "Transporte"
         ASERRADERO = "Aserradero", "Aserradero"
+        ACOPIO = "Acopio", "Acopio"
         SECADO = "Secado", "Secado"
-        PRODUCTOS_TERMINADOS = "Productos terminados", "Productos terminados"
+        ADMINISTRACION = "Administración", "Administración"
         BODEGA = "Bodega", "Bodega"
-        DESPACHO = "Despacho", "Despacho"
-        MANTENCION = "Mantencion", "Mantencion"
-        ADMINISTRACION = "Administracion", "Administracion"
+        PLANTA_INDUSTRIAL = "Planta Industrial", "Planta Industrial"
         OTRO = "Otro", "Otro"
+
+    class Estado(models.TextChoices):
+        ACTIVA = "activa", "Activa"
+        INACTIVA = "inactiva", "Inactiva"
+        SUSPENDIDA = "suspendida", "Suspendida"
+        EN_MANTENIMIENTO = "en_mantenimiento", "En Mantenimiento"
 
     unidad_id = models.CharField(max_length=80, unique=True)
     empresa = models.ForeignKey(
@@ -173,6 +178,7 @@ class UnidadOperativa(models.Model):
     comuna = models.CharField(max_length=120, blank=True)
     direccion = models.CharField(max_length=240, blank=True)
     descripcion = models.TextField(blank=True)
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.ACTIVA)
     activa = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -201,7 +207,8 @@ def get_or_create_default_company_and_unit(nombre_empresa):
         defaults={
             "empresa": empresa,
             "nombre": "Unidad General",
-            "tipo": UnidadOperativa.Tipo.GENERAL,
+            "tipo": UnidadOperativa.Tipo.OTRO,
+            "estado": UnidadOperativa.Estado.ACTIVA,
         },
     )
     return empresa, unidad
@@ -220,8 +227,8 @@ class Lote(models.Model):
         UnidadOperativa,
         on_delete=models.PROTECT,
         related_name="lotes",
-        null=True,
-        blank=True,
+        null=False,
+        blank=False,
     )
     empresa_aserradero = models.CharField(max_length=160)
     fecha = models.DateField()

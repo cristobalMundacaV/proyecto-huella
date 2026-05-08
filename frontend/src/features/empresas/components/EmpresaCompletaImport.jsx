@@ -72,7 +72,7 @@ export default function EmpresaCompletaImport({ onImported }) {
 
   const confirm = async () => {
     if (!state.result?.batch_id) {
-      setState((s) => ({ ...s, error: "Falta batch_id para confirmar la importaciÃ³n." }));
+      setState((s) => ({ ...s, error: "Falta batch_id para confirmar la importación." }));
       return;
     }
 
@@ -93,7 +93,7 @@ export default function EmpresaCompletaImport({ onImported }) {
       onImported?.(res);
     } catch (err) {
       const resp = err.response?.data || {};
-      setState((s) => ({ ...s, saving: false, error: resp.error || resp.detail || "Error al confirmar importaciÃ³n." }));
+      setState((s) => ({ ...s, saving: false, error: resp.error || resp.detail || "Error al confirmar importación." }));
     }
   };
 
@@ -118,7 +118,7 @@ export default function EmpresaCompletaImport({ onImported }) {
       </p>
       {state.loading && (
         <div className="mt-3 text-sm text-slate-400 inline-flex items-center gap-2">
-          <Loader2 className="animate-spin" /> Procesando previsualizaciÃ³n...
+          <Loader2 className="animate-spin" /> Procesando previsualización...
         </div>
       )}
 
@@ -180,7 +180,7 @@ export default function EmpresaCompletaImport({ onImported }) {
               disabled={blocking || sectionErrors > 0 || state.saving}
               className="inline-flex items-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200 disabled:opacity-60"
             >
-              {state.saving ? <Loader2 className="animate-spin" /> : <Save size={16} />} Confirmar importaciÃ³n completa
+              {state.saving ? <Loader2 className="animate-spin" /> : <Save size={16} />} Confirmar importación completa
             </button>
           </div>
         </div>

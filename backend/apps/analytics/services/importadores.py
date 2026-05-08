@@ -84,6 +84,50 @@ TENANT_MISMATCH_WARNING = (
     "empresa_id del archivo difiere de la empresa activa; se importara usando la empresa activa"
 )
 
+# Automatic type mapping for unit types
+UNIT_TYPE_MAPPING = {
+    "fundo": "Fundo Forestal",
+    "forestal": "Fundo Forestal",
+    "bosque": "Fundo Forestal",
+    "transporte": "Transporte",
+    "camiones": "Transporte",
+    "logistica": "Transporte",
+    "aserr": "Aserradero",
+    "aserradero": "Aserradero",
+    "serrador": "Aserradero",
+    "acopio": "Acopio",
+    "patio": "Acopio",
+    "bodega": "Bodega",
+    "almacen": "Bodega",
+    "secado": "Secado",
+    "secador": "Secado",
+    "administr": "Administración",
+    "admin": "Administración",
+    "oficina": "Administración",
+    "planta": "Planta Industrial",
+    "industrial": "Planta Industrial",
+    "manufactura": "Planta Industrial",
+}
+
+def _map_unit_type(raw_type: str) -> str | None:
+    """Map user input to standardized unit type."""
+    if not raw_type:
+        return None
+    
+    normalized = _normalize_text(raw_type, lower=True)
+    
+    # Exact match
+    for tipo in ["Fundo Forestal", "Transporte", "Aserradero", "Acopio", "Secado", "Administración", "Bodega", "Planta Industrial", "Otro"]:
+        if _normalize_text(tipo, lower=True) == normalized:
+            return tipo
+    
+    # Fuzzy match
+    for key, value in UNIT_TYPE_MAPPING.items():
+        if key in normalized:
+            return value
+    
+    return None
+
 
 @dataclass
 class ParsedFactorRow:
@@ -495,6 +539,7 @@ def _parse_lote_decimal(value, field_name: str) -> Decimal | None:
 
 
 def _parse_lote_date(value) -> str:
+    """Parse date strictly as YYYY-MM-DD format only."""
     if isinstance(value, datetime):
         return value.date().isoformat()
 
@@ -505,14 +550,20 @@ def _parse_lote_date(value) -> str:
     if not text:
         raise ValueError("fecha es obligatoria")
 
-    formats = ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y/%m/%d")
-    for date_format in formats:
-        try:
-            return datetime.strptime(text, date_format).date().isoformat()
-        except ValueError:
-            continue
-
-    raise ValueError("fecha no tiene un formato valido")
+    # Only accept YYYY-MM-DD format
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', text):
+        raise ValueError(
+            f"Formato de fecha inválido: '{text}'. "
+            f"Usa el formato YYYY-MM-DD (ejemplo: 2025-03-18)"
+        )
+    
+    try:
+        return datetime.strptime(text, "%Y-%m-%d").date().isoformat()
+    except ValueError as exc:
+        raise ValueError(
+            f"Fecha inválida: '{text}'. Verifica que el día, mes y año sean válidos. "
+            f"Formato requerido: YYYY-MM-DD"
+        ) from exc
 
 
 def _stringify_payload(payload: dict) -> dict:
@@ -583,7 +634,7 @@ def _build_lote_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[
     }
 
     if not normalized["id_lote"]:
-        errors.append("id_lote es obligatorio")
+        errors.append("Columna 'id_lote' es obligatoria. Proporciona un identificador único para el lote (ej: LOT-2025-001)")
 
     empresa = None
     unidad_operativa = None
@@ -629,25 +680,25 @@ def _build_lote_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[
     normalized["unidad_operativa_obj"] = unidad_operativa
 
     if not normalized["empresa_aserradero"]:
-        errors.append("empresa es obligatoria")
+        errors.append("Columna 'empresa' es obligatoria. Proporciona el nombre de la empresa aserradero")
     if not normalized["especie"]:
-        errors.append("especie es obligatoria")
+        errors.append("Columna 'especie' es obligatoria. Proporciona la especie de madera (ej: Pino Radiata)")
     if not normalized["origen"]:
-        errors.append("origen es obligatorio")
+        errors.append("Columna 'origen' es obligatoria. Proporciona el origen del lote (ej: Cosecha sector norte)")
 
     try:
         normalized["fecha"] = _parse_lote_date(raw_row.get("fecha"))
     except ValueError as exc:
-        errors.append(str(exc))
+        errors.append(f"Columna 'fecha': {str(exc)}")
 
     try:
         volumen = _parse_lote_decimal(raw_row.get("volumen_m3"), "volumen_m3")
         if volumen is None:
-            errors.append("volumen_m3 es obligatorio")
+            errors.append("Columna 'volumen_m3' es obligatoria. Proporciona el volumen en metros cúbicos (ej: 184.5)")
         else:
             normalized["volumen_m3"] = volumen
     except ValueError as exc:
-        errors.append(str(exc))
+        errors.append(f"Columna 'volumen_m3': {str(exc)}")
 
     try:
         normalized["densidad_kg_m3"] = _parse_lote_decimal(
@@ -655,7 +706,7 @@ def _build_lote_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[
             "densidad_kg_m3",
         )
     except ValueError as exc:
-        errors.append(str(exc))
+        errors.append(f"Columna 'densidad_kg_m3': {str(exc)}")
 
     try:
         normalized["porcentaje_carbono"] = _parse_lote_decimal(
@@ -663,7 +714,7 @@ def _build_lote_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[
             "porcentaje_carbono",
         )
     except ValueError as exc:
-        errors.append(str(exc))
+        errors.append(f"Columna 'porcentaje_carbono': {str(exc)}")
 
     has_species_defaults = (
         EspecieMadera.objects.filter(nombre__iexact=normalized["especie"]).exists()
@@ -727,11 +778,11 @@ def _build_unit_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[
     }
 
     if not normalized["unidad_id"]:
-        errors.append("unidad_id es obligatorio")
+        errors.append("Columna 'unidad_id' es obligatoria. Proporciona un identificador único (ej: UNI-001)")
     if not normalized["nombre"]:
-        errors.append("nombre es obligatorio")
+        errors.append("Columna 'nombre' es obligatoria. Proporciona el nombre de la unidad")
     if not normalized["tipo"]:
-        errors.append("tipo es obligatorio")
+        errors.append("Columna 'tipo' es obligatoria. Tipos válidos: Fundo Forestal, Transporte, Aserradero, Acopio, Secado, Administración, Bodega, Planta Industrial")
 
     empresa = None
     if empresa_activa is not None:
@@ -748,9 +799,19 @@ def _build_unit_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[
 
     normalized["empresa_obj"] = empresa
 
+    # Try to map user input to standardized unit type
     allowed_types = {choice[0] for choice in UnidadOperativa.Tipo.choices}
     if normalized["tipo"] not in allowed_types:
-        normalized["tipo"] = UnidadOperativa.Tipo.OTRO
+        mapped_type = _map_unit_type(normalized["tipo"])
+        if mapped_type and mapped_type in allowed_types:
+            original_type = normalized["tipo"]
+            normalized["tipo"] = mapped_type
+            warnings.append(f"Tipo mapeado automáticamente: '{original_type}' → '{mapped_type}'")
+        else:
+            original_type = normalized["tipo"]
+            normalized["tipo"] = UnidadOperativa.Tipo.OTRO
+            if original_type:
+                warnings.append(f"Tipo no reconocido: '{original_type}'. Usando 'Otro'. Tipos válidos: Fundo Forestal, Transporte, Aserradero, Acopio, Secado, Administración, Bodega, Planta Industrial")
 
     return normalized, errors, warnings
 
