@@ -97,7 +97,7 @@ const defaultConfig = {
 };
 
 function storageKey(empresaId) {
-  return `huella.configuracion.${empresaId}`;
+  return `carbono_zero.configuracion.${empresaId}`;
 }
 
 function buildInitialConfig(activeEmpresa) {
@@ -336,7 +336,7 @@ function ConfiguracionPage() {
           <p className="text-xs font-bold uppercase tracking-wide text-emerald-300">Centro de configuracion</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-100 sm:text-4xl">Configuracion</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Define como Huella calcula, valida e interpreta los datos de la empresa activa.
+            Define como Carbono Zero calcula, valida e interpreta los datos de la empresa activa.
           </p>
           <p className="mt-2 text-sm font-semibold text-cyan-200">Empresa activa: {activeEmpresa?.nombre || activeEmpresaId}</p>
         </div>
@@ -446,8 +446,8 @@ function ConfiguracionPage() {
       )}
 
       {activeTab === "importaciones" && (
-        <SettingCard title="Reglas de importacion" description="Estas reglas reducen errores al cargar datos y permiten adaptar Huella a flujos de trabajo mas estrictos o mas flexibles.">
-          <Field label="Modo de importacion" help={config.importaciones.modo_importacion === "flexible" ? "Si un archivo trae empresa_id distinto, Huella usa la empresa activa y muestra advertencia." : "Si un archivo trae empresa_id distinto, Huella bloquea la importacion."}><SelectInput value={config.importaciones.modo_importacion} onChange={(v) => update("importaciones", "modo_importacion", v)} options={["flexible", "estricto"]} /></Field>
+        <SettingCard title="Reglas de importacion" description="Estas reglas reducen errores al cargar datos y permiten adaptar Carbono Zero a flujos de trabajo mas estrictos o mas flexibles.">
+          <Field label="Modo de importacion" help={config.importaciones.modo_importacion === "flexible" ? "Si un archivo trae empresa_id distinto, Carbono Zero usa la empresa activa y muestra advertencia." : "Si un archivo trae empresa_id distinto, Carbono Zero bloquea la importacion."}><SelectInput value={config.importaciones.modo_importacion} onChange={(v) => update("importaciones", "modo_importacion", v)} options={["flexible", "estricto"]} /></Field>
           {Object.entries({
             crear_unidades_automaticamente: "Permitir crear unidades automaticamente",
             crear_lotes_automaticamente: "Permitir crear lotes automaticamente",

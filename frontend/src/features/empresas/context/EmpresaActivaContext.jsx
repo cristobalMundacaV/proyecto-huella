@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { getEmpresas } from "@/shared/services/api";
 
-const STORAGE_KEY = "huella.activeEmpresaId";
+const STORAGE_KEY = "carbono_zero.activeEmpresaId";
 
 const EmpresaActivaContext = createContext(null);
 

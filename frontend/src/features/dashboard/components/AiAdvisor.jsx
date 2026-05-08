@@ -7,7 +7,7 @@ function AiAdvisor({
   return (
     <section className="rounded-3xl bg-slate-900 border border-slate-800 p-6 space-y-4 shadow-xl">
       <div>
-        <p className="text-emerald-400 text-sm font-semibold">Huella AI</p>
+        <p className="text-emerald-400 text-sm font-semibold">Carbono Zero AI</p>
         <h2 className="text-2xl font-bold">
           Analisis estrategico generado por IA
         </h2>
@@ -24,9 +24,9 @@ function AiAdvisor({
 
       {aiAnalysis && (
         <div className="rounded-2xl bg-cyan-400/10 border border-cyan-400/20 p-5 whitespace-pre-line text-slate-200 leading-7">
-          {aiSource === "huella_engine" && (
+          {aiSource === "carbono_zero_engine" && (
             <p className="mb-4 text-xs font-semibold text-emerald-300">
-              Generado por motor analitico Huella
+              Generado por motor analitico Carbono Zero
             </p>
           )}
           {aiSource === "openai" && (

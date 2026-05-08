@@ -112,9 +112,9 @@ if DATABASE_ENGINE == "django.db.backends.postgresql":
     DATABASES = {
         "default": {
             "ENGINE": DATABASE_ENGINE,
-            "NAME": os.getenv("DATABASE_NAME", "proyecto_huella"),
-            "USER": os.getenv("DATABASE_USER", "proyecto_huella"),
-            "PASSWORD": os.getenv("DATABASE_PASSWORD", "proyecto_huella"),
+            "NAME": os.getenv("DATABASE_NAME", "carbono_zero"),
+            "USER": os.getenv("DATABASE_USER", "carbono_zero"),
+            "PASSWORD": os.getenv("DATABASE_PASSWORD", "carbono_zero"),
             "HOST": os.getenv("DATABASE_HOST", "db"),
             "PORT": os.getenv("DATABASE_PORT", "5432"),
         }

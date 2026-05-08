@@ -5,8 +5,25 @@ export const api = axios.create({
   timeout: 10000,
 });
 
+function resolveApiBaseUrl(baseUrl) {
+  const fallback = "http://127.0.0.1:8000/api";
+  const candidate = (baseUrl || fallback).trim();
+
+  // Absolute URL configured (e.g. https://api.domain.com/api)
+  if (/^https?:\/\//i.test(candidate)) {
+    return candidate;
+  }
+
+  // Relative base URL configured (e.g. /api), common in reverse-proxy deploys.
+  if (candidate.startsWith("/") && typeof window !== "undefined") {
+    return `${window.location.origin}${candidate}`;
+  }
+
+  return fallback;
+}
+
 function buildApiUrl(path) {
-  const baseUrl = api.defaults.baseURL || "http://127.0.0.1:8000/api";
+  const baseUrl = resolveApiBaseUrl(api.defaults.baseURL);
   const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
   const normalizedPath = path.replace(/^\//, "");
 

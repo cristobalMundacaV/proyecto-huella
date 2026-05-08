@@ -6,7 +6,7 @@ from urllib.parse import quote_plus
 from urllib.request import Request, urlopen
 
 
-USER_AGENT = "ProyectoHuella/1.0 (+https://localhost)"
+USER_AGENT = "CarbonoZero/1.0 (+https://localhost)"
 
 
 def _http_json(url, timeout=5):

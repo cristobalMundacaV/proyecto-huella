@@ -18,7 +18,7 @@ function DecisionCenter({
         </h2>
         <p className="mt-2 text-sm text-slate-400">
           Flujo recomendado: simular decisiones sobre el registro vigente y dejar
-          que Huella encuentre la mejor reduccion.
+          que Carbono Zero encuentre la mejor reduccion.
         </p>
       </div>
 
@@ -33,7 +33,7 @@ function DecisionCenter({
             Optimizacion automatica
           </p>
           <h3 className="text-xl font-bold">
-            Huella recomienda el mejor escenario
+            Carbono Zero recomienda el mejor escenario
           </h3>
         </div>
 
@@ -73,10 +73,10 @@ function DecisionCenter({
         {optimizedScenario && (
           <div className="rounded-2xl bg-cyan-400/10 border border-cyan-400/20 p-5 space-y-4">
             <p className="text-cyan-300 text-sm font-semibold">
-              Decision generada por Huella
+              Decision generada por Carbono Zero
             </p>
             <p className="text-slate-200 mt-2 leading-7">
-              Huella evaluo automaticamente{" "}
+              Carbono Zero evaluo automaticamente{" "}
               <strong>{optimizedScenario.evaluatedScenarios}</strong>{" "}
               combinaciones posibles de decision y selecciono la de mayor
               reduccion neta: reducir diesel en{" "}

@@ -453,7 +453,7 @@ const validationSummary = {
                 <Database className="text-emerald-400" />
               </div>
               <div>
-                <h1 className="text-3xl sm:text-4xl font-bold">Huella</h1>
+                <h1 className="text-3xl sm:text-4xl font-bold">Carbono Zero</h1>
                 <p className="text-slate-400">
                   Inteligencia para medir, analizar y optimizar la huella de
                   carbono empresarial.

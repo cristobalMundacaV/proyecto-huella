@@ -2059,7 +2059,7 @@ def ai_advisor(request):
             raise RuntimeError("OpenAI no disponible")
     except Exception:
         analisis = generar_analisis_local(request.data)
-        fuente = "huella_engine"
+        fuente = "carbono_zero_engine"
 
     return Response({"analisis": analisis, "fuente": fuente})
 

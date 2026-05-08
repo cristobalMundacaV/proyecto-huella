@@ -3,11 +3,11 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DATABASE_NAME:-proyecto_huella}
-      POSTGRES_USER: ${DATABASE_USER:-proyecto_huella}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-proyecto_huella}
+      POSTGRES_DB: ${DATABASE_NAME:-carbono_zero}
+      POSTGRES_USER: ${DATABASE_USER:-carbono_zero}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-carbono_zero}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-proyecto_huella} -d ${DATABASE_NAME:-proyecto_huella}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-carbono_zero} -d ${DATABASE_NAME:-carbono_zero}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -28,9 +28,9 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
       DATABASE_ENGINE: django.db.backends.postgresql
-      DATABASE_NAME: ${DATABASE_NAME:-proyecto_huella}
-      DATABASE_USER: ${DATABASE_USER:-proyecto_huella}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-proyecto_huella}
+      DATABASE_NAME: ${DATABASE_NAME:-carbono_zero}
+      DATABASE_USER: ${DATABASE_USER:-carbono_zero}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-carbono_zero}
       DATABASE_HOST: db
       DATABASE_PORT: 5432
       CORS_ALLOW_ALL_ORIGINS: ${CORS_ALLOW_ALL_ORIGINS:-True}

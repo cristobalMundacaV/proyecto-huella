@@ -279,7 +279,7 @@ function EmpresasView({
             <h1 className="text-3xl font-bold sm:text-4xl">Empresas</h1>
             <p className="max-w-3xl text-slate-400">
               Organizaciones propietarias de unidades operativas, lotes,
-              actividades y trazabilidad dentro del ecosistema Huella.
+              actividades y trazabilidad dentro del ecosistema Carbono Zero.
             </p>
           </div>
         </div>
@@ -355,7 +355,7 @@ function EmpresasView({
       <section className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 sm:p-6">
         <p className="text-sm font-semibold text-cyan-200">Resumen estrategico</p>
         <h2 className="mt-2 text-2xl font-bold text-slate-100">
-          Ecosistema corporativo Huella
+          Ecosistema corporativo Carbono Zero
         </h2>
         <p className="mt-3 max-w-5xl text-sm leading-7 text-cyan-50">
           {buildStrategicSummary(metrics)}
@@ -630,7 +630,7 @@ function buildCompanyMetrics(empresas) {
 
 function buildStrategicSummary(metrics) {
   if (!metrics.totalCompanies) {
-    return "Aun no hay empresas registradas. Crea una empresa para comenzar a estructurar unidades, lotes, actividades y trazabilidad dentro del ecosistema Huella.";
+    return "Aun no hay empresas registradas. Crea una empresa para comenzar a estructurar unidades, lotes, actividades y trazabilidad dentro del ecosistema Carbono Zero.";
   }
 
   const concentration =

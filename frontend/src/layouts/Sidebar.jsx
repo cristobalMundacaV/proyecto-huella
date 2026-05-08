@@ -79,7 +79,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
           <Database className="text-emerald-400" />
         </div>
         <div>
-          <h2 className="text-xl font-bold">Huella</h2>
+          <h2 className="text-xl font-bold">Carbono Zero</h2>
           <p className="text-xs text-slate-400">Carbon Intelligence</p>
         </div>
       </div>

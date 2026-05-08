@@ -1,8 +1,8 @@
-# Proyecto Huella — README completo
+# Carbono Zero — README completo
 
 Resumen
 -------
-`Proyecto Huella` es una plataforma para medir, analizar y optimizar la huella de carbono en la cadena de valor de productos madereros, desde el aserradero hasta su uso en construcción. Incluye:
+`Carbono Zero` es una plataforma para medir, analizar y optimizar la huella de carbono en la cadena de valor de productos madereros, desde el aserradero hasta su uso en construcción. Incluye:
 
 - Backend API en `Django` + `Django REST Framework`.
 - Frontend SPA en `React` + `Vite`.
@@ -33,8 +33,8 @@ Instalación rápida
 1) Clona el repositorio y crea el entorno Python:
 
 ```bash
-git clone <repo-url> proyecto-huella
-cd proyecto-huella
+git clone <repo-url> carbono-zero
+cd carbono-zero
 python -m venv venv
 venv\Scripts\activate   # Windows
 pip install -r requirements.txt

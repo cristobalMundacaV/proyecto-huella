@@ -12,7 +12,7 @@ import plotly.express as px
 
 from legacy.app_old.main import run_pipeline
 
-st.set_page_config(page_title="Huella de Carbono", layout="wide")
+st.set_page_config(page_title="Carbono Zero", layout="wide")
 
 # Carga de datos
 df, metricas = run_pipeline(
@@ -21,7 +21,7 @@ df, metricas = run_pipeline(
 )
 
 # Header
-st.title("Huella")
+st.title("Carbono Zero")
 st.caption("Plataforma de inteligencia para el análisis y optimización de la huella de carbono empresarial")
 
 st.divider()

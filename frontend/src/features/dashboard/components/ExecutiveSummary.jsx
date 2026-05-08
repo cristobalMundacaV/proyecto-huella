@@ -146,7 +146,7 @@ function ExecutiveSummary({
                   optimizedScenario.reductionPct,
                   1
                 )}% y reduccion realista progresiva en ${actividadCritica}`
-              : `Huella recomienda un plan gradual sobre ${actividadCritica}`}
+              : `Carbono Zero recomienda un plan gradual sobre ${actividadCritica}`}
           </h2>
           <p className="mt-3 text-sm leading-6 text-emerald-100">
             El principal foco de impacto se concentra en {actividadCritica}, con{" "}
@@ -163,7 +163,7 @@ function ExecutiveSummary({
             {riskProfile.label}
           </p>
           <p className={`mt-2 text-sm font-semibold ${riskProfile.color}`}>
-            Score Huella: {formatNumber(riskProfile.score, 0)} / 100
+            Score Carbono Zero: {formatNumber(riskProfile.score, 0)} / 100
           </p>
         </div>
       </div>
@@ -263,7 +263,7 @@ function ExecutiveSummary({
       </div>
 
       <p className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm leading-6 text-emerald-100">
-        Huella recomienda priorizar una intervencion progresiva en {empresaCritica} sobre {actividadCritica}, empezando con quick wins y escalando por fases
+        Carbono Zero recomienda priorizar una intervencion progresiva en {empresaCritica} sobre {actividadCritica}, empezando con quick wins y escalando por fases
         segun resultados medidos.
         {optimizedScenario &&
           ` Si la hoja de ruta se consolida por etapas, el potencial acumulado equivale a aproximadamente ${formatNumber(
