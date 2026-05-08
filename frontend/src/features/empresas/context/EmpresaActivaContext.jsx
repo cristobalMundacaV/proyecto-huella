@@ -48,7 +48,7 @@ export function EmpresaActivaProvider({ children }) {
     persistActiveEmpresaId("");
   };
 
-  const refreshEmpresas = async () => {
+  const refreshEmpresas = async (currentEmpresaId = activeEmpresaId) => {
     setLoadingEmpresas(true);
     setErrorEmpresas("");
 
@@ -61,11 +61,18 @@ export function EmpresaActivaProvider({ children }) {
 
       setEmpresas(normalized);
 
+      // Si la empresa activa no existe en la nueva lista, limpiar
       if (
-        activeEmpresaId &&
-        !normalized.some((empresa) => String(empresa.empresa_id) === String(activeEmpresaId))
+        currentEmpresaId &&
+        !normalized.some((empresa) => String(empresa.empresa_id) === String(currentEmpresaId))
       ) {
         clearActiveEmpresa();
+      }
+
+      // Si no hay empresa activa pero hay empresas disponibles, seleccionar la primera
+      if (!currentEmpresaId && normalized.length > 0) {
+        const firstEmpresa = normalized[0];
+        persistActiveEmpresaId(firstEmpresa.empresa_id);
       }
 
       return normalized;
