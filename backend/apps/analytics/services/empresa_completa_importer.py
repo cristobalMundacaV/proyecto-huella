@@ -19,6 +19,11 @@ from .importadores import (
     _normalize_header_key,
     FACTOR_IMPORT_CACHE_TTL_SECONDS,
     _normalize_text,
+    ImportadorEmpresas,
+    ImportadorActividadesLote,
+    ImportadorFactores,
+    ImportadorLotes,
+    ImportadorUnidadesOperativas,
 )
 
 COMPLETE_IMPORT_CACHE_PREFIX = "empresa_completa_import_batch:"
@@ -369,179 +374,54 @@ class ImportadorEmpresaCompleta:
         if not empresa_data or not empresa_data.get("empresa_id"):
             raise ValueError("La importación no contiene una empresa valida para guardar")
 
-        created_empresa = None
-        created_unidades = 0
-        created_lotes = 0
-        created_actividades = 0
-        created_factores = 0
-        errors = []
+        company_payload, company_errors = _build_company_payload(empresa_data)
+        if company_errors:
+            raise ValueError("; ".join(company_errors))
 
-        with transaction.atomic():
-            # Crear/actualizar empresa
-            if empresa_data.get("empresa_id"):
-                try:
-                    empresa, was_created = Empresa.objects.update_or_create(
-                        empresa_id=empresa_data["empresa_id"],
-                        defaults={
-                            "nombre": empresa_data.get("nombre", ""),
-                            "rut": empresa_data.get("rut", ""),
-                            "region": empresa_data.get("region", ""),
-                            "comuna": empresa_data.get("comuna", ""),
-                            "direccion": empresa_data.get("direccion", ""),
-                            "rubro": empresa_data.get("rubro", ""),
-                            "email": empresa_data.get("email", ""),
-                            "telefono": empresa_data.get("telefono", ""),
-                            "contacto": empresa_data.get("contacto", ""),
-                            "observaciones": empresa_data.get("observaciones", ""),
-                        }
-                    )
-                    if was_created:
-                        # Crear unidad general por defecto
-                        UnidadOperativa.objects.get_or_create(
-                            unidad_id=f"{empresa.empresa_id}_GENERAL",
-                            defaults={
-                                "empresa": empresa,
-                                "nombre": "Unidad General",
-                                "tipo": UnidadOperativa.Tipo.GENERAL,
-                            }
-                        )
-                    created_empresa = empresa
-                except Exception as e:
-                    errors.append({"section": "empresa", "error": str(e)})
+        company_rows = [
+            {
+                "row_number": 1,
+                "status": "valid",
+                "data": company_payload,
+            }
+        ]
 
-            # Crear unidades
-            for row in cached["unidades"].get("rows", []):
-                if row.get("status") != "valid":
-                    continue
-                try:
-                    data = row.get("data", {})
-                    _, was_created = UnidadOperativa.objects.update_or_create(
-                        unidad_id=data.get("unidad_id"),
-                        defaults={
-                            "empresa": created_empresa,
-                            "nombre": data.get("nombre", ""),
-                            "tipo": data.get("tipo", UnidadOperativa.Tipo.OTRO),
-                            "region": data.get("region", ""),
-                            "comuna": data.get("comuna", ""),
-                            "direccion": data.get("direccion", ""),
-                            "descripcion": data.get("descripcion", ""),
-                            "activa": data.get("activa", True),
-                        }
-                    )
-                    if was_created:
-                        created_unidades += 1
-                except Exception as e:
-                    errors.append({"section": "unidades", "row": row.get("row_number"), "error": str(e)})
+        company_summary = ImportadorEmpresas.confirmar(rows=company_rows)
+        if company_summary.get("rechazados"):
+            errores = company_summary.get("errores") or []
+            raise ValueError("No se pudo guardar la empresa: " + "; ".join(
+                ", ".join(err.get("errors", [])) if isinstance(err, dict) else str(err)
+                for err in errores
+            ))
 
-            # Crear/actualizar factores para que las actividades puedan referenciarlos.
-            for row in cached["factores"].get("rows", []):
-                if row.get("status") != "valid":
-                    continue
-                try:
-                    normalized, validation_errors = _build_row_payload(row.get("data", {}))
-                    if validation_errors:
-                        errors.append({"section": "factores", "row": row.get("row_number"), "error": "; ".join(validation_errors)})
-                        continue
+        created_empresa = Empresa.objects.get(empresa_id=company_payload["empresa_id"])
 
-                    factor = FactorEmision.objects.filter(
-                        actividad_key=normalized["actividad_key"],
-                        unidad__iexact=normalized["unidad"],
-                        fuente__iexact=normalized["fuente"],
-                        anio=normalized["anio"],
-                    ).first()
-                    was_created = factor is None
-                    if factor is None:
-                        factor = FactorEmision(
-                            actividad_key=normalized["actividad_key"],
-                            unidad=normalized["unidad"],
-                            fuente=normalized["fuente"],
-                            anio=normalized["anio"],
-                        )
-                    factor.actividad = normalized["actividad"]
-                    factor.categoria = normalized["categoria"]
-                    factor.descripcion = normalized["descripcion"]
-                    factor.metadata_clasificacion = normalized.get("metadata_clasificacion", {})
-                    factor.factor_emision = normalized["factor_emision"]
-                    factor.save()
-                    if was_created:
-                        created_factores += 1
-                except Exception as e:
-                    errors.append({"section": "factores", "row": row.get("row_number"), "error": str(e)})
-
-            # Crear lotes
-            for row in cached["lotes"].get("rows", []):
-                if row.get("status") != "valid":
-                    continue
-                try:
-                    data = row.get("data", {})
-                    unidad_id = data.get("unidad_id")
-                    unidad = UnidadOperativa.objects.filter(unidad_id=unidad_id).first() if unidad_id else None
-                    
-                    if not unidad and created_empresa:
-                        # Usar unidad general de la empresa
-                        unidad = created_empresa.unidades_operativas.filter(
-                            tipo=UnidadOperativa.Tipo.GENERAL
-                        ).first()
-                    
-                    _, was_created = Lote.objects.update_or_create(
-                        id_lote=data.get("id_lote"),
-                        defaults={
-                            "empresa": created_empresa,
-                            "unidad_operativa": unidad,
-                            "empresa_aserradero": data.get("empresa_aserradero") or (created_empresa.nombre if created_empresa else ""),
-                            "fecha": data.get("fecha"),
-                            "especie": data.get("especie", ""),
-                            "volumen_m3": data.get("volumen_m3", Decimal("0")),
-                            "origen": data.get("origen", ""),
-                            "tipo_producto": data.get("tipo_producto", ""),
-                            "densidad_kg_m3": data.get("densidad_kg_m3"),
-                            "porcentaje_carbono": data.get("porcentaje_carbono"),
-                            "estado": data.get("estado", ""),
-                            "observaciones": data.get("observaciones", ""),
-                        }
-                    )
-                    if was_created:
-                        created_lotes += 1
-                except Exception as e:
-                    errors.append({"section": "lotes", "row": row.get("row_number"), "error": str(e)})
-
-            # Crear actividades (EmisionLote)
-            for row in cached["actividades"].get("rows", []):
-                if row.get("status") != "valid":
-                    continue
-                try:
-                    data = row.get("data", {})
-                    id_lote = data.get("id_lote")
-                    lote = Lote.objects.filter(id_lote=id_lote).first() if id_lote else None
-                    unidad_id = data.get("unidad_id")
-                    unidad = UnidadOperativa.objects.filter(unidad_id=unidad_id).first() if unidad_id else None
-                    
-                    emission, was_created = EmisionLote.objects.update_or_create(
-                        lote=lote,
-                        unidad_operativa=unidad,
-                        empresa=created_empresa if not (lote or unidad) else (lote.empresa if lote else (unidad.empresa if unidad else None)),
-                        actividad=data.get("actividad", ""),
-                        unidad=data.get("unidad", ""),
-                        defaults={
-                            "cantidad": data.get("cantidad", Decimal("0")),
-                            "fecha": data.get("fecha"),
-                            "factor_emision": data.get("factor_emision", Decimal("0")),
-                            "categoria": data.get("categoria", ""),
-                            "tipo_asignacion": data.get("tipo_asignacion", EmisionLote.TipoAsignacion.EMPRESA),
-                        }
-                    )
-                    if was_created:
-                        created_actividades += 1
-                except Exception as e:
-                    errors.append({"section": "actividades", "row": row.get("row_number"), "error": str(e)})
+        unidades_summary = ImportadorUnidadesOperativas.confirmar(
+            rows=cached["unidades"].get("rows", []),
+            empresa_activa=created_empresa,
+        )
+        factores_summary = ImportadorFactores.confirmar(rows=cached["factores"].get("rows", []))
+        lotes_summary = ImportadorLotes.confirmar(
+            rows=cached["lotes"].get("rows", []),
+            empresa_activa=created_empresa,
+        )
+        actividades_summary = ImportadorActividadesLote.confirmar(
+            rows=cached["actividades"].get("rows", []),
+            empresa_activa=created_empresa,
+        )
 
         return {
-            "creados": 1 if created_empresa else 0,
-            "empresa_id": created_empresa.empresa_id if created_empresa else None,
-            "empresa_nombre": created_empresa.nombre if created_empresa else None,
-            "unidades_creadas": created_unidades,
-            "lotes_creados": created_lotes,
-            "actividades_creadas": created_actividades,
-            "factores_creados": created_factores,
-            "errores": errors,
+            "creados": 1,
+            "empresa_id": created_empresa.empresa_id,
+            "empresa_nombre": created_empresa.nombre,
+            "unidades_creadas": unidades_summary.get("creados", 0),
+            "lotes_creados": lotes_summary.get("creados", 0),
+            "actividades_creadas": actividades_summary.get("creados", 0),
+            "factores_creados": factores_summary.get("creados", 0),
+            "errores": [
+                *unidades_summary.get("errores", []),
+                *lotes_summary.get("errores", []),
+                *actividades_summary.get("errores", []),
+                *factores_summary.get("errores", []),
+            ],
         }
