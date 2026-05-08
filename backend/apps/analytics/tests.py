@@ -179,7 +179,7 @@ class AnalyticsApiIntegrationTest(APITestCase):
 		self.assertEqual(empresa.unidades_operativas.count(), 1)
 		unidad = empresa.unidades_operativas.get()
 		self.assertEqual(unidad.nombre, "Unidad General")
-		self.assertEqual(unidad.tipo, UnidadOperativa.Tipo.GENERAL)
+		self.assertEqual(unidad.tipo, UnidadOperativa.Tipo.ADMINISTRACION)
 		self.assertEqual(response.data["unidad_inicial"]["unidad_id"], unidad.unidad_id)
 
 	def test_import_empresas_requires_all_company_columns(self):
@@ -1798,8 +1798,8 @@ class AnalyticsApiIntegrationTest(APITestCase):
 		factores_sheet.append(["Diesel", "litros", 2.68, "Demo", 2025])
 
 		unidades_sheet = workbook.create_sheet("unidades")
-		unidades_sheet.append(["ID Unidad", "Nombre", "Tipo"])
-		unidades_sheet.append(["UNI-CATEGORIA-OPCIONAL", "Aserradero", "Aserradero"])
+		unidades_sheet.append(["ID Unidad", "Nombre", "Tipo", "Region", "Comuna", "Direccion"])
+		unidades_sheet.append(["UNI-CATEGORIA-OPCIONAL", "Aserradero", "Aserradero", "Biobio", "Los Angeles", "Ruta 5"])
 
 		lotes_sheet = workbook.create_sheet("lotes")
 		lotes_sheet.append(["ID Lote", "ID Unidad", "Fecha", "Especie", "Volumen (m3)", "Origen"])

@@ -1,6 +1,6 @@
 ﻿import { useState, useRef } from "react";
-import { Building2, Loader2, Upload, Save } from "lucide-react";
-import { previewEmpresaCompleta, confirmarEmpresaCompleta } from "@/shared/services/api";
+import { Building2, Download, Loader2, Upload, Save } from "lucide-react";
+import { previewEmpresaCompleta, confirmarEmpresaCompleta, getEmpresaCompletaTemplateUrl } from "@/shared/services/api";
 import { useEmpresaActiva } from "@/features/empresas/context/EmpresaActivaContext";
 import Toast from "@/shared/components/Toast";
 
@@ -108,13 +108,22 @@ export default function EmpresaCompletaImport({ onImported }) {
     <div>
       <Toast message={toast?.message} onClose={() => setToast(null)} toastKey={toast?.id} />
 
-      <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-400/20">
-        <Upload size={16} />
-        Importar empresa completa
-        <input ref={inputRef} type="file" accept=".xlsx" onChange={onFile} className="hidden" />
-      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <a
+          href={getEmpresaCompletaTemplateUrl()}
+          className="inline-flex items-center gap-2 rounded-2xl border border-slate-600/60 bg-slate-950 px-4 py-2 text-sm font-bold text-slate-100 hover:bg-slate-800"
+        >
+          <Download size={16} />
+          Descargar plantilla
+        </a>
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-400/20">
+          <Upload size={16} />
+          Importar empresa completa
+          <input ref={inputRef} type="file" accept=".xlsx" onChange={onFile} className="hidden" />
+        </label>
+      </div>
       <p className="mt-2 text-xs text-slate-500">
-        Ingresa todos los datos especificados en cada uno de los modulos de importacion, cada uno de los cuales deben estar en hojas unicas de un archivo Excel.
+        Empresa, factores, unidades con territorio y estado, lotes asociados a unidad, y actividades con lote, unidad, fecha, observacion y fuente de dato.
       </p>
       {state.loading && (
         <div className="mt-3 text-sm text-slate-400 inline-flex items-center gap-2">

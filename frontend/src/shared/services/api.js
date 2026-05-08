@@ -196,6 +196,10 @@ export async function confirmarEmpresaCompleta(payload) {
   return response.data;
 }
 
+export function getEmpresaCompletaTemplateUrl() {
+  return buildApiUrl("/importaciones/empresa-completa/template/");
+}
+
 export async function previewFactorImport(file) {
   return previewImportFactores(file);
 }

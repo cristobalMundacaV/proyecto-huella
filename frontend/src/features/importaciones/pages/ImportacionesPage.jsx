@@ -5,6 +5,7 @@ import {
   Building2,
   CheckCircle2,
   DatabaseZap,
+  Download,
   Factory,
   FileSpreadsheet,
   Loader2,
@@ -28,6 +29,7 @@ import {
   previewImportLotesForEmpresa,
   previewImportUnidadesForEmpresa,
   previewActivityImportForEmpresa,
+  getEmpresaCompletaTemplateUrl,
 } from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
 import EmptyState from "@/shared/components/EmptyState";
@@ -623,21 +625,30 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
           </div>
           <div>
             <h2 className="text-xl font-semibold">Importador de empresa completa</h2>
-            <p className="text-sm text-slate-400">Empresa: ID Empresa, Nombre; Factores: Actividad, Unidad, Factor de Emisión, Fuente, AÃ±o; Unidades: ID Unidad, Nombre, Tipo; Lotes: ID Lote, ID Unidad, Fecha, Especie, Volumen (mÂ³), Origen; Actividades: ID Lote, Actividad, Cantidad, Unidad, Fecha</p>
+            <p className="text-sm text-slate-400">Empresa: ID Empresa, Nombre; Factores: Actividad, Unidad, Factor de Emisión, Fuente, Año; Unidades: ID Unidad, ID Empresa, Nombre, Tipo, Región, Comuna, Dirección, Estado; Lotes: ID Lote, ID Unidad, Fecha, Especie, Volumen (m³), Origen; Actividades: ID Actividad, ID Lote, ID Unidad, Actividad, Cantidad, Unidad, Fecha, Observación, Fuente de dato</p>
           </div>
         </div>
 
-        <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 text-sm font-bold text-cyan-100 transition hover:bg-cyan-400/20 lg:w-fit">
-          {state.loading ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}
-          {state.loading ? "Previsualizando" : "Cargar archivo"}
-          <input
-            type="file"
-            accept=".xlsx"
-            disabled={state.loading || state.saving}
-            onChange={onPreview}
-            className="hidden"
-          />
-        </label>
+        <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-fit">
+          <a
+            href={getEmpresaCompletaTemplateUrl()}
+            className="flex items-center justify-center gap-2 rounded-2xl border border-slate-600/60 bg-slate-950 px-5 py-3 text-sm font-bold text-slate-100 transition hover:bg-slate-800"
+          >
+            <Download size={18} />
+            Descargar plantilla
+          </a>
+          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 text-sm font-bold text-cyan-100 transition hover:bg-cyan-400/20">
+            {state.loading ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}
+            {state.loading ? "Previsualizando" : "Cargar archivo"}
+            <input
+              type="file"
+              accept=".xlsx"
+              disabled={state.loading || state.saving}
+              onChange={onPreview}
+              className="hidden"
+            />
+          </label>
+        </div>
       </div>
 
 
@@ -666,6 +677,24 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
               </div>
             ))}
           </div>
+
+          {state.result?.resumen && (
+            <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">
+              <h3 className="text-base font-semibold text-cyan-100">Resumen antes de confirmar</h3>
+              <div className="mt-3 grid grid-cols-1 gap-3 text-sm text-slate-200 md:grid-cols-2 xl:grid-cols-3">
+                <p>Empresa detectada: <span className="font-semibold">{state.result.resumen.empresa_detectada || "-"}</span></p>
+                <p>Periodo detectado: <span className="font-semibold">{state.result.resumen.periodo_detectado || "-"}</span></p>
+                <p>Emisiones estimadas: <span className="font-semibold">{formatNumber(Number(state.result.resumen.emisiones_estimadas_kg_co2e || 0), 1)} kg CO₂e</span></p>
+              </div>
+              {state.result.resumen.alertas?.length > 0 && (
+                <div className="mt-3 space-y-1 text-sm text-yellow-200">
+                  {state.result.resumen.alertas.map((alerta) => (
+                    <p key={alerta}>Advertencia: {alerta}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
             <h3 className="text-base font-semibold text-slate-100">Datos de la empresa</h3>
@@ -1088,7 +1117,7 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importador de unidades operativas"
         icon={<Factory size={18} />}
-        columns={["ID Unidad", "Nombre", "Tipo"]}
+        columns={["ID Unidad", "ID Empresa", "Nombre", "Tipo", "Región", "Comuna", "Dirección", "Estado"]}
         state={units}
         type="unidades"
         summaryLabels={unitSummaryLabels}
@@ -1124,7 +1153,7 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importador de actividades"
         icon={<DatabaseZap size={18} />}
-        columns={["ID Lote", "Actividad", "Cantidad", "Unidad", "Fecha"]}
+        columns={["ID Actividad", "ID Lote", "ID Unidad", "Actividad", "Cantidad", "Unidad", "Fecha", "Observación", "Fuente de dato"]}
         state={activities}
         type="activities"
         summaryLabels={activitySummaryLabels}

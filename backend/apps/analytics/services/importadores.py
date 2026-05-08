@@ -54,7 +54,7 @@ REQUIRED_LOTE_COLUMNS = [
     "volumen_m3",
     "origen",
 ]
-REQUIRED_ACTIVITY_COLUMNS = ["actividad", "cantidad", "unidad", "fecha"]
+REQUIRED_ACTIVITY_COLUMNS = ["id_lote", "actividad", "cantidad", "unidad", "fecha"]
 REQUIRED_COMPANY_COLUMNS = [
     "empresa_id",
     "nombre",
@@ -68,7 +68,15 @@ REQUIRED_COMPANY_COLUMNS = [
     "contacto",
     "observaciones",
 ]
-REQUIRED_UNIT_COLUMNS = ["unidad_id", "empresa_id", "nombre", "tipo"]
+REQUIRED_UNIT_COLUMNS = [
+    "unidad_id",
+    "empresa_id",
+    "nombre",
+    "tipo",
+    "region",
+    "comuna",
+    "direccion",
+]
 OPTIONAL_COMPANY_COLUMNS: list[str] = []
 OPTIONAL_LOTE_COLUMNS = [
     "empresa_id",
@@ -79,7 +87,7 @@ OPTIONAL_LOTE_COLUMNS = [
     "estado",
     "observaciones",
 ]
-OPTIONAL_UNIT_COLUMNS = ["region", "comuna", "direccion", "descripcion", "activa"]
+OPTIONAL_UNIT_COLUMNS = ["estado", "descripcion", "activa"]
 TENANT_MISMATCH_WARNING = (
     "empresa_id del archivo difiere de la empresa activa; se importara usando la empresa activa"
 )
@@ -107,6 +115,8 @@ UNIT_TYPE_MAPPING = {
     "planta": "Planta Industrial",
     "industrial": "Planta Industrial",
     "manufactura": "Planta Industrial",
+    "produccion": "Planta Industrial",
+    "producción": "Planta Industrial",
 }
 
 def _map_unit_type(raw_type: str) -> str | None:
@@ -425,7 +435,11 @@ def read_uploaded_unit_rows(uploaded_file, empresa_activa=None) -> tuple[list[di
     if name not in ALLOWED_FACTOR_IMPORT_EXTENSIONS:
         raise ValueError("Solo se permiten archivos CSV o XLSX")
 
-    required_columns = ["unidad_id", "nombre", "tipo"] if empresa_activa else REQUIRED_UNIT_COLUMNS
+    required_columns = (
+        ["unidad_id", "nombre", "tipo", "region", "comuna", "direccion"]
+        if empresa_activa
+        else REQUIRED_UNIT_COLUMNS
+    )
 
     if name == ".csv":
         rows, _ = _read_csv_rows_for_columns(uploaded_file, required_columns)
@@ -740,6 +754,27 @@ def _parse_bool(value) -> bool:
     return True
 
 
+def _parse_unit_status(value) -> str:
+    text = _normalize_text(value, lower=True)
+    if not text:
+        return UnidadOperativa.Estado.ACTIVA
+
+    aliases = {
+        "activa": UnidadOperativa.Estado.ACTIVA,
+        "activo": UnidadOperativa.Estado.ACTIVA,
+        "operativa": UnidadOperativa.Estado.ACTIVA,
+        "operativo": UnidadOperativa.Estado.ACTIVA,
+        "inactiva": UnidadOperativa.Estado.INACTIVA,
+        "inactivo": UnidadOperativa.Estado.INACTIVA,
+        "suspendida": UnidadOperativa.Estado.SUSPENDIDA,
+        "suspendido": UnidadOperativa.Estado.SUSPENDIDA,
+        "mantencion": UnidadOperativa.Estado.EN_MANTENIMIENTO,
+        "mantenimiento": UnidadOperativa.Estado.EN_MANTENIMIENTO,
+        "en_mantenimiento": UnidadOperativa.Estado.EN_MANTENIMIENTO,
+    }
+    return aliases.get(text, str(value or "").strip())
+
+
 def _build_company_payload(raw_row: dict) -> tuple[dict, list[str]]:
     errors = []
     normalized = {
@@ -775,6 +810,7 @@ def _build_unit_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[
         "region": _normalize_text(raw_row.get("region"), lower=False),
         "comuna": _normalize_text(raw_row.get("comuna"), lower=False),
         "direccion": _normalize_text(raw_row.get("direccion"), lower=False),
+        "estado": _parse_unit_status(raw_row.get("estado")),
         "descripcion": _normalize_text(raw_row.get("descripcion"), lower=False),
         "activa": _parse_bool(raw_row.get("activa")),
     }
@@ -785,6 +821,13 @@ def _build_unit_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[
         errors.append("Columna 'nombre' es obligatoria. Proporciona el nombre de la unidad")
     if not normalized["tipo"]:
         errors.append("Columna 'tipo' es obligatoria. Tipos válidos: Fundo Forestal, Transporte, Aserradero, Acopio, Secado, Administración, Bodega, Planta Industrial")
+
+    if not normalized["region"]:
+        errors.append("Columna 'region' es obligatoria. Ejemplo: Los Rios")
+    if not normalized["comuna"]:
+        errors.append("Columna 'comuna' es obligatoria. Ejemplo: Valdivia")
+    if not normalized["direccion"]:
+        errors.append("Columna 'direccion' es obligatoria. Ejemplo: Ruta T-340 km 18")
 
     empresa = None
     if empresa_activa is not None:
@@ -814,6 +857,16 @@ def _build_unit_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[
             normalized["tipo"] = UnidadOperativa.Tipo.OTRO
             if original_type:
                 warnings.append(f"Tipo no reconocido: '{original_type}'. Usando 'Otro'. Tipos válidos: Fundo Forestal, Transporte, Aserradero, Acopio, Secado, Administración, Bodega, Planta Industrial")
+
+    raw_tipo = _normalize_text(raw_row.get("tipo"), lower=True)
+    if normalized["tipo"] == UnidadOperativa.Tipo.OTRO and raw_tipo and raw_tipo != "otro":
+        errors.append(f"Tipo de unidad no reconocido: '{raw_row.get('tipo')}'. Usa Fundo Forestal, Transporte, Aserradero, Acopio, Secado, Administracion, Bodega o Planta Industrial")
+
+    allowed_statuses = {choice[0] for choice in UnidadOperativa.Estado.choices}
+    if normalized["estado"] not in allowed_statuses:
+        errors.append("Columna 'estado' invalida. Usa activa, inactiva, suspendida o en_mantenimiento")
+
+    normalized["activa"] = normalized["estado"] == UnidadOperativa.Estado.ACTIVA
 
     return normalized, errors, warnings
 
@@ -1511,6 +1564,7 @@ class ImportadorUnidadesOperativas:
                         comuna=data["comuna"],
                         direccion=data["direccion"],
                         descripcion=data["descripcion"],
+                        estado=data["estado"],
                         activa=data["activa"],
                     )
                     was_created = True
@@ -1522,6 +1576,7 @@ class ImportadorUnidadesOperativas:
                     unidad_existente.comuna = data["comuna"]
                     unidad_existente.direccion = data["direccion"]
                     unidad_existente.descripcion = data["descripcion"]
+                    unidad_existente.estado = data["estado"]
                     unidad_existente.activa = data["activa"]
                     unidad_existente.save()
                     was_created = False

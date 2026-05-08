@@ -10,7 +10,7 @@ from django.db import IntegrityError
 from openpyxl import load_workbook
 
 from ..factores import format_activity_display_name, normalize_activity_key
-from ..models import Empresa, Lote, EmisionLote, normalize_identifier
+from ..models import Empresa, UnidadOperativa, Lote, EmisionLote, normalize_identifier
 from .importadores import (
     _build_company_payload,
     _build_unit_payload,
@@ -381,6 +381,55 @@ def _row_processing_error(sheet_name: str, row: dict, exc: Exception) -> tuple[d
     return {}, [f"No se pudo procesar la fila {row_number} de la hoja {sheet_name}."], []
 
 
+def _build_preview_summary(empresa_data, unidades_preview, lotes_preview, actividades_preview) -> dict:
+    valid_activities = [
+        row.get("data") or {}
+        for row in actividades_preview.get("rows", [])
+        if row.get("status") == "valid"
+    ]
+    fechas = sorted({str(row.get("fecha")) for row in valid_activities if row.get("fecha")})
+    emisiones_estimadas = sum(
+        Decimal(str(row.get("cantidad") or 0)) * Decimal(str(row.get("factor_emision") or 0))
+        for row in valid_activities
+    )
+    unidades_con_actividad = {
+        row.get("unidad_id")
+        for row in valid_activities
+        if row.get("unidad_id")
+    }
+    unidades_validas = [
+        row.get("data") or {}
+        for row in unidades_preview.get("rows", [])
+        if row.get("status") == "valid"
+    ]
+    unidades_sin_actividad = [
+        unidad.get("unidad_id")
+        for unidad in unidades_validas
+        if unidad.get("unidad_id") not in unidades_con_actividad
+    ]
+    unidades_sin_territorio = [
+        unidad.get("unidad_id")
+        for unidad in unidades_validas
+        if not unidad.get("region") or not unidad.get("comuna")
+    ]
+
+    alertas = []
+    if unidades_sin_actividad:
+        alertas.append(f"{len(unidades_sin_actividad)} unidades no tienen actividades asociadas.")
+    if unidades_sin_territorio:
+        alertas.append(f"{len(unidades_sin_territorio)} unidades no tienen region o comuna completa.")
+
+    return {
+        "empresa_detectada": (empresa_data or {}).get("nombre", ""),
+        "unidades_detectadas": unidades_preview.get("validas", 0),
+        "lotes_detectados": lotes_preview.get("validos", 0),
+        "actividades_detectadas": actividades_preview.get("validas", 0),
+        "periodo_detectado": f"{fechas[0]} - {fechas[-1]}" if fechas else "",
+        "emisiones_estimadas_kg_co2e": str(emisiones_estimadas.quantize(Decimal("0.001"))),
+        "alertas": alertas,
+    }
+
+
 class ImportadorEmpresaCompleta:
     @staticmethod
     def previsualizar(uploaded_file) -> dict:
@@ -452,6 +501,13 @@ class ImportadorEmpresaCompleta:
         unidades_by_id = {}
         unidades_by_name = {}
         for row in unidades_rows:
+            if empresa_activa is not None:
+                row = {
+                    **row,
+                    "region": row.get("region") or empresa_activa.region,
+                    "comuna": row.get("comuna") or empresa_activa.comuna,
+                    "direccion": row.get("direccion") or empresa_activa.direccion,
+                }
             try:
                 data, errors, warnings = _build_unit_payload(row, empresa_activa=empresa_activa)
             except Exception as exc:
@@ -641,6 +697,12 @@ class ImportadorEmpresaCompleta:
             "actividades": actividades_preview,
             "factores": factores_preview,
             "blocking_errors": blocking_errors,
+            "resumen": _build_preview_summary(
+                empresa_data,
+                unidades_preview,
+                lotes_preview,
+                actividades_preview,
+            ),
         }
         
         cache.set(
@@ -657,6 +719,7 @@ class ImportadorEmpresaCompleta:
             "actividades": actividades_preview,
             "factores": factores_preview,
             "blocking_errors": blocking_errors,
+            "resumen": cache_data["resumen"],
         }
 
     @staticmethod

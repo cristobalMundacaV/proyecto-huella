@@ -117,7 +117,7 @@ class EmpresaSerializer(serializers.ModelSerializer):
             defaults={
                 "empresa": empresa,
                 "nombre": "Unidad General",
-                "tipo": UnidadOperativa.Tipo.GENERAL,
+                "tipo": UnidadOperativa.Tipo.ADMINISTRACION,
             },
         )
         return empresa
@@ -307,6 +307,7 @@ class UnidadOperativaSerializer(serializers.ModelSerializer):
             "comuna",
             "direccion",
             "descripcion",
+            "estado",
             "activa",
             "lotes_count",
             "actividades_count",

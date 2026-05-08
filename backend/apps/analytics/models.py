@@ -207,7 +207,7 @@ def get_or_create_default_company_and_unit(nombre_empresa):
         defaults={
             "empresa": empresa,
             "nombre": "Unidad General",
-            "tipo": UnidadOperativa.Tipo.OTRO,
+            "tipo": UnidadOperativa.Tipo.ADMINISTRACION,
             "estado": UnidadOperativa.Estado.ACTIVA,
         },
     )
