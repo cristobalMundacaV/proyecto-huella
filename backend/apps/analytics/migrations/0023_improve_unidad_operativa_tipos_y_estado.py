@@ -3,6 +3,36 @@
 from django.db import migrations, models
 
 
+def add_estado_if_missing(apps, schema_editor):
+    UnidadOperativa = apps.get_model("analytics", "UnidadOperativa")
+    table_name = UnidadOperativa._meta.db_table
+
+    with schema_editor.connection.cursor() as cursor:
+        existing_columns = {
+            column.name
+            for column in schema_editor.connection.introspection.get_table_description(
+                cursor,
+                table_name,
+            )
+        }
+
+    if "estado" in existing_columns:
+        return
+
+    field = models.CharField(
+        choices=[
+            ("activa", "Activa"),
+            ("inactiva", "Inactiva"),
+            ("suspendida", "Suspendida"),
+            ("en_mantenimiento", "En Mantenimiento"),
+        ],
+        default="activa",
+        max_length=20,
+    )
+    field.set_attributes_from_name("estado")
+    schema_editor.add_field(UnidadOperativa, field)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,10 +40,17 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='unidadoperativa',
-            name='estado',
-            field=models.CharField(choices=[('activa', 'Activa'), ('inactiva', 'Inactiva'), ('suspendida', 'Suspendida'), ('en_mantenimiento', 'En Mantenimiento')], default='activa', max_length=20),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(add_estado_if_missing, migrations.RunPython.noop),
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name='unidadoperativa',
+                    name='estado',
+                    field=models.CharField(choices=[('activa', 'Activa'), ('inactiva', 'Inactiva'), ('suspendida', 'Suspendida'), ('en_mantenimiento', 'En Mantenimiento')], default='activa', max_length=20),
+                ),
+            ],
         ),
         migrations.AlterField(
             model_name='unidadoperativa',
