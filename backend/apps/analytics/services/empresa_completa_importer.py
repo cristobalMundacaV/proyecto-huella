@@ -6,11 +6,11 @@ from decimal import Decimal
 from pathlib import Path
 
 from django.core.cache import cache
-from django.db import transaction
+from django.db import IntegrityError
 from openpyxl import load_workbook
 
 from ..factores import format_activity_display_name, normalize_activity_key
-from ..models import Empresa, UnidadOperativa, Lote, EmisionLote, FactorEmision, normalize_identifier
+from ..models import Empresa, Lote, EmisionLote, normalize_identifier
 from .importadores import (
     _build_company_payload,
     _build_unit_payload,
@@ -238,6 +238,141 @@ def _tag_section_errors(section_name: str, errors: list[dict]) -> list[dict]:
         else:
             tagged_errors.append({"sheet": section_name, "errors": [str(error)]})
     return tagged_errors
+
+
+def _activity_import_key(lote_id, actividad, unidad, fecha, cantidad, factor_emision) -> tuple:
+    return (
+        lote_id,
+        _normalize_text(actividad, lower=True),
+        _normalize_text(unidad, lower=True),
+        fecha.isoformat() if hasattr(fecha, "isoformat") else str(fecha),
+        Decimal(str(cantidad)),
+        Decimal(str(factor_emision)),
+    )
+
+
+def _confirm_complete_activities(rows: list[dict], empresa: Empresa) -> dict:
+    created = 0
+    omitted = 0
+    duplicated = 0
+    rejected = 0
+    errors: list[dict] = []
+    seen_keys = set()
+    pending: list[EmisionLote] = []
+
+    valid_rows = [row for row in rows if row.get("status") == "valid"]
+    lote_ids = {
+        (row.get("data") or {}).get("id_lote")
+        for row in valid_rows
+        if (row.get("data") or {}).get("id_lote")
+    }
+    lotes_by_id = {
+        lote.id_lote: lote
+        for lote in Lote.objects.select_related("empresa", "unidad_operativa").filter(id_lote__in=lote_ids)
+    }
+    existing_keys = {
+        _activity_import_key(
+            actividad.lote_id,
+            actividad.actividad,
+            actividad.unidad,
+            actividad.fecha,
+            actividad.cantidad,
+            actividad.factor_emision,
+        )
+        for actividad in EmisionLote.objects.filter(
+            lote__id_lote__in=lote_ids,
+        ).only("lote_id", "actividad", "unidad", "fecha", "cantidad", "factor_emision")
+    }
+
+    for row in rows:
+        row_number = row.get("row_number")
+        if row.get("status") and row.get("status") != "valid":
+            rejected += 1
+            errors.append(
+                {
+                    "row_number": row_number,
+                    "errors": row.get("errors") or ["fila no valida"],
+                }
+            )
+            continue
+
+        data = row.get("data") or {}
+        lote = lotes_by_id.get(data.get("id_lote"))
+        if lote is None:
+            rejected += 1
+            errors.append({"row_number": row_number, "errors": ["id_lote no existe"]})
+            continue
+
+        try:
+            cantidad = Decimal(str(data["cantidad"]))
+            factor_emision = Decimal(str(data["factor_emision"]))
+            key = _activity_import_key(
+                lote.pk,
+                data["actividad"],
+                data["unidad"],
+                data["fecha"],
+                cantidad,
+                factor_emision,
+            )
+        except Exception:
+            rejected += 1
+            errors.append({"row_number": row_number, "errors": ["actividad invalida"]})
+            continue
+
+        if key in seen_keys or key in existing_keys:
+            duplicated += 1
+            omitted += 1
+            continue
+        seen_keys.add(key)
+
+        actividad = EmisionLote(
+            lote=lote,
+            empresa=lote.empresa or empresa,
+            unidad_operativa=lote.unidad_operativa,
+            actividad=format_activity_display_name(data["actividad"]),
+            actividad_key=normalize_activity_key(data["actividad"]),
+            categoria=data.get("categoria") or "",
+            cantidad=cantidad,
+            unidad=data["unidad"],
+            fecha=data["fecha"],
+            factor_emision=factor_emision,
+            emisiones_kg_co2e=cantidad * factor_emision,
+            tipo_asignacion=EmisionLote.TipoAsignacion.LOTE,
+        )
+        pending.append(actividad)
+
+    if pending:
+        try:
+            EmisionLote.objects.bulk_create(pending, batch_size=500)
+            created = len(pending)
+        except IntegrityError:
+            logger.exception("[IMPORT_COMPLETE] Error al guardar actividades en bloque")
+            for actividad in pending:
+                try:
+                    actividad.save()
+                    created += 1
+                except IntegrityError:
+                    duplicated += 1
+                    omitted += 1
+                except Exception:
+                    rejected += 1
+            if rejected:
+                errors.append(
+                    {
+                        "row_number": None,
+                        "errors": ["Algunas actividades no se pudieron guardar. Revisa duplicados o referencias."],
+                    }
+                )
+
+    return {
+        "creados": created,
+        "created": created,
+        "actualizados": 0,
+        "omitidos": omitted,
+        "duplicados": duplicated,
+        "rechazados": rejected,
+        "errores": errors,
+    }
 
 
 def _row_processing_error(sheet_name: str, row: dict, exc: Exception) -> tuple[dict, list[str], list[str]]:
@@ -610,11 +745,9 @@ class ImportadorEmpresaCompleta:
 
         # Guardar actividades
         logger.info(f"[IMPORT_COMPLETE] Procesando {len(cached['actividades'].get('rows', []))} actividades")
-        actividades_summary = _confirm_section(
-            "actividades",
-            ImportadorActividadesLote.confirmar,
-            rows=cached["actividades"].get("rows", []),
-            empresa_activa=created_empresa,
+        actividades_summary = _confirm_complete_activities(
+            cached["actividades"].get("rows", []),
+            created_empresa,
         )
         logger.info(f"[IMPORT_COMPLETE] Resultado actividades: creados={actividades_summary.get('creados', 0)}, rechazados={actividades_summary.get('rechazados', 0)}, errores={len(actividades_summary.get('errores', []))}")
         if actividades_summary.get("errores"):
