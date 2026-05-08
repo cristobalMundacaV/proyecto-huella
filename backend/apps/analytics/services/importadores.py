@@ -679,8 +679,10 @@ def _build_lote_payload(raw_row: dict, empresa_activa=None) -> tuple[dict, list[
     normalized["empresa_obj"] = empresa
     normalized["unidad_operativa_obj"] = unidad_operativa
 
-    if not normalized["empresa_aserradero"]:
-        errors.append("Columna 'empresa' es obligatoria. Proporciona el nombre de la empresa aserradero")
+    # Empresa is required only if no unidad_id is provided
+    if not normalized["unidad_id"] and not normalized["empresa_aserradero"]:
+        errors.append("Columna 'empresa' es obligatoria cuando no se proporciona 'unidad_id'. O proporciona la empresa, o proporciona la unidad_id")
+    
     if not normalized["especie"]:
         errors.append("Columna 'especie' es obligatoria. Proporciona la especie de madera (ej: Pino Radiata)")
     if not normalized["origen"]:
