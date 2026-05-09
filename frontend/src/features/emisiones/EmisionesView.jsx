@@ -580,6 +580,14 @@ const kpis = data?.kpis ?? {
             onBackdropClick={() => setDecisionModalOpen(false)}
           >
             <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-800 bg-slate-950 p-4 sm:p-6">
+              <div>
+                <p className="text-sm font-semibold text-emerald-300">
+                  Centro de decisiones
+                </p>
+                <h2 className="mt-1 text-2xl font-bold text-slate-100">
+                  Simula y optimiza la operacion activa
+                </h2>
+              </div>
               <button
                 type="button"
                 onClick={() => setDecisionModalOpen(false)}
