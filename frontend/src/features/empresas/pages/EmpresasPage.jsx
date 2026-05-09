@@ -324,8 +324,8 @@ function EmpresasView({
           <div>
             <h1 className="text-3xl font-bold sm:text-4xl">Empresas</h1>
             <p className="max-w-3xl text-slate-400">
-              Organizaciones propietarias de unidades operativas, lotes,
-              actividades y trazabilidad dentro del ecosistema Carbono Zero.
+              Gestiona las empresas, unidades, lotes y actividades desde un mismo
+              lugar, con trazabilidad lista para análisis, reportes y decisiones ambientales.
             </p>
           </div>
         </div>
@@ -351,29 +351,29 @@ function EmpresasView({
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <CompanyKpi
           icon={<Building2 />}
-          label="Empresa activa"
+          label="Empresa seleccionada"
           value={metrics.activeCompany?.nombre || "Sin datos"}
         />
         <CompanyKpi
           icon={<Factory />}
-          label="Unidades operativas"
+          label="Unidades activas"
           value={metrics.totalUnits}
         />
-        <CompanyKpi icon={<Boxes />} label="Lotes totales" value={metrics.totalLotes} />
+        <CompanyKpi icon={<Boxes />} label="Lotes registrados" value={metrics.totalLotes} />
         <CompanyKpi
           icon={<Activity />}
-          label="Actividades totales"
+          label="Actividades registradas"
           value={metrics.totalActivities}
         />
         <CompanyKpi
           icon={<Gauge />}
-          label="Emisiones agregadas"
+          label="Emisiones acumuladas"
           tone="cyan"
           value={`${formatNumber(metrics.totalEmissions, 1)} kg CO2e`}
         />
         <CompanyKpi
           icon={<Leaf />}
-          label="CO2 almacenado"
+          label="Carbono almacenado"
           tone="emerald"
           value={`${formatNumber(metrics.totalStoredCarbon, 1)} kg`}
         />
@@ -383,7 +383,7 @@ function EmpresasView({
             1
           )} kg CO2e`}
           icon={<BarChart3 />}
-          label="Unidad con mas emisiones"
+          label="Unidad con mayor emisión"
           value={metrics.topEmitter?.nombre || "Sin datos"}
         />
         <CompanyKpi
@@ -392,7 +392,7 @@ function EmpresasView({
             1
           )} kg CO2e`}
           icon={<ShieldCheck />}
-          label="Unidad con mayor balance favorable"
+          label="Unidad con mejor balance"
           tone="emerald"
           value={metrics.bestBalance?.nombre || "Sin datos"}
         />
@@ -401,7 +401,7 @@ function EmpresasView({
       <section className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 sm:p-6">
         <p className="text-sm font-semibold text-cyan-200">Resumen estrategico</p>
         <h2 className="mt-2 text-2xl font-bold text-slate-100">
-          Operacion de la empresa activa
+          Lectura operativa de la empresa activa
         </h2>
         <p className="mt-3 max-w-5xl text-sm leading-7 text-cyan-50">
           {loadingUnidades ? "Cargando unidades operativas..." : buildStrategicSummary(metrics)}
@@ -421,7 +421,7 @@ function EmpresasView({
         />
         <InsightCard
           icon={<Leaf />}
-          label="Unidad con mayor CO2 almacenado"
+          label="Unidad con mayor carbono almacenado"
           value={metrics.topStorage?.nombre || "Sin datos"}
         />
         <InsightCard
@@ -476,7 +476,7 @@ function EmpresasView({
                 <th className="px-4 py-3 text-right">Lotes</th>
                 <th className="px-4 py-3 text-right">Actividades</th>
                 <th className="px-4 py-3 text-right">Emisiones</th>
-                <th className="px-4 py-3 text-right">CO2 almacenado</th>
+                <th className="px-4 py-3 text-right">Carbono almacenado</th>
                 <th className="px-4 py-3 text-right">Balance</th>
                 <th className="px-4 py-3">Estado</th>
                 <th className="px-4 py-3 text-center">Detalle</th>
@@ -866,7 +866,7 @@ function EmpresaDetailPanel({ activeTab, empresa, metrics, onTabChange }) {
           value={`${formatNumber(Number(empresa.emisiones_totales_kg_co2e || 0), 1)} kg CO2e`}
         />
         <DetailMetric
-          label="CO2 almacenado"
+          label="Carbono almacenado"
           tone="emerald"
           value={`${formatNumber(Number(empresa.co2_almacenado_kg || 0), 1)} kg`}
         />
@@ -912,7 +912,7 @@ function EmpresaDetailPanel({ activeTab, empresa, metrics, onTabChange }) {
         )}
         {activeTab === "lotes" && (
           <SimpleTable
-            columns={["Lote", "Unidad", "Especie", "Emisiones", "CO2 almacenado", "Balance"]}
+            columns={["Lote", "Unidad", "Especie", "Emisiones", "Carbono almacenado", "Balance"]}
             rows={(empresa.lotes_resumen || []).map((lote) => [
               lote.id_lote,
               lote.unidad || "-",

@@ -33,7 +33,7 @@ function ResumenTab({ balanceData, selectedLote }) {
             </p>
             <p className="mt-2 text-sm font-semibold">
               Lote {selectedLote.id_lote}: emisiones generadas{" "}
-              {formatNumber(emisionesGeneradas)} kg CO2e, CO2 almacenado{" "}
+              {formatNumber(emisionesGeneradas)} kg CO2e, carbono almacenado{" "}
               {formatNumber(co2Almacenado)} kg, balance neto{" "}
               {formatNumber(Number(balanceNeto || 0))} kg CO2e.
             </p>

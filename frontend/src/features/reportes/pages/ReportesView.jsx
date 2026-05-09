@@ -108,7 +108,7 @@ function normalizeTrend(value) {
 
 function buildHeroTitle({ trend, variacion }) {
   if (trend === "a la baja") {
-    return "La empresa va en buena direccion en este periodo";
+    return "La tendencia mejora en este período, pero el foco crítico sigue activo";
   }
 
   if (trend === "al alza") {
@@ -156,8 +156,8 @@ function buildHeroInsights({ trend, kpis }) {
   }
 
   return [
-    `Tendencia actual: ${kpis.tendencia || "Sin datos"}`,
-    `Mayor foco: ${actividad}`,
+    `Mejora observada: ${kpis.tendencia || "Sin datos"}`,
+    `Foco a mantener bajo control: ${actividad}`,
     `Unidad prioritaria: ${unidad}. ${recommendation}`,
   ];
 }
@@ -213,10 +213,10 @@ function ReportesHeroEjecutivo({ kpis, activeEmpresa }) {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          <HeroBadge label="Tendencia" value={kpis.tendencia || "Sin datos"} tone={trend === "al alza" ? "danger" : trend === "a la baja" ? "success" : trend === "estable" ? "warning" : "default"} />
-          <HeroBadge label="Actividad critica" value={kpis.actividad_critica_periodo || "Sin datos"} tone="default" />
-          <HeroBadge label="Unidad critica" value={kpis.unidad_critica_periodo || "Sin datos"} tone="default" />
-          <HeroBadge label="Periodo critico" value={kpis.periodo_mayor_emision || "Sin datos"} tone="warning" />
+          <HeroBadge label="Comportamiento del período" value={kpis.tendencia || "Sin datos"} tone={trend === "al alza" ? "danger" : trend === "a la baja" ? "success" : trend === "estable" ? "warning" : "default"} />
+          <HeroBadge label="Actividad prioritaria" value={kpis.actividad_critica_periodo || "Sin datos"} tone="default" />
+          <HeroBadge label="Unidad prioritaria" value={kpis.unidad_critica_periodo || "Sin datos"} tone="default" />
+          <HeroBadge label="Período con mayor emisión" value={kpis.periodo_mayor_emision || "Sin datos"} tone="warning" />
         </div>
       </div>
     </section>
@@ -429,7 +429,7 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
           </p>
           <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Reportes</h1>
           <p className="mt-2 text-slate-400">
-            Evolución temporal de emisiones de la empresa activa.
+            Analiza la evolución de emisiones, detecta períodos críticos y convierte los resultados en decisiones de mejora.
           </p>
           <p className="mt-2 text-sm text-cyan-200">
             Empresa activa: {activeEmpresa?.nombre || activeEmpresaId}
@@ -552,27 +552,27 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
               value={`${formatNumber(kpis.emisiones_totales_periodo)} kg CO2e`}
             />
             <KpiCard
-              label="Tendencia"
+              label="Comportamiento del período"
               value={kpis.tendencia || "Sin datos"}
               subtext={`${formatNumber(kpis.variacion_periodo)}% vs período anterior`}
               tone={tendenciaTone}
             />
             <KpiCard
-              label="Período crítico"
+              label="Período con mayor emisión"
               value={kpis.periodo_mayor_emision || "Sin datos"}
               subtext={`${formatNumber(kpis.emisiones_periodo_mayor)} kg CO2e`}
               tone="warning"
             />
             <KpiCard
-              label="Actividad crítica"
+              label="Actividad prioritaria"
               value={kpis.actividad_critica_periodo || "Sin datos"}
             />
             <KpiCard
-              label="Unidad crítica"
+              label="Unidad prioritaria"
               value={kpis.unidad_critica_periodo || "Sin datos"}
             />
             <KpiCard
-              label="Promedio por período"
+              label="Emisión promedio mensual"
               value={`${formatNumber(kpis.promedio_periodo)} kg CO2e`}
             />
           </section>

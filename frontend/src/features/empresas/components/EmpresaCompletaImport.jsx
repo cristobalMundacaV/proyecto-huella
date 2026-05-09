@@ -79,7 +79,7 @@ export default function EmpresaCompletaImport({ onImported }) {
     setState((s) => ({ ...s, saving: true, error: "" }));
     try {
       const res = await confirmarEmpresaCompleta({ batch_id: state.result.batch_id });
-      const msg = "Importacion de datos exitosas";
+      const msg = "Archivo importado correctamente. Los registros fueron validados y agregados a la empresa activa.";
       setState((s) => ({ ...s, saving: false, savedMessage: msg }));
       showToast(msg);
 

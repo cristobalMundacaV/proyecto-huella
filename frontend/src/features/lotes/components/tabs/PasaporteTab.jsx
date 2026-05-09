@@ -122,7 +122,7 @@ function PasaporteTab({
               tone="cyan"
             />
             <PassportMetric
-              label="CO2 almacenado"
+              label="Carbono almacenado"
               value={`${formatNumber(Number(balanceData?.co2_almacenado_kg || 0))} kg`}
               tone="emerald"
             />

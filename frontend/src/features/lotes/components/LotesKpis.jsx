@@ -22,7 +22,7 @@ function LotesKpis({ lotes, totalCo2Almacenado, totalEmisiones, totalMasaMadera 
         </p>
       </div>
       <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
-        <p className="text-sm text-slate-400">CO2 almacenado</p>
+        <p className="text-sm text-slate-400">Carbono almacenado</p>
         <p className="mt-2 text-3xl font-bold text-lime-200">
           {formatNumber(totalCo2Almacenado)} kg
         </p>

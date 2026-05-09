@@ -20,7 +20,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
   const navigationItems = [
     {
       icon: LayoutDashboard,
-      label: "Dashboard",
+      label: "Panel principal",
       view: "dashboard",
     },
     {
@@ -50,7 +50,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
     },
     {
       icon: DatabaseZap,
-      label: "Importacion de datos",
+      label: "Importación de datos",
       view: "importaciones",
     },
     {
@@ -60,7 +60,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
     },
     {
       icon: Settings,
-      label: "Configuracion",
+      label: "Configuración",
       view: "configuracion",
     },
   ];
@@ -115,7 +115,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
             onClick={() => onSetActiveView("empresas", { openCreateEmpresa: true })}
             className="w-full rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-400/20"
           >
-            Crear nueva empresa
+            Nueva empresa
           </button>
 
           {loadingEmpresas && (
@@ -154,7 +154,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
       </nav>
 
       <div className="mt-10 rounded-2xl border border-slate-800 bg-slate-950 p-4">
-        <p className="text-xs text-slate-500">Estado de la empresa activa</p>
+        <p className="text-xs text-slate-500">Estado de la empresa</p>
         <div className="mt-3 space-y-2">
           {statusItems.map(([label, value]) => (
             <div

@@ -19,6 +19,7 @@ import { formatNumber } from "@/shared/utils/formatters";
 import { useEmpresaActiva } from "@/features/empresas/context/EmpresaActivaContext";
 
 const rowsPerPage = 8;
+const detailRowsPerPage = 8;
 
 function UnidadesOperativasView() {
   const [unidades, setUnidades] = useState([]);
@@ -178,8 +179,8 @@ function UnidadesOperativasView() {
               Unidades Operativas
             </h1>
             <p className="max-w-3xl text-slate-400">
-              Centros operativos, plantas, areas productivas y nodos logisticos
-              asociados a la empresa activa.
+              Centros de trabajo, plantas productivas y nodos logísticos vinculados
+              a la empresa activa.
             </p>
           </div>
         </div>
@@ -225,7 +226,7 @@ function UnidadesOperativasView() {
       <section className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 sm:p-6">
         <p className="text-sm font-semibold text-cyan-200">Resumen operativo</p>
         <h2 className="mt-2 text-2xl font-bold text-slate-100">
-          Estructura operacional de {activeEmpresa.nombre}
+          Mapa operativo de {activeEmpresa.nombre}
         </h2>
         <p className="mt-3 max-w-4xl text-sm leading-7 text-cyan-50">
           {buildOperationalSummary(activeEmpresa, metrics)}
@@ -235,7 +236,7 @@ function UnidadesOperativasView() {
       <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
         <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-xl font-semibold">Tabla de unidades</h2>
+            <h2 className="text-xl font-semibold">Unidades registradas</h2>
             <p className="mt-1 text-sm text-slate-400">
               {formatNumber(filteredUnidades.length, 0)} unidades encontradas.
             </p>
@@ -251,7 +252,7 @@ function UnidadesOperativasView() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar unidad, empresa, tipo, region o comuna"
+            placeholder="Buscar por unidad, empresa, tipo, región o comuna"
             className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3 pl-11 pr-4 text-sm text-slate-100 outline-none transition focus:border-emerald-400/60"
           />
         </label>
@@ -262,13 +263,13 @@ function UnidadesOperativasView() {
               <tr className="border-b border-slate-800 text-left text-xs text-slate-400">
                 <th className="px-4 py-3">Empresa</th>
                 <th className="px-4 py-3">Unidad</th>
-                <th className="px-4 py-3">Tipo de unidad</th>
+                <th className="px-4 py-3">Tipo</th>
                 <th className="px-4 py-3">Region</th>
                 <th className="px-4 py-3">Comuna</th>
                 <th className="px-4 py-3 text-right">Lotes</th>
                 <th className="px-4 py-3 text-right">Actividades</th>
                 <th className="px-4 py-3 text-right">Emisiones</th>
-                <th className="px-4 py-3 text-center">Detalle</th>
+                <th className="px-4 py-3 text-center">Ver detalle</th>
               </tr>
             </thead>
             <tbody>
@@ -454,6 +455,12 @@ function UnitTypeBadge({ type }) {
 }
 
 function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
+  const [detailPages, setDetailPages] = useState({});
+
+  useEffect(() => {
+    setDetailPages({});
+  }, [unidad?.id, activeTab]);
+
   if (!unidad) {
     return (
       <EmptyState
@@ -521,8 +528,12 @@ function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
       <div className="mt-5">
         {activeTab === "resumen" && <UnidadResumen unidad={unidad} />}
         {activeTab === "actividades" && (
-          <SimpleTable
+          <PaginatedSimpleTable
             columns={["Fecha", "Actividad", "Categoria", "Lote", "Cantidad", "Emisiones"]}
+            onPageChange={(page) =>
+              setDetailPages((currentPages) => ({ ...currentPages, actividades: page }))
+            }
+            page={detailPages.actividades || 1}
             rows={actividades.map((actividad) => [
               actividad.fecha || "-",
               actividad.actividad,
@@ -534,8 +545,12 @@ function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
           />
         )}
         {activeTab === "lotes" && (
-          <SimpleTable
+          <PaginatedSimpleTable
             columns={["Lote", "Fecha", "Especie", "Estado", "Emisiones", "Balance"]}
+            onPageChange={(page) =>
+              setDetailPages((currentPages) => ({ ...currentPages, lotes: page }))
+            }
+            page={detailPages.lotes || 1}
             rows={lotes.map((lote) => [
               lote.id_lote,
               lote.fecha || "-",
@@ -547,8 +562,12 @@ function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
           />
         )}
         {activeTab === "emisiones" && (
-          <SimpleTable
+          <PaginatedSimpleTable
             columns={["Actividad", "Categoria", "Factor", "Emisiones"]}
+            onPageChange={(page) =>
+              setDetailPages((currentPages) => ({ ...currentPages, emisiones: page }))
+            }
+            page={detailPages.emisiones || 1}
             rows={actividades.map((actividad) => [
               actividad.actividad,
               actividad.categoria || "-",
@@ -558,8 +577,12 @@ function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
           />
         )}
         {activeTab === "evidencias" && (
-          <SimpleTable
+          <PaginatedSimpleTable
             columns={["Lote", "Estado pasaporte", "Evidencias"]}
+            onPageChange={(page) =>
+              setDetailPages((currentPages) => ({ ...currentPages, evidencias: page }))
+            }
+            page={detailPages.evidencias || 1}
             rows={lotes.map((lote) => [
               lote.id_lote,
               lote.estado_pasaporte || "Sin pasaporte",
@@ -610,7 +633,7 @@ function UnidadResumen({ unidad }) {
   );
 }
 
-function SimpleTable({ columns, rows }) {
+function PaginatedSimpleTable({ columns, onPageChange, page, rows }) {
   if (!rows.length) {
     return (
       <EmptyState
@@ -620,36 +643,56 @@ function SimpleTable({ columns, rows }) {
     );
   }
 
+  const totalPages = Math.max(1, Math.ceil(rows.length / detailRowsPerPage));
+  const safePage = Math.min(page, totalPages);
+  const visibleRows = rows.slice(
+    (safePage - 1) * detailRowsPerPage,
+    safePage * detailRowsPerPage
+  );
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-slate-800 text-left text-xs text-slate-400">
-            {columns.map((column) => (
-              <th key={column} className="px-4 py-3">
-                {column}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, rowIndex) => (
-            <tr key={`${row[0]}-${rowIndex}`} className="border-b border-slate-800/70">
-              {row.map((cell, cellIndex) => (
-                <td
-                  key={`${row[0]}-${cellIndex}`}
-                  className={`px-4 py-3 ${
-                    cellIndex === 0 ? "font-semibold text-slate-100" : "text-slate-300"
-                  }`}
-                >
-                  {cell || "-"}
-                </td>
+    <>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-slate-800 text-left text-xs text-slate-400">
+              {columns.map((column) => (
+                <th key={column} className="px-4 py-3">
+                  {column}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {visibleRows.map((row, rowIndex) => (
+              <tr
+                key={`${row[0]}-${safePage}-${rowIndex}`}
+                className="border-b border-slate-800/70"
+              >
+                {row.map((cell, cellIndex) => (
+                  <td
+                    key={`${row[0]}-${safePage}-${rowIndex}-${cellIndex}`}
+                    className={`px-4 py-3 ${
+                      cellIndex === 0 ? "font-semibold text-slate-100" : "text-slate-300"
+                    }`}
+                  >
+                    {cell || "-"}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <Pagination
+        currentPage={safePage}
+        itemLabel="registros"
+        onPageChange={onPageChange}
+        pageSize={detailRowsPerPage}
+        totalItems={rows.length}
+      />
+    </>
   );
 }
 

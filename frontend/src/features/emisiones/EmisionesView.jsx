@@ -91,19 +91,19 @@ function buildDecisionModel(data) {
 
   const heroTitle =
     dieselPct >= 50
-      ? "Tu operacion esta altamente expuesta al diesel"
-      : `${criticalActivity} representa el mayor riesgo operativo`;
+      ? "El diésel móvil concentra el principal riesgo operativo y ambiental"
+      : `${criticalActivity} concentra el principal riesgo operativo y ambiental`;
   const heroSubtitle =
     estimatedReduction > 0
       ? `Puedes reducir cerca de ${formatNumber(
           estimatedReduction,
           0
-        )} kg CO2e con una intervencion focalizada del ${DIESEL_REDUCTION_SCENARIO}% sobre diesel.`
-      : "Prioriza la actividad critica para convertir el analisis en accion operativa.";
+        )} kg CO2e con una intervención focalizada en ${criticalUnit}. La recomendación es partir con un piloto medible antes de escalar cambios mayores.`
+      : "Prioriza la actividad principal para convertir el análisis en acción operativa.";
   const recommendation =
     dieselPct >= 30
-      ? `Reducir diesel en 20-30% en ${criticalUnit} mediante piloto operativo.`
-      : `Reducir ${criticalActivity} en ${criticalUnit} con acciones focalizadas de eficiencia.`;
+      ? `Iniciar un piloto de reducción de diésel del 20% al 30% en ${criticalUnit}`
+      : `Iniciar un piloto de reducción sobre ${criticalActivity} en ${criticalUnit}`;
   const risks = [];
 
   if (dieselPct > 50) {
@@ -117,7 +117,7 @@ function buildDecisionModel(data) {
 
   if (topActivityPct > 40) {
     risks.push(
-      `Riesgo de concentracion: ${criticalActivity} explica el ${formatNumber(
+      `Riesgo de concentración: ${criticalActivity} explica el ${formatNumber(
         topActivityPct,
         1
       )}% de la huella.`
@@ -126,13 +126,13 @@ function buildDecisionModel(data) {
 
   if (criticalUnit !== "Sin datos") {
     risks.push(
-      `Riesgo operativo localizado: ${criticalUnit} concentra el mayor impacto y deberia priorizarse.`
+      `Riesgo operativo localizado: ${criticalUnit} concentra el mayor impacto y debería priorizarse.`
     );
   }
 
   if (criticalCategory !== "Sin datos") {
     risks.push(
-      `Riesgo por categoria: ${criticalCategory} domina el perfil de emisiones de la empresa.`
+      `Riesgo por categoría: ${criticalCategory} domina el perfil de emisiones de la empresa.`
     );
   }
 
@@ -339,7 +339,7 @@ const kpis = data?.kpis ?? {
               className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20"
             >
               <TrendingDown size={18} />
-              Simular reduccion
+              Simular escenario
             </button>
             <button
               type="button"
@@ -347,7 +347,7 @@ const kpis = data?.kpis ?? {
               className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 text-sm font-bold text-cyan-200 transition hover:bg-cyan-400/20"
             >
               <Target size={18} />
-              Optimizar operacion
+              Ver plan operativo
             </button>
           </div>
         </div>
@@ -368,13 +368,12 @@ const kpis = data?.kpis ?? {
           {decision.recommendation}
         </h2>
         <p className="mt-2 text-sm leading-6 text-emerald-200">
-          Empieza con un piloto medible, compara consumo real antes/despues y escala la
-          intervencion si la reduccion se sostiene.
+          Mide el consumo antes y después del piloto, revisa desviaciones semanalmente y escala la intervención solo si la reducción se mantiene sin afectar la operación.
         </p>
       </section>
 
       <section className="space-y-4">
-        <SectionTitle eyebrow="Estado actual" title="Donde se concentra el impacto" />
+        <SectionTitle eyebrow="Estado actual" title="Dónde se concentra el impacto" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <DecisionKpi
             icon={<Activity />}
@@ -384,30 +383,30 @@ const kpis = data?.kpis ?? {
           <DecisionKpi
             detail={`${formatNumber(kpis.porcentaje_top_actividad || 0, 1)}% del total`}
             icon={<BarChart3 />}
-            label="Mayor foco de impacto"
+            label="Principal foco de emisiones"
             value={kpis.actividad_critica || "Sin datos"}
           />
           <DecisionKpi
             icon={<Layers3 />}
-            label="Categoria dominante"
+            label="Categoría principal"
             value={kpis.categoria_critica || "Sin datos"}
           />
           <DecisionKpi
             icon={<Factory />}
-            label="Mayor impacto operativo"
+            label="Unidad con mayor impacto"
             value={kpis.unidad_critica || "Sin datos"}
           />
           <DecisionKpi
             detail={`${formatNumber(kpis.porcentaje_diesel || 0, 1)}% del total`}
             icon={<Flame />}
-            label="Dependencia de diesel"
+            label="Dependencia de diésel"
             tone={decision.dieselLevel.panel}
             value={decision.dieselLevel.label}
             valueClassName={decision.dieselLevel.tone}
           />
           <DecisionKpi
             icon={<Gauge />}
-            label="Promedio por lote"
+            label="Emisión promedio por lote"
             value={`${formatNumber(kpis.promedio_emision_por_lote || 0, 1)} kg CO2e`}
           />
         </div>
@@ -476,12 +475,12 @@ const kpis = data?.kpis ?? {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar actividad, unidad, lote o categoria"
+              placeholder="Buscar actividad, unidad, lote o categoría"
               className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3 pl-11 pr-4 text-sm text-slate-100 outline-none transition focus:border-emerald-400/60"
             />
           </label>
           <FilterSelect
-            label="Todas las categorias"
+            label="Todas las categorías"
             onChange={setCategoryFilter}
             options={categoryOptions}
             value={categoryFilter}

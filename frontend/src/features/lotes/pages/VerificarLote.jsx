@@ -146,7 +146,7 @@ function VerificarLote() {
               )} kg CO2e`}
             />
             <PublicMetric
-              label="CO2 almacenado"
+              label="Carbono almacenado"
               value={`${formatNumber(
                 Number(verification.co2_almacenado_kg || 0)
               )} kg`}

@@ -28,7 +28,7 @@ function LotesTable({ loading, lotes, onOpenDetail, onSelectLote, selectedLote }
 
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
-      <h2 className="mb-4 text-xl font-semibold">Tabla de lotes</h2>
+      <h2 className="mb-4 text-xl font-semibold">Lotes registrados</h2>
 
       <div className="overflow-x-auto">
         <table className="min-w-[980px] w-full text-sm">
@@ -39,7 +39,7 @@ function LotesTable({ loading, lotes, onOpenDetail, onSelectLote, selectedLote }
               <th className="py-3 text-left">Especie</th>
               <th className="py-3 text-right">Volumen</th>
               <th className="py-3 text-right">Emisiones</th>
-              <th className="py-3 text-right">CO2 almacenado</th>
+              <th className="py-3 text-right">Carbono almacenado</th>
               <th className="py-3 text-right">Detalle</th>
             </tr>
           </thead>
@@ -107,7 +107,7 @@ function LotesTable({ loading, lotes, onOpenDetail, onSelectLote, selectedLote }
                       }`}
                       aria-label={`Abrir detalle del lote ${lote.id_lote}`}
                     >
-                      Ver detalle
+                      Revisar lote
                     </button>
                   </td>
                 </tr>

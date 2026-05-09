@@ -26,7 +26,7 @@ function CrearLoteModal({
               <Plus size={18} />
             </div>
             <div>
-              <h2 className="text-xl font-semibold">Crear lote</h2>
+              <h2 className="text-xl font-semibold">Nuevo lote</h2>
               <p className="text-sm text-slate-400">
                 Registra la base de trazabilidad del Pasaporte Verde.
               </p>

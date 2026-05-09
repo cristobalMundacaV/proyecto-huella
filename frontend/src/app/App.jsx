@@ -448,8 +448,8 @@ const validationSummary = {
               <div>
                 <h1 className="text-3xl sm:text-4xl font-bold">Carbono Zero</h1>
                 <p className="text-slate-400">
-                  Inteligencia para medir, analizar y optimizar la huella de
-                  carbono empresarial.
+                  Convierte los datos operativos de tu empresa en decisiones claras
+                  para medir, reducir y respaldar su huella de carbono.
                 </p>
               </div>
             </div>
@@ -473,29 +473,29 @@ const validationSummary = {
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-4">
             <KpiCard
               icon={<Activity />}
-              title="Emisiones Totales"
+              title="Emisiones totales"
               value={`${formatNumber(safeDashboardData.total_emisiones)} kg CO2e`}
             />
             <KpiCard
               icon={<Factory />}
-              title="Unidad Critica"
+              title="Unidad prioritaria"
               value={unidadCritica}
             />
             <KpiCard
               icon={<AlertTriangle />}
-              title="Actividad Critica"
+              title="Actividad prioritaria"
               value={actividadCritica}
             />
             <KpiCard
               icon={<Leaf />}
-              title="Carbono Almacenado"
+              title="Carbono almacenado"
               value={`${formatNumber(dashboardStoredCarbon)} kg`}
-              detail="CO2 almacenado en lotes"
+              detail="Carbono almacenado en lotes"
             />
           </section>
 
           <section className="rounded-3xl bg-emerald-400/10 border border-emerald-400/20 p-4 sm:p-6">
-            <h2 className="text-xl font-semibold mb-2">Insight automatico</h2>
+            <h2 className="text-xl font-semibold mb-2">Insight automático</h2>
             <p className="text-emerald-300">
               La actividad <strong>{actividadCritica}</strong> concentra el
               mayor impacto ambiental de los datos internos analizados.

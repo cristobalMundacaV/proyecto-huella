@@ -10,7 +10,7 @@ function LotesHeader() {
         <div>
           <h1 className="text-3xl sm:text-4xl font-bold">Lotes</h1>
           <p className="text-slate-400">
-            Trazabilidad base para el Pasaporte Verde de madera.
+            Registra y consulta la trazabilidad de cada lote: especie, volumen, emisiones y carbono almacenado para el Pasaporte Verde.
           </p>
         </div>
       </div>

@@ -40,7 +40,7 @@ const formatPercentRange = ({ min, max }) =>
   min === max ? `${min}%` : `${min}%-${max}%`;
 
 const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
-  const activityLabel = actividadCritica || "la actividad critica";
+  const activityLabel = actividadCritica || "la actividad prioritaria";
   const activityKey = normalizePlanText(activityLabel);
   const potentialReduction = Number(optimizedScenario?.reductionPct || 0);
   const optimalActivityReduction =
@@ -76,33 +76,33 @@ const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
   const principalRecommendation = `Reducir consumo de ${activityLabel} entre ${formatPercentRange(recommendedRange)} de manera gradual , iniciando con un objetivo priorizado cercano a ${initialTarget}%.`;
 
   const optimalReference = potentialReduction > 0
-    ? `El escenario optimo teorico muestra hasta ${formatNumber(
+    ? `El escenario máximo proyectado muestra hasta ${formatNumber(
         potentialReduction,
         1
       )}% de reduccion total, pero no es una accion inmediata y requeriría cambios estructurales.`
-    : "El escenario optimo debe tratarse como referencia estrategica de largo plazo, no como accion inmediata.";
+    : "El máximo potencial proyectado debe tratarse como referencia estratégica de largo plazo, no como acción inmediata.";
 
   const actionLevels = [
     {
-      label: "Bajo esfuerzo",
+      label: "Acciones rápidas",
       range: "5%-15%",
       tone: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
-      detail: `Quick wins sobre ${activityLabel}: control de consumo, mantenimiento y disciplina operativa.`,
+      detail: `Control de consumo, mantenimiento y disciplina operativa. Ideal para generar mejoras visibles sin intervenir la estructura del negocio.`,
     },
     {
-      label: "Medio impacto",
+      label: "Piloto recomendado",
       range: formatPercentRange(recommendedRange),
       tone: "border-yellow-400/20 bg-yellow-400/10 text-yellow-200",
-      detail: `Ajustes operativos en ${activityLabel} con analitica, rediseño parcial y sustitucion gradual.`,
+      detail: `Ajustes operativos, rediseño parcial y seguimiento con indicadores. Es el mejor punto de partida para una reducción realista.`,
     },
     {
-      label: "Transformacional",
+      label: "Cambio estructural",
       range:
         potentialReduction > 0
-          ? `${formatNumber(potentialReduction, 1)}% teorico`
+          ? `${formatNumber(potentialReduction, 1)}% proyectado`
           : "35%+",
       tone: "border-rose-400/20 bg-rose-400/10 text-rose-200",
-      detail: `Cambios estructurales, inversion relevante y transicion tecnologica plurianual en ${activityLabel}.`,
+      detail: `Requiere inversión, planificación plurianual y transición tecnológica. Útil como visión de largo plazo, no como primera acción.`,
     },
   ];
 
@@ -139,10 +139,10 @@ function ExecutiveSummary({
     0
   );
   const estimatedImpact = optimizedScenario
-    ? `Potencial teorico de ${formatNumber(
+    ? `Potencial proyectado de ${formatNumber(
         optimizedScenario.reductionPct,
         1
-      )}% en emisiones totales bajo el escenario optimo.`
+      )}% en emisiones totales bajo el escenario máximo.`
     : "Sin calcular";
   const riskFrameClass =
     riskProfile.score > 70
@@ -158,13 +158,9 @@ function ExecutiveSummary({
           Resumen ejecutivo
         </p>
         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-emerald-300">
-          <span>Estado del registro validado</span>
-          <span className="text-emerald-400">OK</span>
-          <span className="text-slate-600">|</span>
-          <span>{validationSummary.records} registros</span>
-          <span className="text-slate-600">|</span>
+          <span>Registro validado</span>
           <span>{validationSummary.errors} errores</span>
-          <span className="text-slate-600">|</span>
+          <span className="text-slate-600">·</span>
           <span>{validationSummary.activities} actividades reconocidas</span>
         </div>
       </div>
@@ -173,7 +169,7 @@ function ExecutiveSummary({
         <div className="max-w-2xl">
           <h2 className="text-3xl font-bold">
             {optimizedScenario
-              ? `Potencial teorico de ${formatNumber(
+              ? `Potencial de reducción del ${formatNumber(
                   optimizedScenario.reductionPct,
                   1
                 )}% y reduccion realista progresiva en ${actividadCritica}`
@@ -181,7 +177,7 @@ function ExecutiveSummary({
           </h2>
           <p className="mt-3 text-sm leading-6 text-emerald-100">
             El principal foco de impacto se concentra en {actividadCritica}, con{" "}
-            {unidadCriticaLabel} como unidad operativa critica. Nivel de viabilidad:{" "}
+            {unidadCriticaLabel} como unidad prioritaria. Nivel de viabilidad:{" "}
             <strong>{strategicPlan.viability}</strong>. {estimatedImpact}
           </p>
         </div>
@@ -202,17 +198,17 @@ function ExecutiveSummary({
       {optimizedScenario && (
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
           <BeforeAfterCard
-            label="Actualmente"
+            label="Emisiones actuales"
             tone="red"
             value={`${formatNumber(currentTotal, 1)} kg CO2e`}
           />
           <BeforeAfterCard
-            label="Escenario medio impacto (estimado)"
+            label="Escenario recomendado"
             tone="cyan"
             value={`${formatNumber(mediumImpactEstimatedTotal, 1)} kg CO2e`}
           />
           <BeforeAfterCard
-            label="Escenario optimo teorico"
+            label="Máximo potencial proyectado"
             tone="green"
             value={`${formatNumber(simulatedTotal, 1)} kg CO2e`}
           />
@@ -220,32 +216,32 @@ function ExecutiveSummary({
       )}
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        <SummaryItem label="Principal causa" value={actividadCritica} />
-        <SummaryItem label="Unidad critica" value={unidadCriticaLabel} />
+        <SummaryItem label="Foco principal" value={actividadCritica} />
+        <SummaryItem label="Unidad prioritaria" value={unidadCriticaLabel} />
         <SummaryItem
           label="Escenario recomendado"
           value={formatPercentRange(strategicPlan.recommendedRange)}
         />
 
         <SummaryItem
-          label="Diesel presente"
+          label="Uso de diésel"
           value={riskProfile.factors.dieselPresent ? "Si" : "No"}
         />
 
         <SummaryItem
-          label="Porcentaje reduccion optimo"
+          label="Reducción estimada"
           value={
             optimizedScenario
               ? `${formatNumber(optimizedScenario.reductionPct, 1)}%`
               : estimatedImpact
           }
         />
-        <SummaryItem label="Viabilidad" value={strategicPlan.viability} />
+        <SummaryItem label="Viabilidad operativa" value={strategicPlan.viability} />
       </div>
 
       <div className="mt-5 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-cyan-200">
-          Recomendacion principal realista
+          Recomendación principal
         </p>
         <p className="mt-2 text-sm leading-6 text-cyan-100">{recommendedDecision}</p>
         <p className="mt-2 text-sm leading-6 text-cyan-200">

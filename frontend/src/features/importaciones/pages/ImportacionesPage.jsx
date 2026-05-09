@@ -579,7 +579,7 @@ function ImportPanel({
             className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit"
           >
             {state.saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-            Confirmar importacion
+            Confirmar importación
           </button>
         </>
       )}
@@ -624,7 +624,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
             <Building2 size={18} />
           </div>
           <div>
-            <h2 className="text-xl font-semibold">Importador de empresa completa</h2>
+            <h2 className="text-xl font-semibold">Importar operación completa</h2>
             <p className="text-sm text-slate-400">
               Archivo XLSX con hojas <span className="font-semibold text-slate-200">empresa</span>, <span className="font-semibold text-slate-200">unidades</span>, <span className="font-semibold text-slate-200">lotes</span>, <span className="font-semibold text-slate-200">actividades</span> y <span className="font-semibold text-slate-200">factores</span>.
             </p>
@@ -963,7 +963,7 @@ function ImportacionesView({ onImportConfirmed }) {
           .join('\n\n');
       }
 
-      const msg = "Importacion de datos exitosas";
+      const msg = "Archivo importado correctamente. Los registros fueron validados y agregados a la empresa activa.";
 
       showToast(msg);
       
@@ -1057,12 +1057,12 @@ function ImportacionesView({ onImportConfirmed }) {
           </div>
           <div>
             <h1 className="text-3xl font-bold sm:text-4xl">Importaciones</h1>
-            <p className="text-slate-400">Importaciones de {activeEmpresa.nombre}.</p>
+            <p className="text-slate-400">Carga masiva de datos para mantener actualizada la operación ambiental de {activeEmpresa.nombre}.</p>
           </div>
         </div>
       </header>
       <section className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-100 sm:p-5">
-        Es importante que realizes las importaciones en el orden correcto: primero empresas, factores, unidades operativas, lotes y finalmente actividades.
+        Para evitar errores de relación entre datos, importa los archivos en este orden: empresas, factores de emisión, unidades operativas, lotes y actividades. También puedes usar la plantilla completa para cargar todo en un solo archivo XLSX.
       </section>
       <EmpresaCompletaImportPanel
         state={empresaCompleta}
@@ -1071,7 +1071,7 @@ function ImportacionesView({ onImportConfirmed }) {
       />
 
       <ImportPanel
-        title="Importador de empresas"
+        title="Importar empresas"
         icon={<Building2 size={18} />}
         columns={[
           "ID Empresa",
@@ -1098,7 +1098,7 @@ function ImportacionesView({ onImportConfirmed }) {
 
 
       <ImportPanel
-        title="Importador de factores"
+        title="Importar factores de emisión"
         icon={<FileSpreadsheet size={18} />}
         columns={["Actividad", "Unidad", "Factor de Emisión", "Fuente", "Año"]}
         state={factors}
@@ -1117,7 +1117,7 @@ function ImportacionesView({ onImportConfirmed }) {
       />
 
       <ImportPanel
-        title="Importador de unidades operativas"
+        title="Importar unidades operativas"
         icon={<Factory size={18} />}
         columns={["ID Unidad", "ID Empresa", "Nombre", "Tipo", "Región", "Comuna", "Dirección", "Estado"]}
         state={units}
@@ -1135,7 +1135,7 @@ function ImportacionesView({ onImportConfirmed }) {
       />
 
       <ImportPanel
-        title="Importador de lotes"
+        title="Importar lotes"
         icon={<Boxes size={18} />}
         columns={["ID Lote", "ID Unidad", "Fecha", "Especie", "Volumen (m³)", "Origen"]}
         state={lotes}
@@ -1153,7 +1153,7 @@ function ImportacionesView({ onImportConfirmed }) {
       />
 
       <ImportPanel
-        title="Importador de actividades"
+        title="Importar actividades"
         icon={<DatabaseZap size={18} />}
         columns={["ID Actividad", "ID Lote", "ID Unidad", "Actividad", "Cantidad", "Unidad", "Fecha", "Observación", "Fuente de dato"]}
         state={activities}

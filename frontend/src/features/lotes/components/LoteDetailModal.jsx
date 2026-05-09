@@ -60,7 +60,7 @@ function LoteDetailModal({ detailLoading, lote, onClose }) {
               value={`${formatNumber(Number(lote.masa_madera_kg || 0))} kg`}
             />
             <DetailItem
-              label="CO2 almacenado"
+              label="Carbono almacenado"
               value={`${formatNumber(Number(lote.co2_almacenado_kg || 0))} kg`}
             />
             <DetailItem

@@ -266,28 +266,28 @@ function EvidenciasPage() {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">Centro documental</p>
             <h1 className="mt-3 text-3xl font-bold text-slate-100 sm:text-4xl">
-              Evidencias flexibles para respaldar empresa, unidades, lotes y emisiones
+              Respalda empresas, unidades, lotes y emisiones con documentos verificables
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-emerald-50">
               Toda evidencia queda dentro de {activeEmpresa?.nombre || activeEmpresaId}. Elige que quieres respaldar y el sistema validara que el vinculo pertenezca a la empresa activa.
             </p>
             <p className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm font-semibold text-amber-100">
-              Una evidencia cargada no significa que este validada. La validacion documental requiere revision humana o auditoria.
+              Subir una evidencia no la valida automáticamente. Las evidencias deben ser revisadas antes de considerarse respaldo documental oficial.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            <KpiImpact icon={<FileText size={22} />} label="Documentos" value={formatNumber(kpis?.total_evidencias || 0, 0)} detail="Evidencias cargadas" tone="emerald" />
-            <KpiImpact icon={<Link2 size={22} />} label="Vinculadas" value={formatNumber(kpis?.vinculadas || 0, 0)} detail="Con alcance especifico" tone="cyan" />
-            <KpiImpact icon={<Building2 size={22} />} label="Corporativas" value={formatNumber(kpis?.corporativas || 0, 0)} detail="Respaldo empresa" tone="slate" />
+            <KpiImpact icon={<FileText size={22} />} label="Evidencias cargadas" value={formatNumber(kpis?.total_evidencias || 0, 0)} detail="Documentos cargados" tone="emerald" />
+            <KpiImpact icon={<Link2 size={22} />} label="Con alcance definido" value={formatNumber(kpis?.vinculadas || 0, 0)} detail="Vinculadas a registros" tone="cyan" />
+            <KpiImpact icon={<Building2 size={22} />} label="Respaldo corporativo" value={formatNumber(kpis?.corporativas || 0, 0)} detail="Evidencias de empresa" tone="slate" />
           </div>
         </div>
       </section>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiImpact icon={<FileCheck2 size={22} />} label="Cobertura lotes" value={`${formatNumber(cobertura, 1)}%`} detail={`${formatNumber(kpis?.lotes_con_evidencia || 0, 0)} de ${formatNumber(kpis?.total_lotes || 0, 0)} lotes`} tone={cobertura >= 75 ? "emerald" : cobertura >= 40 ? "amber" : "rose"} />
-        <KpiImpact icon={<ShieldAlert size={22} />} label="Sin revisar" value={formatNumber(kpis?.sin_revisar || 0, 0)} detail="Revision humana pendiente" tone="amber" />
-        <KpiImpact icon={<Link2 size={22} />} label="Lotes sin respaldo" value={formatNumber(kpis?.lotes_sin_evidencia || 0, 0)} detail="Prioriza alto impacto" tone="rose" />
-        <KpiImpact icon={<UploadCloud size={22} />} label="Tipos documento" value={formatNumber(Object.keys(kpis?.por_tipo || {}).length, 0)} detail="Fuentes documentales" tone="cyan" />
+        <KpiImpact icon={<FileCheck2 size={22} />} label="Cobertura de lotes" value={`${formatNumber(cobertura, 1)}%`} detail={`${formatNumber(kpis?.lotes_con_evidencia || 0, 0)} de ${formatNumber(kpis?.total_lotes || 0, 0)} lotes`} tone={cobertura >= 75 ? "emerald" : cobertura >= 40 ? "amber" : "rose"} />
+        <KpiImpact icon={<ShieldAlert size={22} />} label="Pendientes de revisión" value={formatNumber(kpis?.sin_revisar || 0, 0)} detail="Revisión pendiente" tone="amber" />
+        <KpiImpact icon={<Link2 size={22} />} label="Lotes sin evidencia" value={formatNumber(kpis?.lotes_sin_evidencia || 0, 0)} detail="Prioriza alto impacto" tone="rose" />
+        <KpiImpact icon={<UploadCloud size={22} />} label="Tipos de documento" value={formatNumber(Object.keys(kpis?.por_tipo || {}).length, 0)} detail="Fuentes documentales" tone="cyan" />
       </section>
 
       <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">

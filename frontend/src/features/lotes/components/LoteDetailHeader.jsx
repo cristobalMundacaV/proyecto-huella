@@ -42,7 +42,7 @@ function LoteDetailHeader({ detailLoading, selectedLote }) {
             value={`${formatNumber(Number(selectedLote.masa_madera_kg || 0))} kg`}
           />
           <DetailItem
-            label="CO2 almacenado"
+            label="Carbono almacenado"
             value={`${formatNumber(Number(selectedLote.co2_almacenado_kg || 0))} kg`}
           />
           <DetailItem
