@@ -9,18 +9,6 @@ function DecisionCenter({
 }) {
   return (
     <section className="rounded-3xl bg-slate-900 border border-slate-800 p-6 space-y-6 shadow-xl">
-      <div>
-        <p className="text-emerald-400 text-sm font-semibold">
-          Centro de decisiones
-        </p>
-        <h2 className="text-2xl font-bold">
-          Simula y optimiza decisiones climaticas
-        </h2>
-        <p className="mt-2 text-sm text-slate-400">
-          Flujo recomendado: simular decisiones sobre el registro vigente y dejar
-          que Carbono Zero encuentre la mejor reduccion.
-        </p>
-      </div>
 
       <SimuladorOptimizacion
         data={data}
@@ -37,13 +25,6 @@ function DecisionCenter({
           </h3>
         </div>
 
-        <button
-          type="button"
-          onClick={onOptimize}
-          className="px-6 py-3 rounded-2xl bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 transition"
-        >
-          Optimizar automaticamente
-        </button>
 
         {optimizedScenario && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
