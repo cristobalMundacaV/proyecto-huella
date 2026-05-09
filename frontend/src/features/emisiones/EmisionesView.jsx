@@ -200,6 +200,8 @@ function EmisionesView() {
 
 const rows = Array.isArray(data?.rows)
   ? data.rows
+  : Array.isArray(data?.results)
+    ? data.results
   : Array.isArray(data?.datos)
     ? data.datos
     : Array.isArray(data)
