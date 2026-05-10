@@ -32,7 +32,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  ComposedChart,
   Line,
   LineChart,
   ReferenceLine,
@@ -401,7 +400,7 @@ function EmpresasView({
 
       <MonthlyEnvironmentalTrend rows={metrics.monthlyRows} />
 
-      <ParetoEmissionsChart rows={metrics.paretoRows} />
+      <OrderedUnitComparisonChart rows={metrics.unitComparisonRows} />
 
       {error && (
         <p className="rounded-2xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">
@@ -516,7 +515,6 @@ function buildCompanyMetrics(empresas, unidades = [], activeEmpresaId = "", acti
         Math.max(right.emisiones, right.carbono_almacenado) -
         Math.max(left.emisiones, left.carbono_almacenado)
     );
-  const paretoRows = buildParetoRows(unitComparisonRows, totals.totalEmissions);
   const monthlyRows = buildMonthlyRows(scopedUnits);
 
   return {
@@ -530,7 +528,6 @@ function buildCompanyMetrics(empresas, unidades = [], activeEmpresaId = "", acti
     topStorage,
     topTraceability,
     monthlyRows,
-    paretoRows,
     unitComparisonRows,
   };
 }
@@ -783,77 +780,78 @@ function MonthlyEnvironmentalTrend({ rows }) {
   );
 }
 
-function ParetoEmissionsChart({ rows }) {
-  if (!rows?.length) {
+function OrderedUnitComparisonChart({ rows }) {
+  const visibleRows = (rows || [])
+    .filter((row) => Number(row.emisiones || 0) > 0 || Number(row.carbono_almacenado || 0) > 0)
+    .sort(
+      (left, right) =>
+        Number(right.emisiones || 0) - Number(left.emisiones || 0) ||
+        Number(right.carbono_almacenado || 0) - Number(left.carbono_almacenado || 0)
+    );
+  const chartHeight = Math.max(340, Math.min(560, visibleRows.length * 62 + 120));
+
+  if (!visibleRows.length) {
     return null;
   }
 
   return (
     <ChartPanel
-      description="Este grafico muestra que unidades concentran la mayor parte de las emisiones. Las barras indican las emisiones individuales y la linea amarilla muestra el porcentaje acumulado."
-      title="Pareto de emisiones por unidad"
+      description="Este grafico compara las emisiones y el carbono almacenado por unidad operativa. Las unidades se ordenan por mayor emision para identificar donde actuar primero y que unidades aportan mas al balance ambiental."
+      title="Emisiones y carbono almacenado por unidad"
     >
-      <div className="h-[380px] w-full">
+      <div className="w-full" style={{ height: chartHeight }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={rows} margin={{ top: 10, right: 24, bottom: 8, left: 8 }}>
-            <CartesianGrid stroke="#1E293B" vertical={false} />
+          <BarChart
+            data={visibleRows}
+            layout="vertical"
+            margin={{ top: 8, right: 24, bottom: 8, left: 24 }}
+          >
+            <CartesianGrid horizontal={false} stroke="#1E293B" />
             <XAxis
-              axisLine={{ stroke: "#334155" }}
-              dataKey="unidad_corta"
-              tick={{ fill: "#94A3B8", fontSize: 12 }}
-              tickLine={false}
-            />
-            <YAxis
               axisLine={{ stroke: "#334155" }}
               tick={{ fill: "#94A3B8", fontSize: 12 }}
               tickFormatter={(value) => formatNumber(Number(value || 0), 0)}
               tickLine={false}
-              yAxisId="left"
+              type="number"
             />
             <YAxis
               axisLine={{ stroke: "#334155" }}
-              domain={[0, 100]}
-              orientation="right"
+              dataKey="unidad"
               tick={{ fill: "#94A3B8", fontSize: 12 }}
-              tickFormatter={(value) => `${formatNumber(Number(value || 0), 0)}%`}
               tickLine={false}
-              yAxisId="right"
+              type="category"
+              width={180}
             />
             <Tooltip
               contentStyle={unitChartTooltipStyle}
               formatter={(value, name) => {
-                if (name === "acumulado_pct") {
-                  return [
-                    `${formatNumber(Number(value || 0), 1)}%`,
-                    "% acumulado de emisiones",
-                  ];
-                }
+                const label =
+                  name === "carbono_almacenado"
+                    ? "Carbono almacenado por unidad"
+                    : "Emisiones por unidad";
 
                 return [
                   `${formatNumber(Number(value || 0), 1)} kg CO2e`,
-                  "Emisiones por unidad",
+                  label,
                 ];
               }}
               labelStyle={{ color: "#E2E8F0", fontWeight: 700 }}
             />
             <Bar
-              barSize={28}
+              barSize={16}
               dataKey="emisiones"
               fill="#22D3EE"
               name="Emisiones por unidad"
-              radius={[8, 8, 0, 0]}
-              yAxisId="left"
+              radius={[0, 8, 8, 0]}
             />
-            <Line
-              dataKey="acumulado_pct"
-              dot={{ r: 4 }}
-              name="% acumulado de emisiones"
-              stroke="#FBBF24"
-              strokeWidth={3}
-              type="monotone"
-              yAxisId="right"
+            <Bar
+              barSize={16}
+              dataKey="carbono_almacenado"
+              fill="#34D399"
+              name="Carbono almacenado por unidad"
+              radius={[0, 8, 8, 0]}
             />
-          </ComposedChart>
+          </BarChart>
         </ResponsiveContainer>
       </div>
     </ChartPanel>
@@ -935,24 +933,6 @@ function ChartHeading({ description, title }) {
   );
 }
 
-function buildParetoRows(rows, totalEmissions) {
-  let accumulated = 0;
-  const total = Number(totalEmissions || 0);
-
-  return (rows || [])
-    .filter((row) => Number(row.emisiones || 0) > 0)
-    .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0))
-    .map((row) => {
-      accumulated += Number(row.emisiones || 0);
-
-      return {
-        ...row,
-        acumulado_pct: total ? (accumulated / total) * 100 : 0,
-        unidad_corta: shortenLabel(row.unidad),
-      };
-    });
-}
-
 function buildMonthlyRows(unidades) {
   const months = new Map();
 
@@ -1027,12 +1007,6 @@ function formatMonth(monthKey) {
   }
 
   return monthFormatter.format(date).replace(".", "");
-}
-
-function shortenLabel(value) {
-  const label = String(value || "Sin unidad");
-
-  return label.length > 18 ? `${label.slice(0, 16)}...` : label;
 }
 
 const trendLabels = {
