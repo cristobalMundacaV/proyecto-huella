@@ -790,7 +790,7 @@ function ParetoEmissionsChart({ rows }) {
 
   return (
     <ChartPanel
-      description="Ordena las unidades de mayor a menor emision para priorizar donde actuar primero."
+      description="Este grafico muestra que unidades concentran la mayor parte de las emisiones. Las barras indican las emisiones individuales y la linea amarilla muestra el porcentaje acumulado."
       title="Pareto de emisiones por unidad"
     >
       <div className="h-[380px] w-full">
@@ -823,10 +823,16 @@ function ParetoEmissionsChart({ rows }) {
               contentStyle={unitChartTooltipStyle}
               formatter={(value, name) => {
                 if (name === "acumulado_pct") {
-                  return [`${formatNumber(Number(value || 0), 1)}%`, "Acumulado"];
+                  return [
+                    `${formatNumber(Number(value || 0), 1)}%`,
+                    "% acumulado de emisiones",
+                  ];
                 }
 
-                return [`${formatNumber(Number(value || 0), 1)} kg CO2e`, "Emisiones"];
+                return [
+                  `${formatNumber(Number(value || 0), 1)} kg CO2e`,
+                  "Emisiones por unidad",
+                ];
               }}
               labelStyle={{ color: "#E2E8F0", fontWeight: 700 }}
             />
@@ -834,14 +840,14 @@ function ParetoEmissionsChart({ rows }) {
               barSize={28}
               dataKey="emisiones"
               fill="#22D3EE"
-              name="Emisiones"
+              name="Emisiones por unidad"
               radius={[8, 8, 0, 0]}
               yAxisId="left"
             />
             <Line
               dataKey="acumulado_pct"
               dot={{ r: 4 }}
-              name="Acumulado"
+              name="% acumulado de emisiones"
               stroke="#FBBF24"
               strokeWidth={3}
               type="monotone"

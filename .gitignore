@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+docker-compose.local.yml
 
 # Python
 __pycache__/
@@ -37,4 +38,6 @@ Thumbs.db
 
 # Local generated data
 data/processed/
+backend/data/*.json
+backend/db.sqlite3.backup-*
 *.log
