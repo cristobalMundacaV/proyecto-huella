@@ -12,7 +12,7 @@ const initialForm = {
 };
 
 function LoginPage() {
-  const { bootstrap, hasUsers, login } = useAuth();
+  const { bootstrap, enterDemo, hasUsers, login } = useAuth();
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -136,6 +136,18 @@ function LoginPage() {
                   ? "Crear administrador"
                   : "Entrar al sistema"}
             </button>
+
+            <button
+              type="button"
+              onClick={enterDemo}
+              className="mt-3 w-full rounded-2xl border border-slate-600 bg-slate-900/70 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-emerald-300/30 hover:bg-emerald-300/10 hover:text-emerald-100"
+            >
+              Ver demo
+            </button>
+
+            <p className="mt-3 text-center text-xs leading-5 text-slate-500">
+              El modo demo permite ver la informacion sin crear, editar ni eliminar datos.
+            </p>
           </form>
         </section>
       </div>

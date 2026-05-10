@@ -6,6 +6,22 @@ export const api = axios.create({
   withCredentials: true,
 });
 
+api.interceptors.request.use((config) => {
+  const method = String(config.method || "get").toLowerCase();
+  const isReadMethod = ["get", "head", "options"].includes(method);
+  const isDemoMode =
+    typeof window !== "undefined" &&
+    window.localStorage.getItem("carbono_zero.demo") === "true";
+
+  if (isDemoMode && !isReadMethod) {
+    return Promise.reject(
+      new axios.CanceledError("El modo demo permite solo lectura.")
+    );
+  }
+
+  return config;
+});
+
 function resolveApiBaseUrl(baseUrl) {
   const fallback = "http://127.0.0.1:8000/api";
   const candidate = (baseUrl || fallback).trim();

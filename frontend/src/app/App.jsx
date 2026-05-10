@@ -340,6 +340,12 @@ const isDieselCriticalActivity = String(actividadCritica || "")
         <Menu size={22} />
       </button>
 
+      {user?.is_demo && (
+        <div className="fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-amber-100 shadow-xl backdrop-blur">
+          Modo demo: solo lectura
+        </div>
+      )}
+
       <div className="hidden lg:block">
         <Sidebar
           activeView={activeView}

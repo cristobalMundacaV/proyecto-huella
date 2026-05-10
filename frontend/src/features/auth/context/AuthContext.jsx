@@ -8,6 +8,15 @@ import {
 } from "@/shared/services/api";
 
 const AuthContext = createContext(null);
+const DEMO_STORAGE_KEY = "carbono_zero.demo";
+const demoUser = {
+  id: "demo",
+  username: "demo",
+  nombre: "Demo Carbono Zero",
+  email: "",
+  is_demo: true,
+  empresas: [],
+};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -15,6 +24,15 @@ export function AuthProvider({ children }) {
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   const refreshAuth = async () => {
+    if (
+      typeof window !== "undefined" &&
+      window.localStorage.getItem(DEMO_STORAGE_KEY) === "true"
+    ) {
+      setUser(demoUser);
+      setHasUsers(true);
+      return { authenticated: true, user: demoUser, has_users: true };
+    }
+
     const data = await getCurrentUser();
     setUser(data.user || null);
     setHasUsers(Boolean(data.has_users));
@@ -30,6 +48,10 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (payload) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(DEMO_STORAGE_KEY);
+    }
+
     const data = await loginUser(payload);
     setUser(data.user || null);
     setHasUsers(true);
@@ -37,13 +59,34 @@ export function AuthProvider({ children }) {
   };
 
   const bootstrap = async (payload) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(DEMO_STORAGE_KEY);
+    }
+
     const data = await bootstrapUser(payload);
     setUser(data.user || null);
     setHasUsers(true);
     return data;
   };
 
+  const enterDemo = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(DEMO_STORAGE_KEY, "true");
+    }
+
+    setUser(demoUser);
+    setHasUsers(true);
+  };
+
   const logout = async () => {
+    if (user?.is_demo) {
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(DEMO_STORAGE_KEY);
+      }
+      setUser(null);
+      return;
+    }
+
     await logoutUser();
     setUser(null);
   };
@@ -51,6 +94,7 @@ export function AuthProvider({ children }) {
   const value = useMemo(
     () => ({
       bootstrap,
+      enterDemo,
       hasUsers,
       loadingAuth,
       login,
