@@ -737,7 +737,7 @@ const kpis = data?.kpis ?? {
           </div>
         ) : (
           <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[1280px] border-collapse text-sm">
+            <table className="w-full min-w-[1180px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-800 text-left text-xs text-slate-400">
                   <th className="px-4 py-3">Fecha</th>
@@ -745,7 +745,6 @@ const kpis = data?.kpis ?? {
                   <th className="px-4 py-3">Lote</th>
                   <th className="px-4 py-3">Actividad</th>
                   <th className="px-4 py-3">Categoria</th>
-                  <th className="px-4 py-3">Uso combustible</th>
                   <th className="px-4 py-3 text-right">Cantidad</th>
                   <th className="px-4 py-3">Unidad</th>
                   <th className="px-4 py-3 text-right">Factor</th>
@@ -774,9 +773,6 @@ const kpis = data?.kpis ?? {
                       </td>
                       <td className="px-4 py-4">
                         <FactorCategoryBadge category={row.categoria} />
-                      </td>
-                      <td className="px-4 py-4 text-slate-300">
-                        {fuelUseLabels[row.tipo_consumo_combustible] || "-"}
                       </td>
                       <td className="px-4 py-4 text-right text-slate-300">
                         {formatNumber(row.cantidad || 0, 3)}
@@ -914,8 +910,10 @@ function DecisionKpi({ detail, icon, label, tone = "border-slate-800 bg-slate-90
           {detail}
         </p>
       )}
-      <div className="mb-4 text-cyan-300">{icon}</div>
-      <p className="text-sm text-slate-400">{label}</p>
+      <div className="mb-4 flex items-center gap-3 pr-24">
+        <div className="text-cyan-300">{icon}</div>
+        <p className="text-sm text-slate-400">{label}</p>
+      </div>
       <h3 className={`mt-1 pr-20 text-2xl font-bold ${valueClassName}`}>{value}</h3>
     </div>
   );
