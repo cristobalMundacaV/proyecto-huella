@@ -8,8 +8,7 @@ function DecisionCenter({
   onSimulationChange,
 }) {
   return (
-    <section className="rounded-3xl bg-slate-900 border border-slate-800 p-6 space-y-6 shadow-xl">
-
+    <div className="space-y-6">
       <SimuladorOptimizacion
         data={data}
         onSimulationChange={onSimulationChange}
@@ -82,7 +81,7 @@ function DecisionCenter({
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 }
 
