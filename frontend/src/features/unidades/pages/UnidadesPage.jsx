@@ -422,10 +422,12 @@ function UnitKpi({ detail, icon, label, tone = "slate", value }) {
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-      <div className="mb-3 text-cyan-300">{icon}</div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
+      <div className="mb-3 flex items-center gap-3">
+        <div className="text-cyan-300">{icon}</div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          {label}
+        </p>
+      </div>
       <p className={`mt-2 line-clamp-2 text-2xl font-bold ${toneClass}`}>
         {typeof value === "number" ? formatNumber(value, 0) : value || "Sin datos"}
       </p>

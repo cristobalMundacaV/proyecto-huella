@@ -94,8 +94,10 @@ function KpiCard({ icon, label, value, subtext, tone = "default" }) {
 
   return (
     <div className={`rounded-3xl border p-5 ${toneClass}`}>
-      {icon ? <div className="mb-3 opacity-90">{icon}</div> : null}
-      <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
+      <div className="mb-3 flex items-center gap-3">
+        {icon ? <div className="opacity-90">{icon}</div> : null}
+        <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
+      </div>
       <p className="mt-3 text-2xl font-black">{value}</p>
       {subtext && <p className="mt-2 text-sm text-slate-400">{subtext}</p>}
     </div>

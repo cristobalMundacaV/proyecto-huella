@@ -28,6 +28,19 @@ import {
   isValidPhone,
 } from "@/shared/utils/validators";
 import { useEmpresaActiva } from "@/features/empresas/context/EmpresaActivaContext";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 const emptyForm = {
   rut: "",
@@ -40,6 +53,18 @@ const emptyForm = {
   telefono: "",
   observaciones: "",
 };
+
+const unitChartTooltipStyle = {
+  backgroundColor: "#0F172A",
+  border: "1px solid #1E293B",
+  borderRadius: "12px",
+  color: "#F8FAFC",
+};
+
+const monthFormatter = new Intl.DateTimeFormat("es-CL", {
+  month: "short",
+  year: "2-digit",
+});
 
 function EmpresasView({
   onSetActiveView,
@@ -323,6 +348,35 @@ function EmpresasView({
         </p>
       </section>
 
+      <UnitMetricBarChart
+        color="#22D3EE"
+        dataKey="emisiones"
+        description="Permite identificar rapidamente donde se concentra el mayor problema ambiental."
+        rows={metrics.unitComparisonRows}
+        title="Emisiones por unidad operativa"
+        valueLabel="Emisiones"
+      />
+
+      <UnitMetricBarChart
+        color="#34D399"
+        dataKey="carbono_almacenado"
+        description="Muestra que unidades aportan mas al balance ambiental positivo."
+        rows={metrics.unitComparisonRows}
+        title="Carbono almacenado por unidad operativa"
+        valueLabel="Carbono almacenado"
+      />
+
+      <UnitEmissionsCarbonChart rows={metrics.unitComparisonRows} />
+
+      <MonthlyEnvironmentalTrend rows={metrics.monthlyRows} />
+
+      <ParetoEmissionsChart rows={metrics.paretoRows} />
+
+      <EnvironmentalBalanceWaterfall
+        emissions={metrics.totalEmissions}
+        storedCarbon={metrics.totalStoredCarbon}
+      />
+
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-4">
         <InsightCard
           icon={<Gauge />}
@@ -442,6 +496,25 @@ function buildCompanyMetrics(empresas, unidades = [], activeEmpresaId = "", acti
       ? (Number(topEmitter.emisiones_totales_kg_co2e || 0) / totals.totalEmissions) * 100
       : 0;
   const globalBalance = totals.totalEmissions - totals.totalStoredCarbon;
+  const unitComparisonRows = scopedUnits
+    .map((unidad) => {
+      const emissions = Number(unidad.emisiones_totales_kg_co2e || 0);
+      const storedCarbon = getUnitStoredCarbon(unidad);
+
+      return {
+        unidad: unidad.nombre || unidad.unidad_id || "Sin unidad",
+        carbono_almacenado: storedCarbon,
+        emisiones: emissions,
+        emisiones_comparacion: emissions ? -emissions : 0,
+      };
+    })
+    .sort(
+      (left, right) =>
+        Math.max(right.emisiones, right.carbono_almacenado) -
+        Math.max(left.emisiones, left.carbono_almacenado)
+    );
+  const paretoRows = buildParetoRows(unitComparisonRows, totals.totalEmissions);
+  const monthlyRows = buildMonthlyRows(scopedUnits);
 
   return {
     ...totals,
@@ -453,6 +526,9 @@ function buildCompanyMetrics(empresas, unidades = [], activeEmpresaId = "", acti
     topOperational,
     topStorage,
     topTraceability,
+    monthlyRows,
+    paretoRows,
+    unitComparisonRows,
   };
 }
 
@@ -491,6 +567,471 @@ La estructura actual muestra una ${concentration} del peso operativo entre sus u
 
 ${balanceText}`;
 }
+
+function UnitMetricBarChart({ color, dataKey, description, rows, title, valueLabel }) {
+  const visibleRows = (rows || [])
+    .filter((row) => Number(row[dataKey] || 0) > 0)
+    .sort((left, right) => Number(right[dataKey] || 0) - Number(left[dataKey] || 0));
+  const chartHeight = Math.max(300, Math.min(520, visibleRows.length * 52 + 110));
+
+  if (!visibleRows.length) {
+    return null;
+  }
+
+  return (
+    <ChartPanel description={description} title={title}>
+      <div className="w-full" style={{ height: chartHeight }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={visibleRows}
+            layout="vertical"
+            margin={{ top: 8, right: 24, bottom: 8, left: 24 }}
+          >
+            <CartesianGrid horizontal={false} stroke="#1E293B" />
+            <XAxis
+              axisLine={{ stroke: "#334155" }}
+              tick={{ fill: "#94A3B8", fontSize: 12 }}
+              tickFormatter={(value) => formatNumber(Number(value || 0), 0)}
+              tickLine={false}
+              type="number"
+            />
+            <YAxis
+              axisLine={{ stroke: "#334155" }}
+              dataKey="unidad"
+              tick={{ fill: "#CBD5E1", fontSize: 12 }}
+              tickLine={false}
+              type="category"
+              width={180}
+            />
+            <Tooltip
+              contentStyle={unitChartTooltipStyle}
+              cursor={{ fill: "rgba(148, 163, 184, 0.08)" }}
+              formatter={(value) => [
+                `${formatNumber(Number(value || 0), 1)} kg CO2e`,
+                valueLabel,
+              ]}
+              labelStyle={{ color: "#E2E8F0", fontWeight: 700 }}
+            />
+            <Bar
+              barSize={18}
+              dataKey={dataKey}
+              fill={color}
+              name={valueLabel}
+              radius={[0, 10, 10, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </ChartPanel>
+  );
+}
+
+function UnitEmissionsCarbonChart({ rows }) {
+  const visibleRows = (rows || []).filter(
+    (row) => Number(row.emisiones || 0) > 0 || Number(row.carbono_almacenado || 0) > 0
+  );
+  const chartHeight = Math.max(320, Math.min(560, visibleRows.length * 58 + 120));
+
+  if (!visibleRows.length) {
+    return null;
+  }
+
+  return (
+    <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
+      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <ChartHeading
+          description="Contraste entre la huella generada y el carbono almacenado por cada unidad."
+          title="Emisiones vs carbono almacenado"
+        />
+        <div className="flex flex-wrap gap-3 text-xs font-semibold">
+          <span className="inline-flex items-center gap-2 text-cyan-200">
+            <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
+            Emisiones
+          </span>
+          <span className="inline-flex items-center gap-2 text-emerald-200">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
+            Carbono almacenado
+          </span>
+        </div>
+      </div>
+
+      <div className="w-full" style={{ height: chartHeight }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={visibleRows}
+            layout="vertical"
+            margin={{ top: 8, right: 24, bottom: 8, left: 24 }}
+          >
+            <XAxis
+              axisLine={{ stroke: "#334155" }}
+              tick={{ fill: "#94A3B8", fontSize: 12 }}
+              tickFormatter={(value) => formatNumber(Math.abs(Number(value || 0)), 0)}
+              tickLine={false}
+              type="number"
+            />
+            <YAxis
+              axisLine={{ stroke: "#334155" }}
+              dataKey="unidad"
+              tick={{ fill: "#CBD5E1", fontSize: 12 }}
+              tickLine={false}
+              type="category"
+              width={170}
+            />
+            <Tooltip
+              contentStyle={unitChartTooltipStyle}
+              cursor={{ fill: "rgba(148, 163, 184, 0.08)" }}
+              formatter={(value, name) => {
+                const label =
+                  name === "emisiones_comparacion"
+                    ? "Emisiones"
+                    : "Carbono almacenado";
+
+                return [
+                  `${formatNumber(Math.abs(Number(value || 0)), 1)} kg CO2e`,
+                  label,
+                ];
+              }}
+              labelStyle={{ color: "#E2E8F0", fontWeight: 700 }}
+            />
+            <ReferenceLine stroke="#64748B" x={0} />
+            <Bar
+              barSize={18}
+              dataKey="emisiones_comparacion"
+              fill="#22D3EE"
+              name="Emisiones"
+              radius={[10, 0, 0, 10]}
+            />
+            <Bar
+              barSize={18}
+              dataKey="carbono_almacenado"
+              fill="#34D399"
+              name="Carbono almacenado"
+              radius={[0, 10, 10, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
+  );
+}
+
+function MonthlyEnvironmentalTrend({ rows }) {
+  if (!rows?.length) {
+    return null;
+  }
+
+  return (
+    <ChartPanel
+      description="Ayuda a ver si la operacion esta aumentando o reduciendo su impacto en el tiempo."
+      title="Evolucion mensual de emisiones, carbono y balance"
+    >
+      <div className="h-[360px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={rows} margin={{ top: 10, right: 24, bottom: 8, left: 8 }}>
+            <CartesianGrid stroke="#1E293B" vertical={false} />
+            <XAxis
+              axisLine={{ stroke: "#334155" }}
+              dataKey="mes_label"
+              tick={{ fill: "#94A3B8", fontSize: 12 }}
+              tickLine={false}
+            />
+            <YAxis
+              axisLine={{ stroke: "#334155" }}
+              tick={{ fill: "#94A3B8", fontSize: 12 }}
+              tickFormatter={(value) => formatNumber(Number(value || 0), 0)}
+              tickLine={false}
+            />
+            <Tooltip
+              contentStyle={unitChartTooltipStyle}
+              formatter={(value, name) => [
+                `${formatNumber(Number(value || 0), 1)} kg CO2e`,
+                trendLabels[name] || name,
+              ]}
+              labelStyle={{ color: "#E2E8F0", fontWeight: 700 }}
+            />
+            <Line
+              dataKey="emisiones"
+              dot={{ r: 3 }}
+              name="Emisiones"
+              stroke="#22D3EE"
+              strokeWidth={3}
+              type="monotone"
+            />
+            <Line
+              dataKey="carbono_almacenado"
+              dot={{ r: 3 }}
+              name="Carbono almacenado"
+              stroke="#34D399"
+              strokeWidth={3}
+              type="monotone"
+            />
+            <Line
+              dataKey="balance_neto"
+              dot={{ r: 3 }}
+              name="Balance neto"
+              stroke="#FBBF24"
+              strokeWidth={3}
+              type="monotone"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </ChartPanel>
+  );
+}
+
+function ParetoEmissionsChart({ rows }) {
+  if (!rows?.length) {
+    return null;
+  }
+
+  return (
+    <ChartPanel
+      description="Ordena las unidades de mayor a menor emision para priorizar donde actuar primero."
+      title="Pareto de emisiones por unidad"
+    >
+      <div className="h-[380px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={rows} margin={{ top: 10, right: 24, bottom: 8, left: 8 }}>
+            <CartesianGrid stroke="#1E293B" vertical={false} />
+            <XAxis
+              axisLine={{ stroke: "#334155" }}
+              dataKey="unidad_corta"
+              tick={{ fill: "#94A3B8", fontSize: 12 }}
+              tickLine={false}
+            />
+            <YAxis
+              axisLine={{ stroke: "#334155" }}
+              tick={{ fill: "#94A3B8", fontSize: 12 }}
+              tickFormatter={(value) => formatNumber(Number(value || 0), 0)}
+              tickLine={false}
+              yAxisId="left"
+            />
+            <YAxis
+              axisLine={{ stroke: "#334155" }}
+              domain={[0, 100]}
+              orientation="right"
+              tick={{ fill: "#94A3B8", fontSize: 12 }}
+              tickFormatter={(value) => `${formatNumber(Number(value || 0), 0)}%`}
+              tickLine={false}
+              yAxisId="right"
+            />
+            <Tooltip
+              contentStyle={unitChartTooltipStyle}
+              formatter={(value, name) => {
+                if (name === "acumulado_pct") {
+                  return [`${formatNumber(Number(value || 0), 1)}%`, "Acumulado"];
+                }
+
+                return [`${formatNumber(Number(value || 0), 1)} kg CO2e`, "Emisiones"];
+              }}
+              labelStyle={{ color: "#E2E8F0", fontWeight: 700 }}
+            />
+            <Bar
+              barSize={28}
+              dataKey="emisiones"
+              fill="#22D3EE"
+              name="Emisiones"
+              radius={[8, 8, 0, 0]}
+              yAxisId="left"
+            />
+            <Line
+              dataKey="acumulado_pct"
+              dot={{ r: 4 }}
+              name="Acumulado"
+              stroke="#FBBF24"
+              strokeWidth={3}
+              type="monotone"
+              yAxisId="right"
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </ChartPanel>
+  );
+}
+
+function EnvironmentalBalanceWaterfall({ emissions, storedCarbon }) {
+  const totalEmissions = Number(emissions || 0);
+  const totalStoredCarbon = Number(storedCarbon || 0);
+  const balance = totalStoredCarbon - totalEmissions;
+  const maxValue = Math.max(totalEmissions, totalStoredCarbon, Math.abs(balance), 1);
+  const rows = [
+    {
+      color: "bg-emerald-300",
+      label: "Carbono almacenado",
+      tone: "text-emerald-200",
+      value: totalStoredCarbon,
+    },
+    {
+      color: "bg-cyan-300",
+      label: "Emisiones generadas",
+      tone: "text-cyan-200",
+      value: -totalEmissions,
+    },
+    {
+      color: balance >= 0 ? "bg-emerald-400" : "bg-rose-400",
+      label: "Balance ambiental neto",
+      tone: balance >= 0 ? "text-emerald-200" : "text-rose-200",
+      value: balance,
+    },
+  ];
+
+  return (
+    <ChartPanel
+      description="Resume el resultado ambiental entre carbono almacenado y emisiones acumuladas."
+      title="Balance ambiental"
+    >
+      <div className="grid gap-4">
+        {rows.map((row) => {
+          const width = `${Math.max(6, (Math.abs(row.value) / maxValue) * 100)}%`;
+
+          return (
+            <div key={row.label} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
+              <div className="mb-3 flex items-center justify-between gap-4">
+                <p className="text-sm font-semibold text-slate-300">{row.label}</p>
+                <p className={`text-lg font-bold ${row.tone}`}>
+                  {row.value >= 0 ? "+" : "-"}
+                  {formatNumber(Math.abs(row.value), 1)} kg CO2e
+                </p>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-slate-800">
+                <div className={`h-full rounded-full ${row.color}`} style={{ width }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </ChartPanel>
+  );
+}
+
+function ChartPanel({ children, description, title }) {
+  return (
+    <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
+      <ChartHeading description={description} title={title} />
+      {children}
+    </section>
+  );
+}
+
+function ChartHeading({ description, title }) {
+  return (
+    <div className="mb-5">
+      <p className="text-sm font-semibold text-cyan-200">Situacion actual</p>
+      <h2 className="mt-2 text-2xl font-bold text-slate-100">{title}</h2>
+      {description && (
+        <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-400">{description}</p>
+      )}
+    </div>
+  );
+}
+
+function buildParetoRows(rows, totalEmissions) {
+  let accumulated = 0;
+  const total = Number(totalEmissions || 0);
+
+  return (rows || [])
+    .filter((row) => Number(row.emisiones || 0) > 0)
+    .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0))
+    .map((row) => {
+      accumulated += Number(row.emisiones || 0);
+
+      return {
+        ...row,
+        acumulado_pct: total ? (accumulated / total) * 100 : 0,
+        unidad_corta: shortenLabel(row.unidad),
+      };
+    });
+}
+
+function buildMonthlyRows(unidades) {
+  const months = new Map();
+
+  unidades.forEach((unidad) => {
+    (unidad.actividades_resumen || []).forEach((actividad) => {
+      const monthKey = getMonthKey(actividad.fecha);
+
+      if (!monthKey) {
+        return;
+      }
+
+      const row = ensureMonth(months, monthKey);
+      row.emisiones += Number(actividad.emisiones_kg_co2e || 0);
+    });
+
+    (unidad.lotes_resumen || []).forEach((lote) => {
+      const monthKey = getMonthKey(lote.fecha);
+
+      if (!monthKey) {
+        return;
+      }
+
+      const row = ensureMonth(months, monthKey);
+      row.carbono_almacenado += Math.max(
+        Number(lote.emisiones_kg_co2e || 0) - Number(lote.balance_neto_kg_co2e || 0),
+        0
+      );
+    });
+  });
+
+  return Array.from(months.values())
+    .sort((left, right) => left.mes.localeCompare(right.mes))
+    .map((row) => ({
+      ...row,
+      balance_neto: row.carbono_almacenado - row.emisiones,
+      mes_label: formatMonth(row.mes),
+    }));
+}
+
+function ensureMonth(months, monthKey) {
+  if (!months.has(monthKey)) {
+    months.set(monthKey, {
+      mes: monthKey,
+      emisiones: 0,
+      carbono_almacenado: 0,
+    });
+  }
+
+  return months.get(monthKey);
+}
+
+function getMonthKey(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatMonth(monthKey) {
+  const [year, month] = String(monthKey || "").split("-");
+  const date = new Date(Number(year), Number(month) - 1, 1);
+
+  if (Number.isNaN(date.getTime())) {
+    return monthKey;
+  }
+
+  return monthFormatter.format(date).replace(".", "");
+}
+
+function shortenLabel(value) {
+  const label = String(value || "Sin unidad");
+
+  return label.length > 18 ? `${label.slice(0, 16)}...` : label;
+}
+
+const trendLabels = {
+  balance_neto: "Balance neto",
+  carbono_almacenado: "Carbono almacenado",
+  emisiones: "Emisiones",
+};
 
 function getUnitStoredCarbon(unidad) {
   const directValue = Number(unidad.co2_almacenado_kg || 0);
@@ -533,10 +1074,12 @@ function CompanyKpi({ detail, icon, label, tone = "slate", value }) {
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-      <div className="mb-3 text-cyan-300">{icon}</div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
+      <div className="mb-3 flex items-center gap-3">
+        <div className="text-cyan-300">{icon}</div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          {label}
+        </p>
+      </div>
       <p className={`mt-2 line-clamp-2 text-2xl font-bold ${toneClass}`}>
         {typeof value === "number" ? formatNumber(value, 0) : value || "Sin datos"}
       </p>
@@ -548,10 +1091,12 @@ function CompanyKpi({ detail, icon, label, tone = "slate", value }) {
 function InsightCard({ icon, label, value }) {
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900 p-4">
-      <div className="mb-3 text-emerald-300">{icon}</div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
+      <div className="mb-3 flex items-center gap-3">
+        <div className="text-emerald-300">{icon}</div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          {label}
+        </p>
+      </div>
       <p className="mt-2 line-clamp-2 text-lg font-bold text-slate-100">{value}</p>
     </div>
   );

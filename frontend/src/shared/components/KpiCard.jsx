@@ -5,8 +5,10 @@ function KpiCard({ detail, icon, title, tone, value }) {
 
   return (
     <div className={`rounded-3xl border p-6 shadow-xl ${toneClasses}`}>
-      <div className="text-emerald-400 mb-4">{icon}</div>
-      <p className="text-slate-400 text-sm">{title}</p>
+      <div className="mb-4 flex items-center gap-3">
+        <div className="text-emerald-400">{icon}</div>
+        <p className="text-sm text-slate-400">{title}</p>
+      </div>
       <h3 className={`text-2xl font-bold mt-1 ${tone?.color || ""}`}>
         {value}
       </h3>

@@ -345,8 +345,10 @@ function SimulatorCard({
 
   return (
     <div className={`rounded-2xl border p-4 sm:p-5 transition ${toneClass}`}>
-      <div className="mb-4">{icon}</div>
-      <p className="text-sm text-slate-400">{label}</p>
+      <div className="mb-4 flex items-center gap-3">
+        <div>{icon}</div>
+        <p className="text-sm text-slate-400">{label}</p>
+      </div>
       <h3 className="mt-1 text-2xl font-bold">
         {prefix}
         {displayValue}

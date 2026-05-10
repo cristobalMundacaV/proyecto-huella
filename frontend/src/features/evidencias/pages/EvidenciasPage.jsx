@@ -100,8 +100,12 @@ function KpiImpact({ icon, label, value, detail, tone = "slate" }) {
 
   return (
     <div className={`rounded-3xl border p-5 ${toneClass}`}>
-      <div className="mb-3 text-current opacity-90">{icon}</div>
-      <p className="text-xs font-semibold uppercase tracking-wide opacity-70">{label}</p>
+      <div className="mb-3 flex items-center gap-3">
+        <div className="text-current opacity-90">{icon}</div>
+        <p className="text-xs font-semibold uppercase tracking-wide opacity-70">
+          {label}
+        </p>
+      </div>
       <p className="mt-2 text-3xl font-bold">{value}</p>
       {detail ? <p className="mt-2 text-sm opacity-75">{detail}</p> : null}
     </div>
