@@ -13,6 +13,22 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL(
+            sql="""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                      AND table_name = 'analytics_usuarioempresa'
+                ) THEN
+                    DROP SEQUENCE IF EXISTS analytics_usuarioempresa_id_seq CASCADE;
+                END IF;
+            END $$;
+            """,
+            reverse_sql=migrations.RunSQL.noop,
+        ),
         migrations.CreateModel(
             name='UsuarioEmpresa',
             fields=[
