@@ -485,7 +485,7 @@ const isDieselCriticalActivity = String(actividadCritica || "")
                   Pasos a seguir
                 </p>
                 <h2 className="mt-1 text-xl font-bold text-slate-100">
-                  Como reducir emisiones en una operación maderera
+                  Como reducir emisiones dentro de la operación.
                 </h2>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
