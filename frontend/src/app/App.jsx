@@ -490,7 +490,6 @@ const validationSummary = {
               icon={<Leaf />}
               title="Carbono almacenado"
               value={`${formatNumber(dashboardStoredCarbon)} kg`}
-              detail="Carbono almacenado en lotes"
             />
           </section>
 

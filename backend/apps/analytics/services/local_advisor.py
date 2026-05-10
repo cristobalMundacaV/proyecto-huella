@@ -126,7 +126,7 @@ def generar_analisis_local(payload):
 
     texto = f"""
 Diagnostico:
-El principal foco de emisiones se concentra en {actividad}, con {unidad} como unidad operativa critica. Sobre una base de {round(total, 1)} kg CO2e, este frente explica la mayor parte de la exposicion ambiental y operativa.
+El principal foco de impacto se concentra en {actividad}, siendo {unidad} la unidad operativa critica. Sobre una base de {round(total, 1)} kg CO2e, este frente explica la mayor parte de la exposicion ambiental y operativa.
 
 Insight estrategico:
 {insight}
