@@ -5,7 +5,6 @@ import {
   Eye,
   Factory,
   Gauge,
-  Layers3,
   Loader2,
   MapPinned,
   Search,
@@ -195,9 +194,8 @@ function UnidadesOperativasView() {
         </p>
       )}
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <UnitKpi icon={<Factory />} label="Total de unidades" value={metrics.totalUnits} />
-        <UnitKpi icon={<Layers3 />} label="Tipos de unidad" value={metrics.uniqueTypes} />
         <UnitKpi
           detail={`${formatNumber(metrics.topLotsUnit?.lotes_count || 0, 0)} lotes`}
           icon={<Boxes />}
@@ -228,7 +226,7 @@ function UnidadesOperativasView() {
         <h2 className="mt-2 text-2xl font-bold text-slate-100">
           Mapa operativo de {activeEmpresa.nombre}
         </h2>
-        <p className="mt-3 max-w-4xl text-sm leading-7 text-cyan-50">
+        <p className="mt-3 max-w-5xl whitespace-pre-line text-sm leading-7 text-cyan-50">
           {buildOperationalSummary(activeEmpresa, metrics)}
         </p>
       </section>
@@ -276,7 +274,16 @@ function UnidadesOperativasView() {
               {visibleUnidades.map((unidad) => (
                 <tr
                   key={unidad.id}
-                  className={`border-b border-slate-800/80 transition ${
+                  onClick={() => loadUnidadDetail(unidad)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      loadUnidadDetail(unidad);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  className={`cursor-pointer border-b border-slate-800/80 transition focus:outline-none focus:ring-2 focus:ring-cyan-400/40 ${
                     String(selectedUnidadId) === String(unidad.id)
                       ? "bg-emerald-400/5"
                       : "hover:bg-slate-800/40"
@@ -305,7 +312,10 @@ function UnidadesOperativasView() {
                   <td className="px-4 py-4 text-center">
                     <button
                       type="button"
-                      onClick={() => loadUnidadDetail(unidad)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        loadUnidadDetail(unidad);
+                      }}
                       className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 transition hover:bg-cyan-400/20"
                       aria-label={`Ver detalle de ${unidad.nombre}`}
                     >
@@ -346,6 +356,18 @@ function UnidadesOperativasView() {
 
 function buildOperationalMetrics(unidades) {
   const activeUnits = unidades.filter((unidad) => unidad.activa !== false);
+  const unitsWithOperation = activeUnits.filter(
+    (unidad) =>
+      Number(unidad.lotes_count || 0) > 0 ||
+      Number(unidad.actividades_count || 0) > 0 ||
+      Number(unidad.emisiones_totales_kg_co2e || 0) > 0
+  );
+  const unitsWithoutOperation = activeUnits.filter(
+    (unidad) =>
+      Number(unidad.lotes_count || 0) === 0 &&
+      Number(unidad.actividades_count || 0) === 0 &&
+      Number(unidad.emisiones_totales_kg_co2e || 0) === 0
+  );
   const types = new Set(activeUnits.map((unidad) => unidad.tipo).filter(Boolean));
   const comunas = new Set(activeUnits.map((unidad) => unidad.comuna).filter(Boolean));
   const regiones = new Set(activeUnits.map((unidad) => unidad.region).filter(Boolean));
@@ -353,19 +375,41 @@ function buildOperationalMetrics(unidades) {
     (total, unidad) => total + Number(unidad.emisiones_totales_kg_co2e || 0),
     0
   );
+  const totalLots = activeUnits.reduce(
+    (total, unidad) => total + Number(unidad.lotes_count || 0),
+    0
+  );
+  const totalActivities = activeUnits.reduce(
+    (total, unidad) => total + Number(unidad.actividades_count || 0),
+    0
+  );
   const topLotsUnit = maxBy(activeUnits, (unidad) => Number(unidad.lotes_count || 0));
   const topActivitiesUnit = maxBy(activeUnits, (unidad) =>
     Number(unidad.actividades_count || 0)
   );
+  const topEmissionUnits = [...activeUnits]
+    .filter((unidad) => Number(unidad.emisiones_totales_kg_co2e || 0) > 0)
+    .sort(
+      (left, right) =>
+        Number(right.emisiones_totales_kg_co2e || 0) -
+        Number(left.emisiones_totales_kg_co2e || 0)
+    );
   const dominantType = dominantValue(activeUnits.map((unidad) => unidad.tipo).filter(Boolean));
-  const dominantComuna = dominantValue(activeUnits.map((unidad) => unidad.comuna).filter(Boolean));
+  const dominantComuna = dominantValue(
+    unitsWithOperation.map((unidad) => unidad.comuna).filter(Boolean)
+  );
   const territorialCoverage = comunas.size || regiones.size;
 
   return {
     totalUnits: activeUnits.length,
+    unitsWithOperationCount: unitsWithOperation.length,
+    unitsWithoutOperation,
     uniqueTypes: types.size,
     topLotsUnit,
     topActivitiesUnit,
+    topEmissionUnits,
+    totalLots,
+    totalActivities,
     totalEmissions,
     territorialCoverage,
     coverageLabel: comunas.size ? "comunas" : "regiones",
@@ -385,16 +429,67 @@ function buildOperationalSummary(activeEmpresa, metrics) {
       : metrics.territorialCoverage <= 3
         ? "semi-centralizada"
         : "distribuida";
-  const dominantType = metrics.dominantType || "Sin tipo predominante";
-  const topUnit = metrics.topActivitiesUnit?.nombre || metrics.topLotsUnit?.nombre || "Sin datos";
   const territory = metrics.dominantComuna
     ? `en la comuna de ${metrics.dominantComuna}`
     : "sin cobertura territorial definida";
+  const topEmitter = metrics.topEmissionUnits[0];
+  const nextEmitters = metrics.topEmissionUnits.slice(1, 3);
+  const topEmitterEmissions = Number(topEmitter?.emisiones_totales_kg_co2e || 0);
+  const topEmitterShare = metrics.totalEmissions
+    ? (topEmitterEmissions / metrics.totalEmissions) * 100
+    : 0;
+  const withoutOperationText = metrics.unitsWithoutOperation.length
+    ? `, mientras que ${formatUnitNames(metrics.unitsWithoutOperation)} ${metrics.unitsWithoutOperation.length === 1 ? "aparece" : "aparecen"} sin actividad ni emisiones registradas`
+    : "";
+  const nextEmittersText = nextEmitters.length
+    ? `${formatUnitNamesWithEmissions(nextEmitters)} tambien presentan impactos relevantes. En conjunto, estas unidades explican la mayor parte de la huella de la empresa.`
+    : "No hay suficientes unidades adicionales con emisiones para construir un segundo nivel de priorizacion.";
+  const operationalLoadText = metrics.topActivitiesUnit
+    ? `Por otro lado, ${metrics.topActivitiesUnit.nombre} concentra una alta carga operativa, con ${formatNumber(
+        metrics.topActivitiesUnit.lotes_count || 0,
+        0
+      )} lotes y ${formatNumber(
+        metrics.topActivitiesUnit.actividades_count || 0,
+        0
+      )} actividades.`
+    : "";
+  const priorityList = [topEmitter, ...nextEmitters]
+    .filter(Boolean)
+    .map((unidad) => unidad.nombre);
 
   return `${activeEmpresa.nombre} opera con ${formatNumber(
     metrics.totalUnits,
     0
-  )} unidades activas. Predominan las unidades de tipo ${dominantType}, con ${topUnit} concentrando la mayor carga operativa disponible. La estructura actual sugiere una operacion ${centralization} ${territory}.`;
+  )} unidades activas, pero la actividad real se concentra en ${formatNumber(
+    metrics.unitsWithOperationCount,
+    0
+  )} unidades con lotes, actividades y emisiones registradas. Estas unidades acumulan ${formatNumber(
+    metrics.totalLots,
+    0
+  )} lotes, ${formatNumber(metrics.totalActivities, 0)} actividades y una huella total de ${formatNumber(
+    metrics.totalEmissions,
+    1
+  )} kg CO2e.
+
+La operacion se concentra principalmente ${territory}${withoutOperationText}. Esto sugiere una operacion territorialmente ${centralization}, con algunas unidades aun sin trazabilidad operativa activa.
+
+La unidad mas critica es ${topEmitter?.nombre || "Sin datos"}, que concentra ${formatNumber(
+    topEmitterEmissions,
+    1
+  )} kg CO2e, equivalente al ${formatNumber(
+    topEmitterShare,
+    0
+  )}% de las emisiones totales. Esto la convierte en el principal foco de riesgo ambiental y operativo.
+
+${nextEmittersText}
+
+${operationalLoadText}
+
+Lectura clave
+
+La empresa no tiene un problema distribuido de forma pareja: tiene una operacion donde pocas unidades concentran la mayor parte del impacto. La prioridad deberia estar en ${formatUnitNames(
+    priorityList
+  )}.`;
 }
 
 function maxBy(items, selector) {
@@ -411,6 +506,34 @@ function dominantValue(values) {
     return acc;
   }, {});
   return Object.entries(counts).sort((left, right) => right[1] - left[1])[0]?.[0] || "";
+}
+
+function formatUnitNames(unitsOrNames) {
+  const names = unitsOrNames
+    .map((item) => (typeof item === "string" ? item : item?.nombre))
+    .filter(Boolean);
+
+  if (!names.length) {
+    return "Sin datos";
+  }
+
+  if (names.length === 1) {
+    return names[0];
+  }
+
+  return `${names.slice(0, -1).join(", ")} y ${names[names.length - 1]}`;
+}
+
+function formatUnitNamesWithEmissions(units) {
+  const parts = units.map(
+    (unidad) =>
+      `${unidad.nombre} (${formatNumber(
+        unidad.emisiones_totales_kg_co2e || 0,
+        1
+      )} kg CO2e)`
+  );
+
+  return formatUnitNames(parts);
 }
 
 function UnitKpi({ detail, icon, label, tone = "slate", value }) {
