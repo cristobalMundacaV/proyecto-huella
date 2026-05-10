@@ -41,6 +41,14 @@ import { formatNumber } from "@/shared/utils/formatters";
 const rowsPerPage = 8;
 const DIESEL_REDUCTION_SCENARIO = 25;
 
+const fuelUseLabels = {
+  cosecha: "Cosecha",
+  despacho: "Despacho",
+  transporte: "Transporte",
+  maquinaria: "Maquinaria",
+  vehiculos: "Vehiculos",
+};
+
 const tooltipContentStyle = {
   backgroundColor: "#0F172A",
   border: "1px solid #1E293B",
@@ -146,7 +154,7 @@ function buildDecisionModel(data) {
       ? `Puedes reducir cerca de ${formatNumber(
           estimatedReduction,
           0
-        )} kg CO2e con una intervención focalizada en ${criticalUnit}. La recomendación es partir con un piloto medible antes de escalar cambios mayores.`
+        )} kg CO₂e con una intervención focalizada en ${criticalUnit}. La recomendación es comenzar con un piloto medible antes de avanzar hacia cambios mayores.`
       : "Prioriza la actividad principal para convertir el análisis en acción operativa.";
   const recommendation =
     dieselPct >= 30
@@ -156,25 +164,25 @@ function buildDecisionModel(data) {
 
   if (dieselPct > 50) {
     risks.push(
-      `Riesgo operativo: Alta dependencia en diesel (${formatNumber(
+      `Riesgo operativo:\nLa alta dependencia del diésel, equivalente al ${formatNumber(
         dieselPct,
         1
-      )}%), puede generar mayor exposicion a costos, riesgo regulatorio y baja eficiencia energetica.`
+      )}% del consumo, puede aumentar la exposición a costos, riesgos regulatorios y baja eficiencia energética.`
     );
   }
 
   if (topActivityPct > 40) {
     risks.push(
-      `Riesgo de concentración: ${criticalActivity} explica el ${formatNumber(
+      `Riesgo de concentración:\nLa combustión móvil de diésel representa el ${formatNumber(
         topActivityPct,
         1
-      )}% de la huella.`
+      )}% de la huella total, por lo que cualquier mejora en este frente puede generar un impacto relevante.`
     );
   }
 
   if (criticalUnit !== "Sin datos") {
     risks.push(
-      `Riesgo operativo localizado: ${criticalUnit} concentra el mayor impacto y debería priorizarse.`
+      `Riesgo operativo localizado:\nLa unidad de ${criticalUnit} concentra el mayor impacto, por lo que debería ser priorizada en la estrategia de reducción.`
     );
   }
 
@@ -271,6 +279,15 @@ const kpis = data?.kpis ?? {
   actividades_sin_factor: data?.actividades_sin_factor ?? 0,
 };
   const emissionsByUnit = useMemo(() => {
+    if (Array.isArray(data?.emisiones_por_unidad)) {
+      return data.emisiones_por_unidad
+        .map((item) => ({
+          unidad: item.unidad || "Sin unidad",
+          emisiones: Number(item.emisiones || 0),
+        }))
+        .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
+    }
+
     const totals = rows.reduce((accumulator, row) => {
       const unidad = row.unidad_nombre || "Sin unidad";
       accumulator[unidad] = (accumulator[unidad] || 0) + Number(row.emisiones || 0);
@@ -280,8 +297,17 @@ const kpis = data?.kpis ?? {
     return Object.entries(totals)
       .map(([unidad, emisiones]) => ({ unidad, emisiones }))
       .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
-  }, [rows]);
+  }, [data?.emisiones_por_unidad, rows]);
   const emissionsByActivity = useMemo(() => {
+    if (Array.isArray(data?.emisiones_por_actividad)) {
+      return data.emisiones_por_actividad
+        .map((item) => ({
+          actividad: item.actividad || "Sin actividad",
+          emisiones: Number(item.emisiones || 0),
+        }))
+        .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
+    }
+
     const totals = rows.reduce((accumulator, row) => {
       const actividad = row.actividad || "Sin actividad";
       accumulator[actividad] =
@@ -292,7 +318,7 @@ const kpis = data?.kpis ?? {
     return Object.entries(totals)
       .map(([actividad, emisiones]) => ({ actividad, emisiones }))
       .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
-  }, [rows]);
+  }, [data?.emisiones_por_actividad, rows]);
   const unitBarSize = getBarSizeForRowCount(emissionsByUnit.length);
   const activityBarSize = getBarSizeForRowCount(emissionsByActivity.length);
   const decision = useMemo(() => buildDecisionModel(data), [data]);
@@ -342,6 +368,7 @@ const kpis = data?.kpis ?? {
             row.unidad_id,
             row.id_lote,
             row.categoria,
+            fuelUseLabels[row.tipo_consumo_combustible],
           ].join(" ")
         ).includes(query);
       })
@@ -375,6 +402,8 @@ const kpis = data?.kpis ?? {
 
   const handleAiAnalysis = async () => {
     setAiModalOpen(true);
+    const advisorScenario =
+      optimizedScenario || optimizeScenario(decisionData.datos || []);
 
     try {
       setLoadingAi(true);
@@ -383,7 +412,7 @@ const kpis = data?.kpis ?? {
         unidad_critica: kpis.unidad_critica || "Sin datos",
         actividad_critica: kpis.actividad_critica || "Sin datos",
         simulacion: null,
-        optimizacion: optimizedScenario,
+        optimizacion: advisorScenario,
       });
 
       setAiAnalysis(response.analisis);
@@ -434,9 +463,6 @@ const kpis = data?.kpis ?? {
             <p className="mt-4 text-base leading-7 text-slate-300">
               {decision.heroSubtitle}
             </p>
-            <p className="mt-3 text-sm font-semibold text-emerald-300">
-              Empresa activa: {activeEmpresa?.nombre || data?.empresa?.nombre || activeEmpresaId}
-            </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
@@ -484,7 +510,7 @@ const kpis = data?.kpis ?? {
           {decision.recommendation}
         </h2>
         <p className="mt-2 text-sm leading-6 text-emerald-200">
-          Mide el consumo antes y después del piloto, revisa desviaciones semanalmente y escala la intervención solo si la reducción se mantiene sin afectar la operación.
+          Mide el consumo antes y después del piloto, revisa los resultados semanalmente y escala la intervención solo si la reducción se mantiene sin afectar la operación.
         </p>
       </section>
 
@@ -619,7 +645,7 @@ const kpis = data?.kpis ?? {
             {decision.risks.map((risk) => (
               <p
                 key={risk}
-                className="rounded-2xl border border-amber-400/20 bg-slate-950/70 p-4 text-sm leading-6 text-amber-100"
+                className="whitespace-pre-line rounded-2xl border border-amber-400/20 bg-slate-950/70 p-4 text-sm leading-6 text-amber-100"
               >
                 {risk}
               </p>
@@ -636,20 +662,23 @@ const kpis = data?.kpis ?? {
         <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 sm:p-6">
           <SectionTitle
             eyebrow="Impacto real"
-            title={`Si reduces diesel en ${DIESEL_REDUCTION_SCENARIO}%`}
+            title={`Si reduces el consumo de diésel en un ${DIESEL_REDUCTION_SCENARIO}%`}
           />
           <div className="mt-4 space-y-3">
             <ImpactRow
-              label="Tendrias una reduccion estimada:"
+              label="Reducción estimada:"
               value={`${formatNumber(decision.estimatedReduction, 0)} kg CO2e`}
             />
             <ImpactRow
-              label="Que seria equivalente a:"
-              value={`${formatNumber(decision.carKmEquivalent, 0)} km en auto`}
+              label="Equivalente aproximado a:"
+              value={`${formatNumber(decision.carKmEquivalent, 0)} km recorridos en auto`}
             />
             <ImpactRow
-              label="Impacto comparable a:"
-              value={`${formatNumber(decision.homeMonthsEquivalent, 1)} hogares al mes aprox.`}
+              label="Impacto comparable con:"
+              value={`Las emisiones mensuales aproximadas de ${formatNumber(
+                decision.homeMonthsEquivalent,
+                0
+              )} hogares`}
             />
           </div>
         </div>
@@ -708,7 +737,7 @@ const kpis = data?.kpis ?? {
           </div>
         ) : (
           <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[1180px] border-collapse text-sm">
+            <table className="w-full min-w-[1280px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-800 text-left text-xs text-slate-400">
                   <th className="px-4 py-3">Fecha</th>
@@ -716,6 +745,7 @@ const kpis = data?.kpis ?? {
                   <th className="px-4 py-3">Lote</th>
                   <th className="px-4 py-3">Actividad</th>
                   <th className="px-4 py-3">Categoria</th>
+                  <th className="px-4 py-3">Uso combustible</th>
                   <th className="px-4 py-3 text-right">Cantidad</th>
                   <th className="px-4 py-3">Unidad</th>
                   <th className="px-4 py-3 text-right">Factor</th>
@@ -744,6 +774,9 @@ const kpis = data?.kpis ?? {
                       </td>
                       <td className="px-4 py-4">
                         <FactorCategoryBadge category={row.categoria} />
+                      </td>
+                      <td className="px-4 py-4 text-slate-300">
+                        {fuelUseLabels[row.tipo_consumo_combustible] || "-"}
                       </td>
                       <td className="px-4 py-4 text-right text-slate-300">
                         {formatNumber(row.cantidad || 0, 3)}
@@ -875,11 +908,15 @@ function SectionTitle({ eyebrow, title }) {
 
 function DecisionKpi({ detail, icon, label, tone = "border-slate-800 bg-slate-900", value, valueClassName = "text-slate-100" }) {
   return (
-    <div className={`rounded-3xl border p-5 shadow-xl ${tone}`}>
+    <div className={`relative rounded-3xl border p-5 shadow-xl ${tone}`}>
+      {detail && (
+        <p className="absolute right-4 top-4 rounded-full border border-cyan-400/20 bg-slate-950/70 px-3 py-1 text-xs font-bold text-cyan-200">
+          {detail}
+        </p>
+      )}
       <div className="mb-4 text-cyan-300">{icon}</div>
       <p className="text-sm text-slate-400">{label}</p>
-      <h3 className={`mt-1 text-2xl font-bold ${valueClassName}`}>{value}</h3>
-      {detail && <p className="mt-2 text-sm font-semibold text-slate-300">{detail}</p>}
+      <h3 className={`mt-1 pr-20 text-2xl font-bold ${valueClassName}`}>{value}</h3>
     </div>
   );
 }

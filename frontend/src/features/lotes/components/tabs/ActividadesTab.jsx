@@ -3,12 +3,41 @@ import { Calculator, Loader2, Plus, X } from "lucide-react";
 
 import FactorCategoryBadge from "@/features/factores/components/FactorCategoryBadge";
 import {
+  isDieselActivity,
   isTransportActivity,
   normalizeActivityText,
 } from "@/shared/utils/activitySemantics";
 import { formatNumber } from "@/shared/utils/formatters";
 import { Field } from "../common";
 import RouteMapPicker from "../RouteMapPicker";
+
+const fuelUseOptions = [
+  { value: "cosecha", label: "Cosecha" },
+  { value: "despacho", label: "Despacho" },
+  { value: "transporte", label: "Transporte" },
+  { value: "maquinaria", label: "Maquinaria" },
+  { value: "vehiculos", label: "Vehiculos" },
+];
+
+function isFuelActivity({ actividad, actividadKey, categoria, unidad }) {
+  const normalizedCategory = normalizeActivityText(categoria);
+  const normalizedText = normalizeActivityText(
+    [actividad, actividadKey, unidad].filter(Boolean).join(" ")
+  );
+
+  return (
+    normalizedCategory === "combustible" ||
+    isDieselActivity({
+      actividad,
+      actividad_key: actividadKey,
+      categoria,
+      unidad,
+    }) ||
+    ["combustible", "gas natural", "glp", "gas licuado", "biodiesel"].some(
+      (token) => normalizedText.includes(token)
+    )
+  );
+}
 
 function ActividadesTab({
   activityError,
@@ -90,6 +119,12 @@ function ActividadesTab({
   );
 
   const selectedFactorCategory = selectedFactor?.categoria || factorCategory;
+  const shouldShowFuelUseSelect = isFuelActivity({
+    actividad: activityForm.actividad || selectedFactor?.actividad,
+    actividadKey: selectedFactor?.actividad_key,
+    categoria: selectedFactorCategory,
+    unidad: activityForm.unidad || selectedFactor?.unidad,
+  });
   const shouldShowRouteMap =
     isTransportActivity({
       actividad: activityForm.actividad || selectedFactor?.actividad,
@@ -97,6 +132,23 @@ function ActividadesTab({
       categoria: selectedFactorCategory,
       unidad: activityForm.unidad || selectedFactor?.unidad,
     }) || normalizeActivityText(activityForm.unidad) === "km";
+
+  useEffect(() => {
+    if (shouldShowFuelUseSelect || !activityForm.tipo_consumo_combustible) {
+      return;
+    }
+
+    onUpdateActivityForm({
+      target: {
+        name: "tipo_consumo_combustible",
+        value: "",
+      },
+    });
+  }, [
+    activityForm.tipo_consumo_combustible,
+    onUpdateActivityForm,
+    shouldShowFuelUseSelect,
+  ]);
 
   useEffect(() => {
     if (!isModalOpen || !shouldShowRouteMap) {
@@ -274,6 +326,7 @@ function ActividadesTab({
             <tr>
               <th className="w-[40%] py-3 pr-6 text-left">Actividad</th>
               <th className="w-[14%] px-4 py-3 text-left">Categoria</th>
+              <th className="w-[14%] px-4 py-3 text-left">Uso combustible</th>
               <th className="w-[14%] py-3 px-4 text-right">Cantidad</th>
               <th className="w-[14%] py-3 px-4 text-left">Unidad</th>
               <th className="w-[14%] py-3 px-4 text-right">Factor</th>
@@ -283,7 +336,7 @@ function ActividadesTab({
           <tbody>
             {(selectedLote?.actividades?.length || 0) === 0 && (
               <tr>
-                <td colSpan="6" className="py-8 text-center text-slate-400">
+                <td colSpan="7" className="py-8 text-center text-slate-400">
                   No se han registrado datos.
                 </td>
               </tr>
@@ -296,6 +349,14 @@ function ActividadesTab({
                 </td>
                 <td className="px-4 py-4 text-left whitespace-nowrap">
                   <FactorCategoryBadge category={resolveActivityCategory(actividad)} />
+                </td>
+                <td className="px-4 py-3 text-slate-300 whitespace-nowrap">
+                  {actividad.tipo_consumo_combustible
+                    ? fuelUseOptions.find(
+                        (option) =>
+                          option.value === actividad.tipo_consumo_combustible
+                      )?.label || actividad.tipo_consumo_combustible
+                    : "-"}
                 </td>
                 <td className="py-3 px-4 text-right whitespace-nowrap">
                   {formatNumber(Number(actividad.cantidad))}
@@ -402,6 +463,28 @@ function ActividadesTab({
                   className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </Field>
+              {shouldShowFuelUseSelect && (
+                <Field
+                  label="Uso del combustible"
+                  error={activityFieldErrors.tipo_consumo_combustible?.[0]}
+                >
+                  <select
+                    name="tipo_consumo_combustible"
+                    value={activityForm.tipo_consumo_combustible}
+                    onChange={onUpdateActivityForm}
+                    required
+                    disabled={!selectedLote}
+                    className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <option value="">Selecciona el uso</option>
+                    {fuelUseOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
               <Field label="Unidad" error={activityFieldErrors.unidad?.[0]}>
                 <input
                   name="unidad"

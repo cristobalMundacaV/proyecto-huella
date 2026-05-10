@@ -42,22 +42,22 @@ const woodReductionSteps = [
   {
     title: "Optimizar rutas de despacho y transporte",
     detail:
-      "Menos kilometros vacios, mejores rutas, camiones mejor cargados y menos viajes innecesarios.",
+      "Planificar mejor los recorridos, evitar viajes vacíos, combinar cargas y priorizar rutas más cortas o con menos tráfico para reducir kilómetros recorridos y consumo de combustible.",
   },
   {
     title: "Mejorar eficiencia de maquinaria y camiones",
     detail:
-      "Mantencion preventiva, neumaticos correctos, motores calibrados y menor ralenti.",
+      "Implementar mantención preventiva, utilizar neumáticos adecuados, mantener los motores correctamente calibrados y reducir el tiempo de ralentí.",
   },
   {
     title: "Controlar conduccion y operacion",
     detail:
-      "Capacitar operadores para reducir aceleraciones bruscas, tiempos muertos y uso ineficiente.",
+      "Capacitar operadores para reducir aceleraciones bruscas, tiempos muertos y uso ineficiente de la maquinaria.",
   },
   {
     title: "Renovar flota gradualmente",
     detail:
-      "Cambiar camiones o maquinaria antigua por modelos mas eficientes sin hacerlo todo de golpe.",
+      "Cambiar camiones o maquinaria antigua por modelos mas eficientes.",
   },
   {
     title: "Usar combustibles de menor emision",
@@ -308,6 +308,11 @@ const validationSummary = {
   errors: 0,
   activities: new Set(dashboardRows.map((row) => row.actividad)).size,
 };
+const isDieselCriticalActivity = String(actividadCritica || "")
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .toLowerCase()
+  .includes("diesel");
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col lg:flex-row">
@@ -464,47 +469,45 @@ const validationSummary = {
 
           <section className="rounded-3xl bg-emerald-400/10 border border-emerald-400/20 p-4 sm:p-6">
             <h2 className="text-xl font-semibold mb-2">Insight automático</h2>
-            <p className="text-emerald-300">
+            <p className="text-emerald-300 leading-6">
               La actividad <strong>{actividadCritica}</strong> concentra el
-              mayor impacto ambiental de los datos internos analizados.
+              mayor impacto ambiental de los datos internos analizados. Aunque el
+              combustible sea inevitable, las emisiones pueden bajar con eficiencia
+              operacional, optimizacion logistica, mantencion, renovacion tecnologica
+              y combustibles alternativos.
             </p>
           </section>
 
-          <section className="rounded-3xl border border-emerald-400/20 bg-slate-900 p-4 shadow-xl sm:p-6">
-            <div className="mb-5 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
-              <div>
+          {isDieselCriticalActivity && (
+            <section className="rounded-3xl border border-emerald-400/20 bg-slate-900 p-4 shadow-xl sm:p-6">
+              <div className="mb-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Pasos a seguir
                 </p>
                 <h2 className="mt-1 text-xl font-bold text-slate-100">
-                  Como reducir emisiones en una operacion maderera
+                  Como reducir emisiones en una operación maderera
                 </h2>
               </div>
-              <p className="max-w-2xl text-sm leading-6 text-emerald-200">
-                Aunque el combustible sea inevitable, las emisiones pueden bajar con
-                eficiencia operacional, optimizacion logistica, mantencion, renovacion
-                tecnologica y combustibles alternativos.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {woodReductionSteps.map((step, index) => (
-                <div
-                  key={step.title}
-                  className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
-                >
-                  <p className="text-xs font-bold text-emerald-300">
-                    Paso {index + 1}
-                  </p>
-                  <h3 className="mt-2 text-sm font-bold text-slate-100">
-                    {step.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-400">
-                    {step.detail}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {woodReductionSteps.map((step, index) => (
+                  <div
+                    key={step.title}
+                    className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
+                  >
+                    <p className="text-xs font-bold text-emerald-300">
+                      Paso {index + 1}
+                    </p>
+                    <h3 className="mt-2 text-sm font-bold text-slate-100">
+                      {step.title}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-400">
+                      {step.detail}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
         )}
           </motion.div>

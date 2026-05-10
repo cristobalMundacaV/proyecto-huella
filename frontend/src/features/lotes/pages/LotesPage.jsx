@@ -44,6 +44,7 @@ const emptyForm = {
 const emptyActivityForm = {
   factor_emision_id: "",
   actividad: "",
+  tipo_consumo_combustible: "",
   cantidad: "",
   unidad: "",
   factor_emision: "",

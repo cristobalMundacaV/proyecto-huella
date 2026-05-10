@@ -4,11 +4,27 @@ from .activity_semantics import is_diesel_activity, is_electricity_activity
 def _pick_realistic_initial_reduction(max_reduction_pct):
     if max_reduction_pct <= 0:
         return 20
+    if max_reduction_pct <= 30:
+        return 20
     return min(35, max(15, round(max_reduction_pct * 0.4)))
 
 
 def _activity_row(actividad):
     return {"actividad": actividad, "actividad_key": actividad}
+
+
+def _format_number_es(value, decimals=1):
+    return f"{float(value):,.{decimals}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _describe_activity(actividad):
+    if is_diesel_activity(_activity_row(actividad)):
+        return "el diésel asociado a combustión móvil"
+    return actividad
+
+
+def _with_preposition_de(label):
+    return f"del {label[3:]}" if str(label).startswith("el ") else f"de {label}"
 
 
 def _guess_optimal_activity_reduction(actividad, optimizacion):
@@ -50,18 +66,24 @@ def _recommended_range_by_viability(viability):
 
 
 def _action_levels(actividad):
+    activity_label = _describe_activity(actividad)
+    activity_with_de = _with_preposition_de(activity_label)
+
     return {
         "low": (
-            f"🟢 Bajo esfuerzo (5%-15% reduccion): ajustes operativos en {actividad}, "
-            "mejor control de consumo, mantenimiento preventivo y disciplina de seguimiento semanal."
+            "🟢 Bajo esfuerzo: 5% - 15% de reducción\n"
+            f"Ajustes operativos en el uso {activity_with_de}, mejor control del consumo, "
+            "mantenimiento preventivo y seguimiento semanal de indicadores."
         ),
         "medium": (
-            f"🟡 Medio impacto (15%-35% reduccion): optimizacion faseada de {actividad} con "
-            "cambios de procesos, analitica de desempeno y sustitucion parcial de tecnologia."
+            "🟡 Impacto medio: 15% - 35% de reducción\n"
+            f"Optimización gradual del uso {activity_with_de} mediante cambios en procesos, "
+            "análisis de desempeño y sustitución parcial de tecnología."
         ),
         "high": (
-            f"🔴 Transformacional (35%+ reduccion): rediseño estructural de {actividad}, "
-            "capex dedicado, renovacion tecnologica y plan de transicion plurianual."
+            "🔴 Transformacional: más de 35% de reducción\n"
+            f"Rediseño estructural del uso {activity_with_de}, inversión dedicada, "
+            "renovación tecnológica y planificación a mediano y largo plazo."
         ),
     }
 
@@ -69,27 +91,27 @@ def _action_levels(actividad):
 WOOD_INDUSTRY_REDUCTION_STEPS = [
     (
         "Optimizar rutas de despacho y transporte",
-        "Reducir kilometros vacios, mejorar rutas, cargar mejor los camiones y evitar viajes innecesarios.",
+        "Reducir kilómetros recorridos en vacío, mejorar rutas, cargar mejor los camiones y evitar viajes innecesarios.",
     ),
     (
         "Mejorar la eficiencia de maquinaria y camiones",
-        "Aplicar mantencion preventiva, controlar presion de neumaticos, calibrar motores y evitar ralenti excesivo.",
+        "Aplicar mantención preventiva, controlar la presión de los neumáticos, calibrar motores y reducir el ralentí excesivo.",
     ),
     (
         "Controlar conduccion y operacion",
-        "Capacitar operadores para reducir aceleraciones bruscas, tiempos muertos y uso ineficiente de equipos.",
+        "Capacitar a operadores para disminuir aceleraciones bruscas, tiempos muertos y uso ineficiente de equipos.",
     ),
     (
         "Renovar flota gradualmente",
-        "Reemplazar camiones o maquinaria antigua por modelos mas eficientes, sin exigir un cambio total inmediato.",
+        "Reemplazar camiones o maquinaria antigua por modelos más eficientes, sin exigir un cambio completo de una sola vez.",
     ),
     (
         "Usar combustibles de menor emision cuando sea viable",
-        "Evaluar biodiesel, diesel renovable u otras mezclas compatibles segun disponibilidad, costo y garantia tecnica.",
+        "Evaluar biodiésel, diésel renovable u otras mezclas compatibles según disponibilidad, costo y garantía técnica.",
     ),
     (
         "Electrificar operaciones internas especificas",
-        "Priorizar gruas, equipos de patio, montacargas o vehiculos livianos antes que transporte forestal pesado.",
+        "Priorizar grúas, equipos de patio, montacargas o vehículos livianos antes que el transporte forestal pesado.",
     ),
     (
         "Planificar mejor la cosecha y acopio",
@@ -97,15 +119,15 @@ WOOD_INDUSTRY_REDUCTION_STEPS = [
     ),
     (
         "Medir litros por actividad",
-        "Separar consumo por cosecha, despacho, transporte, maquinaria y vehiculos para identificar donde actuar primero.",
+        "Separar el consumo por cosecha, despacho, transporte, maquinaria y vehículos para identificar dónde actuar primero.",
     ),
 ]
 
 
 WOOD_INDUSTRY_KEY_IDEA = (
-    "Aunque el combustible sea inevitable en la operacion maderera, las emisiones "
-    "si pueden reducirse mediante eficiencia operacional, optimizacion logistica, "
-    "mantencion, renovacion tecnologica y combustibles alternativos."
+    "Aunque el uso de combustible sea inevitable en una operación maderera, las emisiones "
+    "sí pueden reducirse mediante eficiencia operacional, optimización logística, "
+    "mantención preventiva, renovación tecnológica y combustibles alternativos."
 )
 
 
@@ -123,9 +145,13 @@ def generar_analisis_local(payload):
     unidad = payload.get("unidad_critica") or payload.get("empresa_critica") or "la unidad critica"
     actividad = payload.get("actividad_critica", "la actividad critica")
     actividad_row = _activity_row(actividad)
+    activity_label = _describe_activity(actividad)
     optimizacion = payload.get("optimizacion") or {}
 
     max_reduction_pct = float(optimizacion.get("reductionPct", 0) or 0)
+    if max_reduction_pct <= 0 and is_diesel_activity(actividad_row) and total > 0:
+        max_reduction_pct = 25.0
+
     optimal_reduction_pct = _guess_optimal_activity_reduction(
         actividad,
         optimizacion,
@@ -141,13 +167,13 @@ def generar_analisis_local(payload):
 
     if is_diesel_activity(actividad_row) and total > 3000:
         insight = (
-            "La dependencia de diesel concentra riesgo operativo, de costos y de cumplimiento, "
-            "por lo que este frente define el resultado global de descarbonizacion."
+            "La alta dependencia del diésel concentra riesgos operativos, de costos y de cumplimiento ambiental. "
+            "Por esta razón, las acciones sobre este frente serán determinantes para el resultado global de descarbonización."
         )
     elif is_diesel_activity(actividad_row):
         insight = (
-            "El diesel sigue siendo la principal causa de impacto y conviene intervenirlo "
-            "antes de distribuir esfuerzos en multiples frentes menores."
+            "El diésel sigue siendo la principal causa de impacto y conviene intervenirlo "
+            "antes de distribuir esfuerzos en múltiples frentes menores."
         )
     elif is_electricity_activity(actividad_row):
         insight = (
@@ -161,13 +187,13 @@ def generar_analisis_local(payload):
         )
 
     intervention_line = (
-        f"bajo una intervencion profunda en el uso de {actividad}."
+        f"bajo una intervención profunda en el uso {_with_preposition_de(activity_label)}."
         if is_diesel_activity(actividad_row)
-        else f"bajo una intervencion profunda sobre {actividad}."
+        else f"bajo una intervención profunda sobre {actividad}."
     )
 
     optimal_line = (
-        f"El potencial maximo identifica una reduccion agregada cercana al {round(max_reduction_pct, 1)}% "
+        f"El escenario máximo identifica una reducción agregada cercana al {_format_number_es(max_reduction_pct, 1)}% "
         f"de las emisiones totales, {intervention_line}"
     )
 
@@ -177,25 +203,25 @@ def generar_analisis_local(payload):
         realistic_reduction_pct = realistic_max
 
     texto = f"""
-Diagnostico:
-El principal foco de impacto se concentra en {actividad}, siendo {unidad} la unidad operativa critica. Sobre una base de {round(total, 1)} kg CO2e, este frente explica la mayor parte de la exposicion ambiental y operativa.
+Diagnóstico:
+El principal foco de impacto se concentra en {activity_label}, siendo {unidad} la unidad operativa crítica. Sobre una base de {_format_number_es(total, 1)} kg CO₂e, este frente representa la mayor exposición ambiental y operativa.
 
-Insight estrategico:
+Insight estratégico:
 {insight}
 
 Nivel de viabilidad:
-{viability}, la implementacion debe ser gradual, priorizada y progresiva para evitar fricciones operativas y mantener continuidad del negocio.
+{viability}. La implementación debe realizarse de forma gradual, priorizada y progresiva, para evitar impactos negativos en la operación y mantener la continuidad del negocio.
 
-Recomendacion principal REALISTA:
-Reducir consumo de {actividad} entre {realistic_min}% y {realistic_max}% en el corto/mediano plazo, iniciando con una fase priorizada alrededor de {realistic_reduction_pct}%, mediante medidas progresivas de eficiencia y sustitucion parcial.
+Recomendación principal realista:
+Reducir el consumo {_with_preposition_de(activity_label)} entre un {realistic_min}% y un {realistic_max}% en el corto y mediano plazo, iniciando con una fase priorizada cercana al {realistic_reduction_pct}%. Esto debe lograrse mediante medidas progresivas de eficiencia operacional y sustitución parcial de equipos o tecnologías.
 
-Escenario optimo (potencial maximo):
-{optimal_line} Este escenario se presenta unicamente como referencia estrategica de largo plazo, ya que implica cambios estructurales significativos, inversion relevante y una transicion operativa progresiva.
+Escenario óptimo: potencial máximo
+{optimal_line} Este escenario se presenta solo como una referencia estratégica de largo plazo, ya que implica cambios estructurales importantes, inversión relevante y una transición operativa progresiva.
 
-Escenario recomendado (realista):
-En el corto plazo, la recomendacion implementable es una fase inicial de {realistic_reduction_pct}% sobre {actividad}, con foco en medidas de rapida adopcion, menor costo implicito y menor riesgo de continuidad operacional.
+Escenario recomendado: realista
+En el corto plazo, la recomendación implementable es iniciar con una fase de reducción del {realistic_reduction_pct}% sobre el consumo {_with_preposition_de(activity_label)}. Esta fase debe enfocarse en medidas de rápida adopción, menor costo inicial y bajo riesgo para la continuidad operacional.
 
-Niveles de accion:
+Niveles de acción:
 {levels["low"]}
 {levels["medium"]}
 {levels["high"]}
@@ -206,11 +232,11 @@ Pasos a seguir para reducir emisiones en una operacion maderera:
 Idea clave:
 {WOOD_INDUSTRY_KEY_IDEA}
 
-Recomendacion estrategica:
-Priorizar una hoja de ruta en dos velocidades: quick wins de eficiencia en 0-3 meses y decisiones estructurales en 3-18 meses para acercarse de forma creible al potencial maximo.
+Recomendación estratégica:
+Priorizar una hoja de ruta en dos etapas: primero, aplicar mejoras rápidas de eficiencia durante los primeros 0 a 3 meses; luego, avanzar en decisiones estructurales entre los 3 y 18 meses, para acercarse de manera realista al potencial máximo de reducción.
 
-Siguiente accion concreta:
-Ejecutar un piloto de 8-12 semanas en {unidad} sobre {actividad}, validar linea base y seguimiento semanal (consumo, emisiones y costo) antes de escalar la intervencion.
+Siguiente acción concreta:
+Ejecutar un piloto de 8 a 12 semanas en la unidad de {unidad}, enfocado en {activity_label}. Durante este periodo se debe validar la línea base y realizar seguimiento semanal de consumo, emisiones y costos antes de escalar la intervención.
 """
 
     return texto.strip()

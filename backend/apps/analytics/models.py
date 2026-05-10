@@ -281,6 +281,13 @@ class EmisionLote(models.Model):
         UNIDAD = "unidad", "Unidad operativa"
         EMPRESA = "empresa", "Empresa"
 
+    class TipoConsumoCombustible(models.TextChoices):
+        COSECHA = "cosecha", "Cosecha"
+        DESPACHO = "despacho", "Despacho"
+        TRANSPORTE = "transporte", "Transporte"
+        MAQUINARIA = "maquinaria", "Maquinaria"
+        VEHICULOS = "vehiculos", "Vehiculos"
+
     empresa = models.ForeignKey(
         Empresa,
         on_delete=models.PROTECT,
@@ -305,6 +312,11 @@ class EmisionLote(models.Model):
     actividad = models.CharField(max_length=120)
     actividad_key = models.CharField(max_length=160, blank=True)
     categoria = models.CharField(max_length=40, blank=True)
+    tipo_consumo_combustible = models.CharField(
+        max_length=20,
+        choices=TipoConsumoCombustible.choices,
+        blank=True,
+    )
     cantidad = models.DecimalField(max_digits=12, decimal_places=3)
     unidad = models.CharField(max_length=40)
     fecha = models.DateField(null=True, blank=True)
@@ -680,12 +692,14 @@ class TransporteLote(models.Model):
             actividad.factor_emision = self.factor_diesel
             actividad.unidad = "litros diesel"
             actividad.actividad = "transporte"
+            actividad.tipo_consumo_combustible = EmisionLote.TipoConsumoCombustible.TRANSPORTE
             actividad.save()
             return
 
         actividad = EmisionLote.objects.create(
             lote=self.lote,
             actividad="transporte",
+            tipo_consumo_combustible=EmisionLote.TipoConsumoCombustible.TRANSPORTE,
             cantidad=self.litros_calculados,
             unidad="litros diesel",
             factor_emision=self.factor_diesel,

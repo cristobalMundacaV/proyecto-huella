@@ -438,6 +438,7 @@ class EmisionLoteSerializer(serializers.ModelSerializer):
             "actividad",
             "actividad_key",
             "categoria",
+            "tipo_consumo_combustible",
             "factor_emision_id",
             "cantidad",
             "unidad",

@@ -914,6 +914,25 @@ def empresa_emisiones(request, empresa_id):
         actividades_qs.values(id_lote=F("lote__id_lote")).annotate(emisiones=Sum("emisiones_kg_co2e")).order_by("-emisiones").first()
     ) or {"id_lote": "Sin datos", "emisiones": 0}
 
+    emisiones_por_actividad = [
+        {
+            "actividad": item.get("actividad") or "Sin actividad",
+            "emisiones": float(item.get("emisiones") or 0),
+        }
+        for item in actividades_qs.values("actividad")
+        .annotate(emisiones=Sum("emisiones_kg_co2e"))
+        .order_by("-emisiones")
+    ]
+    emisiones_por_unidad = [
+        {
+            "unidad": item.get("unidad_nombre") or "Sin unidad",
+            "emisiones": float(item.get("emisiones") or 0),
+        }
+        for item in actividades_qs.values(unidad_nombre=F("unidad_operativa__nombre"))
+        .annotate(emisiones=Sum("emisiones_kg_co2e"))
+        .order_by("-emisiones")
+    ]
+
     actividades_count = actividades_qs.count()
 
     # Paginate rows
@@ -980,6 +999,7 @@ def empresa_emisiones(request, empresa_id):
                 "actividad": actividad.actividad,
                 "actividad_key": actividad.actividad_key,
                 "categoria": categoria,
+                "tipo_consumo_combustible": actividad.tipo_consumo_combustible,
                 "cantidad": float(actividad.cantidad or 0),
                 "unidad": actividad.unidad,
                 "factor_emision": float(actividad.factor_emision or 0),
@@ -1000,6 +1020,8 @@ def empresa_emisiones(request, empresa_id):
     payload.update(
         {
             "empresa": {"id": empresa.empresa_id, "nombre": empresa.nombre},
+            "emisiones_por_actividad": emisiones_por_actividad,
+            "emisiones_por_unidad": emisiones_por_unidad,
             "kpis": {
                 "emisiones_totales": total_emisiones,
                 "actividad_critica": actividad_top.get("actividad") or "Sin datos",
