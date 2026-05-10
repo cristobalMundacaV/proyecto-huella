@@ -13,6 +13,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Sidebar from "@/layouts/Sidebar";
 import EmptyState from "@/shared/components/EmptyState";
 import KpiCard from "@/shared/components/KpiCard";
+import LoginPage from "@/features/auth/pages/LoginPage";
 import ExecutiveSummary from "@/features/dashboard/components/ExecutiveSummary";
 import EmisionesView from "@/features/emisiones/EmisionesView";
 import EmpresasView from "@/features/empresas/pages/EmpresasPage";
@@ -23,6 +24,7 @@ import ImportacionesView from "@/features/importaciones/pages/ImportacionesPage"
 import LotesView from "@/features/lotes/pages/LotesPage";
 import UnidadesOperativasView from "@/features/unidades/pages/UnidadesPage";
 import ReportesView from "@/features/reportes/pages/ReportesView";
+import UsuariosPage from "@/features/usuarios/pages/UsuariosPage";
 import {
   getEmpresaDashboard,
   getEmpresaEmisiones,
@@ -32,6 +34,7 @@ import { formatNumber } from "@/shared/utils/formatters";
 import { optimizeScenario } from "@/features/dashboard/utils/optimizer";
 import { calculateRiskProfile } from "@/features/dashboard/utils/risk";
 import { useEmpresaActiva } from "@/features/empresas/context/EmpresaActivaContext";
+import { useAuth } from "@/features/auth/context/AuthContext";
 
 const viewTransition = {
   duration: 0.24,
@@ -89,6 +92,7 @@ function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeView, setActiveView] = useState("dashboard");
   const [empresaCreateSignal, setEmpresaCreateSignal] = useState(0);
+  const { loadingAuth, user } = useAuth();
   const { activeEmpresa, activeEmpresaId, loadingEmpresas } = useEmpresaActiva();
 
   const handleSetActiveView = useCallback((view, options = {}) => {
@@ -221,6 +225,18 @@ function App() {
       rows: [],
     };
   }, [dashboardHasRows, dashboardTotalEmissions, data]);
+
+  if (loadingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+        Cargando sesion...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
 
   if (loadingEmpresas) {
     return (
@@ -406,6 +422,8 @@ const isDieselCriticalActivity = String(actividadCritica || "")
           <FactoresView />
         ) : activeView === "evidencias" ? (
           <EvidenciasPage />
+        ) : activeView === "usuarios" ? (
+          <UsuariosPage />
         ) : activeView === "configuracion" ? (
           <ConfiguracionPage />
         ) : activeView === "importaciones" ? (

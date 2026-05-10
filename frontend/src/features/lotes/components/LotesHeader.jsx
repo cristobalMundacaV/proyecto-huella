@@ -1,6 +1,6 @@
-import { Boxes } from "lucide-react";
+import { Boxes, Plus } from "lucide-react";
 
-function LotesHeader() {
+function LotesHeader({ onOpenCreate }) {
   return (
     <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex items-center gap-3">
@@ -14,6 +14,14 @@ function LotesHeader() {
           </p>
         </div>
       </div>
+      <button
+        type="button"
+        onClick={onOpenCreate}
+        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20"
+      >
+        <Plus size={18} />
+        Nuevo lote
+      </button>
     </header>
   );
 }

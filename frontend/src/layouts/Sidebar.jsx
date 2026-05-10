@@ -8,12 +8,16 @@ import {
   FileCheck2,
   Flame,
   LayoutDashboard,
+  LogOut,
   Settings,
+  UsersRound,
 } from "lucide-react";
 
+import { useAuth } from "@/features/auth/context/AuthContext";
 import { useEmpresaActiva } from "@/features/empresas/context/EmpresaActivaContext";
 
 function Sidebar({ activeView, onSetActiveView, systemStatus }) {
+  const { logout, user } = useAuth();
   const { activeEmpresaId, empresas, loadingEmpresas, setActiveEmpresa } =
     useEmpresaActiva();
 
@@ -57,6 +61,11 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
       icon: FileCheck2,
       label: "Evidencias",
       view: "evidencias",
+    },
+    {
+      icon: UsersRound,
+      label: "Usuarios",
+      view: "usuarios",
     },
     {
       icon: Settings,
@@ -166,6 +175,21 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950 p-4">
+        <p className="text-xs text-slate-500">Sesion activa</p>
+        <p className="mt-2 text-sm font-semibold text-slate-100">
+          {user?.nombre || user?.username || "Usuario"}
+        </p>
+        <button
+          type="button"
+          onClick={logout}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-rose-400/30 hover:bg-rose-400/10 hover:text-rose-100"
+        >
+          <LogOut size={16} />
+          Cerrar sesion
+        </button>
       </div>
     </aside>
   );

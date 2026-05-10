@@ -1,11 +1,14 @@
+import { AuthProvider } from "@/features/auth/context/AuthContext";
 import { EmpresaActivaProvider } from "@/features/empresas/context/EmpresaActivaContext";
 import { FactoresProvider } from "@/features/factores/context/FactoresContext";
 
 function Providers({ children }) {
   return (
-    <EmpresaActivaProvider>
-      <FactoresProvider>{children}</FactoresProvider>
-    </EmpresaActivaProvider>
+    <AuthProvider>
+      <EmpresaActivaProvider>
+        <FactoresProvider>{children}</FactoresProvider>
+      </EmpresaActivaProvider>
+    </AuthProvider>
   );
 }
 

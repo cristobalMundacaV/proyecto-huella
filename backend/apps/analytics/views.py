@@ -4,10 +4,13 @@ import json
 from io import StringIO
 
 from decimal import Decimal
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
 from .models import Empresa, EmisionLote
 from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.db.models import Q, Count, F, Sum as DBSum, ExpressionWrapper, DecimalField, IntegerField, Value, OuterRef, Subquery
 from django.db.models.functions import Coalesce
@@ -32,6 +35,7 @@ from .models import (
     FactorEmision,
     Lote,
     UnidadOperativa,
+    UsuarioEmpresa,
 )
 from .serializers import (
     DocumentoLoteSerializer,
@@ -45,6 +49,8 @@ from .serializers import (
     LoteSerializer,
     TransporteLoteSerializer,
     UnidadOperativaSerializer,
+    UsuarioEmpresaCreateSerializer,
+    UsuarioEmpresaSerializer,
 )
 from .services.carbono import calcular_balance_lote, calcular_carbono_almacenado
 from .services.certificado import generar_certificado_lote_pdf
@@ -86,6 +92,143 @@ except Exception:
 
 
 logger = logging.getLogger(__name__)
+
+
+def serialize_auth_user(user):
+    if not user or not user.is_authenticated:
+        return None
+
+    empresas = UsuarioEmpresa.objects.select_related("empresa").filter(
+        user=user,
+        activo=True,
+    )
+
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "nombre": user.get_full_name().strip() or user.username,
+        "is_staff": user.is_staff,
+        "is_superuser": user.is_superuser,
+        "empresas": [
+            {
+                "empresa_id": perfil.empresa.empresa_id,
+                "empresa_nombre": perfil.empresa.nombre,
+                "rol": perfil.rol,
+            }
+            for perfil in empresas
+        ],
+    }
+
+
+@csrf_exempt
+@api_view(["GET"])
+def auth_me(request):
+    return Response(
+        {
+            "authenticated": bool(request.user and request.user.is_authenticated),
+            "user": serialize_auth_user(request.user),
+            "has_users": User.objects.exists(),
+        }
+    )
+
+
+@csrf_exempt
+@api_view(["POST"])
+def auth_login(request):
+    username = (request.data.get("username") or "").strip()
+    password = request.data.get("password") or ""
+
+    user = authenticate(request, username=username, password=password)
+
+    if not user:
+        return Response(
+            {"error": "Credenciales invalidas."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not user.is_active:
+        return Response(
+            {"error": "El usuario esta inactivo."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    login(request, user)
+    return Response({"authenticated": True, "user": serialize_auth_user(user)})
+
+
+@csrf_exempt
+@api_view(["POST"])
+def auth_logout(request):
+    logout(request)
+    return Response({"authenticated": False})
+
+
+@csrf_exempt
+@api_view(["POST"])
+def auth_bootstrap(request):
+    if User.objects.exists():
+        return Response(
+            {"error": "El usuario inicial ya fue creado."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    username = (request.data.get("username") or "").strip()
+    password = request.data.get("password") or ""
+    email = (request.data.get("email") or "").strip()
+    first_name = (request.data.get("first_name") or "").strip()
+    last_name = (request.data.get("last_name") or "").strip()
+
+    if not username or len(password) < 8:
+        return Response(
+            {"error": "Ingresa usuario y una clave de al menos 8 caracteres."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user = User.objects.create_superuser(
+        username=username,
+        email=email,
+        password=password,
+        first_name=first_name,
+        last_name=last_name,
+    )
+
+    first_empresa = Empresa.objects.order_by("nombre").first()
+    if first_empresa:
+        UsuarioEmpresa.objects.create(
+            user=user,
+            empresa=first_empresa,
+            rol=UsuarioEmpresa.Rol.ADMIN,
+            cargo="Administrador",
+        )
+
+    login(request, user)
+    return Response({"authenticated": True, "user": serialize_auth_user(user)})
+
+
+@csrf_exempt
+@api_view(["GET", "POST"])
+def empresa_usuarios(request, empresa_id):
+    empresa = get_empresa_or_404(empresa_id)
+
+    if request.method == "GET":
+        usuarios = UsuarioEmpresa.objects.select_related("user", "empresa").filter(
+            empresa=empresa,
+        )
+        return Response(UsuarioEmpresaSerializer(usuarios, many=True).data)
+
+    serializer = UsuarioEmpresaCreateSerializer(
+        data=request.data,
+        context={"empresa": empresa},
+    )
+    serializer.is_valid(raise_exception=True)
+    usuario_empresa = serializer.save()
+    return Response(
+        UsuarioEmpresaSerializer(usuario_empresa).data,
+        status=status.HTTP_201_CREATED,
+    )
 
 
 def build_system_status():

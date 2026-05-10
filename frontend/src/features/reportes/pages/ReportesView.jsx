@@ -433,9 +433,6 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
           <p className="mt-2 text-slate-400">
             Analiza la evolución de emisiones, detecta períodos críticos y convierte los resultados en decisiones de mejora.
           </p>
-          <p className="mt-2 text-sm text-cyan-200">
-            Empresa activa: {activeEmpresa?.nombre || activeEmpresaId}
-          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -577,24 +574,6 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
               label="Emisión promedio mensual"
               value={`${formatNumber(kpis.promedio_periodo)} kg CO2e`}
             />
-          </section>
-
-          <section className="mt-6 rounded-3xl border border-slate-800 bg-slate-900/50 p-6">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              Insights complementarios
-            </p>
-
-            <div className="mt-4 space-y-2 text-sm text-slate-200">
-              {complementaryInsights.length > 0 ? (
-                complementaryInsights.map((insight, index) => (
-                  <p key={index} className="leading-6">
-                    {insight}
-                  </p>
-                ))
-              ) : (
-                <p>No hay insights disponibles para los filtros seleccionados.</p>
-              )}
-            </div>
           </section>
 
           <section className="mt-8 grid gap-6 lg:grid-cols-2">

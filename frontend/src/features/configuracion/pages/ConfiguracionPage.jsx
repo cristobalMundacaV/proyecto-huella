@@ -342,7 +342,6 @@ function ConfiguracionPage() {
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
             Define cómo Carbono Zero calcula emisiones, valida datos, exige evidencias y construye reportes para la empresa activa.
           </p>
-          <p className="mt-2 text-sm font-semibold text-cyan-200">Empresa activa: {activeEmpresa?.nombre || activeEmpresaId}</p>
         </div>
         {hasChanges ? (
           <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-200">

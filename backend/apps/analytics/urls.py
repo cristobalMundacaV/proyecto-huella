@@ -2,6 +2,10 @@ from django.urls import path
 from .views import (
     reporte_emisiones_tiempo,
     ai_advisor,
+    auth_bootstrap,
+    auth_login,
+    auth_logout,
+    auth_me,
     calcular_distancia_ruta,
     dashboard_data,
     empresa_actividades,
@@ -22,6 +26,7 @@ from .views import (
     empresa_lotes,
     empresa_reportes,
     empresa_unidades,
+    empresa_usuarios,
     documento_extraer_json,
     documento_extraer_texto,
     documento_extraer_json_por_id,
@@ -70,6 +75,10 @@ from .views import (
 )
 
 urlpatterns = [
+    path("auth/me/", auth_me),
+    path("auth/login/", auth_login),
+    path("auth/logout/", auth_logout),
+    path("auth/bootstrap/", auth_bootstrap),
     path("dashboard/", dashboard_data),
     path("empresas/", empresas),
     path("empresas/<str:empresa_id>/", empresa_detail),
@@ -78,6 +87,7 @@ urlpatterns = [
     path("empresas/<str:empresa_id>/dashboard/", empresa_dashboard),
     path("empresas/<str:empresa_id>/decision-center/optimo/", empresa_decision_optimo),
     path("empresas/<str:empresa_id>/unidades/", empresa_unidades),
+    path("empresas/<str:empresa_id>/usuarios/", empresa_usuarios),
     path("empresas/<str:empresa_id>/lotes/", empresa_lotes),
     path("empresas/<str:empresa_id>/actividades/", empresa_actividades),
     path("empresas/<str:empresa_id>/emisiones/", empresa_emisiones),

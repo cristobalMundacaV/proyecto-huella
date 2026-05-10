@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from rest_framework import serializers
 
 from .models import (
@@ -12,6 +13,7 @@ from .models import (
     Lote,
     TransporteLote,
     UnidadOperativa,
+    UsuarioEmpresa,
     normalize_identifier,
 )
 from .services.carbono import calcular_balance_lote, calcular_carbono_almacenado
@@ -283,6 +285,76 @@ class EmpresaSerializer(serializers.ModelSerializer):
             "nombre": unidad.nombre,
             "tipo": unidad.tipo,
         }
+
+class UsuarioEmpresaSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source="user.id", read_only=True)
+    username = serializers.CharField(source="user.username", read_only=True)
+    first_name = serializers.CharField(source="user.first_name", read_only=True)
+    last_name = serializers.CharField(source="user.last_name", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+    nombre = serializers.SerializerMethodField()
+    empresa_id = serializers.CharField(source="empresa.empresa_id", read_only=True)
+    empresa_nombre = serializers.CharField(source="empresa.nombre", read_only=True)
+
+    class Meta:
+        model = UsuarioEmpresa
+        fields = [
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "nombre",
+            "email",
+            "empresa_id",
+            "empresa_nombre",
+            "rol",
+            "cargo",
+            "activo",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_nombre(self, usuario_empresa):
+        full_name = usuario_empresa.user.get_full_name().strip()
+        return full_name or usuario_empresa.user.username
+
+
+class UsuarioEmpresaCreateSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=150)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    password = serializers.CharField(min_length=8, write_only=True)
+    rol = serializers.ChoiceField(choices=UsuarioEmpresa.Rol.choices, default=UsuarioEmpresa.Rol.ANALISTA)
+    cargo = serializers.CharField(max_length=120, required=False, allow_blank=True)
+    activo = serializers.BooleanField(default=True)
+
+    def validate_username(self, value):
+        if User.objects.filter(username__iexact=value).exists():
+            raise serializers.ValidationError("Ya existe un usuario con este nombre.")
+        return value
+
+    def validate_email(self, value):
+        if value and User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("Ya existe un usuario con este email.")
+        return value
+
+    def create(self, validated_data):
+        empresa = self.context["empresa"]
+        user = User.objects.create_user(
+            username=validated_data["username"],
+            email=validated_data.get("email", ""),
+            password=validated_data["password"],
+            first_name=validated_data.get("first_name", ""),
+            last_name=validated_data.get("last_name", ""),
+        )
+        return UsuarioEmpresa.objects.create(
+            user=user,
+            empresa=empresa,
+            rol=validated_data.get("rol", UsuarioEmpresa.Rol.ANALISTA),
+            cargo=validated_data.get("cargo", ""),
+            activo=validated_data.get("activo", True),
+        )
 
 
 class UnidadOperativaSerializer(serializers.ModelSerializer):

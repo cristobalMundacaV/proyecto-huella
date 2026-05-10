@@ -171,6 +171,10 @@ CORS_ALLOW_ALL_ORIGINS = str_to_bool(
     default=DEBUG,
 )
 CORS_ALLOWED_ORIGINS = csv_to_list(os.getenv("CORS_ALLOWED_ORIGINS"))
+CORS_ALLOW_CREDENTIALS = str_to_bool(
+    os.getenv("CORS_ALLOW_CREDENTIALS"),
+    default=True,
+)
 CSRF_TRUSTED_ORIGINS = csv_to_list(os.getenv("CSRF_TRUSTED_ORIGINS"))
 
 if not DEBUG:

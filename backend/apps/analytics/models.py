@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Sum
 
@@ -51,6 +52,42 @@ class Empresa(models.Model):
 
     def __str__(self):
         return self.nombre
+
+
+class UsuarioEmpresa(models.Model):
+    class Rol(models.TextChoices):
+        ADMIN = "admin", "Administrador"
+        ANALISTA = "analista", "Analista"
+        OPERADOR = "operador", "Operador"
+        LECTOR = "lector", "Lector"
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="empresas_perfil",
+    )
+    empresa = models.ForeignKey(
+        Empresa,
+        on_delete=models.CASCADE,
+        related_name="usuarios",
+    )
+    rol = models.CharField(max_length=20, choices=Rol.choices, default=Rol.ANALISTA)
+    cargo = models.CharField(max_length=120, blank=True)
+    activo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["empresa__nombre", "user__first_name", "user__username"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "empresa"],
+                name="unique_usuario_empresa",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.empresa.nombre}"
 
 
 def evidencia_formatos_default():

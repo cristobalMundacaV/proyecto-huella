@@ -3,6 +3,7 @@ import axios from "axios";
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api",
   timeout: 60000,
+  withCredentials: true,
 });
 
 function resolveApiBaseUrl(baseUrl) {
@@ -32,6 +33,36 @@ function buildApiUrl(path) {
 
 function buildEmpresaScopedPath(empresaId, path) {
   return `/empresas/${encodeURIComponent(empresaId)}${path}`;
+}
+
+export async function getCurrentUser() {
+  const response = await api.get("/auth/me/");
+  return response.data;
+}
+
+export async function loginUser(payload) {
+  const response = await api.post("/auth/login/", payload);
+  return response.data;
+}
+
+export async function logoutUser() {
+  const response = await api.post("/auth/logout/");
+  return response.data;
+}
+
+export async function bootstrapUser(payload) {
+  const response = await api.post("/auth/bootstrap/", payload);
+  return response.data;
+}
+
+export async function getEmpresaUsuarios(empresaId) {
+  const response = await api.get(buildEmpresaScopedPath(empresaId, "/usuarios/"));
+  return response.data;
+}
+
+export async function createEmpresaUsuario(empresaId, payload) {
+  const response = await api.post(buildEmpresaScopedPath(empresaId, "/usuarios/"), payload);
+  return response.data;
 }
 
 export async function getReporteEmisionesTiempo(empresaId, params = {}) {

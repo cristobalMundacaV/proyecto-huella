@@ -6,7 +6,6 @@ import LoteDetailModal from "@/features/lotes/components/LoteDetailModal";
 import LotesHeader from "@/features/lotes/components/LotesHeader";
 import LotesKpis from "@/features/lotes/components/LotesKpis";
 import LotesTable from "@/features/lotes/components/LotesTable";
-import LotesToolbar from "@/features/lotes/components/LotesToolbar";
 import EmptyState from "@/shared/components/EmptyState";
 import {
   calculateRouteDistance,
@@ -805,14 +804,13 @@ function LotesView() {
         />
       ) : (
         <>
-      <LotesHeader />
+      <LotesHeader onOpenCreate={() => setCreateModalOpen(true)} />
       <LotesKpis
         lotes={lotes}
         totalCo2Almacenado={totalCo2Almacenado}
         totalEmisiones={totalEmisiones}
         totalMasaMadera={totalMasaMadera}
       />
-      <LotesToolbar onOpenCreate={() => setCreateModalOpen(true)} />
 
       {error && (
         <p className="rounded-2xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">
