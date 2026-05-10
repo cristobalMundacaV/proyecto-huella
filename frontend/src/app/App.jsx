@@ -8,22 +8,11 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { AnimatePresence, motion } from "framer-motion";
 
 import Sidebar from "@/layouts/Sidebar";
-import ChartCard from "@/shared/components/ChartCard";
-import DataTable from "@/shared/components/DataTable";
 import EmptyState from "@/shared/components/EmptyState";
 import KpiCard from "@/shared/components/KpiCard";
-import AiAdvisor from "@/features/dashboard/components/AiAdvisor";
 import ExecutiveSummary from "@/features/dashboard/components/ExecutiveSummary";
 import EmisionesView from "@/features/emisiones/EmisionesView";
 import EmpresasView from "@/features/empresas/pages/EmpresasPage";
@@ -35,8 +24,6 @@ import LotesView from "@/features/lotes/pages/LotesPage";
 import UnidadesOperativasView from "@/features/unidades/pages/UnidadesPage";
 import ReportesView from "@/features/reportes/pages/ReportesView";
 import {
-  api,
-  getAiAdvisor,
   getEmpresaDashboard,
   getEmpresaEmisiones,
   getEmpresaEstado,
@@ -46,56 +33,62 @@ import { optimizeScenario } from "@/features/dashboard/utils/optimizer";
 import { calculateRiskProfile } from "@/features/dashboard/utils/risk";
 import { useEmpresaActiva } from "@/features/empresas/context/EmpresaActivaContext";
 
-const tooltipContentStyle = {
-  backgroundColor: "#0F172A",
-  border: "1px solid #1E293B",
-  borderRadius: "12px",
-  color: "#F8FAFC",
-};
-
-const horizontalActiveBarStyle = {
-  fill: "#CBD5E1",
-  fillOpacity: 0.55,
-  radius: [0, 10, 10, 0],
-};
-
 const viewTransition = {
   duration: 0.24,
   ease: [0.22, 1, 0.36, 1],
 };
 
-function truncateChartLabel(value) {
-  const text = String(value || "");
-  return text.length > 28 ? `${text.slice(0, 28)}...` : text;
-}
-
-function getBarSizeForRowCount(rowCount) {
-  if (rowCount <= 1) {
-    return 34;
-  }
-
-  if (rowCount <= 2) {
-    return 30;
-  }
-
-  if (rowCount <= 4) {
-    return 24;
-  }
-
-  return 18;
-}
+const woodReductionSteps = [
+  {
+    title: "Optimizar rutas de despacho y transporte",
+    detail:
+      "Menos kilometros vacios, mejores rutas, camiones mejor cargados y menos viajes innecesarios.",
+  },
+  {
+    title: "Mejorar eficiencia de maquinaria y camiones",
+    detail:
+      "Mantencion preventiva, neumaticos correctos, motores calibrados y menor ralenti.",
+  },
+  {
+    title: "Controlar conduccion y operacion",
+    detail:
+      "Capacitar operadores para reducir aceleraciones bruscas, tiempos muertos y uso ineficiente.",
+  },
+  {
+    title: "Renovar flota gradualmente",
+    detail:
+      "Cambiar camiones o maquinaria antigua por modelos mas eficientes sin hacerlo todo de golpe.",
+  },
+  {
+    title: "Usar combustibles de menor emision",
+    detail:
+      "Evaluar biodiesel, diesel renovable u otras mezclas compatibles segun disponibilidad y costo.",
+  },
+  {
+    title: "Electrificar operaciones internas especificas",
+    detail:
+      "Priorizar gruas, equipos de patio, montacargas o vehiculos livianos cuando sea viable.",
+  },
+  {
+    title: "Planificar mejor cosecha y acopio",
+    detail:
+      "Acercar puntos de acopio, reducir movimientos internos y evitar traslados repetidos.",
+  },
+  {
+    title: "Medir litros por actividad",
+    detail:
+      "Separar consumo por cosecha, despacho, transporte, maquinaria y vehiculos.",
+  },
+];
 
 function App() {
   const [data, setData] = useState(null);
   const [dashboardError, setDashboardError] = useState("");
+  const [dashboardEmissionKpis, setDashboardEmissionKpis] = useState(null);
   const [companyStatus, setCompanyStatus] = useState(null);
-  const [aiAnalysis, setAiAnalysis] = useState("");
-  const [aiSource, setAiSource] = useState("");
-  const [loadingAi, setLoadingAi] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeView, setActiveView] = useState("dashboard");
   const [empresaCreateSignal, setEmpresaCreateSignal] = useState(0);
-  const [dashboardTableRows, setDashboardTableRows] = useState([]);
   const { activeEmpresa, activeEmpresaId, loadingEmpresas } = useEmpresaActiva();
 
   const handleSetActiveView = useCallback((view, options = {}) => {
@@ -108,22 +101,20 @@ function App() {
   const applyDashboardData = useCallback((dashboardData) => {
     setData(dashboardData);
     setDashboardError("");
-    setAiAnalysis("");
-    setAiSource("");
   }, []);
 
   const refreshInternalDashboard = useCallback(async () => {
     if (!activeEmpresaId) {
       setData(null);
+      setDashboardEmissionKpis(null);
       setCompanyStatus(null);
-      setDashboardTableRows([]);
       return null;
     }
 
     const [dashboardResult, estadoResult, emissionsResult] = await Promise.allSettled([
       getEmpresaDashboard(activeEmpresaId, { light: "1" }),
       getEmpresaEstado(activeEmpresaId),
-      getEmpresaEmisiones(activeEmpresaId, { page: 1, page_size: 6 }),
+      getEmpresaEmisiones(activeEmpresaId, { page: 1, page_size: 1 }),
     ]);
 
     if (dashboardResult.status === "fulfilled") {
@@ -135,9 +126,9 @@ function App() {
     }
 
     if (emissionsResult.status === "fulfilled") {
-      setDashboardTableRows(emissionsResult.value?.results || []);
+      setDashboardEmissionKpis(emissionsResult.value?.kpis || null);
     } else {
-      setDashboardTableRows([]);
+      setDashboardEmissionKpis(null);
     }
 
     if (dashboardResult.status === "rejected" && estadoResult.status === "rejected") {
@@ -151,6 +142,7 @@ function App() {
     if (activeView !== "dashboard" || !activeEmpresaId) {
       if (!activeEmpresaId) {
         setData(null);
+        setDashboardEmissionKpis(null);
         setCompanyStatus(null);
       }
 
@@ -164,7 +156,7 @@ function App() {
         const [dashboardResult, estadoResult, emissionsResult] = await Promise.allSettled([
           getEmpresaDashboard(activeEmpresaId, { light: "1" }),
           getEmpresaEstado(activeEmpresaId),
-          getEmpresaEmisiones(activeEmpresaId, { page: 1, page_size: 6 }),
+          getEmpresaEmisiones(activeEmpresaId, { page: 1, page_size: 1 }),
         ]);
 
         if (!isCancelled) {
@@ -177,13 +169,13 @@ function App() {
           }
 
           if (emissionsResult.status === "fulfilled") {
-            setDashboardTableRows(emissionsResult.value?.results || []);
+            setDashboardEmissionKpis(emissionsResult.value?.kpis || null);
           } else {
-            setDashboardTableRows([]);
+            setDashboardEmissionKpis(null);
           }
 
-          if (dashboardResult.status === "rejected" && estadoResult.status === "rejected" && emissionsResult.status === "rejected") {
-            throw dashboardResult.reason || estadoResult.reason || emissionsResult.reason;
+          if (dashboardResult.status === "rejected" && estadoResult.status === "rejected") {
+            throw dashboardResult.reason || estadoResult.reason;
           }
         }
       } catch (error) {
@@ -292,9 +284,6 @@ const unidades = Object.entries(emisionesPorUnidad).map(
   })
 );
 
-const actividadBarSize = getBarSizeForRowCount(actividades.length);
-const unidadBarSize = getBarSizeForRowCount(unidades.length);
-
 const actividadCritica = actividades[0]?.actividad || "Sin datos";
 const unidadCritica = data?.unidad_critica || unidades[0]?.unidad || "Sin datos";
 const safeDashboardData = {
@@ -306,40 +295,19 @@ const safeDashboardData = {
 };
 
 const riskProfile = calculateRiskProfile(safeDashboardData, recommendedScenario);
+const dieselReductionImpactKg = dashboardEmissionKpis
+  ? Number(dashboardEmissionKpis.emisiones_totales || 0) *
+    (Number(dashboardEmissionKpis.porcentaje_diesel || 0) / 100) *
+    0.25
+  : null;
+const dieselReductionEquivalentKm =
+  dieselReductionImpactKg != null ? dieselReductionImpactKg * 4 : null;
 
 const validationSummary = {
   records: dashboardRows.length,
   errors: 0,
   activities: new Set(dashboardRows.map((row) => row.actividad)).size,
 };
-  const formatTooltipValue = (value) => [
-    `${formatNumber(value)} kg CO2e`,
-    "Emisiones",
-  ];
-
-  const handleAiAnalysis = async () => {
-    try {
-      setLoadingAi(true);
-      const response = await getAiAdvisor({
-        total_emisiones: safeDashboardData.total_emisiones,
-        unidad_critica: unidadCritica,
-        actividad_critica: actividadCritica,
-        simulacion: null,
-        optimizacion: recommendedScenario,
-      });
-
-      setAiAnalysis(response.analisis);
-      setAiSource(response.fuente);
-    } catch (error) {
-      console.error(error);
-      setAiAnalysis(
-        error.response?.data?.error || "No se pudo generar el analisis IA."
-      );
-      setAiSource("");
-    } finally {
-      setLoadingAi(false);
-    }
-  };
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col lg:flex-row">
@@ -466,6 +434,7 @@ const validationSummary = {
             actividadCritica={actividadCritica}
             unidadCritica={unidadCritica}
             optimizedScenario={recommendedScenario}
+            reductionEquivalentKm={dieselReductionEquivalentKm}
             riskProfile={riskProfile}
             validationSummary={validationSummary}
           />
@@ -501,98 +470,41 @@ const validationSummary = {
             </p>
           </section>
 
-          <AiAdvisor
-            aiAnalysis={aiAnalysis}
-            aiSource={aiSource}
-            loadingAi={loadingAi}
-            onGenerateAnalysis={handleAiAnalysis}
-          />
-
-          <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-            <ChartCard title="Emisiones por unidad operativa">
-              <div className="h-64 sm:h-72 lg:h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={unidades}
-                    layout="vertical"
-                    margin={{ top: 10, right: 10, left: 24, bottom: 10 }}
-                  >
-                    <XAxis
-                      type="number"
-                      stroke="#94a3b8"
-                      tickFormatter={formatNumber}
-                    />
-                    <YAxis
-                      dataKey="unidad"
-                      interval={0}
-                      stroke="#94a3b8"
-                      tick={{ fill: "#CBD5E1", fontSize: 11 }}
-                      tickFormatter={truncateChartLabel}
-                      type="category"
-                      width={150}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipContentStyle}
-                      cursor={false}
-                      formatter={formatTooltipValue}
-                      labelStyle={{ color: "#F8FAFC" }}
-                      itemStyle={{ color: "#00D4AA" }}
-                    />
-                    <Bar
-                      activeBar={horizontalActiveBarStyle}
-                      dataKey="emisiones"
-                      fill="#00D4AA"
-                      barSize={unidadBarSize}
-                      radius={[0, 10, 10, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+          <section className="rounded-3xl border border-emerald-400/20 bg-slate-900 p-4 shadow-xl sm:p-6">
+            <div className="mb-5 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Pasos a seguir
+                </p>
+                <h2 className="mt-1 text-xl font-bold text-slate-100">
+                  Como reducir emisiones en una operacion maderera
+                </h2>
               </div>
-            </ChartCard>
-
-            <ChartCard title="Emisiones por actividad">
-              <div className="h-64 sm:h-72 lg:h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={actividades}
-                    layout="vertical"
-                    margin={{ top: 10, right: 10, left: 24, bottom: 10 }}
-                  >
-                    <XAxis
-                      type="number"
-                      stroke="#94a3b8"
-                      tickFormatter={formatNumber}
-                    />
-                    <YAxis
-                      dataKey="actividad"
-                      interval={0}
-                      stroke="#94a3b8"
-                      tick={{ fill: "#CBD5E1", fontSize: 11 }}
-                      tickFormatter={truncateChartLabel}
-                      type="category"
-                      width={150}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipContentStyle}
-                      cursor={false}
-                      formatter={formatTooltipValue}
-                      labelStyle={{ color: "#F8FAFC" }}
-                      itemStyle={{ color: "#00D4AA" }}
-                    />
-                    <Bar
-                      activeBar={horizontalActiveBarStyle}
-                      dataKey="emisiones"
-                      fill="#38BDF8"
-                      barSize={actividadBarSize}
-                      radius={[0, 10, 10, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </ChartCard>
+              <p className="max-w-2xl text-sm leading-6 text-emerald-200">
+                Aunque el combustible sea inevitable, las emisiones pueden bajar con
+                eficiencia operacional, optimizacion logistica, mantencion, renovacion
+                tecnologica y combustibles alternativos.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {woodReductionSteps.map((step, index) => (
+                <div
+                  key={step.title}
+                  className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
+                >
+                  <p className="text-xs font-bold text-emerald-300">
+                    Paso {index + 1}
+                  </p>
+                  <h3 className="mt-2 text-sm font-bold text-slate-100">
+                    {step.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    {step.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
           </section>
-
-          <DataTable rows={dashboardTableRows} />
         </div>
         )}
           </motion.div>

@@ -936,9 +936,27 @@ def empresa_emisiones(request, empresa_id):
         for factor in FactorEmision.objects.filter(factor_q).order_by("-anio", "-updated_at"):
             factor_lookup.setdefault((factor.actividad_key, factor.unidad), factor)
 
-    rows = []
     diesel_total = 0.0
-    actividades_sin_factor = 0
+    actividades_sin_factor = actividades_qs.filter(
+        Q(factor_emision__isnull=True) | Q(factor_emision=0)
+    ).count()
+
+    for actividad in actividades_qs.values(
+        "actividad",
+        "actividad_key",
+        "categoria",
+        "emisiones_kg_co2e",
+    ):
+        if is_diesel_activity(
+            {
+                "actividad": actividad.get("actividad"),
+                "actividad_key": actividad.get("actividad_key"),
+                "categoria": actividad.get("categoria") or "Sin categoria",
+            }
+        ):
+            diesel_total += float(actividad.get("emisiones_kg_co2e") or 0)
+
+    rows = []
     for actividad in page:
         lote = actividad.lote
         unidad_obj = actividad.unidad_operativa or getattr(lote, "unidad_operativa", None)
@@ -948,9 +966,6 @@ def empresa_emisiones(request, empresa_id):
         unidad_id = unidad_obj.unidad_id if unidad_obj else ""
         id_lote = lote.id_lote if lote else ""
         factor = factor_lookup.get((actividad.actividad_key, actividad.unidad))
-
-        if not actividad.factor_emision:
-            actividades_sin_factor += 1
 
         rows.append(
             {
@@ -973,9 +988,6 @@ def empresa_emisiones(request, empresa_id):
                 "anio_factor": factor.anio if factor else None,
             }
         )
-
-        if is_diesel_activity({"actividad": actividad.actividad, "actividad_key": actividad.actividad_key, "categoria": categoria}):
-            diesel_total += emisiones
 
     lotes_con_emisiones_count = actividades_qs.values("lote__id_lote").annotate(total=Sum("emisiones_kg_co2e")).filter(total__gt=0).count()
 

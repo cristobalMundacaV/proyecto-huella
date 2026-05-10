@@ -66,6 +66,58 @@ def _action_levels(actividad):
     }
 
 
+WOOD_INDUSTRY_REDUCTION_STEPS = [
+    (
+        "Optimizar rutas de despacho y transporte",
+        "Reducir kilometros vacios, mejorar rutas, cargar mejor los camiones y evitar viajes innecesarios.",
+    ),
+    (
+        "Mejorar la eficiencia de maquinaria y camiones",
+        "Aplicar mantencion preventiva, controlar presion de neumaticos, calibrar motores y evitar ralenti excesivo.",
+    ),
+    (
+        "Controlar conduccion y operacion",
+        "Capacitar operadores para reducir aceleraciones bruscas, tiempos muertos y uso ineficiente de equipos.",
+    ),
+    (
+        "Renovar flota gradualmente",
+        "Reemplazar camiones o maquinaria antigua por modelos mas eficientes, sin exigir un cambio total inmediato.",
+    ),
+    (
+        "Usar combustibles de menor emision cuando sea viable",
+        "Evaluar biodiesel, diesel renovable u otras mezclas compatibles segun disponibilidad, costo y garantia tecnica.",
+    ),
+    (
+        "Electrificar operaciones internas especificas",
+        "Priorizar gruas, equipos de patio, montacargas o vehiculos livianos antes que transporte forestal pesado.",
+    ),
+    (
+        "Planificar mejor la cosecha y acopio",
+        "Acercar puntos de acopio, reducir movimientos internos y evitar traslados repetidos de la misma carga.",
+    ),
+    (
+        "Medir litros por actividad",
+        "Separar consumo por cosecha, despacho, transporte, maquinaria y vehiculos para identificar donde actuar primero.",
+    ),
+]
+
+
+WOOD_INDUSTRY_KEY_IDEA = (
+    "Aunque el combustible sea inevitable en la operacion maderera, las emisiones "
+    "si pueden reducirse mediante eficiencia operacional, optimizacion logistica, "
+    "mantencion, renovacion tecnologica y combustibles alternativos."
+)
+
+
+def _wood_industry_steps_text():
+    lines = []
+
+    for title, detail in WOOD_INDUSTRY_REDUCTION_STEPS:
+        lines.append(f"- {title}: {detail}")
+
+    return "\n".join(lines)
+
+
 def generar_analisis_local(payload):
     total = float(payload.get("total_emisiones", 0) or 0)
     unidad = payload.get("unidad_critica") or payload.get("empresa_critica") or "la unidad critica"
@@ -147,6 +199,12 @@ Niveles de accion:
 {levels["low"]}
 {levels["medium"]}
 {levels["high"]}
+
+Pasos a seguir para reducir emisiones en una operacion maderera:
+{_wood_industry_steps_text()}
+
+Idea clave:
+{WOOD_INDUSTRY_KEY_IDEA}
 
 Recomendacion estrategica:
 Priorizar una hoja de ruta en dos velocidades: quick wins de eficiencia en 0-3 meses y decisiones estructurales en 3-18 meses para acercarse de forma creible al potencial maximo.

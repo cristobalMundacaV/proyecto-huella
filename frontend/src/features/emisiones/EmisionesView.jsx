@@ -7,25 +7,73 @@ import {
   Flame,
   Gauge,
   Layers3,
+  Sparkles,
   Search,
   Target,
   TrendingDown,
   X,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
+import {
+  Bar,
+  BarChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import DecisionCenter from "@/features/dashboard/components/DecisionCenter";
 import FactorCategoryBadge from "@/features/factores/components/FactorCategoryBadge";
 import { useEmpresaActiva } from "@/features/empresas/context/EmpresaActivaContext";
 import { optimizeScenario } from "@/features/dashboard/utils/optimizer";
 import AnimatedModalShell from "@/shared/components/AnimatedModalShell";
+import ChartCard from "@/shared/components/ChartCard";
 import EmptyState from "@/shared/components/EmptyState";
 import Pagination from "@/shared/components/Pagination";
-import { getEmpresaEmisiones, optimizeScenarioApi } from "@/shared/services/api";
+import {
+  getAiAdvisor,
+  getEmpresaEmisiones,
+  optimizeScenarioApi,
+} from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
 
-const rowsPerPage = 10;
+const rowsPerPage = 8;
 const DIESEL_REDUCTION_SCENARIO = 25;
+
+const tooltipContentStyle = {
+  backgroundColor: "#0F172A",
+  border: "1px solid #1E293B",
+  borderRadius: "12px",
+  color: "#F8FAFC",
+};
+
+const horizontalActiveBarStyle = {
+  fill: "#CBD5E1",
+  fillOpacity: 0.55,
+  radius: [0, 10, 10, 0],
+};
+
+function truncateChartLabel(value) {
+  const text = String(value || "");
+  return text.length > 28 ? `${text.slice(0, 28)}...` : text;
+}
+
+function getBarSizeForRowCount(rowCount) {
+  if (rowCount <= 1) {
+    return 34;
+  }
+
+  if (rowCount <= 2) {
+    return 30;
+  }
+
+  if (rowCount <= 4) {
+    return 24;
+  }
+
+  return 18;
+}
 
 function normalizeText(value) {
   return String(value || "")
@@ -158,6 +206,10 @@ function EmisionesView() {
   const [unitFilter, setUnitFilter] = useState("");
   const [loteFilter, setLoteFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState("");
+  const [aiSource, setAiSource] = useState("");
+  const [loadingAi, setLoadingAi] = useState(false);
   const [decisionModalOpen, setDecisionModalOpen] = useState(false);
   const [optimizedScenario, setOptimizedScenario] = useState(null);
   const [, setSimulatedScenario] = useState(null);
@@ -218,6 +270,31 @@ const kpis = data?.kpis ?? {
   promedio_emision_por_lote: data?.promedio_emision_por_lote ?? 0,
   actividades_sin_factor: data?.actividades_sin_factor ?? 0,
 };
+  const emissionsByUnit = useMemo(() => {
+    const totals = rows.reduce((accumulator, row) => {
+      const unidad = row.unidad_nombre || "Sin unidad";
+      accumulator[unidad] = (accumulator[unidad] || 0) + Number(row.emisiones || 0);
+      return accumulator;
+    }, {});
+
+    return Object.entries(totals)
+      .map(([unidad, emisiones]) => ({ unidad, emisiones }))
+      .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
+  }, [rows]);
+  const emissionsByActivity = useMemo(() => {
+    const totals = rows.reduce((accumulator, row) => {
+      const actividad = row.actividad || "Sin actividad";
+      accumulator[actividad] =
+        (accumulator[actividad] || 0) + Number(row.emisiones || 0);
+      return accumulator;
+    }, {});
+
+    return Object.entries(totals)
+      .map(([actividad, emisiones]) => ({ actividad, emisiones }))
+      .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
+  }, [rows]);
+  const unitBarSize = getBarSizeForRowCount(emissionsByUnit.length);
+  const activityBarSize = getBarSizeForRowCount(emissionsByActivity.length);
   const decision = useMemo(() => buildDecisionModel(data), [data]);
   const decisionData = useMemo(
     () => ({
@@ -277,6 +354,10 @@ const kpis = data?.kpis ?? {
     safeCurrentPage * rowsPerPage
   );
   const maxEmission = filteredRows[0]?.emisiones || 0;
+  const formatTooltipValue = (value) => [
+    `${formatNumber(value)} kg CO2e`,
+    "Emisiones",
+  ];
 
   useEffect(() => {
     setCurrentPage(1);
@@ -289,6 +370,32 @@ const kpis = data?.kpis ?? {
     } catch (requestError) {
       console.error(requestError);
       setOptimizedScenario(optimizeScenario(decisionData.datos || []));
+    }
+  };
+
+  const handleAiAnalysis = async () => {
+    setAiModalOpen(true);
+
+    try {
+      setLoadingAi(true);
+      const response = await getAiAdvisor({
+        total_emisiones: kpis.emisiones_totales || 0,
+        unidad_critica: kpis.unidad_critica || "Sin datos",
+        actividad_critica: kpis.actividad_critica || "Sin datos",
+        simulacion: null,
+        optimizacion: optimizedScenario,
+      });
+
+      setAiAnalysis(response.analisis);
+      setAiSource(response.fuente);
+    } catch (requestError) {
+      console.error(requestError);
+      setAiAnalysis(
+        requestError.response?.data?.error || "No se pudo generar el analisis IA."
+      );
+      setAiSource("");
+    } finally {
+      setLoadingAi(false);
     }
   };
 
@@ -335,6 +442,15 @@ const kpis = data?.kpis ?? {
           <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
             <button
               type="button"
+              onClick={handleAiAnalysis}
+              disabled={loadingAi}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 text-sm font-bold text-cyan-200 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-500"
+            >
+              <Sparkles size={18} />
+              {loadingAi ? "Analizando..." : "Generar analisis IA"}
+            </button>
+            <button
+              type="button"
               onClick={() => openDecisionCenter(false)}
               className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20"
             >
@@ -373,7 +489,7 @@ const kpis = data?.kpis ?? {
       </section>
 
       <section className="space-y-4">
-        <SectionTitle eyebrow="Estado actual" title="Dónde se concentra el impacto" />
+        <SectionTitle title="Estado actual de la operación" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <DecisionKpi
             icon={<Activity />}
@@ -410,6 +526,90 @@ const kpis = data?.kpis ?? {
             value={`${formatNumber(kpis.promedio_emision_por_lote || 0, 1)} kg CO2e`}
           />
         </div>
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
+        <ChartCard title="Emisiones por unidad operativa">
+          <div className="h-64 sm:h-72 lg:h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={emissionsByUnit}
+                layout="vertical"
+                margin={{ top: 10, right: 10, left: 24, bottom: 10 }}
+              >
+                <XAxis
+                  type="number"
+                  stroke="#94a3b8"
+                  tickFormatter={formatNumber}
+                />
+                <YAxis
+                  dataKey="unidad"
+                  interval={0}
+                  stroke="#94a3b8"
+                  tick={{ fill: "#CBD5E1", fontSize: 11 }}
+                  tickFormatter={truncateChartLabel}
+                  type="category"
+                  width={150}
+                />
+                <Tooltip
+                  contentStyle={tooltipContentStyle}
+                  cursor={false}
+                  formatter={formatTooltipValue}
+                  labelStyle={{ color: "#F8FAFC" }}
+                  itemStyle={{ color: "#00D4AA" }}
+                />
+                <Bar
+                  activeBar={horizontalActiveBarStyle}
+                  dataKey="emisiones"
+                  fill="#00D4AA"
+                  barSize={unitBarSize}
+                  radius={[0, 10, 10, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
+
+        <ChartCard title="Emisiones por actividad">
+          <div className="h-64 sm:h-72 lg:h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={emissionsByActivity}
+                layout="vertical"
+                margin={{ top: 10, right: 10, left: 24, bottom: 10 }}
+              >
+                <XAxis
+                  type="number"
+                  stroke="#94a3b8"
+                  tickFormatter={formatNumber}
+                />
+                <YAxis
+                  dataKey="actividad"
+                  interval={0}
+                  stroke="#94a3b8"
+                  tick={{ fill: "#CBD5E1", fontSize: 11 }}
+                  tickFormatter={truncateChartLabel}
+                  type="category"
+                  width={150}
+                />
+                <Tooltip
+                  contentStyle={tooltipContentStyle}
+                  cursor={false}
+                  formatter={formatTooltipValue}
+                  labelStyle={{ color: "#F8FAFC" }}
+                  itemStyle={{ color: "#00D4AA" }}
+                />
+                <Bar
+                  activeBar={horizontalActiveBarStyle}
+                  dataKey="emisiones"
+                  fill="#38BDF8"
+                  barSize={activityBarSize}
+                  radius={[0, 10, 10, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
       </section>
 
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
@@ -573,6 +773,56 @@ const kpis = data?.kpis ?? {
       </section>
 
       <AnimatePresence>
+        {aiModalOpen && (
+          <AnimatedModalShell
+            ariaLabel="Analisis estrategico IA"
+            contentClassName="my-4 flex max-h-[calc(100vh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl sm:my-6"
+            onBackdropClick={() => setAiModalOpen(false)}
+          >
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-800 bg-slate-950 p-4 sm:p-6">
+              <div>
+                <p className="text-sm font-semibold text-cyan-300">
+                  Carbono Zero AI
+                </p>
+                <h2 className="mt-1 text-2xl font-bold text-slate-100">
+                  Analisis estrategico generado por IA
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAiModalOpen(false)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 text-slate-300 transition hover:bg-slate-800"
+                aria-label="Cerrar analisis IA"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+              {loadingAi ? (
+                <p className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-5 text-sm font-semibold text-cyan-200">
+                  Generando analisis...
+                </p>
+              ) : (
+                <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-5 text-slate-200">
+                  {aiSource === "carbono_zero_engine" && (
+                    <p className="mb-4 text-xs font-semibold text-emerald-300">
+                      Generado por motor analitico Carbono Zero
+                    </p>
+                  )}
+                  {aiSource === "openai" && (
+                    <p className="mb-4 text-xs font-semibold text-cyan-300">
+                      Generado con OpenAI
+                    </p>
+                  )}
+                  <p className="whitespace-pre-line leading-7">
+                    {aiAnalysis || "Aun no hay analisis disponible."}
+                  </p>
+                </div>
+              )}
+            </div>
+          </AnimatedModalShell>
+        )}
+
         {decisionModalOpen && (
           <AnimatedModalShell
             ariaLabel="Centro de decisiones"

@@ -22,6 +22,23 @@ const normalizePlanText = (value) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 
+const formatFocusForSentence = (value) => {
+  const normalizedValue = normalizePlanText(value);
+
+  if (
+    normalizedValue.includes("diesel") &&
+    normalizedValue.includes("combustion") &&
+    normalizedValue.includes("movil")
+  ) {
+    return "la combustión móvil de diésel";
+  }
+
+  return value;
+};
+
+const formatViabilityForSentence = (value) =>
+  String(value || "").trim().toLowerCase();
+
 const capRangeToPotential = (range, potentialReduction) => {
   if (!potentialReduction || potentialReduction <= 0) {
     return range;
@@ -59,9 +76,7 @@ const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
   const baseRecommendedRange =
     viability === "Baja"
       ? { min: 10, max: 20 }
-      : viability === "Media"
-        ? { min: 15, max: 30 }
-        : { min: 20, max: 35 };
+      : { min: 20, max: 25 };
   const recommendedRange = capRangeToPotential(
     baseRecommendedRange,
     potentialReduction
@@ -73,13 +88,13 @@ const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
     recommendedRange.max
   );
 
-  const principalRecommendation = `Reducir consumo de ${activityLabel} entre ${formatPercentRange(recommendedRange)} de manera gradual , iniciando con un objetivo priorizado cercano a ${initialTarget}%.`;
+  const principalRecommendation = `Apuntar a reducir gradualmente el consumo de ${activityLabel} entre un ${formatPercentRange(recommendedRange)}, iniciando con un objetivo priorizado cercano al ${initialTarget}%.`;
 
   const optimalReference = potentialReduction > 0
-    ? `El escenario máximo proyectado muestra hasta ${formatNumber(
+    ? `El escenario máximo proyectado contempla una reducción total de hasta un ${formatNumber(
         potentialReduction,
         1
-      )}% de reduccion total, pero no es una accion inmediata y requeriría cambios estructurales.`
+      )}%; sin embargo, no corresponde a una acción inmediata, ya que requeriría cambios estructurales para su implementación.`
     : "El máximo potencial proyectado debe tratarse como referencia estratégica de largo plazo, no como acción inmediata.";
 
   const actionLevels = [
@@ -87,13 +102,15 @@ const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
       label: "Acciones rápidas",
       range: "5%-15%",
       tone: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
-      detail: `Control de consumo, mantenimiento y disciplina operativa. Ideal para generar mejoras visibles sin intervenir la estructura del negocio.`,
+      detail:
+        "Control del consumo, mantenimiento preventivo y mejora de la operación diaria. Ideal para lograr avances visibles sin cambiar la estructura del negocio.",
     },
     {
       label: "Piloto recomendado",
       range: formatPercentRange(recommendedRange),
       tone: "border-yellow-400/20 bg-yellow-400/10 text-yellow-200",
-      detail: `Ajustes operativos, rediseño parcial y seguimiento con indicadores. Es el mejor punto de partida para una reducción realista.`,
+      detail:
+        "Ajustes operativos, rediseño parcial de procesos y seguimiento mediante indicadores. Es el mejor punto de partida para lograr una reducción realista y medible.",
     },
     {
       label: "Cambio estructural",
@@ -102,7 +119,8 @@ const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
           ? `${formatNumber(potentialReduction, 1)}% proyectado`
           : "35%+",
       tone: "border-rose-400/20 bg-rose-400/10 text-rose-200",
-      detail: `Requiere inversión, planificación plurianual y transición tecnológica. Útil como visión de largo plazo, no como primera acción.`,
+      detail:
+        "Requiere inversión, planificación a mediano y largo plazo, y transición tecnológica. Es útil como visión futura, pero no como primera acción inmediata.",
     },
   ];
 
@@ -120,6 +138,7 @@ function ExecutiveSummary({
   actividadCritica,
   unidadCritica,
   optimizedScenario,
+  reductionEquivalentKm,
   riskProfile,
   validationSummary,
 }) {
@@ -131,7 +150,8 @@ function ExecutiveSummary({
   const currentTotal = optimizedScenario?.currentTotal || 0;
   const simulatedTotal = optimizedScenario?.simulatedTotal || 0;
   const avoidedEmissions = Math.max(currentTotal - simulatedTotal, 0);
-  const avoidedCarKm = avoidedEmissions * 4;
+  const equivalentCarKm =
+    reductionEquivalentKm != null ? reductionEquivalentKm : avoidedEmissions * 4;
   const mediumImpactReductionPct =
     (strategicPlan.recommendedRange.min + strategicPlan.recommendedRange.max) / 2;
   const mediumImpactEstimatedTotal = Math.max(
@@ -139,10 +159,10 @@ function ExecutiveSummary({
     0
   );
   const estimatedImpact = optimizedScenario
-    ? `Potencial proyectado de ${formatNumber(
+    ? `con un potencial proyectado de reducción del ${formatNumber(
         optimizedScenario.reductionPct,
         1
-      )}% en emisiones totales bajo el escenario máximo.`
+      )}% en las emisiones totales bajo el escenario máximo.`
     : "Sin calcular";
   const riskFrameClass =
     riskProfile.score > 70
@@ -157,28 +177,26 @@ function ExecutiveSummary({
         <p className="text-lg font-semibold text-emerald-300">
           Resumen ejecutivo
         </p>
-        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-emerald-300">
-          <span>Registro validado</span>
-          <span>{validationSummary.errors} errores</span>
-          <span className="text-slate-600">·</span>
-          <span>{validationSummary.activities} actividades reconocidas</span>
-        </div>
       </div>
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
           <h2 className="text-3xl font-bold">
             {optimizedScenario
-              ? `Potencial de reducción del ${formatNumber(
+              ? `Potencial de reduccion del ${formatNumber(
                   optimizedScenario.reductionPct,
                   1
-                )}% y reduccion realista progresiva en ${actividadCritica}`
+                )}% con una reduccion progresiva en ${formatTitleCase(
+                  actividadCritica
+                )}`
               : `Carbono Zero recomienda un plan gradual sobre ${actividadCritica}`}
           </h2>
           <p className="mt-3 text-sm leading-6 text-emerald-100">
-            El principal foco de impacto se concentra en {actividadCritica}, con{" "}
-            {unidadCriticaLabel} como unidad prioritaria. Nivel de viabilidad:{" "}
-            <strong>{strategicPlan.viability}</strong>. {estimatedImpact}
+            El principal foco de impacto se concentra en{" "}
+            {formatFocusForSentence(actividadCritica)}, siendo {unidadCriticaLabel}{" "}
+            la unidad prioritaria. El nivel de viabilidad es{" "}
+            <strong>{formatViabilityForSentence(strategicPlan.viability)}</strong>,{" "}
+            {optimizedScenario ? estimatedImpact : "sin calcular."}
           </p>
         </div>
 
@@ -292,9 +310,9 @@ function ExecutiveSummary({
       <p className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm leading-6 text-emerald-100">
         Carbono Zero recomienda priorizar una intervencion progresiva en {unidadCriticaLabel} sobre {actividadCritica}, empezando con quick wins y escalando por fases
         segun resultados medidos.
-        {optimizedScenario &&
-          ` Si la hoja de ruta se consolida por etapas, el potencial acumulado equivale a aproximadamente ${formatNumber(
-            avoidedCarKm,
+        {(optimizedScenario || reductionEquivalentKm != null) &&
+          ` Si la hoja de ruta se consolida por etapas, la reducción operativa estimada equivale a aproximadamente ${formatNumber(
+            equivalentCarKm,
             0
           )} km recorridos en auto.`}
       </p>
