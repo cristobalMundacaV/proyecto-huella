@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, ShieldCheck, UserRound, UsersRound } from "lucide-react";
+import { Plus, ShieldCheck, UserRound, UsersRound, X } from "lucide-react";
 
 import EmptyState from "@/shared/components/EmptyState";
 import {
@@ -140,72 +140,84 @@ function UsuariosPage() {
       </section>
 
       {formOpen && (
-        <form
-          onSubmit={handleCreateUser}
-          className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6"
-        >
-          <div className="mb-5">
-            <p className="text-sm font-semibold text-emerald-300">Nuevo acceso</p>
-            <h2 className="mt-1 text-xl font-bold text-slate-100">
-              Crear usuario en {activeEmpresa.nombre}
-            </h2>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <Field label="Usuario" name="username" onChange={updateForm} required value={form.username} />
-            <Field label="Email" name="email" onChange={updateForm} type="email" value={form.email} />
-            <Field label="Clave" name="password" onChange={updateForm} required type="password" value={form.password} />
-            <Field label="Nombre" name="first_name" onChange={updateForm} value={form.first_name} />
-            <Field label="Apellido" name="last_name" onChange={updateForm} value={form.last_name} />
-            <Field label="Cargo" name="cargo" onChange={updateForm} value={form.cargo} />
-            <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Rol</span>
-              <select
-                name="rol"
-                onChange={updateForm}
-                value={form.rol}
-                className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-emerald-400/60"
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/75 px-4 py-6 backdrop-blur-sm">
+          <form
+            onSubmit={handleCreateUser}
+            className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-slate-700 bg-slate-900 p-4 shadow-2xl sm:p-6"
+          >
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-emerald-300">Nuevo acceso</p>
+                <h2 className="mt-1 text-xl font-bold text-slate-100">
+                  Crear usuario en {activeEmpresa.nombre}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormOpen(false)}
+                className="rounded-2xl border border-slate-700 bg-slate-950 p-3 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                aria-label="Cerrar modal"
               >
-                <option value="admin">Administrador</option>
-                <option value="analista">Analista</option>
-                <option value="operador">Operador</option>
-                <option value="lector">Lector</option>
-              </select>
-            </label>
-            <label className="flex items-center gap-3 self-end rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-200">
-              <input
-                checked={form.activo}
-                name="activo"
-                onChange={updateForm}
-                type="checkbox"
-              />
-              Usuario activo
-            </label>
-          </div>
+                <X size={18} />
+              </button>
+            </div>
 
-          {error && (
-            <p className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/10 p-3 text-sm text-rose-100">
-              {error}
-            </p>
-          )}
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <Field label="Usuario" name="username" onChange={updateForm} required value={form.username} />
+              <Field label="Email" name="email" onChange={updateForm} type="email" value={form.email} />
+              <Field label="Clave" name="password" onChange={updateForm} required type="password" value={form.password} />
+              <Field label="Nombre" name="first_name" onChange={updateForm} value={form.first_name} />
+              <Field label="Apellido" name="last_name" onChange={updateForm} value={form.last_name} />
+              <Field label="Cargo" name="cargo" onChange={updateForm} value={form.cargo} />
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Rol</span>
+                <select
+                  name="rol"
+                  onChange={updateForm}
+                  value={form.rol}
+                  className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-emerald-400/60"
+                >
+                  <option value="admin">Administrador</option>
+                  <option value="analista">Analista</option>
+                  <option value="operador">Operador</option>
+                  <option value="lector">Lector</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-3 self-end rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-200">
+                <input
+                  checked={form.activo}
+                  name="activo"
+                  onChange={updateForm}
+                  type="checkbox"
+                />
+                Usuario activo
+              </label>
+            </div>
 
-          <div className="mt-5 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => setFormOpen(false)}
-              className="rounded-2xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-bold text-slate-200"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-60"
-            >
-              {saving ? "Creando..." : "Crear usuario"}
-            </button>
-          </div>
-        </form>
+            {error && (
+              <p className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/10 p-3 text-sm text-rose-100">
+                {error}
+              </p>
+            )}
+
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setFormOpen(false)}
+                className="rounded-2xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-bold text-slate-200"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-60"
+              >
+                {saving ? "Creando..." : "Crear usuario"}
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
       <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
