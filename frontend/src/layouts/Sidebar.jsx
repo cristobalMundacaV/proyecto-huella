@@ -82,7 +82,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
   ];
 
   return (
-    <aside className="w-full shrink-0 border-b border-white/10 bg-[var(--sidebar)] p-4 text-slate-100 sm:p-6 lg:min-h-screen lg:w-72 lg:border-b-0 lg:border-r">
+<aside className="w-full shrink-0 border-b border-white/10 bg-[var(--sidebar)] p-4 text-slate-100 sm:p-6 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:flex-col lg:border-b-0 lg:border-r lg:overflow-y-auto">
       <div className="mb-10 flex items-center gap-3">
         <div className="rounded-2xl border border-white/10 bg-white/10 p-3">
           <Database className="text-[var(--primary)]" />
