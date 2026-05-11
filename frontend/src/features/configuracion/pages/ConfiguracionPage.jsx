@@ -136,10 +136,10 @@ function setNestedValue(source, section, field, value) {
 
 function SettingCard({ title, description, children }) {
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
+    <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[0_18px_45px_var(--shadow)] sm:p-6">
       <div className="mb-5">
-        <h2 className="text-xl font-semibold text-slate-100">{title}</h2>
-        {description ? <p className="mt-2 text-sm leading-6 text-slate-400">{description}</p> : null}
+        <h2 className="text-xl font-semibold text-[var(--text-main)]">{title}</h2>
+        {description ? <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">{description}</p> : null}
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{children}</div>
     </section>
@@ -149,9 +149,9 @@ function SettingCard({ title, description, children }) {
 function Field({ label, children, help }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-semibold text-slate-300">{label}</span>
+      <span className="mb-1 block text-sm font-semibold text-[#344054]">{label}</span>
       {children}
-      {help ? <span className="mt-1 block text-xs leading-5 text-slate-500">{help}</span> : null}
+      {help ? <span className="mt-1 block text-xs leading-5 text-[var(--text-muted)]">{help}</span> : null}
     </label>
   );
 }
@@ -163,7 +163,7 @@ function TextInput({ value, onChange, readOnly = false, type = "text" }) {
       value={value ?? ""}
       readOnly={readOnly}
       onChange={(event) => onChange(type === "number" ? Number(event.target.value) : event.target.value)}
-      className={`w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-emerald-400/60 ${readOnly ? "cursor-not-allowed opacity-70" : ""}`}
+      className={`w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-emerald-100 ${readOnly ? "cursor-not-allowed opacity-70" : ""}`}
     />
   );
 }
@@ -173,7 +173,7 @@ function SelectInput({ value, onChange, options }) {
     <select
       value={value ?? ""}
       onChange={(event) => onChange(event.target.value)}
-      className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-emerald-400/60"
+      className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-emerald-100"
     >
       {options.map((option) => (
         <option key={option.value ?? option} value={option.value ?? option}>
@@ -189,14 +189,14 @@ function SettingSwitch({ label, checked, onChange, help }) {
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="flex min-h-[76px] items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-950 p-4 text-left transition hover:border-emerald-400/30"
+      className="flex min-h-[76px] items-center justify-between gap-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 text-left transition hover:border-[var(--primary)] hover:bg-[var(--success-bg)]"
     >
       <span>
-        <span className="block text-sm font-semibold text-slate-200">{label}</span>
-        {help ? <span className="mt-1 block text-xs leading-5 text-slate-500">{help}</span> : null}
+        <span className="block text-sm font-semibold text-[var(--text-main)]">{label}</span>
+        {help ? <span className="mt-1 block text-xs leading-5 text-[var(--text-muted)]">{help}</span> : null}
       </span>
-      <span className={`flex h-7 w-12 shrink-0 items-center rounded-full border p-1 transition ${checked ? "border-emerald-400/40 bg-emerald-400/20" : "border-slate-700 bg-slate-900"}`}>
-        <span className={`h-5 w-5 rounded-full transition ${checked ? "translate-x-5 bg-emerald-300" : "bg-slate-500"}`} />
+      <span className={`flex h-7 w-12 shrink-0 items-center rounded-full border p-1 transition ${checked ? "border-[#064E3B] bg-[#0B5F49]" : "border-[#B9C7BF] bg-[#DDE6E0]"}`}>
+        <span className={`h-5 w-5 rounded-full shadow-sm transition ${checked ? "translate-x-5 bg-[#A7F3D0]" : "bg-[#7B8F86]"}`} />
       </span>
     </button>
   );
@@ -204,10 +204,10 @@ function SettingSwitch({ label, checked, onChange, help }) {
 
 function KpiCard({ icon, label, value, detail, tone = "slate" }) {
   const toneClass = {
-    emerald: "border-emerald-400/20 bg-emerald-400/10 text-emerald-100",
-    cyan: "border-cyan-400/20 bg-cyan-400/10 text-cyan-100",
-    amber: "border-amber-400/20 bg-amber-400/10 text-amber-100",
-    slate: "border-slate-800 bg-slate-900 text-slate-100",
+    emerald: "border-[#B7DEC9] bg-[var(--success-bg)] text-[var(--primary-dark)]",
+    cyan: "border-[#B9D8D3] bg-[var(--info-bg)] text-[#155E75]",
+    amber: "border-[#E6CC82] bg-[var(--warning-bg)] text-[#7A4F00]",
+    slate: "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-main)]",
   }[tone];
 
   return (
@@ -337,42 +337,42 @@ function ConfiguracionPage() {
     <main className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-emerald-300">Configuración</p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-100 sm:text-4xl">Configuración</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+          <p className="text-xs font-bold uppercase tracking-wide text-[var(--primary-dark)]">Configuración</p>
+          <h1 className="mt-2 text-3xl font-bold text-[var(--text-main)] sm:text-4xl">Configuración</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
             Define cómo Carbono Zero calcula emisiones, valida datos, exige evidencias y construye reportes para la empresa activa.
           </p>
         </div>
         {hasChanges ? (
-          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-200">
+          <div className="rounded-2xl border border-[#E6CC82] bg-[var(--warning-bg)] px-4 py-3 text-sm font-bold text-[#7A4F00]">
             Cambios sin guardar
           </div>
         ) : null}
       </header>
 
       {loading ? (
-        <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm font-semibold text-cyan-100">
+        <div className="rounded-3xl border border-[#B9D8D3] bg-[var(--info-bg)] p-4 text-sm font-semibold text-[#155E75]">
           Cargando configuración de la empresa activa...
         </div>
       ) : null}
 
       {error ? (
-        <div className="rounded-3xl border border-rose-400/20 bg-rose-400/10 p-4 text-sm font-semibold text-rose-100">
+        <div className="rounded-3xl border border-[#F1B8B8] bg-[var(--danger-bg)] p-4 text-sm font-semibold text-[#B42318]">
           {error}
         </div>
       ) : null}
 
-      <section className="rounded-3xl border border-emerald-400/25 bg-emerald-400/10 p-5 shadow-[0_0_40px_rgba(16,185,129,0.08)] sm:p-7">
+      <section className="rounded-3xl border border-[#B7DEC9] bg-[var(--success-bg)] p-5 shadow-[0_18px_45px_var(--shadow)] sm:p-7">
         <div className="grid gap-6 lg:grid-cols-[1.35fr_0.75fr] lg:items-center">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">Reglas de operación</p>
-            <h2 className="mt-3 text-2xl font-bold text-slate-100 sm:text-3xl">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--primary-dark)]">Reglas de operación</p>
+            <h2 className="mt-3 text-2xl font-bold text-[var(--text-main)] sm:text-3xl">
               Reglas activas para calcular, validar e interpretar la información de {activeEmpresa?.nombre || "la empresa"}
             </h2>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-emerald-50">
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-[#344054]">
               {activeEmpresa?.nombre || "La empresa"} usa importación {config.importaciones.modo_importacion}, Pasaporte Verde {config.pasaporte.pasaporte_activo ? "activo" : "inactivo"} y evidencia obligatoria para fortalecer la trazabilidad documental. Estos ajustes definen cómo se procesan nuevos datos, cómo se calculan emisiones y qué condiciones debe cumplir la información antes de aparecer en reportes.
             </p>
-            <p className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm font-semibold text-amber-100">
+            <p className="mt-4 rounded-2xl border border-[#E6CC82] bg-[var(--warning-bg)] p-3 text-sm font-semibold text-[#7A4F00]">
               Los cambios pueden afectar nuevos cálculos, importaciones y validaciones. Los registros históricos no se modifican automáticamente; solo cambiarán si vuelves a procesarlos.
             </p>
           </div>
@@ -392,7 +392,7 @@ function ConfiguracionPage() {
         <KpiCard icon={<FileText size={22} />} label="Período de reportes" value={config.reportes.periodo_default.replace(/_/g, " ")} tone="slate" />
       </section>
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-900 p-2">
+      <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-2 shadow-[0_14px_35px_var(--shadow)]">
         <div className="flex gap-2 overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -402,7 +402,7 @@ function ConfiguracionPage() {
                 key={tab.value}
                 type="button"
                 onClick={() => setActiveTab(tab.value)}
-                className={`flex shrink-0 items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition ${isActive ? "bg-emerald-400/10 text-emerald-200" : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"}`}
+                className={`flex shrink-0 items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition ${isActive ? "bg-[var(--success-bg)] text-[var(--primary-dark)]" : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-main)]"}`}
               >
                 <Icon size={17} />
                 {tab.label}
@@ -487,10 +487,10 @@ function ConfiguracionPage() {
           <SettingSwitch label="Permitir evidencia a nivel lote" checked={config.evidencias.permitir_lote} onChange={(v) => update("evidencias", "permitir_lote", v)} />
           <SettingSwitch label="Permitir evidencia a nivel emision" checked={config.evidencias.permitir_emision} onChange={(v) => update("evidencias", "permitir_emision", v)} />
           <div className="md:col-span-2">
-            <p className="mb-3 text-sm font-semibold text-slate-300">Formatos permitidos</p>
+            <p className="mb-3 text-sm font-semibold text-[#344054]">Formatos permitidos</p>
             <div className="flex flex-wrap gap-2">
               {["PDF", "JPG", "PNG", "XLSX", "CSV", "DOCX"].map((format) => (
-                <button key={format} type="button" onClick={() => toggleFormat(format)} className={`rounded-full border px-4 py-2 text-sm font-bold ${config.evidencias.formatos_permitidos.includes(format) ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200" : "border-slate-700 bg-slate-950 text-slate-400"}`}>{format}</button>
+                <button key={format} type="button" onClick={() => toggleFormat(format)} className={`rounded-full border px-4 py-2 text-sm font-bold ${config.evidencias.formatos_permitidos.includes(format) ? "border-[#B7DEC9] bg-[var(--success-bg)] text-[var(--primary-dark)]" : "border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>{format}</button>
               ))}
             </div>
           </div>
@@ -510,18 +510,18 @@ function ConfiguracionPage() {
         </SettingCard>
       )}
 
-      <section className="sticky bottom-4 z-10 rounded-3xl border border-slate-800 bg-slate-900/95 p-4 shadow-2xl backdrop-blur">
+      <section className="sticky bottom-4 z-10 rounded-3xl border border-[var(--border)] bg-[#F9FBF9]/95 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.16)] backdrop-blur">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-semibold text-slate-100">{hasChanges ? "Cambios pendientes" : "Configuración lista"}</p>
-            <p className="text-xs text-slate-500">{successMessage || "Los cambios se guardan por empresa activa y quedan listos para usarse en cálculos, importaciones y reportes."}</p>
+            <p className="text-sm font-semibold text-[var(--text-main)]">{hasChanges ? "Cambios pendientes" : "Configuración lista"}</p>
+            <p className="text-xs text-[var(--text-muted)]">{successMessage || "Los cambios se guardan por empresa activa y quedan listos para usarse en cálculos, importaciones y reportes."}</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button type="button" onClick={restoreDefaults} className="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-bold text-slate-300">
+            <button type="button" onClick={restoreDefaults} className="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-5 py-3 text-sm font-bold text-[#475467]">
               <RotateCcw size={18} />
               Restaurar valores predeterminados
             </button>
-            <button type="button" onClick={saveConfig} disabled={saving} className="inline-flex items-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 disabled:cursor-not-allowed disabled:opacity-60">
+            <button type="button" onClick={saveConfig} disabled={saving} className="inline-flex items-center gap-2 rounded-2xl border border-[var(--primary-dark)] bg-[var(--primary-dark)] px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">
               <Save size={18} />
               {saving ? "Guardando..." : "Guardar cambios"}
             </button>

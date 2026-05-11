@@ -58,9 +58,9 @@ const sistemaLabels = {
 };
 
 const sistemaStyles = {
-  corporativa: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
-  vinculada: "border-cyan-400/30 bg-cyan-400/10 text-cyan-200",
-  sin_vinculo: "border-slate-700 bg-slate-950 text-slate-300",
+  corporativa: "border-[#B7DEC9] bg-[var(--success-bg)] text-[var(--primary-dark)]",
+  vinculada: "border-[#B9D8D3] bg-[var(--info-bg)] text-[#075985]",
+  sin_vinculo: "border-[var(--border)] bg-[var(--bg-surface)] text-[#475467]",
 };
 
 const revisionLabels = {
@@ -71,10 +71,10 @@ const revisionLabels = {
 };
 
 const revisionStyles = {
-  sin_revisar: "border-amber-400/30 bg-amber-400/10 text-amber-200",
-  validada: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
-  observada: "border-cyan-400/30 bg-cyan-400/10 text-cyan-200",
-  rechazada: "border-rose-400/30 bg-rose-400/10 text-rose-200",
+  sin_revisar: "border-[#E6CC82] bg-[var(--warning-bg)] text-[#7A4F00]",
+  validada: "border-[#B7DEC9] bg-[var(--success-bg)] text-[var(--primary-dark)]",
+  observada: "border-[#B9D8D3] bg-[var(--info-bg)] text-[#075985]",
+  rechazada: "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]",
 };
 
 const emptyForm = {
@@ -91,15 +91,15 @@ const emptyForm = {
 
 function KpiImpact({ icon, label, value, detail, tone = "slate" }) {
   const toneClass = {
-    cyan: "border-cyan-400/20 bg-cyan-400/10 text-cyan-100",
-    emerald: "border-emerald-400/20 bg-emerald-400/10 text-emerald-100",
-    amber: "border-amber-400/20 bg-amber-400/10 text-amber-100",
-    rose: "border-rose-400/20 bg-rose-400/10 text-rose-100",
-    slate: "border-slate-800 bg-slate-900 text-slate-100",
+    cyan: "border-[#B9D8D3] bg-[var(--info-bg)] text-[#075985]",
+    emerald: "border-[#B7DEC9] bg-[var(--success-bg)] text-[var(--primary-dark)]",
+    amber: "border-[#E6CC82] bg-[var(--warning-bg)] text-[#7A4F00]",
+    rose: "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]",
+    slate: "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-main)]",
   }[tone];
 
   return (
-    <div className={`rounded-3xl border p-5 ${toneClass}`}>
+    <div className={`rounded-3xl border p-5 shadow-[0_14px_35px_var(--shadow)] ${toneClass}`}>
       <div className="mb-3 flex items-center gap-3">
         <div className="text-current opacity-90">{icon}</div>
         <p className="text-xs font-semibold uppercase tracking-wide opacity-70">
@@ -265,17 +265,17 @@ function EvidenciasPage() {
 
   return (
     <main className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
-      <section className="rounded-3xl border border-emerald-400/25 bg-emerald-400/10 p-5 shadow-[0_0_40px_rgba(16,185,129,0.08)] sm:p-7">
+      <section className="rounded-3xl border border-[#B7DEC9] bg-[var(--success-bg)] p-5 shadow-[0_18px_45px_var(--shadow)] sm:p-7">
         <div className="grid gap-6 lg:grid-cols-[1.35fr_0.75fr] lg:items-center">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">Centro documental</p>
-            <h1 className="mt-3 text-3xl font-bold text-slate-100 sm:text-4xl">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--primary-dark)]">Centro documental</p>
+            <h1 className="mt-3 text-3xl font-bold text-[var(--text-main)] sm:text-4xl">
               Respalda empresas, unidades, lotes y emisiones con documentos verificables
             </h1>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-emerald-50">
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-[#344054]">
               Toda evidencia queda dentro de {activeEmpresa?.nombre || activeEmpresaId}. Elige que quieres respaldar y el sistema validara que el vinculo pertenezca a la empresa activa.
             </p>
-            <p className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm font-semibold text-amber-100">
+            <p className="mt-3 rounded-2xl border border-[#E6CC82] bg-[var(--warning-bg)] p-3 text-sm font-semibold text-[#7A4F00]">
               Subir una evidencia no la valida automáticamente. Las evidencias deben ser revisadas antes de considerarse respaldo documental oficial.
             </p>
           </div>
@@ -294,97 +294,97 @@ function EvidenciasPage() {
         <KpiImpact icon={<UploadCloud size={22} />} label="Tipos de documento" value={formatNumber(Object.keys(kpis?.por_tipo || {}).length, 0)} detail="Fuentes documentales" tone="cyan" />
       </section>
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
+      <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[0_14px_35px_var(--shadow)] sm:p-6">
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_180px_180px_180px_auto]">
           <input
-            className="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none focus:border-emerald-400/60"
+            className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-emerald-100"
             placeholder="Buscar documento, lote o unidad"
             value={draftFilters.search}
             onChange={(event) => setDraftFilters((current) => ({ ...current, search: event.target.value }))}
           />
-          <select className="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100" value={draftFilters.tipo} onChange={(event) => setDraftFilters((current) => ({ ...current, tipo: event.target.value }))}>
+          <select className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" value={draftFilters.tipo} onChange={(event) => setDraftFilters((current) => ({ ...current, tipo: event.target.value }))}>
             <option value="">Tipo</option>
             {tipoOptions.map((tipo) => <option key={tipo} value={tipo}>{formatOptionLabel(tipo)}</option>)}
           </select>
-          <select className="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100" value={draftFilters.alcance} onChange={(event) => setDraftFilters((current) => ({ ...current, alcance: event.target.value }))}>
+          <select className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" value={draftFilters.alcance} onChange={(event) => setDraftFilters((current) => ({ ...current, alcance: event.target.value }))}>
             <option value="">Alcance</option>
             {alcanceOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
-          <select className="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100" value={draftFilters.estado_sistema} onChange={(event) => setDraftFilters((current) => ({ ...current, estado_sistema: event.target.value }))}>
+          <select className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" value={draftFilters.estado_sistema} onChange={(event) => setDraftFilters((current) => ({ ...current, estado_sistema: event.target.value }))}>
             <option value="">Estado sistema</option>
             <option value="corporativa">Corporativa</option>
             <option value="vinculada">Vinculada</option>
             <option value="sin_vinculo">Sin revisar</option>
           </select>
           <div className="flex gap-2">
-            <button type="button" onClick={onApplyFilters} className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-200">Aplicar</button>
-            <button type="button" onClick={onClearFilters} className="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-bold text-slate-300">Limpiar</button>
+            <button type="button" onClick={onApplyFilters} className="rounded-2xl border border-[var(--primary-dark)] bg-[var(--primary-dark)] px-4 py-3 text-sm font-bold text-white">Aplicar</button>
+            <button type="button" onClick={onClearFilters} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-sm font-bold text-[#475467]">Limpiar</button>
           </div>
         </div>
       </section>
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <form onSubmit={onSubmit} className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
+        <form onSubmit={onSubmit} className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[0_18px_45px_var(--shadow)] sm:p-6">
           <div className="mb-5">
-            <p className="text-xs font-bold uppercase tracking-wide text-emerald-300">Nuevo respaldo</p>
-            <h2 className="mt-1 text-xl font-semibold text-slate-100">Adjuntar evidencia</h2>
-            <p className="mt-2 text-sm text-slate-400">{selectedScope.helper}</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-[var(--primary-dark)]">Nuevo respaldo</p>
+            <h2 className="mt-1 text-xl font-semibold text-[var(--text-main)]">Adjuntar evidencia</h2>
+            <p className="mt-2 text-sm text-[var(--text-muted)]">{selectedScope.helper}</p>
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <input className="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100" placeholder="Nombre documento" value={form.nombre} onChange={(event) => setForm((current) => ({ ...current, nombre: event.target.value }))} />
-            <select className="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100" value={form.tipo_documento} onChange={(event) => setForm((current) => ({ ...current, tipo_documento: event.target.value }))}>
+            <input className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" placeholder="Nombre documento" value={form.nombre} onChange={(event) => setForm((current) => ({ ...current, nombre: event.target.value }))} />
+            <select className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" value={form.tipo_documento} onChange={(event) => setForm((current) => ({ ...current, tipo_documento: event.target.value }))}>
               {tipoOptions.map((tipo) => <option key={tipo} value={tipo}>{formatOptionLabel(tipo)}</option>)}
             </select>
             <label className="md:col-span-2">
-              <span className="mb-1 block text-sm font-semibold text-slate-300">Alcance de la evidencia</span>
-              <select className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100" value={form.alcance} onChange={(event) => updateScope(event.target.value)}>
+              <span className="mb-1 block text-sm font-semibold text-[#344054]">Alcance de la evidencia</span>
+              <select className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" value={form.alcance} onChange={(event) => updateScope(event.target.value)}>
                 {alcanceOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
             </label>
-            {form.alcance === "unidad" && <input className="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 md:col-span-2" placeholder="ID unidad" value={form.unidad_id} onChange={(event) => setForm((current) => ({ ...current, unidad_id: event.target.value }))} />}
-            {form.alcance === "lote" && <input className="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 md:col-span-2" placeholder="ID lote" value={form.lote_id} onChange={(event) => setForm((current) => ({ ...current, lote_id: event.target.value }))} />}
-            {form.alcance === "emision" && <input className="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 md:col-span-2" placeholder="ID emision" value={form.emision_id} onChange={(event) => setForm((current) => ({ ...current, emision_id: event.target.value }))} />}
-            {form.alcance === "transporte" && <input className="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 md:col-span-2" placeholder="ID lote opcional" value={form.lote_id} onChange={(event) => setForm((current) => ({ ...current, lote_id: event.target.value }))} />}
-            <input type="date" className="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100" value={form.fecha_documento} onChange={(event) => setForm((current) => ({ ...current, fecha_documento: event.target.value }))} />
-            <input type="file" className="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 file:mr-4 file:rounded-xl file:border-0 file:bg-emerald-400/10 file:px-3 file:py-2 file:font-bold file:text-emerald-200" onChange={(event) => setForm((current) => ({ ...current, archivo: event.target.files?.[0] || null }))} />
-            <textarea className="min-h-24 rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 md:col-span-2" placeholder="Observaciones" value={form.observaciones} onChange={(event) => setForm((current) => ({ ...current, observaciones: event.target.value }))} />
+            {form.alcance === "unidad" && <input className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] md:col-span-2" placeholder="ID unidad" value={form.unidad_id} onChange={(event) => setForm((current) => ({ ...current, unidad_id: event.target.value }))} />}
+            {form.alcance === "lote" && <input className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] md:col-span-2" placeholder="ID lote" value={form.lote_id} onChange={(event) => setForm((current) => ({ ...current, lote_id: event.target.value }))} />}
+            {form.alcance === "emision" && <input className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] md:col-span-2" placeholder="ID emision" value={form.emision_id} onChange={(event) => setForm((current) => ({ ...current, emision_id: event.target.value }))} />}
+            {form.alcance === "transporte" && <input className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] md:col-span-2" placeholder="ID lote opcional" value={form.lote_id} onChange={(event) => setForm((current) => ({ ...current, lote_id: event.target.value }))} />}
+            <input type="date" className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" value={form.fecha_documento} onChange={(event) => setForm((current) => ({ ...current, fecha_documento: event.target.value }))} />
+            <input type="file" className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] file:mr-4 file:rounded-xl file:border-0 file:bg-[var(--success-bg)] file:px-3 file:py-2 file:font-bold file:text-[var(--primary-dark)]" onChange={(event) => setForm((current) => ({ ...current, archivo: event.target.files?.[0] || null }))} />
+            <textarea className="min-h-24 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] md:col-span-2" placeholder="Observaciones" value={form.observaciones} onChange={(event) => setForm((current) => ({ ...current, observaciones: event.target.value }))} />
           </div>
 
-          {error ? <p className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/10 p-3 text-sm text-rose-200">{error}</p> : null}
+          {error ? <p className="mt-4 rounded-2xl border border-[#F1B8B8] bg-[var(--danger-bg)] p-3 text-sm text-[#B42318]">{error}</p> : null}
 
           <div className="mt-5 flex flex-wrap gap-3">
-            <button type="submit" disabled={saving} className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 disabled:opacity-60">{saving ? "Guardando..." : "Adjuntar evidencia"}</button>
-            <button type="button" onClick={() => setForm(emptyForm)} className="rounded-2xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-bold text-slate-300">Limpiar formulario</button>
+            <button type="submit" disabled={saving} className="rounded-2xl border border-[var(--primary-dark)] bg-[var(--primary-dark)] px-5 py-3 text-sm font-bold text-white disabled:opacity-60">{saving ? "Guardando..." : "Adjuntar evidencia"}</button>
+            <button type="button" onClick={() => setForm(emptyForm)} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-5 py-3 text-sm font-bold text-[#475467]">Limpiar formulario</button>
           </div>
         </form>
 
-        <section className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 sm:p-6">
-          <h2 className="text-xl font-semibold text-slate-100">Alcances disponibles</h2>
+        <section className="rounded-3xl border border-[#B9D8D3] bg-[var(--info-bg)] p-4 shadow-[0_18px_45px_var(--shadow)] sm:p-6">
+          <h2 className="text-xl font-semibold text-[var(--text-main)]">Alcances disponibles</h2>
           <div className="mt-4 space-y-3">
             {alcanceOptions.map((option) => (
-              <div key={option.value} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-                <p className="font-semibold text-cyan-100">{option.label}</p>
-                <p className="mt-1 text-sm text-slate-400">{option.helper}</p>
+              <div key={option.value} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-sm">
+                <p className="font-semibold text-[#075985]">{option.label}</p>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">{option.helper}</p>
               </div>
             ))}
           </div>
         </section>
       </section>
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
+      <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-[0_18px_45px_var(--shadow)]">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-slate-100">Evidencias registradas</h2>
-            <p className="mt-1 text-sm text-slate-400">Mostrando {visibleRows.length} de {evidencias.length} evidencias.</p>
+            <h2 className="text-xl font-semibold text-[var(--text-main)]">Evidencias registradas</h2>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">Mostrando {visibleRows.length} de {evidencias.length} evidencias.</p>
           </div>
-          {loading ? <p className="text-sm font-semibold text-emerald-200">Cargando...</p> : null}
+          {loading ? <p className="text-sm font-semibold text-[var(--primary-dark)]">Cargando...</p> : null}
         </div>
 
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-[1120px] w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800 text-left text-xs uppercase tracking-wide text-slate-400">
+              <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wide text-[var(--text-muted)]">
                 <th className="px-3 py-3">Documento</th>
                 <th className="px-3 py-3">Tipo</th>
                 <th className="px-3 py-3">Alcance</th>
@@ -397,14 +397,14 @@ function EvidenciasPage() {
             </thead>
             <tbody>
               {visibleRows.map((item) => (
-                <tr key={item.id} className="border-b border-slate-800/70">
-                  <td className="px-3 py-3 font-semibold text-slate-100">{item.nombre}</td>
-                  <td className="px-3 py-3 text-slate-300">{formatOptionLabel(item.tipo_documento)}</td>
-                  <td className="px-3 py-3 text-slate-300">{item.alcance_label || alcanceLabels[item.alcance] || "Empresa completa"}</td>
-                  <td className="px-3 py-3 text-slate-300">
+                <tr key={item.id} className="border-b border-[#C9D6CF] text-[#1F2937] hover:bg-[var(--bg-surface)]">
+                  <td className="px-3 py-3 font-semibold text-[var(--text-main)]">{item.nombre}</td>
+                  <td className="px-3 py-3 text-[#475467]">{formatOptionLabel(item.tipo_documento)}</td>
+                  <td className="px-3 py-3 text-[#475467]">{item.alcance_label || alcanceLabels[item.alcance] || "Empresa completa"}</td>
+                  <td className="px-3 py-3 text-[#475467]">
                     {item.emision ? `Emision ${item.emision}` : item.lote_codigo || item.unidad_codigo || item.empresa_codigo}
                   </td>
-                  <td className="px-3 py-3 text-slate-300">{item.fecha_documento || "-"}</td>
+                  <td className="px-3 py-3 text-[#475467]">{item.fecha_documento || "-"}</td>
                   <td className="px-3 py-3"><EvidenceBadge value={item.estado_sistema} /></td>
                   <td className="px-3 py-3">
                     <RevisionBadge
@@ -413,13 +413,13 @@ function EvidenciasPage() {
                     />
                   </td>
                   <td className="px-3 py-3">
-                    {item.archivo_url ? <a className="font-semibold text-cyan-300 underline" href={item.archivo_url} target="_blank" rel="noreferrer">Ver</a> : <span className="text-slate-500">-</span>}
+                    {item.archivo_url ? <a className="font-semibold text-[#00689B] underline" href={item.archivo_url} target="_blank" rel="noreferrer">Ver</a> : <span className="text-[var(--text-muted)]">-</span>}
                   </td>
                 </tr>
               ))}
               {!loading && visibleRows.length === 0 ? (
                 <tr>
-                  <td className="px-3 py-8 text-center text-slate-400" colSpan={8}>
+                  <td className="px-3 py-8 text-center text-[var(--text-muted)]" colSpan={8}>
                     No hay evidencias registradas para los filtros seleccionados.
                   </td>
                 </tr>

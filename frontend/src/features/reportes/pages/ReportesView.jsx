@@ -85,21 +85,21 @@ function formatNumber(value, decimals = 1) {
 function KpiCard({ icon, label, value, subtext, tone = "default" }) {
   const toneClass =
     tone === "danger"
-      ? "border-rose-400/20 bg-rose-400/10 text-rose-100"
+      ? "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]"
       : tone === "success"
-      ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100"
+      ? "border-[#B7DEC9] bg-[var(--success-bg)] text-[var(--primary-dark)]"
       : tone === "warning"
-      ? "border-amber-400/20 bg-amber-400/10 text-amber-100"
-      : "border-slate-700 bg-slate-900/60 text-slate-100";
+      ? "border-[#E6CC82] bg-[var(--warning-bg)] text-[#7A4F00]"
+      : "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-main)] shadow-[0_14px_35px_var(--shadow)]";
 
   return (
     <div className={`rounded-3xl border p-5 ${toneClass}`}>
       <div className="mb-3 flex items-center gap-3">
         {icon ? <div className="opacity-90">{icon}</div> : null}
-        <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
+        <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">{label}</p>
       </div>
       <p className="mt-3 text-2xl font-black">{value}</p>
-      {subtext && <p className="mt-2 text-sm text-slate-400">{subtext}</p>}
+      {subtext && <p className="mt-2 text-sm text-[var(--text-muted)]">{subtext}</p>}
     </div>
   );
 }
@@ -167,16 +167,16 @@ function buildHeroInsights({ trend, kpis }) {
 function HeroBadge({ label, value, tone = "default" }) {
   const toneClass =
     tone === "danger"
-      ? "border-rose-400/30 bg-rose-400/10 text-rose-100"
+      ? "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]"
       : tone === "success"
-      ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100"
+      ? "border-[#B7DEC9] bg-[var(--success-bg)] text-[var(--primary-dark)]"
       : tone === "warning"
-      ? "border-amber-400/30 bg-amber-400/10 text-amber-100"
-      : "border-cyan-400/20 bg-slate-950/70 text-slate-100";
+      ? "border-[#E6CC82] bg-[var(--warning-bg)] text-[#7A4F00]"
+      : "border-[#B9D8D3] bg-[var(--info-bg)] text-[var(--text-main)]";
 
   return (
     <div className={`rounded-2xl border p-4 ${toneClass}`}>
-      <p className="text-[11px] uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{label}</p>
       <p className="mt-1 text-sm font-bold leading-snug">{value || "Sin datos"}</p>
     </div>
   );
@@ -193,18 +193,18 @@ function ReportesHeroEjecutivo({ kpis, activeEmpresa }) {
   const insights = buildHeroInsights({ trend, kpis });
 
   return (
-    <section className="rounded-3xl border border-cyan-400/30 bg-cyan-400/10 p-5 shadow-[0_0_40px_rgba(34,211,238,0.10)] sm:p-7">
+    <section className="rounded-3xl border border-[#B9D8D3] bg-[var(--info-bg)] p-5 shadow-[0_18px_45px_var(--shadow)] sm:p-7">
       <div className="grid gap-6 lg:grid-cols-[1.45fr_0.9fr] lg:items-start">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#075985]">
             Resumen ejecutivo
           </p>
-          <h2 className="mt-3 text-3xl font-black leading-tight text-slate-100 md:text-4xl">
+          <h2 className="mt-3 text-3xl font-black leading-tight text-[var(--text-main)] md:text-4xl">
             {title}
           </h2>
-          <p className="mt-4 max-w-3xl text-base leading-7 text-slate-200">{summary}</p>
+          <p className="mt-4 max-w-3xl text-base leading-7 text-[#344054]">{summary}</p>
 
-          <ul className="mt-5 space-y-2 text-sm text-cyan-100">
+          <ul className="mt-5 space-y-2 text-sm text-[#155E75]">
             {insights.map((item) => (
               <li key={item} className="flex items-start gap-2">
                 <span className="mt-1 h-1.5 w-1.5 rounded-full bg-cyan-300" />
@@ -421,9 +421,9 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
 
   if (!activeEmpresaId) {
     return (
-      <main className="mx-auto max-w-7xl px-6 py-10 text-slate-100">
+      <main className="mx-auto max-w-7xl px-6 py-10 text-[var(--text-main)]">
         <h1 className="text-4xl font-black">Reportes</h1>
-        <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/60 p-8 text-center">
+        <div className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center text-[var(--text-muted)]">
           Selecciona o crea una empresa para revisar reportes temporales de emisiones.
         </div>
       </main>
@@ -431,7 +431,7 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
   }
 
   return (
-    <main className="mx-auto max-w-7xl space-y-8 px-4 py-8 text-slate-100 sm:px-6 lg:px-10 lg:py-12">
+    <main className="mx-auto max-w-7xl space-y-8 px-4 py-8 text-[var(--text-main)] sm:px-6 lg:px-10 lg:py-12">
       <Toast
         message={loading ? "Cargando..." : ""}
         loading={loading}
@@ -441,11 +441,11 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
 
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-cyan-300">
+          <p className="text-xs font-bold uppercase tracking-wide text-[#075985]">
             Reporte temporal
           </p>
           <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Reportes</h1>
-          <p className="mt-2 text-slate-400">
+          <p className="mt-2 text-[var(--text-muted)]">
             Analiza la evolución de emisiones, detecta períodos críticos y convierte los resultados en decisiones de mejora.
           </p>
         </div>
@@ -453,14 +453,14 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
         <div className="flex items-center gap-3">
           <button
             onClick={openFiltersModal}
-            className="inline-flex items-center gap-2 rounded-2xl border border-cyan-400/30 bg-cyan-400/10 px-5 py-3 text-sm font-bold text-cyan-200 transition hover:bg-cyan-400/20"
+            className="inline-flex items-center gap-2 rounded-2xl border border-[#B9D8D3] bg-[var(--info-bg)] px-5 py-3 text-sm font-bold text-[#075985] transition hover:bg-[#D7EBE7]"
           >
             <Filter size={18} />
             Filtros
           </button>
           <button
             disabled
-            className="rounded-xl border border-slate-700 px-5 py-3 text-sm font-bold text-slate-400"
+            className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-3 text-sm font-bold text-[var(--text-muted)]"
           >
             Exportar reporte
           </button>
@@ -468,18 +468,18 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
       </header>
 
       {isFiltersModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-2xl">
             <div className="mb-5 flex items-center justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-300">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#075985]">
                   Filtros
                 </p>
-                <h2 className="mt-1 text-2xl font-black text-slate-100">Configurar reporte</h2>
+                <h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">Configurar reporte</h2>
               </div>
               <button
                 onClick={closeFiltersModal}
-                className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300"
+                className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-xs font-bold text-[#475467]"
               >
                 Cerrar
               </button>
@@ -487,7 +487,7 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
 
             <div className="grid gap-4 md:grid-cols-3">
               <div>
-                <label className="text-xs uppercase tracking-wide text-slate-400">
+                <label className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
                   Fecha inicio
                 </label>
                 <input
@@ -496,12 +496,12 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
                   onChange={(e) =>
                     setDraftFilters((prev) => ({ ...prev, fecha_inicio: e.target.value }))
                   }
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3"
+                  className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-[var(--text-main)]"
                 />
               </div>
 
               <div>
-                <label className="text-xs uppercase tracking-wide text-slate-400">
+                <label className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
                   Fecha fin
                 </label>
                 <input
@@ -510,12 +510,12 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
                   onChange={(e) =>
                     setDraftFilters((prev) => ({ ...prev, fecha_fin: e.target.value }))
                   }
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3"
+                  className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-[var(--text-main)]"
                 />
               </div>
 
               <div>
-                <label className="text-xs uppercase tracking-wide text-slate-400">
+                <label className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
                   Agrupacion
                 </label>
                 <select
@@ -523,7 +523,7 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
                   onChange={(e) =>
                     setDraftFilters((prev) => ({ ...prev, agrupacion: e.target.value }))
                   }
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3"
+                  className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-[var(--text-main)]"
                 >
                   <option value="dia">Dia</option>
                   <option value="mes">Mes</option>
@@ -535,13 +535,13 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
             <div className="mt-6 flex flex-wrap justify-end gap-3">
               <button
                 onClick={clearFiltersFromModal}
-                className="rounded-xl border border-slate-700 px-5 py-3 text-sm font-bold text-slate-300"
+                className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-5 py-3 text-sm font-bold text-[#475467]"
               >
                 Limpiar
               </button>
               <button
                 onClick={applyFiltersFromModal}
-                className="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950"
+                className="rounded-xl bg-[var(--primary-dark)] px-5 py-3 text-sm font-black text-white"
               >
                 Aplicar filtros
               </button>
@@ -551,7 +551,7 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
       )}
 
       {error && (
-        <div className="mt-8 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-6 text-rose-200">
+        <div className="mt-8 rounded-2xl border border-[#F1B8B8] bg-[var(--danger-bg)] p-6 text-[#B42318]">
           {error}
         </div>
       )}
@@ -592,14 +592,14 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
           </section>
 
           <section className="mt-8 grid gap-6 lg:grid-cols-2">
-            <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
-              <h2 className="text-xl font-black">Emisiones en el tiempo</h2>
-              <p className="mt-1 text-sm text-slate-400">
+            <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-[0_18px_45px_var(--shadow)]">
+              <h2 className="text-xl font-black text-[var(--text-main)]">Emisiones en el tiempo</h2>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">
                 Evolucion de emisiones del período filtrado.
               </p>
 
               {!hasEnoughTemporalData ? (
-                <div className="mt-6 flex h-[320px] min-h-[320px] items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/60 px-6 text-center text-slate-400">
+                <div className="mt-6 flex h-[320px] min-h-[320px] items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-6 text-center text-[var(--text-muted)]">
                   Se necesita mas de un período para visualizar tendencia temporal.
                 </div>
               ) : (
@@ -651,15 +651,15 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
               )}
             </div>
 
-            <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
-              <h2 className="text-xl font-black">Emisiones por categoría</h2>
-              <p className="mt-1 text-sm text-slate-400">
+            <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-[0_18px_45px_var(--shadow)]">
+              <h2 className="text-xl font-black text-[var(--text-main)]">Emisiones por categoría</h2>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">
                 Comparativo por categoría para combustible, transporte, electricidad, agua, materiales y residuos.
               </p>
 
               <div className="mt-6 h-[320px] min-h-[320px]">
                 {categoryChartData.length === 0 ? (
-                  <div className="flex h-full items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/40 text-sm text-slate-400">
+                  <div className="flex h-full items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] text-sm text-[var(--text-muted)]">
                     No hay categorías con emisiones registradas para el período seleccionado.
                   </div>
                 ) : (
@@ -705,11 +705,11 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
               </div>
 
               {categoryChartData.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-300">
+                <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--text-muted)]">
                   {categoryChartData.map((item) => (
                     <span
                       key={`${item.categoriaKey}-legend`}
-                      className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1"
+                      className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1"
                     >
                       <span
                         className="h-2.5 w-2.5 rounded-full"
@@ -723,16 +723,16 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
             </div>
           </section>
 
-          <section className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/60 p-6">
-            <h2 className="text-xl font-black">Detalle temporal de emisiones</h2>
-              <p className="mt-1 text-sm text-slate-400">
+          <section className="mt-8 rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-[0_18px_45px_var(--shadow)]">
+            <h2 className="text-xl font-black text-[var(--text-main)]">Detalle temporal de emisiones</h2>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">
               {rowsCount} registros encontrados.
             </p>
 
             <div className="mt-6 overflow-x-auto">
               <table className="w-full min-w-[1100px]">
                 <thead>
-                  <tr className="border-b border-slate-800 text-xs uppercase tracking-wide text-slate-400">
+                  <tr className="border-b border-[var(--border)] text-xs uppercase tracking-wide text-[var(--text-muted)]">
                     <th className="px-4 py-3 text-left">Fecha</th>
                     <th className="px-4 py-3 text-left">Unidad</th>
                     <th className="px-4 py-3 text-left">Lote</th>
@@ -748,7 +748,7 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
                   {visibleRows.map((row, index) => (
                     <tr
                       key={`${row.fecha}-${row.actividad}-${index}`}
-                      className="border-b border-slate-800/70 hover:bg-slate-800/35"
+                      className="border-b border-[#C9D6CF] text-[#1F2937] hover:bg-[var(--bg-surface)]"
                     >
                       <td className="px-4 py-3">{row.fecha}</td>
                       <td className="px-4 py-3">{row.unidad_nombre}</td>
@@ -759,14 +759,14 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
                         {formatNumber(row.cantidad, 2)}
                       </td>
                       <td className="px-4 py-3">{row.unidad}</td>
-                      <td className="px-4 py-3 text-right font-black text-cyan-200">
+                      <td className="px-4 py-3 text-right font-black text-[#00689B]">
                         {formatNumber(row.emisiones)} kg CO2e
                       </td>
                     </tr>
                   ))}
                   {visibleRows.length === 0 && (
                     <tr>
-                      <td className="px-4 py-8 text-center text-slate-400" colSpan={9}>
+                      <td className="px-4 py-8 text-center text-[var(--text-muted)]" colSpan={9}>
                         No hay registros para los filtros seleccionados.
                       </td>
                     </tr>
