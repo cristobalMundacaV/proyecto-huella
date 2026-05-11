@@ -4,12 +4,12 @@ function LotesHeader({ onOpenCreate }) {
   return (
     <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex items-center gap-3">
-        <div className="p-3 rounded-2xl bg-emerald-400/10 border border-emerald-400/20">
-          <Boxes className="text-emerald-400" />
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] p-3">
+          <Boxes className="text-[var(--primary-dark)]" />
         </div>
         <div>
-          <h1 className="text-3xl sm:text-4xl font-bold">Lotes</h1>
-          <p className="text-slate-400">
+          <h1 className="text-3xl font-bold text-[var(--text-main)] sm:text-4xl">Lotes</h1>
+          <p className="text-[var(--text-muted)]">
             Registra y consulta la trazabilidad de cada lote: especie, volumen, emisiones y carbono almacenado para el Pasaporte Verde.
           </p>
         </div>
@@ -17,7 +17,7 @@ function LotesHeader({ onOpenCreate }) {
       <button
         type="button"
         onClick={onOpenCreate}
-        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20"
+        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] px-5 py-3 text-sm font-bold text-[var(--primary-dark)] transition hover:border-[var(--primary)]/40 hover:bg-[#D9F0E6]"
       >
         <Plus size={18} />
         Nuevo lote

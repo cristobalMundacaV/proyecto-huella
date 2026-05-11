@@ -22,15 +22,16 @@ const formatNumber = (value, maximumFractionDigits = 2) =>
   }).format(Number(value));
 
 const tooltipContentStyle = {
-  backgroundColor: "#0F172A",
-  border: "1px solid #1E293B",
+  backgroundColor: "#FCFDFC",
+  border: "1px solid #B7C6BD",
   borderRadius: "12px",
-  color: "#F8FAFC",
+  color: "#1F2937",
+  boxShadow: "0 16px 35px rgba(15, 23, 42, 0.12)",
 };
 
 const horizontalActiveBarStyle = {
-  fill: "#CBD5E1",
-  fillOpacity: 0.55,
+  fill: "#6B7F75",
+  fillOpacity: 0.32,
   radius: [0, 10, 10, 0],
 };
 
@@ -163,25 +164,25 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
   ]);
 
   return (
-    <section className="rounded-3xl bg-slate-900 border border-slate-800 p-4 sm:p-6 shadow-xl">
+    <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="flex items-center gap-2 text-sm font-semibold text-emerald-300">
+            <p className="flex items-center gap-2 text-sm font-bold text-[var(--primary-dark)]">
               <SlidersHorizontal size={16} />
               Simulador de optimizacion
             </p>
-            <h2 className="mt-1 text-2xl font-bold">
+            <h2 className="mt-1 text-2xl font-bold text-[var(--text-main)]">
               Ajusta decisiones y mide impacto en vivo
             </h2>
           </div>
 
           <label className="min-w-56">
-            <span className="text-xs text-slate-500">Empresa</span>
+            <span className="text-xs font-medium text-[var(--text-muted)]">Empresa</span>
             <select
               value={selectedCompany}
               onChange={(event) => setSelectedCompany(event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-emerald-400/50"
+              className="mt-2 w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] outline-none transition focus:border-[var(--primary)]/50"
             >
               {companies.map((company) => (
                 <option key={company} value={company}>
@@ -236,23 +237,23 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-4">
-          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 sm:p-5">
-            <p className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] p-4 sm:p-5">
+            <p className="flex items-center gap-2 text-sm font-bold text-[var(--primary-dark)]">
               <Lightbulb size={18} />
               Recomendacion ejecutiva
             </p>
-            <p className="mt-3 text-lg font-bold text-emerald-100">
+            <p className="mt-3 text-lg font-bold text-[var(--text-main)]">
               {executiveInsight}
             </p>
-            <p className="mt-2 text-sm leading-6 text-emerald-300">
+            <p className="mt-2 text-sm font-medium leading-6 text-[#334155]">
               Reducir diesel en {dieselReduction}% y ajustar electricidad en{" "}
               {electricityIncrease}% deja como actividad critica a{" "}
               <strong>{simulation.criticalActivity}</strong>.
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 sm:p-5">
-            <h3 className="text-sm font-semibold text-slate-200">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 sm:p-5">
+            <h3 className="text-sm font-bold text-[var(--text-main)]">
               Emisiones simuladas por unidad
             </h3>
             <div className="mt-4" style={{ height: unitChartHeight }}>
@@ -264,14 +265,15 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
                 >
                   <XAxis
                     type="number"
-                    stroke="#94a3b8"
+                    stroke="#64748B"
+                    tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
                     tickFormatter={formatNumber}
                   />
                   <YAxis
                     dataKey="unidad"
                     interval={0}
-                    stroke="#94a3b8"
-                    tick={{ fill: "#CBD5E1", fontSize: 11 }}
+                    stroke="#64748B"
+                    tick={{ fill: "#475569", fontSize: 11, fontWeight: 600 }}
                     tickFormatter={truncateChartLabel}
                     type="category"
                     width={150}
@@ -283,8 +285,8 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
                       `${formatNumber(value)} kg CO2e`,
                       "Emisiones",
                     ]}
-                    labelStyle={{ color: "#F8FAFC" }}
-                    itemStyle={{ color: "#34D399" }}
+                    labelStyle={{ color: "#1F2937" }}
+                    itemStyle={{ color: "#0B7D5D" }}
                   />
                   <Bar
                     activeBar={horizontalActiveBarStyle}
@@ -297,7 +299,7 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs font-medium text-[var(--text-muted)]">
               Pasa el cursor sobre cada barra para ver el detalle de la unidad.
             </p>
           </div>
@@ -308,12 +310,12 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
 }
 
 function SliderControl({ color, label, max, onChange, value }) {
-  const accent = color === "sky" ? "text-sky-300" : "text-emerald-300";
+  const accent = color === "sky" ? "text-[#075985]" : "text-[var(--primary-dark)]";
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 sm:p-5">
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 sm:p-5">
       <div className="flex items-center justify-between gap-4">
-        <p className="text-sm font-semibold text-slate-200">{label}</p>
+        <p className="text-sm font-semibold text-[var(--text-main)]">{label}</p>
         <p className={`text-lg font-bold ${accent}`}>{value}%</p>
       </div>
       <input
@@ -322,7 +324,7 @@ function SliderControl({ color, label, max, onChange, value }) {
         max={max}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="mt-5 w-full accent-emerald-400"
+        className="mt-5 w-full accent-[var(--primary)]"
       />
     </div>
   );
@@ -340,14 +342,14 @@ function SimulatorCard({
   const displayValue = useCountUp(value, maximumFractionDigits);
   const toneClass =
     tone === "red"
-      ? "border-red-400/20 bg-red-400/10 text-red-200"
-      : "border-emerald-400/20 bg-emerald-400/10 text-emerald-200";
+      ? "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]"
+      : "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]";
 
   return (
     <div className={`rounded-2xl border p-4 sm:p-5 transition ${toneClass}`}>
       <div className="mb-4 flex items-center gap-3">
         <div>{icon}</div>
-        <p className="text-sm text-slate-400">{label}</p>
+        <p className="text-sm font-medium text-[var(--text-muted)]">{label}</p>
       </div>
       <h3 className="mt-1 text-2xl font-bold">
         {prefix}

@@ -14,12 +14,12 @@ function DecisionCenter({
         onSimulationChange={onSimulationChange}
       />
 
-      <div className="rounded-3xl border border-slate-800 bg-slate-950 p-6 space-y-6">
+      <div className="space-y-6 rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-[var(--shadow-card)]">
         <div>
-          <p className="text-emerald-400 text-sm font-semibold">
+          <p className="text-sm font-bold text-[var(--primary-dark)]">
             Optimizacion automatica
           </p>
-          <h3 className="text-xl font-bold">
+          <h3 className="text-xl font-bold text-[var(--text-main)]">
             Carbono Zero recomienda el mejor escenario
           </h3>
         </div>
@@ -27,23 +27,23 @@ function DecisionCenter({
 
         {optimizedScenario && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-2xl bg-slate-950 border border-slate-800 p-5">
-              <p className="text-slate-400 text-sm">Reducir diesel</p>
-              <h3 className="text-2xl font-bold text-emerald-300">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
+              <p className="text-sm font-medium text-[var(--text-muted)]">Reducir diesel</p>
+              <h3 className="text-2xl font-bold text-[var(--primary-dark)]">
                 {optimizedScenario.dieselReduction}%
               </h3>
             </div>
 
-            <div className="rounded-2xl bg-slate-950 border border-slate-800 p-5">
-              <p className="text-slate-400 text-sm">Ajustar electricidad</p>
-              <h3 className="text-2xl font-bold text-cyan-300">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
+              <p className="text-sm font-medium text-[var(--text-muted)]">Ajustar electricidad</p>
+              <h3 className="text-2xl font-bold text-[#075985]">
                 +{optimizedScenario.electricityIncrease}%
               </h3>
             </div>
 
-            <div className="rounded-2xl bg-emerald-400/10 border border-emerald-400/20 p-5">
-              <p className="text-slate-400 text-sm">Reduccion estimada</p>
-              <h3 className="text-2xl font-bold text-emerald-300">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] p-5">
+              <p className="text-sm font-medium text-[var(--text-muted)]">Reduccion estimada</p>
+              <h3 className="text-2xl font-bold text-[var(--primary-dark)]">
                 {formatNumber(optimizedScenario.reductionPct, 1)}%
               </h3>
             </div>
@@ -51,11 +51,11 @@ function DecisionCenter({
         )}
 
         {optimizedScenario && (
-          <div className="rounded-2xl bg-cyan-400/10 border border-cyan-400/20 p-5 space-y-4">
-            <p className="text-cyan-300 text-sm font-semibold">
+          <div className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--info-bg)] p-5">
+            <p className="text-sm font-bold text-[#075985]">
               Decision generada por Carbono Zero
             </p>
-            <p className="text-slate-200 mt-2 leading-7">
+            <p className="mt-2 leading-7 text-[var(--text-main)]">
               Carbono Zero evaluo automaticamente{" "}
               <strong>{optimizedScenario.evaluatedScenarios}</strong>{" "}
               combinaciones posibles de decision y selecciono la de mayor
@@ -73,7 +73,7 @@ function DecisionCenter({
               </strong>
               .
             </p>
-            <p className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+            <p className="rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] px-4 py-3 text-sm font-medium text-[var(--primary-dark)]">
               Recomendacion: ejecutar un piloto con esta configuracion y
               monitorear la reduccion real antes de escalarla al resto de la
               operacion.

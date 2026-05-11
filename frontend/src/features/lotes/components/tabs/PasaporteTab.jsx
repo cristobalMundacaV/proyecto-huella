@@ -36,7 +36,7 @@ function PasaporteTab({
               {balanceData?.razon_pasaporte}
             </p>
           </div>
-          <div className="rounded-2xl border border-current/20 bg-slate-950/40 px-5 py-4 text-center">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-5 py-4 text-center text-[var(--text-main)] shadow-[var(--shadow-card)]">
             <p className="text-xs font-bold uppercase opacity-70">Score MVP</p>
             <p className="mt-1 text-3xl font-bold">
               {formatNumber(Number(balanceData?.pasaporte_score || 0), 0)}%
@@ -60,13 +60,13 @@ function PasaporteTab({
         </div>
       </section>
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
+      <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
         <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-emerald-300">
+            <p className="text-xs font-bold uppercase tracking-wide text-[var(--primary-dark)]">
               Certificado digital verificable
             </p>
-            <h2 className="mt-2 text-2xl font-bold text-slate-100">
+            <h2 className="mt-2 text-2xl font-bold text-[var(--text-main)]">
               Vista previa del Pasaporte Verde
             </h2>
           </div>
@@ -74,7 +74,7 @@ function PasaporteTab({
             type="button"
             onClick={onDownloadCertificate}
             disabled={generatingCertificate}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] px-5 py-3 text-sm font-bold text-[var(--primary-dark)] transition hover:border-[var(--primary)] hover:bg-[#D9F0E6] disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit"
           >
             {generatingCertificate ? (
               <Loader2 className="animate-spin" size={18} />
@@ -85,16 +85,16 @@ function PasaporteTab({
           </button>
         </div>
 
-        <div className="rounded-3xl border border-slate-700 bg-slate-950 p-5 sm:p-7">
+        <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-surface)] p-5 sm:p-7">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="text-sm font-bold uppercase tracking-wide text-emerald-300">
+              <p className="text-sm font-bold uppercase tracking-wide text-[var(--primary-dark)]">
                 Pasaporte Verde
               </p>
-              <h3 className="mt-2 text-3xl font-bold text-slate-100">
+              <h3 className="mt-2 text-3xl font-bold text-[var(--text-main)]">
                 {selectedLote.id_lote}
               </h3>
-              <p className="mt-2 text-sm text-slate-400">
+              <p className="mt-2 text-sm font-medium text-[var(--text-muted)]">
                 Emitido para {selectedLote.empresa_aserradero}
               </p>
             </div>
@@ -143,13 +143,13 @@ function PasaporteTab({
             />
           </div>
 
-          <div className="mt-6 rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4">
+          <div className="mt-6 rounded-3xl border border-[var(--border)] bg-[var(--info-bg)] p-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-cyan-200">
+                <p className="text-xs font-bold uppercase tracking-wide text-[#075985]">
                   Integracion BIM / API
                 </p>
-                <p className="mt-2 text-sm text-slate-300">
+                <p className="mt-2 text-sm font-medium text-[var(--text-muted)]">
                   Exporta este lote para modelos BIM, fichas tecnicas y sistemas de constructoras.
                 </p>
               </div>
@@ -158,19 +158,19 @@ function PasaporteTab({
                   href={getLoteIntegracionUrl(selectedLote.id_lote)}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-2xl border border-cyan-400/20 bg-slate-950/50 px-4 py-3 text-center text-sm font-bold text-cyan-200 transition hover:bg-cyan-400/10"
+                  className="rounded-2xl border border-[#B8D6DE] bg-[var(--bg-card)] px-4 py-3 text-center text-sm font-bold text-[#075985] transition hover:bg-[#DDF0F4]"
                 >
                   API lote
                 </a>
                 <a
                   href={getLoteExportJsonUrl(selectedLote.id_lote)}
-                  className="rounded-2xl border border-cyan-400/20 bg-slate-950/50 px-4 py-3 text-center text-sm font-bold text-cyan-200 transition hover:bg-cyan-400/10"
+                  className="rounded-2xl border border-[#B8D6DE] bg-[var(--bg-card)] px-4 py-3 text-center text-sm font-bold text-[#075985] transition hover:bg-[#DDF0F4]"
                 >
                   JSON
                 </a>
                 <a
                   href={getLoteExportCsvUrl(selectedLote.id_lote)}
-                  className="rounded-2xl border border-cyan-400/20 bg-slate-950/50 px-4 py-3 text-center text-sm font-bold text-cyan-200 transition hover:bg-cyan-400/10"
+                  className="rounded-2xl border border-[#B8D6DE] bg-[var(--bg-card)] px-4 py-3 text-center text-sm font-bold text-[#075985] transition hover:bg-[#DDF0F4]"
                 >
                   CSV
                 </a>
@@ -178,7 +178,7 @@ function PasaporteTab({
                   href={getLoteFichaTecnicaUrl(selectedLote.id_lote)}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-2xl border border-cyan-400/20 bg-slate-950/50 px-4 py-3 text-center text-sm font-bold text-cyan-200 transition hover:bg-cyan-400/10"
+                  className="rounded-2xl border border-[#B8D6DE] bg-[var(--bg-card)] px-4 py-3 text-center text-sm font-bold text-[#075985] transition hover:bg-[#DDF0F4]"
                 >
                   Ficha tecnica
                 </a>
@@ -195,19 +195,19 @@ export default PasaporteTab;
 
 function PassportMetric({ badge, label, tone = "slate", value }) {
   const toneClass = {
-    amber: "border-amber-400/30 bg-amber-400/10 text-amber-100",
-    cyan: "border-cyan-400/30 bg-cyan-400/10 text-cyan-100",
-    emerald: "border-emerald-400/30 bg-emerald-400/10 text-emerald-100",
-    red: "border-red-400/30 bg-red-400/10 text-red-100",
-    slate: "border-slate-700 bg-slate-950 text-slate-100",
+    amber: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
+    cyan: "border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]",
+    emerald: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
+    red: "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]",
+    slate: "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-main)]",
   }[tone];
 
   const badgeClass = {
-    amber: "border-amber-400/30 bg-amber-400/15 text-amber-100",
-    cyan: "border-cyan-400/30 bg-cyan-400/15 text-cyan-100",
-    emerald: "border-emerald-400/30 bg-emerald-400/15 text-emerald-100",
-    red: "border-red-400/30 bg-red-400/15 text-red-100",
-    slate: "border-slate-600 bg-slate-800 text-slate-200",
+    amber: "border-[#E1C56F] bg-[#FFF9E8] text-[#7A4F00]",
+    cyan: "border-[#B8D6DE] bg-[#DDF0F4] text-[#075985]",
+    emerald: "border-[var(--border)] bg-[#D9F0E6] text-[var(--primary-dark)]",
+    red: "border-[#F1B8B8] bg-[#FBE2E2] text-[#B42318]",
+    slate: "border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-main)]",
   }[tone];
 
   return (

@@ -35,7 +35,10 @@ main > section .bg-slate-950,
 main > section .bg-slate-950\/70,
 main > section .bg-slate-900,
 main > section .bg-slate-900\/70,
-main > section .bg-slate-900\/80 {
+main > section .bg-slate-900\/80,
+main > section .bg-slate-800,
+main > section .bg-slate-800\/35,
+main > section .bg-slate-800\/40 {
   background-color: var(--bg-surface) !important;
 }
 
@@ -63,14 +66,61 @@ main > section .text-cyan-300 {
   color: var(--primary-dark) !important;
 }
 
+main > section .text-emerald-100,
+main > section .text-emerald-200,
+main > section .text-green-100,
+main > section .text-green-200,
+main > section .text-green-300,
+main > section .text-green-400,
+main > section .text-teal-100,
+main > section .text-teal-200,
+main > section .text-teal-300,
+main > section .text-teal-400 {
+  color: var(--primary-dark) !important;
+}
+
+main > section .text-lime-100,
+main > section .text-lime-200,
+main > section .text-lime-300,
+main > section .text-lime-400 {
+  color: #3f6212 !important;
+}
+
+main > section .text-cyan-100,
+main > section .text-cyan-200,
+main > section .text-cyan-300,
+main > section .text-cyan-400,
+main > section .text-sky-100,
+main > section .text-sky-200,
+main > section .text-sky-300,
+main > section .text-sky-400,
+main > section .text-blue-100,
+main > section .text-blue-200,
+main > section .text-blue-300,
+main > section .text-blue-400 {
+  color: #075985 !important;
+}
+
 main > section .bg-emerald-400\/10,
-main > section .bg-cyan-400\/10 {
+main > section .bg-emerald-400\/20,
+main > section .bg-green-400\/10,
+main > section .bg-green-400\/20,
+main > section .bg-cyan-400\/10,
+main > section .bg-cyan-400\/20,
+main > section .bg-sky-400\/10,
+main > section .bg-sky-400\/20 {
   background-color: var(--success-bg) !important;
 }
 
 main > section .border-emerald-400\/20,
+main > section .border-emerald-400\/30,
+main > section .border-emerald-400\/40,
+main > section .border-green-400\/20,
+main > section .border-green-400\/30,
 main > section .border-cyan-400\/20,
-main > section .border-cyan-400\/30 {
+main > section .border-cyan-400\/30,
+main > section .border-sky-400\/20,
+main > section .border-sky-400\/30 {
   border-color: var(--border) !important;
 }
 
@@ -119,9 +169,56 @@ main > section .text-cyan-200 {
 
 main > section .text-red-100,
 main > section .text-red-200,
+main > section .text-red-300,
+main > section .text-red-400,
 main > section .text-rose-100,
-main > section .text-rose-200 {
+main > section .text-rose-200,
+main > section .text-rose-300,
+main > section .text-rose-400 {
   color: #b42318 !important;
+}
+
+main > section .bg-red-400\/10,
+main > section .bg-rose-400\/10,
+main > section .bg-red-500\/10,
+main > section .bg-rose-500\/10 {
+  background-color: var(--danger-bg) !important;
+}
+
+main > section .border-red-400\/20,
+main > section .border-red-400\/30,
+main > section .border-rose-400\/20,
+main > section .border-rose-400\/30,
+main > section .border-red-500\/30,
+main > section .border-rose-500\/30 {
+  border-color: #f1b8b8 !important;
+}
+
+main > section table th {
+  color: #334155 !important;
+  font-weight: 800;
+}
+
+main > section table td {
+  color: #1f2937;
+}
+
+main > section input,
+main > section select,
+main > section textarea {
+  background-color: #fbfcfb !important;
+  color: var(--text-main) !important;
+  border-color: #c4d0c8 !important;
+}
+
+main > section input::placeholder,
+main > section textarea::placeholder {
+  color: #64748b !important;
+}
+
+main > section button:disabled {
+  color: #64748b !important;
+  opacity: 0.75;
 }
 
 table th:first-child,

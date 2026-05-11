@@ -9,7 +9,7 @@ const tabs = [
 
 function LoteTabs({ activeTab, onTabChange }) {
   return (
-    <div className="overflow-x-auto rounded-3xl border border-slate-800 bg-slate-900 p-2">
+    <div className="overflow-x-auto rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-2 shadow-[var(--shadow-card)]">
       <div className="flex min-w-max gap-2">
         {tabs.map(([value, label]) => {
           const isActive = activeTab === value;
@@ -21,8 +21,8 @@ function LoteTabs({ activeTab, onTabChange }) {
               onClick={() => onTabChange(value)}
               className={`rounded-2xl px-4 py-2 text-sm font-bold transition ${
                 isActive
-                  ? "border border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-                  : "border border-transparent text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                  ? "border border-[var(--primary)]/25 bg-[var(--success-bg)] text-[var(--primary-dark)]"
+                  : "border border-transparent text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-main)]"
               }`}
             >
               {label}

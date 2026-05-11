@@ -38,7 +38,7 @@ function ResumenTab({ balanceData, selectedLote }) {
               {formatNumber(Number(balanceNeto || 0))} kg CO2e.
             </p>
           </div>
-          <div className="rounded-2xl border border-current/20 bg-slate-950/40 px-4 py-3 text-sm font-bold">
+          <div className="rounded-2xl border border-current/20 bg-[var(--bg-card)] px-4 py-3 text-sm font-bold shadow-[var(--shadow-card)]">
             {tone.label}
           </div>
         </div>
@@ -60,7 +60,7 @@ function ResumenTab({ balanceData, selectedLote }) {
               {balanceData?.descripcion_confianza}
             </p>
           </div>
-          <div className="rounded-2xl border border-current/20 bg-slate-950/40 px-5 py-4 text-center">
+          <div className="rounded-2xl border border-current/20 bg-[var(--bg-card)] px-5 py-4 text-center shadow-[var(--shadow-card)]">
             <p className="text-xs font-bold uppercase opacity-70">
               Score confianza
             </p>

@@ -54,10 +54,11 @@ const emptyForm = {
 };
 
 const unitChartTooltipStyle = {
-  backgroundColor: "#0F172A",
-  border: "1px solid #1E293B",
+  backgroundColor: "#FCFDFC",
+  border: "1px solid #B7C6BD",
   borderRadius: "12px",
-  color: "#F8FAFC",
+  color: "#1F2937",
+  boxShadow: "0 16px 35px rgba(15, 23, 42, 0.12)",
 };
 
 const monthFormatter = new Intl.DateTimeFormat("es-CL", {
@@ -269,7 +270,7 @@ function EmpresasView({
           </div>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] px-5 py-3 text-sm font-bold text-[var(--primary-dark)]">
             {formatNumber(empresas.length, 0)} empresas
           </div>
           <button
@@ -279,7 +280,7 @@ function EmpresasView({
               setFieldErrors({});
               setCreateModalOpen(true);
             }}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] px-5 py-3 text-sm font-bold text-[var(--primary-dark)] transition hover:border-[var(--primary)]/40 hover:bg-[#D9F0E6]"
           >
             <Plus size={18} />
             Nueva empresa
@@ -288,12 +289,12 @@ function EmpresasView({
       </header>
 
 
-      <section className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 sm:p-6">
-        <p className="text-sm font-semibold text-cyan-200">Resumen estrategico</p>
-        <h2 className="mt-2 text-2xl font-bold text-slate-100">
+      <section className="rounded-3xl border border-[var(--border)] bg-[var(--info-bg)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+        <p className="text-sm font-bold text-[#075985]">Resumen estrategico</p>
+        <h2 className="mt-2 text-2xl font-bold text-[var(--text-main)]">
           Lectura operativa de la empresa
         </h2>
-        <p className="mt-3 max-w-5xl whitespace-pre-line text-sm leading-7 text-cyan-50">
+        <p className="mt-3 max-w-5xl whitespace-pre-line text-sm font-medium leading-7 text-[#334155]">
           {loadingUnidades ? "Cargando unidades operativas..." : buildStrategicSummary(metrics)}
         </p>
       </section>
@@ -587,18 +588,18 @@ function UnitMetricBarChart({ color, dataKey, description, rows, title, valueLab
             layout="vertical"
             margin={{ top: 8, right: 24, bottom: 8, left: 24 }}
           >
-            <CartesianGrid horizontal={false} stroke="#1E293B" />
+            <CartesianGrid horizontal={false} stroke="#B8C6BE" />
             <XAxis
-              axisLine={{ stroke: "#334155" }}
-              tick={{ fill: "#94A3B8", fontSize: 12 }}
+              axisLine={{ stroke: "#64748B" }}
+              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
               tickFormatter={(value) => formatNumber(Number(value || 0), 0)}
               tickLine={false}
               type="number"
             />
             <YAxis
-              axisLine={{ stroke: "#334155" }}
+              axisLine={{ stroke: "#64748B" }}
               dataKey="unidad"
-              tick={{ fill: "#CBD5E1", fontSize: 12 }}
+              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
               tickLine={false}
               type="category"
               width={180}
@@ -610,7 +611,7 @@ function UnitMetricBarChart({ color, dataKey, description, rows, title, valueLab
                 `${formatNumber(Number(value || 0), 1)} kg CO2e`,
                 valueLabel,
               ]}
-              labelStyle={{ color: "#E2E8F0", fontWeight: 700 }}
+              labelStyle={{ color: "#1F2937", fontWeight: 700 }}
             />
             <Bar
               barSize={18}
@@ -637,18 +638,18 @@ function UnitEmissionsCarbonChart({ rows }) {
   }
 
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
+    <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <ChartHeading
           description="Contraste entre la huella generada y el carbono almacenado por cada unidad."
           title="Emisiones vs carbono almacenado"
         />
         <div className="flex flex-wrap gap-3 text-xs font-semibold">
-          <span className="inline-flex items-center gap-2 text-cyan-200">
+          <span className="inline-flex items-center gap-2 text-[#075985]">
             <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
             Emisiones
           </span>
-          <span className="inline-flex items-center gap-2 text-emerald-200">
+          <span className="inline-flex items-center gap-2 text-[var(--primary-dark)]">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
             Carbono almacenado
           </span>
@@ -663,16 +664,16 @@ function UnitEmissionsCarbonChart({ rows }) {
             margin={{ top: 8, right: 24, bottom: 8, left: 24 }}
           >
             <XAxis
-              axisLine={{ stroke: "#334155" }}
-              tick={{ fill: "#94A3B8", fontSize: 12 }}
+              axisLine={{ stroke: "#64748B" }}
+              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
               tickFormatter={(value) => formatNumber(Math.abs(Number(value || 0)), 0)}
               tickLine={false}
               type="number"
             />
             <YAxis
-              axisLine={{ stroke: "#334155" }}
+              axisLine={{ stroke: "#64748B" }}
               dataKey="unidad"
-              tick={{ fill: "#CBD5E1", fontSize: 12 }}
+              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
               tickLine={false}
               type="category"
               width={170}
@@ -691,7 +692,7 @@ function UnitEmissionsCarbonChart({ rows }) {
                   label,
                 ];
               }}
-              labelStyle={{ color: "#E2E8F0", fontWeight: 700 }}
+              labelStyle={{ color: "#1F2937", fontWeight: 700 }}
             />
             <ReferenceLine stroke="#64748B" x={0} />
             <Bar
@@ -728,16 +729,16 @@ function MonthlyEnvironmentalTrend({ rows }) {
       <div className="h-[360px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={rows} margin={{ top: 10, right: 24, bottom: 8, left: 8 }}>
-            <CartesianGrid stroke="#1E293B" vertical={false} />
+            <CartesianGrid stroke="#B8C6BE" vertical={false} />
             <XAxis
-              axisLine={{ stroke: "#334155" }}
+              axisLine={{ stroke: "#64748B" }}
               dataKey="mes_label"
-              tick={{ fill: "#94A3B8", fontSize: 12 }}
+              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
               tickLine={false}
             />
             <YAxis
-              axisLine={{ stroke: "#334155" }}
-              tick={{ fill: "#94A3B8", fontSize: 12 }}
+              axisLine={{ stroke: "#64748B" }}
+              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
               tickFormatter={(value) => formatNumber(Number(value || 0), 0)}
               tickLine={false}
             />
@@ -747,7 +748,7 @@ function MonthlyEnvironmentalTrend({ rows }) {
                 `${formatNumber(Number(value || 0), 1)} kg CO2e`,
                 trendLabels[name] || name,
               ]}
-              labelStyle={{ color: "#E2E8F0", fontWeight: 700 }}
+              labelStyle={{ color: "#1F2937", fontWeight: 700 }}
             />
             <Line
               dataKey="emisiones"
@@ -806,18 +807,18 @@ function OrderedUnitComparisonChart({ rows }) {
             layout="vertical"
             margin={{ top: 8, right: 24, bottom: 8, left: 24 }}
           >
-            <CartesianGrid horizontal={false} stroke="#1E293B" />
+            <CartesianGrid horizontal={false} stroke="#B8C6BE" />
             <XAxis
-              axisLine={{ stroke: "#334155" }}
-              tick={{ fill: "#94A3B8", fontSize: 12 }}
+              axisLine={{ stroke: "#64748B" }}
+              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
               tickFormatter={(value) => formatNumber(Number(value || 0), 0)}
               tickLine={false}
               type="number"
             />
             <YAxis
-              axisLine={{ stroke: "#334155" }}
+              axisLine={{ stroke: "#64748B" }}
               dataKey="unidad"
-              tick={{ fill: "#94A3B8", fontSize: 12 }}
+              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
               tickLine={false}
               type="category"
               width={180}
@@ -835,7 +836,7 @@ function OrderedUnitComparisonChart({ rows }) {
                   label,
                 ];
               }}
-              labelStyle={{ color: "#E2E8F0", fontWeight: 700 }}
+              labelStyle={{ color: "#1F2937", fontWeight: 700 }}
             />
             <Bar
               barSize={16}
@@ -1049,37 +1050,37 @@ function maxBy(items, selector) {
 
 function CompanyKpi({ detail, icon, label, tone = "slate", value }) {
   const toneClass = {
-    cyan: "text-cyan-200",
-    emerald: "text-emerald-200",
-    slate: "text-slate-100",
+    cyan: "text-[#075985]",
+    emerald: "text-[var(--primary-dark)]",
+    slate: "text-[var(--text-main)]",
   }[tone];
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
       <div className="mb-3 flex items-center gap-3">
-        <div className="text-cyan-300">{icon}</div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <div className="text-[var(--primary-dark)]">{icon}</div>
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
           {label}
         </p>
       </div>
       <p className={`mt-2 line-clamp-2 text-2xl font-bold ${toneClass}`}>
         {typeof value === "number" ? formatNumber(value, 0) : value || "Sin datos"}
       </p>
-      {detail && <p className="mt-2 text-sm font-semibold text-slate-400">{detail}</p>}
+      {detail && <p className="mt-2 text-sm font-semibold text-[var(--text-muted)]">{detail}</p>}
     </div>
   );
 }
 
 function InsightCard({ icon, label, value }) {
   return (
-    <div className="rounded-3xl border border-slate-800 bg-slate-900 p-4">
+    <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
       <div className="mb-3 flex items-center gap-3">
-        <div className="text-emerald-300">{icon}</div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <div className="text-[var(--primary-dark)]">{icon}</div>
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
           {label}
         </p>
       </div>
-      <p className="mt-2 line-clamp-2 text-lg font-bold text-slate-100">{value}</p>
+      <p className="mt-2 line-clamp-2 text-lg font-bold text-[var(--text-main)]">{value}</p>
     </div>
   );
 }

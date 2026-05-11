@@ -27,12 +27,12 @@ function LotesTable({ loading, lotes, onOpenDetail, onSelectLote, selectedLote }
   }, [lotes]);
 
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
-      <h2 className="mb-4 text-xl font-semibold">Lotes registrados</h2>
+    <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+      <h2 className="mb-4 text-xl font-semibold text-[var(--text-main)]">Lotes registrados</h2>
 
       <div className="overflow-x-auto">
         <table className="min-w-[980px] w-full text-sm">
-          <thead className="border-b border-slate-800 text-slate-400">
+          <thead className="border-b border-[var(--border)] text-[var(--text-muted)]">
             <tr>
               <th className="py-3 text-left">ID lote</th>
               <th className="py-3 text-left">Empresa</th>
@@ -71,14 +71,14 @@ function LotesTable({ loading, lotes, onOpenDetail, onSelectLote, selectedLote }
                   tabIndex={0}
                   aria-label={`Seleccionar lote ${lote.id_lote}`}
                   aria-selected={isSelected}
-                  className={`cursor-pointer border-b border-slate-800/60 transition focus:outline-none focus:ring-2 focus:ring-emerald-400/40 ${
+                  className={`cursor-pointer border-b border-[#CBD5D0] text-[var(--text-main)] transition focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 ${
                     isSelected
-                      ? "bg-emerald-400/10 text-emerald-100 ring-1 ring-emerald-400/20"
-                      : "hover:bg-slate-800/60 focus:bg-slate-800/60"
+                      ? "bg-[var(--success-bg)] ring-1 ring-[var(--primary)]/25"
+                      : "hover:bg-[var(--bg-surface)] focus:bg-[var(--bg-surface)]"
                   }`}
                 >
                   <td className="py-3">
-                    <span className="font-semibold text-emerald-300">
+                    <span className="font-semibold text-[var(--primary-dark)]">
                       {lote.id_lote}
                     </span>
                   </td>
@@ -87,10 +87,10 @@ function LotesTable({ loading, lotes, onOpenDetail, onSelectLote, selectedLote }
                   <td className="py-3 text-right">
                     {formatNumber(Number(lote.volumen_m3))} m3
                   </td>
-                  <td className="py-3 text-right font-semibold text-cyan-200">
+                  <td className="py-3 text-right font-semibold text-[#075985]">
                     {formatNumber(Number(lote.emisiones_kg_co2e || 0))} kg CO2e
                   </td>
-                  <td className="py-3 text-right font-semibold text-lime-200">
+                  <td className="py-3 text-right font-semibold text-[#3F6212]">
                     {formatNumber(Number(lote.co2_almacenado_kg || 0))} kg
                   </td>
                   <td className="py-3">
@@ -102,8 +102,8 @@ function LotesTable({ loading, lotes, onOpenDetail, onSelectLote, selectedLote }
                       }}
                       className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold transition ${
                         isSelected
-                          ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20"
-                          : "border-slate-700 bg-slate-950 text-slate-300 hover:border-emerald-400/30 hover:bg-slate-800 hover:text-slate-100"
+                          ? "border-[var(--primary)]/30 bg-[#D9F0E6] text-[var(--primary-dark)] hover:bg-[var(--success-bg)]"
+                          : "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-[var(--primary)]/30 hover:bg-[var(--success-bg)] hover:text-[var(--primary-dark)]"
                       }`}
                       aria-label={`Abrir detalle del lote ${lote.id_lote}`}
                     >

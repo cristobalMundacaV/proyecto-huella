@@ -1,28 +1,28 @@
 const balanceTone = {
   favorable: {
     label: "Favorable",
-    className: "border-lime-400/30 bg-lime-400/10 text-lime-200",
+    className: "border-[#BEF264] bg-[#F7FEE7] text-[#3F6212]",
   },
   medio: {
     label: "Medio",
-    className: "border-amber-400/30 bg-amber-400/10 text-amber-200",
+    className: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
   },
   critico: {
     label: "Critico",
-    className: "border-red-400/30 bg-red-400/10 text-red-200",
+    className: "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]",
   },
 };
 
 const confidenceTone = {
-  "Alta confianza": "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
-  "Media confianza": "border-amber-400/30 bg-amber-400/10 text-amber-200",
-  "Baja confianza": "border-red-400/30 bg-red-400/10 text-red-200",
+  "Alta confianza": "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
+  "Media confianza": "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
+  "Baja confianza": "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]",
 };
 
 const documentStatusTone = {
-  pendiente: "border-amber-400/30 bg-amber-400/10 text-amber-200",
-  validado: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
-  rechazado: "border-red-400/30 bg-red-400/10 text-red-200",
+  pendiente: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
+  validado: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
+  rechazado: "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]",
 };
 
 const documentTypes = [
@@ -49,16 +49,16 @@ const ocrFields = [
 
 const pasaporteTone = {
   "Sin pasaporte": {
-    className: "border-slate-700 bg-slate-900 text-slate-200",
+    className: "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-main)]",
   },
   "Pasaporte Base": {
-    className: "border-cyan-400/30 bg-cyan-400/10 text-cyan-200",
+    className: "border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]",
   },
   "Pasaporte Verde": {
-    className: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
+    className: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
   },
   "Pasaporte Verde Plus": {
-    className: "border-lime-400/30 bg-lime-400/10 text-lime-200",
+    className: "border-[#BEF264] bg-[#F7FEE7] text-[#3F6212]",
   },
 };
 

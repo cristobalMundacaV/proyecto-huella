@@ -15,12 +15,12 @@ function DataTable({ rows }) {
   }, [rows, safeCurrentPage]);
 
   return (
-    <section className="rounded-3xl bg-slate-900 border border-slate-800 p-4 sm:p-6">
-      <h2 className="text-xl font-semibold mb-4">Datos procesados</h2>
+    <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+      <h2 className="mb-4 text-xl font-semibold text-[var(--text-main)]">Datos procesados</h2>
 
       <div className="overflow-x-auto">
         <table className="min-w-[720px] w-full text-sm">
-          <thead className="text-slate-400 border-b border-slate-800">
+          <thead className="border-b border-[var(--border)] text-[var(--text-muted)]">
             <tr>
               <th className="text-left py-3">Empresa</th>
               <th className="text-left py-3">Actividad</th>
@@ -31,7 +31,7 @@ function DataTable({ rows }) {
           </thead>
           <tbody>
             {visibleRows.map((row, index) => (
-              <tr key={index} className="border-b border-slate-800/60">
+              <tr key={index} className="border-b border-[#CBD5D0] text-[var(--text-main)]">
                 <td className="py-3">{row.empresa}</td>
                 <td className="py-3">{row.actividad}</td>
                 <td className="py-3 text-right">
@@ -40,7 +40,7 @@ function DataTable({ rows }) {
                 <td className="py-3 text-right">
                   {formatNumber(row.factor_emision, 4)}
                 </td>
-                <td className="py-3 text-right font-semibold text-emerald-300">
+                <td className="py-3 text-right font-semibold text-[var(--primary-dark)]">
                   {formatNumber(row.emisiones)}
                 </td>
               </tr>

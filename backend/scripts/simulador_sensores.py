@@ -6,6 +6,7 @@ from urllib import error, request
 
 
 API_URL = os.getenv("API_URL", "http://localhost:8000/api/iot/lecturas/")
+INTERVAL_SECONDS = float(os.getenv("SIMULATOR_INTERVAL_SECONDS", "5"))
 
 EMPRESAS = [
     "Maderas Los Robles SpA",
@@ -57,8 +58,21 @@ def enviar_lectura(payload):
         return response.status, json.loads(body)
 
 
+def describir_error_http(exc):
+    try:
+        body = exc.read().decode("utf-8", errors="replace")
+    except Exception:
+        body = ""
+
+    if len(body) > 500:
+        body = f"{body[:500]}..."
+
+    return f"HTTP {exc.code} {exc.reason}. {body}".strip()
+
+
 def main():
-    print(f"Simulador IoT enviando lecturas a {API_URL}")
+    print(f"Simulador IoT enviando lecturas a {API_URL}", flush=True)
+    print(f"Intervalo de envio: {INTERVAL_SECONDS} segundos", flush=True)
     while True:
         payload = generar_lectura()
         try:
@@ -66,13 +80,17 @@ def main():
             print(
                 f"[{status}] {payload['sensor']} {payload['tipo']}="
                 f"{payload['valor']} -> {response.get('co2e_estimado')} kg CO2e"
+                ,
+                flush=True,
             )
-        except (error.URLError, error.HTTPError, TimeoutError, json.JSONDecodeError) as exc:
-            print(f"[error] No se pudo enviar lectura: {exc}")
+        except error.HTTPError as exc:
+            print(f"[error] No se pudo enviar lectura: {describir_error_http(exc)}", flush=True)
+        except (error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+            print(f"[error] No se pudo enviar lectura: {exc}", flush=True)
         except Exception as exc:
-            print(f"[error] Error inesperado: {exc}")
+            print(f"[error] Error inesperado: {exc}", flush=True)
 
-        time.sleep(5)
+        time.sleep(INTERVAL_SECONDS)
 
 
 if __name__ == "__main__":

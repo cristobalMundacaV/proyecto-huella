@@ -221,21 +221,21 @@ function UnidadesOperativasView() {
         />
       </section>
 
-      <section className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 sm:p-6">
-        <p className="text-sm font-semibold text-cyan-200">Resumen operativo</p>
-        <h2 className="mt-2 text-2xl font-bold text-slate-100">
+      <section className="rounded-3xl border border-[var(--border)] bg-[var(--info-bg)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+        <p className="text-sm font-bold text-[#075985]">Resumen operativo</p>
+        <h2 className="mt-2 text-2xl font-bold text-[var(--text-main)]">
           Mapa operativo de {activeEmpresa.nombre}
         </h2>
-        <p className="mt-3 max-w-5xl whitespace-pre-line text-sm leading-7 text-cyan-50">
+        <p className="mt-3 max-w-5xl whitespace-pre-line text-sm font-medium leading-7 text-[#334155]">
           {buildOperationalSummary(activeEmpresa, metrics)}
         </p>
       </section>
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
+      <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
         <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-xl font-semibold">Unidades registradas</h2>
-            <p className="mt-1 text-sm text-slate-400">
+            <h2 className="text-xl font-semibold text-[var(--text-main)]">Unidades registradas</h2>
+            <p className="mt-1 text-sm font-medium text-[var(--text-muted)]">
               {formatNumber(filteredUnidades.length, 0)} unidades encontradas.
             </p>
           </div>
@@ -245,20 +245,20 @@ function UnidadesOperativasView() {
         <label className="relative mb-5 block">
           <Search
             size={18}
-            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
           />
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Buscar por unidad, empresa, tipo, región o comuna"
-            className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3 pl-11 pr-4 text-sm text-slate-100 outline-none transition focus:border-emerald-400/60"
+            className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] py-3 pl-11 pr-4 text-sm text-[var(--text-main)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]/60"
           />
         </label>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1180px] border-collapse text-sm">
             <thead>
-              <tr className="border-b border-slate-800 text-left text-xs text-slate-400">
+              <tr className="border-b border-[var(--border)] text-left text-xs text-[var(--text-muted)]">
                 <th className="px-4 py-3">Empresa</th>
                 <th className="px-4 py-3">Unidad</th>
                 <th className="px-4 py-3">Tipo</th>
@@ -283,30 +283,30 @@ function UnidadesOperativasView() {
                   }}
                   role="button"
                   tabIndex={0}
-                  className={`cursor-pointer border-b border-slate-800/80 transition focus:outline-none focus:ring-2 focus:ring-cyan-400/40 ${
+                  className={`cursor-pointer border-b border-[#CBD5D0] transition focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 ${
                     String(selectedUnidadId) === String(unidad.id)
-                      ? "bg-emerald-400/5"
-                      : "hover:bg-slate-800/40"
+                      ? "bg-[var(--success-bg)]"
+                      : "hover:bg-[var(--bg-surface)]"
                   }`}
                 >
-                  <td className="px-4 py-4 font-semibold text-slate-100">
+                  <td className="px-4 py-4 font-semibold text-[var(--text-main)]">
                     {unidad.empresa_nombre || activeEmpresa.nombre || "-"}
                   </td>
                   <td className="px-4 py-4">
-                    <p className="font-semibold text-slate-100">{unidad.nombre || "-"}</p>
+                    <p className="font-semibold text-[var(--text-main)]">{unidad.nombre || "-"}</p>
                   </td>
                   <td className="px-4 py-4">
                     <UnitTypeBadge type={unidad.tipo} />
                   </td>
-                  <td className="px-4 py-4 text-slate-300">{unidad.region || "-"}</td>
-                  <td className="px-4 py-4 text-slate-300">{unidad.comuna || "-"}</td>
-                  <td className="px-4 py-4 text-right font-semibold text-slate-200">
+                  <td className="px-4 py-4 text-[var(--text-muted)]">{unidad.region || "-"}</td>
+                  <td className="px-4 py-4 text-[var(--text-muted)]">{unidad.comuna || "-"}</td>
+                  <td className="px-4 py-4 text-right font-semibold text-[var(--text-main)]">
                     {formatNumber(unidad.lotes_count || 0, 0)}
                   </td>
-                  <td className="px-4 py-4 text-right font-semibold text-slate-200">
+                  <td className="px-4 py-4 text-right font-semibold text-[var(--text-main)]">
                     {formatNumber(unidad.actividades_count || 0, 0)}
                   </td>
-                  <td className="px-4 py-4 text-right font-bold text-cyan-200">
+                  <td className="px-4 py-4 text-right font-bold text-[#075985]">
                     {formatNumber(unidad.emisiones_totales_kg_co2e || 0, 1)}
                   </td>
                   <td className="px-4 py-4 text-center">
@@ -316,7 +316,7 @@ function UnidadesOperativasView() {
                         event.stopPropagation();
                         loadUnidadDetail(unidad);
                       }}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 transition hover:bg-cyan-400/20"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] text-[#075985] transition hover:border-[var(--primary)]/40 hover:bg-[#D9F0E6]"
                       aria-label={`Ver detalle de ${unidad.nombre}`}
                     >
                       <Eye size={18} />
@@ -538,23 +538,23 @@ function formatUnitNamesWithEmissions(units) {
 
 function UnitKpi({ detail, icon, label, tone = "slate", value }) {
   const toneClass = {
-    cyan: "text-cyan-200",
-    emerald: "text-emerald-200",
-    slate: "text-slate-100",
+    cyan: "text-[#075985]",
+    emerald: "text-[var(--primary-dark)]",
+    slate: "text-[var(--text-main)]",
   }[tone];
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
       <div className="mb-3 flex items-center gap-3">
-        <div className="text-cyan-300">{icon}</div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <div className="text-[var(--primary-dark)]">{icon}</div>
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
           {label}
         </p>
       </div>
       <p className={`mt-2 line-clamp-2 text-2xl font-bold ${toneClass}`}>
         {typeof value === "number" ? formatNumber(value, 0) : value || "Sin datos"}
       </p>
-      {detail && <p className="mt-2 text-sm font-semibold text-slate-400">{detail}</p>}
+      {detail && <p className="mt-2 text-sm font-semibold text-[var(--text-muted)]">{detail}</p>}
     </div>
   );
 }
@@ -562,15 +562,15 @@ function UnitKpi({ detail, icon, label, tone = "slate", value }) {
 function UnitTypeBadge({ type }) {
   const value = type || "Otro";
   const tone = {
-    General: "border-slate-500/30 bg-slate-400/10 text-slate-200",
-    Planta: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
-    Aserradero: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200",
-    Secado: "border-amber-400/20 bg-amber-400/10 text-amber-200",
-    Bodega: "border-violet-400/20 bg-violet-400/10 text-violet-200",
-    Despacho: "border-blue-400/20 bg-blue-400/10 text-blue-200",
-    Mantencion: "border-orange-400/20 bg-orange-400/10 text-orange-200",
-    Administracion: "border-indigo-400/20 bg-indigo-400/10 text-indigo-200",
-  }[value] || "border-cyan-400/20 bg-cyan-400/10 text-cyan-200";
+    General: "border-[#94A3B8] bg-[#F1F5F9] text-[#334155]",
+    Planta: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
+    Aserradero: "border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]",
+    Secado: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
+    Bodega: "border-[#C4B5FD] bg-[#F1EDFF] text-[#5B21B6]",
+    Despacho: "border-[#BFDBFE] bg-[#EFF6FF] text-[#075985]",
+    Mantencion: "border-[#FDBA74] bg-[#FFF7ED] text-[#9A3412]",
+    Administracion: "border-[#C7D2FE] bg-[#EEF2FF] text-[#3730A3]",
+  }[value] || "border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]";
 
   return (
     <span className={`rounded-full border px-3 py-1 text-xs font-bold ${tone}`}>
@@ -599,17 +599,17 @@ function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
   const actividades = unidad.actividades_resumen || [];
 
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
+    <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm font-semibold text-emerald-300">Detalle unidad</p>
-          <h2 className="mt-1 text-2xl font-bold text-slate-100">{unidad.nombre}</h2>
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="text-sm font-bold text-[var(--primary-dark)]">Detalle unidad</p>
+          <h2 className="mt-1 text-2xl font-bold text-[var(--text-main)]">{unidad.nombre}</h2>
+          <p className="mt-2 text-sm font-medium text-[var(--text-muted)]">
             {unidad.empresa_nombre || "Sin empresa"} · {unidad.region || "Sin region"} ·{" "}
             {unidad.comuna || "Sin comuna"}
           </p>
           {unidad.direccion && (
-            <p className="mt-1 text-sm text-slate-500">{unidad.direccion}</p>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">{unidad.direccion}</p>
           )}
         </div>
         <UnitTypeBadge type={unidad.tipo} />
@@ -722,18 +722,18 @@ function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
 
 function UnitMiniMetric({ detail, label, tone = "slate", value }) {
   const toneClass = {
-    cyan: "text-cyan-200",
-    emerald: "text-emerald-200",
-    slate: "text-slate-100",
+    cyan: "text-[#075985]",
+    emerald: "text-[var(--primary-dark)]",
+    slate: "text-[var(--text-main)]",
   }[tone];
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
+      <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
         {label}
       </p>
       <p className={`mt-2 text-2xl font-bold ${toneClass}`}>{value}</p>
-      {detail && <p className="mt-1 text-sm text-slate-400">{detail}</p>}
+      {detail && <p className="mt-1 text-sm font-medium text-[var(--text-muted)]">{detail}</p>}
     </div>
   );
 }
@@ -745,11 +745,11 @@ function UnidadResumen({ unidad }) {
       <UnitMiniMetric label="Tipo" value={unidad.tipo || "Sin tipo"} />
       <UnitMiniMetric label="Region" value={unidad.region || "Sin region"} />
       <UnitMiniMetric label="Comuna" value={unidad.comuna || "Sin comuna"} />
-      <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 sm:col-span-2 xl:col-span-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 sm:col-span-2 xl:col-span-4">
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
           Descripcion
         </p>
-        <p className="mt-2 text-sm leading-6 text-slate-300">
+        <p className="mt-2 text-sm font-medium leading-6 text-[var(--text-main)]">
           {unidad.descripcion ||
             "No hay descripcion operativa registrada para esta unidad."}
         </p>
@@ -780,7 +780,7 @@ function PaginatedSimpleTable({ columns, onPageChange, page, rows }) {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] border-collapse text-sm">
           <thead>
-            <tr className="border-b border-slate-800 text-left text-xs text-slate-400">
+            <tr className="border-b border-[var(--border)] text-left text-xs text-[var(--text-muted)]">
               {columns.map((column) => (
                 <th key={column} className="px-4 py-3">
                   {column}
@@ -792,13 +792,13 @@ function PaginatedSimpleTable({ columns, onPageChange, page, rows }) {
             {visibleRows.map((row, rowIndex) => (
               <tr
                 key={`${row[0]}-${safePage}-${rowIndex}`}
-                className="border-b border-slate-800/70"
+                className="border-b border-[#CBD5D0]"
               >
                 {row.map((cell, cellIndex) => (
                   <td
                     key={`${row[0]}-${safePage}-${rowIndex}-${cellIndex}`}
                     className={`px-4 py-3 ${
-                      cellIndex === 0 ? "font-semibold text-slate-100" : "text-slate-300"
+                      cellIndex === 0 ? "font-semibold text-[var(--text-main)]" : "text-[var(--text-muted)]"
                     }`}
                   >
                     {cell || "-"}

@@ -37,12 +37,12 @@ function Pagination({
   }
 
   return (
-    <div className="mt-5 rounded-2xl border border-emerald-400/10 bg-gradient-to-r from-emerald-400/10 via-slate-950 to-cyan-400/10 p-3 sm:p-4">
+    <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--info-bg)] p-3 sm:p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-slate-400">
+        <p className="text-xs font-medium text-[var(--text-muted)]">
           Mostrando{" "}
-          <span className="font-semibold text-slate-100">{visibleCount}</span>{" "}
-          de <span className="font-semibold text-slate-100">{totalItems}</span>{" "}
+          <span className="font-bold text-[var(--text-main)]">{visibleCount}</span>{" "}
+          de <span className="font-bold text-[var(--text-main)]">{totalItems}</span>{" "}
           {itemLabel}
         </p>
 
@@ -51,12 +51,12 @@ function Pagination({
             type="button"
             onClick={() => onPageChange(Math.max(safeCurrentPage - 1, 1))}
             disabled={safeCurrentPage === 1}
-            className="inline-flex items-center justify-center rounded-full border border-slate-700/80 bg-slate-950 px-4 py-2 text-xs font-semibold text-slate-200 shadow-sm transition hover:border-emerald-400/40 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-4 py-2 text-xs font-semibold text-[var(--text-muted)] shadow-sm transition hover:border-[var(--primary)]/40 hover:text-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             Anterior
           </button>
 
-          <div className="flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-950/80 p-1 shadow-sm">
+          <div className="flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-card)] p-1 shadow-sm">
             {pageNumbers.map((page) => {
               const active = page === safeCurrentPage;
 
@@ -67,8 +67,8 @@ function Pagination({
                   onClick={() => onPageChange(page)}
                   className={`min-w-9 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                     active
-                      ? "bg-emerald-400/20 text-emerald-200 shadow-inner ring-1 ring-emerald-400/30"
-                      : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                      ? "bg-[var(--primary-dark)] text-white shadow-inner ring-1 ring-[var(--primary)]/30"
+                      : "text-[var(--text-muted)] hover:bg-[var(--success-bg)] hover:text-[var(--primary-dark)]"
                   }`}
                 >
                   {page}
@@ -81,14 +81,14 @@ function Pagination({
             type="button"
             onClick={() => onPageChange(Math.min(safeCurrentPage + 1, totalPages))}
             disabled={safeCurrentPage === totalPages}
-            className="inline-flex items-center justify-center rounded-full border border-slate-700/80 bg-slate-950 px-4 py-2 text-xs font-semibold text-slate-200 shadow-sm transition hover:border-cyan-400/40 hover:text-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-4 py-2 text-xs font-semibold text-[var(--text-main)] shadow-sm transition hover:border-[var(--primary)]/40 hover:text-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             Siguiente
           </button>
         </div>
       </div>
 
-      <p className="mt-3 text-[11px] uppercase tracking-[0.2em] text-slate-500">
+      <p className="mt-3 text-[11px] uppercase tracking-[0.2em] text-[var(--text-muted)]">
         Pagina {safeCurrentPage} de {totalPages}
       </p>
     </div>

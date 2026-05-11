@@ -5,9 +5,9 @@ import { DetailItem } from "./common";
 
 function LoteDetailHeader({ detailLoading, selectedLote }) {
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
+    <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
       <div className="mb-5 flex items-center justify-between gap-4">
-        <h2 className="text-xl font-semibold">Detalle del lote</h2>
+        <h2 className="text-xl font-semibold text-[var(--text-main)]">Detalle del lote</h2>
         {detailLoading && (
           <Loader2 className="animate-spin text-emerald-300" size={20} />
         )}
@@ -52,7 +52,7 @@ function LoteDetailHeader({ detailLoading, selectedLote }) {
           <DetailItem label="Origen" value={selectedLote.origen} />
         </div>
       ) : (
-        <p className="text-slate-400">
+        <p className="text-[var(--text-muted)]">
           Selecciona un lote para ver su trazabilidad.
         </p>
       )}

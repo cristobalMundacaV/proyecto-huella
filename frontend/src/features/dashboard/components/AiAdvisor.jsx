@@ -5,10 +5,10 @@ function AiAdvisor({
   onGenerateAnalysis,
 }) {
   return (
-    <section className="rounded-3xl bg-slate-900 border border-slate-800 p-6 space-y-4 shadow-xl">
+    <section className="space-y-4 rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-[var(--shadow-card)]">
       <div>
-        <p className="text-emerald-400 text-sm font-semibold">Carbono Zero AI</p>
-        <h2 className="text-2xl font-bold">
+        <p className="text-sm font-bold text-[var(--primary-dark)]">Carbono Zero AI</p>
+        <h2 className="text-2xl font-bold text-[var(--text-main)]">
           Analisis estrategico generado por IA
         </h2>
       </div>
@@ -17,20 +17,20 @@ function AiAdvisor({
         type="button"
         onClick={onGenerateAnalysis}
         disabled={loadingAi}
-        className="px-6 py-3 rounded-2xl bg-cyan-500 text-slate-950 font-bold hover:bg-cyan-400 transition disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+        className="rounded-2xl bg-[var(--primary-dark)] px-6 py-3 font-bold text-white transition hover:bg-[var(--primary)] disabled:cursor-not-allowed disabled:bg-[#CBD5D0] disabled:text-[var(--text-muted)]"
       >
         {loadingAi ? "Analizando..." : "Generar analisis IA"}
       </button>
 
       {aiAnalysis && (
-        <div className="rounded-2xl bg-cyan-400/10 border border-cyan-400/20 p-5 whitespace-pre-line text-slate-200 leading-7">
+        <div className="whitespace-pre-line rounded-2xl border border-[var(--border)] bg-[var(--info-bg)] p-5 leading-7 text-[var(--text-main)]">
           {aiSource === "carbono_zero_engine" && (
-            <p className="mb-4 text-xs font-semibold text-emerald-300">
+            <p className="mb-4 text-xs font-bold text-[var(--primary-dark)]">
               Generado por motor analitico Carbono Zero
             </p>
           )}
           {aiSource === "openai" && (
-            <p className="mb-4 text-xs font-semibold text-cyan-300">
+            <p className="mb-4 text-xs font-bold text-[#075985]">
               Generado con OpenAI
             </p>
           )}
