@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   Gauge,
@@ -9,10 +9,12 @@ import {
 } from "lucide-react";
 
 import KpiCard from "@/shared/components/KpiCard";
+import Pagination from "@/shared/components/Pagination";
 import { getIotKpis, getIotUltimasLecturas } from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
 
 const POLL_INTERVAL_MS = 5000;
+const LECTURAS_PAGE_SIZE = 8;
 
 const formatDateTime = (value) => {
   if (!value) {
@@ -33,8 +35,19 @@ const formatTipo = (value) =>
 function RealtimeIotMonitoring() {
   const [kpis, setKpis] = useState(null);
   const [lecturas, setLecturas] = useState([]);
+  const [lecturasPage, setLecturasPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const totalLecturasPages = Math.max(
+    1,
+    Math.ceil(lecturas.length / LECTURAS_PAGE_SIZE)
+  );
+  const safeLecturasPage = Math.min(lecturasPage, totalLecturasPages);
+  const visibleLecturas = useMemo(() => {
+    const startIndex = (safeLecturasPage - 1) * LECTURAS_PAGE_SIZE;
+    return lecturas.slice(startIndex, startIndex + LECTURAS_PAGE_SIZE);
+  }, [lecturas, safeLecturasPage]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -155,8 +168,8 @@ function RealtimeIotMonitoring() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]">
-                  {lecturas.length > 0 ? (
-                    lecturas.map((lectura) => (
+                  {visibleLecturas.length > 0 ? (
+                    visibleLecturas.map((lectura) => (
                       <tr key={lectura.id} className="text-[var(--text-muted)]">
                         <td className="whitespace-nowrap px-4 py-3 font-semibold text-[var(--text-main)]">
                           {lectura.sensor}
@@ -187,6 +200,15 @@ function RealtimeIotMonitoring() {
                   )}
                 </tbody>
               </table>
+            </div>
+            <div className="px-4 pb-4">
+              <Pagination
+                currentPage={safeLecturasPage}
+                itemLabel="lecturas"
+                onPageChange={setLecturasPage}
+                pageSize={LECTURAS_PAGE_SIZE}
+                totalItems={lecturas.length}
+              />
             </div>
           </div>
         </>

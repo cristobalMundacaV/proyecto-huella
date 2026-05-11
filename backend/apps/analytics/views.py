@@ -10,6 +10,7 @@ from .models import Empresa, EmisionLote
 from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.db.models import Q, Count, F, Sum as DBSum, ExpressionWrapper, DecimalField, IntegerField, Value, OuterRef, Subquery
@@ -20,7 +21,7 @@ from rest_framework.response import Response
 from django.db.models import Sum
 from django.db.models.functions import TruncMonth, TruncYear, TruncDay
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 
@@ -68,6 +69,7 @@ from .services.verificacion import generar_resumen_verificacion
 from .services.validador import ValidadorDatos
 from .models import HistorialCambioLote
 from .factores import FACTOR_CATEGORIES, normalize_activity_key
+from apps.iot.models import LecturaSensor
 from .services.importadores import (
     ImportadorActividadesLote,
     ImportadorEmpresas,
@@ -92,6 +94,113 @@ except Exception:
 
 
 logger = logging.getLogger(__name__)
+
+
+IOT_ANALYTICS_WINDOW_HOURS = 24
+
+
+IOT_TYPE_ANALYTICS = {
+    LecturaSensor.Tipo.DIESEL_LITROS: {
+        "actividad": "IoT - Diesel litros",
+        "categoria": "Combustible",
+    },
+    LecturaSensor.Tipo.GASOLINA_LITROS: {
+        "actividad": "IoT - Gasolina litros",
+        "categoria": "Combustible",
+    },
+    LecturaSensor.Tipo.ELECTRICIDAD_KWH: {
+        "actividad": "IoT - Electricidad kWh",
+        "categoria": "Electricidad",
+    },
+    LecturaSensor.Tipo.HORAS_MAQUINARIA: {
+        "actividad": "IoT - Horas maquinaria",
+        "categoria": "Maquinaria",
+    },
+    LecturaSensor.Tipo.TEMPERATURA: {
+        "actividad": "IoT - Temperatura",
+        "categoria": "Condiciones ambientales",
+    },
+    LecturaSensor.Tipo.HUMEDAD: {
+        "actividad": "IoT - Humedad",
+        "categoria": "Condiciones ambientales",
+    },
+}
+
+
+def get_iot_analytics_queryset(empresa, fecha_inicio=None, fecha_fin=None, unidad_nombre=None):
+    desde = timezone.now() - timedelta(hours=IOT_ANALYTICS_WINDOW_HOURS)
+    queryset = LecturaSensor.objects.filter(
+        empresa__iexact=empresa.nombre,
+        fecha_registro__gte=desde,
+    )
+
+    if fecha_inicio:
+        queryset = queryset.filter(fecha_registro__date__gte=fecha_inicio)
+
+    if fecha_fin:
+        queryset = queryset.filter(fecha_registro__date__lte=fecha_fin)
+
+    if unidad_nombre:
+        queryset = queryset.filter(unidad_operativa__iexact=unidad_nombre)
+
+    return queryset
+
+
+def build_iot_analytics_row(lectura, empresa):
+    metadata = IOT_TYPE_ANALYTICS.get(
+        lectura.tipo,
+        {"actividad": f"IoT - {lectura.tipo}", "categoria": "IoT"},
+    )
+    valor = float(lectura.valor or 0)
+    emisiones = float(lectura.co2e_estimado or 0)
+    factor = emisiones / valor if valor else 0
+
+    return {
+        "id": f"iot-{lectura.id}",
+        "fecha": lectura.fecha_registro.date().isoformat(),
+        "empresa": empresa.nombre,
+        "empresa_id": empresa.empresa_id,
+        "unidad_operativa": lectura.unidad_operativa or "Sin unidad",
+        "unidad_nombre": lectura.unidad_operativa or "Sin unidad",
+        "unidad_id": "",
+        "tipo_unidad": "IoT",
+        "actividad": metadata["actividad"],
+        "actividad_key": lectura.tipo,
+        "categoria": metadata["categoria"],
+        "tipo_consumo_combustible": "",
+        "cantidad": valor,
+        "unidad": lectura.unidad,
+        "factor_emision": factor,
+        "emisiones": emisiones,
+        "id_lote": "IoT",
+        "tipo_asignacion": "simulacion_iot",
+        "fuente_factor": "Sensor IoT simulado",
+        "anio_factor": None,
+        "es_iot": True,
+        "sensor": lectura.sensor,
+        "fecha_registro": lectura.fecha_registro.isoformat(),
+    }
+
+
+def build_iot_analytics_rows(empresa, fecha_inicio=None, fecha_fin=None, unidad_nombre=None):
+    return [
+        build_iot_analytics_row(lectura, empresa)
+        for lectura in get_iot_analytics_queryset(
+            empresa,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+            unidad_nombre=unidad_nombre,
+        )
+    ]
+
+
+def add_group_value(grouped, key, value):
+    label = key or "Sin datos"
+    grouped[label] = grouped.get(label, 0) + float(value or 0)
+
+
+def sort_grouped_desc(grouped):
+    return dict(sorted(grouped.items(), key=lambda item: item[1], reverse=True))
 
 
 def serialize_auth_user(user):
@@ -403,6 +512,16 @@ def build_company_dashboard_response(empresa):
         if lote:
             emisiones_por_lote[lote.id_lote] = emisiones_por_lote.get(lote.id_lote, 0) + emisiones
 
+    iot_rows = build_iot_analytics_rows(empresa)
+    for row in iot_rows:
+        emisiones = float(row.get("emisiones") or 0)
+        total_emisiones += emisiones
+        rows.append(row)
+        add_group_value(emisiones_por_actividad, row.get("actividad"), emisiones)
+        add_group_value(emisiones_por_categoria, row.get("categoria"), emisiones)
+        add_group_value(emisiones_por_unidad, row.get("unidad_nombre"), emisiones)
+        add_group_value(emisiones_por_empresa, empresa.nombre, emisiones)
+
     emisiones_por_activity_sorted = dict(
         sorted(emisiones_por_actividad.items(), key=lambda item: item[1], reverse=True)
     )
@@ -427,6 +546,8 @@ def build_company_dashboard_response(empresa):
         "unidades_count": empresa.unidades_operativas.count(),
         "lotes_count": lotes_count,
         "actividades_count": len(rows),
+        "lecturas_iot_count": len(iot_rows),
+        "emisiones_iot_24h": sum(float(row.get("emisiones") or 0) for row in iot_rows),
         "evidencias_count": evidencias_count,
         "pasaportes_count": pasaportes_count,
         "actividad_critica": next(iter(emisiones_por_activity_sorted), "Sin datos"),
@@ -778,6 +899,15 @@ def empresa_dashboard(request, empresa_id):
             .order_by("-emisiones")
         }
 
+        iot_rows = build_iot_analytics_rows(empresa)
+        emisiones_iot = sum(float(row.get("emisiones") or 0) for row in iot_rows)
+        total_emisiones += emisiones_iot
+        for row in iot_rows:
+            emisiones = float(row.get("emisiones") or 0)
+            add_group_value(emisiones_por_actividad, row.get("actividad"), emisiones)
+            add_group_value(emisiones_por_categoria, row.get("categoria"), emisiones)
+            add_group_value(emisiones_por_unidad, row.get("unidad_nombre"), emisiones)
+
         actividades_count = actividades_qs.count()
         t1 = __import__("time").perf_counter()
         payload = {
@@ -786,10 +916,13 @@ def empresa_dashboard(request, empresa_id):
             "total_emisiones": total_emisiones,
             "co2_almacenado_total": co2_almacenado_total,
             "balance_neto_total": total_emisiones - co2_almacenado_total,
-            "actividades_count": actividades_count,
-            "emisiones_por_actividad": emisiones_por_actividad,
-            "emisiones_por_categoria": emisiones_por_categoria,
-            "emisiones_por_unidad_operativa": emisiones_por_unidad,
+            "actividades_count": actividades_count + len(iot_rows),
+            "lecturas_iot_count": len(iot_rows),
+            "emisiones_iot_24h": emisiones_iot,
+            "emisiones_por_actividad": sort_grouped_desc(emisiones_por_actividad),
+            "emisiones_por_categoria": sort_grouped_desc(emisiones_por_categoria),
+            "emisiones_por_unidad_operativa": sort_grouped_desc(emisiones_por_unidad),
+            "datos": iot_rows,
         }
         if debug:
             payload["_timings"] = {"aggregation_seconds": t1 - t0}
@@ -1076,7 +1209,52 @@ def empresa_emisiones(request, empresa_id):
         .order_by("-emisiones")
     ]
 
-    actividades_count = actividades_qs.count()
+    iot_rows = build_iot_analytics_rows(empresa)
+    emisiones_iot = sum(float(row.get("emisiones") or 0) for row in iot_rows)
+    total_emisiones += emisiones_iot
+
+    actividad_totals = {
+        item["actividad"]: float(item["emisiones"] or 0)
+        for item in emisiones_por_actividad
+    }
+    unidad_totals = {
+        item["unidad"]: float(item["emisiones"] or 0)
+        for item in emisiones_por_unidad
+    }
+    categoria_totals = {
+        item["categoria"] or "Sin categoria": float(item["emisiones"] or 0)
+        for item in actividades_qs.values("categoria")
+        .annotate(emisiones=Sum("emisiones_kg_co2e"))
+        .order_by("-emisiones")
+    }
+
+    for row in iot_rows:
+        emisiones = float(row.get("emisiones") or 0)
+        add_group_value(actividad_totals, row.get("actividad"), emisiones)
+        add_group_value(unidad_totals, row.get("unidad_nombre"), emisiones)
+        add_group_value(categoria_totals, row.get("categoria"), emisiones)
+
+    emisiones_por_actividad = [
+        {"actividad": actividad, "emisiones": emisiones}
+        for actividad, emisiones in sort_grouped_desc(actividad_totals).items()
+    ]
+    emisiones_por_unidad = [
+        {"unidad": unidad, "emisiones": emisiones}
+        for unidad, emisiones in sort_grouped_desc(unidad_totals).items()
+    ]
+    categoria_top = (
+        {"categoria": next(iter(sort_grouped_desc(categoria_totals)), "Sin datos"), "emisiones": next(iter(sort_grouped_desc(categoria_totals).values()), 0)}
+        if categoria_totals
+        else {"categoria": "Sin datos", "emisiones": 0}
+    )
+    actividad_top = emisiones_por_actividad[0] if emisiones_por_actividad else {"actividad": "Sin datos", "emisiones": 0}
+    unidad_top = (
+        {"unidad_nombre": emisiones_por_unidad[0]["unidad"], "emisiones": emisiones_por_unidad[0]["emisiones"]}
+        if emisiones_por_unidad
+        else {"unidad_nombre": "Sin datos", "emisiones": 0}
+    )
+
+    actividades_count = actividades_qs.count() + len(iot_rows)
 
     # Paginate rows
     paginator = PageNumberPagination()
@@ -1118,6 +1296,15 @@ def empresa_emisiones(request, empresa_id):
         ):
             diesel_total += float(actividad.get("emisiones_kg_co2e") or 0)
 
+    diesel_total += sum(
+        float(row.get("emisiones") or 0)
+        for row in iot_rows
+        if row.get("actividad_key") in {
+            LecturaSensor.Tipo.DIESEL_LITROS,
+            LecturaSensor.Tipo.GASOLINA_LITROS,
+        }
+    )
+
     rows = []
     for actividad in page:
         lote = actividad.lote
@@ -1152,6 +1339,16 @@ def empresa_emisiones(request, empresa_id):
             }
         )
 
+    if request.query_params.get("page", "1") in ("1", ""):
+        rows = sorted(
+            iot_rows + rows,
+            key=lambda row: (
+                1 if row.get("es_iot") else 0,
+                str(row.get("fecha_registro") or row.get("fecha") or ""),
+            ),
+            reverse=True,
+        )[: paginator.page_size]
+
     lotes_con_emisiones_count = actividades_qs.values("lote__id_lote").annotate(total=Sum("emisiones_kg_co2e")).filter(total__gt=0).count()
 
     def percentage(value):
@@ -1160,6 +1357,7 @@ def empresa_emisiones(request, empresa_id):
     t1 = __import__("time").perf_counter()
 
     payload = paginator.get_paginated_response(rows).data
+    payload["count"] = int(payload.get("count") or 0) + len(iot_rows)
     payload.update(
         {
             "empresa": {"id": empresa.empresa_id, "nombre": empresa.nombre},
@@ -1172,6 +1370,8 @@ def empresa_emisiones(request, empresa_id):
                 "unidad_critica": unidad_top.get("unidad_nombre") or "Sin datos",
                 "lote_critico": lote_top.get("id_lote") or "Sin datos",
                 "cantidad_actividades": actividades_count,
+                "lecturas_iot_count": len(iot_rows),
+                "emisiones_iot_24h": emisiones_iot,
                 "cantidad_lotes_con_emisiones": lotes_con_emisiones_count,
                 "promedio_emision_por_lote": (total_emisiones / lotes_con_emisiones_count) if lotes_con_emisiones_count else 0,
                 "porcentaje_diesel": percentage(diesel_total),
@@ -2520,6 +2720,7 @@ def reporte_emisiones_tiempo(request, empresa_id):
     unidad_id = request.GET.get("unidad_id")
     categoria = request.GET.get("categoria")
     actividad_query = request.GET.get("actividad")
+    empresa = get_object_or_404(Empresa, empresa_id=empresa_id)
 
     # Ajusta estos nombres si tu modelo se llama distinto
     actividades = EmisionLote.objects.filter(
@@ -2547,6 +2748,40 @@ def reporte_emisiones_tiempo(request, empresa_id):
     # Emisiones totales
     total_agg = actividades.aggregate(total=Sum("emisiones_kg_co2e"))
     emisiones_totales = float(total_agg.get("total") or 0)
+
+    unidad_nombre_iot = None
+    if unidad_id:
+        unidad_filter = Q(unidad_id=unidad_id)
+        if str(unidad_id).isdigit():
+            unidad_filter |= Q(id=int(unidad_id))
+        unidad_obj = UnidadOperativa.objects.filter(unidad_filter, empresa=empresa).first()
+        unidad_nombre_iot = unidad_obj.nombre if unidad_obj else "__sin_unidad_iot__"
+
+    iot_rows = build_iot_analytics_rows(
+        empresa,
+        fecha_inicio=fecha_inicio,
+        fecha_fin=fecha_fin,
+        unidad_nombre=unidad_nombre_iot,
+    )
+
+    if categoria:
+        categoria_normalizada = str(categoria).strip().lower()
+        iot_rows = [
+            row
+            for row in iot_rows
+            if str(row.get("categoria") or "").strip().lower() == categoria_normalizada
+        ]
+
+    if actividad_query:
+        actividad_normalizada = str(actividad_query).strip().lower()
+        iot_rows = [
+            row
+            for row in iot_rows
+            if actividad_normalizada in str(row.get("actividad") or "").strip().lower()
+        ]
+
+    emisiones_iot = sum(float(row.get("emisiones") or 0) for row in iot_rows)
+    emisiones_totales += emisiones_iot
 
     # Serie temporal: agrupar por día/mes/año usando funciones de truncado
     if agrupacion == "dia":
@@ -2579,6 +2814,37 @@ def reporte_emisiones_tiempo(request, empresa_id):
             "actividades": int(item.get("actividades") or 0),
             "lotes": int(item.get("lotes") or 0),
         })
+
+    serie_por_periodo = {item["periodo"]: item for item in serie_temporal}
+    for row in iot_rows:
+        row_date = datetime.fromisoformat(row["fecha"])
+        if agrupacion == "dia":
+            periodo_key = row_date.strftime("%Y-%m-%d")
+            label = row_date.strftime("%d-%m-%Y")
+        elif agrupacion == "anio":
+            periodo_key = row_date.strftime("%Y")
+            label = row_date.strftime("%Y")
+        else:
+            periodo_key = row_date.strftime("%Y-%m")
+            label = row_date.strftime("%b %Y")
+
+        current = serie_por_periodo.setdefault(
+            periodo_key,
+            {
+                "periodo": periodo_key,
+                "label": label,
+                "emisiones": 0,
+                "actividades": 0,
+                "lotes": 0,
+            },
+        )
+        current["emisiones"] = round(
+            float(current["emisiones"] or 0) + float(row.get("emisiones") or 0),
+            2,
+        )
+        current["actividades"] = int(current["actividades"] or 0) + 1
+
+    serie_temporal = sorted(serie_por_periodo.values(), key=lambda item: item["periodo"])
 
     periodo_mayor = None
     periodo_menor = None
@@ -2622,6 +2888,21 @@ def reporte_emisiones_tiempo(request, empresa_id):
     por_unidad_qs = (
         actividades.values(unidad_nombre=F("unidad_operativa__nombre")).annotate(emisiones=Sum("emisiones_kg_co2e")).order_by("-emisiones")
     )
+    categoria_totals = {
+        item["categoria"]: float(item["emisiones"] or 0)
+        for item in por_categoria
+    }
+    for row in iot_rows:
+        add_group_value(categoria_totals, row.get("categoria"), row.get("emisiones"))
+    por_categoria = [
+        {
+            "categoria": categoria_label,
+            "emisiones": round(float(emisiones or 0), 2),
+            "porcentaje": round((float(emisiones or 0) / emisiones_totales) * 100, 1) if emisiones_totales else 0,
+        }
+        for categoria_label, emisiones in sort_grouped_desc(categoria_totals).items()
+    ]
+
     por_unidad = [
         {
             "unidad_nombre": item.get("unidad_nombre") or "Sin unidad",
@@ -2634,6 +2915,21 @@ def reporte_emisiones_tiempo(request, empresa_id):
     por_actividad_qs = (
         actividades.values("actividad").annotate(emisiones=Sum("emisiones_kg_co2e")).order_by("-emisiones")
     )
+    unidad_totals = {
+        item["unidad_nombre"]: float(item["emisiones"] or 0)
+        for item in por_unidad
+    }
+    for row in iot_rows:
+        add_group_value(unidad_totals, row.get("unidad_nombre"), row.get("emisiones"))
+    por_unidad = [
+        {
+            "unidad_nombre": unidad_label,
+            "emisiones": round(float(emisiones or 0), 2),
+            "porcentaje": round((float(emisiones or 0) / emisiones_totales) * 100, 1) if emisiones_totales else 0,
+        }
+        for unidad_label, emisiones in sort_grouped_desc(unidad_totals).items()
+    ]
+
     por_actividad = [
         {
             "actividad": item.get("actividad") or "Sin actividad",
@@ -2641,6 +2937,20 @@ def reporte_emisiones_tiempo(request, empresa_id):
             "porcentaje": round((float(item.get("emisiones") or 0) / emisiones_totales) * 100, 1) if emisiones_totales else 0,
         }
         for item in por_actividad_qs
+    ]
+    actividad_totals = {
+        item["actividad"]: float(item["emisiones"] or 0)
+        for item in por_actividad
+    }
+    for row in iot_rows:
+        add_group_value(actividad_totals, row.get("actividad"), row.get("emisiones"))
+    por_actividad = [
+        {
+            "actividad": actividad_label,
+            "emisiones": round(float(emisiones or 0), 2),
+            "porcentaje": round((float(emisiones or 0) / emisiones_totales) * 100, 1) if emisiones_totales else 0,
+        }
+        for actividad_label, emisiones in sort_grouped_desc(actividad_totals).items()
     ]
 
     actividad_critica = por_actividad[0]["actividad"] if por_actividad else "Sin datos"
@@ -2687,10 +2997,11 @@ def reporte_emisiones_tiempo(request, empresa_id):
             "unidad",
             "emisiones_kg_co2e",
         )
-        rows_count = actividades.count()
+        rows_count = actividades.count() + len(iot_rows)
         start = (page - 1) * page_size
         end = start + page_size
-        for item in rows_qs[start:end]:
+        official_rows = []
+        for item in rows_qs:
             rows.append({
                 "fecha": item.get("fecha").strftime("%Y-%m-%d") if item.get("fecha") else None,
                 "periodo": None,
@@ -2702,11 +3013,31 @@ def reporte_emisiones_tiempo(request, empresa_id):
                 "unidad": item.get("unidad") or "",
                 "emisiones": round(float(item.get("emisiones_kg_co2e") or 0), 2),
             })
+        official_rows = rows
+        rows = []
+        all_rows = sorted(
+            official_rows + iot_rows,
+            key=lambda row: str(row.get("fecha_registro") or row.get("fecha") or ""),
+            reverse=True,
+        )
+        for item in all_rows[start:end]:
+            rows.append({
+                "fecha": item.get("fecha"),
+                "periodo": None,
+                "unidad_nombre": item.get("unidad_nombre") or item.get("unidad_operativa") or "Sin unidad",
+                "id_lote": item.get("id_lote") or "-",
+                "categoria": item.get("categoria") or "Sin categoria",
+                "actividad": item.get("actividad") or "Sin actividad",
+                "cantidad": float(item.get("cantidad") or 0),
+                "unidad": item.get("unidad") or "",
+                "emisiones": round(float(item.get("emisiones") or 0), 2),
+                "es_iot": bool(item.get("es_iot")),
+            })
 
     else:
         # cuando page_size == 0 no devolvemos filas (cliente puede solicitarlas paginadas)
         rows = []
-        rows_count = actividades.count()
+        rows_count = actividades.count() + len(iot_rows)
 
     response = {
         "empresa": {
@@ -2731,6 +3062,8 @@ def reporte_emisiones_tiempo(request, empresa_id):
             "actividad_critica_periodo": actividad_critica,
             "unidad_critica_periodo": unidad_critica,
             "promedio_periodo": round(promedio_periodo, 2),
+            "lecturas_iot_count": len(iot_rows),
+            "emisiones_iot_24h": round(emisiones_iot, 2),
         },
         "serie_temporal": serie_temporal,
         "por_categoria": por_categoria,

@@ -192,9 +192,11 @@ function App() {
     };
 
     loadDashboard();
+    const intervalId = window.setInterval(loadDashboard, 5000);
 
     return () => {
       isCancelled = true;
+      window.clearInterval(intervalId);
     };
   }, [activeEmpresaId, activeView, applyDashboardData]);
 

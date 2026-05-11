@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AreaChart,
   Area,
@@ -239,6 +239,7 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const currentPageRef = useRef(1);
   const [rowsCount, setRowsCount] = useState(0);
   const [paginatedRows, setPaginatedRows] = useState([]);
   const [isFiltersModalOpen, setIsFiltersModalOpen] = useState(false);
@@ -250,26 +251,30 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
     agrupacion: "mes",
   });
 
-  async function loadReport(filtersToUse = filters) {
+  async function loadReport(filtersToUse = filters, showLoading = true, pageToLoad = 1) {
     if (!activeEmpresaId) return;
 
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       setError("");
       const result = await getReporteEmisionesTiempo(activeEmpresaId, {
         ...filtersToUse,
-        page: 1,
+        page: pageToLoad,
         page_size: rowsPerPage,
       });
       setData(result);
-      setCurrentPage(1);
+      setCurrentPage(pageToLoad);
       setPaginatedRows(result.rows || []);
       setRowsCount(result.rows_count || 0);
     } catch (err) {
       console.error(err);
       setError("No se pudo cargar el reporte temporal.");
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   }
 
@@ -299,8 +304,18 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadReport();
+    const intervalId = window.setInterval(
+      () => loadReport(filters, false, currentPageRef.current),
+      5000
+    );
+
+    return () => window.clearInterval(intervalId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeEmpresaId]);
+  }, [activeEmpresaId, filters]);
+
+  useEffect(() => {
+    currentPageRef.current = currentPage;
+  }, [currentPage]);
 
   const kpis = useMemo(() => data?.kpis || {}, [data]);
   const serie = useMemo(() => data?.serie_temporal || [], [data]);

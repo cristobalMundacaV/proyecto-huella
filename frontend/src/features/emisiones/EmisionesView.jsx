@@ -230,10 +230,14 @@ function EmisionesView() {
     }
 
     let cancelled = false;
-    setLoading(true);
     setError("");
 
-    getEmpresaEmisiones(activeEmpresaId)
+    const loadEmisiones = (showLoading = false) => {
+      if (showLoading) {
+        setLoading(true);
+      }
+
+      return getEmpresaEmisiones(activeEmpresaId)
       .then((response) => {
         if (!cancelled) {
           setData(response);
@@ -249,13 +253,18 @@ function EmisionesView() {
         }
       })
       .finally(() => {
-        if (!cancelled) {
+        if (!cancelled && showLoading) {
           setLoading(false);
         }
       });
+    };
+
+    loadEmisiones(true);
+    const intervalId = window.setInterval(() => loadEmisiones(false), 5000);
 
     return () => {
       cancelled = true;
+      window.clearInterval(intervalId);
     };
   }, [activeEmpresaId]);
 
