@@ -82,10 +82,10 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
   ];
 
   return (
-    <aside className="w-full shrink-0 border-b border-slate-800 bg-slate-900 p-4 sm:p-6 lg:min-h-screen lg:w-72 lg:border-b-0 lg:border-r">
+    <aside className="w-full shrink-0 border-b border-white/10 bg-[var(--sidebar)] p-4 text-slate-100 sm:p-6 lg:min-h-screen lg:w-72 lg:border-b-0 lg:border-r">
       <div className="mb-10 flex items-center gap-3">
-        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-3">
-          <Database className="text-emerald-400" />
+        <div className="rounded-2xl border border-white/10 bg-white/10 p-3">
+          <Database className="text-[var(--primary)]" />
         </div>
         <div>
           <h2 className="text-xl font-bold">Carbono Zero</h2>
@@ -93,7 +93,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
         </div>
       </div>
 
-      <section className="mb-8 rounded-3xl border border-slate-800 bg-slate-950 p-4">
+      <section className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
           Empresa activa
         </p>
@@ -109,7 +109,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
                 setActiveEmpresa(selected);
               }
             }}
-            className="w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-emerald-400/60"
+            className="w-full rounded-xl border border-white/10 bg-[var(--sidebar-active)] px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-[var(--primary)]"
           >
             <option value="">Selecciona una empresa</option>
             {empresas.map((empresa) => (
@@ -122,7 +122,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
           <button
             type="button"
             onClick={() => onSetActiveView("empresas", { openCreateEmpresa: true })}
-            className="w-full rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-400/20"
+            className="w-full rounded-xl border border-[var(--primary)]/30 bg-[var(--primary)] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[var(--primary-dark)]"
           >
             Nueva empresa
           </button>
@@ -147,12 +147,12 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
               type="button"
               onClick={() => onSetActiveView(item.view)}
               disabled={item.disabled}
-              className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 transition ${
+              className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 transition ${
                 isActive
-                  ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                  ? "border-[var(--primary)]/30 bg-[var(--sidebar-active)] text-white"
                   : item.disabled
-                    ? "cursor-not-allowed border-slate-800 bg-slate-900 text-slate-500"
-                    : "border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700"
+                    ? "cursor-not-allowed border-white/10 bg-white/5 text-slate-500"
+                    : "border-transparent bg-transparent text-slate-300 hover:border-white/10 hover:bg-white/10"
               }`}
             >
               <Icon size={18} />
@@ -162,7 +162,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
         })}
       </nav>
 
-      <div className="mt-10 rounded-2xl border border-slate-800 bg-slate-950 p-4">
+      <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-4">
         <p className="text-xs text-slate-500">Estado de la empresa</p>
         <div className="mt-3 space-y-2">
           {statusItems.map(([label, value]) => (
@@ -177,7 +177,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
         </div>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950 p-4">
+      <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
         <p className="text-xs text-slate-500">Sesion activa</p>
         <p className="mt-2 text-sm font-semibold text-slate-100">
           {user?.nombre || user?.username || "Usuario"}
@@ -185,7 +185,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
         <button
           type="button"
           onClick={logout}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-rose-400/30 hover:bg-rose-400/10 hover:text-rose-100"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-red-300/30 hover:bg-red-500/10 hover:text-red-100"
         >
           <LogOut size={16} />
           Cerrar sesion

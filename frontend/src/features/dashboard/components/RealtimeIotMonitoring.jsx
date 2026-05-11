@@ -1,0 +1,198 @@
+import { useEffect, useState } from "react";
+import {
+  Activity,
+  Gauge,
+  Radio,
+  RefreshCw,
+  Signal,
+  Zap,
+} from "lucide-react";
+
+import KpiCard from "@/shared/components/KpiCard";
+import { getIotKpis, getIotUltimasLecturas } from "@/shared/services/api";
+import { formatNumber } from "@/shared/utils/formatters";
+
+const POLL_INTERVAL_MS = 5000;
+
+const formatDateTime = (value) => {
+  if (!value) {
+    return "Sin datos";
+  }
+
+  return new Intl.DateTimeFormat("es-CL", {
+    dateStyle: "short",
+    timeStyle: "medium",
+  }).format(new Date(value));
+};
+
+const formatTipo = (value) =>
+  String(value || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+
+function RealtimeIotMonitoring() {
+  const [kpis, setKpis] = useState(null);
+  const [lecturas, setLecturas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadIotData = async () => {
+      try {
+        const [kpisResult, lecturasResult] = await Promise.all([
+          getIotKpis(),
+          getIotUltimasLecturas(),
+        ]);
+
+        if (!isCancelled) {
+          setKpis(kpisResult);
+          setLecturas(Array.isArray(lecturasResult) ? lecturasResult : []);
+          setError("");
+          setLoading(false);
+        }
+      } catch (loadError) {
+        if (!isCancelled) {
+          setError(
+            loadError.response?.data?.error ||
+              "No se pudo cargar el monitoreo IoT."
+          );
+          setLoading(false);
+        }
+      }
+    };
+
+    loadIotData();
+    const intervalId = window.setInterval(loadIotData, POLL_INTERVAL_MS);
+
+    return () => {
+      isCancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  return (
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary-dark)]">
+            Monitoreo en tiempo real
+          </p>
+          <h2 className="mt-1 text-xl font-bold text-[var(--text-main)]">
+            Lecturas operativas simuladas
+          </h2>
+        </div>
+        <div className="flex w-fit items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--success-bg)] px-4 py-2 text-xs font-bold uppercase tracking-wide text-[var(--primary-dark)]">
+          <Signal size={16} />
+          Modo simulacion IoT activo
+        </div>
+      </div>
+
+      {error && (
+        <div className="mb-5 rounded-2xl border border-[#F1C7C7] bg-[var(--danger-bg)] px-4 py-3 text-sm text-[#B42318]">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="rounded-2xl border border-[var(--border)] bg-[#FAFBFA] px-4 py-6 text-sm text-[var(--text-muted)]">
+          Cargando lecturas de sensores...
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <KpiCard
+              icon={<Radio />}
+              title="Lecturas recibidas"
+              value={formatNumber(kpis?.total_lecturas || 0, 0)}
+              tone={{
+                background: "bg-[var(--success-bg)]",
+                border: "border-[var(--border)]",
+                color: "text-[var(--primary-dark)]",
+              }}
+            />
+            <KpiCard
+              icon={<Zap />}
+              title="Emisiones ultimas 24h"
+              value={`${formatNumber(
+                kpis?.emisiones_totales_kg_co2e || 0,
+                2
+              )} kg CO2e`}
+            />
+            <KpiCard
+              icon={<Gauge />}
+              title="Consumo promedio"
+              value={formatNumber(kpis?.consumo_promedio || 0, 2)}
+            />
+            <KpiCard
+              icon={<Activity />}
+              title="Sensores activos"
+              value={formatNumber(kpis?.sensores_activos || 0, 0)}
+            />
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-[var(--border)] bg-white">
+            <div className="flex flex-col gap-2 border-b border-[var(--border)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-semibold text-[var(--text-main)]">
+                Ultimas lecturas
+              </p>
+              <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                <RefreshCw size={14} />
+                Actualizado: {formatDateTime(kpis?.ultima_actualizacion)}
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-[var(--border)] text-sm">
+                <thead className="bg-[#FAFBFA] text-xs uppercase tracking-wide text-[var(--text-muted)]">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Sensor</th>
+                    <th className="px-4 py-3 text-left">Unidad</th>
+                    <th className="px-4 py-3 text-left">Tipo</th>
+                    <th className="px-4 py-3 text-right">Valor</th>
+                    <th className="px-4 py-3 text-right">CO2e</th>
+                    <th className="px-4 py-3 text-left">Hora</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)]">
+                  {lecturas.length > 0 ? (
+                    lecturas.map((lectura) => (
+                      <tr key={lectura.id} className="text-[var(--text-muted)]">
+                        <td className="whitespace-nowrap px-4 py-3 font-semibold text-[var(--text-main)]">
+                          {lectura.sensor}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          {lectura.unidad_operativa}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          {formatTipo(lectura.tipo)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right">
+                          {formatNumber(lectura.valor, 2)} {lectura.unidad}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right">
+                          {formatNumber(lectura.co2e_estimado, 2)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-[var(--text-muted)]">
+                          {formatDateTime(lectura.fecha_registro)}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-6 text-center text-[var(--text-muted)]">
+                        Aun no hay lecturas simuladas registradas.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+export default RealtimeIotMonitoring;

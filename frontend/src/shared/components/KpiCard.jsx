@@ -1,19 +1,19 @@
 function KpiCard({ detail, icon, title, tone, value }) {
   const toneClasses = tone
     ? `${tone.background} ${tone.border}`
-    : "bg-slate-900 border-slate-800";
+    : "bg-[var(--bg-card)] border-[var(--border)]";
 
   return (
-    <div className={`rounded-3xl border p-6 shadow-xl ${toneClasses}`}>
+    <div className={`rounded-2xl border p-6 shadow-[var(--shadow-card)] ${toneClasses}`}>
       <div className="mb-4 flex items-center gap-3">
-        <div className="text-emerald-400">{icon}</div>
-        <p className="text-sm text-slate-400">{title}</p>
+        <div className={tone?.color || "text-[var(--primary)]"}>{icon}</div>
+        <p className="text-sm text-[var(--text-muted)]">{title}</p>
       </div>
-      <h3 className={`text-2xl font-bold mt-1 ${tone?.color || ""}`}>
+      <h3 className={`mt-1 text-2xl font-bold ${tone?.color || "text-[var(--text-main)]"}`}>
         {value}
       </h3>
       {detail && (
-        <p className={`mt-2 text-sm font-semibold ${tone?.color}`}>
+        <p className={`mt-2 text-sm font-semibold ${tone?.color || "text-[var(--text-muted)]"}`}>
           {detail}
         </p>
       )}

@@ -503,6 +503,16 @@ export async function getSistemaEstado() {
   return response.data;
 }
 
+export async function getIotKpis() {
+  const response = await api.get("/iot/kpis/");
+  return response.data;
+}
+
+export async function getIotUltimasLecturas() {
+  const response = await api.get("/iot/lecturas/ultimas/");
+  return response.data;
+}
+
 export async function createEmpresa(payload) {
   const response = await api.post("/empresas/", payload);
   return response.data;

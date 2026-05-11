@@ -58,6 +58,18 @@ services:
       - ./backend:/app
       - backend_media:/app/media
 
+  simulador-sensores:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      API_URL: http://backend:8000/api/iot/lecturas/
+    command: python scripts/simulador_sensores.py
+    volumes:
+      - ./backend:/app
+
 volumes:
   postgres_data:
   backend_media:

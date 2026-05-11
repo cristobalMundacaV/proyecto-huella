@@ -6,6 +6,7 @@ from django.urls import path, include
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include("apps.analytics.urls")),
+    path("api/iot/", include("apps.iot.urls")),
 ]
 
 if settings.DEBUG:

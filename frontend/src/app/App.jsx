@@ -11,10 +11,10 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 
 import Sidebar from "@/layouts/Sidebar";
-import EmptyState from "@/shared/components/EmptyState";
 import KpiCard from "@/shared/components/KpiCard";
 import LoginPage from "@/features/auth/pages/LoginPage";
 import ExecutiveSummary from "@/features/dashboard/components/ExecutiveSummary";
+import RealtimeIotMonitoring from "@/features/dashboard/components/RealtimeIotMonitoring";
 import EmisionesView from "@/features/emisiones/EmisionesView";
 import EmpresasView from "@/features/empresas/pages/EmpresasPage";
 import EvidenciasPage from "@/features/evidencias/pages/EvidenciasPage";
@@ -228,7 +228,7 @@ function App() {
 
   if (loadingAuth) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-main)] text-[var(--text-main)]">
         Cargando sesion...
       </div>
     );
@@ -240,7 +240,7 @@ function App() {
 
   if (loadingEmpresas) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-main)] text-[var(--text-main)]">
         Cargando empresas...
       </div>
     );
@@ -248,7 +248,7 @@ function App() {
 
   if (!activeEmpresa && activeView === "emisiones") {
     return (
-      <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col lg:flex-row">
+      <main className="flex min-h-screen flex-col bg-[var(--bg-main)] text-[var(--text-main)] lg:flex-row">
         <div className="hidden lg:block">
           <Sidebar
             activeView={activeView}
@@ -266,7 +266,7 @@ function App() {
   if (!activeEmpresa) {
       // Show the empresas page and open the create modal so the user can create a company
       return (
-        <div className="min-h-screen bg-slate-950 text-white p-6 sm:p-10">
+        <div className="min-h-screen bg-[var(--bg-main)] p-6 text-[var(--text-main)] sm:p-10">
           <EmpresasView onSetActiveView={handleSetActiveView} initialOpenCreate={true} />
         </div>
       );
@@ -274,7 +274,7 @@ function App() {
 
     if (!data) {
       return (
-        <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+        <div className="flex min-h-screen items-center justify-center bg-[var(--bg-main)] text-[var(--text-main)]">
           {dashboardError || "Cargando tablero de empresa..."}
         </div>
       );
@@ -331,11 +331,11 @@ const isDieselCriticalActivity = String(actividadCritica || "")
   .includes("diesel");
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col lg:flex-row">
+    <main className="flex min-h-screen flex-col bg-[var(--bg-main)] text-[var(--text-main)] lg:flex-row">
       <button
         type="button"
         onClick={() => setMobileMenuOpen(true)}
-        className="fixed right-4 top-4 z-50 rounded-2xl border border-slate-700 bg-slate-900/90 p-3 text-slate-100 shadow-xl backdrop-blur lg:hidden"
+        className="fixed right-4 top-4 z-50 rounded-2xl border border-[var(--border)] bg-white/95 p-3 text-[var(--text-main)] shadow-[var(--shadow-card)] backdrop-blur lg:hidden"
       >
         <Menu size={22} />
       </button>
@@ -364,7 +364,7 @@ const isDieselCriticalActivity = String(actividadCritica || "")
             transition={{ duration: 0.18 }}
           >
           <motion.div
-            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-950/30 backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -372,7 +372,7 @@ const isDieselCriticalActivity = String(actividadCritica || "")
           />
 
           <motion.div
-            className="absolute right-0 top-0 h-full w-[85vw] max-w-sm overflow-y-auto border-l border-slate-800 bg-slate-900 shadow-2xl"
+            className="absolute right-0 top-0 h-full w-[85vw] max-w-sm overflow-y-auto border-l border-white/10 bg-[var(--sidebar)] shadow-2xl"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -381,7 +381,7 @@ const isDieselCriticalActivity = String(actividadCritica || "")
             <button
               type="button"
               onClick={() => setMobileMenuOpen(false)}
-              className="absolute right-4 top-4 rounded-2xl border border-slate-700 bg-slate-950 p-3 text-slate-200"
+              className="absolute right-4 top-4 rounded-2xl border border-white/10 bg-white/10 p-3 text-slate-200"
             >
               <X size={20} />
             </button>
@@ -439,12 +439,12 @@ const isDieselCriticalActivity = String(actividadCritica || "")
         <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
           <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-2xl bg-emerald-400/10 border border-emerald-400/20">
-                <Database className="text-emerald-400" />
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] p-3">
+                <Database className="text-[var(--primary)]" />
               </div>
               <div>
                 <h1 className="text-3xl sm:text-4xl font-bold">Carbono Zero</h1>
-                <p className="text-slate-400">
+                <p className="text-[var(--text-muted)]">
                   Convierte los datos operativos de tu empresa en decisiones claras
                   para medir, reducir y respaldar su huella de carbono.
                 </p>
@@ -453,7 +453,7 @@ const isDieselCriticalActivity = String(actividadCritica || "")
             <button
               type="button"
               onClick={handleExportReport}
-              className="w-full sm:w-fit rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-200"
+              className="w-full rounded-2xl border border-[var(--primary)] bg-[var(--primary)] px-5 py-3 text-sm font-bold text-white shadow-[var(--shadow-card)] transition hover:bg-[var(--primary-dark)] sm:w-fit"
             >
               Exportar reporte
             </button>
@@ -491,9 +491,11 @@ const isDieselCriticalActivity = String(actividadCritica || "")
             />
           </section>
 
-          <section className="rounded-3xl bg-emerald-400/10 border border-emerald-400/20 p-4 sm:p-6">
+          <RealtimeIotMonitoring />
+
+          <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
             <h2 className="text-xl font-semibold mb-2">Insight automático</h2>
-            <p className="text-emerald-300 leading-6">
+            <p className="leading-6 text-[var(--text-muted)]">
               La actividad <strong>{actividadCritica}</strong> concentra el
               mayor impacto ambiental de los datos internos analizados. Aunque el
               combustible sea inevitable, las emisiones pueden bajar con eficiencia
@@ -503,12 +505,12 @@ const isDieselCriticalActivity = String(actividadCritica || "")
           </section>
 
           {isDieselCriticalActivity && (
-            <section className="rounded-3xl border border-emerald-400/20 bg-slate-900 p-4 shadow-xl sm:p-6">
+            <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
               <div className="mb-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Pasos a seguir
                 </p>
-                <h2 className="mt-1 text-xl font-bold text-slate-100">
+                <h2 className="mt-1 text-xl font-bold text-[var(--text-main)]">
                   Como reducir emisiones dentro de la operación.
                 </h2>
               </div>
@@ -516,15 +518,15 @@ const isDieselCriticalActivity = String(actividadCritica || "")
                 {woodReductionSteps.map((step, index) => (
                   <div
                     key={step.title}
-                    className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
+                    className="rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] p-4"
                   >
-                    <p className="text-xs font-bold text-emerald-300">
+                    <p className="text-xs font-bold text-[var(--primary-dark)]">
                       Paso {index + 1}
                     </p>
-                    <h3 className="mt-2 text-sm font-bold text-slate-100">
+                    <h3 className="mt-2 text-sm font-bold text-[var(--text-main)]">
                       {step.title}
                     </h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-400">
+                    <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
                       {step.detail}
                     </p>
                   </div>

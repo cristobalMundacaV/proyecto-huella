@@ -101,14 +101,14 @@ const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
     {
       label: "Acciones rápidas",
       range: "5%-15%",
-      tone: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
+      tone: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--secondary)]",
       detail:
         "Control del consumo, mantenimiento preventivo y mejora de la operación diaria. Ideal para lograr avances visibles sin cambiar la estructura del negocio.",
     },
     {
       label: "Piloto recomendado",
       range: formatPercentRange(recommendedRange),
-      tone: "border-yellow-400/20 bg-yellow-400/10 text-yellow-200",
+      tone: "border-[#F6D98B] bg-[var(--warning-bg)] text-[#8A5A00]",
       detail:
         "Ajustes operativos, rediseño parcial de procesos y seguimiento mediante indicadores. Es el mejor punto de partida para lograr una reducción realista y medible.",
     },
@@ -118,7 +118,7 @@ const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
         potentialReduction > 0
           ? `${formatNumber(potentialReduction, 1)}% proyectado`
           : "35%+",
-      tone: "border-rose-400/20 bg-rose-400/10 text-rose-200",
+      tone: "border-[#F1C7C7] bg-[var(--danger-bg)] text-[#9A3412]",
       detail:
         "Requiere inversión, planificación a mediano y largo plazo, y transición tecnológica. Es útil como visión futura, pero no como primera acción inmediata.",
     },
@@ -140,7 +140,6 @@ function ExecutiveSummary({
   optimizedScenario,
   reductionEquivalentKm,
   riskProfile,
-  validationSummary,
 }) {
   const unidadCriticaLabel = unidadCritica || "Sin datos";
   const strategicPlan = buildStrategicPlan(actividadCritica, optimizedScenario);
@@ -164,17 +163,17 @@ function ExecutiveSummary({
         1
       )}% en las emisiones totales bajo el escenario máximo.`
     : "Sin calcular";
-  const riskFrameClass =
+  const riskTone =
     riskProfile.score > 70
-      ? "border-red-400/30 bg-red-400/5"
+      ? "border-[#F1C7C7] bg-[var(--danger-bg)] text-[#B42318]"
       : riskProfile.score > 30
-        ? "border-yellow-400/30 bg-yellow-400/5"
-        : "border-emerald-400/30 bg-emerald-400/5";
+        ? "border-[#F6D98B] bg-[var(--warning-bg)] text-[#8A5A00]"
+        : "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]";
 
   return (
-    <section className={`rounded-3xl border p-4 sm:p-6 shadow-xl ${riskFrameClass}`}>
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-soft)] sm:p-6">
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-lg font-semibold text-emerald-300">
+        <p className="text-lg font-semibold text-[var(--primary-dark)]">
           Resumen ejecutivo
         </p>
       </div>
@@ -191,7 +190,7 @@ function ExecutiveSummary({
                 )}`
               : `Carbono Zero recomienda un plan gradual sobre ${actividadCritica}`}
           </h2>
-          <p className="mt-3 text-sm leading-6 text-emerald-100">
+          <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
             El principal foco de impacto se concentra en{" "}
             {formatFocusForSentence(actividadCritica)}, siendo {unidadCriticaLabel}{" "}
             la unidad prioritaria. El nivel de viabilidad es{" "}
@@ -200,14 +199,12 @@ function ExecutiveSummary({
           </p>
         </div>
 
-        <div
-          className={`min-w-48 rounded-2xl border p-5 ${riskProfile.background} ${riskProfile.border}`}
-        >
-          <p className="text-sm text-slate-400">Riesgo</p>
-          <p className={`mt-1 text-4xl font-bold ${riskProfile.color}`}>
+        <div className={`min-w-48 rounded-2xl border p-5 ${riskTone}`}>
+          <p className="text-sm text-[var(--text-muted)]">Riesgo</p>
+          <p className="mt-1 text-4xl font-bold">
             {riskProfile.label}
           </p>
-          <p className={`mt-2 text-sm font-semibold ${riskProfile.color}`}>
+          <p className="mt-2 text-sm font-semibold">
             Score Carbono Zero: {formatNumber(riskProfile.score, 0)} / 100
           </p>
         </div>
@@ -257,12 +254,12 @@ function ExecutiveSummary({
         <SummaryItem label="Viabilidad operativa" value={strategicPlan.viability} />
       </div>
 
-      <div className="mt-5 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-cyan-200">
+      <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary-dark)]">
           Recomendación principal
         </p>
-        <p className="mt-2 text-sm leading-6 text-cyan-100">{recommendedDecision}</p>
-        <p className="mt-2 text-sm leading-6 text-cyan-200">
+        <p className="mt-2 text-sm leading-6 text-[var(--text-main)]">{recommendedDecision}</p>
+        <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
           {strategicPlan.optimalReference}
         </p>
       </div>
@@ -279,8 +276,8 @@ function ExecutiveSummary({
         ))}
       </div>
 
-      <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[#FAFBFA] p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
           Factores del score
         </p>
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
@@ -307,7 +304,7 @@ function ExecutiveSummary({
         </div>
       </div>
 
-      <p className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm leading-6 text-emerald-100">
+      <p className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] px-4 py-3 text-sm leading-6 text-[var(--secondary)]">
         Carbono Zero recomienda priorizar una intervencion progresiva en {unidadCriticaLabel} sobre {actividadCritica}, empezando con quick wins y escalando por fases
         segun resultados medidos.
         {(optimizedScenario || reductionEquivalentKm != null) &&
@@ -322,14 +319,14 @@ function ExecutiveSummary({
 
 function BeforeAfterCard({ label, tone, value }) {
   const toneClass = {
-    red: "border-red-400/20 bg-red-400/10 text-red-200",
-    green: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
-    cyan: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200",
+    red: "border-[#F1C7C7] bg-[var(--danger-bg)] text-[#B42318]",
+    green: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
+    cyan: "border-[#B9D8CF] bg-[#EDF7F4] text-[var(--secondary)]",
   }[tone];
 
   return (
     <div className={`rounded-2xl border p-5 ${toneClass}`}>
-      <p className="text-xs text-slate-400">{formatTitleCase(label)}</p>
+      <p className="text-xs text-[var(--text-muted)]">{formatTitleCase(label)}</p>
       <p className="mt-1 text-2xl font-bold">{value}</p>
     </div>
   );
@@ -337,22 +334,22 @@ function BeforeAfterCard({ label, tone, value }) {
 
 function SummaryItem({ label, value }) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <div className="rounded-xl border border-[var(--border)] bg-[#FAFBFA] px-4 py-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
         {formatTitleCase(label)}
       </p>
-      <p className="mt-1 text-sm font-extrabold leading-snug text-slate-100">{value}</p>
+      <p className="mt-1 text-sm font-extrabold leading-snug text-[var(--text-main)]">{value}</p>
     </div>
   );
 }
 
 function ScoreFactor({ label, value }) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <div className="rounded-xl border border-[var(--border)] bg-white px-4 py-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
         {label}
       </p>
-      <p className="mt-1 text-sm font-extrabold text-slate-100">{value}</p>
+      <p className="mt-1 text-sm font-extrabold text-[var(--text-main)]">{value}</p>
     </div>
   );
 }

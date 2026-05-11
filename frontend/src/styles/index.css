@@ -1,11 +1,78 @@
 @import "tailwindcss";
 
+:root {
+  --bg-main: #f6f8f5;
+  --bg-card: #ffffff;
+  --sidebar: #10201c;
+  --sidebar-active: #123c34;
+  --primary: #00a676;
+  --primary-dark: #007a5a;
+  --secondary: #1f6f5b;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --border: #dde5dd;
+  --success-bg: #e8f7f1;
+  --warning-bg: #fff7e6;
+  --danger-bg: #fdecec;
+  --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.08);
+  --shadow-card: 0 10px 28px rgba(15, 23, 42, 0.06);
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  background: var(--bg-main);
+  color: var(--text-main);
+}
+
+main > section .bg-slate-950,
+main > section .bg-slate-950\/70,
+main > section .bg-slate-900,
+main > section .bg-slate-900\/70,
+main > section .bg-slate-900\/80 {
+  background-color: var(--bg-card) !important;
+}
+
+main > section .border-slate-800,
+main > section .border-slate-700 {
+  border-color: var(--border) !important;
+}
+
+main > section .text-white,
+main > section .text-slate-100,
+main > section .text-slate-200 {
+  color: var(--text-main) !important;
+}
+
+main > section .text-slate-300,
+main > section .text-slate-400,
+main > section .text-slate-500 {
+  color: var(--text-muted) !important;
+}
+
+main > section .text-emerald-300,
+main > section .text-emerald-400,
+main > section .text-cyan-200,
+main > section .text-cyan-300 {
+  color: var(--primary-dark) !important;
+}
+
+main > section .bg-emerald-400\/10,
+main > section .bg-cyan-400\/10 {
+  background-color: var(--success-bg) !important;
+}
+
+main > section .border-emerald-400\/20,
+main > section .border-cyan-400\/20,
+main > section .border-cyan-400\/30 {
+  border-color: var(--border) !important;
+}
+
+main > section .shadow-xl {
+  box-shadow: var(--shadow-card) !important;
 }
 
 table th:first-child,

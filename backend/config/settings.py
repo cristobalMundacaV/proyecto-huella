@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "apps.analytics.apps.AnalyticsConfig",
+    "apps.iot.apps.IotConfig",
 ]
 
 MIDDLEWARE = [
