@@ -1,7 +1,7 @@
 function ChartCard({ children, title }) {
   return (
-    <div className="rounded-3xl bg-slate-900 border border-slate-800 p-4 sm:p-6 shadow-xl">
-      <h2 className="text-xl font-semibold mb-4">{title}</h2>
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+      <h2 className="mb-4 text-xl font-bold text-[var(--text-main)]">{title}</h2>
       {children}
     </div>
   );

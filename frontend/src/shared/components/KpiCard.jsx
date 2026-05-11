@@ -4,7 +4,7 @@ function KpiCard({ detail, icon, title, tone, value }) {
     : "bg-[var(--bg-card)] border-[var(--border)]";
 
   return (
-    <div className={`rounded-2xl border p-6 shadow-[var(--shadow-card)] ${toneClasses}`}>
+    <div className={`rounded-2xl border p-6 shadow-[var(--shadow-card)] ring-1 ring-white/45 ${toneClasses}`}>
       <div className="mb-4 flex items-center gap-3">
         <div className={tone?.color || "text-[var(--primary)]"}>{icon}</div>
         <p className="text-sm text-[var(--text-muted)]">{title}</p>

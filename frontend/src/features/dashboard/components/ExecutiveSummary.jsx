@@ -171,7 +171,7 @@ function ExecutiveSummary({
         : "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]";
 
   return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-soft)] sm:p-6">
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-soft)] ring-1 ring-white/50 sm:p-6">
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-lg font-semibold text-[var(--primary-dark)]">
           Resumen ejecutivo
@@ -254,7 +254,7 @@ function ExecutiveSummary({
         <SummaryItem label="Viabilidad operativa" value={strategicPlan.viability} />
       </div>
 
-      <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] p-4">
+      <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--info-bg)] p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary-dark)]">
           Recomendación principal
         </p>
@@ -276,7 +276,7 @@ function ExecutiveSummary({
         ))}
       </div>
 
-      <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[#FAFBFA] p-4">
+      <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
           Factores del score
         </p>
@@ -321,7 +321,7 @@ function BeforeAfterCard({ label, tone, value }) {
   const toneClass = {
     red: "border-[#F1C7C7] bg-[var(--danger-bg)] text-[#B42318]",
     green: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
-    cyan: "border-[#B9D8CF] bg-[#EDF7F4] text-[var(--secondary)]",
+    cyan: "border-[#B9D8CF] bg-[var(--info-bg)] text-[var(--secondary)]",
   }[tone];
 
   return (
@@ -334,7 +334,7 @@ function BeforeAfterCard({ label, tone, value }) {
 
 function SummaryItem({ label, value }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[#FAFBFA] px-4 py-3">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
         {formatTitleCase(label)}
       </p>
@@ -345,7 +345,7 @@ function SummaryItem({ label, value }) {
 
 function ScoreFactor({ label, value }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-white px-4 py-3">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
         {label}
       </p>

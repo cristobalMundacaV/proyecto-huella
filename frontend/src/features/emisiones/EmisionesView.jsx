@@ -50,14 +50,15 @@ const fuelUseLabels = {
 };
 
 const tooltipContentStyle = {
-  backgroundColor: "#0F172A",
-  border: "1px solid #1E293B",
+  backgroundColor: "#FCFDFC",
+  border: "1px solid #B7C6BD",
   borderRadius: "12px",
-  color: "#F8FAFC",
+  color: "#1F2937",
+  boxShadow: "0 12px 28px rgba(15, 23, 42, 0.12)",
 };
 
 const horizontalActiveBarStyle = {
-  fill: "#CBD5E1",
+  fill: "#6B7F75",
   fillOpacity: 0.55,
   radius: [0, 10, 10, 0],
 };
@@ -100,21 +101,21 @@ function dependencyLevel(value) {
   const pct = Number(value || 0);
 
   if (pct >= 60) {
-    return { label: "Alta", tone: "text-red-200", panel: "border-red-400/20 bg-red-400/10" };
+    return { label: "Alta", tone: "text-[#B42318]", panel: "border-[#F1B8B8] bg-[var(--danger-bg)]" };
   }
 
   if (pct >= 30) {
     return {
       label: "Media",
-      tone: "text-amber-200",
-      panel: "border-amber-400/20 bg-amber-400/10",
+      tone: "text-[#7A4F00]",
+      panel: "border-[#E1C56F] bg-[var(--warning-bg)]",
     };
   }
 
   return {
     label: "Baja",
-    tone: "text-emerald-200",
-    panel: "border-emerald-400/20 bg-emerald-400/10",
+    tone: "text-[var(--primary-dark)]",
+    panel: "border-[var(--border)] bg-[var(--success-bg)]",
   };
 }
 
@@ -565,14 +566,15 @@ const kpis = data?.kpis ?? {
               >
                 <XAxis
                   type="number"
-                  stroke="#94a3b8"
+                  stroke="#64748B"
+                  tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
                   tickFormatter={formatNumber}
                 />
                 <YAxis
                   dataKey="unidad"
                   interval={0}
-                  stroke="#94a3b8"
-                  tick={{ fill: "#CBD5E1", fontSize: 11 }}
+                  stroke="#64748B"
+                  tick={{ fill: "#475569", fontSize: 11, fontWeight: 600 }}
                   tickFormatter={truncateChartLabel}
                   type="category"
                   width={150}
@@ -581,8 +583,8 @@ const kpis = data?.kpis ?? {
                   contentStyle={tooltipContentStyle}
                   cursor={false}
                   formatter={formatTooltipValue}
-                  labelStyle={{ color: "#F8FAFC" }}
-                  itemStyle={{ color: "#00D4AA" }}
+                  labelStyle={{ color: "#1F2937", fontWeight: 700 }}
+                  itemStyle={{ color: "#0B7D5D", fontWeight: 700 }}
                 />
                 <Bar
                   activeBar={horizontalActiveBarStyle}
@@ -606,14 +608,15 @@ const kpis = data?.kpis ?? {
               >
                 <XAxis
                   type="number"
-                  stroke="#94a3b8"
+                  stroke="#64748B"
+                  tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
                   tickFormatter={formatNumber}
                 />
                 <YAxis
                   dataKey="actividad"
                   interval={0}
-                  stroke="#94a3b8"
-                  tick={{ fill: "#CBD5E1", fontSize: 11 }}
+                  stroke="#64748B"
+                  tick={{ fill: "#475569", fontSize: 11, fontWeight: 600 }}
                   tickFormatter={truncateChartLabel}
                   type="category"
                   width={150}
@@ -622,8 +625,8 @@ const kpis = data?.kpis ?? {
                   contentStyle={tooltipContentStyle}
                   cursor={false}
                   formatter={formatTooltipValue}
-                  labelStyle={{ color: "#F8FAFC" }}
-                  itemStyle={{ color: "#00D4AA" }}
+                  labelStyle={{ color: "#1F2937", fontWeight: 700 }}
+                  itemStyle={{ color: "#0B7D5D", fontWeight: 700 }}
                 />
                 <Bar
                   activeBar={horizontalActiveBarStyle}
@@ -639,27 +642,27 @@ const kpis = data?.kpis ?? {
       </section>
 
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-3xl border border-amber-400/20 bg-amber-400/10 p-4 sm:p-6">
+        <div className="rounded-2xl border border-[#E1C56F] bg-[var(--warning-bg)] p-4 shadow-[var(--shadow-card)] sm:p-6">
           <SectionTitle eyebrow="Riesgos" title="Lo que puede afectar la operacion" />
           <div className="mt-4 space-y-3">
             {decision.risks.map((risk) => (
               <p
                 key={risk}
-                className="whitespace-pre-line rounded-2xl border border-amber-400/20 bg-slate-950/70 p-4 text-sm leading-6 text-amber-100"
+                className="whitespace-pre-line rounded-2xl border border-[#E1C56F] bg-[#FFF9E8] p-4 text-sm font-medium leading-6 text-[#5F3B00]"
               >
                 {risk}
               </p>
             ))}
           </div>
           {Number(kpis.actividades_sin_factor || 0) > 0 && (
-            <p className="mt-4 flex items-center gap-2 rounded-2xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-100">
+            <p className="mt-4 flex items-center gap-2 rounded-2xl border border-[#F1B8B8] bg-[var(--danger-bg)] p-3 text-sm font-semibold text-[#B42318]">
               <AlertTriangle size={18} />
               Existen actividades sin factor de emision asociado.
             </p>
           )}
         </div>
 
-        <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 sm:p-6">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--info-bg)] p-4 shadow-[var(--shadow-card)] sm:p-6">
           <SectionTitle
             eyebrow="Impacto real"
             title={`Si reduces el consumo de diésel en un ${DIESEL_REDUCTION_SCENARIO}%`}
@@ -894,25 +897,25 @@ const kpis = data?.kpis ?? {
 function SectionTitle({ eyebrow, title }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
         {eyebrow}
       </p>
-      <h2 className="mt-1 text-xl font-bold text-slate-100">{title}</h2>
+      <h2 className="mt-1 text-xl font-bold text-[var(--text-main)]">{title}</h2>
     </div>
   );
 }
 
-function DecisionKpi({ detail, icon, label, tone = "border-slate-800 bg-slate-900", value, valueClassName = "text-slate-100" }) {
+function DecisionKpi({ detail, icon, label, tone = "border-[var(--border)] bg-[var(--bg-card)]", value, valueClassName = "text-[var(--text-main)]" }) {
   return (
-    <div className={`relative rounded-3xl border p-5 shadow-xl ${tone}`}>
+    <div className={`relative rounded-2xl border p-5 shadow-[var(--shadow-card)] ${tone}`}>
       {detail && (
-        <p className="absolute right-4 top-4 rounded-full border border-cyan-400/20 bg-slate-950/70 px-3 py-1 text-xs font-bold text-cyan-200">
+        <p className="absolute right-4 top-4 rounded-full border border-[var(--border)] bg-[var(--info-bg)] px-3 py-1 text-xs font-bold text-[#075985]">
           {detail}
         </p>
       )}
       <div className="mb-4 flex items-center gap-3 pr-24">
-        <div className="text-cyan-300">{icon}</div>
-        <p className="text-sm text-slate-400">{label}</p>
+        <div className="text-[var(--primary-dark)]">{icon}</div>
+        <p className="text-sm font-medium text-[var(--text-muted)]">{label}</p>
       </div>
       <h3 className={`mt-1 pr-20 text-2xl font-bold ${valueClassName}`}>{value}</h3>
     </div>
@@ -921,9 +924,9 @@ function DecisionKpi({ detail, icon, label, tone = "border-slate-800 bg-slate-90
 
 function ImpactRow({ label, value }) {
   return (
-    <div className="rounded-2xl border border-cyan-400/20 bg-slate-950/70 p-4">
-      <p className="text-xs uppercase tracking-wide text-cyan-300">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-cyan-100">{value}</p>
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+      <p className="text-xs font-bold uppercase tracking-wide text-[var(--secondary)]">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-[#075985]">{value}</p>
     </div>
   );
 }

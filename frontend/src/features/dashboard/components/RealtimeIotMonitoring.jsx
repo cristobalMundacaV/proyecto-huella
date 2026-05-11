@@ -73,7 +73,7 @@ function RealtimeIotMonitoring() {
   }, []);
 
   return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/45 sm:p-6">
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary-dark)]">
@@ -96,7 +96,7 @@ function RealtimeIotMonitoring() {
       )}
 
       {loading ? (
-        <div className="rounded-2xl border border-[var(--border)] bg-[#FAFBFA] px-4 py-6 text-sm text-[var(--text-muted)]">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-6 text-sm text-[var(--text-muted)]">
           Cargando lecturas de sensores...
         </div>
       ) : (
@@ -132,7 +132,7 @@ function RealtimeIotMonitoring() {
             />
           </div>
 
-          <div className="mt-5 rounded-2xl border border-[var(--border)] bg-white">
+          <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]">
             <div className="flex flex-col gap-2 border-b border-[var(--border)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm font-semibold text-[var(--text-main)]">
                 Ultimas lecturas
@@ -144,7 +144,7 @@ function RealtimeIotMonitoring() {
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-[var(--border)] text-sm">
-                <thead className="bg-[#FAFBFA] text-xs uppercase tracking-wide text-[var(--text-muted)]">
+                <thead className="bg-[var(--bg-surface)] text-xs uppercase tracking-wide text-[var(--text-muted)]">
                   <tr>
                     <th className="px-4 py-3 text-left">Sensor</th>
                     <th className="px-4 py-3 text-left">Unidad</th>

@@ -66,10 +66,10 @@ function ReportChartTooltip({ active, payload, label, labelPrefix = "Periodo" })
   const value = Number(first?.value || 0);
 
   return (
-    <div className="max-w-[280px] rounded-xl border border-cyan-400/30 bg-slate-950/95 px-3 py-2 shadow-xl backdrop-blur-sm">
-      <p className="text-[11px] uppercase tracking-wide text-slate-400">{labelPrefix}</p>
-      <p className="text-sm font-semibold text-slate-100">{label || "Sin etiqueta"}</p>
-      <p className="mt-1 text-sm font-bold text-cyan-200">{formatNumber(value)} kg CO2e</p>
+    <div className="max-w-[280px] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 shadow-[var(--shadow-card)] backdrop-blur-sm">
+      <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)]">{labelPrefix}</p>
+      <p className="text-sm font-semibold text-[var(--text-main)]">{label || "Sin etiqueta"}</p>
+      <p className="mt-1 text-sm font-bold text-[#075985]">{formatNumber(value)} kg CO2e</p>
     </div>
   );
 }
@@ -600,20 +600,20 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
                           <stop offset="95%" stopColor="#22d3ee" stopOpacity={0.04} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="4 4" stroke="#334155" opacity={0.35} />
+                      <CartesianGrid strokeDasharray="4 4" stroke="#B8C6BE" opacity={0.85} />
                       <XAxis
                         dataKey="label"
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
+                        tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
                         tickMargin={8}
-                        axisLine={{ stroke: "#334155" }}
-                        tickLine={{ stroke: "#334155" }}
+                        axisLine={{ stroke: "#64748B" }}
+                        tickLine={{ stroke: "#64748B" }}
                       />
                       <YAxis
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
+                        tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
                         tickFormatter={(value) => formatNumber(value)}
                         width={72}
-                        axisLine={{ stroke: "#334155" }}
-                        tickLine={{ stroke: "#334155" }}
+                        axisLine={{ stroke: "#64748B" }}
+                        tickLine={{ stroke: "#64748B" }}
                       />
                       <Tooltip
                         cursor={{ stroke: "#22d3ee", strokeOpacity: 0.3 }}
@@ -653,23 +653,23 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
                       data={categoryChartData}
                       margin={{ top: 10, right: 10, left: 0, bottom: 24 }}
                     >
-                      <CartesianGrid strokeDasharray="4 4" stroke="#334155" opacity={0.3} />
+                      <CartesianGrid strokeDasharray="4 4" stroke="#B8C6BE" opacity={0.85} />
                       <XAxis
                         dataKey="categoria"
-                        tick={{ fill: "#94a3b8", fontSize: 11 }}
+                        tick={{ fill: "#475569", fontSize: 11, fontWeight: 600 }}
                         interval={0}
                         angle={-22}
                         textAnchor="end"
                         height={62}
-                        axisLine={{ stroke: "#334155" }}
-                        tickLine={{ stroke: "#334155" }}
+                        axisLine={{ stroke: "#64748B" }}
+                        tickLine={{ stroke: "#64748B" }}
                       />
                       <YAxis
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
+                        tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
                         tickFormatter={(value) => formatNumber(value)}
                         width={72}
-                        axisLine={{ stroke: "#334155" }}
-                        tickLine={{ stroke: "#334155" }}
+                        axisLine={{ stroke: "#64748B" }}
+                        tickLine={{ stroke: "#64748B" }}
                       />
                       <Tooltip
                         cursor={false}

@@ -335,7 +335,7 @@ const isDieselCriticalActivity = String(actividadCritica || "")
       <button
         type="button"
         onClick={() => setMobileMenuOpen(true)}
-        className="fixed right-4 top-4 z-50 rounded-2xl border border-[var(--border)] bg-white/95 p-3 text-[var(--text-main)] shadow-[var(--shadow-card)] backdrop-blur lg:hidden"
+        className="fixed right-4 top-4 z-50 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]/95 p-3 text-[var(--text-main)] shadow-[var(--shadow-card)] backdrop-blur lg:hidden"
       >
         <Menu size={22} />
       </button>
@@ -493,7 +493,7 @@ const isDieselCriticalActivity = String(actividadCritica || "")
 
           <RealtimeIotMonitoring />
 
-          <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+          <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/40 sm:p-6">
             <h2 className="text-xl font-semibold mb-2">Insight automático</h2>
             <p className="leading-6 text-[var(--text-muted)]">
               La actividad <strong>{actividadCritica}</strong> concentra el
@@ -505,7 +505,7 @@ const isDieselCriticalActivity = String(actividadCritica || "")
           </section>
 
           {isDieselCriticalActivity && (
-            <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+            <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/40 sm:p-6">
               <div className="mb-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Pasos a seguir

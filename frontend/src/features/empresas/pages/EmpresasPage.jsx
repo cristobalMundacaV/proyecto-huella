@@ -865,21 +865,21 @@ function EnvironmentalBalanceWaterfall({ emissions, storedCarbon }) {
   const maxValue = Math.max(totalEmissions, totalStoredCarbon, Math.abs(balance), 1);
   const rows = [
     {
-      color: "bg-emerald-300",
+      color: "bg-[var(--primary)]",
       label: "Carbono almacenado",
-      tone: "text-emerald-200",
+      tone: "text-[var(--primary-dark)]",
       value: totalStoredCarbon,
     },
     {
-      color: "bg-cyan-300",
+      color: "bg-[#0EA5C6]",
       label: "Emisiones generadas",
-      tone: "text-cyan-200",
+      tone: "text-[#075985]",
       value: -totalEmissions,
     },
     {
-      color: balance >= 0 ? "bg-emerald-400" : "bg-rose-400",
+      color: balance >= 0 ? "bg-[var(--primary)]" : "bg-[#D92D20]",
       label: "Balance ambiental neto",
-      tone: balance >= 0 ? "text-emerald-200" : "text-rose-200",
+      tone: balance >= 0 ? "text-[var(--primary-dark)]" : "text-[#B42318]",
       value: balance,
     },
   ];
@@ -894,15 +894,15 @@ function EnvironmentalBalanceWaterfall({ emissions, storedCarbon }) {
           const width = `${Math.max(6, (Math.abs(row.value) / maxValue) * 100)}%`;
 
           return (
-            <div key={row.label} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
+            <div key={row.label} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
               <div className="mb-3 flex items-center justify-between gap-4">
-                <p className="text-sm font-semibold text-slate-300">{row.label}</p>
+                <p className="text-sm font-bold text-[var(--text-muted)]">{row.label}</p>
                 <p className={`text-lg font-bold ${row.tone}`}>
                   {row.value >= 0 ? "+" : "-"}
                   {formatNumber(Math.abs(row.value), 1)} kg CO2e
                 </p>
               </div>
-              <div className="h-3 overflow-hidden rounded-full bg-slate-800">
+              <div className="h-3 overflow-hidden rounded-full bg-[#DDE6E0]">
                 <div className={`h-full rounded-full ${row.color}`} style={{ width }} />
               </div>
             </div>
@@ -915,7 +915,7 @@ function EnvironmentalBalanceWaterfall({ emissions, storedCarbon }) {
 
 function ChartPanel({ children, description, title }) {
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] sm:p-6">
       <ChartHeading description={description} title={title} />
       {children}
     </section>
@@ -925,9 +925,9 @@ function ChartPanel({ children, description, title }) {
 function ChartHeading({ description, title }) {
   return (
     <div className="mb-5">
-      <h2 className="mt-2 text-2xl font-bold text-slate-100">{title}</h2>
+      <h2 className="mt-2 text-2xl font-bold text-[var(--text-main)]">{title}</h2>
       {description && (
-        <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-400">{description}</p>
+        <p className="mt-2 max-w-4xl text-sm font-medium leading-6 text-[var(--text-muted)]">{description}</p>
       )}
     </div>
   );
