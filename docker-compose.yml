@@ -2,17 +2,21 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: ${DATABASE_NAME:-proyecto_huella}
-      POSTGRES_USER: ${DATABASE_USER:-proyecto_huella}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-proyecto_huella}
+      POSTGRES_DB: ${DATABASE_NAME:?DATABASE_NAME no definido}
+      POSTGRES_USER: ${DATABASE_USER:?DATABASE_USER no definido}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD no definido}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-proyecto_huella} -d ${DATABASE_NAME:-proyecto_huella}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - carbonozero_net
 
   backend:
     build:
@@ -23,21 +27,23 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:8000:8000"
+    env_file:
+      - .env
     environment:
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-change-me-in-dev-only}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY no definido}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,100.28.53.53,carbonozero.mundacasolutions.com},backend
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,carbonozero.mundacasolutions.com,backend}
 
       DATABASE_ENGINE: django.db.backends.postgresql
-      DATABASE_NAME: ${DATABASE_NAME:-proyecto_huella}
-      DATABASE_USER: ${DATABASE_USER:-proyecto_huella}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-proyecto_huella}
+      DATABASE_NAME: ${DATABASE_NAME:?DATABASE_NAME no definido}
+      DATABASE_USER: ${DATABASE_USER:?DATABASE_USER no definido}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD no definido}
       DATABASE_HOST: db
-      DATABASE_PORT: 5432
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
 
-      CORS_ALLOW_ALL_ORIGINS: ${CORS_ALLOW_ALL_ORIGINS:-True}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://100.28.53.53:5173,http://carbonozero.mundacasolutions.com,https://carbonozero.mundacasolutions.com}
-      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://100.28.53.53:5173,http://carbonozero.mundacasolutions.com,https://carbonozero.mundacasolutions.com}
+      CORS_ALLOW_ALL_ORIGINS: ${CORS_ALLOW_ALL_ORIGINS:-False}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://carbonozero.mundacasolutions.com}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-https://carbonozero.mundacasolutions.com}
 
       SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-False}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -57,20 +63,31 @@ services:
     volumes:
       - ./backend:/app
       - backend_media:/app/media
+    networks:
+      - carbonozero_net
 
   simulador-sensores:
     build:
       context: ./backend
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+    env_file:
+      - .env
     environment:
       API_URL: http://backend:8000/api/iot/lecturas/
-      SIMULATOR_INTERVAL_SECONDS: 5
+      SIMULATOR_INTERVAL_SECONDS: ${SIMULATOR_INTERVAL_SECONDS:-5}
     command: python scripts/simulador_sensores.py
     volumes:
       - ./backend:/app
+    networks:
+      - carbonozero_net
 
 volumes:
   postgres_data:
   backend_media:
+
+networks:
+  carbonozero_net:
+    driver: bridge
