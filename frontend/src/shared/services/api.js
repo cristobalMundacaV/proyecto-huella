@@ -503,13 +503,17 @@ export async function getSistemaEstado() {
   return response.data;
 }
 
-export async function getIotKpis() {
-  const response = await api.get("/iot/kpis/");
+export async function getIotKpis(empresaId) {
+  const response = await api.get("/iot/kpis/", {
+    params: empresaId ? { empresa_id: empresaId } : {},
+  });
   return response.data;
 }
 
-export async function getIotUltimasLecturas() {
-  const response = await api.get("/iot/lecturas/ultimas/");
+export async function getIotUltimasLecturas(empresaId) {
+  const response = await api.get("/iot/lecturas/ultimas/", {
+    params: empresaId ? { empresa_id: empresaId } : {},
+  });
   return response.data;
 }
 

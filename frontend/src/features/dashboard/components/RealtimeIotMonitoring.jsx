@@ -13,7 +13,7 @@ import Pagination from "@/shared/components/Pagination";
 import { getIotKpis, getIotUltimasLecturas } from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
 
-const POLL_INTERVAL_MS = 5000;
+const POLL_INTERVAL_MS = 30000;
 const LECTURAS_PAGE_SIZE = 8;
 
 const formatDateTime = (value) => {
@@ -32,11 +32,11 @@ const formatTipo = (value) =>
     .replace(/_/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
-function RealtimeIotMonitoring() {
+function RealtimeIotMonitoring({ activeEmpresaId }) {
   const [kpis, setKpis] = useState(null);
   const [lecturas, setLecturas] = useState([]);
   const [lecturasPage, setLecturasPage] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const totalLecturasPages = Math.max(
@@ -52,11 +52,26 @@ function RealtimeIotMonitoring() {
   useEffect(() => {
     let isCancelled = false;
 
-    const loadIotData = async () => {
+    if (!activeEmpresaId) {
+      return undefined;
+    }
+
+    let timeoutId;
+
+    const loadIotData = async ({ showLoading = false } = {}) => {
+      if (document.visibilityState === "hidden") {
+        timeoutId = window.setTimeout(loadIotData, POLL_INTERVAL_MS);
+        return;
+      }
+
       try {
+        if (showLoading) {
+          setLoading(true);
+        }
+
         const [kpisResult, lecturasResult] = await Promise.all([
-          getIotKpis(),
-          getIotUltimasLecturas(),
+          getIotKpis(activeEmpresaId),
+          getIotUltimasLecturas(activeEmpresaId),
         ]);
 
         if (!isCancelled) {
@@ -73,17 +88,20 @@ function RealtimeIotMonitoring() {
           );
           setLoading(false);
         }
+      } finally {
+        if (!isCancelled) {
+          timeoutId = window.setTimeout(loadIotData, POLL_INTERVAL_MS);
+        }
       }
     };
 
-    loadIotData();
-    const intervalId = window.setInterval(loadIotData, POLL_INTERVAL_MS);
+    loadIotData({ showLoading: true });
 
     return () => {
       isCancelled = true;
-      window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
     };
-  }, []);
+  }, [activeEmpresaId]);
 
   return (
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/45 sm:p-6">
@@ -127,7 +145,7 @@ function RealtimeIotMonitoring() {
             />
             <KpiCard
               icon={<Zap />}
-              title="Emisiones ultimas 24h"
+              title="Emisiones de hoy"
               value={`${formatNumber(
                 kpis?.emisiones_totales_kg_co2e || 0,
                 2

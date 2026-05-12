@@ -41,6 +41,8 @@ const viewTransition = {
   ease: [0.22, 1, 0.36, 1],
 };
 
+const DASHBOARD_REFRESH_INTERVAL_MS = 60000;
+
 const woodReductionSteps = [
   {
     title: "Optimizar rutas de despacho y transporte",
@@ -145,17 +147,25 @@ function App() {
   useEffect(() => {
     if (activeView !== "dashboard" || !activeEmpresaId) {
       if (!activeEmpresaId) {
-        setData(null);
-        setDashboardEmissionKpis(null);
-        setCompanyStatus(null);
+        window.setTimeout(() => {
+          setData(null);
+          setDashboardEmissionKpis(null);
+          setCompanyStatus(null);
+        }, 0);
       }
 
       return;
     }
 
     let isCancelled = false;
+    let timeoutId;
 
     const loadDashboard = async () => {
+      if (document.visibilityState === "hidden") {
+        timeoutId = window.setTimeout(loadDashboard, DASHBOARD_REFRESH_INTERVAL_MS);
+        return;
+      }
+
       try {
         const [dashboardResult, estadoResult, emissionsResult] = await Promise.allSettled([
           getEmpresaDashboard(activeEmpresaId, { light: "1" }),
@@ -188,15 +198,18 @@ function App() {
             error.response?.data?.error || "No se pudieron cargar los datos de la empresa activa."
           );
         }
+      } finally {
+        if (!isCancelled) {
+          timeoutId = window.setTimeout(loadDashboard, DASHBOARD_REFRESH_INTERVAL_MS);
+        }
       }
     };
 
     loadDashboard();
-    const intervalId = window.setInterval(loadDashboard, 5000);
 
     return () => {
       isCancelled = true;
-      window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
     };
   }, [activeEmpresaId, activeView, applyDashboardData]);
 
@@ -210,7 +223,12 @@ function App() {
 
   const recommendedScenario = useMemo(() => {
     if (dashboardHasRows) {
-      return optimizeScenario(data.datos || []);
+      const optimized = optimizeScenario(data.datos || []);
+      return {
+        ...optimized,
+        currentTotal: dashboardTotalEmissions,
+        simulatedTotal: dashboardTotalEmissions * (1 - Number(optimized.reductionPct || 0) / 100),
+      };
     }
 
     if (!dashboardTotalEmissions) {
@@ -493,7 +511,7 @@ const isDieselCriticalActivity = String(actividadCritica || "")
             />
           </section>
 
-          <RealtimeIotMonitoring />
+          <RealtimeIotMonitoring activeEmpresaId={activeEmpresaId} />
 
           <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/40 sm:p-6">
             <h2 className="text-xl font-semibold mb-2">Insight automático</h2>

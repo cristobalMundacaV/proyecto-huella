@@ -96,9 +96,6 @@ except Exception:
 logger = logging.getLogger(__name__)
 
 
-IOT_ANALYTICS_WINDOW_HOURS = 24
-
-
 IOT_TYPE_ANALYTICS = {
     LecturaSensor.Tipo.DIESEL_LITROS: {
         "actividad": "IoT - Diesel litros",
@@ -127,11 +124,20 @@ IOT_TYPE_ANALYTICS = {
 }
 
 
+def get_iot_today_range():
+    current_timezone = timezone.get_current_timezone()
+    today = timezone.localdate()
+    start = timezone.make_aware(datetime.combine(today, datetime.min.time()), current_timezone)
+    end = start + timedelta(days=1)
+    return start, end
+
+
 def get_iot_analytics_queryset(empresa, fecha_inicio=None, fecha_fin=None, unidad_nombre=None):
-    desde = timezone.now() - timedelta(hours=IOT_ANALYTICS_WINDOW_HOURS)
+    today_start, today_end = get_iot_today_range()
     queryset = LecturaSensor.objects.filter(
         empresa__iexact=empresa.nombre,
-        fecha_registro__gte=desde,
+        fecha_registro__gte=today_start,
+        fecha_registro__lt=today_end,
     )
 
     if fecha_inicio:
@@ -564,7 +570,7 @@ def build_company_dashboard_response(empresa):
 @api_view(["GET", "POST"])
 def empresas(request):
     if request.method == "GET":
-        iot_desde = timezone.now() - timedelta(hours=IOT_ANALYTICS_WINDOW_HOURS)
+        iot_desde, iot_hasta = get_iot_today_range()
         unidades_count = (
             UnidadOperativa.objects.filter(empresa=OuterRef("pk"))
             .values("empresa")
@@ -592,6 +598,7 @@ def empresas(request):
             LecturaSensor.objects.filter(
                 empresa__iexact=OuterRef("nombre"),
                 fecha_registro__gte=iot_desde,
+                fecha_registro__lt=iot_hasta,
             )
             .values("empresa")
             .annotate(

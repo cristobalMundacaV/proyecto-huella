@@ -6,13 +6,10 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
+from apps.analytics.models import Empresa
+
 from .models import LecturaSensor
 from .serializers import LecturaSensorSerializer
-
-
-def ultimas_24_horas_queryset():
-    desde = timezone.now() - timedelta(hours=24)
-    return LecturaSensor.objects.filter(fecha_registro__gte=desde)
 
 
 def lecturas_de_hoy_queryset():
@@ -27,6 +24,24 @@ def lecturas_de_hoy_queryset():
         fecha_registro__gte=start,
         fecha_registro__lt=end,
     )
+
+
+def resolve_empresa(request):
+    empresa_id = request.query_params.get("empresa_id") or request.query_params.get("empresa")
+    if not empresa_id:
+        return None
+
+    return (
+        Empresa.objects.filter(empresa_id=empresa_id).first()
+        or Empresa.objects.filter(nombre__iexact=empresa_id).first()
+    )
+
+
+def lecturas_empresa_hoy_queryset(empresa=None):
+    queryset = lecturas_de_hoy_queryset()
+    if empresa:
+        queryset = queryset.filter(empresa__iexact=empresa.nombre)
+    return queryset
 
 
 def top_emisiones(queryset, group_field):
@@ -51,15 +66,15 @@ def lecturas(request):
 
 @api_view(["GET"])
 def kpis(request):
-    queryset = ultimas_24_horas_queryset()
-    hoy_queryset = lecturas_de_hoy_queryset()
+    empresa = resolve_empresa(request)
+    queryset = lecturas_empresa_hoy_queryset(empresa)
     agregados = queryset.aggregate(
         emisiones_totales=Sum("co2e_estimado"),
         consumo_promedio=Avg("valor"),
     )
-    unidad_top = top_emisiones(hoy_queryset, "unidad_operativa")
-    actividad_top = top_emisiones(hoy_queryset, "tipo")
-    ultima = LecturaSensor.objects.order_by("-fecha_registro").first()
+    unidad_top = top_emisiones(queryset, "unidad_operativa")
+    actividad_top = top_emisiones(queryset, "tipo")
+    ultima = queryset.order_by("-fecha_registro").first()
 
     return Response(
         {
@@ -88,6 +103,10 @@ def kpis(request):
 
 @api_view(["GET"])
 def ultimas_lecturas(request):
-    queryset = LecturaSensor.objects.all()[:20]
+    empresa = resolve_empresa(request)
+    queryset = LecturaSensor.objects.all()
+    if empresa:
+        queryset = queryset.filter(empresa__iexact=empresa.nombre)
+    queryset = queryset[:20]
     serializer = LecturaSensorSerializer(queryset, many=True)
     return Response(serializer.data)

@@ -4,6 +4,8 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from apps.analytics.models import Empresa
+
 from .models import LecturaSensor
 
 
@@ -46,6 +48,10 @@ class LecturaSensorApiTests(TestCase):
         self.assertEqual(response.data["emisiones_totales_kg_co2e"], 3.9)
 
     def test_kpis_incluye_mayores_emisores_del_dia(self):
+        Empresa.objects.create(
+            empresa_id="ROBLES",
+            nombre="Maderas Los Robles SpA",
+        )
         LecturaSensor.objects.create(
             empresa="Maderas Los Robles SpA",
             unidad_operativa="Aserradero Principal",
@@ -68,7 +74,7 @@ class LecturaSensorApiTests(TestCase):
             valor=Decimal("20"),
         )
 
-        response = self.client.get("/api/iot/kpis/")
+        response = self.client.get("/api/iot/kpis/?empresa_id=ROBLES")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
@@ -87,3 +93,39 @@ class LecturaSensorApiTests(TestCase):
             response.data["actividad_mayor_emision_hoy_kg_co2e"],
             44.0,
         )
+
+    def test_kpis_y_ultimas_lecturas_respetan_empresa(self):
+        Empresa.objects.create(
+            empresa_id="ROBLES",
+            nombre="Maderas Los Robles SpA",
+        )
+        Empresa.objects.create(
+            empresa_id="ANDINAS",
+            nombre="Maderas Andinas del Sur SpA",
+        )
+        LecturaSensor.objects.create(
+            empresa="Maderas Los Robles SpA",
+            unidad_operativa="Aserradero Principal",
+            sensor="SENSOR-DIESEL-001",
+            tipo=LecturaSensor.Tipo.DIESEL_LITROS,
+            valor=Decimal("10"),
+        )
+        LecturaSensor.objects.create(
+            empresa="Maderas Andinas del Sur SpA",
+            unidad_operativa="Planta de Tratamiento",
+            sensor="SENSOR-MAQUINARIA-001",
+            tipo=LecturaSensor.Tipo.HORAS_MAQUINARIA,
+            valor=Decimal("8"),
+        )
+
+        kpis_response = self.client.get("/api/iot/kpis/?empresa_id=ROBLES")
+        lecturas_response = self.client.get(
+            "/api/iot/lecturas/ultimas/?empresa_id=ROBLES"
+        )
+
+        self.assertEqual(kpis_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(kpis_response.data["total_lecturas"], 1)
+        self.assertEqual(kpis_response.data["unidad_mayor_emision_hoy"], "Aserradero Principal")
+        self.assertEqual(lecturas_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(lecturas_response.data), 1)
+        self.assertEqual(lecturas_response.data[0]["empresa"], "Maderas Los Robles SpA")
