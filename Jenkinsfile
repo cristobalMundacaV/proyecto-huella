@@ -12,7 +12,7 @@ pipeline {
     }
 
     environment {
-        SERVER = "ubuntu@TU_IP_O_DOMINIO_DEL_SERVIDOR"
+        SERVER = "ubuntu@100.28.53.53"
         APP_DIR = "/home/ubuntu/proyecto-huella"
         BRANCH = "main"
     }
