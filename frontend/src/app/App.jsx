@@ -41,7 +41,7 @@ const viewTransition = {
   ease: [0.22, 1, 0.36, 1],
 };
 
-const DASHBOARD_REFRESH_INTERVAL_MS = 60000;
+const DASHBOARD_REFRESH_INTERVAL_MS = 10000;
 
 const woodReductionSteps = [
   {

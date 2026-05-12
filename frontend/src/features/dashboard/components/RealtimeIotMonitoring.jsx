@@ -13,7 +13,7 @@ import Pagination from "@/shared/components/Pagination";
 import { getIotKpis, getIotUltimasLecturas } from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
 
-const POLL_INTERVAL_MS = 30000;
+const POLL_INTERVAL_MS = 10000;
 const LECTURAS_PAGE_SIZE = 8;
 
 const formatDateTime = (value) => {
