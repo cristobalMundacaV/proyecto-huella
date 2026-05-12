@@ -93,12 +93,12 @@ function RealtimeIotMonitoring() {
             Monitoreo en tiempo real
           </p>
           <h2 className="mt-1 text-xl font-bold text-[var(--text-main)]">
-            Lecturas operativas simuladas
+            Lecturas operativas.
           </h2>
         </div>
         <div className="flex w-fit items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--success-bg)] px-4 py-2 text-xs font-bold uppercase tracking-wide text-[var(--primary-dark)]">
           <Signal size={16} />
-          Modo simulacion IoT activo
+          Modo IoT activo
         </div>
       </div>
 
@@ -135,13 +135,29 @@ function RealtimeIotMonitoring() {
             />
             <KpiCard
               icon={<Gauge />}
-              title="Consumo promedio"
-              value={formatNumber(kpis?.consumo_promedio || 0, 2)}
+              title="Unidad con mas emisiones hoy"
+              value={
+                <span className="block text-xl leading-tight">
+                  {kpis?.unidad_mayor_emision_hoy || "Sin datos"}
+                </span>
+              }
+              detail={`${formatNumber(
+                kpis?.unidad_mayor_emision_hoy_kg_co2e || 0,
+                2
+              )} kg CO2e`}
             />
             <KpiCard
               icon={<Activity />}
-              title="Sensores activos"
-              value={formatNumber(kpis?.sensores_activos || 0, 0)}
+              title="Actividad con mas emisiones hoy"
+              value={
+                <span className="block text-xl leading-tight">
+                  {formatTipo(kpis?.actividad_mayor_emision_hoy) || "Sin datos"}
+                </span>
+              }
+              detail={`${formatNumber(
+                kpis?.actividad_mayor_emision_hoy_kg_co2e || 0,
+                2
+              )} kg CO2e`}
             />
           </div>
 

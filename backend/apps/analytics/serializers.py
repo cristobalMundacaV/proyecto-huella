@@ -1,5 +1,11 @@
+from datetime import timedelta
+
 from django.contrib.auth.models import User
+from django.db.models import Sum
+from django.utils import timezone
 from rest_framework import serializers
+
+from apps.iot.models import LecturaSensor
 
 from .models import (
     DocumentoLote,
@@ -130,6 +136,14 @@ class EmpresaSerializer(serializers.ModelSerializer):
     def _actividades(self, empresa):
         return list(empresa.actividades_emision.all())
 
+    def _iot_emisiones(self, empresa):
+        desde = timezone.now() - timedelta(hours=24)
+        agregados = LecturaSensor.objects.filter(
+            empresa__iexact=empresa.nombre,
+            fecha_registro__gte=desde,
+        ).aggregate(total=Sum("co2e_estimado"))
+        return float(agregados.get("total") or 0)
+
     def get_unidades_count(self, empresa):
         if self.context.get("is_list_view") and hasattr(empresa, "unidades_count_val"):
             return empresa.unidades_count_val
@@ -154,7 +168,7 @@ class EmpresaSerializer(serializers.ModelSerializer):
             if annotated is not None:
                 return float(annotated)
             return 0
-        return sum((actividad.emisiones_kg_co2e for actividad in self._actividades(empresa)), 0)
+        return sum((actividad.emisiones_kg_co2e for actividad in self._actividades(empresa)), 0) + self._iot_emisiones(empresa)
 
     def get_co2_almacenado_kg(self, empresa):
         if self.context.get("is_list_view"):

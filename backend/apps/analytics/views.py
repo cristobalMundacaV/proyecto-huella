@@ -564,6 +564,7 @@ def build_company_dashboard_response(empresa):
 @api_view(["GET", "POST"])
 def empresas(request):
     if request.method == "GET":
+        iot_desde = timezone.now() - timedelta(hours=IOT_ANALYTICS_WINDOW_HOURS)
         unidades_count = (
             UnidadOperativa.objects.filter(empresa=OuterRef("pk"))
             .values("empresa")
@@ -585,6 +586,19 @@ def empresas(request):
                     DBSum("emisiones_kg_co2e"),
                     Value(0, output_field=DecimalField()),
                 ),
+            )
+        )
+        iot_stats = (
+            LecturaSensor.objects.filter(
+                empresa__iexact=OuterRef("nombre"),
+                fecha_registro__gte=iot_desde,
+            )
+            .values("empresa")
+            .annotate(
+                total=Coalesce(
+                    DBSum("co2e_estimado"),
+                    Value(0, output_field=DecimalField()),
+                )
             )
         )
         especie_densidad = EspecieMadera.objects.filter(
@@ -640,9 +654,16 @@ def empresas(request):
                 Subquery(actividades_stats.values("total"), output_field=IntegerField()),
                 Value(0, output_field=IntegerField()),
             ),
-            emisiones_totales_val=Coalesce(
-                Subquery(actividades_stats.values("emisiones"), output_field=DecimalField()),
-                Value(0, output_field=DecimalField()),
+            emisiones_totales_val=ExpressionWrapper(
+                Coalesce(
+                    Subquery(actividades_stats.values("emisiones"), output_field=DecimalField()),
+                    Value(0, output_field=DecimalField()),
+                )
+                + Coalesce(
+                    Subquery(iot_stats.values("total"), output_field=DecimalField()),
+                    Value(0, output_field=DecimalField()),
+                ),
+                output_field=DecimalField(max_digits=18, decimal_places=3),
             ),
             co2_almacenado_val=Coalesce(
                 Subquery(co2_lotes_stats, output_field=DecimalField()),

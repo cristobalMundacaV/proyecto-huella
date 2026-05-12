@@ -32,6 +32,7 @@ from .models import (
 from .services.activity_semantics import is_diesel_activity, is_electricity_activity
 from .services.decision_engine import calculate_risk_profile, optimize_rows, simulate_rows
 from .services.factor_classifier import infer_categoria, normalize_key
+from apps.iot.models import LecturaSensor
 
 
 class AnalyticsApiIntegrationTest(APITestCase):
@@ -162,6 +163,44 @@ class AnalyticsApiIntegrationTest(APITestCase):
 		self.assertEqual(actividad_empresa.tipo_asignacion, EmisionLote.TipoAsignacion.EMPRESA)
 		self.assertIsNone(actividad_empresa.lote)
 		self.assertIsNone(actividad_empresa.unidad_operativa)
+
+	def test_empresa_totals_include_iot_emissions_window(self):
+		empresa = Empresa.objects.create(empresa_id="EMP-IOT-001", nombre="Empresa IoT")
+		Lote.objects.create(
+			id_lote="LOTE-IOT-001",
+			empresa=empresa,
+			empresa_aserradero=empresa.nombre,
+			fecha="2026-04-28",
+			especie="Pino radiata",
+			volumen_m3=10,
+			origen="Curico",
+			destino="Santiago",
+		)
+		empresa.actividades_emision.create(
+			lote=Lote.objects.get(id_lote="LOTE-IOT-001"),
+			actividad="diesel",
+			cantidad=80,
+			unidad="litros",
+			factor_emision=2.68,
+		)
+		LecturaSensor.objects.create(
+			empresa=empresa.nombre,
+			unidad_operativa="Unidad IoT",
+			sensor="SENSOR-001",
+			tipo=LecturaSensor.Tipo.DIESEL_LITROS,
+			valor=10,
+		)
+
+		detail_response = self.client.get(f"/api/empresas/{empresa.empresa_id}/")
+		list_response = self.client.get("/api/empresas/")
+
+		self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+		self.assertAlmostEqual(float(detail_response.data["emisiones_totales_kg_co2e"]), 241.2)
+		self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+		company_row = next(
+			item for item in list_response.data if item["empresa_id"] == empresa.empresa_id
+		)
+		self.assertAlmostEqual(float(company_row["emisiones_totales_kg_co2e"]), 241.2)
 
 	def test_crear_empresa_crea_unidad_general(self):
 		response = self.client.post(

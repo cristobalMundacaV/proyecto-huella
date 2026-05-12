@@ -44,3 +44,46 @@ class LecturaSensorApiTests(TestCase):
         self.assertEqual(response.data["total_lecturas"], 1)
         self.assertEqual(response.data["sensores_activos"], 1)
         self.assertEqual(response.data["emisiones_totales_kg_co2e"], 3.9)
+
+    def test_kpis_incluye_mayores_emisores_del_dia(self):
+        LecturaSensor.objects.create(
+            empresa="Maderas Los Robles SpA",
+            unidad_operativa="Aserradero Principal",
+            sensor="SENSOR-DIESEL-001",
+            tipo=LecturaSensor.Tipo.DIESEL_LITROS,
+            valor=Decimal("10"),
+        )
+        LecturaSensor.objects.create(
+            empresa="Maderas Los Robles SpA",
+            unidad_operativa="Planta de Tratamiento",
+            sensor="SENSOR-MAQUINARIA-001",
+            tipo=LecturaSensor.Tipo.HORAS_MAQUINARIA,
+            valor=Decimal("8"),
+        )
+        LecturaSensor.objects.create(
+            empresa="Maderas Los Robles SpA",
+            unidad_operativa="Planta de Tratamiento",
+            sensor="SENSOR-ELECTRICIDAD-001",
+            tipo=LecturaSensor.Tipo.ELECTRICIDAD_KWH,
+            valor=Decimal("20"),
+        )
+
+        response = self.client.get("/api/iot/kpis/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["unidad_mayor_emision_hoy"],
+            "Planta de Tratamiento",
+        )
+        self.assertEqual(
+            response.data["unidad_mayor_emision_hoy_kg_co2e"],
+            51.8,
+        )
+        self.assertEqual(
+            response.data["actividad_mayor_emision_hoy"],
+            LecturaSensor.Tipo.HORAS_MAQUINARIA,
+        )
+        self.assertEqual(
+            response.data["actividad_mayor_emision_hoy_kg_co2e"],
+            44.0,
+        )
