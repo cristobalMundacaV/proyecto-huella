@@ -2568,10 +2568,15 @@ def download_import_template(request):
 
 
 @csrf_exempt
-@api_view(["POST"])
+@api_view(["GET", "POST"])
 @parser_classes([MultiPartParser, FormParser])
 def import_empresa_completa_preview(request):
     """Preview de importación de empresa completa con todas las hojas (empresa, unidades, lotes, actividades, factores)."""
+    if request.method == "GET":
+        return Response(
+            {"detail": "Usa POST con multipart/form-data y el archivo en 'file'."},
+            status=200,
+        )
     archivo = request.FILES.get("file")
 
     if not archivo:
