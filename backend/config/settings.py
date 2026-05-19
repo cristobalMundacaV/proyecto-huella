@@ -167,15 +167,27 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
-CORS_ALLOW_ALL_ORIGINS = str_to_bool(
-    os.getenv("CORS_ALLOW_ALL_ORIGINS"),
-    default=DEBUG,
-)
-CORS_ALLOWED_ORIGINS = csv_to_list(os.getenv("CORS_ALLOWED_ORIGINS"))
+
+# CORS Configuration - when ALLOW_CREDENTIALS is True, ALLOW_ALL_ORIGINS must be False
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = str_to_bool(
     os.getenv("CORS_ALLOW_CREDENTIALS"),
     default=True,
 )
+
+# For development, allow localhost. For production, set via environment variable
+if DEBUG:
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
+else:
+    CORS_ALLOWED_ORIGINS = csv_to_list(os.getenv("CORS_ALLOWED_ORIGINS"))
+
 CSRF_TRUSTED_ORIGINS = csv_to_list(os.getenv("CSRF_TRUSTED_ORIGINS"))
 
 if not DEBUG:
