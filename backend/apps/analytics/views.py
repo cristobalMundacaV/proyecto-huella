@@ -239,6 +239,7 @@ def serialize_auth_user(user):
     }
 
 
+@ensure_csrf_cookie
 @csrf_exempt
 @api_view(["GET"])
 def auth_me(request):
@@ -259,6 +260,7 @@ def auth_csrf_token(request):
     return Response({"csrfToken": token})
 
 
+@ensure_csrf_cookie
 @csrf_exempt
 @api_view(["POST"])
 def auth_login(request):

@@ -38,7 +38,7 @@ export const api = axios.create({
   withCredentials: true,
 });
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
   const method = String(config.method || "get").toLowerCase();
   const isReadMethod = ["get", "head", "options"].includes(method);
   const isDemoMode =
@@ -51,9 +51,14 @@ api.interceptors.request.use((config) => {
     );
   }
 
-  // Add CSRF token to headers for non-GET requests
+  // Add CSRF token to headers for non-read requests
   if (!isReadMethod) {
-    const csrfToken = getCsrfToken();
+    let csrfToken = getCsrfToken();
+
+    if (!csrfToken) {
+      csrfToken = await refreshCsrfToken();
+    }
+
     if (csrfToken) {
       config.headers["X-CSRFToken"] = csrfToken;
     }

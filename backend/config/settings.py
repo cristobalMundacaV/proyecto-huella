@@ -190,6 +190,16 @@ else:
 
 CSRF_TRUSTED_ORIGINS = csv_to_list(os.getenv("CSRF_TRUSTED_ORIGINS"))
 
+if DEBUG and not CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+    ]
+
+CSRF_COOKIE_SAMESITE = "Lax"
+
 if not DEBUG:
     SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "31536000"))
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
