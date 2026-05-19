@@ -3,6 +3,7 @@ from .views import (
     reporte_emisiones_tiempo,
     ai_advisor,
     auth_bootstrap,
+    auth_csrf_token,
     auth_login,
     auth_logout,
     auth_me,
@@ -76,6 +77,7 @@ from .views import (
 
 urlpatterns = [
     path("auth/me/", auth_me),
+    path("auth/csrf-token/", auth_csrf_token),
     path("auth/login/", auth_login),
     path("auth/logout/", auth_logout),
     path("auth/bootstrap/", auth_bootstrap),

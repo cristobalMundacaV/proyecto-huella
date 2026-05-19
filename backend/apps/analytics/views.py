@@ -11,7 +11,8 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
+from django.middleware.csrf import get_token
 from django.db import transaction
 from django.db.models import Q, Count, F, Sum as DBSum, ExpressionWrapper, DecimalField, IntegerField, Value, OuterRef, Subquery
 from django.db.models.functions import Coalesce
@@ -248,6 +249,14 @@ def auth_me(request):
             "has_users": User.objects.exists(),
         }
     )
+
+
+@ensure_csrf_cookie
+@api_view(["GET", "POST"])
+def auth_csrf_token(request):
+    """Get or refresh CSRF token. This endpoint ensures the CSRF cookie is set."""
+    token = get_token(request)
+    return Response({"csrfToken": token})
 
 
 @csrf_exempt
@@ -2253,6 +2262,7 @@ def build_internal_dashboard_response():
     return summary
 
 
+@csrf_exempt
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
 def import_factores_preview(request):
@@ -2288,6 +2298,7 @@ def import_factores_confirm(request):
         )
 
 
+@csrf_exempt
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
 def import_unidades_preview(request):
@@ -2323,6 +2334,7 @@ def import_unidades_confirm(request):
         )
 
 
+@csrf_exempt
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
 def import_empresas_preview(request):
@@ -2358,6 +2370,7 @@ def import_empresas_confirm(request):
         )
 
 
+@csrf_exempt
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
 def import_lotes_preview(request):
@@ -2393,6 +2406,7 @@ def import_lotes_confirm(request):
         )
 
 
+@csrf_exempt
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
 def import_actividades_preview(request):
@@ -2428,6 +2442,7 @@ def import_actividades_confirm(request):
         )
 
 
+@csrf_exempt
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
 def empresa_import_unidades_preview(request, empresa_id):
@@ -2463,6 +2478,7 @@ def empresa_import_unidades_confirm(request, empresa_id):
         )
 
 
+@csrf_exempt
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
 def empresa_import_lotes_preview(request, empresa_id):
@@ -2494,6 +2510,7 @@ def empresa_import_lotes_confirm(request, empresa_id):
         return safe_error_response(exc, user_message="No se pudieron guardar los lotes", status=400)
 
 
+@csrf_exempt
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
 def empresa_import_actividades_preview(request, empresa_id):
@@ -2548,6 +2565,7 @@ def download_import_template(request):
         )
 
 
+@csrf_exempt
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
 def import_empresa_completa_preview(request):

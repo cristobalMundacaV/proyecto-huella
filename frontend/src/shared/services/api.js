@@ -1,5 +1,37 @@
 import axios from "axios";
 
+// Helper function to get CSRF token from cookies
+function getCsrfToken() {
+  if (typeof document === "undefined") return null;
+  const name = "csrftoken";
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === name + "=") {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+// Helper function to refresh CSRF token from server
+export async function refreshCsrfToken() {
+  try {
+    const response = await axios.get(
+      `${import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api"}/auth/csrf-token/`,
+      { withCredentials: true }
+    );
+    return response.data.csrfToken;
+  } catch (error) {
+    console.warn("Failed to refresh CSRF token:", error);
+    return getCsrfToken();
+  }
+}
+
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api",
   timeout: 60000,
@@ -17,6 +49,14 @@ api.interceptors.request.use((config) => {
     return Promise.reject(
       new axios.CanceledError("El modo demo permite solo lectura.")
     );
+  }
+
+  // Add CSRF token to headers for non-GET requests
+  if (!isReadMethod) {
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+      config.headers["X-CSRFToken"] = csrfToken;
+    }
   }
 
   return config;
@@ -190,6 +230,7 @@ export async function getHistorialLote(idLote, params = {}) {
 }
 
 export async function previewImportFactores(file) {
+  await refreshCsrfToken();
   const formData = new FormData();
   formData.append("file", file);
 
@@ -208,6 +249,7 @@ export async function confirmarImportFactores(payload) {
 }
 
 export async function previewImportEmpresas(file) {
+  await refreshCsrfToken();
   const formData = new FormData();
   formData.append("file", file);
 
@@ -226,6 +268,7 @@ export async function confirmarImportEmpresas(payload) {
 }
 
 export async function previewEmpresaCompleta(file) {
+  await refreshCsrfToken();
   const formData = new FormData();
   formData.append("file", file);
 
@@ -260,6 +303,7 @@ export async function confirmFactorImport(rowsOrPayload) {
 }
 
 export async function previewImportLotes(file) {
+  await refreshCsrfToken();
   const formData = new FormData();
   formData.append("file", file);
 
@@ -273,6 +317,7 @@ export async function previewImportLotes(file) {
 }
 
 export async function previewImportLotesForEmpresa(empresaId, file) {
+  await refreshCsrfToken();
   const formData = new FormData();
   formData.append("file", file);
 
@@ -303,6 +348,7 @@ export async function confirmarImportLotesForEmpresa(empresaId, payload) {
 }
 
 export async function previewImportUnidades(file) {
+  await refreshCsrfToken();
   const formData = new FormData();
   formData.append("file", file);
 
@@ -316,6 +362,7 @@ export async function previewImportUnidades(file) {
 }
 
 export async function previewImportUnidadesForEmpresa(empresaId, file) {
+  await refreshCsrfToken();
   const formData = new FormData();
   formData.append("file", file);
 
@@ -346,6 +393,7 @@ export async function confirmarImportUnidadesForEmpresa(empresaId, payload) {
 }
 
 export async function previewActivityImport(file) {
+  await refreshCsrfToken();
   const formData = new FormData();
   formData.append("file", file);
 
@@ -363,6 +411,7 @@ export async function previewActivityImport(file) {
 }
 
 export async function previewActivityImportForEmpresa(empresaId, file) {
+  await refreshCsrfToken();
   const formData = new FormData();
   formData.append("file", file);
 
