@@ -1,4 +1,4 @@
-CONSTRUCTION_REDUCTION_STEPS = [
+﻿CONSTRUCTION_REDUCTION_STEPS = [
     (
         "Optimizar materiales de alto impacto",
         "Revisar hormigon, cemento, acero, aridos y proveedores para priorizar alternativas con menor carbono incorporado.",
@@ -70,8 +70,8 @@ def _viability_for(payload, categoria):
 def generar_analisis_local(payload):
     total = float(payload.get("total_emisiones", 0) or payload.get("emisiones_totales", 0) or 0)
     categoria = payload.get("categoria_critica") or "Sin datos"
-    fuente = payload.get("fuente_critica") or payload.get("actividad_critica") or "Sin fuente critica"
-    etapa = payload.get("etapa_critica") or payload.get("unidad_critica") or "Sin etapa critica"
+    fuente = payload.get("fuente_critica") or "Sin fuente critica"
+    etapa = payload.get("etapa_critica") or "Sin etapa critica"
     intensidad = payload.get("intensidad_carbono")
     cobertura = payload.get("evidencia_respaldada")
     viabilidad = _viability_for(payload, categoria)

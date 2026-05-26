@@ -1,4 +1,4 @@
-import unittest
+﻿import unittest
 from pathlib import Path
 
 import pandas as pd
@@ -12,8 +12,8 @@ class CalcularEmisionesTest(unittest.TestCase):
     def test_calcula_emisiones_con_factor(self):
         datos = pd.DataFrame(
             {
-                "empresa": ["EcoRetail"],
-                "actividad": ["diesel"],
+                "constructora": ["Constructora Andina"],
+                "fuente_emision": ["diesel"],
                 "cantidad": [100],
             }
         )
@@ -22,11 +22,11 @@ class CalcularEmisionesTest(unittest.TestCase):
 
         self.assertEqual(resultado.iloc[0]["emisiones"], 268)
 
-    def test_rechaza_actividad_sin_factor(self):
+    def test_rechaza_fuente_emision_sin_factor(self):
         datos = pd.DataFrame(
             {
-                "empresa": ["EcoRetail"],
-                "actividad": ["gas"],
+                "constructora": ["Constructora Andina"],
+                "fuente_emision": ["gas"],
                 "cantidad": [100],
             }
         )

@@ -51,7 +51,7 @@ const rowsPerPage = 8;
 const DIESEL_REDUCTION_SCENARIO = 25;
 
 const fuelUseLabels = {
-  cosecha: "PreparaciÃ³n / movimiento",
+  preparacion: "PreparaciÃ³n / movimiento",
   despacho: "Despacho",
   transporte: "Transporte",
   maquinaria: "Maquinaria",

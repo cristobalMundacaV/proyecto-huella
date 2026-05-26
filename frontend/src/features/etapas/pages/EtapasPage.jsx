@@ -566,7 +566,7 @@ function UnitTypeBadge({ type }) {
     General: "border-[#94A3B8] bg-[#F1F5F9] text-[#334155]",
     Planta: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
     Proveedor: "border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]",
-    Secado: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
+    control: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
     Bodega: "border-[#C4B5FD] bg-[#F1EDFF] text-[#5B21B6]",
     Despacho: "border-[#BFDBFE] bg-[#EFF6FF] text-[#075985]",
     Mantencion: "border-[#FDBA74] bg-[#FFF7ED] text-[#9A3412]",

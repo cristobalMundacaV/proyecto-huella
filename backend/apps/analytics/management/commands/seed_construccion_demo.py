@@ -5,10 +5,12 @@ from django.core.management.base import BaseCommand
 from apps.analytics.models import (
     Constructora,
     EtapaObra,
+    EvidenciaObra,
     FactorEmision,
     MaterialConstruccion,
     Obra,
     RegistroEmision,
+    TransporteObra,
 )
 
 
@@ -76,6 +78,7 @@ class Command(BaseCommand):
 
         factores_data = [
             ("Hormigon H30", "Materiales", "m3", "320.000000", "Base demo construccion", 2026),
+            ("Cemento", "Materiales", "ton", "735.000000", "Base demo construccion", 2026),
             ("Acero estructural", "Materiales", "ton", "1850.000000", "Base demo construccion", 2026),
             ("Aridos", "Materiales", "ton", "4.000000", "Base demo construccion", 2026),
             ("Diesel maquinaria", "Maquinaria", "litros diesel", "2.680000", "Base demo construccion", 2026),
@@ -114,8 +117,11 @@ class Command(BaseCommand):
             ("Hormigon H30", "Materiales", etapas["Fundaciones"], Decimal("120"), "m3", Decimal("320.000000"), "2026-02-10"),
             ("Acero estructural", "Materiales", etapas["Obra gruesa"], Decimal("28"), "ton", Decimal("1850.000000"), "2026-02-18"),
             ("Aridos", "Materiales", etapas["Fundaciones"], Decimal("240"), "ton", Decimal("4.000000"), "2026-02-12"),
+            ("Cemento", "Materiales", etapas["Fundaciones"], Decimal("18"), "ton", Decimal("735.000000"), "2026-02-11"),
             ("Transporte de aridos", "Transporte", etapas["Fundaciones"], Decimal("180"), "litros diesel", Decimal("2.680000"), "2026-02-12"),
+            ("Transporte de hormigon", "Transporte", etapas["Fundaciones"], Decimal("95"), "litros diesel", Decimal("2.680000"), "2026-02-13"),
             ("Excavadora diesel", "Maquinaria", etapas["Excavacion y movimiento de tierra"], Decimal("420"), "litros diesel", Decimal("2.680000"), "2026-02-05"),
+            ("Retroexcavadora", "Maquinaria", etapas["Excavacion y movimiento de tierra"], Decimal("140"), "litros diesel", Decimal("2.680000"), "2026-02-07"),
             ("Electricidad de faena", "Energia", etapas["Instalaciones"], Decimal("1600"), "kWh", Decimal("0.390000"), "2026-03-01"),
             ("Generador diesel", "Energia", etapas["Obra gruesa"], Decimal("260"), "litros diesel", Decimal("2.680000"), "2026-03-05"),
             ("Residuos mixtos", "Residuos", etapas["Retiro de residuos"], Decimal("8"), "ton", Decimal("120.000000"), "2026-03-12"),
@@ -123,8 +129,9 @@ class Command(BaseCommand):
             ("Retiro de escombros", "Residuos", etapas["Retiro de residuos"], Decimal("18"), "ton", Decimal("35.000000"), "2026-03-22"),
         ]
         RegistroEmision.objects.filter(obra=obra).delete()
+        registros = {}
         for fuente, categoria, etapa, cantidad, unidad, factor, fecha in registros_data:
-            RegistroEmision.objects.create(
+            registros[fuente] = RegistroEmision.objects.create(
                 obra=obra,
                 etapa=etapa,
                 categoria=categoria,
@@ -134,6 +141,42 @@ class Command(BaseCommand):
                 factor_emision=factor,
                 fecha=fecha,
                 proveedor="Proveedor demo",
+            )
+
+        TransporteObra.objects.filter(obra=obra).delete()
+        TransporteObra.objects.create(
+            obra=obra,
+            etapa=etapas["Fundaciones"],
+            vehiculo="Camion mixer",
+            patente="ABCD12",
+            origen="Planta hormigon Bio Bio",
+            destino="Edificio Habitacional Los Robles",
+            distancia_km=Decimal("28"),
+            consumo_estimado_litro_km=Decimal("0.3800"),
+            fecha_hora="2026-02-13T08:30:00Z",
+        )
+
+        EvidenciaObra.objects.filter(obra=obra).delete()
+        evidencias_data = [
+            ("Factura hormigon H30", EvidenciaObra.TipoEvidencia.FACTURA_MATERIAL, registros["Hormigon H30"]),
+            ("Guia despacho aridos", EvidenciaObra.TipoEvidencia.GUIA_DESPACHO, registros["Aridos"]),
+            ("Factura combustible maquinaria", EvidenciaObra.TipoEvidencia.FACTURA_COMBUSTIBLE, registros["Excavadora diesel"]),
+            ("Boleta electrica faena", EvidenciaObra.TipoEvidencia.BOLETA_ELECTRICA, registros["Electricidad de faena"]),
+            ("Ticket pesaje residuos", EvidenciaObra.TipoEvidencia.TICKET_PESAJE, registros["Residuos mixtos"]),
+            ("Registro retiro de escombros", EvidenciaObra.TipoEvidencia.REGISTRO_RESIDUOS, registros["Retiro de escombros"]),
+        ]
+        for nombre, tipo, registro in evidencias_data:
+            EvidenciaObra.objects.create(
+                constructora=constructora,
+                obra=obra,
+                etapa=registro.etapa,
+                registro_emision=registro,
+                tipo_evidencia=tipo,
+                estado_documental=EvidenciaObra.EstadoDocumental.VALIDADA,
+                fecha_documento=registro.fecha,
+                archivo="evidencias/demo/documento_demo.pdf",
+                nombre=nombre,
+                observaciones="Evidencia demo de construccion.",
             )
 
         self.stdout.write(self.style.SUCCESS("Datos demo de construccion creados correctamente."))

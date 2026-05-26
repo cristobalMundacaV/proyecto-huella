@@ -1,11 +1,11 @@
-from .activity_semantics import (
-    is_diesel_activity,
-    is_electricity_activity,
-    is_transport_activity,
+﻿from .emission_semantics import (
+    is_diesel_emission,
+    is_electricity_emission,
+    is_transport_emission,
 )
 
 
-def normalize_activity(value):
+def normalize_source(value):
     return str(value or "").strip().lower()
 
 
@@ -20,20 +20,20 @@ def simulate_rows(
     rows,
     diesel_reduction=0,
     electricity_increase=0,
-    selected_company="Todas",
+    selected_constructora="Todas",
 ):
     simulated_rows = []
 
     for row in rows:
-        empresa = row.get("empresa")
-        should_apply_company = selected_company in (None, "", "Todas", empresa)
+        constructora = row.get("constructora")
+        should_apply_constructora = selected_constructora in (None, "", "Todas", constructora)
         cantidad = to_float(row.get("cantidad"))
         factor = to_float(row.get("factor_emision"))
 
-        if should_apply_company and is_diesel_activity(row) and not is_transport_activity(row):
+        if should_apply_constructora and is_diesel_emission(row) and not is_transport_emission(row):
             cantidad *= 1 - to_float(diesel_reduction) / 100
 
-        if should_apply_company and is_electricity_activity(row):
+        if should_apply_constructora and is_electricity_emission(row):
             cantidad *= 1 + to_float(electricity_increase) / 100
 
         simulated_rows.append(
@@ -49,23 +49,23 @@ def simulate_rows(
 
 def summarize_rows(rows):
     total = sum(to_float(row.get("emisiones")) for row in rows)
-    by_company = {}
-    by_activity = {}
+    by_constructora = {}
+    by_source = {}
 
     for row in rows:
-        empresa = row.get("empresa", "Sin empresa")
-        actividad = row.get("actividad", "Sin actividad")
+        constructora = row.get("constructora", "Sin constructora")
+        fuente = row.get("fuente_emision", "Sin fuente")
         emisiones = to_float(row.get("emisiones"))
-        by_company[empresa] = by_company.get(empresa, 0) + emisiones
-        by_activity[actividad] = by_activity.get(actividad, 0) + emisiones
+        by_constructora[constructora] = by_constructora.get(constructora, 0) + emisiones
+        by_source[fuente] = by_source.get(fuente, 0) + emisiones
 
     return {
         "total_emisiones": total,
-        "emisiones_por_empresa": dict(
-            sorted(by_company.items(), key=lambda item: item[1], reverse=True)
+        "emisiones_por_constructora": dict(
+            sorted(by_constructora.items(), key=lambda item: item[1], reverse=True)
         ),
-        "emisiones_por_actividad": dict(
-            sorted(by_activity.items(), key=lambda item: item[1], reverse=True)
+        "emisiones_por_fuente": dict(
+            sorted(by_source.items(), key=lambda item: item[1], reverse=True)
         ),
         "datos": rows,
     }
@@ -76,9 +76,9 @@ def optimize_rows(rows):
     evaluated_scenarios = 0
     current_total = sum(to_float(row.get("emisiones")) for row in rows)
     has_diesel = any(
-        is_diesel_activity(row) and not is_transport_activity(row) for row in rows
+        is_diesel_emission(row) and not is_transport_emission(row) for row in rows
     )
-    has_electricity = any(is_electricity_activity(row) for row in rows)
+    has_electricity = any(is_electricity_emission(row) for row in rows)
 
     if not has_diesel and not has_electricity:
         return {
@@ -89,7 +89,7 @@ def optimize_rows(rows):
             "simulatedTotal": current_total,
             "reductionPct": 0,
             "rows": rows,
-            "message": "No hay actividades optimizables detectadas.",
+            "message": "No hay fuentes optimizables detectadas.",
         }
 
     diesel_range = range(0, 81, 5) if has_diesel else range(0, 1, 5)
@@ -131,15 +131,15 @@ def optimize_rows(rows):
 
 def calculate_risk_profile(summary, optimized_scenario=None):
     total = to_float(summary.get("total_emisiones"))
-    by_activity = summary.get("emisiones_por_actividad") or {}
-    by_unit = summary.get("emisiones_por_unidad_operativa") or {}
+    by_source = summary.get("emisiones_por_fuente") or {}
+    by_stage = summary.get("emisiones_por_etapa") or {}
     rows = summary.get("datos") or []
 
-    max_activity = max(by_activity.values(), default=0)
-    max_unit = max(by_unit.values(), default=0)
-    activity_concentration = (max_activity / total) * 100 if total > 0 else 0
-    unit_concentration = (max_unit / total) * 100 if total > 0 else 0
-    diesel_present = any(is_diesel_activity(row) for row in rows)
+    max_source = max(by_source.values(), default=0)
+    max_stage = max(by_stage.values(), default=0)
+    source_concentration = (max_source / total) * 100 if total > 0 else 0
+    stage_concentration = (max_stage / total) * 100 if total > 0 else 0
+    diesel_present = any(is_diesel_emission(row) for row in rows)
     potential_reduction = (
         max(to_float(optimized_scenario.get("reductionPct")), 0)
         if optimized_scenario
@@ -151,8 +151,8 @@ def calculate_risk_profile(summary, optimized_scenario=None):
 
     score = round(
         total_component * 0.3
-        + activity_concentration * 0.25
-        + unit_concentration * 0.2
+        + source_concentration * 0.25
+        + stage_concentration * 0.2
         + diesel_component * 0.15
         + potential_reduction * 0.1
     )
@@ -169,9 +169,8 @@ def calculate_risk_profile(summary, optimized_scenario=None):
         "label": label,
         "factors": {
             "totalEmissions": total,
-            "activityConcentration": activity_concentration,
-            "companyConcentration": unit_concentration,
-            "unitConcentration": unit_concentration,
+            "sourceConcentration": source_concentration,
+            "stageConcentration": stage_concentration,
             "dieselPresent": diesel_present,
             "potentialReduction": potential_reduction,
         },

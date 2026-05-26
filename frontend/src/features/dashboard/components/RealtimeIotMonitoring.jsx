@@ -152,11 +152,11 @@ function RealtimeIotMonitoring({ activeConstructoraId }) {
               title="Etapa con mÃ¡s emisiones hoy"
               value={
                 <span className="block text-xl leading-tight">
-                  {kpis?.unidad_mayor_emision_hoy || "Sin datos"}
+                  {kpis?.etapa_mayor_emision_hoy || "Sin datos"}
                 </span>
               }
               detail={`${formatNumber(
-                kpis?.unidad_mayor_emision_hoy_kg_co2e || 0,
+                kpis?.etapa_mayor_emision_hoy_kg_co2e || 0,
                 2
               )} kg CO2e`}
               tone="info"
@@ -207,7 +207,7 @@ function RealtimeIotMonitoring({ activeConstructoraId }) {
                           {lectura.sensor}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3">
-                          {lectura.etapa}
+                          {lectura.etapa_obra}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3">
                           {formatTipo(lectura.tipo)}

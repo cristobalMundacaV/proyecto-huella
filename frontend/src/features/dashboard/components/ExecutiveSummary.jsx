@@ -301,7 +301,7 @@ function ExecutiveSummary({
           />
           <ScoreFactor
             label="Concentracion etapa"
-            value={`${formatNumber(riskProfile.factors.companyConcentration, 0)}%`}
+            value={`${formatNumber(riskProfile.factors.stageConcentration, 0)}%`}
             tone="info"
           />
           <ScoreFactor

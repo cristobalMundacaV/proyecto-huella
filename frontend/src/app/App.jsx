@@ -96,14 +96,14 @@ const worksiteReductionSteps = [
       "Priorizar gruas, equipos de patio, montacargas o vehiculos livianos cuando sea viable.",
   },
   {
-    title: "Planificar mejor acopio y secuencia de obra",
+    title: "Planificar mejor logistica y secuencia de obra",
     detail:
-      "Acercar puntos de acopio, reducir movimientos internos y evitar traslados repetidos entre frentes.",
+      "Acercar puntos de logistica, reducir movimientos internos y evitar traslados repetidos entre frentes.",
   },
   {
     title: "Medir litros por frente",
     detail:
-      "Separar consumo por cosecha, despacho, transporte, maquinaria y vehiculos.",
+      "Separar consumo por preparacion, transporte, maquinaria, energia y residuos.",
   },
 ];
 
@@ -323,16 +323,22 @@ function App() {
 const dashboardRows = Array.isArray(data?.datos) ? data.datos : [];
 
 const emisionesPorConstructora = data?.emisiones_por_Constructora ?? {};
-const emisionesPorActividad = data?.emisiones_por_fuente_emision ?? {};
+const emisionesPorActividad = data?.emisiones_por_fuente_emision ?? data?.top_fuentes_criticas ?? {};
 const emisionesPorEtapa =
   data?.emisiones_por_etapa ?? data?.emisiones_por_unidad ?? {};
 
-const registros_emision = Object.entries(emisionesPorActividad).map(
-  ([fuente_emision, emisiones]) => ({
-    fuente_emision,
-    emisiones,
-  })
-);
+const registros_emision = Array.isArray(emisionesPorActividad)
+  ? emisionesPorActividad.map((item) => ({
+      fuente_emision: item.fuente_emision || item.source || "Sin fuente",
+      emisiones: item.emisiones_kg_co2e || item.emisiones || 0,
+      categoria: item.categoria || "Otros",
+      obra: item.obra || item.work || item.obra_nombre || "Obra principal",
+      etapa: item.obra_etapa || item.stage || item.etapa || "Sin etapa",
+    }))
+  : Object.entries(emisionesPorActividad).map(([fuente_emision, emisiones]) => ({
+      fuente_emision,
+      emisiones,
+    }));
 
 const etapas = Object.entries(emisionesPorEtapa).map(
   ([unidad, emisiones]) => ({
@@ -377,7 +383,7 @@ const rowsWithCategories = dashboardRows.map((row) => ({
 const totalEmissions = Number(safeDashboardData.total_emisiones || 0);
 const emissionsByWork = Object.values(
   rowsWithCategories.reduce((accumulator, row) => {
-    const workCode = row.codigo_obra || row.obra || "Sin obra";
+    const workCode = row.codigo_obra || row.obra_codigo || row.obra_nombre || row.obra || "Obra principal";
     const current = accumulator[workCode] || {
       name: workCode,
       emissions: 0,
@@ -399,8 +405,13 @@ const totalDeclaredSurface = emissionsByWork.reduce(
   (total, work) => total + Number(work.surface || 0),
   0
 );
+const backendCarbonIntensity = Number(data?.intensidad_carbono);
 const carbonIntensity =
-  totalDeclaredSurface > 0 ? totalEmissions / totalDeclaredSurface : null;
+  Number.isFinite(backendCarbonIntensity) && backendCarbonIntensity > 0
+    ? backendCarbonIntensity
+    : totalDeclaredSurface > 0
+      ? totalEmissions / totalDeclaredSurface
+      : null;
 const categoryDistribution = constructionCategories
   .map((category) => {
     const emissions = rowsWithCategories.reduce(
@@ -437,10 +448,10 @@ const topSources = Object.values(
     const source = row.fuente_emision || "Sin fuente";
     const key = `${source}|${row.categoria_visible}|${row.codigo_obra || ""}|${row.etapa_nombre || ""}`;
     const current = accumulator[key] || {
-      Activity,
+      source,
       category: row.categoria_visible || "Otros",
-      work: row.codigo_obra || "Sin obra",
-      stage: row.etapa_nombre || "Sin etapa",
+      work: row.codigo_obra || row.obra_codigo || row.obra_nombre || row.obra || "Obra principal",
+      stage: row.etapa_nombre || row.etapa || "Sin etapa",
       emissions: 0,
     };
     current.emissions += Number(row.emisiones || row.emisiones_kg_co2e || 0);

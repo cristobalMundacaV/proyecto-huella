@@ -8,36 +8,35 @@ from urllib import error, request
 API_URL = os.getenv("API_URL", "http://localhost:8000/api/iot/lecturas/")
 INTERVAL_SECONDS = float(os.getenv("SIMULATOR_INTERVAL_SECONDS", "5"))
 
-EMPRESAS = [
-    "Maderas Los Robles SpA",
-    "Maderas Andinas del Sur SpA",
-    "Forestal Cordillera Austral SpA",
+CONSTRUCTORAS = [
+    "Constructora Andina SpA",
+    "Constructora Pacifico SpA",
+    "Constructora Urbana Sur SpA",
 ]
 
-UNIDADES_OPERATIVAS = [
-    "Aserradero Principal",
-    "Despacho y Transporte",
-    "Secado de Madera",
-    "Bodega de Materias Primas",
-    "Area de Mantencion",
-    "Administracion",
-    "Planta de Tratamiento",
+ETAPAS_OBRA = [
+    "Excavacion y movimiento de tierra",
+    "Fundaciones",
+    "Obra gruesa",
+    "Instalaciones",
+    "Terminaciones",
+    "Retiro de residuos",
 ]
 
 SENSORES = [
-    {"sensor": "SENSOR-DIESEL-001", "tipo": "diesel_litros", "min": 4, "max": 22},
-    {"sensor": "SENSOR-ELECTRICIDAD-001", "tipo": "electricidad_kwh", "min": 12, "max": 95},
-    {"sensor": "SENSOR-MAQUINARIA-001", "tipo": "horas_maquinaria", "min": 0.25, "max": 4},
-    {"sensor": "SENSOR-TEMP-001", "tipo": "temperatura", "min": 12, "max": 38},
-    {"sensor": "SENSOR-HUMEDAD-001", "tipo": "humedad", "min": 30, "max": 85},
+    {"sensor": "SENSOR-DIESEL-EXC-001", "tipo": "diesel_litros", "min": 4, "max": 22},
+    {"sensor": "SENSOR-ELECTRICIDAD-FAENA-001", "tipo": "electricidad_kwh", "min": 12, "max": 95},
+    {"sensor": "SENSOR-HORAS-MAQUINARIA-001", "tipo": "horas_maquinaria", "min": 0.25, "max": 4},
+    {"sensor": "SENSOR-TEMP-OBRA-001", "tipo": "temperatura", "min": 8, "max": 34},
+    {"sensor": "SENSOR-HUMEDAD-OBRA-001", "tipo": "humedad", "min": 25, "max": 90},
 ]
 
 
 def generar_lectura():
     sensor = random.choice(SENSORES)
     return {
-        "empresa": random.choice(EMPRESAS),
-        "unidad_operativa": random.choice(UNIDADES_OPERATIVAS),
+        "constructora": random.choice(CONSTRUCTORAS),
+        "etapa_obra": random.choice(ETAPAS_OBRA),
         "sensor": sensor["sensor"],
         "tipo": sensor["tipo"],
         "valor": round(random.uniform(sensor["min"], sensor["max"]), 3),
@@ -71,7 +70,7 @@ def describir_error_http(exc):
 
 
 def main():
-    print(f"Simulador IoT enviando lecturas a {API_URL}", flush=True)
+    print(f"Simulador IoT enviando lecturas de obra a {API_URL}", flush=True)
     print(f"Intervalo de envio: {INTERVAL_SECONDS} segundos", flush=True)
     while True:
         payload = generar_lectura()
@@ -79,8 +78,7 @@ def main():
             status, response = enviar_lectura(payload)
             print(
                 f"[{status}] {payload['sensor']} {payload['tipo']}="
-                f"{payload['valor']} -> {response.get('co2e_estimado')} kg CO2e"
-                ,
+                f"{payload['valor']} -> {response.get('co2e_estimado')} kg CO2e",
                 flush=True,
             )
         except error.HTTPError as exc:

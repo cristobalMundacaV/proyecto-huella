@@ -55,12 +55,7 @@ def _extract_pdf_text(file_obj):
         pass
 
     reader = PdfReader(file_obj)
-    parts = []
-
-    for page in reader.pages:
-        parts.append(page.extract_text() or "")
-
-    return "\n".join(parts).strip()
+    return "\n".join(page.extract_text() or "" for page in reader.pages).strip()
 
 
 def _extract_docx_text(file_obj):
@@ -73,8 +68,7 @@ def _extract_docx_text(file_obj):
         pass
 
     document = Document(file_obj)
-    parts = [paragraph.text for paragraph in document.paragraphs if paragraph.text]
-    return "\n".join(parts).strip()
+    return "\n".join(paragraph.text for paragraph in document.paragraphs if paragraph.text).strip()
 
 
 def extraer_texto_archivo(archivo):
@@ -98,7 +92,6 @@ def extraer_texto_archivo(archivo):
         }
     finally:
         close_method = getattr(archivo, "close", None)
-
         if callable(close_method):
             try:
                 close_method()
@@ -108,23 +101,18 @@ def extraer_texto_archivo(archivo):
 
 def _first_match(pattern, text, flags=re.IGNORECASE):
     match = re.search(pattern, text, flags)
-
     if not match:
         return ""
-
     for group in match.groups():
         if group:
             return group.strip()
-
     return ""
 
 
 def _normalize_number(value):
     if not value:
         return None
-
     cleaned = value.replace(".", "").replace(",", ".")
-
     try:
         return float(cleaned)
     except ValueError:
@@ -134,27 +122,31 @@ def _normalize_number(value):
 def _normalize_date(value):
     if not value:
         return None
-
     for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d/%m/%y"):
         try:
             return datetime.strptime(value, fmt).date().isoformat()
         except ValueError:
             continue
-
     return value
 
 
-def inferir_documento_desde_texto(texto):
+def inferir_evidencia_desde_texto(texto):
     cleaned_text = texto or ""
     lower_text = cleaned_text.lower()
-    tipo_documento = "documento_generico"
+    tipo_evidencia = "otro"
 
     if "factura" in lower_text and ("diesel" in lower_text or "combustible" in lower_text):
-        tipo_documento = "factura_combustible"
-    elif "guia" in lower_text or "guía" in lower_text:
-        tipo_documento = "guia_despacho"
-    elif "docx" in lower_text:
-        tipo_documento = "documento_oficina"
+        tipo_evidencia = "factura_combustible"
+    elif "factura" in lower_text:
+        tipo_evidencia = "factura_material"
+    elif "guia" in lower_text or "guia de despacho" in lower_text:
+        tipo_evidencia = "guia_despacho"
+    elif "orden de compra" in lower_text:
+        tipo_evidencia = "orden_compra"
+    elif "boleta" in lower_text and "electric" in lower_text:
+        tipo_evidencia = "boleta_electrica"
+    elif "ticket" in lower_text or "pesaje" in lower_text:
+        tipo_evidencia = "ticket_pesaje"
 
     fecha = _normalize_date(
         _first_match(r"(\d{4}-\d{2}-\d{2}|\d{2}[/-]\d{2}[/-]\d{4}|\d{2}[/-]\d{2}[/-]\d{2})", cleaned_text)
@@ -162,31 +154,36 @@ def inferir_documento_desde_texto(texto):
     litros_match = _first_match(
         r"(?:litros(?:\s+diesel)?|lts|l)\s*:?\s*(\d+(?:[.,]\d+)?)",
         cleaned_text,
+    ) or _first_match(
+        r"(\d+(?:[.,]\d+)?)\s*(?:litros(?:\s+diesel)?|lts|l\b)",
+        cleaned_text,
+    )
+    cantidad_match = _first_match(
+        r"(?:cantidad|total|volumen)\s*:?\s*(\d+(?:[.,]\d+)?)",
+        cleaned_text,
     )
 
-    if not litros_match:
-        litros_match = _first_match(
-            r"(\d+(?:[.,]\d+)?)\s*(?:litros(?:\s+diesel)?|lts|l\b)",
-            cleaned_text,
-        )
-
-    litros_diesel = _normalize_number(litros_match)
+    litros_combustible = _normalize_number(litros_match)
+    cantidad = _normalize_number(cantidad_match) or litros_combustible
     patente = _first_match(r"(?:patente)\s*:?\s*([A-Z0-9-]{5,10})", cleaned_text)
-    id_lote = _first_match(r"(LOTE-[A-Z0-9-]+)", cleaned_text)
+    codigo_obra = _first_match(r"(OBRA-[A-Z0-9-]+)", cleaned_text)
+    proveedor = _first_match(r"(?:proveedor|emisor)\s*:?\s*([^\n\r]+)", cleaned_text)
 
     matched_fields = sum(
         1
-        for value in [fecha, litros_diesel, patente, id_lote]
+        for value in [fecha, cantidad, patente, codigo_obra, proveedor]
         if value not in (None, "")
     )
     confianza = round(min(0.45 + matched_fields * 0.12, 0.96), 2)
 
     return {
-        "tipo_documento": tipo_documento,
+        "tipo_evidencia": tipo_evidencia,
         "fecha": fecha,
-        "litros_diesel": litros_diesel,
+        "cantidad": cantidad,
+        "litros_combustible": litros_combustible,
         "patente": patente,
-        "id_lote": id_lote,
+        "codigo_obra": codigo_obra,
+        "proveedor": proveedor,
         "confianza": confianza,
         "fuente": "heuristica",
     }
@@ -194,63 +191,59 @@ def inferir_documento_desde_texto(texto):
 
 def _parse_json_blob(raw_text):
     text = (raw_text or "").strip()
-
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text)
         text = re.sub(r"\s*```$", "", text)
 
     start = text.find("{")
     end = text.rfind("}")
-
     if start != -1 and end != -1:
         text = text[start : end + 1]
-
     return json.loads(text)
 
 
 def _normalize_ai_output(data, fallback):
     normalized = {
-        "tipo_documento": data.get("tipo_documento") or fallback["tipo_documento"],
+        "tipo_evidencia": data.get("tipo_evidencia") or fallback["tipo_evidencia"],
         "fecha": _normalize_date(data.get("fecha") or fallback["fecha"]),
-        "litros_diesel": data.get("litros_diesel", data.get("litros_combustible")),
+        "cantidad": data.get("cantidad", fallback["cantidad"]),
+        "litros_combustible": data.get("litros_combustible", fallback["litros_combustible"]),
         "patente": data.get("patente") or fallback["patente"],
-        "id_lote": data.get("id_lote") or fallback["id_lote"],
+        "codigo_obra": data.get("codigo_obra") or fallback["codigo_obra"],
+        "proveedor": data.get("proveedor") or fallback["proveedor"],
         "confianza": data.get("confianza", fallback["confianza"]),
         "fuente": data.get("fuente") or fallback["fuente"],
     }
-
-    if normalized["litros_diesel"] is None:
-        normalized["litros_diesel"] = fallback["litros_diesel"]
-
     try:
         normalized["confianza"] = float(normalized["confianza"])
     except (TypeError, ValueError):
         normalized["confianza"] = fallback["confianza"]
-
     return normalized
 
 
-def extraer_documento_estructurado(texto):
-    fallback = inferir_documento_desde_texto(texto)
-
+def extraer_evidencia_estructurada(texto):
+    fallback = inferir_evidencia_desde_texto(texto)
     if not settings.OPENAI_API_KEY:
         return fallback
 
     prompt = f"""
-Eres un extractor de datos documentales para una plataforma de trazabilidad ambiental.
+Eres un extractor de datos documentales para obras de construccion.
 
 Devuelve SOLO JSON valido, sin markdown ni explicaciones, con estas claves exactas:
-- tipo_documento
+- tipo_evidencia
 - fecha
-- litros_diesel
+- cantidad
+- litros_combustible
 - patente
-- id_lote
+- codigo_obra
+- proveedor
 - confianza
 
 Reglas:
 - Si un dato no aparece, usa null.
 - fecha debe ir en formato ISO YYYY-MM-DD si puedes inferirla.
 - confianza debe ser un numero entre 0 y 1.
+- Los tipos de evidencia validos son factura_material, guia_despacho, orden_compra, factura_combustible, boleta_electrica, ticket_pesaje, ficha_tecnica_material, certificado_proveedor, registro_maquinaria, registro_retiro_residuos, documento_transporte u otro.
 
 Texto del documento:
 {texto}
@@ -258,22 +251,18 @@ Texto del documento:
 
     try:
         client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        response = client.responses.create(
-            model="gpt-5-mini",
-            input=prompt,
-        )
-        parsed = _parse_json_blob(response.output_text)
-        normalized = _normalize_ai_output(parsed, fallback)
+        response = client.responses.create(model="gpt-5-mini", input=prompt)
+        normalized = _normalize_ai_output(_parse_json_blob(response.output_text), fallback)
         normalized["fuente"] = "ia"
         return normalized
     except (APIConnectionError, APIStatusError, ValueError, json.JSONDecodeError):
         return fallback
 
 
-def extraer_documento_desde_archivo(archivo):
+def extraer_evidencia_desde_archivo(archivo):
     resultado_texto = extraer_texto_archivo(archivo)
     texto = resultado_texto["texto_extraido"]
-    structured = extraer_documento_estructurado(texto)
+    structured = extraer_evidencia_estructurada(texto)
 
     return {
         **resultado_texto,

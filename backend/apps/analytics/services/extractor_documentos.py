@@ -1,5 +1,5 @@
-"""Wrapper para `services.documentos` proporcionando una interfaz `ExtractorDocumentos`."""
-from .documentos import extraer_documento_estructurado, extraer_texto_archivo
+"""Interfaz para extraer datos desde evidencias documentales de obra."""
+from .documentos_obra import extraer_evidencia_estructurada, extraer_texto_archivo
 
 
 class ExtractorDocumentos:
@@ -9,7 +9,7 @@ class ExtractorDocumentos:
 
     @staticmethod
     def extraer_estructura_desde_texto(texto):
-        return extraer_documento_estructurado(texto)
+        return extraer_evidencia_estructurada(texto)
 
 
 __all__ = ["ExtractorDocumentos"]

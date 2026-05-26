@@ -19,7 +19,7 @@ import { Field } from "../common";
 import RouteMapPicker from "../RouteMapPicker";
 
 const fuelUseOptions = [
-  { value: "cosecha", label: "PreparaciÃ³n / movimiento" },
+  { value: "preparacion", label: "PreparaciÃ³n / movimiento" },
   { value: "despacho", label: "Despacho" },
   { value: "transporte", label: "Transporte" },
   { value: "maquinaria", label: "Maquinaria" },

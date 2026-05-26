@@ -3,23 +3,21 @@
   ["factura_combustible", "Factura de combustible"],
   ["factura_electrica", "Boleta elÃ©ctrica"],
   ["boleta_electrica", "Boleta elÃ©ctrica"],
-  ["certificado_origen", "Certificado de proveedor"],
-  ["certificado_forestal", "Certificado de proveedor"],
-  ["evidencia_transporte", "Evidencia de transporte"],
+  ["certificado_proveedor", "Certificado de proveedor"],  ["documento_transporte", "Documento de transporte"],
   ["ticket_pesaje", "Ticket de pesaje"],
-  ["registro_gps", "Registro de maquinaria"],
-  ["fotografia", "Registro fotogrÃ¡fico"],
-  ["ficha_tecnica", "Ficha tÃ©cnica de material"],
+  ["registro_maquinaria", "Registro de maquinaria"],
+  ["registro_maquinaria", "Registro de maquinaria"],
+  ["ficha_tecnica_material", "Ficha tecnica de material"],
   ["otro", "Otro"],
 ];
 
 const constructionWorkDocumentTypeOptions = [
   ["guia_despacho", "GuÃ­a de despacho"],
-  ["registro_produccion", "Factura de material"],
-  ["evidencia_origen", "Orden de compra / Ficha tÃ©cnica"],
+  ["factura_material", "Factura de material"],
+  ["orden_compra", "Orden de compra"],
   ["factura_combustible", "Factura de combustible"],
   ["boleta_electrica", "Boleta elÃ©ctrica"],
-  ["registro_transporte", "Evidencia de transporte"],
+  ["documento_transporte", "Documento de transporte"],
   ["otro", "Otro"],
 ];
 
