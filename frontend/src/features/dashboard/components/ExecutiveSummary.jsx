@@ -1,4 +1,4 @@
-﻿const formatNumber = (value, maximumFractionDigits = 2) =>
+const formatNumber = (value, maximumFractionDigits = 2) =>
   new Intl.NumberFormat("es-CL", {
     minimumFractionDigits: 0,
     maximumFractionDigits,
@@ -38,6 +38,30 @@ const formatFocusForSentence = (value) => {
 
 const formatViabilityForSentence = (value) =>
   String(value || "").trim().toLowerCase();
+
+const isValidExecutiveLabel = (value) => {
+  const text = String(value ?? "").trim();
+  const normalized = text.toLowerCase();
+
+  return Boolean(
+    text &&
+      text !== "0" &&
+      normalized !== "null" &&
+      normalized !== "undefined" &&
+      normalized !== "nan"
+  );
+};
+
+const getExecutiveLabel = (value, fallback) =>
+  isValidExecutiveLabel(value) ? String(value).trim() : fallback;
+
+const hasValidScenario = (scenario) =>
+  Boolean(
+    scenario &&
+      Number(scenario.currentTotal) > 0 &&
+      Number(scenario.simulatedTotal) > 0 &&
+      Number(scenario.reductionPct) > 0
+  );
 
 const capRangeToPotential = (range, potentialReduction) => {
   if (!potentialReduction || potentialReduction <= 0) {
@@ -141,13 +165,24 @@ function ExecutiveSummary({
   reductionEquivalentKm,
   riskProfile,
 }) {
-  const unidadCriticaLabel = unidadCritica || "Sin datos";
-  const strategicPlan = buildStrategicPlan(fuenteCritica, optimizedScenario);
-  const recommendedDecision = optimizedScenario
+  const fuenteCriticaLabel = getExecutiveLabel(
+    fuenteCritica,
+    "Fuente crítica sin datos suficientes"
+  );
+  const unidadCriticaLabel = getExecutiveLabel(
+    unidadCritica,
+    "Sin etapa suficiente"
+  );
+  const hasValidOptimizedScenario = hasValidScenario(optimizedScenario);
+  const scenarioForPlan = hasValidOptimizedScenario ? optimizedScenario : null;
+  const strategicPlan = buildStrategicPlan(fuenteCriticaLabel, scenarioForPlan);
+  const recommendedDecision = hasValidOptimizedScenario
     ? strategicPlan.principalRecommendation
-    : "Definir un plan progresivo con metas por fases";
-  const currentTotal = optimizedScenario?.currentTotal || 0;
-  const simulatedTotal = optimizedScenario?.simulatedTotal || 0;
+    : "Completar registros, asociar etapas y validar factores de emisión antes de definir un porcentaje de reducción. Luego priorizar la fuente crítica detectada con acciones progresivas y medibles.";
+  const currentTotal = Number(optimizedScenario?.currentTotal || 0);
+  const simulatedTotal = hasValidOptimizedScenario
+    ? Number(optimizedScenario?.simulatedTotal || 0)
+    : 0;
   const avoidedEmissions = Math.max(currentTotal - simulatedTotal, 0);
   const equivalentCarKm =
     reductionEquivalentKm != null ? reductionEquivalentKm : avoidedEmissions * 4;
@@ -157,12 +192,12 @@ function ExecutiveSummary({
     currentTotal * (1 - mediumImpactReductionPct / 100),
     0
   );
-  const estimatedImpact = optimizedScenario
+  const estimatedImpact = hasValidOptimizedScenario
     ? `con un potencial proyectado de reducción del ${formatNumber(
         optimizedScenario.reductionPct,
         1
       )}% en las emisiones totales bajo el escenario máximo.`
-    : "Sin calcular";
+    : "Aún no existe un escenario de reducción calculado con datos suficientes.";
   const riskTone =
     riskProfile.score > 70
       ? "border-[var(--kpi-danger-border)] bg-[var(--kpi-danger-bg)] text-[var(--kpi-danger-text)]"
@@ -182,18 +217,18 @@ function ExecutiveSummary({
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
           <h2 className="text-3xl font-black tracking-tight text-[var(--text-main)] sm:text-[2.05rem]">
-            {optimizedScenario
+            {hasValidOptimizedScenario
               ? `Potencial de reduccion del ${formatNumber(
                   optimizedScenario.reductionPct,
                   1
                 )}% con una reduccion progresiva en ${formatTitleCase(
-                  fuenteCritica
+                  fuenteCriticaLabel
                 )}`
-              : `Carbono Zero recomienda un plan gradual sobre ${fuenteCritica}`}
+              : `Priorizar intervención sobre ${fuenteCriticaLabel}`}
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
             El principal foco de impacto se concentra en{" "}
-            {formatFocusForSentence(fuenteCritica)}, siendo {unidadCriticaLabel}{" "}
+            {formatFocusForSentence(fuenteCriticaLabel)}, siendo {unidadCriticaLabel}{" "}
             la etapa prioritaria. El nivel de viabilidad es{" "}
             <strong>{formatViabilityForSentence(strategicPlan.viability)}</strong>,{" "}
             {optimizedScenario ? estimatedImpact : "sin calcular."}
@@ -211,7 +246,7 @@ function ExecutiveSummary({
         </div>
       </div>
 
-      {optimizedScenario && (
+      {hasValidOptimizedScenario && (
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
           <BeforeAfterCard
             label="Emisiones actuales"
@@ -232,7 +267,7 @@ function ExecutiveSummary({
       )}
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        <SummaryItem label="Foco principal" value={fuenteCritica} tone="warning" />
+        <SummaryItem label="Foco principal" value={fuenteCriticaLabel} tone="warning" />
         <SummaryItem label="Etapa prioritaria" value={unidadCriticaLabel} tone="info" />
         <SummaryItem label="Esc. recomendado" value={formatPercentRange(strategicPlan.recommendedRange)} tone="info" />
 
@@ -245,9 +280,9 @@ function ExecutiveSummary({
         <SummaryItem
           label="Reducción estimada"
           value={
-            optimizedScenario
+            hasValidOptimizedScenario
               ? `${formatNumber(optimizedScenario.reductionPct, 1)}%`
-              : estimatedImpact
+              : "Pendiente"
           }
           tone="success"
         />
@@ -307,7 +342,11 @@ function ExecutiveSummary({
           />
           <ScoreFactor
             label="Potencial reduccion"
-            value={`${formatNumber(riskProfile.factors.potentialReduction, 1)}%`}
+            value={
+              hasValidOptimizedScenario
+                ? `${formatNumber(riskProfile.factors.potentialReduction, 1)}%`
+                : "Pendiente"
+            }
             tone="success"
           />
         </div>
