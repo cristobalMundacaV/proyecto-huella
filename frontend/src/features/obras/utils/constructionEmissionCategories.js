@@ -15,7 +15,7 @@ export const constructionFactorSuggestions = [
   "Cemento",
   "Acero estructural",
   "Ãridos",
-  "Madera estructural",
+  "Panel industrializado",
   "DiÃ©sel maquinaria",
   "Gasolina",
   "Electricidad",

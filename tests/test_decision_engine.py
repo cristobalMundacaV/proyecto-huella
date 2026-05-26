@@ -1,4 +1,4 @@
-import unittest
+﻿import unittest
 import sys
 from pathlib import Path
 
@@ -18,15 +18,15 @@ class DecisionEngineTest(unittest.TestCase):
     def setUp(self):
         self.rows = [
             {
-                "empresa": "Empresa A",
-                "actividad": "diesel",
+                "constructora": "constructora A",
+                "fuente_emision": "diesel",
                 "cantidad": 100,
                 "factor_emision": 2.68,
                 "emisiones": 268,
             },
             {
-                "empresa": "Empresa B",
-                "actividad": "electricidad",
+                "constructora": "constructora B",
+                "fuente_emision": "electricidad",
                 "cantidad": 200,
                 "factor_emision": 0.4,
                 "emisiones": 80,
@@ -52,7 +52,7 @@ class DecisionEngineTest(unittest.TestCase):
         riesgo = calculate_risk_profile(summary, optimized)
 
         self.assertIn("score", riesgo)
-        self.assertIn("activityConcentration", riesgo["factors"])
+        self.assertIn("sourceConcentration", riesgo["factors"])
         self.assertTrue(riesgo["factors"]["dieselPresent"])
 
 

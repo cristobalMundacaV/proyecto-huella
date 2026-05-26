@@ -1,5 +1,4 @@
-empresa,actividad,cantidad
-Empresa A,diesel,100
-Empresa A,electricidad,500
-Empresa B,diesel,200
-Empresa B,electricidad,300
+﻿constructora,fuente_emision,cantidad
+Constructora Andina SpA,diesel_maquinaria,100
+Constructora Andina SpA,electricidad,500
+Constructora Pacifico SpA,hormigon_h30,25

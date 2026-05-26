@@ -68,7 +68,6 @@ function ImportarEvidenciaObraModal({
     unit: "",
     factorEmision: "",
     factorEmisionId: "",
-    source: "",
     estimatedEmissions: "",
   });
 
@@ -131,7 +130,6 @@ function ImportarEvidenciaObraModal({
       unit: "",
       factorEmision: "",
       factorEmisionId: "",
-      source: "",
       estimatedEmissions: "",
     });
     setSelectedObraId(initialObraId || "");
@@ -182,7 +180,6 @@ function ImportarEvidenciaObraModal({
       unit: suggestion.emission.unit || "",
       factorEmision: suggestion.emission.factorEmision || "",
       factorEmisionId: String(suggestion.emission.factorEmisionId || ""),
-      source: suggestion.emission.source || "",
       estimatedEmissions: suggestion.emission.estimatedEmissions || "",
     });
     setDocumentDate(structured?.fecha || suggestion.document?.date || documentDate || "");
@@ -485,7 +482,7 @@ function ImportarEvidenciaObraModal({
               <span>Fuente / fuente_emision</span>
               <input
                 value={draft.source}
-                onChange={(event) => setDraft((current) => ({ ...current, source: event.target.value, source: event.target.value }))}
+                onChange={(event) => setDraft((current) => ({ ...current, source: event.target.value }))}
                 className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] outline-none"
               />
             </label>

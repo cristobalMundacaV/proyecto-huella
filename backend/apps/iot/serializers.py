@@ -8,8 +8,8 @@ class LecturaSensorSerializer(serializers.ModelSerializer):
         model = LecturaSensor
         fields = [
             "id",
-            "empresa",
-            "unidad_operativa",
+            "constructora",
+            "etapa_obra",
             "sensor",
             "tipo",
             "valor",

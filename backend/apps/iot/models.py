@@ -30,8 +30,8 @@ class LecturaSensor(models.Model):
         Tipo.HUMEDAD: Decimal("0"),
     }
 
-    empresa = models.CharField(max_length=180)
-    unidad_operativa = models.CharField(max_length=180)
+    constructora = models.CharField(max_length=180)
+    etapa_obra = models.CharField(max_length=180)
     sensor = models.CharField(max_length=120)
     tipo = models.CharField(max_length=40, choices=Tipo.choices)
     valor = models.DecimalField(max_digits=12, decimal_places=3)
@@ -44,7 +44,7 @@ class LecturaSensor(models.Model):
         indexes = [
             models.Index(fields=["fecha_registro"]),
             models.Index(fields=["sensor", "fecha_registro"]),
-            models.Index(fields=["empresa", "fecha_registro"]),
+            models.Index(fields=["constructora", "fecha_registro"]),
             models.Index(fields=["tipo", "fecha_registro"]),
         ]
 
