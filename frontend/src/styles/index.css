@@ -1,24 +1,29 @@
 @import "tailwindcss";
 
 :root {
-  --bg-main: #eef2ef;
-  --bg-surface: #f7f9f7;
-  --bg-card: #fcfdfc;
-  --sidebar: #0f2a24;
-  --sidebar-active: #17453b;
-  --primary: #0fa47a;
-  --primary-dark: #0b7d5d;
-  --secondary: #2d6a5a;
-  --text-main: #1f2937;
-  --text-muted: #667085;
-  --border: #d7e0da;
-  --shadow: rgba(15, 23, 42, 0.06);
-  --success-bg: #e8f5ee;
-  --warning-bg: #f8f1de;
-  --danger-bg: #f8e8e8;
-  --info-bg: #eaf3f1;
-  --shadow-soft: 0 20px 50px rgba(15, 23, 42, 0.07);
-  --shadow-card: 0 10px 30px rgba(15, 23, 42, 0.055);
+  --bg-main: #F5F6F2;
+  --bg-surface: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --sidebar: #0B1F1A;
+  --sidebar-active: #123D34;
+  --primary: #0E7C66;
+  --primary-dark: #095C4C;
+  --secondary: #334155;
+  --text-main: #0F172A;
+  --text-muted: #64748B;
+  --border: #DDE5E0;
+  --shadow: rgba(15, 23, 42, 0.07);
+  --success-bg: #ECFDF3;
+  --warning-bg: #FFF7E6;
+  --danger-bg: #FEF2F2;
+  --info-bg: #EFF6FF;
+  --success: #15803D;
+  --warning: #B45309;
+  --danger: #B42318;
+  --info: #2563EB;
+  --accent-construction: #F59E0B;
+  --shadow-soft: 0 20px 50px rgba(15, 23, 42, 0.08);
+  --shadow-card: 0 10px 28px rgba(15, 23, 42, 0.07);
 }
 
 * {
@@ -61,8 +66,7 @@ main > section .text-slate-500 {
 
 main > section .text-emerald-300,
 main > section .text-emerald-400,
-main > section .text-cyan-200,
-main > section .text-cyan-300 {
+main > section .text-emerald-500 {
   color: var(--primary-dark) !important;
 }
 
@@ -98,18 +102,25 @@ main > section .text-blue-100,
 main > section .text-blue-200,
 main > section .text-blue-300,
 main > section .text-blue-400 {
-  color: #075985 !important;
+  color: var(--info) !important;
 }
 
 main > section .bg-emerald-400\/10,
 main > section .bg-emerald-400\/20,
 main > section .bg-green-400\/10,
 main > section .bg-green-400\/20,
+main > section .bg-emerald-500\/10,
+main > section .bg-emerald-500\/20 {
+  background-color: var(--success-bg) !important;
+}
+
 main > section .bg-cyan-400\/10,
 main > section .bg-cyan-400\/20,
 main > section .bg-sky-400\/10,
-main > section .bg-sky-400\/20 {
-  background-color: var(--success-bg) !important;
+main > section .bg-sky-400\/20,
+main > section .bg-blue-400\/10,
+main > section .bg-blue-400\/20 {
+  background-color: var(--info-bg) !important;
 }
 
 main > section .border-emerald-400\/20,
@@ -117,10 +128,14 @@ main > section .border-emerald-400\/30,
 main > section .border-emerald-400\/40,
 main > section .border-green-400\/20,
 main > section .border-green-400\/30,
+main > section .border-emerald-500\/20,
+main > section .border-emerald-500\/30,
 main > section .border-cyan-400\/20,
 main > section .border-cyan-400\/30,
 main > section .border-sky-400\/20,
-main > section .border-sky-400\/30 {
+main > section .border-sky-400\/30,
+main > section .border-blue-400\/20,
+main > section .border-blue-400\/30 {
   border-color: var(--border) !important;
 }
 
@@ -144,6 +159,13 @@ main > section .recharts-cartesian-grid line {
   opacity: 0.85;
 }
 
+main > section .recharts-pie-sector,
+main > section .recharts-bar-rectangle,
+main > section .recharts-area-area,
+main > section .recharts-line-curve {
+  filter: saturate(0.95);
+}
+
 main > section .recharts-tooltip-wrapper {
   color: var(--text-main);
 }
@@ -152,19 +174,27 @@ main > section .bg-amber-400\/10 {
   background-color: var(--warning-bg) !important;
 }
 
+main > section .bg-amber-400\/20,
+main > section .bg-yellow-400\/10,
+main > section .bg-yellow-400\/20 {
+  background-color: var(--warning-bg) !important;
+}
+
 main > section .border-amber-400\/20,
 main > section .border-amber-400\/30 {
-  border-color: #e1c56f !important;
+  border-color: #FED7AA !important;
 }
 
 main > section .text-amber-100,
-main > section .text-amber-200 {
-  color: #7a4f00 !important;
+main > section .text-amber-200,
+main > section .text-yellow-100,
+main > section .text-yellow-200 {
+  color: var(--warning) !important;
 }
 
 main > section .text-cyan-100,
 main > section .text-cyan-200 {
-  color: #075985 !important;
+  color: var(--info) !important;
 }
 
 main > section .text-red-100,
@@ -181,7 +211,9 @@ main > section .text-rose-400 {
 main > section .bg-red-400\/10,
 main > section .bg-rose-400\/10,
 main > section .bg-red-500\/10,
-main > section .bg-rose-500\/10 {
+main > section .bg-rose-500\/10,
+main > section .bg-red-400\/20,
+main > section .bg-rose-400\/20 {
   background-color: var(--danger-bg) !important;
 }
 
@@ -191,7 +223,14 @@ main > section .border-rose-400\/20,
 main > section .border-rose-400\/30,
 main > section .border-red-500\/30,
 main > section .border-rose-500\/30 {
-  border-color: #f1b8b8 !important;
+  border-color: #FECACA !important;
+}
+
+main > section .text-green-100,
+main > section .text-green-200,
+main > section .text-green-300,
+main > section .text-green-400 {
+  color: var(--success) !important;
 }
 
 main > section table th {
