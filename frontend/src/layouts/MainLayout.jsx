@@ -11,7 +11,7 @@ function MainLayout({
   mobileMenuButton,
 }) {
   return (
-    <main className="flex min-h-screen flex-col bg-[var(--bg-main)] text-[var(--text-main)] lg:flex-row">
+    <main className="relative isolate flex min-h-screen flex-col bg-[var(--bg-main)] text-[var(--text-main)] lg:flex-row">
       {mobileMenuButton?.({ onOpenMobileMenu })}
 
       <div className="hidden lg:block">

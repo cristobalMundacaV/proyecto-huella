@@ -310,7 +310,7 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
 }
 
 function SliderControl({ color, label, max, onChange, value }) {
-  const accent = color === "sky" ? "text-[#075985]" : "text-[var(--primary-dark)]";
+  const accent = color === "sky" ? "text-[var(--secondary)]" : "text-[var(--primary-dark)]";
 
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 sm:p-5">
@@ -346,7 +346,7 @@ function SimulatorCard({
       : "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]";
 
   return (
-    <div className={`rounded-2xl border p-4 sm:p-5 transition ${toneClass}`}>
+    <div className={`rounded-2xl border p-4 shadow-[var(--shadow-soft)] transition sm:p-5 ${toneClass}`}>
       <div className="mb-4 flex items-center gap-3">
         <div>{icon}</div>
         <p className="text-sm font-medium text-[var(--text-muted)]">{label}</p>

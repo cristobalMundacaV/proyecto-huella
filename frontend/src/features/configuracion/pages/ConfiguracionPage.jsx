@@ -136,7 +136,7 @@ function setNestedValue(source, section, field, value) {
 
 function SettingCard({ title, description, children }) {
   return (
-    <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[0_18px_45px_var(--shadow)] sm:p-6">
+    <section className="premium-card premium-card-interactive rounded-3xl bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
       <div className="mb-5">
         <h2 className="text-xl font-semibold text-[var(--text-main)]">{title}</h2>
         {description ? <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">{description}</p> : null}
@@ -204,22 +204,23 @@ function SettingSwitch({ label, checked, onChange, help }) {
 
 function KpiCard({ icon, label, value, detail, tone = "slate" }) {
   const toneClass = {
-    emerald: "border-[#B7DEC9] bg-[var(--success-bg)] text-[var(--primary-dark)]",
-    cyan: "border-[#B9D8D3] bg-[var(--info-bg)] text-[#155E75]",
-    amber: "border-[#E6CC82] bg-[var(--warning-bg)] text-[#7A4F00]",
-    slate: "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-main)]",
+    emerald: "border-[var(--kpi-success-border)] bg-[var(--kpi-success-bg)] text-[var(--kpi-success-text)]",
+    cyan: "border-[var(--kpi-info-border)] bg-[var(--kpi-info-bg)] text-[var(--kpi-info-text)]",
+    amber: "border-[var(--kpi-warning-border)] bg-[var(--kpi-warning-bg)] text-[var(--kpi-warning-text)]",
+    slate: "border-[var(--kpi-neutral-border)] bg-[var(--kpi-neutral-bg)] text-[var(--kpi-dark-text)]",
+    danger: "border-[var(--kpi-danger-border)] bg-[var(--kpi-danger-bg)] text-[var(--kpi-danger-text)]",
   }[tone];
 
   return (
-    <div className={`rounded-3xl border p-5 ${toneClass}`}>
+    <div className={`premium-card premium-card-interactive rounded-3xl border p-5 transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.10)] ${toneClass}`}>
       <div className="mb-3 flex items-center gap-3">
         <div className="opacity-90">{icon}</div>
-        <p className="text-xs font-semibold uppercase tracking-wide opacity-70">
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
           {label}
         </p>
       </div>
-      <p className="mt-2 text-2xl font-bold">{value}</p>
-      {detail ? <p className="mt-2 text-sm opacity-75">{detail}</p> : null}
+      <p className="mt-2 text-2xl font-black tracking-tight text-current">{value}</p>
+      {detail ? <p className="mt-2 text-sm text-[var(--text-muted)]">{detail}</p> : null}
     </div>
   );
 }
@@ -362,7 +363,7 @@ function ConfiguracionPage() {
         </div>
       ) : null}
 
-      <section className="rounded-3xl border border-[#B7DEC9] bg-[var(--success-bg)] p-5 shadow-[0_18px_45px_var(--shadow)] sm:p-7">
+      <section className="premium-card premium-card-interactive rounded-3xl bg-[var(--success-bg)] p-5 shadow-[var(--shadow-card)] sm:p-7">
         <div className="grid gap-6 lg:grid-cols-[1.35fr_0.75fr] lg:items-center">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--primary-dark)]">Reglas de operación</p>
@@ -378,21 +379,21 @@ function ConfiguracionPage() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
             <KpiCard icon={<Settings2 size={22} />} label="Gobernanza" value="Configuración activa" detail="Por constructora activa" tone="emerald" />
-            <KpiCard icon={<Gauge size={22} />} label="Unidad de emisión" value={config.calculo.unidad_emisiones} detail="Formato de salida" tone="cyan" />
+            <KpiCard icon={<Gauge size={22} />} label="Unidad de emisión" value={config.calculo.unidad_emisiones} detail="Formato de salida" tone="info" />
           </div>
         </div>
       </section>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <KpiCard icon={<Building2 size={22} />} label="Constructora seleccionada" value={config.empresa.nombre || "Sin nombre"} tone="slate" />
-        <KpiCard icon={<Import size={22} />} label="Modo de importación" value={config.importaciones.modo_importacion} tone={config.importaciones.modo_importacion === "estricto" ? "amber" : "cyan"} />
+        <KpiCard icon={<Import size={22} />} label="Modo de importación" value={config.importaciones.modo_importacion} tone={config.importaciones.modo_importacion === "estricto" ? "amber" : "info"} />
         <KpiCard icon={<ShieldCheck size={22} />} label="Ficha ambiental" value={config.pasaporte.pasaporte_activo ? "Activa" : "Inactiva"} tone="emerald" />
         <KpiCard icon={<FileCheck2 size={22} />} label="Evidencia obligatoria" value={config.evidencias.requerida_pasaporte ? "Si" : "No"} tone="amber" />
-        <KpiCard icon={<Calculator size={22} />} label="Emisiones" value={config.calculo.unidad_emisiones} tone="cyan" />
+        <KpiCard icon={<Calculator size={22} />} label="Emisiones" value={config.calculo.unidad_emisiones} tone="info" />
         <KpiCard icon={<FileText size={22} />} label="Período de reportes" value={config.reportes.periodo_default.replace(/_/g, " ")} tone="slate" />
       </section>
 
-      <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-2 shadow-[0_14px_35px_var(--shadow)]">
+      <section className="premium-card premium-card-interactive rounded-3xl bg-[var(--bg-card)] p-2 shadow-[var(--shadow-card)]">
         <div className="flex gap-2 overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;

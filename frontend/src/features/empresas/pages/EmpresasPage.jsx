@@ -258,7 +258,7 @@ function EmpresasView({
 
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
-          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-3">
+          <div className="premium-card-interactive rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-3 shadow-[var(--shadow-soft)]">
             <Building2 className="text-emerald-400" />
           </div>
           <div>
@@ -289,7 +289,7 @@ function EmpresasView({
       </header>
 
 
-      <section className="rounded-3xl border border-[var(--border)] bg-[var(--info-bg)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+      <section className="premium-card premium-card-interactive rounded-3xl bg-[var(--info-bg)] p-4 shadow-[var(--shadow-card)] sm:p-6">
         <p className="text-sm font-bold text-[#075985]">Resumen estrategico</p>
         <h2 className="mt-2 text-2xl font-bold text-[var(--text-main)]">
           Lectura operativa de la constructora
@@ -638,7 +638,7 @@ function UnitEmissionsCarbonChart({ rows }) {
   }
 
   return (
-    <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+    <section className="premium-card premium-card-interactive rounded-3xl bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <ChartHeading
           description="Contraste entre la huella generada y el balance ambiental por cada etapa."
@@ -895,7 +895,7 @@ function EnvironmentalBalanceWaterfall({ emissions, storedCarbon }) {
           const width = `${Math.max(6, (Math.abs(row.value) / maxValue) * 100)}%`;
 
           return (
-            <div key={row.label} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
+            <div key={row.label} className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
               <div className="mb-3 flex items-center justify-between gap-4">
                 <p className="text-sm font-bold text-[var(--text-muted)]">{row.label}</p>
                 <p className={`text-lg font-bold ${row.tone}`}>
@@ -916,7 +916,7 @@ function EnvironmentalBalanceWaterfall({ emissions, storedCarbon }) {
 
 function ChartPanel({ children, description, title }) {
   return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+    <section className="premium-card premium-card-interactive rounded-2xl bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] sm:p-6">
       <ChartHeading description={description} title={title} />
       {children}
     </section>
@@ -1056,7 +1056,7 @@ function CompanyKpi({ detail, icon, label, tone = "slate", value }) {
   }[tone];
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
+    <div className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
       <div className="mb-3 flex items-center gap-3">
         <div className="text-[var(--primary-dark)]">{icon}</div>
         <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
@@ -1073,7 +1073,7 @@ function CompanyKpi({ detail, icon, label, tone = "slate", value }) {
 
 function InsightCard({ icon, label, value }) {
   return (
-    <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
+    <div className="premium-card-interactive rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
       <div className="mb-3 flex items-center gap-3">
         <div className="text-[var(--primary-dark)]">{icon}</div>
         <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">

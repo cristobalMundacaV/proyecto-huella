@@ -30,11 +30,11 @@ function LotesTable({ loading, lotes, onOpenDetail, onSelectLote, selectedLote }
     lote.documentos_count ?? lote.evidencias_count ?? lote.documentos?.length ?? 0;
 
   return (
-    <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+    <section className="premium-card premium-card-interactive slide-up rounded-3xl bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
       <h2 className="mb-4 text-xl font-semibold text-[var(--text-main)]">Obras registradas</h2>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-[980px] w-full text-sm">
+      <div className="premium-table-wrapper overflow-x-auto">
+        <table className="premium-table min-w-[980px] w-full text-sm">
           <thead className="border-b border-[var(--border)] text-[var(--text-muted)]">
             <tr>
               <th className="py-3 text-left">Código</th>
@@ -78,7 +78,7 @@ function LotesTable({ loading, lotes, onOpenDetail, onSelectLote, selectedLote }
                   tabIndex={0}
                   aria-label={`Seleccionar obra ${lote.id_lote}`}
                   aria-selected={isSelected}
-                  className={`cursor-pointer border-b border-[#CBD5D0] text-[var(--text-main)] transition focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 ${
+                  className={`cursor-pointer border-b border-[#CBD5D0] text-[var(--text-main)] transition focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 premium-table-row hover:bg-[var(--success-bg)]/60 ${
                     isSelected
                       ? "bg-[var(--success-bg)] ring-1 ring-[var(--primary)]/25"
                       : "hover:bg-[var(--bg-surface)] focus:bg-[var(--bg-surface)]"
@@ -106,7 +106,7 @@ function LotesTable({ loading, lotes, onOpenDetail, onSelectLote, selectedLote }
                         event.stopPropagation();
                         onOpenDetail(lote.id_lote);
                       }}
-                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold transition ${
+                      className={`premium-badge inline-flex rounded-full border px-3 py-1 text-xs font-bold transition ${
                         isSelected
                           ? "border-[var(--primary)]/30 bg-[#D9F0E6] text-[var(--primary-dark)] hover:bg-[var(--success-bg)]"
                           : "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-[var(--primary)]/30 hover:bg-[var(--success-bg)] hover:text-[var(--primary-dark)]"

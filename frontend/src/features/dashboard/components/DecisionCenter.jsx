@@ -26,7 +26,7 @@ function DecisionCenter({
 
 
         {optimizedScenario && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
               <p className="text-sm font-medium text-[var(--text-muted)]">Reducir diesel</p>
               <h3 className="text-2xl font-bold text-[var(--primary-dark)]">

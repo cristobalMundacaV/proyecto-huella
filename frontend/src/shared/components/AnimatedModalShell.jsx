@@ -9,7 +9,7 @@ function AnimatedModalShell({
 }) {
   return (
     <motion.div
-      className={`fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/80 p-4 backdrop-blur-sm ${className}`}
+      className={`fixed inset-0 z-50 flex items-start justify-center overflow-y-auto premium-modal-overlay p-4 ${className}`}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

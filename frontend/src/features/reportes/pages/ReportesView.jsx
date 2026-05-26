@@ -69,7 +69,7 @@ function ReportChartTooltip({ active, payload, label, labelPrefix = "Periodo" })
     <div className="max-w-[280px] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 shadow-[var(--shadow-card)] backdrop-blur-sm">
       <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)]">{labelPrefix}</p>
       <p className="text-sm font-semibold text-[var(--text-main)]">{label || "Sin etiqueta"}</p>
-      <p className="mt-1 text-sm font-bold text-[#075985]">{formatNumber(value)} kg CO2e</p>
+      <p className="mt-1 text-sm font-bold text-[var(--secondary)]">{formatNumber(value)} kg CO2e</p>
     </div>
   );
 }
@@ -85,20 +85,22 @@ function formatNumber(value, decimals = 1) {
 function KpiCard({ icon, label, value, subtext, tone = "default" }) {
   const toneClass =
     tone === "danger"
-      ? "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]"
+      ? "border-[var(--kpi-danger-border)] bg-[var(--kpi-danger-bg)] text-[var(--kpi-danger-text)]"
       : tone === "success"
-      ? "border-[#B7DEC9] bg-[var(--success-bg)] text-[var(--primary-dark)]"
+      ? "border-[var(--kpi-success-border)] bg-[var(--kpi-success-bg)] text-[var(--kpi-success-text)]"
       : tone === "warning"
-      ? "border-[#E6CC82] bg-[var(--warning-bg)] text-[#7A4F00]"
-      : "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-main)] shadow-[0_14px_35px_var(--shadow)]";
+      ? "border-[var(--kpi-warning-border)] bg-[var(--kpi-warning-bg)] text-[var(--kpi-warning-text)]"
+      : tone === "info"
+      ? "border-[var(--kpi-info-border)] bg-[var(--kpi-info-bg)] text-[var(--kpi-info-text)]"
+      : "border-[var(--kpi-neutral-border)] bg-[var(--kpi-neutral-bg)] text-[var(--kpi-dark-text)] shadow-[0_14px_35px_var(--shadow)]";
 
   return (
-    <div className={`rounded-3xl border p-5 ${toneClass}`}>
+    <div className={`premium-card premium-card-interactive rounded-3xl border p-5 transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.10)] ${toneClass}`}>
       <div className="mb-3 flex items-center gap-3">
         {icon ? <div className="opacity-90">{icon}</div> : null}
-        <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">{label}</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">{label}</p>
       </div>
-      <p className="mt-3 text-2xl font-black">{value}</p>
+      <p className="mt-3 text-2xl font-black tracking-tight text-current">{value}</p>
       {subtext && <p className="mt-2 text-sm text-[var(--text-muted)]">{subtext}</p>}
     </div>
   );
@@ -193,21 +195,21 @@ function ReportesHeroEjecutivo({ kpis, activeEmpresa }) {
   const insights = buildHeroInsights({ trend, kpis });
 
   return (
-    <section className="rounded-3xl border border-[#B9D8D3] bg-[var(--info-bg)] p-5 shadow-[0_18px_45px_var(--shadow)] sm:p-7">
+    <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-[var(--shadow-card)] sm:p-7">
       <div className="grid gap-6 lg:grid-cols-[1.45fr_0.9fr] lg:items-start">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#075985]">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--secondary)]">
             Resumen ejecutivo
           </p>
           <h2 className="mt-3 text-3xl font-black leading-tight text-[var(--text-main)] md:text-4xl">
             {title}
           </h2>
-          <p className="mt-4 max-w-3xl text-base leading-7 text-[#344054]">{summary}</p>
+          <p className="mt-4 max-w-3xl text-base leading-7 text-[var(--text-muted)]">{summary}</p>
 
-          <ul className="mt-5 space-y-2 text-sm text-[#155E75]">
+          <ul className="mt-5 space-y-2 text-sm text-[var(--secondary)]">
             {insights.map((item) => (
               <li key={item} className="flex items-start gap-2">
-                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[var(--primary)]" />
                 <span>{item}</span>
               </li>
             ))}
@@ -441,7 +443,7 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
 
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-[#075985]">
+          <p className="text-xs font-bold uppercase tracking-wide text-[var(--secondary)]">
             Reporte temporal
           </p>
           <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Reportes</h1>
@@ -453,14 +455,14 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
         <div className="flex items-center gap-3">
           <button
             onClick={openFiltersModal}
-            className="inline-flex items-center gap-2 rounded-2xl border border-[#B9D8D3] bg-[var(--info-bg)] px-5 py-3 text-sm font-bold text-[#075985] transition hover:bg-[#D7EBE7]"
+            className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200/70 bg-[linear-gradient(180deg,rgba(236,253,243,1),rgba(220,252,231,0.94))] px-5 py-3 text-sm font-bold text-[var(--secondary)] shadow-[0_12px_24px_rgba(15,23,42,0.05)] transition hover:-translate-y-px hover:shadow-[0_16px_30px_rgba(15,23,42,0.08)]"
           >
             <Filter size={18} />
             Filtros
           </button>
           <button
             disabled
-            className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-3 text-sm font-bold text-[var(--text-muted)]"
+            className="rounded-2xl border border-[var(--primary)]/20 bg-[linear-gradient(180deg,rgba(14,124,102,0.95),rgba(9,92,76,0.98))] px-5 py-3 text-sm font-bold text-white shadow-[0_14px_28px_rgba(14,124,102,0.22)] opacity-90"
           >
             Exportar reporte
           </button>
@@ -472,14 +474,14 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
           <div className="w-full max-w-xl rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-2xl">
             <div className="mb-5 flex items-center justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#075985]">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--secondary)]">
                   Filtros
                 </p>
                 <h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">Configurar reporte</h2>
               </div>
               <button
                 onClick={closeFiltersModal}
-                className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-xs font-bold text-[#475467]"
+                className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-xs font-bold text-[var(--text-muted)]"
               >
                 Cerrar
               </button>
@@ -564,12 +566,13 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
             <KpiCard
               label="Emisiones del período"
               value={`${formatNumber(kpis.emisiones_totales_periodo)} kg CO2e`}
+              tone="danger"
             />
             <KpiCard
               label="Comportamiento del período"
               value={kpis.tendencia || "Sin datos"}
               subtext={`${formatNumber(kpis.variacion_periodo)}% vs período anterior`}
-              tone={tendenciaTone}
+              tone={tendenciaTone === "danger" ? "danger" : tendenciaTone === "success" ? "success" : tendenciaTone === "warning" ? "warning" : "info"}
             />
             <KpiCard
               label="Período con mayor emisión"
@@ -580,14 +583,17 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
             <KpiCard
               label="Fuente prioritaria"
               value={kpis.actividad_critica_periodo || "Sin datos"}
+              tone="warning"
             />
             <KpiCard
               label="Etapa prioritaria"
               value={kpis.unidad_critica_periodo || "Sin datos"}
+              tone="info"
             />
             <KpiCard
               label="Emisión promedio mensual"
               value={`${formatNumber(kpis.promedio_periodo)} kg CO2e`}
+              tone="default"
             />
           </section>
 
@@ -709,10 +715,15 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
                   {categoryChartData.map((item) => (
                     <span
                       key={`${item.categoriaKey}-legend`}
-                      className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1"
+                      className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-semibold shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[0_14px_26px_rgba(15,23,42,0.08)]"
+                      style={{
+                        backgroundColor: `${item.color}14`,
+                        borderColor: `${item.color}33`,
+                        color: "var(--text-main)",
+                      }}
                     >
                       <span
-                        className="h-2.5 w-2.5 rounded-full"
+                        className="h-2.5 w-2.5 rounded-full shadow-sm"
                         style={{ backgroundColor: item.color }}
                       />
                       {item.categoria}

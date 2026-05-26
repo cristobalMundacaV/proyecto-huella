@@ -165,22 +165,23 @@ function ExecutiveSummary({
     : "Sin calcular";
   const riskTone =
     riskProfile.score > 70
-      ? "border-[#F1C7C7] bg-[var(--danger-bg)] text-[#B42318]"
+      ? "border-[var(--kpi-danger-border)] bg-[var(--kpi-danger-bg)] text-[var(--kpi-danger-text)]"
       : riskProfile.score > 30
-        ? "border-[#F6D98B] bg-[var(--warning-bg)] text-[#8A5A00]"
-        : "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]";
+        ? "border-[var(--kpi-warning-border)] bg-[var(--kpi-warning-bg)] text-[var(--kpi-warning-text)]"
+        : "border-[var(--kpi-success-border)] bg-[var(--kpi-success-bg)] text-[var(--kpi-success-text)]";
 
   return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-soft)] ring-1 ring-white/50 sm:p-6">
+    <section className="group premium-card premium-card-interactive slide-up rounded-2xl border-emerald-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(236,253,243,0.92))] p-4 shadow-[var(--shadow-soft)] transition duration-300 hover:-translate-y-1 hover:border-emerald-200/90 hover:shadow-[0_24px_64px_rgba(15,23,42,0.12)] sm:p-6">
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-lg font-semibold text-[var(--primary-dark)]">
+        <p className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-200/70 bg-emerald-50 px-3 py-1 text-sm font-bold text-[var(--primary-dark)] shadow-[0_8px_18px_rgba(14,124,102,0.08)] transition group-hover:border-emerald-300/80 group-hover:bg-emerald-100 group-hover:shadow-[0_12px_24px_rgba(14,124,102,0.14)]">
+          <span className="h-2 w-2 rounded-full bg-[var(--primary)]" />
           Resumen ejecutivo
         </p>
       </div>
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <h2 className="text-3xl font-bold">
+          <h2 className="text-3xl font-black tracking-tight text-[var(--text-main)] sm:text-[2.05rem]">
             {optimizedScenario
               ? `Potencial de reduccion del ${formatNumber(
                   optimizedScenario.reductionPct,
@@ -190,7 +191,7 @@ function ExecutiveSummary({
                 )}`
               : `Carbono Zero recomienda un plan gradual sobre ${actividadCritica}`}
           </h2>
-          <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
             El principal foco de impacto se concentra en{" "}
             {formatFocusForSentence(actividadCritica)}, siendo {unidadCriticaLabel}{" "}
             la etapa prioritaria. El nivel de viabilidad es{" "}
@@ -199,9 +200,9 @@ function ExecutiveSummary({
           </p>
         </div>
 
-        <div className={`min-w-48 rounded-2xl border p-5 ${riskTone}`}>
+        <div className={`premium-card-interactive min-w-48 rounded-2xl border p-5 shadow-[var(--shadow-card)] transition group-hover:-translate-y-0.5 group-hover:shadow-[0_18px_40px_rgba(15,23,42,0.12)] ${riskTone}`}>
           <p className="text-sm text-[var(--text-muted)]">Riesgo</p>
-          <p className="mt-1 text-4xl font-bold">
+          <p className="mt-1 text-4xl font-black tracking-tight">
             {riskProfile.label}
           </p>
           <p className="mt-2 text-sm font-semibold">
@@ -231,16 +232,18 @@ function ExecutiveSummary({
       )}
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        <SummaryItem label="Foco principal" value={actividadCritica} />
-        <SummaryItem label="Etapa prioritaria" value={unidadCriticaLabel} />
+        <SummaryItem label="Foco principal" value={actividadCritica} tone="warning" />
+        <SummaryItem label="Etapa prioritaria" value={unidadCriticaLabel} tone="info" />
         <SummaryItem
           label="Escenario recomendado"
           value={formatPercentRange(strategicPlan.recommendedRange)}
+          tone="info"
         />
 
         <SummaryItem
           label="Uso de diésel"
           value={riskProfile.factors.dieselPresent ? "Si" : "No"}
+          tone={riskProfile.factors.dieselPresent ? "warning" : "neutral"}
         />
 
         <SummaryItem
@@ -250,12 +253,17 @@ function ExecutiveSummary({
               ? `${formatNumber(optimizedScenario.reductionPct, 1)}%`
               : estimatedImpact
           }
+          tone="success"
         />
-        <SummaryItem label="Viabilidad operativa" value={strategicPlan.viability} />
+        <SummaryItem
+          label="Viabilidad operativa"
+          value={strategicPlan.viability}
+          tone={strategicPlan.viability === "Alta" ? "success" : strategicPlan.viability === "Media" ? "warning" : "danger"}
+        />
       </div>
 
-      <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--info-bg)] p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary-dark)]">
+      <div className="premium-card-interactive mt-5 rounded-2xl border border-cyan-100 bg-[linear-gradient(180deg,rgba(236,253,255,1),rgba(239,246,255,0.92))] p-4 transition group-hover:border-cyan-200 group-hover:shadow-[0_14px_30px_rgba(15,23,42,0.08)]">
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--primary-dark)]">
           Recomendación principal
         </p>
         <p className="mt-2 text-sm leading-6 text-[var(--text-main)]">{recommendedDecision}</p>
@@ -266,7 +274,7 @@ function ExecutiveSummary({
 
       <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-3">
         {strategicPlan.actionLevels.map((level) => (
-          <div key={level.label} className={`rounded-2xl border p-4 ${level.tone}`}>
+          <div key={level.label} className={`premium-card-interactive rounded-2xl border p-4 ${level.tone}`}>
             <div className="text-center">
               <p className="text-xs font-semibold uppercase tracking-wide">{level.label}</p>
               <p className="mt-1 text-2xl font-extrabold">{level.range}</p>
@@ -276,35 +284,40 @@ function ExecutiveSummary({
         ))}
       </div>
 
-      <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+      <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,0.96))] p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)] transition group-hover:border-[var(--primary)]/20 group-hover:shadow-[0_14px_30px_rgba(15,23,42,0.08)]">
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--secondary)]">
           Factores del score
         </p>
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
           <ScoreFactor
             label="Emisiones totales"
             value={riskProfile.factors.totalEmissions.label}
+            tone="danger"
           />
           <ScoreFactor
             label="Concentracion fuente"
             value={`${formatNumber(riskProfile.factors.activityConcentration, 0)}%`}
+            tone="warning"
           />
           <ScoreFactor
             label="Concentracion etapa"
             value={`${formatNumber(riskProfile.factors.companyConcentration, 0)}%`}
+            tone="info"
           />
           <ScoreFactor
             label="Diesel presente"
             value={riskProfile.factors.dieselPresent ? "Si" : "No"}
+            tone={riskProfile.factors.dieselPresent ? "warning" : "neutral"}
           />
           <ScoreFactor
             label="Potencial reduccion"
             value={`${formatNumber(riskProfile.factors.potentialReduction, 1)}%`}
+            tone="success"
           />
         </div>
       </div>
 
-      <p className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] px-4 py-3 text-sm leading-6 text-[var(--secondary)]">
+      <p className="mt-5 rounded-2xl border border-emerald-200/70 bg-[linear-gradient(180deg,rgba(236,253,243,1),rgba(220,252,231,0.92))] px-4 py-3 text-sm leading-6 text-[var(--secondary)] shadow-[0_10px_22px_rgba(15,23,42,0.05)] transition group-hover:border-emerald-300/70 group-hover:shadow-[0_14px_30px_rgba(15,23,42,0.08)]">
         Carbono Zero recomienda priorizar una intervencion progresiva en {unidadCriticaLabel} sobre {actividadCritica}, empezando con quick wins y escalando por fases
         segun resultados medidos.
         {(optimizedScenario || reductionEquivalentKm != null) &&
@@ -319,37 +332,54 @@ function ExecutiveSummary({
 
 function BeforeAfterCard({ label, tone, value }) {
   const toneClass = {
-    red: "border-[#F1C7C7] bg-[var(--danger-bg)] text-[#B42318]",
-    green: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
-    cyan: "border-[#B9D8CF] bg-[var(--info-bg)] text-[var(--secondary)]",
+    red: "border-[var(--kpi-danger-border)] bg-[var(--kpi-danger-bg)] text-[var(--kpi-danger-text)]",
+    green: "border-[var(--kpi-success-border)] bg-[var(--kpi-success-bg)] text-[var(--kpi-success-text)]",
+    cyan: "border-[var(--kpi-info-border)] bg-[var(--kpi-info-bg)] text-[var(--kpi-info-text)]",
   }[tone];
 
   return (
-    <div className={`rounded-2xl border p-5 ${toneClass}`}>
-      <p className="text-xs text-[var(--text-muted)]">{formatTitleCase(label)}</p>
-      <p className="mt-1 text-2xl font-bold">{value}</p>
+    <div className={`premium-card-interactive rounded-2xl border p-5 shadow-[0_12px_24px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(15,23,42,0.08)] ${toneClass}`}>
+      <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">{formatTitleCase(label)}</p>
+      <p className="mt-1 text-2xl font-black tracking-tight">{value}</p>
     </div>
   );
 }
 
-function SummaryItem({ label, value }) {
+function SummaryItem({ label, value, tone = "neutral" }) {
+  const toneClass = {
+    neutral: "border-[var(--kpi-neutral-border)] bg-[var(--kpi-neutral-bg)] text-[var(--kpi-dark-text)]",
+    warning: "border-[var(--kpi-warning-border)] bg-[var(--kpi-warning-bg)] text-[var(--kpi-warning-text)]",
+    info: "border-[var(--kpi-info-border)] bg-[var(--kpi-info-bg)] text-[var(--kpi-info-text)]",
+    success: "border-[var(--kpi-success-border)] bg-[var(--kpi-success-bg)] text-[var(--kpi-success-text)]",
+    danger: "border-[var(--kpi-danger-border)] bg-[var(--kpi-danger-bg)] text-[var(--kpi-danger-text)]",
+  }[tone];
+
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+    <div className={`premium-card-interactive rounded-xl border px-4 py-3 shadow-[0_10px_20px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_28px_rgba(15,23,42,0.08)] ${toneClass}`}>
+      <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
         {formatTitleCase(label)}
       </p>
-      <p className="mt-1 text-sm font-extrabold leading-snug text-[var(--text-main)]">{value}</p>
+      <p className="mt-1 text-sm font-extrabold leading-snug text-current">{value}</p>
     </div>
   );
 }
 
-function ScoreFactor({ label, value }) {
+function ScoreFactor({ label, value, tone = "neutral" }) {
+  const toneDot = {
+    neutral: "bg-[var(--kpi-neutral-text)]",
+    warning: "bg-[var(--kpi-warning-text)]",
+    info: "bg-[var(--kpi-info-text)]",
+    success: "bg-[var(--kpi-success-text)]",
+    danger: "bg-[var(--kpi-danger-text)]",
+  }[tone];
+
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-        {label}
-      </p>
-      <p className="mt-1 text-sm font-extrabold text-[var(--text-main)]">{value}</p>
+    <div className="premium-card-interactive rounded-xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,0.95))] px-4 py-3 shadow-[0_10px_20px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:border-[var(--primary)]/20 hover:shadow-[0_14px_28px_rgba(15,23,42,0.08)]">
+      <div className="flex items-center gap-2">
+        <span className={`h-2.5 w-2.5 rounded-full ${toneDot}`} />
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">{label}</p>
+      </div>
+      <p className="mt-1 text-sm font-extrabold text-current">{value}</p>
     </div>
   );
 }

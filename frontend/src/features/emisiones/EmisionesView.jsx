@@ -511,17 +511,17 @@ const kpis = data?.kpis ?? {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
-      <section className="rounded-3xl border border-cyan-400/20 bg-slate-900 p-5 shadow-xl sm:p-7">
+      <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-[var(--shadow-card)] sm:p-7">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
-            <p className="flex items-center gap-2 text-sm font-semibold text-cyan-300">
+            <p className="flex items-center gap-2 text-sm font-semibold text-[var(--secondary)]">
               <Flame size={18} />
-              Centro operativo de emisiones
+              Emisiones
             </p>
             <h1 className="mt-3 text-3xl font-bold sm:text-5xl">
               {decision.heroTitle}
             </h1>
-            <p className="mt-4 text-base leading-7 text-slate-300">
+            <p className="mt-4 text-base leading-7 text-[var(--text-muted)]">
               {decision.heroSubtitle}
             </p>
           </div>
@@ -819,14 +819,16 @@ const kpis = data?.kpis ?? {
               </thead>
               <tbody>
                 {visibleRows.map((row) => {
-                  const highlighted =
+                  const isCritical =
                     maxEmission > 0 && Number(row.emisiones || 0) >= maxEmission * 0.8;
 
                   return (
                     <tr
                       key={row.id}
                       className={`border-b border-slate-800/80 transition ${
-                        highlighted ? "bg-cyan-400/5" : "hover:bg-slate-800/40"
+                        isCritical
+                          ? "bg-[var(--danger-bg)]/50"
+                          : "hover:bg-[var(--success-bg)]/50"
                       }`}
                     >
                       <td className="px-4 py-4 text-slate-300">{row.fecha || "-"}</td>

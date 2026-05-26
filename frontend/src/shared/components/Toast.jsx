@@ -17,12 +17,12 @@ function Toast({ message, subtitle, onClose, toastKey, loading = false }) {
   }
 
   const containerClass = loading
-    ? "fixed right-8 top-8 z-50 w-[460px] max-w-[calc(100vw-4rem)] rounded-3xl border border-[#B8D6DE] bg-[var(--bg-card)] px-7 py-6 text-[var(--text-main)] shadow-2xl shadow-slate-950/20"
-    : "fixed right-8 top-8 z-50 w-[460px] max-w-[calc(100vw-4rem)] rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] px-7 py-6 text-[var(--text-main)] shadow-2xl shadow-slate-950/20";
+    ? "fixed right-8 top-8 z-50 w-[460px] max-w-[calc(100vw-4rem)] premium-card rounded-3xl bg-[var(--bg-card)] px-7 py-6 text-[var(--text-main)] shadow-[var(--shadow-premium)]"
+    : "fixed right-8 top-8 z-50 w-[460px] max-w-[calc(100vw-4rem)] premium-card rounded-3xl bg-[var(--bg-card)] px-7 py-6 text-[var(--text-main)] shadow-[var(--shadow-premium)]";
 
   const iconWrapperClass = loading
-    ? "rounded-2xl border border-[#B8D6DE] bg-[var(--info-bg)] p-3"
-    : "rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] p-3";
+    ? "rounded-2xl border border-[#B8D6DE] bg-[var(--info-bg)] p-3 shadow-[var(--shadow-soft)]"
+    : "rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] p-3 shadow-[var(--shadow-soft)]";
 
   const titleClass = loading
     ? "text-lg font-bold leading-6 text-[#075985]"

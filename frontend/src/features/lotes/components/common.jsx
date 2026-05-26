@@ -10,7 +10,7 @@ function Field({ label, children, error }) {
 
 function DetailItem({ label, value }) {
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+    <div className="premium-card p-4">
       <p className="text-xs font-medium text-[var(--text-muted)]">{label}</p>
       <p className="mt-1 break-words text-sm font-semibold text-[var(--text-main)]">
         {value || "Sin dato"}

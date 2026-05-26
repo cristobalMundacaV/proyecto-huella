@@ -12,7 +12,7 @@ function Badge({ children, tone = "cyan" }) {
   };
 
   return (
-    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${tones[tone] || tones.cyan}`}>
+    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold transition ${tones[tone] || tones.cyan}`}>
       {children}
     </span>
   );

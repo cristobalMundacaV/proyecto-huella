@@ -519,7 +519,7 @@ function ImportPanel({
   );
 
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
+    <section className="premium-card premium-card-interactive rounded-3xl bg-[var(--bg-card)] p-4 sm:p-6">
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-300">
@@ -531,7 +531,7 @@ function ImportPanel({
           </div>
         </div>
 
-        <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-bold text-slate-200 transition hover:bg-slate-800 lg:w-fit">
+        <label className="premium-button premium-button-secondary flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold lg:w-fit">
           {state.loading ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}
           {state.loading ? "Previsualizando" : "Cargar archivo"}
           <input
@@ -618,7 +618,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
   ];
 
   return (
-    <section className="rounded-3xl border border-cyan-400/20 bg-slate-900 p-4 sm:p-6">
+    <section className="premium-card premium-card-interactive rounded-3xl bg-[var(--bg-card)] p-4 sm:p-6">
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-300">
@@ -674,7 +674,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
             {summaryCards.map((card) => (
-              <div key={card.label} className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+              <div key={card.label} className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-soft)]">
                 <p className="text-xs text-slate-500">{card.label}</p>
                 <p className="mt-1 text-2xl font-bold text-slate-100">{card.value}</p>
               </div>
@@ -682,7 +682,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
           </div>
 
           {state.result?.resumen && (
-            <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">
+            <div className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--info-bg)] p-4">
               <h3 className="text-base font-semibold text-cyan-100">Resumen antes de confirmar</h3>
               <div className="mt-3 grid grid-cols-1 gap-3 text-sm text-slate-200 md:grid-cols-2 xl:grid-cols-3">
                 <p>Constructora detectada: <span className="font-semibold">{state.result.resumen.empresa_detectada || "-"}</span></p>
@@ -699,11 +699,11 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
             </div>
           )}
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+          <div className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
             <h3 className="text-base font-semibold text-slate-100">Datos de la constructora</h3>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {companyFields.map(([key, label]) => (
-                <div key={key} className="rounded-2xl border border-slate-800/80 bg-slate-900/80 p-3">
+                <div key={key} className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3">
                   <p className="text-xs text-slate-500">{label}</p>
                   <p className="mt-1 break-words text-sm font-semibold text-slate-100">
                     {empresaData[key] || "-"}
@@ -714,7 +714,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
           </div>
 
           {blockingErrors.length > 0 && (
-            <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-200">
+            <div className="premium-card-interactive rounded-2xl border border-[#F1B8B8] bg-[var(--danger-bg)] p-4 text-sm text-[#B42318]">
               <p className="font-semibold">Errores bloqueantes</p>
               <p className="mt-2 leading-6">{blockingErrors.join("; ")}</p>
             </div>
@@ -722,7 +722,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
 
           {/* Mostrar errores y validación de unidades */}
           {state.result?.unidades && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+            <div className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
               <h3 className="text-base font-semibold text-slate-100">Etapas / frentes ({state.result.unidades.validas} válidas, {state.result.unidades.errores} errores)</h3>
               {state.result.unidades.errores > 0 && (
                 <div className="mt-3 max-h-40 space-y-2 overflow-y-auto rounded border border-red-500/30 bg-red-500/10 p-2">
@@ -739,7 +739,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
 
           {/* Mostrar errores y validación de lotes */}
           {state.result?.lotes && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+            <div className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
               <h3 className="text-base font-semibold text-slate-100">Obras ({state.result.lotes.validos} válidas, {state.result.lotes.errores} errores)</h3>
               {state.result.lotes.errores > 0 && (
                 <div className="mt-3 max-h-40 space-y-2 overflow-y-auto rounded border border-red-500/30 bg-red-500/10 p-2">
@@ -756,7 +756,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
 
           {/* Mostrar errores y validación de actividades */}
           {state.result?.actividades && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+            <div className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
               <h3 className="text-base font-semibold text-slate-100">
                 Registros ({state.result.actividades.validas} válidos, {state.result.actividades.errores} errores)
                 {state.result.actividades.factores_faltantes > 0 && (
@@ -778,7 +778,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
 
           {/* Mostrar resumen de confirmación */}
           {state.result?.unidades_creadas !== undefined && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+            <div className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
               <h3 className="text-base font-semibold text-slate-100">Resumen de confirmación</h3>
               <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
                 <div className="rounded border border-slate-700 bg-slate-900/80 p-3 text-center">
@@ -803,7 +803,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
 
           {/* Mostrar errores de confirmación si existen */}
           {state.result?.errores && state.result.errores.length > 0 && (
-            <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-200">
+            <div className="premium-card-interactive rounded-2xl border border-[#F1B8B8] bg-[var(--danger-bg)] p-4 text-sm text-[#B42318]">
               <p className="font-semibold">Errores durante confirmación ({state.result.errores.length})</p>
               <div className="mt-2 max-h-48 space-y-1 overflow-y-auto">
                 {state.result.errores.slice(0, 20).map((error, idx) => (
@@ -822,7 +822,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
             type="button"
             onClick={() => onConfirm(state.result?.batch_id)}
             disabled={!state.result?.batch_id || blockingErrors.length > 0 || sectionErrors > 0 || state.saving}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 text-sm font-bold text-cyan-100 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+            className="premium-button premium-button-primary inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
           >
             {state.saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
             Confirmar importación completa

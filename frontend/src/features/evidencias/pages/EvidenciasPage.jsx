@@ -49,23 +49,23 @@ const emptyForm = {
 
 function KpiImpact({ icon, label, value, detail, tone = "slate" }) {
   const toneClass = {
-    cyan: "border-[#B9D8D3] bg-[var(--info-bg)] text-[#075985]",
-    emerald: "border-[#B7DEC9] bg-[var(--success-bg)] text-[var(--primary-dark)]",
-    amber: "border-[#E6CC82] bg-[var(--warning-bg)] text-[#7A4F00]",
-    rose: "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]",
-    slate: "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-main)]",
+    cyan: "border-[var(--kpi-info-border)] bg-[var(--kpi-info-bg)] text-[var(--kpi-info-text)]",
+    emerald: "border-[var(--kpi-success-border)] bg-[var(--kpi-success-bg)] text-[var(--kpi-success-text)]",
+    amber: "border-[var(--kpi-warning-border)] bg-[var(--kpi-warning-bg)] text-[var(--kpi-warning-text)]",
+    rose: "border-[var(--kpi-danger-border)] bg-[var(--kpi-danger-bg)] text-[var(--kpi-danger-text)]",
+    slate: "border-[var(--kpi-neutral-border)] bg-[var(--kpi-neutral-bg)] text-[var(--kpi-dark-text)]",
   }[tone];
 
   return (
-    <div className={`rounded-3xl border p-5 shadow-[0_14px_35px_var(--shadow)] ${toneClass}`}>
+    <div className={`premium-card premium-card-interactive rounded-3xl border p-5 shadow-[0_14px_35px_var(--shadow)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.10)] ${toneClass}`}>
       <div className="mb-3 flex items-center gap-3">
         <div className="text-current opacity-90">{icon}</div>
-        <p className="text-xs font-semibold uppercase tracking-wide opacity-70">
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
           {label}
         </p>
       </div>
-      <p className="mt-2 text-3xl font-bold">{value}</p>
-      {detail ? <p className="mt-2 text-sm opacity-75">{detail}</p> : null}
+      <p className="mt-2 text-3xl font-black tracking-tight text-current">{value}</p>
+      {detail ? <p className="mt-2 text-sm text-[var(--text-muted)]">{detail}</p> : null}
     </div>
   );
 }

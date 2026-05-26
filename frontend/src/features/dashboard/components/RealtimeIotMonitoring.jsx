@@ -104,7 +104,7 @@ function RealtimeIotMonitoring({ activeEmpresaId }) {
   }, [activeEmpresaId]);
 
   return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/45 sm:p-6">
+    <section className="premium-card premium-card-interactive slide-up rounded-2xl bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/45 sm:p-6">
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary-dark)]">
@@ -114,7 +114,7 @@ function RealtimeIotMonitoring({ activeEmpresaId }) {
             Lecturas operativas.
           </h2>
         </div>
-        <div className="flex w-fit items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--success-bg)] px-4 py-2 text-xs font-bold uppercase tracking-wide text-[var(--primary-dark)]">
+        <div className="premium-badge premium-badge--success flex w-fit items-center gap-2 px-4 py-2 uppercase tracking-wide text-[var(--primary-dark)]">
           <Signal size={16} />
           Modo IoT activo
         </div>
@@ -137,11 +137,7 @@ function RealtimeIotMonitoring({ activeEmpresaId }) {
               icon={<Radio />}
               title="Lecturas recibidas"
               value={formatNumber(kpis?.total_lecturas || 0, 0)}
-              tone={{
-                background: "bg-[var(--success-bg)]",
-                border: "border-[var(--border)]",
-                color: "text-[var(--primary-dark)]",
-              }}
+              tone="neutral"
             />
             <KpiCard
               icon={<Zap />}
@@ -163,6 +159,7 @@ function RealtimeIotMonitoring({ activeEmpresaId }) {
                 kpis?.unidad_mayor_emision_hoy_kg_co2e || 0,
                 2
               )} kg CO2e`}
+              tone="info"
             />
             <KpiCard
               icon={<Activity />}
@@ -176,10 +173,11 @@ function RealtimeIotMonitoring({ activeEmpresaId }) {
                 kpis?.actividad_mayor_emision_hoy_kg_co2e || 0,
                 2
               )} kg CO2e`}
+              tone="warning"
             />
           </div>
 
-          <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]">
+          <div className="premium-card-interactive mt-5 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]">
             <div className="flex flex-col gap-2 border-b border-[var(--border)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm font-semibold text-[var(--text-main)]">
                 Ultimas lecturas
@@ -190,7 +188,7 @@ function RealtimeIotMonitoring({ activeEmpresaId }) {
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-[var(--border)] text-sm">
+              <table className="premium-table min-w-full divide-y divide-[var(--border)] text-sm">
                 <thead className="bg-[var(--bg-surface)] text-xs uppercase tracking-wide text-[var(--text-muted)]">
                   <tr>
                     <th className="px-4 py-3 text-left">Sensor</th>
@@ -204,7 +202,7 @@ function RealtimeIotMonitoring({ activeEmpresaId }) {
                 <tbody className="divide-y divide-[var(--border)]">
                   {visibleLecturas.length > 0 ? (
                     visibleLecturas.map((lectura) => (
-                      <tr key={lectura.id} className="text-[var(--text-muted)]">
+                      <tr key={lectura.id} className="text-[var(--text-muted)] hover:bg-[var(--success-bg)]/60">
                         <td className="whitespace-nowrap px-4 py-3 font-semibold text-[var(--text-main)]">
                           {lectura.sensor}
                         </td>

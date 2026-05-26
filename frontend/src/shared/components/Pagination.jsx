@@ -37,7 +37,7 @@ function Pagination({
   }
 
   return (
-    <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--info-bg)] p-3 sm:p-4">
+    <div className="premium-card premium-card-interactive mt-5 bg-[var(--info-bg)] p-3 sm:p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs font-medium text-[var(--text-muted)]">
           Mostrando{" "}
@@ -51,7 +51,7 @@ function Pagination({
             type="button"
             onClick={() => onPageChange(Math.max(safeCurrentPage - 1, 1))}
             disabled={safeCurrentPage === 1}
-            className="inline-flex items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-4 py-2 text-xs font-semibold text-[var(--text-muted)] shadow-sm transition hover:border-[var(--primary)]/40 hover:text-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-4 py-2 text-xs font-semibold text-[var(--text-muted)] shadow-sm transition hover:-translate-y-px hover:border-[var(--primary)]/40 hover:text-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             Anterior
           </button>
@@ -81,7 +81,7 @@ function Pagination({
             type="button"
             onClick={() => onPageChange(Math.min(safeCurrentPage + 1, totalPages))}
             disabled={safeCurrentPage === totalPages}
-            className="inline-flex items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-4 py-2 text-xs font-semibold text-[var(--text-main)] shadow-sm transition hover:border-[var(--primary)]/40 hover:text-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-4 py-2 text-xs font-semibold text-[var(--text-main)] shadow-sm transition hover:-translate-y-px hover:border-[var(--primary)]/40 hover:text-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             Siguiente
           </button>

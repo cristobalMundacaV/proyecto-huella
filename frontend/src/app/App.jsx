@@ -530,9 +530,9 @@ const environmentalStatus = getEnvironmentalStatus({
         <AnimatePresence mode="wait">
           <motion.div
             key={`${activeView}-${activeEmpresaId}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
             transition={viewTransition}
           >
         {activeView === "lotes" ? (
@@ -563,14 +563,16 @@ const environmentalStatus = getEnvironmentalStatus({
           <ImportacionesView onImportConfirmed={refreshInternalDashboard} />
         ) : (
 
-        <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
+        <div className="stagger-in max-w-7xl mx-auto space-y-6 sm:space-y-8">
           <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] p-3">
-                <Database className="text-[var(--primary)]" />
+              <div className="rounded-2xl border border-emerald-200/80 bg-[linear-gradient(180deg,rgba(236,253,243,1),rgba(209,250,229,0.9))] p-3 shadow-[0_14px_30px_rgba(14,124,102,0.14)] ring-1 ring-white/70">
+                <Database className="text-[var(--primary-dark)]" />
               </div>
               <div>
-                <h1 className="text-3xl sm:text-4xl font-bold">Carbono Zero</h1>
+                <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
+                  Carbono Zero
+                </h1>
                 <p className="text-[var(--text-muted)]">
                   Convierte datos reales de obra en medición, trazabilidad y decisiones para reducir emisiones durante la ejecución del proyecto.
                 </p>
@@ -579,7 +581,7 @@ const environmentalStatus = getEnvironmentalStatus({
             <button
               type="button"
               onClick={handleExportReport}
-              className="w-full rounded-2xl border border-[var(--primary)] bg-[var(--primary)] px-5 py-3 text-sm font-bold text-white shadow-[var(--shadow-card)] transition hover:bg-[var(--primary-dark)] sm:w-fit"
+              className="premium-button-primary inline-flex w-full items-center justify-center rounded-2xl px-5 py-3 text-sm font-bold shadow-[0_16px_32px_rgba(14,124,102,0.22)] sm:w-fit"
             >
               Exportar reporte
             </button>
@@ -736,7 +738,7 @@ function getEnvironmentalStatus({ categoryDistribution, evidenceBacked, rows, to
 
 function InsightPanel({ environmentalStatus, insight }) {
   return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/40 sm:p-6">
+    <section className="premium-card premium-card-interactive rounded-2xl bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/40 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
@@ -746,7 +748,7 @@ function InsightPanel({ environmentalStatus, insight }) {
             Acción prioritaria
           </h2>
         </div>
-        <div className={`rounded-2xl border px-4 py-3 text-sm font-bold ${environmentalStatus.className}`}>
+        <div className={`premium-card-interactive rounded-2xl border px-4 py-3 text-sm font-bold ${environmentalStatus.className}`}>
           <p>Estado ambiental de la obra</p>
           <p className="mt-1 text-lg">{environmentalStatus.label}</p>
         </div>
@@ -761,7 +763,7 @@ function InsightPanel({ environmentalStatus, insight }) {
 
 function DistributionPanel({ items, title, total }) {
   return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/40 sm:p-6">
+    <section className="premium-card premium-card-interactive rounded-2xl bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/40 sm:p-6">
       <h2 className="text-xl font-semibold text-[var(--text-main)]">{title}</h2>
       <div className="mt-5 space-y-3">
         {items.map((item) => (
@@ -784,7 +786,7 @@ function DistributionPanel({ items, title, total }) {
 
 function StagePanel({ items, total }) {
   return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/40 sm:p-6">
+    <section className="premium-card premium-card-interactive rounded-2xl bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/40 sm:p-6">
       <h2 className="text-xl font-semibold text-[var(--text-main)]">
         Emisiones por etapa de obra
       </h2>
@@ -811,10 +813,10 @@ function StagePanel({ items, total }) {
 
 function TopSourcesPanel({ items, total }) {
   return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/40 sm:p-6">
+    <section className="premium-card premium-card-interactive rounded-2xl bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/40 sm:p-6">
       <h2 className="text-xl font-semibold text-[var(--text-main)]">Fuentes críticas</h2>
       <div className="mt-5 overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="premium-table w-full min-w-[720px] text-sm">
           <thead className="border-b border-[var(--border)] text-left text-[var(--text-muted)]">
             <tr>
               <th className="py-3 pr-4">Fuente de emisión</th>
@@ -827,7 +829,7 @@ function TopSourcesPanel({ items, total }) {
           <tbody>
             {items.length ? (
               items.map((item) => (
-                <tr key={`${item.source}-${item.work}-${item.stage}`} className="border-b border-[var(--border)]">
+                <tr key={`${item.source}-${item.work}-${item.stage}`} className="border-b border-[var(--border)] hover:bg-[var(--success-bg)]/60">
                   <td className="py-3 pr-4 font-semibold text-[var(--text-main)]">{item.source}</td>
                   <td className="px-4 py-3 text-[var(--text-muted)]">{item.category}</td>
                   <td className="px-4 py-3 text-[var(--text-muted)]">
@@ -857,7 +859,7 @@ function TopSourcesPanel({ items, total }) {
 
 function MetricBar({ detail, label, pct, value }) {
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+    <div className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="font-semibold text-[var(--text-main)]">{label}</p>
