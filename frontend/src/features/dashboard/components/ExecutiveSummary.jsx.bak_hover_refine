@@ -147,7 +147,7 @@ const buildStrategicPlan = (fuenteCritica, optimizedScenario) => {
     ? `El escenario máximo proyectado contempla una reducción total de hasta un ${formatNumber(
         potentialReduction,
         1
-      )}%; sin embargo, no corresponde a una acción inmediata, ya que requeriría cambios estructurales para su implementación.`
+      )}%; sin embargo, no corresponde a una acción inmediata, ya que requerirí­a cambios estructurales para su implementación.`
     : "El máximo potencial proyectado debe tratarse como referencia estratégica de largo plazo, no como acción inmediata.";
 
   const actionLevels = [
@@ -232,9 +232,9 @@ function ExecutiveSummary({
         : "border-[var(--kpi-success-border)] bg-[var(--kpi-success-bg)] text-[var(--kpi-success-text)]";
 
   return (
-    <section className="premium-card slide-up rounded-2xl border border-emerald-100/80 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.045)] transition-colors duration-300 ease-out sm:p-6">
+    <section className="group premium-card premium-card-interactive slide-up rounded-2xl border-emerald-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(236,253,243,0.92))] p-4 shadow-[var(--shadow-soft)] transition duration-300 hover:-translate-y-1 hover:border-emerald-200/90 hover:shadow-[0_24px_64px_rgba(15,23,42,0.12)] sm:p-6">
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-200/70 bg-emerald-50 px-3 py-1 text-sm font-bold text-[var(--primary-dark)] shadow-none transition duration-300 ease-out">
+        <p className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-200/70 bg-emerald-50 px-3 py-1 text-sm font-bold text-[var(--primary-dark)] shadow-[0_8px_18px_rgba(14,124,102,0.08)] transition group-hover:border-emerald-300/80 group-hover:bg-emerald-100 group-hover:shadow-[0_12px_24px_rgba(14,124,102,0.14)]">
           <span className="h-2 w-2 rounded-full bg-[var(--primary)]" />
           Resumen ejecutivo
         </p>
@@ -261,7 +261,7 @@ function ExecutiveSummary({
           </p>
         </div>
 
-        <div className={`min-w-48 rounded-2xl border p-5 shadow-[var(--shadow-card)] transition duration-300 ease-out ${riskTone}`}>
+        <div className={`premium-card-interactive min-w-48 rounded-2xl border p-5 shadow-[var(--shadow-card)] transition group-hover:-translate-y-0.5 group-hover:shadow-[0_18px_40px_rgba(15,23,42,0.12)] ${riskTone}`}>
           <p className="text-sm text-[var(--text-muted)]">Riesgo</p>
           <p className="mt-1 text-4xl font-black tracking-tight">
             {riskProfile.label}
@@ -319,19 +319,19 @@ function ExecutiveSummary({
         />
       </div>
 
-      <div className="mt-5 rounded-2xl border border-cyan-100 bg-white p-4 shadow-none transition-colors duration-300 ease-out hover:border-cyan-200 hover:bg-white">
+      <div className="premium-card-interactive mt-5 rounded-2xl border border-cyan-100 bg-[linear-gradient(180deg,rgba(236,253,255,1),rgba(239,246,255,0.92))] p-4 transition group-hover:border-cyan-200 group-hover:shadow-[0_14px_30px_rgba(15,23,42,0.08)]">
         <p className="text-xs font-bold uppercase tracking-wide text-[var(--primary-dark)]">
           Recomendación principal
         </p>
         <p className="mt-2 text-sm leading-6 text-[var(--text-main)]">{recommendedDecision}</p>
-        <p className="mt-2 text-sm leading-6 text-[var(--text-main)]">
+        <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
           {strategicPlan.optimalReference}
         </p>
       </div>
 
       <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-3">
         {strategicPlan.actionLevels.map((level) => (
-          <div key={level.label} className={`rounded-2xl border p-4 shadow-none transition-colors duration-300 ease-out hover:shadow-none ${level.tone}`}>
+          <div key={level.label} className={`premium-card-interactive rounded-2xl border p-4 ${level.tone}`}>
             <div className="text-center">
               <p className="text-xs font-semibold uppercase tracking-wide">{level.label}</p>
               <p className="mt-1 text-2xl font-extrabold">{level.range}</p>
@@ -341,7 +341,7 @@ function ExecutiveSummary({
         ))}
       </div>
 
-      <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,0.96))] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.045)] transition-[border-color,box-shadow] duration-300 ease-out hover:border-[var(--primary)]/20">
+      <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,0.96))] p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)] transition group-hover:border-[var(--primary)]/20 group-hover:shadow-[0_14px_30px_rgba(15,23,42,0.08)]">
         <p className="text-xs font-bold uppercase tracking-wide text-[var(--secondary)]">
           Factores del score
         </p>
@@ -378,7 +378,7 @@ function ExecutiveSummary({
         </div>
       </div>
 
-      <p className="mt-5 rounded-2xl border border-emerald-200/70 bg-[linear-gradient(180deg,rgba(236,253,243,1),rgba(220,252,231,0.92))] px-4 py-3 text-sm leading-6 text-[var(--secondary)] shadow-[0_10px_22px_rgba(15,23,42,0.05)] transition">
+      <p className="mt-5 rounded-2xl border border-emerald-200/70 bg-[linear-gradient(180deg,rgba(236,253,243,1),rgba(220,252,231,0.92))] px-4 py-3 text-sm leading-6 text-[var(--secondary)] shadow-[0_10px_22px_rgba(15,23,42,0.05)] transition group-hover:border-emerald-300/70 group-hover:shadow-[0_14px_30px_rgba(15,23,42,0.08)]">
         Carbono Zero recomienda priorizar una intervencion progresiva en {unidadCriticaLabel} sobre {fuenteCritica}, empezando con quick wins y escalando por fases
         segun resultados medidos.
         {(optimizedScenario || reductionEquivalentKm != null) &&
@@ -399,7 +399,7 @@ function BeforeAfterCard({ label, tone, value }) {
   }[tone];
 
   return (
-    <div className={`rounded-2xl border p-5 text-center shadow-[0_12px_24px_rgba(15,23,42,0.05)] transition ${toneClass}`}>
+    <div className={`premium-card-interactive rounded-2xl border p-5 text-center shadow-[0_12px_24px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(15,23,42,0.08)] ${toneClass}`}>
       <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">{formatTitleCase(label)}</p>
       <p className="mt-1 text-2xl font-black tracking-tight">{value}</p>
     </div>
@@ -416,7 +416,7 @@ function SummaryItem({ label, value, tone = "neutral" }) {
   }[tone];
 
   return (
-    <div className={`flex min-h-[6rem] flex-col items-center justify-center rounded-xl border px-4 py-3 text-center shadow-[0_10px_20px_rgba(15,23,42,0.04)] transition ${toneClass}`}>
+    <div className={`premium-card-interactive flex min-h-[6rem] flex-col items-center justify-center rounded-xl border px-4 py-3 text-center shadow-[0_10px_20px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_28px_rgba(15,23,42,0.08)] ${toneClass}`}>
       <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
         {formatTitleCase(label)}
       </p>
@@ -435,7 +435,7 @@ function ScoreFactor({ label, value, tone = "neutral" }) {
   }[tone];
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,0.95))] px-4 py-3 text-center shadow-[0_10px_20px_rgba(15,23,42,0.04)] transition hover:border-[var(--primary)]/20">
+    <div className="premium-card-interactive rounded-xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,0.95))] px-4 py-3 text-center shadow-[0_10px_20px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:border-[var(--primary)]/20 hover:shadow-[0_14px_28px_rgba(15,23,42,0.08)]">
       <div className="flex items-center justify-center gap-2">
         <span className={`h-2.5 w-2.5 rounded-full ${toneDot}`} />
         <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">{label}</p>

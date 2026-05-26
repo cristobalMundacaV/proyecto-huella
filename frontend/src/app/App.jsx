@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -347,8 +347,8 @@ const etapas = Object.entries(emisionesPorEtapa).map(
   })
 );
 
-const fuenteCritica = registros_emision[0]?.fuente_emision || "Sin datos";
-const unidadCritica = data?.unidad_critica || etapas[0]?.unidad || "Sin datos";
+const fuenteCritica = data?.fuente_critica || registros_emision[0]?.fuente_emision || "Sin datos";
+const unidadCritica = data?.etapa_critica || etapas[0]?.unidad || "Sin datos";
 const safeDashboardData = {
   ...data,
   datos: dashboardRows,
