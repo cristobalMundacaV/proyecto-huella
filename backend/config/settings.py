@@ -58,6 +58,10 @@ ALLOWED_HOSTS = csv_to_list(
     os.getenv("DJANGO_ALLOWED_HOSTS"),
     default=["localhost", "127.0.0.1", "testserver"],
 )
+if DEBUG:
+    for host in ["backend", "testserver"]:
+        if host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(host)
 
 
 # Application definition

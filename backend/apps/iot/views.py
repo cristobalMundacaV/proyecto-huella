@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from apps.analytics.models import Empresa
+from apps.analytics.models import Constructora
 
 from .models import LecturaSensor
 from .serializers import LecturaSensorSerializer
@@ -26,21 +26,26 @@ def lecturas_de_hoy_queryset():
     )
 
 
-def resolve_empresa(request):
-    empresa_id = request.query_params.get("empresa_id") or request.query_params.get("empresa")
-    if not empresa_id:
+def resolve_constructora(request):
+    constructora_id = (
+        request.query_params.get("constructora_id")
+        or request.query_params.get("constructora")
+        or request.query_params.get("empresa_id")
+        or request.query_params.get("empresa")
+    )
+    if not constructora_id:
         return None
 
     return (
-        Empresa.objects.filter(empresa_id=empresa_id).first()
-        or Empresa.objects.filter(nombre__iexact=empresa_id).first()
+        Constructora.objects.filter(constructora_id=constructora_id).first()
+        or Constructora.objects.filter(nombre__iexact=constructora_id).first()
     )
 
 
-def lecturas_empresa_hoy_queryset(empresa=None):
+def lecturas_constructora_hoy_queryset(constructora=None):
     queryset = lecturas_de_hoy_queryset()
-    if empresa:
-        queryset = queryset.filter(empresa__iexact=empresa.nombre)
+    if constructora:
+        queryset = queryset.filter(empresa__iexact=constructora.nombre)
     return queryset
 
 
@@ -66,8 +71,8 @@ def lecturas(request):
 
 @api_view(["GET"])
 def kpis(request):
-    empresa = resolve_empresa(request)
-    queryset = lecturas_empresa_hoy_queryset(empresa)
+    constructora = resolve_constructora(request)
+    queryset = lecturas_constructora_hoy_queryset(constructora)
     agregados = queryset.aggregate(
         emisiones_totales=Sum("co2e_estimado"),
         consumo_promedio=Avg("valor"),
@@ -103,10 +108,10 @@ def kpis(request):
 
 @api_view(["GET"])
 def ultimas_lecturas(request):
-    empresa = resolve_empresa(request)
+    constructora = resolve_constructora(request)
     queryset = LecturaSensor.objects.all()
-    if empresa:
-        queryset = queryset.filter(empresa__iexact=empresa.nombre)
+    if constructora:
+        queryset = queryset.filter(empresa__iexact=constructora.nombre)
     queryset = queryset[:20]
     serializer = LecturaSensorSerializer(queryset, many=True)
     return Response(serializer.data)

@@ -93,7 +93,116 @@ function buildApiUrl(path) {
 }
 
 function buildEmpresaScopedPath(empresaId, path) {
-  return `/empresas/${encodeURIComponent(empresaId)}${path}`;
+  return `/constructoras/${encodeURIComponent(empresaId)}${path}`;
+}
+
+function mapConstructoraToEmpresa(item = {}) {
+  return {
+    ...item,
+    empresa_id: item.empresa_id || item.constructora_id,
+    unidades_count: item.unidades_count ?? item.etapas_count ?? 0,
+    lotes_count: item.lotes_count ?? item.obras_count ?? 0,
+    actividades_count: item.actividades_count ?? item.registros_count ?? 0,
+  };
+}
+
+function mapEtapaToUnidad(item = {}) {
+  return {
+    ...item,
+    unidad_id: item.unidad_id || item.etapa_id,
+    empresa_id: item.empresa_id || item.constructora_id,
+    empresa_nombre: item.empresa_nombre || item.constructora_nombre,
+    lotes_count: item.lotes_count ?? item.obras_count ?? 0,
+    actividades_count: item.actividades_count ?? item.registros_count ?? 0,
+  };
+}
+
+function mapRegistroToActividad(item = {}) {
+  return {
+    ...item,
+    actividad: item.actividad || item.fuente_emision,
+    id_lote: item.id_lote || item.obra_codigo,
+    lote: item.lote || item.obra,
+    lote_nombre: item.lote_nombre || item.obra_nombre,
+    unidad_operativa: item.unidad_operativa || item.etapa,
+    unidad_nombre: item.unidad_nombre || item.etapa_nombre,
+    emisiones: item.emisiones ?? item.emisiones_kg_co2e,
+  };
+}
+
+function mapEvidenciaToDocumento(item = {}) {
+  return {
+    ...item,
+    tipo_documento: item.tipo_documento || item.tipo_evidencia,
+    tipo_documento_label: item.tipo_documento_label || item.tipo_evidencia,
+    estado_validacion: item.estado_validacion || item.estado_documental,
+    estado_validacion_label: item.estado_validacion_label || item.estado_documental,
+    fecha: item.fecha || item.fecha_documento,
+    id_lote: item.id_lote || item.obra_codigo,
+    lote_codigo: item.lote_codigo || item.obra_codigo,
+  };
+}
+
+function mapObraToLote(item = {}) {
+  const registros = item.registros_emision || item.actividades || item.registros || [];
+  const evidencias = item.evidencias || item.documentos || [];
+  return {
+    ...item,
+    id_lote: item.id_lote || item.codigo_obra,
+    empresa_id: item.empresa_id || item.constructora_id,
+    empresa_nombre: item.empresa_nombre || item.constructora_nombre,
+    empresa_aserradero: item.empresa_aserradero || item.constructora_nombre,
+    unidad_operativa: item.unidad_operativa || item.etapa_principal,
+    unidad_nombre: item.unidad_nombre || item.etapa_principal_nombre,
+    especie: item.especie || item.tipo_proyecto,
+    tipo_producto: item.tipo_producto || item.tipo_proyecto,
+    volumen_m3: item.volumen_m3 ?? item.superficie_m2,
+    origen: item.origen || item.ubicacion,
+    fecha: item.fecha || item.fecha_inicio,
+    actividades: registros.map(mapRegistroToActividad),
+    documentos: evidencias.map(mapEvidenciaToDocumento),
+  };
+}
+
+function mapDashboardResponse(data = {}) {
+  return {
+    ...data,
+    empresa_id: data.empresa_id || data.constructora_id,
+    empresa_nombre: data.empresa_nombre || data.constructora_nombre,
+    lotes_count: data.lotes_count ?? data.obras_count ?? 0,
+    actividades_count: data.actividades_count ?? data.registros_count ?? 0,
+    actividad_critica: data.actividad_critica || data.fuente_critica,
+    unidad_critica: data.unidad_critica || data.etapa_critica,
+    emisiones_por_actividad: data.emisiones_por_actividad || Object.fromEntries((data.top_fuentes_criticas || []).map((row) => [row.fuente_emision, row.emisiones_kg_co2e])),
+    emisiones_por_unidad_operativa: data.emisiones_por_unidad_operativa || Object.fromEntries((data.emisiones_por_etapa || []).map((row) => [row.etapa, row.emisiones_kg_co2e])),
+    datos: (data.datos || []).map(mapRegistroToActividad),
+  };
+}
+
+function mapObraPayload(payload = {}) {
+  return {
+    codigo_obra: payload.codigo_obra || payload.id_lote,
+    constructora: payload.constructora,
+    nombre: payload.nombre || payload.tipo_proyecto || payload.especie || payload.id_lote,
+    tipo_proyecto: payload.tipo_proyecto || payload.especie || payload.tipo_producto || "Otro",
+    fecha_inicio: payload.fecha_inicio || payload.fecha,
+    superficie_m2: payload.superficie_m2 ?? payload.volumen_m3,
+    ubicacion: payload.ubicacion || payload.origen,
+    region: payload.region || "",
+    comuna: payload.comuna || "",
+    mandante: payload.mandante || payload.empresa_aserradero || "",
+    etapa_principal: payload.etapa_principal || payload.unidad_operativa || payload.unidad_id || null,
+    estado: payload.estado || "en_ejecucion",
+    descripcion: payload.descripcion || "",
+  };
+}
+
+function mapRegistroPayload(payload = {}) {
+  return {
+    ...payload,
+    fuente_emision: payload.fuente_emision || payload.actividad,
+    etapa: payload.etapa || payload.unidad_operativa || payload.unidad_id || null,
+  };
 }
 
 export async function getCurrentUser() {
@@ -139,7 +248,7 @@ export async function getReporteEmisionesTiempo(empresaId, params = {}) {
 
   try {
     const response = await api.get(
-      `/empresas/${empresaId}/reportes/emisiones-tiempo/${suffix}`
+      buildEmpresaScopedPath(empresaId, `/reportes/${suffix}`)
     );
 
     return response.data;
@@ -473,23 +582,28 @@ export async function getRiskScore(payload) {
 }
 
 export async function getLotes() {
-  const response = await api.get("/lotes/");
-  return response.data;
+  const response = await api.get("/obras/");
+  return response.data.map(mapObraToLote);
 }
 
 export async function getEmpresas() {
-  const response = await api.get("/empresas/");
-  return response.data;
+  const response = await api.get("/constructoras/");
+  return response.data.map(mapConstructoraToEmpresa);
 }
 
 export async function getEmpresaDashboard(empresaId, params = {}) {
   const response = await api.get(buildEmpresaScopedPath(empresaId, "/dashboard/"), { params });
-  return response.data;
+  return mapDashboardResponse(response.data);
 }
 
 export async function getEmpresaEstado(empresaId) {
   const response = await api.get(buildEmpresaScopedPath(empresaId, "/estado/"));
-  return response.data;
+  return {
+    ...response.data,
+    unidades: response.data.etapas ?? response.data.unidades,
+    lotes: response.data.obras ?? response.data.lotes,
+    actividades: response.data.registros ?? response.data.actividades,
+  };
 }
 
 export async function getEmpresaConfiguracion(empresaId) {
@@ -498,23 +612,23 @@ export async function getEmpresaConfiguracion(empresaId) {
 }
 
 export async function updateEmpresaConfiguracion(empresaId, payload) {
-  const response = await api.put(buildEmpresaScopedPath(empresaId, "/configuracion/"), payload);
+  const response = await api.patch(buildEmpresaScopedPath(empresaId, "/configuracion/"), payload);
   return response.data;
 }
 
 export async function getEmpresaUnidades(empresaId, params = {}) {
-  const response = await api.get(buildEmpresaScopedPath(empresaId, "/unidades/"), { params });
-  return response.data;
+  const response = await api.get(buildEmpresaScopedPath(empresaId, "/etapas/"), { params });
+  return response.data.map(mapEtapaToUnidad);
 }
 
 export async function getEmpresaLotes(empresaId) {
-  const response = await api.get(buildEmpresaScopedPath(empresaId, "/lotes/"));
-  return response.data;
+  const response = await api.get(buildEmpresaScopedPath(empresaId, "/obras/"));
+  return response.data.map(mapObraToLote);
 }
 
 export async function getEmpresaActividades(empresaId) {
-  const response = await api.get(buildEmpresaScopedPath(empresaId, "/actividades/"));
-  return response.data;
+  const response = await api.get(buildEmpresaScopedPath(empresaId, "/registros-emision/"));
+  return response.data.map(mapRegistroToActividad);
 }
 
 export async function getEmpresaEmisiones(empresaId, params = {}) {
@@ -522,12 +636,12 @@ export async function getEmpresaEmisiones(empresaId, params = {}) {
     buildEmpresaScopedPath(empresaId, "/emisiones/"),
     { params }
   );
-  return response.data;
+  return response.data.map(mapRegistroToActividad);
 }
 
 export async function getEmpresaEvidencias(empresaId, params = {}) {
   const response = await api.get(buildEmpresaScopedPath(empresaId, "/evidencias/"), { params });
-  return response.data;
+  return response.data.map(mapEvidenciaToDocumento);
 }
 
 export async function getEvidenciasEmpresa(empresaId, filters = {}) {
@@ -539,72 +653,105 @@ export async function getEvidenciasEmpresa(empresaId, filters = {}) {
   });
 
   const response = await api.get(buildEmpresaScopedPath(empresaId, "/evidencias/"), { params });
-  return response.data;
+  return response.data.map(mapEvidenciaToDocumento);
 }
 
 export async function getEvidenciasKpisEmpresa(empresaId) {
-  const response = await api.get(buildEmpresaScopedPath(empresaId, "/evidencias/kpis/"));
-  return response.data;
+  const response = await api.get(buildEmpresaScopedPath(empresaId, "/evidencias/"));
+  const evidencias = response.data || [];
+  const vinculadas = evidencias.filter((item) => item.obra || item.registro_emision).length;
+  const pendientes = evidencias.filter((item) => item.estado_documental === "pendiente").length;
+  return {
+    total: evidencias.length,
+    vinculadas,
+    pendientes,
+    observadas: evidencias.filter((item) => item.estado_documental === "observada").length,
+    total_lotes: 0,
+    lotes_con_evidencia: vinculadas,
+  };
 }
 
 export async function crearEvidenciaEmpresa(empresaId, formData) {
-  const response = await api.post(buildEmpresaScopedPath(empresaId, "/evidencias/crear/"), formData);
-  return response.data;
+  const response = await api.post(buildEmpresaScopedPath(empresaId, "/evidencias/"), formData);
+  return mapEvidenciaToDocumento(response.data);
 }
 
 export async function getSistemaEstado() {
   const response = await api.get("/sistema/estado/");
-  return response.data;
+  return {
+    ...response.data,
+    empresas: response.data.constructoras ?? response.data.empresas,
+    unidades: response.data.etapas ?? response.data.unidades,
+    lotes: response.data.obras ?? response.data.lotes,
+    actividades: response.data.registros_emision ?? response.data.actividades,
+  };
 }
 
 export async function getIotKpis(empresaId) {
   const response = await api.get("/iot/kpis/", {
-    params: empresaId ? { empresa_id: empresaId } : {},
+    params: empresaId ? { constructora_id: empresaId } : {},
   });
   return response.data;
 }
 
 export async function getIotUltimasLecturas(empresaId) {
   const response = await api.get("/iot/lecturas/ultimas/", {
-    params: empresaId ? { empresa_id: empresaId } : {},
+    params: empresaId ? { constructora_id: empresaId } : {},
   });
   return response.data;
 }
 
 export async function createEmpresa(payload) {
-  const response = await api.post("/empresas/", payload);
-  return response.data;
+  const response = await api.post("/constructoras/", {
+    ...payload,
+    constructora_id: payload.constructora_id || payload.empresa_id,
+  });
+  return mapConstructoraToEmpresa(response.data);
 }
 
 export async function deleteEmpresa(empresaId) {
-  await api.delete(`/empresas/${encodeURIComponent(empresaId)}/`);
+  await api.delete(`/constructoras/${encodeURIComponent(empresaId)}/`);
 }
 
 export async function getUnidadesOperativas(params = {}) {
-  const response = await api.get("/unidades-operativas/", { params });
-  return response.data;
+  if (params.empresa_id || params.constructora_id) {
+    return getEmpresaUnidades(params.empresa_id || params.constructora_id, params);
+  }
+  const constructoras = await getEmpresas();
+  const groups = await Promise.all(constructoras.map((item) => getEmpresaUnidades(item.empresa_id)));
+  return groups.flat();
 }
 
 export async function createLote(payload) {
-  const response = await api.post("/lotes/", payload);
-  return response.data;
+  const empresaId = payload.empresa_id || payload.constructora_id;
+  const path = empresaId ? buildEmpresaScopedPath(empresaId, "/obras/") : "/obras/";
+  const response = await api.post(path, mapObraPayload(payload));
+  return mapObraToLote(response.data);
 }
 
 export async function getLoteDetail(idLote) {
-  const response = await api.get(`/lotes/${encodeURIComponent(idLote)}/`);
-  return response.data;
+  const [obra, registros, evidencias] = await Promise.all([
+    api.get(`/obras/${encodeURIComponent(idLote)}/`),
+    api.get(`/obras/${encodeURIComponent(idLote)}/registros-emision/`),
+    api.get(`/obras/${encodeURIComponent(idLote)}/evidencias/`),
+  ]);
+  return mapObraToLote({
+    ...obra.data,
+    actividades: registros.data,
+    documentos: evidencias.data,
+  });
 }
 
 export async function createLoteActividad(idLote, payload) {
   const response = await api.post(
-    `/lotes/${encodeURIComponent(idLote)}/actividades/`,
-    payload
+    `/obras/${encodeURIComponent(idLote)}/registros-emision/`,
+    mapRegistroPayload(payload)
   );
-  return response.data;
+  return mapRegistroToActividad(response.data);
 }
 
 export async function getEspeciesMadera() {
-  const response = await api.get("/especies-madera/");
+  const response = await api.get("/materiales-construccion/");
   return response.data;
 }
 
@@ -637,8 +784,8 @@ export async function getFactoresEmision() {
 }
 
 export async function getLoteCarbono(idLote) {
-  const response = await api.get(`/lotes/${encodeURIComponent(idLote)}/carbono/`);
-  return response.data;
+  const response = await api.get(`/obras/${encodeURIComponent(idLote)}/`);
+  return response.data.analisis_ambiental || {};
 }
 
 export async function downloadLoteCertificado(idLote) {
@@ -668,18 +815,19 @@ export async function rejectExtraccionDocumento(extraccionId) {
 }
 
 export async function getVerificacionLote(idLote) {
-  const response = await api.get(`/verificar/${encodeURIComponent(idLote)}/`);
+  const response = await api.get(`/verificar/obra/${encodeURIComponent(idLote)}/`);
   return response.data;
 }
 
 export async function uploadLoteDocumento(idLote, payload) {
   const formData = new FormData();
-  formData.append("tipo_documento", payload.tipo_documento);
-  formData.append("fecha", payload.fecha);
+  formData.append("tipo_evidencia", payload.tipo_evidencia || payload.tipo_documento || "otro");
+  formData.append("fecha_documento", payload.fecha_documento || payload.fecha || "");
+  formData.append("nombre", payload.nombre || payload.archivo?.name || "Evidencia de obra");
   formData.append("archivo", payload.archivo);
 
   const response = await api.post(
-    `/lotes/${encodeURIComponent(idLote)}/documentos/`,
+    `/obras/${encodeURIComponent(idLote)}/evidencias/`,
     formData,
     {
       headers: {
@@ -688,13 +836,13 @@ export async function uploadLoteDocumento(idLote, payload) {
     }
   );
 
-  return response.data;
+  return mapEvidenciaToDocumento(response.data);
 
 }
 
 export async function createLoteTransporte(idLote, payload) {
   const response = await api.post(
-    `/lotes/${encodeURIComponent(idLote)}/transportes/`,
+    `/obras/${encodeURIComponent(idLote)}/transportes/`,
     payload
   );
   return response.data;

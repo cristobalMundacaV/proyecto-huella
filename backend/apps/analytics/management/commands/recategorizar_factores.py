@@ -1,61 +1,33 @@
 from django.core.management.base import BaseCommand
 
-from apps.analytics.models import FactorEmision
-from apps.analytics.services.factor_classifier import infer_categoria, normalize_key
+from apps.analytics.models import FactorEmision, normalize_key
+
+
+def infer_categoria_construccion(actividad, unidad):
+    text = f"{actividad} {unidad}".lower()
+    if any(token in text for token in ["hormigon", "cemento", "acero", "arido", "yeso", "material"]):
+        return FactorEmision.Categoria.MATERIALES
+    if any(token in text for token in ["transporte", "camion", "km", "viaje"]):
+        return FactorEmision.Categoria.TRANSPORTE
+    if any(token in text for token in ["maquinaria", "excavadora", "grua", "retroexcavadora", "compactadora"]):
+        return FactorEmision.Categoria.MAQUINARIA
+    if any(token in text for token in ["electricidad", "kwh", "generador", "energia"]):
+        return FactorEmision.Categoria.ENERGIA
+    if any(token in text for token in ["agua", "litros agua"]):
+        return FactorEmision.Categoria.AGUA
+    if any(token in text for token in ["residuo", "escombro", "retiro"]):
+        return FactorEmision.Categoria.RESIDUOS
+    return FactorEmision.Categoria.OTROS
 
 
 class Command(BaseCommand):
-    help = "Recategoriza factores de emision existentes usando reglas deterministicas."
-
-    def add_arguments(self, parser):
-        parser.add_argument(
-            "--force",
-            action="store_true",
-            help="Recalcula todos los factores, incluso los que ya tienen categoria.",
-        )
+    help = "Recategoriza factores de emision con reglas simples de construccion."
 
     def handle(self, *args, **options):
-        force = options["force"]
         updated = 0
-        skipped = 0
-
         for factor in FactorEmision.objects.all().iterator():
-            categoria_actual = factor.categoria or ""
-            categoria_inferida = infer_categoria(
-                factor.actividad,
-                factor.unidad,
-                factor.fuente,
-            )
-            actividad_key = normalize_key(factor.actividad_key or factor.actividad)
-
-            should_update = force or categoria_actual in {"", "Otros"} or not factor.actividad_key
-            if not should_update:
-                skipped += 1
-                continue
-
-            factor.categoria = categoria_inferida
-            factor.actividad_key = actividad_key
-            metadata = factor.metadata_clasificacion or {}
-            metadata.update(
-                {
-                    "metodo": "rules",
-                    "categoria_detectada": categoria_inferida,
-                    "recategorizado": True,
-                }
-            )
-            factor.metadata_clasificacion = metadata
-            factor.save(
-                update_fields=[
-                    "categoria",
-                    "actividad_key",
-                    "metadata_clasificacion",
-                    "updated_at",
-                ]
-            )
+            factor.categoria = infer_categoria_construccion(factor.actividad, factor.unidad)
+            factor.actividad_key = normalize_key(factor.actividad).replace(" ", "_")
+            factor.save(update_fields=["categoria", "actividad_key", "updated_at"])
             updated += 1
-
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Factores recategorizados: {updated}. Omitidos: {skipped}."
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Factores recategorizados: {updated}."))

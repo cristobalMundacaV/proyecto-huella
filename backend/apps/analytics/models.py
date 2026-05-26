@@ -3,36 +3,47 @@ from decimal import Decimal
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Sum
-
-from .factores import format_activity_display_name, normalize_activity_key, normalize_factor_category
-
-
-def documento_lote_upload_path(instance, filename):
-    return f"lotes/{instance.lote.id_lote}/documentos/{filename}"
+from django.utils.dateparse import parse_datetime
 
 
-def evidencia_upload_path(instance, filename):
-    empresa_code = instance.empresa.empresa_id if instance.empresa_id else "SIN_EMPRESA"
-    lote_code = instance.lote.id_lote if instance.lote_id else "GENERAL"
-    return f"evidencias/{empresa_code}/{lote_code}/{filename}"
+def normalize_key(value):
+    return (
+        str(value or "")
+        .strip()
+        .lower()
+        .replace("á", "a")
+        .replace("é", "e")
+        .replace("í", "i")
+        .replace("ó", "o")
+        .replace("ú", "u")
+        .replace("ñ", "n")
+        .replace("/", " ")
+        .replace("-", " ")
+    )
 
 
-class EspecieMadera(models.Model):
-    nombre = models.CharField(max_length=120, unique=True)
-    densidad_kg_m3 = models.DecimalField(max_digits=8, decimal_places=3)
-    porcentaje_carbono = models.DecimalField(max_digits=5, decimal_places=4)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ["nombre"]
-
-    def __str__(self):
-        return self.nombre
+def unique_code(model, field, base, pk=None, limit=80):
+    root = (normalize_key(base).upper().replace(" ", "_") or model.__name__.upper())[:limit]
+    candidate = root
+    suffix = 2
+    while model.objects.filter(**{field: candidate}).exclude(pk=pk).exists():
+        candidate = f"{root[: limit - len(str(suffix)) - 1]}_{suffix}"
+        suffix += 1
+    return candidate
 
 
-class Empresa(models.Model):
-    empresa_id = models.CharField(max_length=80, unique=True)
+def evidencia_obra_upload_path(instance, filename):
+    constructora = instance.constructora.constructora_id if instance.constructora_id else "SIN_CONSTRUCTORA"
+    obra = instance.obra.codigo_obra if instance.obra_id else "GENERAL"
+    return f"evidencias/{constructora}/{obra}/{filename}"
+
+
+def evidencia_formatos_default():
+    return ["PDF", "JPG", "PNG", "XLSX", "CSV", "DOCX"]
+
+
+class Constructora(models.Model):
+    constructora_id = models.CharField(max_length=80, unique=True, blank=True)
     nombre = models.CharField(max_length=180)
     rut = models.CharField(max_length=30, blank=True)
     region = models.CharField(max_length=120, blank=True)
@@ -50,27 +61,24 @@ class Empresa(models.Model):
     class Meta:
         ordering = ["nombre"]
 
+    def save(self, *args, **kwargs):
+        if not self.constructora_id:
+            self.constructora_id = unique_code(Constructora, "constructora_id", self.nombre, self.pk)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.nombre
 
 
-class UsuarioEmpresa(models.Model):
+class UsuarioConstructora(models.Model):
     class Rol(models.TextChoices):
         ADMIN = "admin", "Administrador"
         ANALISTA = "analista", "Analista"
         OPERADOR = "operador", "Operador"
         LECTOR = "lector", "Lector"
 
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="empresas_perfil",
-    )
-    empresa = models.ForeignKey(
-        Empresa,
-        on_delete=models.CASCADE,
-        related_name="usuarios",
-    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="constructoras_perfil")
+    constructora = models.ForeignKey(Constructora, on_delete=models.CASCADE, related_name="usuarios")
     rol = models.CharField(max_length=20, choices=Rol.choices, default=Rol.ANALISTA)
     cargo = models.CharField(max_length=120, blank=True)
     activo = models.BooleanField(default=True)
@@ -78,23 +86,16 @@ class UsuarioEmpresa(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["empresa__nombre", "user__first_name", "user__username"]
+        ordering = ["constructora__nombre", "user__first_name", "user__username"]
         constraints = [
-            models.UniqueConstraint(
-                fields=["user", "empresa"],
-                name="unique_usuario_empresa",
-            )
+            models.UniqueConstraint(fields=["user", "constructora"], name="unique_usuario_constructora")
         ]
 
     def __str__(self):
-        return f"{self.user.username} - {self.empresa.nombre}"
+        return f"{self.user.username} - {self.constructora.nombre}"
 
 
-def evidencia_formatos_default():
-    return ["PDF", "JPG", "PNG", "XLSX", "CSV", "DOCX"]
-
-
-class EmpresaConfiguracion(models.Model):
+class ConfiguracionConstructora(models.Model):
     class ModoImportacion(models.TextChoices):
         FLEXIBLE = "flexible", "Flexible"
         ESTRICTO = "estricto", "Estricto"
@@ -113,102 +114,61 @@ class EmpresaConfiguracion(models.Model):
         ULTIMOS_12_MESES = "ultimos_12_meses", "Ultimos 12 meses"
         ANIO_ACTUAL = "anio_actual", "Anio actual"
 
-    empresa = models.OneToOneField(
-        Empresa,
-        on_delete=models.CASCADE,
-        related_name="configuracion",
-    )
-
+    constructora = models.OneToOneField(Constructora, on_delete=models.CASCADE, related_name="configuracion")
     unidad_emisiones = models.CharField(max_length=20, default="kg CO2e")
-    unidad_volumen_madera = models.CharField(max_length=10, default="m3")
-    porcentaje_carbono_default = models.DecimalField(max_digits=5, decimal_places=2, default=50)
-    densidad_madera_default = models.DecimalField(max_digits=8, decimal_places=2, default=420)
     factor_electrico_default = models.CharField(max_length=160, blank=True, default="Factor electrico vigente")
     region_electrica_default = models.CharField(max_length=120, blank=True, default="Biobio")
     redondeo_decimales = models.PositiveSmallIntegerField(default=1)
-    mostrar_balance_neto = models.BooleanField(default=True)
-    permitir_co2_almacenado = models.BooleanField(default=True)
-
-    modo_importacion = models.CharField(
-        max_length=20,
-        choices=ModoImportacion.choices,
-        default=ModoImportacion.FLEXIBLE,
-    )
-    crear_unidades_automaticamente = models.BooleanField(default=True)
-    crear_lotes_automaticamente = models.BooleanField(default=True)
-    permitir_actividades_sin_factor = models.BooleanField(default=False)
+    modo_importacion = models.CharField(max_length=20, choices=ModoImportacion.choices, default=ModoImportacion.FLEXIBLE)
+    crear_etapas_automaticamente = models.BooleanField(default=True)
+    crear_obras_automaticamente = models.BooleanField(default=True)
+    permitir_registros_sin_factor = models.BooleanField(default=False)
     actualizar_registros_existentes = models.BooleanField(default=True)
     bloquear_duplicados = models.BooleanField(default=True)
-    requerir_unidad_lote = models.BooleanField(default=False)
-    requerir_lote_actividad = models.BooleanField(default=False)
+    requerir_etapa_obra = models.BooleanField(default=False)
+    requerir_obra_registro = models.BooleanField(default=True)
     permitir_evidencias_sin_vinculo = models.BooleanField(default=True)
-
-    pasaporte_activo = models.BooleanField(default=True)
-    pasaporte_requiere_balance_favorable = models.BooleanField(default=True)
-    pasaporte_requiere_evidencia = models.BooleanField(default=True)
-    pasaporte_requiere_trazabilidad = models.BooleanField(default=True)
-    score_pasaporte_verde = models.PositiveSmallIntegerField(default=70)
-    score_pasaporte_plus = models.PositiveSmallIntegerField(default=90)
-    score_confianza_minimo = models.PositiveSmallIntegerField(default=75)
-
-    evidencia_requerida_pasaporte = models.BooleanField(default=True)
-    evidencia_requerida_lotes_criticos = models.BooleanField(default=True)
-    umbral_lote_critico = models.DecimalField(max_digits=14, decimal_places=2, default=1000)
-    permitir_evidencia_empresa = models.BooleanField(default=True)
-    permitir_evidencia_unidad = models.BooleanField(default=True)
-    permitir_evidencia_lote = models.BooleanField(default=True)
-    permitir_evidencia_emision = models.BooleanField(default=True)
+    ficha_ambiental_activa = models.BooleanField(default=True)
+    evidencia_obligatoria = models.BooleanField(default=False)
     formatos_evidencia_permitidos = models.JSONField(default=evidencia_formatos_default)
     max_file_size_mb = models.PositiveSmallIntegerField(default=10)
-
-    reporte_agrupacion_default = models.CharField(
-        max_length=20,
-        choices=AgrupacionReporte.choices,
-        default=AgrupacionReporte.MES,
-    )
-    reporte_periodo_default = models.CharField(
-        max_length=30,
-        choices=PeriodoReporte.choices,
-        default=PeriodoReporte.ULTIMOS_12_MESES,
-    )
+    reporte_agrupacion_default = models.CharField(max_length=20, choices=AgrupacionReporte.choices, default=AgrupacionReporte.MES)
+    reporte_periodo_default = models.CharField(max_length=30, choices=PeriodoReporte.choices, default=PeriodoReporte.ULTIMOS_12_MESES)
     reporte_mostrar_categoria = models.BooleanField(default=True)
-    reporte_mostrar_unidad = models.BooleanField(default=True)
+    reporte_mostrar_etapa = models.BooleanField(default=True)
     reporte_mostrar_tabla = models.BooleanField(default=True)
     reporte_unidad_visual_emisiones = models.CharField(max_length=20, default="kg CO2e")
     reporte_lectura_ejecutiva = models.BooleanField(default=True)
     reporte_equivalencias = models.BooleanField(default=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Configuracion - {self.empresa.empresa_id}"
+        return f"Configuracion - {self.constructora.constructora_id}"
 
 
-class UnidadOperativa(models.Model):
+class EtapaObra(models.Model):
     class Tipo(models.TextChoices):
-        FUNDO_FORESTAL = "Fundo Forestal", "Fundo Forestal"
-        TRANSPORTE = "Transporte", "Transporte"
-        ASERRADERO = "Aserradero", "Aserradero"
-        ACOPIO = "Acopio", "Acopio"
-        SECADO = "Secado", "Secado"
-        ADMINISTRACION = "Administración", "Administración"
-        BODEGA = "Bodega", "Bodega"
-        PLANTA_INDUSTRIAL = "Planta Industrial", "Planta Industrial"
+        EXCAVACION = "Excavacion", "Excavacion"
+        FUNDACIONES = "Fundaciones", "Fundaciones"
+        OBRA_GRUESA = "Obra gruesa", "Obra gruesa"
+        ESTRUCTURA = "Estructura", "Estructura"
+        INSTALACIONES = "Instalaciones", "Instalaciones"
+        TERMINACIONES = "Terminaciones", "Terminaciones"
+        URBANIZACION = "Urbanizacion", "Urbanizacion"
+        RETIRO_RESIDUOS = "Retiro de residuos", "Retiro de residuos"
+        LOGISTICA = "Logistica", "Logistica"
+        ADMINISTRACION = "Administracion de obra", "Administracion de obra"
         OTRO = "Otro", "Otro"
 
     class Estado(models.TextChoices):
         ACTIVA = "activa", "Activa"
         INACTIVA = "inactiva", "Inactiva"
         SUSPENDIDA = "suspendida", "Suspendida"
-        EN_MANTENIMIENTO = "en_mantenimiento", "En Mantenimiento"
+        FINALIZADA = "finalizada", "Finalizada"
 
-    unidad_id = models.CharField(max_length=80, unique=True)
-    empresa = models.ForeignKey(
-        Empresa,
-        on_delete=models.CASCADE,
-        related_name="unidades_operativas",
-    )
+    etapa_id = models.CharField(max_length=80, unique=True, blank=True)
+    constructora = models.ForeignKey(Constructora, on_delete=models.CASCADE, related_name="etapas")
     nombre = models.CharField(max_length=180)
     tipo = models.CharField(max_length=40, choices=Tipo.choices, default=Tipo.OTRO)
     region = models.CharField(max_length=120, blank=True)
@@ -221,491 +181,256 @@ class UnidadOperativa(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["empresa__nombre", "nombre"]
+        ordering = ["constructora__nombre", "nombre"]
+
+    def save(self, *args, **kwargs):
+        if not self.etapa_id:
+            self.etapa_id = unique_code(EtapaObra, "etapa_id", f"{self.constructora.constructora_id}_{self.nombre}", self.pk)
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.empresa.nombre} - {self.nombre}"
+        return f"{self.constructora.nombre} - {self.nombre}"
 
 
-def normalize_identifier(value):
-    key = normalize_activity_key(value)
-    return key.upper() if key else ""
+class Obra(models.Model):
+    class TipoProyecto(models.TextChoices):
+        VIVIENDA = "Vivienda", "Vivienda"
+        EDIFICIO = "Edificio habitacional", "Edificio habitacional"
+        INFRAESTRUCTURA = "Infraestructura", "Infraestructura"
+        INDUSTRIAL = "Industrial", "Industrial"
+        COMERCIAL = "Comercial", "Comercial"
+        OBRA_PUBLICA = "Obra publica", "Obra publica"
+        URBANIZACION = "Urbanizacion", "Urbanizacion"
+        OTRO = "Otro", "Otro"
 
+    class Estado(models.TextChoices):
+        PLANIFICADA = "planificada", "Planificada"
+        EN_EJECUCION = "en_ejecucion", "En ejecucion"
+        PAUSADA = "pausada", "Pausada"
+        FINALIZADA = "finalizada", "Finalizada"
 
-def get_or_create_default_company_and_unit(nombre_empresa):
-    nombre = str(nombre_empresa or "Empresa sin nombre").strip() or "Empresa sin nombre"
-    empresa_id = normalize_identifier(nombre) or "EMPRESA_GENERAL"
-    empresa, _ = Empresa.objects.get_or_create(
-        empresa_id=empresa_id,
-        defaults={"nombre": nombre, "rubro": "Madera"},
-    )
-    unidad, _ = UnidadOperativa.objects.get_or_create(
-        unidad_id=f"{empresa.empresa_id}_GENERAL",
-        defaults={
-            "empresa": empresa,
-            "nombre": "Unidad General",
-            "tipo": UnidadOperativa.Tipo.ADMINISTRACION,
-            "estado": UnidadOperativa.Estado.ACTIVA,
-        },
-    )
-    return empresa, unidad
-
-
-class Lote(models.Model):
-    id_lote = models.CharField(max_length=80, unique=True)
-    empresa = models.ForeignKey(
-        Empresa,
-        on_delete=models.PROTECT,
-        related_name="lotes",
-        null=True,
-        blank=True,
-    )
-    unidad_operativa = models.ForeignKey(
-        UnidadOperativa,
-        on_delete=models.PROTECT,
-        related_name="lotes",
-        null=False,
-        blank=False,
-    )
-    empresa_aserradero = models.CharField(max_length=160)
-    fecha = models.DateField()
-    especie = models.CharField(max_length=120)
-    volumen_m3 = models.DecimalField(max_digits=12, decimal_places=3)
-    origen = models.CharField(max_length=180)
-    destino = models.CharField(max_length=180, blank=True, default="")
-    tipo_producto = models.CharField(max_length=120, blank=True)
-    densidad_kg_m3 = models.DecimalField(
-        max_digits=8,
-        decimal_places=3,
-        null=True,
-        blank=True,
-    )
-    porcentaje_carbono = models.DecimalField(
-        max_digits=5,
-        decimal_places=4,
-        null=True,
-        blank=True,
-    )
-    estado = models.CharField(max_length=60, blank=True)
-    observaciones = models.TextField(blank=True)
+    codigo_obra = models.CharField(max_length=80, unique=True, blank=True)
+    constructora = models.ForeignKey(Constructora, on_delete=models.PROTECT, related_name="obras")
+    etapa_principal = models.ForeignKey(EtapaObra, on_delete=models.PROTECT, related_name="obras", null=True, blank=True)
+    nombre = models.CharField(max_length=180)
+    tipo_proyecto = models.CharField(max_length=40, choices=TipoProyecto.choices, default=TipoProyecto.OTRO)
+    fecha_inicio = models.DateField()
+    fecha_termino_estimada = models.DateField(null=True, blank=True)
+    superficie_m2 = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
+    ubicacion = models.CharField(max_length=240, blank=True)
+    region = models.CharField(max_length=120, blank=True)
+    comuna = models.CharField(max_length=120, blank=True)
+    mandante = models.CharField(max_length=180, blank=True)
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.EN_EJECUCION)
+    descripcion = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-fecha", "-created_at"]
-
-    def __str__(self):
-        return f"{self.id_lote} - {self.empresa_aserradero}"
-
-    def save(self, *args, **kwargs):
-        if not self.empresa_id and self.empresa_aserradero:
-            self.empresa, self.unidad_operativa = get_or_create_default_company_and_unit(
-                self.empresa_aserradero
-            )
-        elif self.unidad_operativa_id and not self.empresa_id:
-            self.empresa = self.unidad_operativa.empresa
-        super().save(*args, **kwargs)
+        ordering = ["-fecha_inicio", "nombre"]
 
     @property
     def emisiones_kg_co2e(self):
-        total = self.actividades.aggregate(total=Sum("emisiones_kg_co2e"))["total"]
-        return total or 0
-
-
-class EmisionLote(models.Model):
-    class TipoAsignacion(models.TextChoices):
-        LOTE = "lote", "Lote"
-        UNIDAD = "unidad", "Unidad operativa"
-        EMPRESA = "empresa", "Empresa"
-
-    class TipoConsumoCombustible(models.TextChoices):
-        COSECHA = "cosecha", "Cosecha"
-        DESPACHO = "despacho", "Despacho"
-        TRANSPORTE = "transporte", "Transporte"
-        MAQUINARIA = "maquinaria", "Maquinaria"
-        VEHICULOS = "vehiculos", "Vehiculos"
-
-    empresa = models.ForeignKey(
-        Empresa,
-        on_delete=models.PROTECT,
-        related_name="actividades_emision",
-        null=True,
-        blank=True,
-    )
-    unidad_operativa = models.ForeignKey(
-        UnidadOperativa,
-        on_delete=models.PROTECT,
-        related_name="actividades_emision",
-        null=True,
-        blank=True,
-    )
-    lote = models.ForeignKey(
-        Lote,
-        on_delete=models.CASCADE,
-        related_name="actividades",
-        null=True,
-        blank=True,
-    )
-    actividad = models.CharField(max_length=120)
-    actividad_key = models.CharField(max_length=160, blank=True)
-    categoria = models.CharField(max_length=40, blank=True)
-    tipo_consumo_combustible = models.CharField(
-        max_length=20,
-        choices=TipoConsumoCombustible.choices,
-        blank=True,
-    )
-    cantidad = models.DecimalField(max_digits=12, decimal_places=3)
-    unidad = models.CharField(max_length=40)
-    fecha = models.DateField(null=True, blank=True)
-    factor_emision = models.DecimalField(max_digits=12, decimal_places=6)
-    origen_transporte = models.CharField(max_length=240, blank=True)
-    destino_transporte = models.CharField(max_length=240, blank=True)
-    origen_coords = models.JSONField(null=True, blank=True)
-    destino_coords = models.JSONField(null=True, blank=True)
-    distancia_km = models.DecimalField(
-        max_digits=12,
-        decimal_places=3,
-        null=True,
-        blank=True,
-    )
-    ruta_geometry = models.JSONField(default=list, blank=True)
-    emisiones_kg_co2e = models.DecimalField(
-        max_digits=14,
-        decimal_places=3,
-        editable=False,
-    )
-    tipo_asignacion = models.CharField(
-        max_length=20,
-        choices=TipoAsignacion.choices,
-        default=TipoAsignacion.LOTE,
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ["created_at"]
-        indexes = [
-            models.Index(fields=["empresa_id", "fecha"]),
-            models.Index(fields=["empresa_id", "categoria"]),
-            models.Index(fields=["empresa_id", "actividad_key"]),
-            models.Index(fields=["empresa_id", "unidad_operativa_id"]),
-            models.Index(fields=["empresa_id", "lote_id"]),
-        ]
-        constraints = [
-            models.UniqueConstraint(
-                fields=[
-                    "lote",
-                    "actividad",
-                    "unidad",
-                    "fecha",
-                    "cantidad",
-                    "factor_emision",
-                ],
-                name="unique_emision_lote_importada",
-            )
-        ]
+        return self.registros_emision.aggregate(total=Sum("emisiones_kg_co2e"))["total"] or Decimal("0")
 
     def save(self, *args, **kwargs):
-        self.actividad = format_activity_display_name(self.actividad)
-        if self.lote_id:
-            self.empresa = self.lote.empresa
-            self.unidad_operativa = self.lote.unidad_operativa
-            self.tipo_asignacion = self.TipoAsignacion.LOTE
-        elif self.unidad_operativa_id:
-            self.empresa = self.unidad_operativa.empresa
-            self.tipo_asignacion = self.TipoAsignacion.UNIDAD
-        elif self.empresa_id:
-            self.tipo_asignacion = self.TipoAsignacion.EMPRESA
-        if not self.actividad_key:
-            self.actividad_key = normalize_activity_key(self.actividad)
-        self.categoria = normalize_factor_category(
-            self.categoria,
-            self.actividad,
-            self.unidad,
-        )
-        self.emisiones_kg_co2e = self.cantidad * self.factor_emision
+        if not self.codigo_obra:
+            self.codigo_obra = unique_code(Obra, "codigo_obra", self.nombre, self.pk)
         super().save(*args, **kwargs)
 
     def __str__(self):
-        owner = self.lote.id_lote if self.lote_id else self.empresa or "Sin asignacion"
-        return f"{owner} - {self.actividad}"
+        return f"{self.codigo_obra} - {self.nombre}"
 
 
 class FactorEmision(models.Model):
     class Categoria(models.TextChoices):
-        COMBUSTIBLE = "Combustible", "Combustible"
-        ELECTRICIDAD = "Electricidad", "Electricidad"
-        TRANSPORTE = "Transporte", "Transporte"
-        AGUA = "Agua", "Agua"
         MATERIALES = "Materiales", "Materiales"
+        TRANSPORTE = "Transporte", "Transporte"
+        MAQUINARIA = "Maquinaria", "Maquinaria"
+        ENERGIA = "Energia", "Energia"
+        AGUA = "Agua", "Agua"
         RESIDUOS = "Residuos", "Residuos"
-        REFRIGERANTES = "Refrigerantes", "Refrigerantes"
+        PROCESOS_EXTERNOS = "Procesos externos", "Procesos externos"
         OTROS = "Otros", "Otros"
 
-    categoria = models.CharField(
-        max_length=40,
-        choices=Categoria.choices,
-        default=Categoria.OTROS,
-    )
     actividad = models.CharField(max_length=120)
-    actividad_key = models.CharField(max_length=160, blank=True)
-    descripcion = models.TextField(blank=True)
-    metadata_clasificacion = models.JSONField(default=dict, blank=True)
+    categoria = models.CharField(max_length=40, choices=Categoria.choices, default=Categoria.OTROS)
     unidad = models.CharField(max_length=40)
     factor_emision = models.DecimalField(max_digits=12, decimal_places=6)
     fuente = models.CharField(max_length=180)
     anio = models.PositiveIntegerField()
+    alcance = models.CharField(max_length=80, blank=True)
+    descripcion = models.TextField(blank=True)
+    actividad_key = models.CharField(max_length=160, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["categoria", "actividad", "unidad", "-anio"]
         constraints = [
-            models.UniqueConstraint(
-                fields=["actividad", "unidad", "fuente", "anio"],
-                name="unique_factor_emision_fuente_anio",
-            ),
-            models.UniqueConstraint(
-                fields=["actividad_key", "unidad", "fuente", "anio"],
-                name="unique_factor_emision_key_fuente_anio",
-            ),
+            models.UniqueConstraint(fields=["actividad", "unidad", "fuente", "anio"], name="unique_factor_construccion")
         ]
 
     def save(self, *args, **kwargs):
-        self.actividad = format_activity_display_name(self.actividad)
-        self.actividad_key = self.actividad_key or normalize_activity_key(self.actividad)
-        self.actividad_key = normalize_activity_key(self.actividad_key)
-        categoria_archivo = (self.metadata_clasificacion or {}).get("categoria_archivo")
-        categoria_invalida = (self.metadata_clasificacion or {}).get("categoria_invalida")
-        if (
-            self.categoria == self.Categoria.OTROS
-            and categoria_archivo != self.Categoria.OTROS
-            and not categoria_invalida
-        ):
-            self.categoria = normalize_factor_category(
-                "",
-                self.actividad,
-                self.unidad,
-                self.fuente,
-            )
-        else:
-            self.categoria = normalize_factor_category(
-                self.categoria,
-                self.actividad,
-                self.unidad,
-                self.fuente,
-            )
+        if not self.actividad_key:
+            self.actividad_key = normalize_key(self.actividad).replace(" ", "_")
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.actividad} - {self.unidad} ({self.anio})"
 
 
-class DocumentoLote(models.Model):
-    class TipoDocumento(models.TextChoices):
-        GUIA_DESPACHO = "guia_despacho", "Guia de despacho"
-        FACTURA_COMBUSTIBLE = "factura_combustible", "Factura de combustible"
-        BOLETA_ELECTRICA = "boleta_electrica", "Boleta electrica"
-        REGISTRO_PRODUCCION = "registro_produccion", "Registro de produccion"
-        DOCUMENTO_ORIGEN = "documento_origen", "Documento de origen"
-        REGISTRO_TRANSPORTE = "registro_transporte", "Registro de transporte"
+class MaterialConstruccion(models.Model):
+    nombre = models.CharField(max_length=120, unique=True)
+    categoria = models.CharField(max_length=80, blank=True)
+    unidad_default = models.CharField(max_length=40, blank=True)
+    factor_emision_default = models.DecimalField(max_digits=12, decimal_places=6, null=True, blank=True)
+    fuente = models.CharField(max_length=180, blank=True)
+    anio = models.PositiveIntegerField(null=True, blank=True)
+    descripcion = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-    class EstadoValidacion(models.TextChoices):
-        PENDIENTE = "pendiente", "Pendiente"
-        VALIDADO = "validado", "Validado"
-        RECHAZADO = "rechazado", "Rechazado"
+    class Meta:
+        ordering = ["nombre"]
 
-    lote = models.ForeignKey(
-        Lote,
-        on_delete=models.CASCADE,
-        related_name="documentos",
-    )
-    tipo_documento = models.CharField(
-        max_length=40,
-        choices=TipoDocumento.choices,
-    )
-    archivo = models.FileField(upload_to=documento_lote_upload_path)
-    fecha = models.DateField()
-    estado_validacion = models.CharField(
-        max_length=20,
-        choices=EstadoValidacion.choices,
-        default=EstadoValidacion.PENDIENTE,
-    )
+    def __str__(self):
+        return self.nombre
+
+
+class RegistroEmision(models.Model):
+    class Categoria(models.TextChoices):
+        MATERIALES = "Materiales", "Materiales"
+        TRANSPORTE = "Transporte", "Transporte"
+        MAQUINARIA = "Maquinaria", "Maquinaria"
+        ENERGIA = "Energia", "Energia"
+        AGUA = "Agua", "Agua"
+        RESIDUOS = "Residuos", "Residuos"
+        PROCESOS_EXTERNOS = "Procesos externos", "Procesos externos"
+        OTROS = "Otros", "Otros"
+
+    constructora = models.ForeignKey(Constructora, on_delete=models.PROTECT, related_name="registros_emision", null=True, blank=True)
+    obra = models.ForeignKey(Obra, on_delete=models.CASCADE, related_name="registros_emision", null=True, blank=True)
+    etapa = models.ForeignKey(EtapaObra, on_delete=models.PROTECT, related_name="registros_emision", null=True, blank=True)
+    categoria = models.CharField(max_length=40, choices=Categoria.choices, default=Categoria.OTROS)
+    fuente_emision = models.CharField(max_length=120)
+    actividad_key = models.CharField(max_length=160, blank=True)
+    cantidad = models.DecimalField(max_digits=12, decimal_places=3)
+    unidad = models.CharField(max_length=40)
+    factor_emision = models.DecimalField(max_digits=12, decimal_places=6)
+    emisiones_kg_co2e = models.DecimalField(max_digits=14, decimal_places=3, editable=False)
+    fecha = models.DateField(null=True, blank=True)
+    proveedor = models.CharField(max_length=180, blank=True)
+    origen_transporte = models.CharField(max_length=240, blank=True)
+    destino_transporte = models.CharField(max_length=240, blank=True)
+    distancia_km = models.DecimalField(max_digits=12, decimal_places=3, null=True, blank=True)
+    ruta_geometry = models.JSONField(default=list, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    observaciones = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-fecha", "-created_at"]
         indexes = [
-            models.Index(fields=["lote_id", "estado_validacion"]),
-            models.Index(fields=["lote_id", "tipo_documento"]),
-            models.Index(fields=["lote_id"]),
+            models.Index(fields=["constructora_id", "fecha"]),
+            models.Index(fields=["constructora_id", "categoria"]),
+            models.Index(fields=["constructora_id", "actividad_key"]),
+            models.Index(fields=["obra_id", "categoria"]),
+            models.Index(fields=["etapa_id", "categoria"]),
         ]
 
+    def save(self, *args, **kwargs):
+        if self.obra_id:
+            self.constructora = self.obra.constructora
+            if not self.etapa_id:
+                self.etapa = self.obra.etapa_principal
+        elif self.etapa_id and not self.constructora_id:
+            self.constructora = self.etapa.constructora
+        if not self.actividad_key:
+            self.actividad_key = normalize_key(self.fuente_emision).replace(" ", "_")
+        self.emisiones_kg_co2e = (self.cantidad or Decimal("0")) * (self.factor_emision or Decimal("0"))
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.lote.id_lote} - {self.get_tipo_documento_display()}"
+        return f"{self.obra or self.constructora} - {self.fuente_emision}"
 
 
-class Evidencia(models.Model):
-    class TipoDocumento(models.TextChoices):
+class EvidenciaObra(models.Model):
+    class TipoEvidencia(models.TextChoices):
+        FACTURA_MATERIAL = "factura_material", "Factura de material"
         GUIA_DESPACHO = "guia_despacho", "Guia de despacho"
-        FACTURA_COMBUSTIBLE = "factura_combustible", "Factura combustible"
-        FACTURA_ELECTRICA = "factura_electrica", "Factura electrica"
-        CERTIFICADO_ORIGEN = "certificado_origen", "Certificado de origen"
-        CERTIFICADO_FORESTAL = "certificado_forestal", "Certificado forestal"
-        DOCUMENTO_TRANSPORTE = "documento_transporte", "Documento transporte"
-        TICKET_PESAJE = "ticket_pesaje", "Ticket pesaje"
-        REGISTRO_GPS = "registro_gps", "Registro GPS"
-        FOTOGRAFIA = "fotografia", "Fotografia"
-        FICHA_TECNICA = "ficha_tecnica", "Ficha tecnica"
+        ORDEN_COMPRA = "orden_compra", "Orden de compra"
+        FACTURA_COMBUSTIBLE = "factura_combustible", "Factura de combustible"
+        BOLETA_ELECTRICA = "boleta_electrica", "Boleta electrica"
+        TICKET_PESAJE = "ticket_pesaje", "Ticket de pesaje"
+        FICHA_TECNICA = "ficha_tecnica_material", "Ficha tecnica de material"
+        CERTIFICADO_PROVEEDOR = "certificado_proveedor", "Certificado de proveedor"
+        REGISTRO_MAQUINARIA = "registro_maquinaria", "Registro de maquinaria"
+        REGISTRO_RESIDUOS = "registro_retiro_residuos", "Registro de retiro de residuos"
+        DOCUMENTO_TRANSPORTE = "documento_transporte", "Documento de transporte"
         OTRO = "otro", "Otro"
 
-    class Estado(models.TextChoices):
+    class EstadoDocumental(models.TextChoices):
         PENDIENTE = "pendiente", "Pendiente"
         VALIDADA = "validada", "Validada"
         OBSERVADA = "observada", "Observada"
         RECHAZADA = "rechazada", "Rechazada"
-
-    empresa = models.ForeignKey(
-        Empresa,
-        on_delete=models.CASCADE,
-        related_name="evidencias",
-    )
-    unidad_operativa = models.ForeignKey(
-        UnidadOperativa,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="evidencias",
-    )
-    lote = models.ForeignKey(
-        Lote,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="evidencias",
-    )
-    emision = models.ForeignKey(
-        EmisionLote,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="evidencias",
-    )
-    nombre = models.CharField(max_length=240)
-    tipo_documento = models.CharField(
-        max_length=40,
-        choices=TipoDocumento.choices,
-        default=TipoDocumento.OTRO,
-    )
-    archivo = models.FileField(upload_to=evidencia_upload_path)
-    fecha_documento = models.DateField(null=True, blank=True)
-    estado = models.CharField(
-        max_length=20,
-        choices=Estado.choices,
-        default=Estado.PENDIENTE,
-    )
-    observaciones = models.TextField(blank=True)
-    # Nuevo campo `alcance` indica el nivel que respalda la evidencia
-    class Alcance(models.TextChoices):
-        EMPRESA = "empresa", "Empresa"
-        UNIDAD = "unidad", "Unidad operativa"
-        LOTE = "lote", "Lote"
-        EMISION = "emision", "Emision"
-        TRANSPORTE = "transporte", "Transporte"
-
-    alcance = models.CharField(
-        max_length=20,
-        choices=Alcance.choices,
-        default=Alcance.EMPRESA,
-    )
-
-    # Estado del sistema que refleja si la evidencia está vinculada o es corporativa
-    class EstadoSistema(models.TextChoices):
-        CORPORATIVA = "corporativa", "Corporativa"
-        VINCULADA = "vinculada", "Vinculada"
         SIN_VINCULO = "sin_vinculo", "Sin vinculo"
+        VINCULADA = "vinculada", "Vinculada"
 
-    estado_sistema = models.CharField(
-        max_length=20,
-        choices=EstadoSistema.choices,
-        default=EstadoSistema.SIN_VINCULO,
-    )
-
-    # Estado de revisión humano (para futuro flujo). Por ahora por defecto sin_revisar
-    class EstadoRevision(models.TextChoices):
-        SIN_REVISION = "sin_revisar", "Sin revisar"
-        VALIDADA = "validada", "Validada"
-        OBSERVADA = "observada", "Observada"
-        RECHAZADA = "rechazada", "Rechazada"
-
-    estado_revision = models.CharField(
-        max_length=20,
-        choices=EstadoRevision.choices,
-        default=EstadoRevision.SIN_REVISION,
-    )
+    constructora = models.ForeignKey(Constructora, on_delete=models.CASCADE, related_name="evidencias")
+    obra = models.ForeignKey(Obra, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias")
+    etapa = models.ForeignKey(EtapaObra, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias")
+    registro_emision = models.ForeignKey(RegistroEmision, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias")
+    tipo_evidencia = models.CharField(max_length=40, choices=TipoEvidencia.choices, default=TipoEvidencia.OTRO)
+    estado_documental = models.CharField(max_length=20, choices=EstadoDocumental.choices, default=EstadoDocumental.PENDIENTE)
+    fecha_documento = models.DateField(null=True, blank=True)
+    archivo = models.FileField(upload_to=evidencia_obra_upload_path)
+    nombre = models.CharField(max_length=240)
+    observaciones = models.TextField(blank=True)
+    texto_extraido = models.TextField(blank=True)
+    metadata_extraccion = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["empresa_id", "estado"]),
-            models.Index(fields=["empresa_id", "tipo_documento"]),
-            models.Index(fields=["empresa_id", "lote_id"]),
-            models.Index(fields=["empresa_id", "unidad_operativa_id"]),
+            models.Index(fields=["constructora_id", "estado_documental"]),
+            models.Index(fields=["constructora_id", "tipo_evidencia"]),
+            models.Index(fields=["obra_id", "estado_documental"]),
+            models.Index(fields=["registro_emision_id"]),
         ]
 
+    def save(self, *args, **kwargs):
+        if self.obra_id and not self.constructora_id:
+            self.constructora = self.obra.constructora
+        if self.registro_emision_id and self.estado_documental in {"sin_vinculo", ""}:
+            self.estado_documental = self.EstadoDocumental.VINCULADA
+        elif not self.obra_id and self.estado_documental == self.EstadoDocumental.PENDIENTE:
+            self.estado_documental = self.EstadoDocumental.SIN_VINCULO
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.empresa.empresa_id} - {self.nombre}"
+        return f"{self.constructora.constructora_id} - {self.nombre}"
 
 
-class TransporteLote(models.Model):
-    lote = models.ForeignKey(
-        Lote,
-        on_delete=models.CASCADE,
-        related_name="transportes",
-    )
+class TransporteObra(models.Model):
+    obra = models.ForeignKey(Obra, on_delete=models.CASCADE, related_name="transportes")
+    etapa = models.ForeignKey(EtapaObra, on_delete=models.SET_NULL, null=True, blank=True, related_name="transportes")
     vehiculo = models.CharField(max_length=120)
     patente = models.CharField(max_length=30)
-    latitud = models.DecimalField(max_digits=10, decimal_places=7)
-    longitud = models.DecimalField(max_digits=10, decimal_places=7)
-    fecha_hora = models.DateTimeField()
-    ruta = models.CharField(max_length=240)
+    origen = models.CharField(max_length=240)
+    destino = models.CharField(max_length=240)
+    origen_coords = models.JSONField(null=True, blank=True)
+    destino_coords = models.JSONField(null=True, blank=True)
     distancia_km = models.DecimalField(max_digits=12, decimal_places=3)
-    consumo_estimado_litro_km = models.DecimalField(
-        max_digits=8,
-        decimal_places=4,
-        default=Decimal("0.3000"),
-    )
-    litros_combustible = models.DecimalField(
-        max_digits=12,
-        decimal_places=3,
-        null=True,
-        blank=True,
-    )
-    factor_diesel = models.DecimalField(
-        max_digits=12,
-        decimal_places=6,
-        default=Decimal("2.680000"),
-    )
-    litros_calculados = models.DecimalField(
-        max_digits=12,
-        decimal_places=3,
-        editable=False,
-    )
-    emisiones_transporte_kg_co2e = models.DecimalField(
-        max_digits=14,
-        decimal_places=3,
-        editable=False,
-    )
-    actividad_emision = models.OneToOneField(
-        EmisionLote,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="transporte",
-    )
+    consumo_estimado_litro_km = models.DecimalField(max_digits=8, decimal_places=4, default=Decimal("0.3000"))
+    litros_combustible = models.DecimalField(max_digits=12, decimal_places=3, null=True, blank=True)
+    emisiones_kg_co2e = models.DecimalField(max_digits=14, decimal_places=3, editable=False)
+    fecha_hora = models.DateTimeField()
+    registro_emision = models.OneToOneField(RegistroEmision, on_delete=models.SET_NULL, null=True, blank=True, related_name="transporte")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -713,100 +438,56 @@ class TransporteLote(models.Model):
         ordering = ["-fecha_hora", "-created_at"]
 
     def save(self, *args, **kwargs):
-        self.litros_calculados = (
-            self.litros_combustible
-            if self.litros_combustible is not None
-            else self.distancia_km * self.consumo_estimado_litro_km
-        )
-        self.emisiones_transporte_kg_co2e = self.litros_calculados * self.factor_diesel
+        litros = self.litros_combustible
+        if litros is None:
+            litros = self.distancia_km * self.consumo_estimado_litro_km
+        self.emisiones_kg_co2e = litros * Decimal("2.680000")
         super().save(*args, **kwargs)
-        self.sync_emision_lote()
+        self.sync_registro_emision(litros)
 
-    def sync_emision_lote(self):
-        if self.actividad_emision_id:
-            actividad = self.actividad_emision
-            actividad.cantidad = self.litros_calculados
-            actividad.factor_emision = self.factor_diesel
-            actividad.unidad = "litros diesel"
-            actividad.actividad = "transporte"
-            actividad.tipo_consumo_combustible = EmisionLote.TipoConsumoCombustible.TRANSPORTE
-            actividad.save()
+    def sync_registro_emision(self, litros):
+        fecha_hora = self.fecha_hora
+        if isinstance(fecha_hora, str):
+            fecha_hora = parse_datetime(fecha_hora)
+        defaults = {
+            "obra": self.obra,
+            "etapa": self.etapa or self.obra.etapa_principal,
+            "categoria": RegistroEmision.Categoria.TRANSPORTE,
+            "fuente_emision": f"Transporte {self.vehiculo}",
+            "cantidad": litros,
+            "unidad": "litros diesel",
+            "factor_emision": Decimal("2.680000"),
+            "fecha": fecha_hora.date() if fecha_hora else None,
+            "origen_transporte": self.origen,
+            "destino_transporte": self.destino,
+            "distancia_km": self.distancia_km,
+            "metadata": {"patente": self.patente},
+        }
+        if self.registro_emision_id:
+            for field, value in defaults.items():
+                setattr(self.registro_emision, field, value)
+            self.registro_emision.save()
             return
-
-        actividad = EmisionLote.objects.create(
-            lote=self.lote,
-            actividad="transporte",
-            tipo_consumo_combustible=EmisionLote.TipoConsumoCombustible.TRANSPORTE,
-            cantidad=self.litros_calculados,
-            unidad="litros diesel",
-            factor_emision=self.factor_diesel,
-        )
-        TransporteLote.objects.filter(pk=self.pk).update(actividad_emision=actividad)
-        self.actividad_emision = actividad
+        registro = RegistroEmision.objects.create(**defaults)
+        TransporteObra.objects.filter(pk=self.pk).update(registro_emision=registro)
+        self.registro_emision = registro
 
     def __str__(self):
-        return f"{self.lote.id_lote} - {self.patente} - {self.ruta}"
+        return f"{self.obra.codigo_obra} - {self.patente}"
 
 
-class ExtraccionDocumento(models.Model):
-    class EstadoRevision(models.TextChoices):
-        PENDIENTE = "pendiente", "Pendiente"
-        VALIDADO = "validado", "Validado"
-        RECHAZADO = "rechazado", "Rechazado"
-
-    documento = models.ForeignKey(
-        DocumentoLote,
-        on_delete=models.CASCADE,
-        related_name="extracciones",
-    )
-    texto_extraido = models.TextField(blank=True)
-    datos_sugeridos = models.JSONField(default=dict)
-    datos_validados = models.JSONField(default=dict, blank=True)
-    estado_revision = models.CharField(
-        max_length=20,
-        choices=EstadoRevision.choices,
-        default=EstadoRevision.PENDIENTE,
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ["-created_at"]
-
-    def __str__(self):
-        return f"{self.documento} - {self.get_estado_revision_display()}"
-
-
-class HistorialCambioLote(models.Model):
+class HistorialCambioObra(models.Model):
     class TipoCambio(models.TextChoices):
-        EXTRAIDO = "extraido", "Dato extraído"
         IMPORTADO = "importado", "Dato importado"
         VALIDADO = "validado", "Dato validado"
         RECHAZADO = "rechazado", "Dato rechazado"
         CORREGIDO = "corregido", "Dato corregido"
 
-    lote = models.ForeignKey(
-        Lote,
-        on_delete=models.CASCADE,
-        related_name="historial_cambios",
-    )
+    obra = models.ForeignKey(Obra, on_delete=models.CASCADE, related_name="historial_cambios")
     tipo = models.CharField(max_length=20, choices=TipoCambio.choices)
-    fuente = models.CharField(max_length=80, blank=True)  # p.ej. 'ia', 'heuristica', 'usuario'
+    fuente = models.CharField(max_length=80, blank=True)
     usuario = models.CharField(max_length=120, blank=True, null=True)
-    documento = models.ForeignKey(
-        DocumentoLote,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="historial_entries",
-    )
-    extraccion = models.ForeignKey(
-        ExtraccionDocumento,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="historial_entries",
-    )
+    evidencia = models.ForeignKey(EvidenciaObra, on_delete=models.SET_NULL, null=True, blank=True, related_name="historial_entries")
     raw_payload = models.JSONField(default=dict, blank=True)
     normalized_payload = models.JSONField(default=dict, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
@@ -816,4 +497,4 @@ class HistorialCambioLote(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.lote.id_lote} - {self.get_tipo_display()} - {self.created_at.isoformat()}"
+        return f"{self.obra.codigo_obra} - {self.get_tipo_display()}"

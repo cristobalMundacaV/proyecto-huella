@@ -1,122 +1,91 @@
 from django.contrib import admin
 
 from .models import (
-    DocumentoLote,
-    EmisionLote,
-    Empresa,
-    EspecieMadera,
-    ExtraccionDocumento,
+    ConfiguracionConstructora,
+    Constructora,
+    EtapaObra,
+    EvidenciaObra,
     FactorEmision,
-    Lote,
-    TransporteLote,
-    UnidadOperativa,
+    HistorialCambioObra,
+    MaterialConstruccion,
+    Obra,
+    RegistroEmision,
+    TransporteObra,
+    UsuarioConstructora,
 )
 
 
-@admin.register(EspecieMadera)
-class EspecieMaderaAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "densidad_kg_m3", "porcentaje_carbono")
-    search_fields = ("nombre",)
+@admin.register(Constructora)
+class ConstructoraAdmin(admin.ModelAdmin):
+    list_display = ("constructora_id", "nombre", "rut", "region", "comuna", "rubro", "activa")
+    search_fields = ("constructora_id", "nombre", "rut", "region", "comuna")
+    list_filter = ("region", "comuna", "rubro", "activa")
 
 
-@admin.register(Empresa)
-class EmpresaAdmin(admin.ModelAdmin):
-    list_display = ("empresa_id", "nombre", "rut", "region", "comuna", "rubro")
-    search_fields = ("empresa_id", "nombre", "rut", "region", "comuna")
-    list_filter = ("region", "comuna", "rubro")
+@admin.register(UsuarioConstructora)
+class UsuarioConstructoraAdmin(admin.ModelAdmin):
+    list_display = ("user", "constructora", "rol", "cargo", "activo")
+    search_fields = ("user__username", "user__email", "constructora__nombre", "cargo")
+    list_filter = ("rol", "activo")
 
 
-@admin.register(UnidadOperativa)
-class UnidadOperativaAdmin(admin.ModelAdmin):
-    list_display = ("unidad_id", "empresa", "nombre", "tipo", "activa")
-    search_fields = ("unidad_id", "empresa__nombre", "nombre", "tipo")
-    list_filter = ("tipo", "activa")
+@admin.register(ConfiguracionConstructora)
+class ConfiguracionConstructoraAdmin(admin.ModelAdmin):
+    list_display = ("constructora", "unidad_emisiones", "modo_importacion", "evidencia_obligatoria")
+    search_fields = ("constructora__nombre",)
 
 
-@admin.register(Lote)
-class LoteAdmin(admin.ModelAdmin):
-    list_display = (
-        "id_lote",
-        "empresa",
-        "unidad_operativa",
-        "empresa_aserradero",
-        "fecha",
-        "especie",
-        "volumen_m3",
-        "origen",
-        "tipo_producto",
-        "estado",
-        "emisiones_kg_co2e",
-    )
-    search_fields = ("id_lote", "empresa_aserradero", "empresa__nombre", "unidad_operativa__nombre", "especie", "origen")
-    list_filter = ("empresa", "unidad_operativa", "especie", "fecha")
+@admin.register(EtapaObra)
+class EtapaObraAdmin(admin.ModelAdmin):
+    list_display = ("etapa_id", "constructora", "nombre", "tipo", "estado", "activa")
+    search_fields = ("etapa_id", "constructora__nombre", "nombre", "tipo")
+    list_filter = ("tipo", "estado", "activa")
 
 
-@admin.register(EmisionLote)
-class EmisionLoteAdmin(admin.ModelAdmin):
-    list_display = (
-        "empresa",
-        "unidad_operativa",
-        "lote",
-        "actividad",
-        "tipo_asignacion",
-        "fecha",
-        "cantidad",
-        "unidad",
-        "factor_emision",
-        "emisiones_kg_co2e",
-    )
-    search_fields = ("empresa__nombre", "unidad_operativa__nombre", "lote__id_lote", "actividad", "unidad")
-    list_filter = ("tipo_asignacion", "actividad", "unidad", "fecha")
+@admin.register(Obra)
+class ObraAdmin(admin.ModelAdmin):
+    list_display = ("codigo_obra", "constructora", "nombre", "tipo_proyecto", "superficie_m2", "estado")
+    search_fields = ("codigo_obra", "constructora__nombre", "nombre", "mandante", "ubicacion")
+    list_filter = ("tipo_proyecto", "estado", "region", "comuna")
+
+
+@admin.register(RegistroEmision)
+class RegistroEmisionAdmin(admin.ModelAdmin):
+    list_display = ("obra", "etapa", "categoria", "fuente_emision", "fecha", "cantidad", "unidad", "emisiones_kg_co2e")
+    search_fields = ("obra__codigo_obra", "obra__nombre", "etapa__nombre", "fuente_emision", "proveedor")
+    list_filter = ("categoria", "unidad", "fecha")
+
+
+@admin.register(EvidenciaObra)
+class EvidenciaObraAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "obra", "tipo_evidencia", "estado_documental", "fecha_documento")
+    search_fields = ("nombre", "obra__codigo_obra", "obra__nombre", "tipo_evidencia")
+    list_filter = ("tipo_evidencia", "estado_documental", "fecha_documento")
+
+
+@admin.register(TransporteObra)
+class TransporteObraAdmin(admin.ModelAdmin):
+    list_display = ("obra", "etapa", "vehiculo", "patente", "distancia_km", "litros_combustible", "emisiones_kg_co2e")
+    search_fields = ("obra__codigo_obra", "obra__nombre", "vehiculo", "patente", "origen", "destino")
+    list_filter = ("fecha_hora",)
 
 
 @admin.register(FactorEmision)
 class FactorEmisionAdmin(admin.ModelAdmin):
-    list_display = (
-        "categoria",
-        "actividad",
-        "actividad_key",
-        "unidad",
-        "factor_emision",
-        "anio",
-    )
-    search_fields = ("actividad", "actividad_key", "unidad")
-    list_filter = ("categoria", "unidad", "anio")
+    list_display = ("categoria", "actividad", "unidad", "factor_emision", "fuente", "anio", "alcance")
+    search_fields = ("actividad", "actividad_key", "categoria", "unidad", "fuente")
+    list_filter = ("categoria", "unidad", "anio", "alcance")
 
 
-@admin.register(DocumentoLote)
-class DocumentoLoteAdmin(admin.ModelAdmin):
-    list_display = (
-        "lote",
-        "tipo_documento",
-        "fecha",
-        "estado_validacion",
-        "archivo",
-    )
-    search_fields = ("lote__id_lote", "tipo_documento", "archivo")
-    list_filter = ("tipo_documento", "estado_validacion", "fecha")
+@admin.register(MaterialConstruccion)
+class MaterialConstruccionAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "categoria", "unidad_default", "factor_emision_default", "fuente", "anio")
+    search_fields = ("nombre", "categoria", "fuente")
+    list_filter = ("categoria", "unidad_default", "anio")
 
 
-@admin.register(TransporteLote)
-class TransporteLoteAdmin(admin.ModelAdmin):
-    list_display = (
-        "lote",
-        "vehiculo",
-        "patente",
-        "fecha_hora",
-        "ruta",
-        "distancia_km",
-        "litros_calculados",
-        "emisiones_transporte_kg_co2e",
-    )
-    search_fields = ("lote__id_lote", "vehiculo", "patente", "ruta")
-    list_filter = ("fecha_hora",)
-
-
-@admin.register(ExtraccionDocumento)
-class ExtraccionDocumentoAdmin(admin.ModelAdmin):
-    list_display = ("documento", "estado_revision", "created_at")
-    search_fields = ("documento__lote__id_lote", "texto_extraido")
-    list_filter = ("estado_revision", "created_at")
-
-# Register your models here.
+@admin.register(HistorialCambioObra)
+class HistorialCambioObraAdmin(admin.ModelAdmin):
+    list_display = ("obra", "tipo", "usuario", "created_at")
+    search_fields = ("obra__codigo_obra", "obra__nombre", "tipo")
+    list_filter = ("tipo", "created_at")
