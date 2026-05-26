@@ -14,12 +14,12 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/features/auth/context/AuthContext";
-import { useEmpresaActiva } from "@/features/empresas/context/EmpresaActivaContext";
+import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 
 function Sidebar({ activeView, onSetActiveView, systemStatus }) {
   const { logout, user } = useAuth();
-  const { activeEmpresaId, empresas, loadingEmpresas, setActiveEmpresa } =
-    useEmpresaActiva();
+  const { activeConstructoraId, constructoras, loadingConstructoras, setActiveConstructora } =
+    useConstructoraActiva();
 
   const navigationItems = [
     {
@@ -35,17 +35,17 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
     {
       icon: Building2,
       label: "Constructoras",
-      view: "empresas",
+      view: "constructoras",
     },
     {
       icon: Factory,
       label: "Etapas / frentes",
-      view: "unidades",
+      view: "etapas",
     },
     {
       icon: Boxes,
       label: "Obras",
-      view: "lotes",
+      view: "obras",
     },
     {
       icon: BarChart3,
@@ -74,11 +74,11 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
     },
   ];
   const statusItems = [
-    ["Etapas / frentes", systemStatus?.unidades ?? 0],
-    ["Obras", systemStatus?.lotes ?? 0],
-    ["Registros", systemStatus?.actividades ?? 0],
+    ["Etapas / frentes", systemStatus?.etapas ?? 0],
+    ["Obras", systemStatus?.obras ?? 0],
+    ["Registros", systemStatus?.registros_emision ?? 0],
     ["Evidencias", systemStatus?.evidencias ?? 0],
-    ["Fichas", systemStatus?.pasaportes ?? 0],
+    ["Fichas", systemStatus?.fichas_ambientales ?? 0],
   ];
 
   return (
@@ -95,40 +95,40 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
 
       <section className="group mb-8 rounded-2xl border border-emerald-300/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[0_12px_28px_rgba(0,0,0,0.14)] transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200/40 hover:shadow-[0_18px_36px_rgba(0,0,0,0.2)]">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 transition group-hover:text-emerald-200">
-          Constructora activa
+          constructora activa
         </p>
         <div className="mt-3 space-y-3">
           <select
-            value={activeEmpresaId}
+            value={activeConstructoraId}
             onChange={(event) => {
-              const selected = empresas.find(
-                (empresa) => String(empresa.empresa_id) === String(event.target.value)
+              const selected = constructoras.find(
+                (constructora) => String(constructora.constructora_id) === String(event.target.value)
               );
 
               if (selected) {
-                setActiveEmpresa(selected);
+                setActiveConstructora(selected);
               }
             }}
             className="w-full rounded-xl border border-emerald-300/18 bg-[var(--sidebar-active)] px-4 py-3 text-sm text-slate-50 shadow-[0_10px_18px_rgba(0,0,0,0.18)] outline-none transition focus:border-emerald-300/60 focus:ring-4 focus:ring-emerald-400/10"
           >
             <option value="">Selecciona una constructora</option>
-            {empresas.map((empresa) => (
-              <option key={empresa.empresa_id} value={empresa.empresa_id}>
-                {empresa.nombre}
+            {constructoras.map((constructora) => (
+              <option key={constructora.constructora_id} value={constructora.constructora_id}>
+                {constructora.nombre}
               </option>
             ))}
           </select>
 
           <button
             type="button"
-            onClick={() => onSetActiveView("empresas", { openCreateEmpresa: true })}
+            onClick={() => onSetActiveView("constructoras", { openCreateConstructora: true })}
             className="w-full rounded-2xl border border-[var(--primary)]/35 bg-[linear-gradient(180deg,var(--primary),var(--primary-dark))] px-3 py-2 text-xs font-bold text-white shadow-[0_14px_28px_rgba(14,124,102,0.28)] transition hover:-translate-y-px hover:shadow-[0_16px_32px_rgba(14,124,102,0.34)] active:scale-[0.98]"
           >
             Nueva constructora
           </button>
 
-          {loadingEmpresas && (
-            <p className="text-xs text-slate-500">Cargando empresas...</p>
+          {loadingConstructoras && (
+            <p className="text-xs text-slate-500">Cargando constructoras...</p>
           )}
         </div>
       </section>
@@ -164,7 +164,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
 
       <div className="group mt-10 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_12px_28px_rgba(15,23,42,0.16)] transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200/20 hover:bg-white/7 hover:shadow-[0_18px_36px_rgba(15,23,42,0.22)]">
         <p className="text-xs text-slate-500 transition group-hover:text-emerald-200">
-          Estado de la empresa
+          Estado de la constructora
         </p>
         <div className="mt-3 space-y-2">
           {statusItems.map(([label, value]) => (

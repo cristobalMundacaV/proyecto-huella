@@ -1,3 +1,3 @@
-export default function EvidenceStatusBadge() {
+﻿export default function EvidenceStatusBadge() {
   return null;
 }

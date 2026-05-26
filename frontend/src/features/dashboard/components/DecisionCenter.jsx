@@ -1,4 +1,4 @@
-import SimuladorOptimizacion from "./SimuladorOptimizacion";
+﻿import SimuladorOptimizacion from "./SimuladorOptimizacion";
 import { formatNumber } from "@/shared/utils/formatters";
 
 function DecisionCenter({

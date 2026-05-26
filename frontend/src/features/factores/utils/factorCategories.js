@@ -1,4 +1,4 @@
-export const FACTOR_CATEGORIES = [
+﻿export const FACTOR_CATEGORIES = [
   "Combustible",
   "Electricidad",
   "Transporte",

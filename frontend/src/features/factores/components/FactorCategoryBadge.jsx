@@ -1,4 +1,4 @@
-import Badge from "@/shared/components/Badge";
+﻿import Badge from "@/shared/components/Badge";
 
 const CATEGORY_TONES = {
   combustible: "orange",

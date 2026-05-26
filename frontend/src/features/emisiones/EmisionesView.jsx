@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -25,19 +25,19 @@ import {
 
 import DecisionCenter from "@/features/dashboard/components/DecisionCenter";
 import FactorCategoryBadge from "@/features/factores/components/FactorCategoryBadge";
-import { useEmpresaActiva } from "@/features/empresas/context/EmpresaActivaContext";
+import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import { optimizeScenario } from "@/features/dashboard/utils/optimizer";
 import {
   constructionCategories,
   getConstructionCategoryLabel,
-} from "@/features/lotes/utils/constructionEmissionCategories";
+} from "@/features/obras/utils/constructionEmissionCategories";
 import AnimatedModalShell from "@/shared/components/AnimatedModalShell";
 import ChartCard from "@/shared/components/ChartCard";
 import EmptyState from "@/shared/components/EmptyState";
 import Pagination from "@/shared/components/Pagination";
 import {
   getAiAdvisor,
-  getEmpresaEmisiones,
+  getConstructoraEmisiones,
   optimizeScenarioApi,
 } from "@/shared/services/api";
 import {
@@ -51,7 +51,7 @@ const rowsPerPage = 8;
 const DIESEL_REDUCTION_SCENARIO = 25;
 
 const fuelUseLabels = {
-  cosecha: "Preparación / movimiento",
+  cosecha: "PreparaciÃ³n / movimiento",
   despacho: "Despacho",
   transporte: "Transporte",
   maquinaria: "Maquinaria",
@@ -60,19 +60,19 @@ const fuelUseLabels = {
 
 const categoryInsightRules = {
   Materiales:
-    "La categoría crítica actualmente es Materiales. Revisa hormigón, acero, áridos y proveedores, ya que suelen concentrar una parte importante del carbono incorporado de una obra.",
+    "La categorÃ­a critica actualmente es Materiales. Revisa hormigÃ³n, acero, Ã¡ridos y proveedores, ya que suelen concentrar una parte importante del carbono incorporado de una obra.",
   Transporte:
-    "La categoría crítica actualmente es Transporte. Reduce distancia, consolida viajes y evalúa proveedores cercanos para bajar emisiones logísticas.",
+    "La categorÃ­a critica actualmente es Transporte. Reduce distancia, consolida viajes y evalÃºa proveedores cercanos para bajar emisiones logÃ­sticas.",
   Maquinaria:
-    "La categoría crítica actualmente es Maquinaria. Controla ralentí, consumo por equipo y mantención para reducir emisiones durante la ejecución.",
-  Energía:
-    "La categoría crítica actualmente es Energía. Revisa uso de generadores, consumo eléctrico de faena y horarios de operación.",
+    "La categorÃ­a critica actualmente es Maquinaria. Controla ralentÃ­, consumo por equipo y mantenciÃ³n para reducir emisiones durante la ejecuciÃ³n.",
+  Energia:
+    "La categorÃ­a critica actualmente es Energia. Revisa uso de generadores, consumo electrico de faena y horarios de operaciÃ³n.",
   Residuos:
-    "La categoría crítica actualmente es Residuos. Prioriza segregación, reciclaje y valorización para reducir disposición final.",
+    "La categorÃ­a critica actualmente es Residuos. Prioriza segregaciÃ³n, reciclaje y valorizaciÃ³n para reducir disposiciÃ³n final.",
   Agua:
-    "La categoría crítica actualmente es Agua. Mejora el monitoreo y control de consumo para detectar desviaciones tempranas.",
+    "La categorÃ­a critica actualmente es Agua. Mejora el monitoreo y control de consumo para detectar desviaciones tempranas.",
   Otros:
-    "La categoría crítica actualmente es Otros. Clasifica mejor los registros para priorizar acciones de reducción más precisas.",
+    "La categorÃ­a critica actualmente es Otros. Clasifica mejor los registros para priorizar acciones de reducciÃ³n mÃ¡s precisas.",
 };
 
 const tooltipContentStyle = {
@@ -149,21 +149,21 @@ function buildDecisionModel(data) {
   const kpis = data?.kpis || {};
   const total = Number(kpis.emisiones_totales || 0);
   const dieselPct = Number(kpis.porcentaje_diesel || 0);
-  const topActivityPct = Number(kpis.porcentaje_top_actividad || 0);
+  const topSourcePct = Number(kpis.porcentaje_top_fuente_emision || 0);
   const dieselEmissions = total * (dieselPct / 100);
   const estimatedReduction = dieselEmissions * (DIESEL_REDUCTION_SCENARIO / 100);
   const carKmEquivalent = estimatedReduction * 4;
   const homeMonthsEquivalent = estimatedReduction / 120;
   const dieselLevel = dependencyLevel(dieselPct);
-  const criticalActivity = kpis.actividad_critica || "Sin datos";
+  const criticalSource = kpis.fuente_critica || "Sin datos";
   const criticalUnit = kpis.unidad_critica || "Sin datos";
   const criticalCategory = kpis.categoria_critica || "Sin datos";
 
   if (!total) {
     return {
       heroTitle: "Aun no hay emisiones para decidir",
-      heroSubtitle: "Registra datos de materiales, transporte, maquinaria, energía y residuos para identificar focos de impacto.",
-      recommendation: "Carga registros de obra con factores de emisión para activar el análisis operativo.",
+      heroSubtitle: "Registra datos de materiales, transporte, maquinaria, Energia y residuos para identificar focos de impacto.",
+      recommendation: "Carga registros de obra con factores de emision para activar el anÃ¡lisis operativo.",
       dieselLevel,
       estimatedReduction,
       carKmEquivalent,
@@ -174,34 +174,34 @@ function buildDecisionModel(data) {
 
   const heroTitle =
     dieselPct >= 50
-      ? "El diésel móvil concentra el principal riesgo operativo y ambiental"
-      : `${criticalActivity} concentra el principal riesgo operativo y ambiental`;
+      ? "El diÃ©sel mÃ³vil concentra el principal riesgo operativo y ambiental"
+      : `${criticalSource} concentra el principal riesgo operativo y ambiental`;
   const heroSubtitle =
     estimatedReduction > 0
       ? `Puedes reducir cerca de ${formatNumber(
           estimatedReduction,
           0
-        )} kg CO₂e con una intervención focalizada en ${criticalUnit}. La recomendación es comenzar con un piloto medible antes de avanzar hacia cambios mayores.`
-      : "Prioriza la fuente principal para convertir el análisis en acción operativa.";
+        )} kg COâ‚‚e con una intervenciÃ³n focalizada en ${criticalUnit}. La recomendaciÃ³n es comenzar con un piloto medible antes de avanzar hacia cambios mayores.`
+      : "Prioriza la fuente principal para convertir el anÃ¡lisis en acciÃ³n operativa.";
   const recommendation =
     dieselPct >= 30
-      ? `Iniciar un piloto de reducción de diésel del 20% al 30% en ${criticalUnit}`
-      : `Iniciar un piloto de reducción sobre ${criticalActivity} en ${criticalUnit}`;
+      ? `Iniciar un piloto de reducciÃ³n de diÃ©sel del 20% al 30% en ${criticalUnit}`
+      : `Iniciar un piloto de reducciÃ³n sobre ${criticalSource} en ${criticalUnit}`;
   const risks = [];
 
   if (dieselPct > 50) {
     risks.push(
-      `Riesgo operativo:\nLa alta dependencia del diésel, equivalente al ${formatNumber(
+      `Riesgo operativo:\nLa alta dependencia del diÃ©sel, equivalente al ${formatNumber(
         dieselPct,
         1
-      )}% del consumo, puede aumentar la exposición a costos, riesgos regulatorios y baja eficiencia energética.`
+      )}% del consumo, puede aumentar la exposiciÃ³n a costos, riesgos regulatorios y baja eficiencia energÃ©tica.`
     );
   }
 
-  if (topActivityPct > 40) {
+  if (topSourcePct > 40) {
     risks.push(
-      `Riesgo de concentración:\nLa combustión móvil de diésel representa el ${formatNumber(
-        topActivityPct,
+      `Riesgo de concentraciÃ³n:\nLa combustiÃ³n mÃ³vil de diÃ©sel representa el ${formatNumber(
+        topSourcePct,
         1
       )}% de la huella total, por lo que cualquier mejora en este frente puede generar un impacto relevante.`
     );
@@ -209,13 +209,13 @@ function buildDecisionModel(data) {
 
   if (criticalUnit !== "Sin datos") {
     risks.push(
-      `Riesgo operativo localizado:\nLa etapa ${criticalUnit} concentra el mayor impacto, por lo que debería ser priorizada en la estrategia de reducción.`
+      `Riesgo operativo localizado:\nLa etapa ${criticalUnit} concentra el mayor impacto, por lo que deberÃ­a ser priorizada en la estrategia de reducciÃ³n.`
     );
   }
 
   if (criticalCategory !== "Sin datos") {
     risks.push(
-      `Riesgo por categoría: ${getConstructionCategoryLabel(criticalCategory)} domina el perfil de emisiones de la constructora.`
+      `Riesgo por categorÃ­a: ${getConstructionCategoryLabel(criticalCategory)} domina el perfil de emisiones de la constructora.`
     );
   }
 
@@ -232,14 +232,14 @@ function buildDecisionModel(data) {
 }
 
 function EmisionesView() {
-  const { activeEmpresa, activeEmpresaId, loadingEmpresas } = useEmpresaActiva();
+  const { activeConstructora, activeConstructoraId, loadingConstructoras } = useConstructoraActiva();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [unitFilter, setUnitFilter] = useState("");
-  const [loteFilter, setLoteFilter] = useState("");
+  const [obraFilter, setObraFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState("");
@@ -250,7 +250,7 @@ function EmisionesView() {
   const [, setSimulatedScenario] = useState(null);
 
   useEffect(() => {
-    if (!activeEmpresaId) {
+    if (!activeConstructoraId) {
       setData(null);
       return undefined;
     }
@@ -263,7 +263,7 @@ function EmisionesView() {
         setLoading(true);
       }
 
-      return getEmpresaEmisiones(activeEmpresaId)
+      return getConstructoraEmisiones(activeConstructoraId)
       .then((response) => {
         if (!cancelled) {
           setData(response);
@@ -292,7 +292,7 @@ function EmisionesView() {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [activeEmpresaId]);
+  }, [activeConstructoraId]);
 
 const rows = Array.isArray(data?.rows)
   ? data.rows
@@ -306,13 +306,13 @@ const rows = Array.isArray(data?.rows)
 
 const kpis = data?.kpis ?? {
   emisiones_totales: data?.total_emisiones ?? 0,
-  actividad_critica: data?.actividad_critica ?? "Sin datos",
+  fuente_critica: data?.fuente_critica ?? "Sin datos",
   unidad_critica: data?.unidad_critica ?? "Sin datos",
   categoria_critica: data?.categoria_critica ?? "Sin datos",
   porcentaje_diesel: data?.porcentaje_diesel ?? 0,
-  porcentaje_top_actividad: data?.porcentaje_top_actividad ?? 0,
-  promedio_emision_por_lote: data?.promedio_emision_por_lote ?? 0,
-  actividades_sin_factor: data?.actividades_sin_factor ?? 0,
+  porcentaje_top_fuente_emision: data?.porcentaje_top_fuente_emision ?? 0,
+  promedio_emision_por_obra: data?.promedio_emision_por_obra ?? 0,
+  registros_emision_sin_factor: data?.registros_emision_sin_factor ?? 0,
 };
   const emissionsByUnit = useMemo(() => {
     if (Array.isArray(data?.emisiones_por_unidad)) {
@@ -325,7 +325,7 @@ const kpis = data?.kpis ?? {
     }
 
     const totals = rows.reduce((accumulator, row) => {
-      const unidad = row.unidad_nombre || "Sin unidad";
+      const unidad = row.etapa_nombre || "Sin unidad";
       accumulator[unidad] = (accumulator[unidad] || 0) + Number(row.emisiones || 0);
       return accumulator;
     }, {});
@@ -335,26 +335,26 @@ const kpis = data?.kpis ?? {
       .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
   }, [data?.emisiones_por_unidad, rows]);
   const emissionsByActivity = useMemo(() => {
-    if (Array.isArray(data?.emisiones_por_actividad)) {
-      return data.emisiones_por_actividad
+    if (Array.isArray(data?.emisiones_por_fuente_emision)) {
+      return data.emisiones_por_fuente_emision
         .map((item) => ({
-          actividad: item.actividad || "Sin fuente",
+          fuente_emision: item.fuente_emision || "Sin fuente",
           emisiones: Number(item.emisiones || 0),
         }))
         .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
     }
 
     const totals = rows.reduce((accumulator, row) => {
-      const actividad = row.actividad || "Sin fuente";
-      accumulator[actividad] =
-        (accumulator[actividad] || 0) + Number(row.emisiones || 0);
+      const fuente_emision = row.fuente_emision || "Sin fuente";
+      accumulator[fuente_emision] =
+        (accumulator[fuente_emision] || 0) + Number(row.emisiones || 0);
       return accumulator;
     }, {});
 
     return Object.entries(totals)
-      .map(([actividad, emisiones]) => ({ actividad, emisiones }))
+      .map(([fuente_emision, emisiones]) => ({ fuente_emision, emisiones }))
       .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
-  }, [data?.emisiones_por_actividad, rows]);
+  }, [data?.emisiones_por_fuente_emision, rows]);
   const unitBarSize = getBarSizeForRowCount(emissionsByUnit.length);
   const activityBarSize = getBarSizeForRowCount(emissionsByActivity.length);
   const decision = useMemo(() => buildDecisionModel(data), [data]);
@@ -362,7 +362,7 @@ const kpis = data?.kpis ?? {
     () =>
       rows.map((row) => ({
         ...row,
-        categoria_visible: getConstructionCategoryLabel(row.categoria, row.actividad),
+        categoria_visible: getConstructionCategoryLabel(row.categoria, row.fuente_emision),
       })),
     [rows]
   );
@@ -378,32 +378,32 @@ const kpis = data?.kpis ?? {
       .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
   }, [rowsWithCategories]);
   const criticalCategory = emissionsByCategory[0]?.categoria || getConstructionCategoryLabel(kpis.categoria_critica);
-  const criticalSource = emissionsByActivity[0]?.actividad || kpis.actividad_critica || "Sin datos";
+  const criticalSource = emissionsByActivity[0]?.fuente_emision || kpis.fuente_critica || "Sin datos";
   const rowsWithEvidence = rowsWithCategories.filter(
-    (row) => row.evidencia || row.evidencia_id || row.documento_id || row.documento
+    (row) => row.evidencia || row.evidencia_id || row.evidencia_id || row.evidencia
   ).length;
   const categoryInsight = categoryInsightRules[criticalCategory] || categoryInsightRules.Otros;
   const decisionData = useMemo(
     () => ({
       total_emisiones: kpis.emisiones_totales || 0,
       datos: rows.map((row) => ({
-        empresa: row.empresa || data?.empresa?.nombre || activeEmpresa?.nombre || "",
-        actividad: row.actividad,
-        actividad_key: row.actividad_key,
+        constructora: row.constructora || data?.constructora?.nombre || activeConstructora?.nombre || "",
+        fuente_emision: row.fuente_emision,
+        fuente_emision_key: row.fuente_emision_key,
         categoria: row.categoria,
         cantidad: row.cantidad,
         unidad: row.unidad,
         factor_emision: row.factor_emision,
         emisiones: row.emisiones,
-        unidad_operativa: row.unidad_nombre,
-        id_lote: row.id_lote,
+        etapa: row.etapa_nombre,
+        codigo_obra: row.codigo_obra,
       })),
     }),
-    [activeEmpresa?.nombre, data?.empresa?.nombre, kpis.emisiones_totales, rows]
+    [activeConstructora?.nombre, data?.constructora?.nombre, kpis.emisiones_totales, rows]
   );
   const categoryOptions = constructionCategories;
-  const unitOptions = useMemo(() => uniqueOptions(rows, "unidad_nombre"), [rows]);
-  const loteOptions = useMemo(() => uniqueOptions(rows, "id_lote"), [rows]);
+  const unitOptions = useMemo(() => uniqueOptions(rows, "etapa_nombre"), [rows]);
+  const obraOptions = useMemo(() => uniqueOptions(rows, "codigo_obra"), [rows]);
   const filteredRows = useMemo(() => {
     const query = normalizeText(search);
 
@@ -412,10 +412,10 @@ const kpis = data?.kpis ?? {
         if (categoryFilter && row.categoria_visible !== categoryFilter) {
           return false;
         }
-        if (unitFilter && row.unidad_nombre !== unitFilter) {
+        if (unitFilter && row.etapa_nombre !== unitFilter) {
           return false;
         }
-        if (loteFilter && row.id_lote !== loteFilter) {
+        if (obraFilter && row.codigo_obra !== obraFilter) {
           return false;
         }
         if (!query) {
@@ -424,17 +424,17 @@ const kpis = data?.kpis ?? {
 
         return normalizeText(
           [
-            row.actividad,
-            row.unidad_nombre,
-            row.unidad_id,
-            row.id_lote,
+            row.fuente_emision,
+            row.etapa_nombre,
+            row.etapa_id,
+            row.codigo_obra,
             row.categoria,
             fuelUseLabels[row.tipo_consumo_combustible],
           ].join(" ")
         ).includes(query);
       })
       .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
-  }, [categoryFilter, loteFilter, rowsWithCategories, search, unitFilter]);
+  }, [categoryFilter, obraFilter, rowsWithCategories, search, unitFilter]);
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / rowsPerPage));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const visibleRows = filteredRows.slice(
@@ -449,7 +449,7 @@ const kpis = data?.kpis ?? {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [categoryFilter, loteFilter, search, unitFilter]);
+  }, [categoryFilter, obraFilter, search, unitFilter]);
 
   const handleOptimize = async () => {
     try {
@@ -471,7 +471,7 @@ const kpis = data?.kpis ?? {
       const response = await getAiAdvisor({
         total_emisiones: kpis.emisiones_totales || 0,
         unidad_critica: kpis.unidad_critica || "Sin datos",
-        actividad_critica: kpis.actividad_critica || "Sin datos",
+        fuente_critica: kpis.fuente_critica || "Sin datos",
         simulacion: null,
         optimizacion: advisorScenario,
       });
@@ -496,11 +496,11 @@ const kpis = data?.kpis ?? {
     }
   };
 
-  if (loadingEmpresas) {
+  if (loadingConstructoras) {
     return <EmptyState title="Cargando constructoras" description="Preparando constructora activa." />;
   }
 
-  if (!activeEmpresaId) {
+  if (!activeConstructoraId) {
     return (
       <EmptyState
         title="Selecciona o crea una constructora para revisar sus emisiones."
@@ -565,18 +565,18 @@ const kpis = data?.kpis ?? {
       <section className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-4 sm:p-6">
         <p className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
           <Target size={18} />
-          Insight automático
+          Insight automÃ¡tico
         </p>
         <h2 className="mt-2 text-2xl font-bold text-emerald-100">
           {categoryInsight}
         </h2>
         <p className="mt-2 text-sm leading-6 text-emerald-200">
-          Mide el consumo antes y después de cada intervención, revisa resultados semanalmente y escala solo cuando la reducción se mantenga sin afectar la ejecución de obra.
+          Mide el consumo antes y despuÃ©s de cada intervenciÃ³n, revisa resultados semanalmente y escala solo cuando la reducciÃ³n se mantenga sin afectar la ejecuciÃ³n de obra.
         </p>
       </section>
 
       <section className="space-y-4">
-        <SectionTitle title="Estado actual de registros de emisión" />
+        <SectionTitle title="Estado actual de registros de emision" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <DecisionKpi
             icon={<Activity />}
@@ -585,18 +585,18 @@ const kpis = data?.kpis ?? {
           />
           <DecisionKpi
             icon={<Layers3 />}
-            label="Categoría crítica"
+            label="CategorÃ­a critica"
             value={criticalCategory || "Sin datos"}
           />
           <DecisionKpi
-            detail={`${formatNumber(kpis.porcentaje_top_actividad || 0, 1)}% del total`}
+            detail={`${formatNumber(kpis.porcentaje_top_fuente_emision || 0, 1)}% del total`}
             icon={<BarChart3 />}
-            label="Fuente crítica"
+            label="Fuente critica"
             value={criticalSource}
           />
           <DecisionKpi
             icon={<Factory />}
-            label="Registros de emisión"
+            label="Registros de emision"
             value={formatNumber(rows.length, 0)}
           />
           <DecisionKpi
@@ -610,7 +610,7 @@ const kpis = data?.kpis ?? {
           />
           <DecisionKpi
             icon={<Target />}
-            label="Etapa crítica"
+            label="Etapa critica"
             value={kpis.unidad_critica || "Sin datos"}
           />
         </div>
@@ -674,7 +674,7 @@ const kpis = data?.kpis ?? {
                   tickFormatter={formatNumber}
                 />
                 <YAxis
-                  dataKey="actividad"
+                  dataKey="fuente_emision"
                   interval={0}
                   stroke="#64748B"
                   tick={{ fill: "#475569", fontSize: 11, fontWeight: 600 }}
@@ -715,7 +715,7 @@ const kpis = data?.kpis ?? {
               </p>
             ))}
           </div>
-          {Number(kpis.actividades_sin_factor || 0) > 0 && (
+          {Number(kpis.registros_emision_sin_factor || 0) > 0 && (
             <p className="mt-4 flex items-center gap-2 rounded-2xl border border-[#F1B8B8] bg-[var(--danger-bg)] p-3 text-sm font-semibold text-[#B42318]">
               <AlertTriangle size={18} />
               Existen registros sin factor de emision asociado.
@@ -726,11 +726,11 @@ const kpis = data?.kpis ?? {
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--info-bg)] p-4 shadow-[var(--shadow-card)] sm:p-6">
           <SectionTitle
             eyebrow="Impacto real"
-            title={`Si reduces el consumo de diésel en un ${DIESEL_REDUCTION_SCENARIO}%`}
+            title={`Si reduces el consumo de diÃ©sel en un ${DIESEL_REDUCTION_SCENARIO}%`}
           />
           <div className="mt-4 space-y-3">
             <ImpactRow
-              label="Reducción estimada:"
+              label="ReducciÃ³n estimada:"
               value={`${formatNumber(decision.estimatedReduction, 0)} kg CO2e`}
             />
             <ImpactRow
@@ -751,7 +751,7 @@ const kpis = data?.kpis ?? {
       <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
         <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-xl font-semibold">Registros de emisión</h2>
+            <h2 className="text-xl font-semibold">Registros de emision</h2>
             <p className="mt-1 text-sm text-slate-400">
               {formatNumber(filteredRows.length, 0)} registros encontrados.
             </p>
@@ -768,12 +768,12 @@ const kpis = data?.kpis ?? {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar fuente, etapa, obra o categoría"
+              placeholder="Buscar fuente, etapa, obra o categorÃ­a"
               className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3 pl-11 pr-4 text-sm text-slate-100 outline-none transition focus:border-emerald-400/60"
             />
           </label>
           <FilterSelect
-            label="Todas las categorías"
+            label="Todas las categorÃ­as"
             onChange={setCategoryFilter}
             options={categoryOptions}
             value={categoryFilter}
@@ -786,17 +786,17 @@ const kpis = data?.kpis ?? {
           />
           <FilterSelect
             label="Todas las obras"
-            onChange={setLoteFilter}
-            options={loteOptions}
-            value={loteFilter}
+            onChange={setObraFilter}
+            options={obraOptions}
+            value={obraFilter}
           />
         </div>
 
         {rows.length === 0 && !loading ? (
           <div className="mt-5">
             <EmptyState
-              title="Aún no hay registros de emisión para esta obra."
-              description="Agrega emisiones por materiales, transporte, maquinaria, energía, agua o residuos para comenzar a medir la huella del proyecto."
+              title="AÃºn no hay registros de emision para esta obra."
+              description="Agrega emisiones por materiales, transporte, maquinaria, Energia, agua o residuos para comenzar a medir la huella del proyecto."
             />
           </div>
         ) : (
@@ -807,10 +807,10 @@ const kpis = data?.kpis ?? {
                   <th className="px-4 py-3">Fecha</th>
                   <th className="px-4 py-3">Obra</th>
                   <th className="px-4 py-3">Etapa / frente</th>
-                  <th className="px-4 py-3">Categoría</th>
-                  <th className="px-4 py-3">Fuente de emisión</th>
+                  <th className="px-4 py-3">CategorÃ­a</th>
+                  <th className="px-4 py-3">Fuente de emision</th>
                   <th className="px-4 py-3 text-right">Cantidad</th>
-                  <th className="px-4 py-3">Unidad</th>
+                  <th className="px-4 py-3">Etapa</th>
                   <th className="px-4 py-3 text-right">Factor</th>
                   <th className="px-4 py-3 text-right">Emisiones kg CO2e</th>
                   <th className="px-4 py-3">Evidencia</th>
@@ -832,15 +832,15 @@ const kpis = data?.kpis ?? {
                       }`}
                     >
                       <td className="px-4 py-4 text-slate-300">{row.fecha || "-"}</td>
-                      <td className="px-4 py-4 text-slate-300">{row.id_lote || "-"}</td>
+                      <td className="px-4 py-4 text-slate-300">{row.codigo_obra || "-"}</td>
                       <td className="px-4 py-4 font-semibold text-slate-100">
-                        {row.unidad_nombre || "Sin etapa"}
+                        {row.etapa_nombre || "Sin etapa"}
                       </td>
                       <td className="px-4 py-4">
                         <FactorCategoryBadge category={row.categoria_visible} />
                       </td>
                       <td className="px-4 py-4 font-semibold text-slate-100">
-                        {row.actividad}
+                        {row.fuente_emision}
                       </td>
                       <td className="px-4 py-4 text-right text-slate-300">
                         {formatNumber(row.cantidad || 0, 3)}
@@ -855,22 +855,22 @@ const kpis = data?.kpis ?? {
                       <td className="px-4 py-4 text-slate-300">
                         <div className="space-y-1">
                           <p className="font-semibold text-slate-100">
-                            {row.evidencia || row.documento || row.documento_id || row.evidencia_id ? "Sí" : "No"}
+                            {row.evidencia || row.evidencia || row.evidencia_id || row.evidencia_id ? "SÃ­" : "No"}
                           </p>
                           <p className="text-xs text-slate-400">
-                            {row.documento || row.documento_id || row.evidencia || row.evidencia_id
-                              ? getConstructionEvidenceTypeLabel(row.tipo_documento || row.tipo_evidencia || row.documento_tipo)
-                              : "Evidencia asociada: pendiente de vinculación"}
+                            {row.evidencia || row.evidencia_id || row.evidencia || row.evidencia_id
+                              ? getConstructionEvidenceTypeLabel(row.tipo_evidencia || row.tipo_evidencia || row.evidencia_tipo)
+                              : "Evidencia asociada: pendiente de vinculaciÃ³n"}
                           </p>
                           <p className="text-xs text-slate-500">
                             {row.estado_documental || row.estado_revision || row.estado_validacion
                               ? getConstructionEvidenceReviewLabel(row.estado_documental || row.estado_revision || row.estado_validacion)
-                              : "Estado documental: pendiente de vinculación"}
+                              : "Estado documental: pendiente de vinculaciÃ³n"}
                           </p>
                           <p className="text-xs text-slate-500">
-                            {row.evidencia || row.documento || row.documento_id || row.evidencia_id
+                            {row.evidencia || row.evidencia || row.evidencia_id || row.evidencia_id
                               ? getConstructionEvidenceLinkLabel(row.estado_vinculo || row.estado_sistema)
-                              : "Sin vínculo"}
+                              : "Sin vÃ­nculo"}
                           </p>
                         </div>
                       </td>

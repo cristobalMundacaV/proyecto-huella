@@ -1,4 +1,4 @@
-import { isDieselActivity } from "@/shared/utils/activitySemantics";
+﻿import { isDieselEmission } from "@/shared/utils/emissionSemantics";
 
 const clamp = (value, min = 0, max = 100) =>
   Math.min(max, Math.max(min, Number(value) || 0));
@@ -53,22 +53,22 @@ const getTone = (score) => {
 
 export function calculateRiskProfile(data, optimizedScenario) {
   const total = Number(data?.total_emisiones || 0);
-  const totalFromActivities =
-    sumValues(data?.emisiones_por_actividad) || total || 1;
-  const activityConcentration = maxShare(
-    data?.emisiones_por_actividad,
-    totalFromActivities
+  const totalFromSources =
+    sumValues(data?.emisiones_por_fuente_emision) || total || 1;
+  const sourceConcentration = maxShare(
+    data?.emisiones_por_fuente_emision,
+    totalFromSources
   );
   const unitConcentration = maxShare(
-    data?.emisiones_por_unidad_operativa,
-    sumValues(data?.emisiones_por_unidad_operativa) || total || 1
+    data?.emisiones_por_etapa,
+    sumValues(data?.emisiones_por_etapa) || total || 1
   );
   const companyConcentration = unitConcentration;
   const dieselPresent =
-    data?.datos?.some((row) => isDieselActivity(row) && Number(row.emisiones || 0) > 0) ||
-    Object.entries(data?.emisiones_por_actividad || {}).some(
-      ([activity, emissions]) =>
-        isDieselActivity({ actividad: activity }) && Number(emissions) > 0
+    data?.datos?.some((row) => isDieselEmission(row) && Number(row.emisiones || 0) > 0) ||
+    Object.entries(data?.emisiones_por_fuente_emision || {}).some(
+      ([source, emissions]) =>
+        isDieselEmission({ fuente_emision: source }) && Number(emissions) > 0
     );
   const dieselComponent = dieselPresent ? 100 : 0;
   const totalComponent = clamp(total / 50);
@@ -76,7 +76,7 @@ export function calculateRiskProfile(data, optimizedScenario) {
 
   const score = clamp(
       totalComponent * 0.3 +
-      activityConcentration * 0.25 +
+      sourceConcentration * 0.25 +
       unitConcentration * 0.35 +
       dieselComponent * 0.15 +
       potentialReduction * 0.1
@@ -91,7 +91,7 @@ export function calculateRiskProfile(data, optimizedScenario) {
         label: getLevel(totalComponent),
         score: totalComponent,
       },
-      activityConcentration,
+      sourceConcentration,
       companyConcentration,
       unitConcentration,
       dieselPresent,

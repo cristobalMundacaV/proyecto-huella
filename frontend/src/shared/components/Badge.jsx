@@ -1,4 +1,4 @@
-function Badge({ children, tone = "cyan" }) {
+﻿function Badge({ children, tone = "cyan" }) {
   const tones = {
     amber: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
     blue: "border-[#BFDBFE] bg-[#EFF6FF] text-[#075985]",

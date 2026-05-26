@@ -1,3 +1,3 @@
-export function getValidImportRows(rows = []) {
+﻿export function getValidImportRows(rows = []) {
   return rows.filter((row) => row.status === "valid");
 }

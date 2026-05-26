@@ -1,1 +1,1 @@
-export { getLoteExportCsvUrl, getLoteExportJsonUrl, getLoteFichaTecnicaUrl } from "@/shared/services/api";
+﻿export { getObraExportCsvUrl, getObraExportJsonUrl, getObraFichaTecnicaUrl } from "@/shared/services/api";

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -16,29 +16,29 @@ import LoginPage from "@/features/auth/pages/LoginPage";
 import ExecutiveSummary from "@/features/dashboard/components/ExecutiveSummary";
 import RealtimeIotMonitoring from "@/features/dashboard/components/RealtimeIotMonitoring";
 import EmisionesView from "@/features/emisiones/EmisionesView";
-import EmpresasView from "@/features/empresas/pages/EmpresasPage";
+import ConstructorasView from "@/features/constructoras/pages/ConstructorasPage";
 import EvidenciasPage from "@/features/evidencias/pages/EvidenciasPage";
 import ConfiguracionPage from "@/features/configuracion/pages/ConfiguracionPage";
 import FactoresView from "@/features/factores/pages/FactoresPage";
 import ImportacionesView from "@/features/importaciones/pages/ImportacionesPage";
-import LotesView from "@/features/lotes/pages/LotesPage";
-import UnidadesOperativasView from "@/features/unidades/pages/UnidadesPage";
+import ObrasView from "@/features/obras/pages/ObrasPage";
+import EtapasObraView from "@/features/etapas/pages/EtapasPage";
 import ReportesView from "@/features/reportes/pages/ReportesView";
 import UsuariosPage from "@/features/usuarios/pages/UsuariosPage";
 import {
-  getEmpresaDashboard,
-  getEmpresaEmisiones,
-  getEmpresaEstado,
+  getConstructoraDashboard,
+  getConstructoraEmisiones,
+  getConstructoraEstado,
 } from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
 import { optimizeScenario } from "@/features/dashboard/utils/optimizer";
 import { calculateRiskProfile } from "@/features/dashboard/utils/risk";
-import { useEmpresaActiva } from "@/features/empresas/context/EmpresaActivaContext";
+import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import {
   constructionCategories,
   getConstructionCategoryLabel,
-} from "@/features/lotes/utils/constructionEmissionCategories";
+} from "@/features/obras/utils/constructionEmissionCategories";
 
 const viewTransition = {
   duration: 0.24,
@@ -49,31 +49,31 @@ const DASHBOARD_REFRESH_INTERVAL_MS = 10000;
 
 const categoryInsightRules = {
   Materiales:
-    "Materiales concentra el mayor impacto ambiental. Revisa hormigón, acero, áridos y proveedores para evaluar alternativas de menor carbono incorporado.",
+    "Materiales concentra el mayor impacto ambiental. Revisa hormigÃ³n, acero, Ã¡ridos y proveedores para evaluar alternativas de menor carbono incorporado.",
   Transporte:
-    "Transporte aparece como foco crítico. Evalúa proveedores más cercanos, consolidación de viajes y reducción de kilómetros recorridos.",
+    "Transporte aparece como foco critico. EvalÃºa proveedores mÃ¡s cercanos, consolidaciÃ³n de viajes y reducciÃ³n de kilÃ³metros recorridos.",
   Maquinaria:
-    "Maquinaria concentra emisiones relevantes. Controlar ralentí, consumo por equipo y mantención puede reducir el impacto operativo.",
-  Energía:
-    "Energía es una fuente relevante. Revisa uso de generadores, consumo eléctrico y posibilidades de conexión temporal a red.",
+    "Maquinaria concentra emisiones relevantes. Controlar ralentÃ­, consumo por equipo y mantenciÃ³n puede reducir el impacto operativo.",
+  Energia:
+    "Energia es una fuente relevante. Revisa uso de generadores, consumo electrico y posibilidades de conexion temporal a red.",
   Residuos:
-    "Residuos aparece como foco de impacto. Separar residuos valorizables y mejorar trazabilidad de retiro puede reducir disposición final.",
+    "Residuos aparece como foco de impacto. Separar residuos valorizables y mejorar trazabilidad de retiro puede reducir disposiciÃ³n final.",
   Agua:
     "Agua requiere seguimiento operativo. Monitorear consumo por etapa ayuda a detectar desviaciones y mejorar eficiencia.",
   Otros:
-    "Agrega registros de emisión para identificar las fuentes críticas de la obra.",
+    "Agrega registros de emision para identificar las fuentes criticas de la obra.",
 };
 
 const worksiteReductionSteps = [
   {
     title: "Optimizar rutas de despacho y transporte",
     detail:
-      "Planificar mejor los recorridos, evitar viajes vacíos, combinar cargas y priorizar rutas más cortas o con menos tráfico para reducir kilómetros recorridos y consumo de combustible.",
+      "Planificar mejor los recorridos, evitar viajes vacÃ­os, combinar cargas y priorizar rutas mÃ¡s cortas o con menos trÃ¡fico para reducir kilÃ³metros recorridos y consumo de combustible.",
   },
   {
     title: "Mejorar eficiencia de maquinaria y camiones",
     detail:
-      "Implementar mantención preventiva, utilizar neumáticos adecuados, mantener los motores correctamente calibrados y reducir el tiempo de ralentí.",
+      "Implementar mantenciÃ³n preventiva, utilizar neumÃ¡ticos adecuados, mantener los motores correctamente calibrados y reducir el tiempo de ralentÃ­.",
   },
   {
     title: "Controlar conduccion y operacion",
@@ -114,14 +114,14 @@ function App() {
   const [companyStatus, setCompanyStatus] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeView, setActiveView] = useState("dashboard");
-  const [empresaCreateSignal, setEmpresaCreateSignal] = useState(0);
+  const [ConstructoraCreateSignal, setConstructoraCreateSignal] = useState(0);
   const { loadingAuth, user } = useAuth();
-  const { activeEmpresa, activeEmpresaId, loadingEmpresas } = useEmpresaActiva();
+  const { activeConstructora, activeConstructoraId, loadingConstructoras } = useConstructoraActiva();
 
   const handleSetActiveView = useCallback((view, options = {}) => {
     setActiveView(view);
-    if (options.openCreateEmpresa) {
-      setEmpresaCreateSignal((currentSignal) => currentSignal + 1);
+    if (options.openCreateConstructora) {
+      setConstructoraCreateSignal((currentSignal) => currentSignal + 1);
     }
   }, []);
 
@@ -131,7 +131,7 @@ function App() {
   }, []);
 
   const refreshInternalDashboard = useCallback(async () => {
-    if (!activeEmpresaId) {
+    if (!activeConstructoraId) {
       setData(null);
       setDashboardEmissionKpis(null);
       setCompanyStatus(null);
@@ -139,9 +139,9 @@ function App() {
     }
 
     const [dashboardResult, estadoResult, emissionsResult] = await Promise.allSettled([
-      getEmpresaDashboard(activeEmpresaId, { light: "1" }),
-      getEmpresaEstado(activeEmpresaId),
-      getEmpresaEmisiones(activeEmpresaId, { page: 1, page_size: 1 }),
+      getConstructoraDashboard(activeConstructoraId, { light: "1" }),
+      getConstructoraEstado(activeConstructoraId),
+      getConstructoraEmisiones(activeConstructoraId, { page: 1, page_size: 1 }),
     ]);
 
     if (dashboardResult.status === "fulfilled") {
@@ -163,11 +163,11 @@ function App() {
     }
 
     return dashboardResult.status === "fulfilled" ? dashboardResult.value : null;
-  }, [activeEmpresaId, applyDashboardData]);
+  }, [activeConstructoraId, applyDashboardData]);
 
   useEffect(() => {
-    if (activeView !== "dashboard" || !activeEmpresaId) {
-      if (!activeEmpresaId) {
+    if (activeView !== "dashboard" || !activeConstructoraId) {
+      if (!activeConstructoraId) {
         window.setTimeout(() => {
           setData(null);
           setDashboardEmissionKpis(null);
@@ -189,9 +189,9 @@ function App() {
 
       try {
         const [dashboardResult, estadoResult, emissionsResult] = await Promise.allSettled([
-          getEmpresaDashboard(activeEmpresaId, { light: "1" }),
-          getEmpresaEstado(activeEmpresaId),
-          getEmpresaEmisiones(activeEmpresaId, { page: 1, page_size: 1 }),
+          getConstructoraDashboard(activeConstructoraId, { light: "1" }),
+          getConstructoraEstado(activeConstructoraId),
+          getConstructoraEmisiones(activeConstructoraId, { page: 1, page_size: 1 }),
         ]);
 
         if (!isCancelled) {
@@ -232,14 +232,14 @@ function App() {
       isCancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [activeEmpresaId, activeView, applyDashboardData]);
+  }, [activeConstructoraId, activeView, applyDashboardData]);
 
   const handleExportReport = () => {
     window.print();
   };
 
   const dashboardTotalEmissions = Number(data?.total_emisiones || 0);
-  const dashboardStoredCarbon = Number(data?.co2_almacenado_total || 0);
+  const dashboardStoredCarbon = Number(data?.balance_ambiental_total || 0);
   const dashboardHasRows = Array.isArray(data?.datos) && data.datos.length > 0;
 
   const recommendedScenario = useMemo(() => {
@@ -279,7 +279,7 @@ function App() {
     return <LoginPage />;
   }
 
-  if (loadingEmpresas) {
+  if (loadingConstructoras) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--bg-main)] text-[var(--text-main)]">
         Cargando constructoras...
@@ -287,7 +287,7 @@ function App() {
     );
   }
 
-  if (!activeEmpresa && activeView === "emisiones") {
+  if (!activeConstructora && activeView === "emisiones") {
     return (
       <main className="flex min-h-screen flex-col bg-[var(--bg-main)] text-[var(--text-main)] lg:flex-row">
         <div className="hidden lg:block">
@@ -304,11 +304,11 @@ function App() {
     );
   }
 
-  if (!activeEmpresa) {
-      // Show the empresas page and open the create modal so the user can create a company
+  if (!activeConstructora) {
+      // Show the constructoras page and open the create modal so the user can create a company
       return (
         <div className="min-h-screen bg-[var(--bg-main)] p-6 text-[var(--text-main)] sm:p-10">
-          <EmpresasView onSetActiveView={handleSetActiveView} initialOpenCreate={true} />
+          <ConstructorasView onSetActiveView={handleSetActiveView} initialOpenCreate={true} />
         </div>
       );
     }
@@ -322,32 +322,32 @@ function App() {
     }
 const dashboardRows = Array.isArray(data?.datos) ? data.datos : [];
 
-const emisionesPorEmpresa = data?.emisiones_por_empresa ?? {};
-const emisionesPorActividad = data?.emisiones_por_actividad ?? {};
-const emisionesPorUnidad =
-  data?.emisiones_por_unidad_operativa ?? data?.emisiones_por_unidad ?? {};
+const emisionesPorConstructora = data?.emisiones_por_Constructora ?? {};
+const emisionesPorActividad = data?.emisiones_por_fuente_emision ?? {};
+const emisionesPorEtapa =
+  data?.emisiones_por_etapa ?? data?.emisiones_por_unidad ?? {};
 
-const actividades = Object.entries(emisionesPorActividad).map(
-  ([actividad, emisiones]) => ({
-    actividad,
+const registros_emision = Object.entries(emisionesPorActividad).map(
+  ([fuente_emision, emisiones]) => ({
+    fuente_emision,
     emisiones,
   })
 );
 
-const unidades = Object.entries(emisionesPorUnidad).map(
+const etapas = Object.entries(emisionesPorEtapa).map(
   ([unidad, emisiones]) => ({
     unidad,
     emisiones,
   })
 );
 
-const actividadCritica = actividades[0]?.actividad || "Sin datos";
-const unidadCritica = data?.unidad_critica || unidades[0]?.unidad || "Sin datos";
+const fuenteCritica = registros_emision[0]?.fuente_emision || "Sin datos";
+const unidadCritica = data?.unidad_critica || etapas[0]?.unidad || "Sin datos";
 const safeDashboardData = {
   ...data,
   datos: dashboardRows,
-  emisiones_por_empresa: emisionesPorEmpresa,
-  emisiones_por_actividad: emisionesPorActividad,
+  emisiones_por_Constructora: emisionesPorConstructora,
+  emisiones_por_fuente_emision: emisionesPorActividad,
   total_emisiones: data?.total_emisiones ?? 0,
 };
 
@@ -363,32 +363,32 @@ const dieselReductionEquivalentKm =
 const validationSummary = {
   records: dashboardRows.length,
   errors: 0,
-  activities: new Set(dashboardRows.map((row) => row.actividad)).size,
+  registros: new Set(dashboardRows.map((row) => row.fuente_emision)).size,
 };
-const isDieselCriticalActivity = String(actividadCritica || "")
+const isDieselcriticalSource = String(fuenteCritica || "")
   .normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "")
   .toLowerCase()
   .includes("diesel");
 const rowsWithCategories = dashboardRows.map((row) => ({
   ...row,
-  categoria_visible: getConstructionCategoryLabel(row.categoria, row.actividad),
+  categoria_visible: getConstructionCategoryLabel(row.categoria, row.fuente_emision),
 }));
 const totalEmissions = Number(safeDashboardData.total_emisiones || 0);
 const emissionsByWork = Object.values(
   rowsWithCategories.reduce((accumulator, row) => {
-    const workCode = row.id_lote || row.lote || "Sin obra";
+    const workCode = row.codigo_obra || row.obra || "Sin obra";
     const current = accumulator[workCode] || {
       name: workCode,
       emissions: 0,
-      surface: Number(row.volumen_m3 || row.superficie || 0),
+      surface: Number(row.superficie_m2 || row.superficie || 0),
       records: 0,
     };
 
     current.emissions += Number(row.emisiones || row.emisiones_kg_co2e || 0);
     current.records += 1;
     if (!current.surface) {
-      current.surface = Number(row.volumen_m3 || row.superficie || 0);
+      current.surface = Number(row.superficie_m2 || row.superficie || 0);
     }
     accumulator[workCode] = current;
     return accumulator;
@@ -424,7 +424,7 @@ const categoryInsight =
     : categoryInsightRules.Otros;
 const emissionsByStage = Object.values(
   rowsWithCategories.reduce((accumulator, row) => {
-    const stage = row.unidad_nombre || row.unidad_operativa || "Sin etapa";
+    const stage = row.etapa_nombre || row.etapa || "Sin etapa";
     const current = accumulator[stage] || { stage, emissions: 0, records: 0 };
     current.emissions += Number(row.emisiones || row.emisiones_kg_co2e || 0);
     current.records += 1;
@@ -434,13 +434,13 @@ const emissionsByStage = Object.values(
 ).sort((left, right) => right.emissions - left.emissions);
 const topSources = Object.values(
   rowsWithCategories.reduce((accumulator, row) => {
-    const source = row.actividad || "Sin fuente";
-    const key = `${source}|${row.categoria_visible}|${row.id_lote || ""}|${row.unidad_nombre || ""}`;
+    const source = row.fuente_emision || "Sin fuente";
+    const key = `${source}|${row.categoria_visible}|${row.codigo_obra || ""}|${row.etapa_nombre || ""}`;
     const current = accumulator[key] || {
-      source,
+      Activity,
       category: row.categoria_visible || "Otros",
-      work: row.id_lote || "Sin obra",
-      stage: row.unidad_nombre || "Sin etapa",
+      work: row.codigo_obra || "Sin obra",
+      stage: row.etapa_nombre || "Sin etapa",
       emissions: 0,
     };
     current.emissions += Number(row.emisiones || row.emisiones_kg_co2e || 0);
@@ -529,25 +529,25 @@ const environmentalStatus = getEnvironmentalStatus({
       <section className="flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-12 overflow-y-auto">
         <AnimatePresence mode="wait">
           <motion.div
-            key={`${activeView}-${activeEmpresaId}`}
+            key={`${activeView}-${activeConstructoraId}`}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={viewTransition}
           >
-        {activeView === "lotes" ? (
-          <LotesView />
-        ) : activeView === "empresas" ? (
-          <EmpresasView
+        {activeView === "obras" ? (
+          <ObrasView />
+        ) : activeView === "constructoras" ? (
+          <ConstructorasView
             onSetActiveView={handleSetActiveView}
-            openCreateSignal={empresaCreateSignal}
+            openCreateSignal={ConstructoraCreateSignal}
           />
-        ) : activeView === "unidades" ? (
-          <UnidadesOperativasView />
+        ) : activeView === "etapas" ? (
+          <EtapasObraView />
         ) : activeView === "reportes" ? (
           <ReportesView 
-              activeEmpresaId={activeEmpresaId}
-              activeEmpresa={activeEmpresa}
+              activeConstructoraId={activeConstructoraId}
+              activeConstructora={activeConstructora}
           />
         ) : activeView === "emisiones" ? (
           <EmisionesView onSetActiveView={handleSetActiveView} />
@@ -574,7 +574,7 @@ const environmentalStatus = getEnvironmentalStatus({
                   Carbono Zero
                 </h1>
                 <p className="text-[var(--text-muted)]">
-                  Convierte datos reales de obra en medición, trazabilidad y decisiones para reducir emisiones durante la ejecución del proyecto.
+                  Convierte datos reales de obra en mediciÃ³n, trazabilidad y decisiones para reducir emisiones durante la ejecuciÃ³n del proyecto.
                 </p>
               </div>
             </div>
@@ -588,7 +588,7 @@ const environmentalStatus = getEnvironmentalStatus({
           </header>
 
           <ExecutiveSummary
-            actividadCritica={actividadCritica}
+            fuenteCritica={fuenteCritica}
             unidadCritica={unidadCritica}
             optimizedScenario={recommendedScenario}
             reductionEquivalentKm={dieselReductionEquivalentKm}
@@ -604,30 +604,30 @@ const environmentalStatus = getEnvironmentalStatus({
             />
             <KpiCard
               icon={<Factory />}
-              title="Obra crítica"
+              title="Obra critica"
               value={criticalWork}
             />
             <KpiCard
               icon={<AlertTriangle />}
-              title="Categoría crítica"
+              title="CategorÃ­a critica"
               value={criticalCategory}
             />
             <KpiCard
               icon={<AlertTriangle />}
-              title="Fuente crítica"
-              value={actividadCritica}
+              title="Fuente critica"
+              value={fuenteCritica}
             />
             <KpiCard
               icon={<Database />}
               title="Evidencia respaldada"
-              value="Pendiente de vinculación"
+              value="Pendiente de vinculaciÃ³n"
             />
             <KpiCard
               icon={<Factory />}
               title="Intensidad de carbono"
               value={
                 carbonIntensity != null
-                  ? `${formatNumber(carbonIntensity, 2)} kg CO2e/m²`
+                  ? `${formatNumber(carbonIntensity, 2)} kg CO2e/mÂ²`
                   : "Pendiente de superficie"
               }
             />
@@ -640,7 +640,7 @@ const environmentalStatus = getEnvironmentalStatus({
             />
             <DistributionPanel
               items={categoryDistribution}
-              title="Emisiones por categoría"
+              title="Emisiones por categorÃ­a"
               total={totalEmissions}
             />
           </section>
@@ -650,16 +650,16 @@ const environmentalStatus = getEnvironmentalStatus({
             <TopSourcesPanel items={topSources} total={totalEmissions} />
           </section>
 
-          <RealtimeIotMonitoring activeEmpresaId={activeEmpresaId} />
+          <RealtimeIotMonitoring activeConstructoraId={activeConstructoraId} />
 
-          {isDieselCriticalActivity && (
+          {isDieselcriticalSource && (
             <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/40 sm:p-6">
               <div className="mb-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Pasos a seguir
                 </p>
                 <h2 className="mt-1 text-xl font-bold text-[var(--text-main)]">
-                  Como reducir emisiones dentro de la operación.
+                  Como reducir emisiones dentro de la operaciÃ³n.
                 </h2>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -697,7 +697,7 @@ function getEnvironmentalStatus({ categoryDistribution, evidenceBacked, rows, to
   if (!rows.length || !totalEmissions) {
     return {
       label: "Sin datos",
-      detail: "Aún no hay registros suficientes.",
+      detail: "AÃºn no hay registros suficientes.",
       className: "border-slate-300 bg-slate-100 text-slate-700",
     };
   }
@@ -708,15 +708,15 @@ function getEnvironmentalStatus({ categoryDistribution, evidenceBacked, rows, to
   if (evidenceBacked != null && evidenceBacked >= 50 && maxShare <= 50) {
     return {
       label: "Controlada",
-      detail: "Sin concentración dominante y con documentación suficiente.",
+      detail: "Sin concentraciÃ³n dominante y con documentaciÃ³n suficiente.",
       className: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
     };
   }
 
   if (maxShare > 60) {
     return {
-      label: "Crítica",
-      detail: "Una categoría concentra más del 60% de las emisiones.",
+      label: "critica",
+      detail: "Una categorÃ­a concentra mÃ¡s del 60% de las emisiones.",
       className: "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]",
     };
   }
@@ -724,14 +724,14 @@ function getEnvironmentalStatus({ categoryDistribution, evidenceBacked, rows, to
   if (activeCategories >= 3) {
     return {
       label: "En seguimiento",
-      detail: "Existen registros distribuidos en varias categorías.",
+      detail: "Existen registros distribuidos en varias categorÃ­as.",
       className: "border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]",
     };
   }
 
   return {
     label: "Inicial",
-    detail: "Existen registros, pero aún falta trazabilidad por categoría.",
+    detail: "Existen registros, pero aÃºn falta trazabilidad por categorÃ­a.",
     className: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
   };
 }
@@ -742,10 +742,10 @@ function InsightPanel({ environmentalStatus, insight }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
-            Insight automático
+            Insight automÃ¡tico
           </p>
           <h2 className="mt-2 text-xl font-semibold text-[var(--text-main)]">
-            Acción prioritaria
+            AcciÃ³n prioritaria
           </h2>
         </div>
         <div className={`premium-card-interactive rounded-2xl border px-4 py-3 text-sm font-bold ${environmentalStatus.className}`}>
@@ -776,7 +776,7 @@ function DistributionPanel({ items, title, total }) {
         ))}
         {!total && (
           <p className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 text-sm text-[var(--text-muted)]">
-            No hay registros de emisión suficientes.
+            No hay registros de emision suficientes.
           </p>
         )}
       </div>
@@ -803,7 +803,7 @@ function StagePanel({ items, total }) {
           ))
         ) : (
           <p className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 text-sm text-[var(--text-muted)]">
-            Aún no hay etapas o frentes asociados a los registros.
+            AÃºn no hay etapas o frentes asociados a los registros.
           </p>
         )}
       </div>
@@ -814,13 +814,13 @@ function StagePanel({ items, total }) {
 function TopSourcesPanel({ items, total }) {
   return (
     <section className="premium-card premium-card-interactive rounded-2xl bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/40 sm:p-6">
-      <h2 className="text-xl font-semibold text-[var(--text-main)]">Fuentes críticas</h2>
+      <h2 className="text-xl font-semibold text-[var(--text-main)]">Fuentes criticas</h2>
       <div className="mt-5 overflow-x-auto">
         <table className="premium-table w-full min-w-[720px] text-sm">
           <thead className="border-b border-[var(--border)] text-left text-[var(--text-muted)]">
             <tr>
-              <th className="py-3 pr-4">Fuente de emisión</th>
-              <th className="px-4 py-3">Categoría</th>
+              <th className="py-3 pr-4">Fuente de emision</th>
+              <th className="px-4 py-3">CategorÃ­a</th>
               <th className="px-4 py-3">Obra / etapa</th>
               <th className="px-4 py-3 text-right">Emisiones kg CO2e</th>
               <th className="py-3 pl-4 text-right">% total</th>
@@ -846,7 +846,7 @@ function TopSourcesPanel({ items, total }) {
             ) : (
               <tr>
                 <td colSpan="5" className="py-8 text-center text-[var(--text-muted)]">
-                  No hay registros de emisión suficientes.
+                  No hay registros de emision suficientes.
                 </td>
               </tr>
             )}

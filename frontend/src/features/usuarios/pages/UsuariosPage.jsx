@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Plus, ShieldCheck, UserRound, UsersRound, X } from "lucide-react";
 
 import EmptyState from "@/shared/components/EmptyState";
 import {
-  createEmpresaUsuario,
-  getEmpresaUsuarios,
+  createConstructoraUsuario,
+  getConstructoraUsuarios,
 } from "@/shared/services/api";
-import { useEmpresaActiva } from "@/features/empresas/context/EmpresaActivaContext";
+import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 
 const emptyForm = {
   username: "",
@@ -20,7 +20,7 @@ const emptyForm = {
 };
 
 function UsuariosPage() {
-  const { activeEmpresa, activeEmpresaId } = useEmpresaActiva();
+  const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,7 +34,7 @@ function UsuariosPage() {
   );
 
   useEffect(() => {
-    if (!activeEmpresaId) {
+    if (!activeConstructoraId) {
       setUsuarios([]);
       setLoading(false);
       return;
@@ -44,7 +44,7 @@ function UsuariosPage() {
     setLoading(true);
     setError("");
 
-    getEmpresaUsuarios(activeEmpresaId)
+    getConstructoraUsuarios(activeConstructoraId)
       .then((data) => {
         if (!isCancelled) {
           setUsuarios(Array.isArray(data) ? data : []);
@@ -67,13 +67,13 @@ function UsuariosPage() {
     return () => {
       isCancelled = true;
     };
-  }, [activeEmpresaId]);
+  }, [activeConstructoraId]);
 
-  if (!activeEmpresa) {
+  if (!activeConstructora) {
     return (
       <EmptyState
         title="Selecciona una constructora"
-        description="Los usuarios se crean dentro de la empresa activa."
+        description="Los usuarios se crean dentro de la Constructora activa."
       />
     );
   }
@@ -93,7 +93,7 @@ function UsuariosPage() {
     setError("");
 
     try {
-      const created = await createEmpresaUsuario(activeEmpresaId, form);
+      const created = await createConstructoraUsuario(activeConstructoraId, form);
       setUsuarios((current) => [created, ...current]);
       setForm(emptyForm);
       setFormOpen(false);
@@ -119,7 +119,7 @@ function UsuariosPage() {
           <div>
             <h1 className="text-3xl font-bold sm:text-4xl">Usuarios</h1>
             <p className="max-w-3xl text-slate-400">
-              Administra accesos y roles para {activeEmpresa.nombre}.
+              Administra accesos y roles para {activeConstructora.nombre}.
             </p>
           </div>
         </div>
@@ -136,7 +136,7 @@ function UsuariosPage() {
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <UserKpi icon={<UsersRound />} label="Usuarios registrados" value={usuarios.length} />
         <UserKpi icon={<ShieldCheck />} label="Usuarios activos" value={activeUsers} />
-        <UserKpi icon={<UserRound />} label="Empresa" value={activeEmpresa.nombre} />
+        <UserKpi icon={<UserRound />} label="Constructora" value={activeConstructora.nombre} />
       </section>
 
       {formOpen && (
@@ -149,7 +149,7 @@ function UsuariosPage() {
               <div>
                 <p className="text-sm font-semibold text-emerald-300">Nuevo acceso</p>
                 <h2 className="mt-1 text-xl font-bold text-slate-100">
-                  Crear usuario en {activeEmpresa.nombre}
+                  Crear usuario en {activeConstructora.nombre}
                 </h2>
               </div>
               <button
@@ -260,7 +260,7 @@ function UsuariosPage() {
               {!loading && usuarios.length === 0 && (
                 <tr>
                   <td className="px-4 py-8 text-center text-slate-400" colSpan={6}>
-                    No hay usuarios registrados para esta empresa.
+                    No hay usuarios registrados para esta Constructora.
                   </td>
                 </tr>
               )}

@@ -1,4 +1,4 @@
-const formatNumber = (value, maximumFractionDigits = 2) =>
+﻿const formatNumber = (value, maximumFractionDigits = 2) =>
   new Intl.NumberFormat("es-CL", {
     minimumFractionDigits: 0,
     maximumFractionDigits,
@@ -30,7 +30,7 @@ const formatFocusForSentence = (value) => {
     normalizedValue.includes("combustion") &&
     normalizedValue.includes("movil")
   ) {
-    return "la combustión móvil de diésel";
+    return "la combustiÃ³n mÃ³vil de diÃ©sel";
   }
 
   return value;
@@ -56,17 +56,17 @@ const capRangeToPotential = (range, potentialReduction) => {
 const formatPercentRange = ({ min, max }) =>
   min === max ? `${min}%` : `${min}%-${max}%`;
 
-const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
-  const activityLabel = actividadCritica || "la fuente prioritaria";
-  const activityKey = normalizePlanText(activityLabel);
+const buildStrategicPlan = (fuenteCritica, optimizedScenario) => {
+  const activityLabel = fuenteCritica || "la fuente prioritaria";
+  const sourceKey = normalizePlanText(activityLabel);
   const potentialReduction = Number(optimizedScenario?.reductionPct || 0);
   const optimalActivityReduction =
-    activityKey === "diesel"
+    sourceKey === "diesel"
       ? Number(optimizedScenario?.dieselReduction || 0)
       : Number(optimizedScenario?.activityReduction || 0);
 
   let viability = "Alta";
-  if (activityKey === "diesel" || potentialReduction > 40) {
+  if (sourceKey === "diesel" || potentialReduction > 40) {
     viability = "Media";
   }
   if (potentialReduction > 50 || optimalActivityReduction >= 70) {
@@ -91,26 +91,26 @@ const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
   const principalRecommendation = `Apuntar a reducir gradualmente el consumo de ${activityLabel} entre un ${formatPercentRange(recommendedRange)}, iniciando con un objetivo priorizado cercano al ${initialTarget}%.`;
 
   const optimalReference = potentialReduction > 0
-    ? `El escenario máximo proyectado contempla una reducción total de hasta un ${formatNumber(
+    ? `El escenario mÃ¡ximo proyectado contempla una reducciÃ³n total de hasta un ${formatNumber(
         potentialReduction,
         1
-      )}%; sin embargo, no corresponde a una acción inmediata, ya que requeriría cambios estructurales para su implementación.`
-    : "El máximo potencial proyectado debe tratarse como referencia estratégica de largo plazo, no como acción inmediata.";
+      )}%; sin embargo, no corresponde a una acciÃ³n inmediata, ya que requerirÃ­a cambios estructurales para su implementaciÃ³n.`
+    : "El mÃ¡ximo potencial proyectado debe tratarse como referencia estratÃ©gica de largo plazo, no como acciÃ³n inmediata.";
 
   const actionLevels = [
     {
-      label: "Acciones rápidas",
+      label: "Acciones rÃ¡pidas",
       range: "5%-15%",
       tone: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--secondary)]",
       detail:
-        "Control del consumo, mantenimiento preventivo y mejora de la operación diaria. Ideal para lograr avances visibles sin cambiar la estructura del negocio.",
+        "Control del consumo, mantenimiento preventivo y mejora de la operaciÃ³n diaria. Ideal para lograr avances visibles sin cambiar la estructura del negocio.",
     },
     {
       label: "Piloto recomendado",
       range: formatPercentRange(recommendedRange),
       tone: "border-[#F6D98B] bg-[var(--warning-bg)] text-[#8A5A00]",
       detail:
-        "Ajustes operativos, rediseño parcial de procesos y seguimiento mediante indicadores. Es el mejor punto de partida para lograr una reducción realista y medible.",
+        "Ajustes operativos, rediseÃ±o parcial de procesos y seguimiento mediante indicadores. Es el mejor punto de partida para lograr una reducciÃ³n realista y medible.",
     },
     {
       label: "Cambio estructural",
@@ -120,7 +120,7 @@ const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
           : "35%+",
       tone: "border-[#F1C7C7] bg-[var(--danger-bg)] text-[#9A3412]",
       detail:
-        "Requiere inversión, planificación a mediano y largo plazo, y transición tecnológica. Es útil como visión futura, pero no como primera acción inmediata.",
+        "Requiere inversiÃ³n, planificaciÃ³n a mediano y largo plazo, y transiciÃ³n tecnolÃ³gica. Es Ãºtil como visiÃ³n futura, pero no como primera acciÃ³n inmediata.",
     },
   ];
 
@@ -135,14 +135,14 @@ const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
 };
 
 function ExecutiveSummary({
-  actividadCritica,
+  fuenteCritica,
   unidadCritica,
   optimizedScenario,
   reductionEquivalentKm,
   riskProfile,
 }) {
   const unidadCriticaLabel = unidadCritica || "Sin datos";
-  const strategicPlan = buildStrategicPlan(actividadCritica, optimizedScenario);
+  const strategicPlan = buildStrategicPlan(fuenteCritica, optimizedScenario);
   const recommendedDecision = optimizedScenario
     ? strategicPlan.principalRecommendation
     : "Definir un plan progresivo con metas por fases";
@@ -158,10 +158,10 @@ function ExecutiveSummary({
     0
   );
   const estimatedImpact = optimizedScenario
-    ? `con un potencial proyectado de reducción del ${formatNumber(
+    ? `con un potencial proyectado de reducciÃ³n del ${formatNumber(
         optimizedScenario.reductionPct,
         1
-      )}% en las emisiones totales bajo el escenario máximo.`
+      )}% en las emisiones totales bajo el escenario mÃ¡ximo.`
     : "Sin calcular";
   const riskTone =
     riskProfile.score > 70
@@ -187,13 +187,13 @@ function ExecutiveSummary({
                   optimizedScenario.reductionPct,
                   1
                 )}% con una reduccion progresiva en ${formatTitleCase(
-                  actividadCritica
+                  fuenteCritica
                 )}`
-              : `Carbono Zero recomienda un plan gradual sobre ${actividadCritica}`}
+              : `Carbono Zero recomienda un plan gradual sobre ${fuenteCritica}`}
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
             El principal foco de impacto se concentra en{" "}
-            {formatFocusForSentence(actividadCritica)}, siendo {unidadCriticaLabel}{" "}
+            {formatFocusForSentence(fuenteCritica)}, siendo {unidadCriticaLabel}{" "}
             la etapa prioritaria. El nivel de viabilidad es{" "}
             <strong>{formatViabilityForSentence(strategicPlan.viability)}</strong>,{" "}
             {optimizedScenario ? estimatedImpact : "sin calcular."}
@@ -224,7 +224,7 @@ function ExecutiveSummary({
             value={`${formatNumber(mediumImpactEstimatedTotal, 1)} kg CO2e`}
           />
           <BeforeAfterCard
-            label="Máximo potencial proyectado"
+            label="MÃ¡ximo potencial proyectado"
             tone="green"
             value={`${formatNumber(simulatedTotal, 1)} kg CO2e`}
           />
@@ -232,7 +232,7 @@ function ExecutiveSummary({
       )}
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        <SummaryItem label="Foco principal" value={actividadCritica} tone="warning" />
+        <SummaryItem label="Foco principal" value={fuenteCritica} tone="warning" />
         <SummaryItem label="Etapa prioritaria" value={unidadCriticaLabel} tone="info" />
         <SummaryItem
           label="Escenario recomendado"
@@ -241,13 +241,13 @@ function ExecutiveSummary({
         />
 
         <SummaryItem
-          label="Uso de diésel"
+          label="Uso de diÃ©sel"
           value={riskProfile.factors.dieselPresent ? "Si" : "No"}
           tone={riskProfile.factors.dieselPresent ? "warning" : "neutral"}
         />
 
         <SummaryItem
-          label="Reducción estimada"
+          label="ReducciÃ³n estimada"
           value={
             optimizedScenario
               ? `${formatNumber(optimizedScenario.reductionPct, 1)}%`
@@ -264,7 +264,7 @@ function ExecutiveSummary({
 
       <div className="premium-card-interactive mt-5 rounded-2xl border border-cyan-100 bg-[linear-gradient(180deg,rgba(236,253,255,1),rgba(239,246,255,0.92))] p-4 transition group-hover:border-cyan-200 group-hover:shadow-[0_14px_30px_rgba(15,23,42,0.08)]">
         <p className="text-xs font-bold uppercase tracking-wide text-[var(--primary-dark)]">
-          Recomendación principal
+          RecomendaciÃ³n principal
         </p>
         <p className="mt-2 text-sm leading-6 text-[var(--text-main)]">{recommendedDecision}</p>
         <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
@@ -296,7 +296,7 @@ function ExecutiveSummary({
           />
           <ScoreFactor
             label="Concentracion fuente"
-            value={`${formatNumber(riskProfile.factors.activityConcentration, 0)}%`}
+            value={`${formatNumber(riskProfile.factors.sourceConcentration, 0)}%`}
             tone="warning"
           />
           <ScoreFactor
@@ -318,10 +318,10 @@ function ExecutiveSummary({
       </div>
 
       <p className="mt-5 rounded-2xl border border-emerald-200/70 bg-[linear-gradient(180deg,rgba(236,253,243,1),rgba(220,252,231,0.92))] px-4 py-3 text-sm leading-6 text-[var(--secondary)] shadow-[0_10px_22px_rgba(15,23,42,0.05)] transition group-hover:border-emerald-300/70 group-hover:shadow-[0_14px_30px_rgba(15,23,42,0.08)]">
-        Carbono Zero recomienda priorizar una intervencion progresiva en {unidadCriticaLabel} sobre {actividadCritica}, empezando con quick wins y escalando por fases
+        Carbono Zero recomienda priorizar una intervencion progresiva en {unidadCriticaLabel} sobre {fuenteCritica}, empezando con quick wins y escalando por fases
         segun resultados medidos.
         {(optimizedScenario || reductionEquivalentKm != null) &&
-          ` Si la hoja de ruta se consolida por etapas, la reducción operativa estimada equivale a aproximadamente ${formatNumber(
+          ` Si la hoja de ruta se consolida por etapas, la reducciÃ³n operativa estimada equivale a aproximadamente ${formatNumber(
             equivalentCarKm,
             0
           )} km recorridos en auto.`}

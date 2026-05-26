@@ -1,19 +1,19 @@
-import EmpresasPage from "@/features/empresas/pages/EmpresasPage";
+﻿import ConstructorasPage from "@/features/constructoras/pages/ConstructorasPage";
 import EvidenciasPage from "@/features/evidencias/pages/EvidenciasPage";
 import ConfiguracionPage from "@/features/configuracion/pages/ConfiguracionPage";
 import FactoresPage from "@/features/factores/pages/FactoresPage";
 import ImportacionesPage from "@/features/importaciones/pages/ImportacionesPage";
-import LotesPage from "@/features/lotes/pages/LotesPage";
+import ObrasPage from "@/features/obras/pages/ObrasPage";
 import ReportesPage from "@/features/reportes/pages/ReportesPage";
-import UnidadesPage from "@/features/unidades/pages/UnidadesPage";
+import EtapasPage from "@/features/etapas/pages/EtapasPage";
 
 export const appRoutes = {
-  empresas: EmpresasPage,
+  constructoras: ConstructorasPage,
   evidencias: EvidenciasPage,
   configuracion: ConfiguracionPage,
   factores: FactoresPage,
   importaciones: ImportacionesPage,
-  lotes: LotesPage,
+  obras: ObrasPage,
   reportes: ReportesPage,
-  unidades: UnidadesPage,
+  etapas: EtapasPage,
 };

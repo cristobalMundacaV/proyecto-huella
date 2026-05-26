@@ -1,12 +1,12 @@
-import App from "./App.jsx";
+﻿import App from "./App.jsx";
 import Providers from "./providers.jsx";
-import VerificarLote from "@/features/lotes/pages/VerificarLote.jsx";
+import VerificarObra from "@/features/obras/pages/VerificarObra.jsx";
 
 function Root() {
   if (window.location.pathname.startsWith("/verificar/")) {
     return (
       <Providers>
-        <VerificarLote />
+        <VerificarObra />
       </Providers>
     );
   }

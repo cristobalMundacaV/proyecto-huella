@@ -1,10 +1,10 @@
-import { getCategoryFieldCopy, getConstructionCategoryLabel } from "@/features/lotes/utils/constructionEmissionCategories";
-import { normalizeActivityText } from "@/shared/utils/activitySemantics";
+﻿import { getCategoryFieldCopy, getConstructionCategoryLabel } from "@/features/obras/utils/constructionEmissionCategories";
+import { normalizeEmissionText } from "@/shared/utils/emissionSemantics";
 
 const CATEGORY_RULES = [
   {
     category: "Maquinaria",
-    source: "Diésel maquinaria",
+    source: "DiÃ©sel maquinaria",
     unit: "litros",
     tokens: ["diesel", "diessel", "combustible", "maquinaria", "excavadora", "retroexcavadora", "generador", "grua"],
     quantityPatterns: [
@@ -13,7 +13,7 @@ const CATEGORY_RULES = [
     ],
   },
   {
-    category: "Energía",
+    category: "Energia",
     source: "Electricidad",
     unit: "kWh",
     tokens: ["electricidad", "energia", "kwh", "boleta electrica", "consumo electrico"],
@@ -24,7 +24,7 @@ const CATEGORY_RULES = [
   },
   {
     category: "Transporte",
-    source: "Transporte camión",
+    source: "Transporte camiÃ³n",
     unit: "km",
     tokens: ["transporte", "camion", "flete", "viaje", "ruta", "patente"],
     quantityPatterns: [
@@ -34,9 +34,9 @@ const CATEGORY_RULES = [
   },
   {
     category: "Materiales",
-    source: "Hormigón H30",
+    source: "HormigÃ³n H30",
     unit: "m3",
-    tokens: ["hormigon", "concreto", "cemento", "acero", "arido", "madera", "material"],
+    tokens: ["hormigon", "concreto", "cemento", "acero", "arido",  "material"],
     quantityPatterns: [
       /(?:m3|m\xB3|metros? cubicos?)\s*:?[ \t]*([0-9]+(?:[.,][0-9]+)?)/i,
       /([0-9]+(?:[.,][0-9]+)?)[ \t]*(?:m3|m\xB3|metros? cubicos?)/i,
@@ -91,20 +91,20 @@ function firstMatchingPattern(text, patterns) {
 }
 
 function scoreFactor(factor, category, source, unit) {
-  const haystack = normalizeActivityText(
-    [factor?.categoria, factor?.actividad, factor?.actividad_key, factor?.unidad, factor?.fuente].filter(Boolean).join(" ")
+  const haystack = normalizeEmissionText(
+    [factor?.categoria, factor?.fuente_emision, factor?.fuente_emision_key, factor?.unidad, factor?.fuente].filter(Boolean).join(" ")
   );
   let score = 0;
 
-  if (category && getConstructionCategoryLabel(factor?.categoria, factor?.actividad) === category) {
+  if (category && getConstructionCategoryLabel(factor?.categoria, factor?.fuente_emision) === category) {
     score += 6;
   }
 
-  if (source && haystack.includes(normalizeActivityText(source))) {
+  if (source && haystack.includes(normalizeEmissionText(source))) {
     score += 4;
   }
 
-  if (unit && normalizeActivityText(factor?.unidad) === normalizeActivityText(unit)) {
+  if (unit && normalizeEmissionText(factor?.unidad) === normalizeEmissionText(unit)) {
     score += 3;
   }
 
@@ -118,8 +118,8 @@ function scoreFactor(factor, category, source, unit) {
 }
 
 function inferCategory(text, structured = {}) {
-  const combined = normalizeActivityText(
-    [text, structured?.proveedor, structured?.origen, structured?.destino, structured?.numero_documento].filter(Boolean).join(" ")
+  const combined = normalizeEmissionText(
+    [text, structured?.proveedor, structured?.origen, structured?.destino, structured?.numero_evidencia].filter(Boolean).join(" ")
   );
 
   const matchedRule = CATEGORY_RULES.find((rule) => rule.tokens.some((token) => combined.includes(token)));
@@ -170,17 +170,17 @@ export function inferDocumentImportSuggestion({ text = "", structured = {}, file
   const rule = inferCategory(normalizedText, structured);
   const quantity = inferQuantity(rule, normalizedText, structured);
   const copy = getCategoryFieldCopy(rule.category);
-  const source = structured?.proveedor || structured?.origen || structured?.destino || rule.source;
+  const inferredSource = structured?.proveedor || structured?.origen || structured?.destino || rule.source;
   const docDate = structured?.fecha || "";
 
   const factorSuggestions = Array.isArray(factors)
     ? [...factors]
-        .sort((left, right) => scoreFactor(right, rule.category, source, rule.unit) - scoreFactor(left, rule.category, source, rule.unit))
+        .sort((left, right) => scoreFactor(right, rule.category, inferredSource, rule.unit) - scoreFactor(left, rule.category, inferredSource, rule.unit))
         .slice(0, 3)
     : [];
   const suggestedFactor = factorSuggestions[0] || null;
 
-  const activity = source || copy.sourcePlaceholder || rule.source;
+  const source = inferredSource || copy.sourcePlaceholder || rule.source;
   const unit = structured?.kwh ? "kWh" : structured?.litros_combustible ? "litros" : rule.unit;
   const confidenceScore = [normalizedText, quantity, suggestedFactor].filter(Boolean).length + (structured?.fecha ? 1 : 0);
 
@@ -195,21 +195,20 @@ export function inferDocumentImportSuggestion({ text = "", structured = {}, file
     document: {
       fileName,
       date: docDate,
-      type: structured?.tipo_documento || "documento de obra",
+      type: structured?.tipo_evidencia || "evidencia de obra",
       provider: structured?.proveedor || "",
-      number: structured?.numero_documento || "",
+      number: structured?.numero_evidencia || "",
       confidence,
       text,
     },
     emission: {
       category: rule.category,
       source,
-      activity,
       quantity: quantity === null ? "" : String(quantity),
       unit,
       factorEmision: suggestedFactor?.factor_emision ? String(suggestedFactor.factor_emision) : "",
       factorEmisionId: suggestedFactor?.id || suggestedFactor?.factor_emision_id || "",
-      factorLabel: suggestedFactor?.label || suggestedFactor?.actividad || "",
+      factorLabel: suggestedFactor?.label || suggestedFactor?.fuente_emision || "",
       estimatedEmissions:
         quantity !== null && suggestedFactor?.factor_emision
           ? String((quantity * Number(suggestedFactor.factor_emision)).toFixed(3))

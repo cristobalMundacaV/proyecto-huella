@@ -1,4 +1,4 @@
-function AiAdvisor({
+﻿function AiAdvisor({
   aiAnalysis,
   aiSource,
   loadingAi,

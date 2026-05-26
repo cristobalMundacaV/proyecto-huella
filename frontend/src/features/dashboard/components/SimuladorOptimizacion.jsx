@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, Factory, Lightbulb, SlidersHorizontal } from "lucide-react";
 import {
   Bar,
@@ -10,10 +10,10 @@ import {
 } from "recharts";
 
 import {
-  isDieselActivity,
-  isElectricityActivity,
-  isTransportActivity,
-} from "@/shared/utils/activitySemantics";
+  isDieselEmission,
+  isElectricityEmission,
+  isTransportEmission,
+} from "@/shared/utils/emissionSemantics";
 
 const formatNumber = (value, maximumFractionDigits = 2) =>
   new Intl.NumberFormat("es-CL", {
@@ -46,22 +46,22 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
   const [selectedCompany, setSelectedCompany] = useState("Todas");
 
   const companies = useMemo(() => {
-    const uniqueCompanies = new Set(data.datos.map((row) => row.empresa));
+    const uniqueCompanies = new Set(data.datos.map((row) => row.constructora));
     return ["Todas", ...Array.from(uniqueCompanies)];
   }, [data]);
 
   const simulation = useMemo(() => {
     const appliesToCompany = (row) =>
-      selectedCompany === "Todas" || row.empresa === selectedCompany;
+      selectedCompany === "Todas" || row.constructora === selectedCompany;
 
     const rows = data.datos.map((row) => {
       let simulatedQuantity = Number(row.cantidad);
 
-      if (appliesToCompany(row) && isDieselActivity(row) && !isTransportActivity(row)) {
+      if (appliesToCompany(row) && isDieselEmission(row) && !isTransportEmission(row)) {
         simulatedQuantity *= 1 - dieselReduction / 100;
       }
 
-      if (appliesToCompany(row) && isElectricityActivity(row)) {
+      if (appliesToCompany(row) && isElectricityEmission(row)) {
         simulatedQuantity *= 1 + electricityIncrease / 100;
       }
 
@@ -83,18 +83,18 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
     );
     const reductionPct =
       totalActual > 0 ? ((totalActual - totalSimulado) / totalActual) * 100 : 0;
-    const activityTotals = rows.reduce((totals, row) => {
-      totals[row.actividad] =
-        (totals[row.actividad] || 0) + row.emisiones_simuladas;
+    const sourceTotals = rows.reduce((totals, row) => {
+      totals[row.fuente_emision] =
+        (totals[row.fuente_emision] || 0) + row.emisiones_simuladas;
       return totals;
     }, {});
     const unitTotals = rows.reduce((totals, row) => {
-      const unitLabel = row.unidad_operativa || "Sin unidad";
+      const unitLabel = row.etapa || "Sin unidad";
       totals[unitLabel] = (totals[unitLabel] || 0) + row.emisiones_simuladas;
       return totals;
     }, {});
-    const criticalActivity =
-      Object.entries(activityTotals).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+    const criticalSource =
+      Object.entries(sourceTotals).sort((a, b) => b[1] - a[1])[0]?.[0] ||
       "Sin datos";
     const unitChart = Object.entries(unitTotals).map(
       ([unidad, emisiones]) => ({
@@ -108,7 +108,7 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
       totalActual,
       totalSimulado,
       reductionPct,
-      criticalActivity,
+      criticalSource,
       unitChart,
     };
   }, [data, dieselReduction, electricityIncrease, selectedCompany]);
@@ -148,7 +148,7 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
       totalActual: simulation.totalActual,
       totalSimulado: simulation.totalSimulado,
       reductionPct: simulation.reductionPct,
-      criticalActivity: simulation.criticalActivity,
+      criticalSource: simulation.criticalSource,
       executiveInsight,
     });
   }, [
@@ -157,7 +157,7 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
     executiveInsight,
     onSimulationChange,
     selectedCompany,
-    simulation.criticalActivity,
+    simulation.criticalSource,
     simulation.reductionPct,
     simulation.totalActual,
     simulation.totalSimulado,
@@ -203,7 +203,7 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
           />
           <SliderControl
             color="sky"
-            label="Electrificación de procesos"
+            label="ElectrificaciÃ³n de procesos"
             max={60}
             onChange={setElectricityIncrease}
             value={electricityIncrease}
@@ -247,8 +247,8 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
             </p>
             <p className="mt-2 text-sm font-medium leading-6 text-[#334155]">
               Reducir diesel en {dieselReduction}% y ajustar electricidad en{" "}
-              {electricityIncrease}% deja como actividad critica a{" "}
-              <strong>{simulation.criticalActivity}</strong>.
+              {electricityIncrease}% deja como fuente_emision critica a{" "}
+              <strong>{simulation.criticalSource}</strong>.
             </p>
           </div>
 

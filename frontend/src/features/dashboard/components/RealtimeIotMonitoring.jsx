@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   Gauge,
@@ -32,7 +32,7 @@ const formatTipo = (value) =>
     .replace(/_/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
-function RealtimeIotMonitoring({ activeEmpresaId }) {
+function RealtimeIotMonitoring({ activeConstructoraId }) {
   const [kpis, setKpis] = useState(null);
   const [lecturas, setLecturas] = useState([]);
   const [lecturasPage, setLecturasPage] = useState(1);
@@ -52,7 +52,7 @@ function RealtimeIotMonitoring({ activeEmpresaId }) {
   useEffect(() => {
     let isCancelled = false;
 
-    if (!activeEmpresaId) {
+    if (!activeConstructoraId) {
       return undefined;
     }
 
@@ -70,8 +70,8 @@ function RealtimeIotMonitoring({ activeEmpresaId }) {
         }
 
         const [kpisResult, lecturasResult] = await Promise.all([
-          getIotKpis(activeEmpresaId),
-          getIotUltimasLecturas(activeEmpresaId),
+          getIotKpis(activeConstructoraId),
+          getIotUltimasLecturas(activeConstructoraId),
         ]);
 
         if (!isCancelled) {
@@ -101,7 +101,7 @@ function RealtimeIotMonitoring({ activeEmpresaId }) {
       isCancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [activeEmpresaId]);
+  }, [activeConstructoraId]);
 
   return (
     <section className="premium-card premium-card-interactive slide-up rounded-2xl bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/45 sm:p-6">
@@ -149,7 +149,7 @@ function RealtimeIotMonitoring({ activeEmpresaId }) {
             />
             <KpiCard
               icon={<Gauge />}
-              title="Etapa con más emisiones hoy"
+              title="Etapa con mÃ¡s emisiones hoy"
               value={
                 <span className="block text-xl leading-tight">
                   {kpis?.unidad_mayor_emision_hoy || "Sin datos"}
@@ -163,14 +163,14 @@ function RealtimeIotMonitoring({ activeEmpresaId }) {
             />
             <KpiCard
               icon={<Activity />}
-              title="Fuente con más emisiones hoy"
+              title="Fuente con mÃ¡s emisiones hoy"
               value={
                 <span className="block text-xl leading-tight">
-                  {formatTipo(kpis?.actividad_mayor_emision_hoy) || "Sin datos"}
+                  {formatTipo(kpis?.fuente_emision_mayor_emision_hoy) || "Sin datos"}
                 </span>
               }
               detail={`${formatNumber(
-                kpis?.actividad_mayor_emision_hoy_kg_co2e || 0,
+                kpis?.fuente_emision_mayor_emision_hoy_kg_co2e || 0,
                 2
               )} kg CO2e`}
               tone="warning"
@@ -207,7 +207,7 @@ function RealtimeIotMonitoring({ activeEmpresaId }) {
                           {lectura.sensor}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3">
-                          {lectura.unidad_operativa}
+                          {lectura.etapa}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3">
                           {formatTipo(lectura.tipo)}

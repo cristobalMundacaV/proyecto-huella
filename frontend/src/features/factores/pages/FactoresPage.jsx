@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { Database, Loader2, Search } from "lucide-react";
 
 import FactorCategoryBadge from "@/features/factores/components/FactorCategoryBadge";
@@ -24,8 +24,8 @@ function FactoresView() {
     return factores.filter((factor) => {
       const matchesCategory = !category || factor.categoria === category;
       const searchable = [
-        factor.actividad,
-        factor.actividad_key,
+        factor.fuente_emision,
+        factor.fuente_emision_key,
         factor.unidad,
         factor.anio,
       ]
@@ -54,7 +54,7 @@ function FactoresView() {
               Factores de emision
             </h1>
             <p className="text-slate-400">
-              Catalogo de factores cargados para calcular actividades y transporte.
+              Catalogo de factores cargados para calcular registros_emision y transporte.
             </p>
           </div>
         </div>
@@ -87,7 +87,7 @@ function FactoresView() {
                 setSearch(event.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Buscar actividad, key, unidad o año"
+              placeholder="Buscar fuente_emision, key, unidad o aÃ±o"
               className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3 pl-11 pr-4 text-sm text-slate-100 outline-none transition focus:border-cyan-400/60"
             />
           </label>
@@ -113,11 +113,11 @@ function FactoresView() {
             <thead className="border-b border-slate-800 text-slate-400">
               <tr>
 
-                <th className="w-[20%] px-4 py-3 text-center">Actividad</th>
+                <th className="w-[20%] px-4 py-3 text-center">Fuente de emisión</th>
                 <th className="w-[14%] px-4 py-3 text-left">Categoria</th>
                 <th className="w-[12%] px-4 py-3 text-right">Factor</th>
-                <th className="w-[10%] px-4 py-3 text-left">Unidad</th>
-                <th className="w-[6%] px-4 py-3 text-right">Año</th>
+                <th className="w-[10%] px-4 py-3 text-left">Etapa</th>
+                <th className="w-[6%] px-4 py-3 text-right">AÃ±o</th>
               </tr>
             </thead>
             <tbody>
@@ -141,7 +141,7 @@ function FactoresView() {
                 <tr key={factor.id} className="border-b border-slate-800/60">
 <td className="w-[34%] px-4 py-3 text-left font-semibold text-slate-100">
   <span className="block text-left">
-    {factor.actividad}
+    {factor.fuente_emision}
   </span>
 </td>
                   <td className="px-4 py-4 text-left">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AreaChart,
   Area,
@@ -112,7 +112,7 @@ function normalizeTrend(value) {
 
 function buildHeroTitle({ trend, variacion }) {
   if (trend === "a la baja") {
-    return "La tendencia mejora en este período, pero el foco crítico sigue activo";
+    return "La tendencia mejora en este perÃ­odo, pero el foco critico sigue activo";
   }
 
   if (trend === "al alza") {
@@ -133,35 +133,35 @@ function buildHeroParagraph({ companyName, kpis, trend }) {
   const total = formatNumber(kpis.emisiones_totales_periodo);
   const variacion = Number(kpis.variacion_periodo || 0);
   const variacionAbs = formatNumber(Math.abs(variacion));
-  const actividad = kpis.actividad_critica_periodo || "la actividad principal";
+  const fuente_emision = kpis.fuente_critica_periodo || "la fuente_emision principal";
   const unidad = kpis.unidad_critica_periodo || "la unidad principal";
 
   let trendText = "sin una tendencia clara";
   if (trend === "a la baja") {
-    trendText = `con una disminucion de ${variacionAbs}% vs el período anterior`;
+    trendText = `con una disminucion de ${variacionAbs}% vs el perÃ­odo anterior`;
   } else if (trend === "al alza") {
-    trendText = `con un aumento de ${variacionAbs}% vs el período anterior`;
+    trendText = `con un aumento de ${variacionAbs}% vs el perÃ­odo anterior`;
   } else if (trend === "estable") {
     trendText = `manteniendose estable, con una variacion de ${variacionAbs}%`;
   }
 
-  return `${companyName} emitió ${total} kg CO2e en el período analizado, ${trendText}. El principal foco sigue estando en ${actividad} y la unidad con mayor impacto es ${unidad}.`;
+  return `${companyName} emitiÃ³ ${total} kg CO2e en el perÃ­odo analizado, ${trendText}. El principal foco sigue estando en ${fuente_emision} y la unidad con mayor impacto es ${unidad}.`;
 }
 
 function buildHeroInsights({ trend, kpis }) {
-  const actividad = kpis.actividad_critica_periodo || "Sin datos";
+  const fuente_emision = kpis.fuente_critica_periodo || "Sin datos";
   const unidad = kpis.unidad_critica_periodo || "Sin datos";
 
-  let recommendation = "Mantener seguimiento semanal para sostener el control del período.";
+  let recommendation = "Mantener seguimiento semanal para sostener el control del perÃ­odo.";
   if (trend === "al alza") {
-    recommendation = "Priorizar acciones inmediatas en la actividad y unidad criticas para frenar el alza.";
+    recommendation = "Priorizar acciones inmediatas en la fuente_emision y unidad criticas para frenar el alza.";
   } else if (trend === "a la baja") {
     recommendation = "Consolidar las medidas actuales para sostener la reduccion observada.";
   }
 
   return [
     `Mejora observada: ${kpis.tendencia || "Sin datos"}`,
-    `Foco a mantener bajo control: ${actividad}`,
+    `Foco a mantener bajo control: ${fuente_emision}`,
     `Etapa prioritaria: ${unidad}. ${recommendation}`,
   ];
 }
@@ -184,11 +184,11 @@ function HeroBadge({ label, value, tone = "default" }) {
   );
 }
 
-function ReportesHeroEjecutivo({ kpis, activeEmpresa }) {
+function ReportesHeroEjecutivo({ kpis, activeConstructora }) {
   const trend = normalizeTrend(kpis.tendencia);
   const title = buildHeroTitle({ trend, variacion: kpis.variacion_periodo });
   const summary = buildHeroParagraph({
-    companyName: activeEmpresa?.nombre || "La constructora",
+    companyName: activeConstructora?.nombre || "La constructora",
     kpis,
     trend,
   });
@@ -217,24 +217,24 @@ function ReportesHeroEjecutivo({ kpis, activeEmpresa }) {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          <HeroBadge label="Comportamiento del período" value={kpis.tendencia || "Sin datos"} tone={trend === "al alza" ? "danger" : trend === "a la baja" ? "success" : trend === "estable" ? "warning" : "default"} />
-          <HeroBadge label="Fuente prioritaria" value={kpis.actividad_critica_periodo || "Sin datos"} tone="default" />
+          <HeroBadge label="Comportamiento del perÃ­odo" value={kpis.tendencia || "Sin datos"} tone={trend === "al alza" ? "danger" : trend === "a la baja" ? "success" : trend === "estable" ? "warning" : "default"} />
+          <HeroBadge label="Fuente prioritaria" value={kpis.fuente_critica_periodo || "Sin datos"} tone="default" />
           <HeroBadge label="Etapa prioritaria" value={kpis.unidad_critica_periodo || "Sin datos"} tone="default" />
-          <HeroBadge label="Período con mayor emisión" value={kpis.periodo_mayor_emision || "Sin datos"} tone="warning" />
+          <HeroBadge label="PerÃ­odo con mayor emision" value={kpis.periodo_mayor_emision || "Sin datos"} tone="warning" />
         </div>
       </div>
     </section>
   );
 }
 
-export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
+export default function ReportesView({ activeConstructoraId, activeConstructora }) {
   const defaultFilters = {
     agrupacion: "mes",
     fecha_inicio: "",
     fecha_fin: "",
-    unidad_id: "",
+    etapa_id: "",
     categoria: "",
-    actividad: "",
+    fuente_emision: "",
   };
 
   const [data, setData] = useState(null);
@@ -254,14 +254,14 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
   });
 
   async function loadReport(filtersToUse = filters, showLoading = true, pageToLoad = 1) {
-    if (!activeEmpresaId) return;
+    if (!activeConstructoraId) return;
 
     try {
       if (showLoading) {
         setLoading(true);
       }
       setError("");
-      const result = await getReporteEmisionesTiempo(activeEmpresaId, {
+      const result = await getReporteEmisionesTiempo(activeConstructoraId, {
         ...filtersToUse,
         page: pageToLoad,
         page_size: rowsPerPage,
@@ -281,12 +281,12 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
   }
 
   async function loadRows(page = 1) {
-    if (!activeEmpresaId) return;
+    if (!activeConstructoraId) return;
 
     try {
       setLoading(true);
       setError("");
-      const result = await getReporteEmisionesTiempo(activeEmpresaId, {
+      const result = await getReporteEmisionesTiempo(activeConstructoraId, {
         ...filters,
         page,
         page_size: rowsPerPage,
@@ -313,7 +313,7 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
 
     return () => window.clearInterval(intervalId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeEmpresaId, filters]);
+  }, [activeConstructoraId, filters]);
 
   useEffect(() => {
     currentPageRef.current = currentPage;
@@ -421,7 +421,7 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
     );
   };
 
-  if (!activeEmpresaId) {
+  if (!activeConstructoraId) {
     return (
       <main className="mx-auto max-w-7xl px-6 py-10 text-[var(--text-main)]">
         <h1 className="text-4xl font-black">Reportes</h1>
@@ -448,7 +448,7 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
           </p>
           <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Reportes</h1>
           <p className="mt-2 text-[var(--text-muted)]">
-            Analiza la evolución de emisiones, detecta períodos críticos y convierte los resultados en decisiones de mejora.
+            Analiza la evoluciÃ³n de emisiones, detecta perÃ­odos criticos y convierte los resultados en decisiones de mejora.
           </p>
         </div>
 
@@ -560,29 +560,29 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
 
       {data && (
         <>
-          <ReportesHeroEjecutivo kpis={kpis} activeEmpresa={activeEmpresa} />
+          <ReportesHeroEjecutivo kpis={kpis} activeConstructora={activeConstructora} />
 
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <KpiCard
-              label="Emisiones del período"
+              label="Emisiones del perÃ­odo"
               value={`${formatNumber(kpis.emisiones_totales_periodo)} kg CO2e`}
               tone="danger"
             />
             <KpiCard
-              label="Comportamiento del período"
+              label="Comportamiento del perÃ­odo"
               value={kpis.tendencia || "Sin datos"}
-              subtext={`${formatNumber(kpis.variacion_periodo)}% vs período anterior`}
+              subtext={`${formatNumber(kpis.variacion_periodo)}% vs perÃ­odo anterior`}
               tone={tendenciaTone === "danger" ? "danger" : tendenciaTone === "success" ? "success" : tendenciaTone === "warning" ? "warning" : "info"}
             />
             <KpiCard
-              label="Período con mayor emisión"
+              label="PerÃ­odo con mayor emision"
               value={kpis.periodo_mayor_emision || "Sin datos"}
               subtext={`${formatNumber(kpis.emisiones_periodo_mayor)} kg CO2e`}
               tone="warning"
             />
             <KpiCard
               label="Fuente prioritaria"
-              value={kpis.actividad_critica_periodo || "Sin datos"}
+              value={kpis.fuente_critica_periodo || "Sin datos"}
               tone="warning"
             />
             <KpiCard
@@ -591,7 +591,7 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
               tone="info"
             />
             <KpiCard
-              label="Emisión promedio mensual"
+              label="emision promedio mensual"
               value={`${formatNumber(kpis.promedio_periodo)} kg CO2e`}
               tone="default"
             />
@@ -601,12 +601,12 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
             <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-[0_18px_45px_var(--shadow)]">
               <h2 className="text-xl font-black text-[var(--text-main)]">Emisiones en el tiempo</h2>
               <p className="mt-1 text-sm text-[var(--text-muted)]">
-                Evolucion de emisiones del período filtrado.
+                Evolucion de emisiones del perÃ­odo filtrado.
               </p>
 
               {!hasEnoughTemporalData ? (
                 <div className="mt-6 flex h-[320px] min-h-[320px] items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-6 text-center text-[var(--text-muted)]">
-                  Se necesita mas de un período para visualizar tendencia temporal.
+                  Se necesita mas de un perÃ­odo para visualizar tendencia temporal.
                 </div>
               ) : (
                 <div className="mt-6 h-[320px] min-h-[320px]">
@@ -658,15 +658,15 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
             </div>
 
             <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-[0_18px_45px_var(--shadow)]">
-              <h2 className="text-xl font-black text-[var(--text-main)]">Emisiones por categoría</h2>
+              <h2 className="text-xl font-black text-[var(--text-main)]">Emisiones por categorÃ­a</h2>
               <p className="mt-1 text-sm text-[var(--text-muted)]">
-                Comparativo por categoría para combustible, transporte, electricidad, agua, materiales y residuos.
+                Comparativo por categorÃ­a para combustible, transporte, electricidad, agua, materiales y residuos.
               </p>
 
               <div className="mt-6 h-[320px] min-h-[320px]">
                 {categoryChartData.length === 0 ? (
                   <div className="flex h-full items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] text-sm text-[var(--text-muted)]">
-                    No hay categorías con emisiones registradas para el período seleccionado.
+                    No hay categorÃ­as con emisiones registradas para el perÃ­odo seleccionado.
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
@@ -747,10 +747,10 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
                     <th className="px-4 py-3 text-left">Fecha</th>
                     <th className="px-4 py-3 text-left">Etapa / frente</th>
                     <th className="px-4 py-3 text-left">Obra</th>
-                    <th className="px-4 py-3 text-left">Categoría</th>
+                    <th className="px-4 py-3 text-left">CategorÃ­a</th>
                     <th className="px-4 py-3 text-left">Registro</th>
                     <th className="px-4 py-3 text-right">Cantidad</th>
-                    <th className="px-4 py-3 text-left">Unidad de medida</th>
+                    <th className="px-4 py-3 text-left">Etapa de medida</th>
                     <th className="px-4 py-3 text-right">Emisiones</th>
                   </tr>
                 </thead>
@@ -758,14 +758,14 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
                 <tbody>
                   {visibleRows.map((row, index) => (
                     <tr
-                      key={`${row.fecha}-${row.actividad}-${index}`}
+                      key={`${row.fecha}-${row.fuente_emision}-${index}`}
                       className="border-b border-[#C9D6CF] text-[#1F2937] hover:bg-[var(--bg-surface)]"
                     >
                       <td className="px-4 py-3">{row.fecha}</td>
-                      <td className="px-4 py-3">{row.unidad_nombre}</td>
-                      <td className="px-4 py-3">{row.id_lote || "-"}</td>
+                      <td className="px-4 py-3">{row.etapa_nombre}</td>
+                      <td className="px-4 py-3">{row.codigo_obra || "-"}</td>
                       <td className="px-4 py-3">{row.categoria}</td>
-                      <td className="px-4 py-3 font-semibold">{row.actividad}</td>
+                      <td className="px-4 py-3 font-semibold">{row.fuente_emision}</td>
                       <td className="px-4 py-3 text-right">
                         {formatNumber(row.cantidad, 2)}
                       </td>

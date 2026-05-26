@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+﻿import { useEffect } from "react";
 import { CheckCircle2, Loader2, X } from "lucide-react";
 
 function Toast({ message, subtitle, onClose, toastKey, loading = false }) {

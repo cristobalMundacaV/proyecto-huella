@@ -1,1 +1,1 @@
-export { getFactoresEmision } from "@/shared/services/api";
+﻿export { getFactoresEmision } from "@/shared/services/api";

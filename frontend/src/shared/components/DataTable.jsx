@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 
 import Pagination from "./Pagination";
 import { formatNumber } from "@/shared/utils/formatters";
@@ -22,8 +22,8 @@ function DataTable({ rows }) {
         <table className="min-w-[720px] w-full text-sm">
           <thead className="border-b border-[var(--border)] text-[var(--text-muted)]">
             <tr>
-              <th className="text-left py-3">Empresa</th>
-              <th className="text-left py-3">Actividad</th>
+              <th className="text-left py-3">Constructora</th>
+              <th className="text-left py-3">Fuente de emisión</th>
               <th className="text-right py-3">Cantidad</th>
               <th className="text-right py-3">Factor</th>
               <th className="text-right py-3">Emisiones</th>
@@ -32,8 +32,8 @@ function DataTable({ rows }) {
           <tbody>
             {visibleRows.map((row, index) => (
               <tr key={index} className="border-b border-[#CBD5D0] text-[var(--text-main)]">
-                <td className="py-3">{row.empresa}</td>
-                <td className="py-3">{row.actividad}</td>
+                <td className="py-3">{row.constructora}</td>
+                <td className="py-3">{row.fuente_emision}</td>
                 <td className="py-3 text-right">
                   {formatNumber(row.cantidad)}
                 </td>

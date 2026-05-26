@@ -1,8 +1,8 @@
-import {
-  isDieselActivity,
-  isElectricityActivity,
-  isTransportActivity,
-} from "@/shared/utils/activitySemantics";
+﻿import {
+  isDieselEmission,
+  isElectricityEmission,
+  isTransportEmission,
+} from "@/shared/utils/emissionSemantics";
 
 export function optimizeScenario(rows) {
   let bestScenario = null;
@@ -13,9 +13,9 @@ export function optimizeScenario(rows) {
     0
   );
   const hasDiesel = rows.some(
-    (row) => isDieselActivity(row) && !isTransportActivity(row)
+    (row) => isDieselEmission(row) && !isTransportEmission(row)
   );
-  const hasElectricity = rows.some(isElectricityActivity);
+  const hasElectricity = rows.some(isElectricityEmission);
 
   if (!hasDiesel && !hasElectricity) {
     return {
@@ -43,11 +43,11 @@ export function optimizeScenario(rows) {
       const simulatedRows = rows.map((row) => {
         let cantidad = Number(row.cantidad);
 
-        if (isDieselActivity(row) && !isTransportActivity(row)) {
+        if (isDieselEmission(row) && !isTransportEmission(row)) {
           cantidad *= 1 - dieselReduction / 100;
         }
 
-        if (isElectricityActivity(row)) {
+        if (isElectricityEmission(row)) {
           cantidad *= 1 + electricityIncrease / 100;
         }
 

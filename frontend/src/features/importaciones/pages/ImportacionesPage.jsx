@@ -14,27 +14,27 @@ import {
 } from "lucide-react";
 
 import Toast from "@/shared/components/Toast";
-import ImportarDocumentoObraModal from "@/shared/components/ImportarDocumentoObraModal";
+import ImportarEvidenciaObraModal from "@/shared/components/ImportarEvidenciaObraModal";
 import {
-  confirmActivityImport,
+  confirmRegistroEmisionImport,
   confirmarImportFactores,
-  previewEmpresaCompleta,
-  confirmarEmpresaCompleta,
-  previewImportEmpresas,
-  confirmarImportEmpresas,
-  previewActivityImport,
+  previewImportacionCompletaConstruccion,
+  confirmarImportacionCompletaConstruccion,
+  previewImportConstructoras,
+  confirmarImportConstructoras,
+  previewRegistroEmisionImport,
   previewImportFactores,
-  confirmarImportLotesForEmpresa,
-  confirmarImportUnidadesForEmpresa,
-  confirmActivityImportForEmpresa,
-  previewImportLotesForEmpresa,
-  previewImportUnidadesForEmpresa,
-  previewActivityImportForEmpresa,
-  getEmpresaCompletaTemplateUrl,
+  confirmarImportObrasForConstructora,
+  confirmarImportEtapasForConstructora,
+  confirmRegistroEmisionImportForConstructora,
+  previewImportObrasForConstructora,
+  previewImportEtapasForConstructora,
+  previewRegistroEmisionImportForConstructora,
+  getPlantillaImportacionConstruccionUrl,
 } from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
 import EmptyState from "@/shared/components/EmptyState";
-import { useEmpresaActiva } from "@/features/empresas/context/EmpresaActivaContext";
+import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import { useFactores } from "@/features/factores/context/FactoresContext";
 
 const emptyImportState = {
@@ -60,24 +60,24 @@ const companySummaryLabels = [
   ["validas", "Validas"],
   ["con_error", "Con error"],
   ["duplicadas", "Duplicadas"],
-  ["posibles_creaciones", "Empresas nuevas"],
+  ["posibles_creaciones", "constructoras nuevas"],
   ["posibles_actualizaciones", "Actualizaciones"],
 ];
 
-const activitySummaryLabels = [
+const registroSummaryLabels = [
   ["filas_validas", "Filas validas"],
   ["filas_con_error", "Filas con error"],
   ["factores_encontrados", "Factores encontrados"],
   ["factores_faltantes", "Factores faltantes"],
-  ["lotes_encontrados", "Obras encontradas"],
-  ["lotes_nuevos_detectados", "Obras nuevas"],
+  ["obras_encontrados", "Obras encontradas"],
+  ["obras_nuevos_detectados", "Obras nuevas"],
 ];
 
-const loteSummaryLabels = [
+const obraSummaryLabels = [
   ["validas", "Filas validas"],
   ["con_error", "Filas con error"],
-  ["lotes_nuevos", "Obras nuevas"],
-  ["lotes_existentes", "Obras existentes"],
+  ["obras_nuevos", "Obras nuevas"],
+  ["obras_existentes", "Obras existentes"],
   ["duplicadas", "Duplicados"],
 ];
 
@@ -121,9 +121,9 @@ function PreviewTable({ rows, type }) {
             <th className="px-2 py-4 text-center min-w-12 font-semibold">Fila</th>
             <th className="px-3 py-4 text-center min-w-24 font-semibold">Estado</th>
             {isFactors ? <th className="px-3 py-4 text-center min-w-32 font-semibold">Categoria</th> : null}
-            <th className="px-3 py-4 text-left min-w-40 font-semibold">Actividad</th>
-            {isFactors ? <th className="px-3 py-4 text-center min-w-40 font-semibold">Activity key</th> : null}
-            <th className="px-3 py-4 text-center min-w-20 font-semibold">Unidad</th>
+            <th className="px-3 py-4 text-left min-w-40 font-semibold">Fuente de emisión</th>
+            {isFactors ? <th className="px-3 py-4 text-center min-w-40 font-semibold">source key</th> : null}
+            <th className="px-3 py-4 text-center min-w-20 font-semibold">Etapa</th>
             {isFactors ? <th className="px-3 py-4 text-center min-w-14 font-semibold">Año</th> : <th className="px-3 py-4 text-center min-w-32 font-semibold">Asignacion</th>}
             <th className="px-3 py-4 text-center min-w-24 font-semibold">Factor</th>
             <th className="px-3 py-4 text-center min-w-64 font-semibold">Observaciones</th>
@@ -163,15 +163,15 @@ function PreviewTable({ rows, type }) {
                 </td>
               ) : null}
               <td className="px-3 py-4 text-left font-semibold text-slate-100 truncate">
-                {row.data.actividad || "-"}
+                {row.data.fuente_emision || "-"}
               </td>
               {isFactors ? (
                 <td className="px-3 py-4 text-center font-mono text-xs text-slate-400 whitespace-nowrap">
-                  {row.data.actividad_key || "-"}
+                  {row.data.fuente_emision_key || "-"}
                 </td>
               ) : null}
               <td className="px-3 py-4 text-center text-slate-300 whitespace-nowrap">{row.data.unidad || "-"}</td>
-              {isFactors ? <td className="px-3 py-4 text-center text-slate-300 whitespace-nowrap">{row.data.anio || "-"}</td> : <td className="px-3 py-4 text-center text-slate-300 whitespace-nowrap">{row.data.id_lote || row.data.unidad_id || row.data.empresa_id || "-"}</td>}
+              {isFactors ? <td className="px-3 py-4 text-center text-slate-300 whitespace-nowrap">{row.data.anio || "-"}</td> : <td className="px-3 py-4 text-center text-slate-300 whitespace-nowrap">{row.data.codigo_obra || row.data.etapa_id || row.data.constructora_id || "-"}</td>}
               <td className="px-3 py-4 text-center font-semibold text-emerald-300 whitespace-nowrap">{row.data.factor_emision || "-"}</td>
               <td className="px-3 py-4 text-center text-slate-300 text-sm">
                 {row.errors?.length ? (
@@ -220,7 +220,7 @@ function PreviewTable({ rows, type }) {
   );
 }
 
-function LotePreviewTable({ rows }) {
+function ObraPreviewTable({ rows }) {
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 8;
   const totalPages = Math.max(1, Math.ceil(rows.length / rowsPerPage));
@@ -236,7 +236,7 @@ function LotePreviewTable({ rows }) {
             <th className="px-2 py-4 text-left min-w-12 font-semibold">Fila</th>
             <th className="px-3 py-4 text-left min-w-24 font-semibold">Estado</th>
             <th className="px-3 py-4 text-left min-w-28 font-semibold">Código de obra</th>
-            <th className="px-3 py-4 text-left min-w-40 font-semibold">Constructora / proveedor</th>
+            <th className="px-3 py-4 text-left min-w-40 font-semibold">constructora / proveedor</th>
             <th className="px-3 py-4 text-left min-w-28 font-semibold">Fecha</th>
             <th className="px-3 py-4 text-left min-w-32 font-semibold">Material / tipo de obra</th>
             <th className="px-3 py-4 text-right min-w-24 font-semibold">Cantidad base</th>
@@ -260,11 +260,11 @@ function LotePreviewTable({ rows }) {
                   {row.status === "valid" ? "Valida" : "Error"}
                 </span>
               </td>
-              <td className="px-3 py-4 font-semibold text-slate-100">{row.data.id_lote || "-"}</td>
-              <td className="px-3 py-4 text-slate-300 truncate">{row.data.empresa || row.data.empresa_aserradero || "-"}</td>
+              <td className="px-3 py-4 font-semibold text-slate-100">{row.data.codigo_obra || "-"}</td>
+              <td className="px-3 py-4 text-slate-300 truncate">{row.data.constructora || row.data.constructora_nombre || "-"}</td>
               <td className="px-3 py-4 text-slate-300">{row.data.fecha || "-"}</td>
-              <td className="px-3 py-4 text-slate-300">{row.data.especie || "-"}</td>
-              <td className="px-3 py-4 text-right text-emerald-300 font-semibold">{row.data.volumen_m3 || "-"}</td>
+              <td className="px-3 py-4 text-slate-300">{row.data.tipo_proyecto || "-"}</td>
+              <td className="px-3 py-4 text-right text-emerald-300 font-semibold">{row.data.superficie_m2 || "-"}</td>
               <td className="px-3 py-4 text-slate-300 truncate">{row.data.origen || "-"}</td>
               <td className="px-3 py-4 text-slate-300 text-sm">
                 {row.errors?.length ? (
@@ -313,7 +313,7 @@ function LotePreviewTable({ rows }) {
   );
 }
 
-function EmpresaPreviewTable({ rows }) {
+function ConstructoraPreviewTable({ rows }) {
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 8;
   const totalPages = Math.max(1, Math.ceil(rows.length / rowsPerPage));
@@ -328,7 +328,7 @@ function EmpresaPreviewTable({ rows }) {
           <tr>
             <th className="px-2 py-4 text-left min-w-12 font-semibold">Fila</th>
             <th className="px-3 py-4 text-left min-w-24 font-semibold">Estado</th>
-            <th className="px-3 py-4 text-left min-w-32 font-semibold">Empresa ID</th>
+            <th className="px-3 py-4 text-left min-w-32 font-semibold">constructora ID</th>
             <th className="px-3 py-4 text-left min-w-48 font-semibold">Nombre</th>
             <th className="px-3 py-4 text-left min-w-28 font-semibold">RUT</th>
             <th className="px-3 py-4 text-left min-w-32 font-semibold">Región</th>
@@ -357,7 +357,7 @@ function EmpresaPreviewTable({ rows }) {
                   {row.status === "valid" ? "Valida" : "Error"}
                 </span>
               </td>
-              <td className="px-3 py-4 font-mono text-xs text-cyan-200">{row.data.empresa_id || "-"}</td>
+              <td className="px-3 py-4 font-mono text-xs text-cyan-200">{row.data.constructora_id || "-"}</td>
               <td className="px-3 py-4 font-semibold text-slate-100">{row.data.nombre || "-"}</td>
               <td className="px-3 py-4 text-slate-300">{row.data.rut || "-"}</td>
               <td className="px-3 py-4 text-slate-300">{row.data.region || "-"}</td>
@@ -427,8 +427,8 @@ function UnitPreviewTable({ rows }) {
           <tr>
             <th className="px-2 py-4 text-left min-w-12 font-semibold">Fila</th>
             <th className="px-3 py-4 text-left min-w-24 font-semibold">Estado</th>
-            <th className="px-3 py-4 text-left min-w-32 font-semibold">Unidad ID</th>
-            <th className="px-3 py-4 text-left min-w-32 font-semibold">Empresa ID</th>
+            <th className="px-3 py-4 text-left min-w-32 font-semibold">Etapa ID</th>
+            <th className="px-3 py-4 text-left min-w-32 font-semibold">constructora ID</th>
             <th className="px-3 py-4 text-left min-w-40 font-semibold">Nombre</th>
             <th className="px-3 py-4 text-left min-w-32 font-semibold">Tipo</th>
             <th className="px-3 py-4 text-left min-w-24 font-semibold">Activa</th>
@@ -451,8 +451,8 @@ function UnitPreviewTable({ rows }) {
                   {row.status === "valid" ? "Valida" : "Error"}
                 </span>
               </td>
-              <td className="px-3 py-4 font-mono text-xs text-cyan-200">{row.data.unidad_id || "-"}</td>
-              <td className="px-3 py-4 font-mono text-xs text-slate-300">{row.data.empresa_id || "-"}</td>
+              <td className="px-3 py-4 font-mono text-xs text-cyan-200">{row.data.etapa_id || "-"}</td>
+              <td className="px-3 py-4 font-mono text-xs text-slate-300">{row.data.constructora_id || "-"}</td>
               <td className="px-3 py-4 font-semibold text-slate-100">{row.data.nombre || "-"}</td>
               <td className="px-3 py-4 text-slate-300">{row.data.tipo || "-"}</td>
               <td className="px-3 py-4 text-slate-300">{row.data.activa ? "Si" : "No"}</td>
@@ -564,11 +564,11 @@ function ImportPanel({
       {state.result && (
         <>
           <SummaryGrid summary={state.result.summary} labels={summaryLabels} />
-          {type === "lotes" ? (
-            <LotePreviewTable rows={state.result.rows} />
-          ) : type === "empresas" ? (
-            <EmpresaPreviewTable rows={state.result.rows} />
-          ) : type === "unidades" ? (
+          {type === "obras" ? (
+            <ObraPreviewTable rows={state.result.rows} />
+          ) : type === "constructoras" ? (
+            <ConstructoraPreviewTable rows={state.result.rows} />
+          ) : type === "etapas" ? (
             <UnitPreviewTable rows={state.result.rows} />
           ) : (
             <PreviewTable rows={state.result.rows} type={type} />
@@ -588,19 +588,19 @@ function ImportPanel({
   );
 }
 
-function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
+function ConstructoraCompletaImportPanel({ state, onPreview, onConfirm }) {
   const blockingErrors = state.result?.blocking_errors || [];
   const sectionErrors =
-    (state.result?.unidades?.errores || 0) +
-    (state.result?.lotes?.errores || 0) +
-    (state.result?.actividades?.errores || 0) +
+    (state.result?.etapas?.errores || 0) +
+    (state.result?.obras?.errores || 0) +
+    (state.result?.registros_emision?.errores || 0) +
     (state.result?.factores?.errores || 0);
-  const empresaData = state.result?.empresa?.data || {};
+  const ConstructoraData = state.result?.constructora?.data || {};
   const summaryCards = [
-    { label: "Constructora", value: state.result?.empresa?.status === "valid" ? "Lista" : "Revisar" },
-    { label: "Etapas", value: formatNumber(state.result?.unidades?.total || 0, 0) },
-    { label: "Obras", value: formatNumber(state.result?.lotes?.total || 0, 0) },
-    { label: "Registros", value: formatNumber(state.result?.actividades?.total || 0, 0) },
+    { label: "constructora", value: state.result?.constructora?.status === "valid" ? "Lista" : "Revisar" },
+    { label: "Etapas", value: formatNumber(state.result?.etapas?.total || 0, 0) },
+    { label: "Obras", value: formatNumber(state.result?.obras?.total || 0, 0) },
+    { label: "Registros", value: formatNumber(state.result?.registros_emision?.total || 0, 0) },
     { label: "Factores", value: formatNumber(state.result?.factores?.total || 0, 0) },
   ];
 
@@ -634,7 +634,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
 
         <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-fit">
           <a
-            href={getEmpresaCompletaTemplateUrl()}
+            href={getPlantillaImportacionConstruccionUrl()}
             className="flex items-center justify-center gap-2 rounded-2xl border border-slate-600/60 bg-slate-950 px-5 py-3 text-sm font-bold text-slate-100 transition hover:bg-slate-800"
           >
             <Download size={18} />
@@ -685,9 +685,9 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
             <div className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--info-bg)] p-4">
               <h3 className="text-base font-semibold text-cyan-100">Resumen antes de confirmar</h3>
               <div className="mt-3 grid grid-cols-1 gap-3 text-sm text-slate-200 md:grid-cols-2 xl:grid-cols-3">
-                <p>Constructora detectada: <span className="font-semibold">{state.result.resumen.empresa_detectada || "-"}</span></p>
+                <p>constructora detectada: <span className="font-semibold">{state.result.resumen.Constructora_detectada || "-"}</span></p>
                 <p>Periodo detectado: <span className="font-semibold">{state.result.resumen.periodo_detectado || "-"}</span></p>
-                <p>Emisiones estimadas: <span className="font-semibold">{formatNumber(Number(state.result.resumen.emisiones_estimadas_kg_co2e || 0), 1)} kg CO₂e</span></p>
+                <p>Emisiones estimadas: <span className="font-semibold">{formatNumber(Number(state.result.resumen.emisiones_estimadas_kg_co2e || 0), 1)} kg CO2e</span></p>
               </div>
               {state.result.resumen.alertas?.length > 0 && (
                 <div className="mt-3 space-y-1 text-sm text-yellow-200">
@@ -706,7 +706,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
                 <div key={key} className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3">
                   <p className="text-xs text-slate-500">{label}</p>
                   <p className="mt-1 break-words text-sm font-semibold text-slate-100">
-                    {empresaData[key] || "-"}
+                    {ConstructoraData[key] || "-"}
                   </p>
                 </div>
               ))}
@@ -720,13 +720,13 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
             </div>
           )}
 
-          {/* Mostrar errores y validación de unidades */}
-          {state.result?.unidades && (
+          {/* Mostrar errores y validación de etapas */}
+          {state.result?.etapas && (
             <div className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
-              <h3 className="text-base font-semibold text-slate-100">Etapas / frentes ({state.result.unidades.validas} válidas, {state.result.unidades.errores} errores)</h3>
-              {state.result.unidades.errores > 0 && (
+              <h3 className="text-base font-semibold text-slate-100">Etapas / frentes ({state.result.etapas.validas} válidas, {state.result.etapas.errores} errores)</h3>
+              {state.result.etapas.errores > 0 && (
                 <div className="mt-3 max-h-40 space-y-2 overflow-y-auto rounded border border-red-500/30 bg-red-500/10 p-2">
-                  {state.result.unidades.rows.filter(r => r.status === 'error').map((row) => (
+                  {state.result.etapas.rows.filter(r => r.status === 'error').map((row) => (
                     <div key={row.row_number} className="text-xs text-red-300">
                       <p className="font-semibold">Fila {row.row_number}:</p>
                       <p className="ml-2">{row.errors?.join(', ') || 'Error desconocido'}</p>
@@ -737,13 +737,13 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
             </div>
           )}
 
-          {/* Mostrar errores y validación de lotes */}
-          {state.result?.lotes && (
+          {/* Mostrar errores y validación de obras */}
+          {state.result?.obras && (
             <div className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
-              <h3 className="text-base font-semibold text-slate-100">Obras ({state.result.lotes.validos} válidas, {state.result.lotes.errores} errores)</h3>
-              {state.result.lotes.errores > 0 && (
+              <h3 className="text-base font-semibold text-slate-100">Obras ({state.result.obras.validos} válidas, {state.result.obras.errores} errores)</h3>
+              {state.result.obras.errores > 0 && (
                 <div className="mt-3 max-h-40 space-y-2 overflow-y-auto rounded border border-red-500/30 bg-red-500/10 p-2">
-                  {state.result.lotes.rows.filter(r => r.status === 'error').map((row) => (
+                  {state.result.obras.rows.filter(r => r.status === 'error').map((row) => (
                     <div key={row.row_number} className="text-xs text-red-300">
                       <p className="font-semibold">Fila {row.row_number}:</p>
                       <p className="ml-2">{row.errors?.join(', ') || 'Error desconocido'}</p>
@@ -754,18 +754,18 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
             </div>
           )}
 
-          {/* Mostrar errores y validación de actividades */}
-          {state.result?.actividades && (
+          {/* Mostrar errores y validación de registros_emision */}
+          {state.result?.registros_emision && (
             <div className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
               <h3 className="text-base font-semibold text-slate-100">
-                Registros ({state.result.actividades.validas} válidos, {state.result.actividades.errores} errores)
-                {state.result.actividades.factores_faltantes > 0 && (
-                  <span className="text-xs text-yellow-400"> - {state.result.actividades.factores_faltantes} sin factor de emisión</span>
+                Registros ({state.result.registros_emision.validas} válidos, {state.result.registros_emision.errores} errores)
+                {state.result.registros_emision.factores_faltantes > 0 && (
+                  <span className="text-xs text-yellow-400"> - {state.result.registros_emision.factores_faltantes} sin factor de emisión</span>
                 )}
               </h3>
-              {state.result.actividades.errores > 0 && (
+              {state.result.registros_emision.errores > 0 && (
                 <div className="mt-3 max-h-40 space-y-2 overflow-y-auto rounded border border-red-500/30 bg-red-500/10 p-2">
-                  {state.result.actividades.rows.filter(r => r.status === 'error').map((row) => (
+                  {state.result.registros_emision.rows.filter(r => r.status === 'error').map((row) => (
                     <div key={row.row_number} className="text-xs text-red-300">
                       <p className="font-semibold">Fila {row.row_number}:</p>
                       <p className="ml-2">{row.errors?.join(', ') || 'Error desconocido'}</p>
@@ -777,25 +777,25 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
           )}
 
           {/* Mostrar resumen de confirmación */}
-          {state.result?.unidades_creadas !== undefined && (
+          {state.result?.etapas_creadas !== undefined && (
             <div className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
               <h3 className="text-base font-semibold text-slate-100">Resumen de confirmación</h3>
               <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
                 <div className="rounded border border-slate-700 bg-slate-900/80 p-3 text-center">
-                  <p className="text-xs text-slate-500">Constructora creada</p>
+                  <p className="text-xs text-slate-500">constructora creada</p>
                   <p className="mt-1 text-2xl font-bold text-emerald-400">{state.result.creados || 0}</p>
                 </div>
                 <div className="rounded border border-slate-700 bg-slate-900/80 p-3 text-center">
                   <p className="text-xs text-slate-500">Etapas</p>
-                  <p className="mt-1 text-2xl font-bold text-cyan-400">{state.result.unidades_creadas || 0}</p>
+                  <p className="mt-1 text-2xl font-bold text-cyan-400">{state.result.etapas_creadas || 0}</p>
                 </div>
                 <div className="rounded border border-slate-700 bg-slate-900/80 p-3 text-center">
                   <p className="text-xs text-slate-500">Obras</p>
-                  <p className="mt-1 text-2xl font-bold text-cyan-400">{state.result.lotes_creados || 0}</p>
+                  <p className="mt-1 text-2xl font-bold text-cyan-400">{state.result.obras_creados || 0}</p>
                 </div>
                 <div className="rounded border border-slate-700 bg-slate-900/80 p-3 text-center">
                   <p className="text-xs text-slate-500">Registros</p>
-                  <p className="mt-1 text-2xl font-bold text-cyan-400">{state.result.actividades_creadas || 0}</p>
+                  <p className="mt-1 text-2xl font-bold text-cyan-400">{state.result.registros_emision_creadas || 0}</p>
                 </div>
               </div>
             </div>
@@ -836,15 +836,15 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
 function ImportacionesView({ onImportConfirmed }) {
   const [factors, setFactors] = useState(emptyImportState);
   const [units, setUnits] = useState(emptyImportState);
-  const [lotes, setLotes] = useState(emptyImportState);
-  const [empresas, setEmpresas] = useState(emptyImportState);
-  const [empresaCompleta, setEmpresaCompleta] = useState(emptyImportState);
-  const [activities, setActivities] = useState(emptyImportState);
+  const [obras, setObras] = useState(emptyImportState);
+  const [constructoras, setConstructoras] = useState(emptyImportState);
+  const [ConstructoraCompleta, setConstructoraCompleta] = useState(emptyImportState);
+  const [registros, setRegistros] = useState(emptyImportState);
   const [toast, setToast] = useState(null);
   const [documentImportOpen, setDocumentImportOpen] = useState(false);
-  const { activeEmpresa, activeEmpresaId, refreshEmpresas } = useEmpresaActiva();
+  const { activeConstructora, activeConstructoraId, refreshConstructoras } = useConstructoraActiva();
   const { invalidate: invalidateFactores } = useFactores();
-  const empresaCompletaInputRef = useRef(null);
+  const ConstructoraCompletaInputRef = useRef(null);
 
   const previewFile = async (event, previewFn, setState) => {
     const file = event.target.files?.[0];
@@ -889,17 +889,17 @@ function ImportacionesView({ onImportConfirmed }) {
     setToast({ id: Date.now(), message });
   };
 
-  const handleImportEmpresaCompleta = async (event) => {
+  const handleImportConstructoraCompleta = async (event) => {
     const file = event.target.files?.[0];
 
     if (!file) return;
 
-    setEmpresaCompleta({ ...emptyImportState, fileName: file.name, loading: true });
+    setConstructoraCompleta({ ...emptyImportState, fileName: file.name, loading: true });
 
     try {
-      const preview = await previewEmpresaCompleta(file);
+      const preview = await previewImportacionCompletaConstruccion(file);
 
-      setEmpresaCompleta((current) => ({
+      setConstructoraCompleta((current) => ({
         ...current,
         loading: false,
         result: preview,
@@ -908,7 +908,7 @@ function ImportacionesView({ onImportConfirmed }) {
       const hasBlockingErrors = (preview.blocking_errors || []).length > 0;
 
       if (hasBlockingErrors) {
-        setEmpresaCompleta((current) => ({
+        setConstructoraCompleta((current) => ({
           ...current,
           loading: false,
           error: preview.error || "El archivo tiene errores bloqueantes; revisa la previsualización antes de confirmar.",
@@ -916,7 +916,7 @@ function ImportacionesView({ onImportConfirmed }) {
       }
     } catch (err) {
       const resp = err.response?.data || {};
-      setEmpresaCompleta((current) => ({
+      setConstructoraCompleta((current) => ({
         ...current,
         loading: false,
         saving: false,
@@ -927,19 +927,19 @@ function ImportacionesView({ onImportConfirmed }) {
     }
   };
 
-  const confirmEmpresaCompleta = async (batchId) => {
+  const confirmConstructoraCompleta = async (batchId) => {
     if (!batchId) {
-      setEmpresaCompleta((current) => ({
+      setConstructoraCompleta((current) => ({
         ...current,
         error: "Falta batch_id para confirmar la importación.",
       }));
       return;
     }
 
-    setEmpresaCompleta((current) => ({ ...current, saving: true, error: "", savedMessage: "" }));
+    setConstructoraCompleta((current) => ({ ...current, saving: true, error: "", savedMessage: "" }));
 
     try {
-      const result = await confirmarEmpresaCompleta({ batch_id: batchId });
+      const result = await confirmarImportacionCompletaConstruccion({ batch_id: batchId });
       const created = result.creados ?? result.created ?? 0;
       
       // Agrupar errores por tipo
@@ -965,32 +965,32 @@ function ImportacionesView({ onImportConfirmed }) {
           .join('\n\n');
       }
 
-      const msg = "Archivo importado correctamente. Los registros fueron validados y agregados a la empresa activa.";
+      const msg = "Archivo importado correctamente. Los registros fueron validados y agregados a la constructora activa.";
 
       showToast(msg);
       
-      // Refresh empresas despuÃ©s de la importación completa
-      await refreshEmpresas().catch(() => undefined);
+      // Refresh constructoras despuÃ©s de la importación completa
+      await refreshConstructoras().catch(() => undefined);
       
       await onImportConfirmed?.();
 
-      setEmpresaCompleta((current) => ({
+      setConstructoraCompleta((current) => ({
         ...current,
         saving: false,
         savedMessage: msg,
         result: { 
           ...current.result,
           errores: result.errores || [],
-          unidades_creadas: result.unidades_creadas || 0,
-          lotes_creados: result.lotes_creados || 0,
-          actividades_creadas: result.actividades_creadas || 0,
+          etapas_creadas: result.etapas_creadas || 0,
+          obras_creados: result.obras_creados || 0,
+          registros_emision_creadas: result.registros_emision_creadas || 0,
           factores_creados: result.factores_creados || 0,
         },
         error: errorMessage || ""
       }));
     } catch (err) {
       const resp = err.response?.data || {};
-      setEmpresaCompleta((current) => ({
+      setConstructoraCompleta((current) => ({
         ...current,
         saving: false,
         error: resp.error || resp.detail || "Error al confirmar la importación completa.",
@@ -1013,8 +1013,8 @@ function ImportacionesView({ onImportConfirmed }) {
       
       showToast(toastMessage);
       
-      // Refresh empresas despuÃ©s de cualquier importación exitosa
-      await refreshEmpresas().catch(() => undefined);
+      // Refresh constructoras despuÃ©s de cualquier importación exitosa
+      await refreshConstructoras().catch(() => undefined);
       
       // Call onSuccess callback if provided (e.g., to invalidate factores)
       if (onSuccess && typeof onSuccess === 'function') {
@@ -1039,7 +1039,7 @@ function ImportacionesView({ onImportConfirmed }) {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
-      {!activeEmpresa ? (
+      {!activeConstructora ? (
         <EmptyState
           title="Selecciona o crea una constructora para comenzar"
           description="Las importaciones operan dentro del contexto de la constructora activa."
@@ -1059,7 +1059,7 @@ function ImportacionesView({ onImportConfirmed }) {
           </div>
           <div>
             <h1 className="text-3xl font-bold sm:text-4xl">Importaciones</h1>
-            <p className="text-slate-400">Carga masiva de datos de obra para mantener actualizada la gestión ambiental de {activeEmpresa.nombre}.</p>
+            <p className="text-slate-400">Carga masiva de datos de obra para mantener actualizada la gestión ambiental de {activeConstructora.nombre}.</p>
           </div>
         </div>
       </header>
@@ -1070,9 +1070,9 @@ function ImportacionesView({ onImportConfirmed }) {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--primary-dark)]">Flujo inteligente</p>
-            <h2 className="mt-2 text-2xl font-bold text-[var(--text-main)]">Importar documento de obra</h2>
+            <h2 className="mt-2 text-2xl font-bold text-[var(--text-main)]">Importar evidencia de obra</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[#344054]">
-              Analiza un documento, revisa la lectura sugerida y confirma manualmente antes de crear el registro de emisión.
+              Analiza un evidencia, revisa la lectura sugerida y confirma manualmente antes de crear el registro de emisión.
             </p>
           </div>
           <button
@@ -1080,21 +1080,21 @@ function ImportacionesView({ onImportConfirmed }) {
             onClick={() => setDocumentImportOpen(true)}
             className="inline-flex items-center justify-center rounded-2xl border border-[var(--primary-dark)] bg-[var(--primary-dark)] px-5 py-3 text-sm font-bold text-white transition hover:bg-[var(--primary-dark-hover)]"
           >
-            Importar documento de obra
+            Importar evidencia de obra
           </button>
         </div>
       </section>
-      <EmpresaCompletaImportPanel
-        state={empresaCompleta}
-        onPreview={(event) => previewFile(event, previewEmpresaCompleta, setEmpresaCompleta)}
-        onConfirm={confirmEmpresaCompleta}
+      <ConstructoraCompletaImportPanel
+        state={ConstructoraCompleta}
+        onPreview={(event) => previewFile(event, previewImportacionCompletaConstruccion, setConstructoraCompleta)}
+        onConfirm={confirmConstructoraCompleta}
       />
 
       <ImportPanel
         title="Importar constructoras"
         icon={<Building2 size={18} />}
         columns={[
-          "ID Empresa",
+          "ID constructora",
           "Nombre",
           "RUT",
           "Región",
@@ -1106,12 +1106,12 @@ function ImportacionesView({ onImportConfirmed }) {
           "Contacto",
           "Observaciones",
         ]}
-        state={empresas}
-        type="empresas"
+        state={constructoras}
+        type="constructoras"
         summaryLabels={companySummaryLabels}
-        onPreview={(event) => previewFile(event, previewImportEmpresas, setEmpresas)}
+        onPreview={(event) => previewFile(event, previewImportConstructoras, setConstructoras)}
         onConfirm={(rows, batchId) =>
-          confirmRows(rows, (payload) => confirmarImportEmpresas(payload), setEmpresas, batchId)
+          confirmRows(rows, (payload) => confirmarImportConstructoras(payload), setConstructoras, batchId)
         }
       />
 
@@ -1120,7 +1120,7 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importar factores de emisión"
         icon={<FileSpreadsheet size={18} />}
-        columns={["Actividad", "Unidad", "Factor de Emisión", "Fuente", "Año"]}
+        columns={["Fuente de emisión", "Etapa", "Factor de Emisión", "Fuente", "Año"]}
         state={factors}
         type="factors"
         summaryLabels={factorSummaryLabels}
@@ -1139,15 +1139,15 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importar etapas / frentes"
         icon={<Factory size={18} />}
-        columns={["ID Etapa", "ID Constructora", "Nombre", "Tipo", "Región", "Comuna", "Dirección", "Estado"]}
+        columns={["ID Etapa", "ID constructora", "Nombre", "Tipo", "Región", "Comuna", "Dirección", "Estado"]}
         state={units}
-        type="unidades"
+        type="etapas"
         summaryLabels={unitSummaryLabels}
-        onPreview={(event) => previewFile(event, (file) => previewImportUnidadesForEmpresa(activeEmpresaId, file), setUnits)}
+        onPreview={(event) => previewFile(event, (file) => previewImportEtapasForConstructora(activeConstructoraId, file), setUnits)}
         onConfirm={(rows, batchId) =>
           confirmRows(
             rows,
-            (payload) => confirmarImportUnidadesForEmpresa(activeEmpresaId, payload),
+            (payload) => confirmarImportEtapasForConstructora(activeConstructoraId, payload),
             setUnits,
             batchId
           )
@@ -1158,15 +1158,15 @@ function ImportacionesView({ onImportConfirmed }) {
         title="Importar obras"
         icon={<Boxes size={18} />}
         columns={["Código de obra", "ID Etapa", "Fecha", "Material / tipo de obra", "Cantidad base", "Ubicación / origen"]}
-        state={lotes}
-        type="lotes"
-        summaryLabels={loteSummaryLabels}
-        onPreview={(event) => previewFile(event, (file) => previewImportLotesForEmpresa(activeEmpresaId, file), setLotes)}
+        state={obras}
+        type="obras"
+        summaryLabels={obraSummaryLabels}
+        onPreview={(event) => previewFile(event, (file) => previewImportObrasForConstructora(activeConstructoraId, file), setObras)}
         onConfirm={(rows, batchId) =>
           confirmRows(
             rows,
-            (payload) => confirmarImportLotesForEmpresa(activeEmpresaId, payload),
-            setLotes,
+            (payload) => confirmarImportObrasForConstructora(activeConstructoraId, payload),
+            setObras,
             batchId
           )
         }
@@ -1175,25 +1175,25 @@ function ImportacionesView({ onImportConfirmed }) {
       <ImportPanel
         title="Importar registros de emisión"
         icon={<DatabaseZap size={18} />}
-        columns={["ID Registro", "Código de obra", "ID Etapa", "Fuente", "Cantidad", "Unidad", "Fecha", "Observación", "Fuente de dato"]}
-        state={activities}
-        type="activities"
-        summaryLabels={activitySummaryLabels}
+        columns={["ID Registro", "Código de obra", "ID Etapa", "Fuente", "Cantidad", "Etapa", "Fecha", "Observación", "Fuente de dato"]}
+        state={registros}
+        type="registros"
+        summaryLabels={registroSummaryLabels}
         onPreview={(event) =>
-          previewFile(event, (file) => previewActivityImportForEmpresa(activeEmpresaId, file), setActivities)
+          previewFile(event, (file) => previewRegistroEmisionImportForConstructora(activeConstructoraId, file), setRegistros)
         }
         onConfirm={(rows, batchId) =>
           confirmRows(
             rows,
-            (payload) => confirmActivityImportForEmpresa(activeEmpresaId, payload),
-            setActivities,
+            (payload) => confirmRegistroEmisionImportForConstructora(activeConstructoraId, payload),
+            setRegistros,
             batchId
           )
         }
       />
-      <ImportarDocumentoObraModal
-        activeEmpresaId={activeEmpresaId}
-        initialTitle="Importar documento de obra"
+      <ImportarEvidenciaObraModal
+        activeConstructoraId={activeConstructoraId}
+        initialTitle="Importar evidencia de obra"
         onClose={() => setDocumentImportOpen(false)}
         open={documentImportOpen}
       />

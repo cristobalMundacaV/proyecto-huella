@@ -1,4 +1,4 @@
-export function isPresent(value) {
+﻿export function isPresent(value) {
   return value !== null && value !== undefined && String(value).trim() !== "";
 }
 

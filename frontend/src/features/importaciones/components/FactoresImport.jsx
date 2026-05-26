@@ -1,3 +1,3 @@
-export default function FactoresImport() {
+﻿export default function FactoresImport() {
   return null;
 }

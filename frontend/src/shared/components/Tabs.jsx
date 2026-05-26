@@ -1,4 +1,4 @@
-function Tabs({ activeTab, onChange, tabs = [] }) {
+﻿function Tabs({ activeTab, onChange, tabs = [] }) {
   return (
     <div className="premium-card flex flex-wrap gap-2 rounded-3xl bg-[var(--bg-card)] p-2 shadow-[var(--shadow-card)]">
       {tabs.map((tab) => (

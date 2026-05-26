@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 
 export function usePagination(items = [], pageSize = 8) {
   const [currentPage, setCurrentPage] = useState(1);

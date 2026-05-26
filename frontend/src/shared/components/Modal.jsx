@@ -1,4 +1,4 @@
-import AnimatedModalShell from "./AnimatedModalShell";
+﻿import AnimatedModalShell from "./AnimatedModalShell";
 
 function Modal({ children, onClose }) {
   return (

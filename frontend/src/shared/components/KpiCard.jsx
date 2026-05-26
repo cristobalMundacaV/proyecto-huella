@@ -1,4 +1,4 @@
-function KpiCard({ detail, icon, title, tone, value }) {
+﻿function KpiCard({ detail, icon, title, tone, value }) {
   const semanticTone = (() => {
     const resolvedTitle = String(title || "").toLowerCase();
 
@@ -10,19 +10,19 @@ function KpiCard({ detail, icon, title, tone, value }) {
       return tone;
     }
 
-    if (resolvedTitle.includes("riesgo") || resolvedTitle.includes("emisiones actuales") || resolvedTitle.includes("emisiones totales") || resolvedTitle.includes("fuente crítica") || resolvedTitle.includes("categoría crítica")) {
+    if (resolvedTitle.includes("riesgo") || resolvedTitle.includes("emisiones actuales") || resolvedTitle.includes("emisiones totales") || resolvedTitle.includes("fuente critica") || resolvedTitle.includes("categorÃ­a critica")) {
       return "danger";
     }
 
-    if (resolvedTitle.includes("escenario recomendado") || resolvedTitle.includes("información") || resolvedTitle.includes("operativa") || resolvedTitle.includes("intensidad de carbono") || resolvedTitle.includes("etapa prioritaria") || resolvedTitle.includes("modo de importación")) {
+    if (resolvedTitle.includes("escenario recomendado") || resolvedTitle.includes("informaciÃ³n") || resolvedTitle.includes("operativa") || resolvedTitle.includes("intensidad de carbono") || resolvedTitle.includes("etapa prioritaria") || resolvedTitle.includes("modo de importaciÃ³n")) {
       return "info";
     }
 
-    if (resolvedTitle.includes("máximo potencial") || resolvedTitle.includes("reducción") || resolvedTitle.includes("viabilidad") || resolvedTitle.includes("potencial") ) {
+    if (resolvedTitle.includes("mÃ¡ximo potencial") || resolvedTitle.includes("reducciÃ³n") || resolvedTitle.includes("viabilidad") || resolvedTitle.includes("potencial") ) {
       return "success";
     }
 
-    if (resolvedTitle.includes("foco principal") || resolvedTitle.includes("diésel") || resolvedTitle.includes("concentración") || resolvedTitle.includes("prioritaria") || resolvedTitle.includes("obra crítica") || resolvedTitle.includes("fuente prioritaria") || resolvedTitle.includes("período con mayor emisión") || resolvedTitle.includes("modo de importación")) {
+    if (resolvedTitle.includes("foco principal") || resolvedTitle.includes("diÃ©sel") || resolvedTitle.includes("concentraciÃ³n") || resolvedTitle.includes("prioritaria") || resolvedTitle.includes("obra critica") || resolvedTitle.includes("fuente prioritaria") || resolvedTitle.includes("perÃ­odo con mayor emision") || resolvedTitle.includes("modo de importaciÃ³n")) {
       return "warning";
     }
 
