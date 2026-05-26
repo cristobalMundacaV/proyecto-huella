@@ -1,4 +1,4 @@
-﻿const formatNumber = (value, maximumFractionDigits = 2) =>
+const formatNumber = (value, maximumFractionDigits = 2) =>
   new Intl.NumberFormat("es-CL", {
     minimumFractionDigits: 0,
     maximumFractionDigits,
@@ -30,7 +30,7 @@ const formatFocusForSentence = (value) => {
     normalizedValue.includes("combustion") &&
     normalizedValue.includes("movil")
   ) {
-    return "la combustiÃ³n mÃ³vil de diÃ©sel";
+    return "la combustión móvil de diésel";
   }
 
   return value;
@@ -38,6 +38,30 @@ const formatFocusForSentence = (value) => {
 
 const formatViabilityForSentence = (value) =>
   String(value || "").trim().toLowerCase();
+
+const isValidExecutiveLabel = (value) => {
+  const text = String(value ?? "").trim();
+  const normalized = text.toLowerCase();
+
+  return Boolean(
+    text &&
+      text !== "0" &&
+      normalized !== "null" &&
+      normalized !== "undefined" &&
+      normalized !== "nan"
+  );
+};
+
+const getExecutiveLabel = (value, fallback) =>
+  isValidExecutiveLabel(value) ? String(value).trim() : fallback;
+
+const hasValidScenario = (scenario) =>
+  Boolean(
+    scenario &&
+      Number(scenario.currentTotal) > 0 &&
+      Number(scenario.simulatedTotal) > 0 &&
+      Number(scenario.reductionPct) > 0
+  );
 
 const capRangeToPotential = (range, potentialReduction) => {
   if (!potentialReduction || potentialReduction <= 0) {
@@ -91,26 +115,26 @@ const buildStrategicPlan = (fuenteCritica, optimizedScenario) => {
   const principalRecommendation = `Apuntar a reducir gradualmente el consumo de ${activityLabel} entre un ${formatPercentRange(recommendedRange)}, iniciando con un objetivo priorizado cercano al ${initialTarget}%.`;
 
   const optimalReference = potentialReduction > 0
-    ? `El escenario mÃ¡ximo proyectado contempla una reducciÃ³n total de hasta un ${formatNumber(
+    ? `El escenario máximo proyectado contempla una reducción total de hasta un ${formatNumber(
         potentialReduction,
         1
-      )}%; sin embargo, no corresponde a una acciÃ³n inmediata, ya que requerirÃ­a cambios estructurales para su implementaciÃ³n.`
-    : "El mÃ¡ximo potencial proyectado debe tratarse como referencia estratÃ©gica de largo plazo, no como acciÃ³n inmediata.";
+      )}%; sin embargo, no corresponde a una acción inmediata, ya que requerirí­a cambios estructurales para su implementación.`
+    : "El máximo potencial proyectado debe tratarse como referencia estratégica de largo plazo, no como acción inmediata.";
 
   const actionLevels = [
     {
-      label: "Acciones rÃ¡pidas",
+      label: "Acciones rápidas",
       range: "5%-15%",
       tone: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--secondary)]",
       detail:
-        "Control del consumo, mantenimiento preventivo y mejora de la operaciÃ³n diaria. Ideal para lograr avances visibles sin cambiar la estructura del negocio.",
+        "Control del consumo, mantenimiento preventivo y mejora de la operación diaria. Ideal para lograr avances visibles sin cambiar la estructura del negocio.",
     },
     {
       label: "Piloto recomendado",
       range: formatPercentRange(recommendedRange),
       tone: "border-[#F6D98B] bg-[var(--warning-bg)] text-[#8A5A00]",
       detail:
-        "Ajustes operativos, rediseÃ±o parcial de procesos y seguimiento mediante indicadores. Es el mejor punto de partida para lograr una reducciÃ³n realista y medible.",
+        "Ajustes operativos, rediseño parcial de procesos y seguimiento mediante indicadores. Es el mejor punto de partida para lograr una reducción realista y medible.",
     },
     {
       label: "Cambio estructural",
@@ -120,7 +144,7 @@ const buildStrategicPlan = (fuenteCritica, optimizedScenario) => {
           : "35%+",
       tone: "border-[#F1C7C7] bg-[var(--danger-bg)] text-[#9A3412]",
       detail:
-        "Requiere inversiÃ³n, planificaciÃ³n a mediano y largo plazo, y transiciÃ³n tecnolÃ³gica. Es Ãºtil como visiÃ³n futura, pero no como primera acciÃ³n inmediata.",
+        "Requiere inversión, planificación a mediano y largo plazo, y transición tecnológica. Es útil como visión futura, pero no como primera acción inmediata.",
     },
   ];
 
@@ -141,13 +165,24 @@ function ExecutiveSummary({
   reductionEquivalentKm,
   riskProfile,
 }) {
-  const unidadCriticaLabel = unidadCritica || "Sin datos";
-  const strategicPlan = buildStrategicPlan(fuenteCritica, optimizedScenario);
-  const recommendedDecision = optimizedScenario
+  const fuenteCriticaLabel = getExecutiveLabel(
+    fuenteCritica,
+    "Fuente crítica sin datos suficientes"
+  );
+  const unidadCriticaLabel = getExecutiveLabel(
+    unidadCritica,
+    "Sin etapa suficiente"
+  );
+  const hasValidOptimizedScenario = hasValidScenario(optimizedScenario);
+  const scenarioForPlan = hasValidOptimizedScenario ? optimizedScenario : null;
+  const strategicPlan = buildStrategicPlan(fuenteCriticaLabel, scenarioForPlan);
+  const recommendedDecision = hasValidOptimizedScenario
     ? strategicPlan.principalRecommendation
-    : "Definir un plan progresivo con metas por fases";
-  const currentTotal = optimizedScenario?.currentTotal || 0;
-  const simulatedTotal = optimizedScenario?.simulatedTotal || 0;
+    : "Completar registros, asociar etapas y validar factores de emisión antes de definir un porcentaje de reducción. Luego priorizar la fuente crítica detectada con acciones progresivas y medibles.";
+  const currentTotal = Number(optimizedScenario?.currentTotal || 0);
+  const simulatedTotal = hasValidOptimizedScenario
+    ? Number(optimizedScenario?.simulatedTotal || 0)
+    : 0;
   const avoidedEmissions = Math.max(currentTotal - simulatedTotal, 0);
   const equivalentCarKm =
     reductionEquivalentKm != null ? reductionEquivalentKm : avoidedEmissions * 4;
@@ -157,12 +192,12 @@ function ExecutiveSummary({
     currentTotal * (1 - mediumImpactReductionPct / 100),
     0
   );
-  const estimatedImpact = optimizedScenario
-    ? `con un potencial proyectado de reducciÃ³n del ${formatNumber(
+  const estimatedImpact = hasValidOptimizedScenario
+    ? `con un potencial proyectado de reducción del ${formatNumber(
         optimizedScenario.reductionPct,
         1
-      )}% en las emisiones totales bajo el escenario mÃ¡ximo.`
-    : "Sin calcular";
+      )}% en las emisiones totales bajo el escenario máximo.`
+    : "Aún no existe un escenario de reducción calculado con datos suficientes.";
   const riskTone =
     riskProfile.score > 70
       ? "border-[var(--kpi-danger-border)] bg-[var(--kpi-danger-bg)] text-[var(--kpi-danger-text)]"
@@ -182,18 +217,18 @@ function ExecutiveSummary({
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
           <h2 className="text-3xl font-black tracking-tight text-[var(--text-main)] sm:text-[2.05rem]">
-            {optimizedScenario
+            {hasValidOptimizedScenario
               ? `Potencial de reduccion del ${formatNumber(
                   optimizedScenario.reductionPct,
                   1
                 )}% con una reduccion progresiva en ${formatTitleCase(
-                  fuenteCritica
+                  fuenteCriticaLabel
                 )}`
-              : `Carbono Zero recomienda un plan gradual sobre ${fuenteCritica}`}
+              : `Priorizar intervención sobre ${fuenteCriticaLabel}`}
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
             El principal foco de impacto se concentra en{" "}
-            {formatFocusForSentence(fuenteCritica)}, siendo {unidadCriticaLabel}{" "}
+            {formatFocusForSentence(fuenteCriticaLabel)}, siendo {unidadCriticaLabel}{" "}
             la etapa prioritaria. El nivel de viabilidad es{" "}
             <strong>{formatViabilityForSentence(strategicPlan.viability)}</strong>,{" "}
             {optimizedScenario ? estimatedImpact : "sin calcular."}
@@ -211,7 +246,7 @@ function ExecutiveSummary({
         </div>
       </div>
 
-      {optimizedScenario && (
+      {hasValidOptimizedScenario && (
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
           <BeforeAfterCard
             label="Emisiones actuales"
@@ -224,7 +259,7 @@ function ExecutiveSummary({
             value={`${formatNumber(mediumImpactEstimatedTotal, 1)} kg CO2e`}
           />
           <BeforeAfterCard
-            label="MÃ¡ximo potencial proyectado"
+            label="Máximo potencial proyectado"
             tone="green"
             value={`${formatNumber(simulatedTotal, 1)} kg CO2e`}
           />
@@ -232,26 +267,22 @@ function ExecutiveSummary({
       )}
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        <SummaryItem label="Foco principal" value={fuenteCritica} tone="warning" />
+        <SummaryItem label="Foco principal" value={fuenteCriticaLabel} tone="warning" />
         <SummaryItem label="Etapa prioritaria" value={unidadCriticaLabel} tone="info" />
-        <SummaryItem
-          label="Escenario recomendado"
-          value={formatPercentRange(strategicPlan.recommendedRange)}
-          tone="info"
-        />
+        <SummaryItem label="Esc. recomendado" value={formatPercentRange(strategicPlan.recommendedRange)} tone="info" />
 
         <SummaryItem
-          label="Uso de diÃ©sel"
+          label="Uso de diésel"
           value={riskProfile.factors.dieselPresent ? "Si" : "No"}
           tone={riskProfile.factors.dieselPresent ? "warning" : "neutral"}
         />
 
         <SummaryItem
-          label="ReducciÃ³n estimada"
+          label="Reducción estimada"
           value={
-            optimizedScenario
+            hasValidOptimizedScenario
               ? `${formatNumber(optimizedScenario.reductionPct, 1)}%`
-              : estimatedImpact
+              : "Pendiente"
           }
           tone="success"
         />
@@ -264,7 +295,7 @@ function ExecutiveSummary({
 
       <div className="premium-card-interactive mt-5 rounded-2xl border border-cyan-100 bg-[linear-gradient(180deg,rgba(236,253,255,1),rgba(239,246,255,0.92))] p-4 transition group-hover:border-cyan-200 group-hover:shadow-[0_14px_30px_rgba(15,23,42,0.08)]">
         <p className="text-xs font-bold uppercase tracking-wide text-[var(--primary-dark)]">
-          RecomendaciÃ³n principal
+          Recomendación principal
         </p>
         <p className="mt-2 text-sm leading-6 text-[var(--text-main)]">{recommendedDecision}</p>
         <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
@@ -311,7 +342,11 @@ function ExecutiveSummary({
           />
           <ScoreFactor
             label="Potencial reduccion"
-            value={`${formatNumber(riskProfile.factors.potentialReduction, 1)}%`}
+            value={
+              hasValidOptimizedScenario
+                ? `${formatNumber(riskProfile.factors.potentialReduction, 1)}%`
+                : "Pendiente"
+            }
             tone="success"
           />
         </div>
@@ -321,7 +356,7 @@ function ExecutiveSummary({
         Carbono Zero recomienda priorizar una intervencion progresiva en {unidadCriticaLabel} sobre {fuenteCritica}, empezando con quick wins y escalando por fases
         segun resultados medidos.
         {(optimizedScenario || reductionEquivalentKm != null) &&
-          ` Si la hoja de ruta se consolida por etapas, la reducciÃ³n operativa estimada equivale a aproximadamente ${formatNumber(
+          ` Si la hoja de ruta se consolida por etapas, la reducción operativa estimada equivale a aproximadamente ${formatNumber(
             equivalentCarKm,
             0
           )} km recorridos en auto.`}
@@ -338,7 +373,7 @@ function BeforeAfterCard({ label, tone, value }) {
   }[tone];
 
   return (
-    <div className={`premium-card-interactive rounded-2xl border p-5 shadow-[0_12px_24px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(15,23,42,0.08)] ${toneClass}`}>
+    <div className={`premium-card-interactive rounded-2xl border p-5 text-center shadow-[0_12px_24px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(15,23,42,0.08)] ${toneClass}`}>
       <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">{formatTitleCase(label)}</p>
       <p className="mt-1 text-2xl font-black tracking-tight">{value}</p>
     </div>
@@ -355,11 +390,11 @@ function SummaryItem({ label, value, tone = "neutral" }) {
   }[tone];
 
   return (
-    <div className={`premium-card-interactive rounded-xl border px-4 py-3 shadow-[0_10px_20px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_28px_rgba(15,23,42,0.08)] ${toneClass}`}>
+    <div className={`premium-card-interactive flex min-h-[6rem] flex-col items-center justify-center rounded-xl border px-4 py-3 text-center shadow-[0_10px_20px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_28px_rgba(15,23,42,0.08)] ${toneClass}`}>
       <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
         {formatTitleCase(label)}
       </p>
-      <p className="mt-1 text-sm font-extrabold leading-snug text-current">{value}</p>
+      <p className="mt-2 text-sm font-extrabold leading-snug text-current">{value}</p>
     </div>
   );
 }
@@ -374,8 +409,8 @@ function ScoreFactor({ label, value, tone = "neutral" }) {
   }[tone];
 
   return (
-    <div className="premium-card-interactive rounded-xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,0.95))] px-4 py-3 shadow-[0_10px_20px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:border-[var(--primary)]/20 hover:shadow-[0_14px_28px_rgba(15,23,42,0.08)]">
-      <div className="flex items-center gap-2">
+    <div className="premium-card-interactive rounded-xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,0.95))] px-4 py-3 text-center shadow-[0_10px_20px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:border-[var(--primary)]/20 hover:shadow-[0_14px_28px_rgba(15,23,42,0.08)]">
+      <div className="flex items-center justify-center gap-2">
         <span className={`h-2.5 w-2.5 rounded-full ${toneDot}`} />
         <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">{label}</p>
       </div>

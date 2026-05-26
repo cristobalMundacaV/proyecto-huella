@@ -178,7 +178,7 @@ function EtapasObraView() {
               Etapas / frentes
             </h1>
             <p className="max-w-3xl text-slate-400">
-              Centros de trabajo, plantas productivas y nodos logÃ­sticos vinculados
+              Centros de trabajo, plantas productivas y nodos logí­sticos vinculados
               a la constructora activa.
             </p>
           </div>
@@ -199,7 +199,7 @@ function EtapasObraView() {
         <UnitKpi
           detail={`${formatNumber(metrics.topLotsUnit?.obras_count || 0, 0)} obras`}
           icon={<Boxes />}
-          label="Etapa con mÃ¡s obras"
+          label="Etapa con más obras"
           value={metrics.topLotsUnit?.nombre || "Sin datos"}
         />
         <UnitKpi
@@ -250,7 +250,7 @@ function EtapasObraView() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar por etapa, constructora, tipo, regiÃ³n o comuna"
+            placeholder="Buscar por etapa, constructora, tipo, región o comuna"
             className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] py-3 pl-11 pr-4 text-sm text-[var(--text-main)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]/60"
           />
         </label>
@@ -473,7 +473,7 @@ function buildOperationalSummary(activeConstructora, metrics) {
 
 La operacion se concentra principalmente ${territory}${withoutOperationText}. Esto sugiere una operacion territorialmente ${centralization}, con algunas etapas aun sin trazabilidad operativa activa.
 
-La etapa mÃ¡s critica es ${topEmitter?.nombre || "Sin datos"}, que concentra ${formatNumber(
+La etapa más critica es ${topEmitter?.nombre || "Sin datos"}, que concentra ${formatNumber(
     topEmitterEmissions,
     1
   )} kg CO2e, equivalente al ${formatNumber(
@@ -487,7 +487,7 @@ ${operationalLoadText}
 
 Lectura clave
 
-La constructora no tiene un problema distribuido de forma pareja: tiene una operaciÃ³n donde pocas etapas concentran la mayor parte del impacto. La prioridad deberÃ­a estar en ${formatUnitNames(
+La constructora no tiene un problema distribuido de forma pareja: tiene una operación donde pocas etapas concentran la mayor parte del impacto. La prioridad deberí­a estar en ${formatUnitNames(
     priorityList
   )}.`;
 }

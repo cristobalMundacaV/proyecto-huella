@@ -4,7 +4,7 @@ import { normalizeEmissionText } from "@/shared/utils/emissionSemantics";
 const CATEGORY_RULES = [
   {
     category: "Maquinaria",
-    source: "DiÃ©sel maquinaria",
+    source: "Diésel maquinaria",
     unit: "litros",
     tokens: ["diesel", "diessel", "combustible", "maquinaria", "excavadora", "retroexcavadora", "generador", "grua"],
     quantityPatterns: [
@@ -24,7 +24,7 @@ const CATEGORY_RULES = [
   },
   {
     category: "Transporte",
-    source: "Transporte camiÃ³n",
+    source: "Transporte camión",
     unit: "km",
     tokens: ["transporte", "camion", "flete", "viaje", "ruta", "patente"],
     quantityPatterns: [
@@ -34,7 +34,7 @@ const CATEGORY_RULES = [
   },
   {
     category: "Materiales",
-    source: "HormigÃ³n H30",
+    source: "Hormigón H30",
     unit: "m3",
     tokens: ["hormigon", "concreto", "cemento", "acero", "arido",  "material"],
     quantityPatterns: [

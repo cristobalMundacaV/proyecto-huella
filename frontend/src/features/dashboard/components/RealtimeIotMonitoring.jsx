@@ -149,7 +149,7 @@ function RealtimeIotMonitoring({ activeConstructoraId }) {
             />
             <KpiCard
               icon={<Gauge />}
-              title="Etapa con mÃ¡s emisiones hoy"
+              title="Etapa con más emisiones hoy"
               value={
                 <span className="block text-xl leading-tight">
                   {kpis?.etapa_mayor_emision_hoy || "Sin datos"}
@@ -163,7 +163,7 @@ function RealtimeIotMonitoring({ activeConstructoraId }) {
             />
             <KpiCard
               icon={<Activity />}
-              title="Fuente con mÃ¡s emisiones hoy"
+              title="Fuente con más emisiones hoy"
               value={
                 <span className="block text-xl leading-tight">
                   {formatTipo(kpis?.fuente_emision_mayor_emision_hoy) || "Sin datos"}

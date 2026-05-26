@@ -265,7 +265,7 @@ function ConstructorasView({
             <h1 className="text-3xl font-bold sm:text-4xl">Constructoras</h1>
             <p className="max-w-3xl text-slate-400">
               Gestiona constructoras, etapas, obras y registros desde un mismo
-              lugar, con trazabilidad lista para anÃ¡lisis, reportes y decisiones ambientales.
+              lugar, con trazabilidad lista para análisis, reportes y decisiones ambientales.
             </p>
           </div>
         </div>
@@ -390,7 +390,7 @@ function ConstructorasView({
         <UnitMetricBarChart
           color="#34D399"
           dataKey="balance_ambiental"
-          description="Muestra quÃ© etapas aportan mÃ¡s al balance ambiental positivo."
+          description="Muestra qué etapas aportan más al balance ambiental positivo."
           rows={metrics.unitComparisonRows}
           title="Balance ambiental por etapa / frente"
           valueLabel="Balance ambiental"
@@ -544,17 +544,17 @@ function buildStrategicSummary(metrics) {
 
   const concentration =
     metrics.topEmissionShare >= 60
-      ? "alta concentraciÃ³n"
+      ? "alta concentración"
       : metrics.topEmissionShare >= 35
-        ? "concentraciÃ³n moderada"
-        : "distribuciÃ³n relativamente balanceada";
+        ? "concentración moderada"
+        : "distribución relativamente balanceada";
   const balanceText =
     metrics.globalBalance < 0
-      ? "En tÃ©rminos generales, el balance global es favorable gracias al balance ambiental."
-      : "En tÃ©rminos generales, el balance global sigue siendo intensivo en emisiones y requiere priorizar acciones de reducciÃ³n.";
+      ? "En términos generales, el balance global es favorable gracias al balance ambiental."
+      : "En términos generales, el balance global sigue siendo intensivo en emisiones y requiere priorizar acciones de reducción.";
   const traceabilityText = metrics.topTraceability
-    ? `AdemÃ¡s, ${metrics.topTraceability.nombre} destaca por contar con un buen nivel de trazabilidad disponible.`
-    : "AdemÃ¡s, aÃºn no hay una etapa claramente destacada en trazabilidad.";
+    ? `Además, ${metrics.topTraceability.nombre} destaca por contar con un buen nivel de trazabilidad disponible.`
+    : "Además, aún no hay una etapa claramente destacada en trazabilidad.";
 
   return `${metrics.activeCompany.nombre} registra ${formatNumber(
     metrics.totalUnits,

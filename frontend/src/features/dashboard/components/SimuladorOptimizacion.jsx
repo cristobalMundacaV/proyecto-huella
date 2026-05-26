@@ -203,7 +203,7 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
           />
           <SliderControl
             color="sky"
-            label="ElectrificaciÃ³n de procesos"
+            label="Electrificación de procesos"
             max={60}
             onChange={setElectricityIncrease}
             value={electricityIncrease}

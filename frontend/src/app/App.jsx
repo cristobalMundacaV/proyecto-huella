@@ -49,15 +49,15 @@ const DASHBOARD_REFRESH_INTERVAL_MS = 10000;
 
 const categoryInsightRules = {
   Materiales:
-    "Materiales concentra el mayor impacto ambiental. Revisa hormigÃ³n, acero, Ã¡ridos y proveedores para evaluar alternativas de menor carbono incorporado.",
+    "Materiales concentra el mayor impacto ambiental. Revisa hormigón, acero, áridos y proveedores para evaluar alternativas de menor carbono incorporado.",
   Transporte:
-    "Transporte aparece como foco critico. EvalÃºa proveedores mÃ¡s cercanos, consolidaciÃ³n de viajes y reducciÃ³n de kilÃ³metros recorridos.",
+    "Transporte aparece como foco critico. Evalúa proveedores más cercanos, consolidación de viajes y reducción de kilómetros recorridos.",
   Maquinaria:
-    "Maquinaria concentra emisiones relevantes. Controlar ralentÃ­, consumo por equipo y mantenciÃ³n puede reducir el impacto operativo.",
+    "Maquinaria concentra emisiones relevantes. Controlar ralentí­, consumo por equipo y mantención puede reducir el impacto operativo.",
   Energia:
     "Energia es una fuente relevante. Revisa uso de generadores, consumo electrico y posibilidades de conexion temporal a red.",
   Residuos:
-    "Residuos aparece como foco de impacto. Separar residuos valorizables y mejorar trazabilidad de retiro puede reducir disposiciÃ³n final.",
+    "Residuos aparece como foco de impacto. Separar residuos valorizables y mejorar trazabilidad de retiro puede reducir disposición final.",
   Agua:
     "Agua requiere seguimiento operativo. Monitorear consumo por etapa ayuda a detectar desviaciones y mejorar eficiencia.",
   Otros:
@@ -68,12 +68,12 @@ const worksiteReductionSteps = [
   {
     title: "Optimizar rutas de despacho y transporte",
     detail:
-      "Planificar mejor los recorridos, evitar viajes vacÃ­os, combinar cargas y priorizar rutas mÃ¡s cortas o con menos trÃ¡fico para reducir kilÃ³metros recorridos y consumo de combustible.",
+      "Planificar mejor los recorridos, evitar viajes vací­os, combinar cargas y priorizar rutas más cortas o con menos tráfico para reducir kilómetros recorridos y consumo de combustible.",
   },
   {
     title: "Mejorar eficiencia de maquinaria y camiones",
     detail:
-      "Implementar mantenciÃ³n preventiva, utilizar neumÃ¡ticos adecuados, mantener los motores correctamente calibrados y reducir el tiempo de ralentÃ­.",
+      "Implementar mantención preventiva, utilizar neumáticos adecuados, mantener los motores correctamente calibrados y reducir el tiempo de ralentí­.",
   },
   {
     title: "Controlar conduccion y operacion",
@@ -585,7 +585,7 @@ const environmentalStatus = getEnvironmentalStatus({
                   Carbono Zero
                 </h1>
                 <p className="text-[var(--text-muted)]">
-                  Convierte datos reales de obra en mediciÃ³n, trazabilidad y decisiones para reducir emisiones durante la ejecuciÃ³n del proyecto.
+                  Convierte datos reales de obra en medición, trazabilidad y decisiones para reducir emisiones durante la ejecución del proyecto.
                 </p>
               </div>
             </div>
@@ -620,7 +620,7 @@ const environmentalStatus = getEnvironmentalStatus({
             />
             <KpiCard
               icon={<AlertTriangle />}
-              title="CategorÃ­a critica"
+              title="Categorí­a critica"
               value={criticalCategory}
             />
             <KpiCard
@@ -631,14 +631,14 @@ const environmentalStatus = getEnvironmentalStatus({
             <KpiCard
               icon={<Database />}
               title="Evidencia respaldada"
-              value="Pendiente de vinculaciÃ³n"
+              value="Pendiente de vinculación"
             />
             <KpiCard
               icon={<Factory />}
               title="Intensidad de carbono"
               value={
                 carbonIntensity != null
-                  ? `${formatNumber(carbonIntensity, 2)} kg CO2e/mÂ²`
+                  ? `${formatNumber(carbonIntensity, 2)} kg CO2e/m²`
                   : "Pendiente de superficie"
               }
             />
@@ -651,7 +651,7 @@ const environmentalStatus = getEnvironmentalStatus({
             />
             <DistributionPanel
               items={categoryDistribution}
-              title="Emisiones por categorÃ­a"
+              title="Emisiones por categorí­a"
               total={totalEmissions}
             />
           </section>
@@ -670,7 +670,7 @@ const environmentalStatus = getEnvironmentalStatus({
                   Pasos a seguir
                 </p>
                 <h2 className="mt-1 text-xl font-bold text-[var(--text-main)]">
-                  Como reducir emisiones dentro de la operaciÃ³n.
+                  Como reducir emisiones dentro de la operación.
                 </h2>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -708,7 +708,7 @@ function getEnvironmentalStatus({ categoryDistribution, evidenceBacked, rows, to
   if (!rows.length || !totalEmissions) {
     return {
       label: "Sin datos",
-      detail: "AÃºn no hay registros suficientes.",
+      detail: "Aún no hay registros suficientes.",
       className: "border-slate-300 bg-slate-100 text-slate-700",
     };
   }
@@ -719,7 +719,7 @@ function getEnvironmentalStatus({ categoryDistribution, evidenceBacked, rows, to
   if (evidenceBacked != null && evidenceBacked >= 50 && maxShare <= 50) {
     return {
       label: "Controlada",
-      detail: "Sin concentraciÃ³n dominante y con documentaciÃ³n suficiente.",
+      detail: "Sin concentración dominante y con documentación suficiente.",
       className: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
     };
   }
@@ -727,7 +727,7 @@ function getEnvironmentalStatus({ categoryDistribution, evidenceBacked, rows, to
   if (maxShare > 60) {
     return {
       label: "critica",
-      detail: "Una categorÃ­a concentra mÃ¡s del 60% de las emisiones.",
+      detail: "Una categorí­a concentra más del 60% de las emisiones.",
       className: "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]",
     };
   }
@@ -735,14 +735,14 @@ function getEnvironmentalStatus({ categoryDistribution, evidenceBacked, rows, to
   if (activeCategories >= 3) {
     return {
       label: "En seguimiento",
-      detail: "Existen registros distribuidos en varias categorÃ­as.",
+      detail: "Existen registros distribuidos en varias categorí­as.",
       className: "border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]",
     };
   }
 
   return {
     label: "Inicial",
-    detail: "Existen registros, pero aÃºn falta trazabilidad por categorÃ­a.",
+    detail: "Existen registros, pero aún falta trazabilidad por categorí­a.",
     className: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
   };
 }
@@ -753,10 +753,10 @@ function InsightPanel({ environmentalStatus, insight }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
-            Insight automÃ¡tico
+            Insight automático
           </p>
           <h2 className="mt-2 text-xl font-semibold text-[var(--text-main)]">
-            AcciÃ³n prioritaria
+            Acción prioritaria
           </h2>
         </div>
         <div className={`premium-card-interactive rounded-2xl border px-4 py-3 text-sm font-bold ${environmentalStatus.className}`}>
@@ -814,7 +814,7 @@ function StagePanel({ items, total }) {
           ))
         ) : (
           <p className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 text-sm text-[var(--text-muted)]">
-            AÃºn no hay etapas o frentes asociados a los registros.
+            Aún no hay etapas o frentes asociados a los registros.
           </p>
         )}
       </div>
@@ -831,7 +831,7 @@ function TopSourcesPanel({ items, total }) {
           <thead className="border-b border-[var(--border)] text-left text-[var(--text-muted)]">
             <tr>
               <th className="py-3 pr-4">Fuente de emision</th>
-              <th className="px-4 py-3">CategorÃ­a</th>
+              <th className="px-4 py-3">Categorí­a</th>
               <th className="px-4 py-3">Obra / etapa</th>
               <th className="px-4 py-3 text-right">Emisiones kg CO2e</th>
               <th className="py-3 pl-4 text-right">% total</th>

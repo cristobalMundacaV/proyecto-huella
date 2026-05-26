@@ -10,9 +10,9 @@
 
 function DetailItem({ label, value }) {
   return (
-    <div className="premium-card p-4">
-      <p className="text-xs font-medium text-[var(--text-muted)]">{label}</p>
-      <p className="mt-1 break-words text-sm font-semibold text-[var(--text-main)]">
+    <div className="premium-card flex min-h-[6rem] flex-col px-4 pb-4 pt-3">
+      <p className="text-xs font-medium leading-none text-[var(--text-muted)]">{label}</p>
+      <p className="mt-4 flex flex-1 items-center justify-center break-words text-center text-sm font-semibold text-[var(--text-main)]">
         {value || "Sin dato"}
       </p>
     </div>
