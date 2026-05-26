@@ -143,7 +143,7 @@ function EvidenciasPage() {
   const totalVinculadas = Number(kpis?.vinculadas || 0);
   const obrasConRespaldo = Number(kpis?.obras_con_evidencia || 0);
   const alcanceOptions = constructionEvidenceScopeOptions;
-  const coverageValue = Number(kpis?.total_obras || 0) > 0 && obrasConRespaldo > 0 ? `${formatNumber(cobertura, 1)}%` : "Pendiente de vinculaciÃ³n";
+  const coverageValue = Number(kpis?.total_obras || 0) > 0 && obrasConRespaldo > 0 ? `${formatNumber(cobertura, 1)}%` : "Pendiente de vinculación";
   const coverageDetail = Number(kpis?.total_obras || 0)
     ? `${formatNumber(obrasConRespaldo, 0)} de ${formatNumber(kpis?.total_obras || 0, 0)} obras`
     : "Sin obras registradas";
@@ -187,7 +187,7 @@ function EvidenciasPage() {
       return "Debes indicar un ID de etapa para respaldar un frente de obra.";
     }
     if (form.alcance === "obra" && !form.obra_id.trim()) {
-      return "Debes indicar un cÃ³digo de obra para respaldar una obra.";
+      return "Debes indicar un código de obra para respaldar una obra.";
     }
     if (form.alcance === "emision" && !form.emision_id.trim()) {
       return "Debes indicar un ID de emision para respaldar un registro.";
@@ -255,10 +255,10 @@ function EvidenciasPage() {
               Respalda constructoras, etapas, obras y emisiones con evidencias verificables
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-[#344054]">
-              Sube evidencias reales de obra para respaldar cÃ¡lculos de emisiones, materiales, transporte, maquinaria, Energia y residuos.
+              Sube evidencias reales de obra para respaldar cálculos de emisiones, materiales, transporte, maquinaria, Energia y residuos.
             </p>
             <p className="mt-3 rounded-2xl border border-[#E6CC82] bg-[var(--warning-bg)] p-3 text-sm font-semibold text-[#7A4F00]">
-              {activeConstructora?.nombre || activeConstructoraId} permanece como constructora activa. La evidencia se puede vincular a una obra, etapa o registro de emision sin cambiar el flujo tÃ©cnico existente.
+              {activeConstructora?.nombre || activeConstructoraId} permanece como constructora activa. La evidencia se puede vincular a una obra, etapa o registro de emision sin cambiar el flujo técnico existente.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
@@ -271,7 +271,7 @@ function EvidenciasPage() {
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiImpact icon={<FileCheck2 size={22} />} label="Cobertura documental" value={coverageValue} detail={coverageDetail} tone={cobertura >= 75 ? "emerald" : cobertura >= 40 ? "amber" : "rose"} />
-        <KpiImpact icon={<ShieldAlert size={22} />} label="Evidencias pendientes" value={formatNumber(totalPendientes, 0)} detail="A la espera de revisiÃ³n" tone="amber" />
+        <KpiImpact icon={<ShieldAlert size={22} />} label="Evidencias pendientes" value={formatNumber(totalPendientes, 0)} detail="A la espera de revisión" tone="amber" />
         <KpiImpact icon={<Link2 size={22} />} label="Evidencias observadas" value={formatNumber(totalObservadas, 0)} detail="Requieren ajuste o respaldo" tone="rose" />
         <KpiImpact icon={<UploadCloud size={22} />} label="Tipos presentes" value={formatNumber(Object.keys(kpis?.por_tipo || {}).length, 0)} detail="Fuentes documentales" tone="cyan" />
       </section>
@@ -289,14 +289,14 @@ function EvidenciasPage() {
             {constructionEvidenceTypeOptions.map(([tipo, label]) => <option key={tipo} value={tipo}>{label}</option>)}
           </select>
           <select className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" value={draftFilters.alcance} onChange={(event) => setDraftFilters((current) => ({ ...current, alcance: event.target.value }))}>
-            <option value="">VinculaciÃ³n</option>
+            <option value="">Vinculación</option>
             {constructionEvidenceScopeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
           <select className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" value={draftFilters.estado_sistema} onChange={(event) => setDraftFilters((current) => ({ ...current, estado_sistema: event.target.value }))}>
             <option value="">Estado documental</option>
-            <option value="corporativa">Sin vÃ­nculo</option>
+            <option value="corporativa">Sin ví­nculo</option>
             <option value="vinculada">Vinculada</option>
-            <option value="sin_vinculo">Sin vÃ­nculo</option>
+            <option value="sin_vinculo">Sin ví­nculo</option>
           </select>
           <div className="flex gap-2">
             <button type="button" onClick={onApplyFilters} className="rounded-2xl border border-[var(--primary-dark)] bg-[var(--primary-dark)] px-4 py-3 text-sm font-bold text-white">Aplicar</button>
@@ -393,7 +393,7 @@ function EvidenciasPage() {
                   </td>
                   <td className="px-3 py-3 text-[#475467]">{item.unidad_codigo || item.etapa_nombre || "Sin etapa"}</td>
                   <td className="px-3 py-3 text-[#475467]">
-                    {item.emision ? `Registro ${item.emision}` : item.estado_sistema === "sin_vinculo" ? "Pendiente de vinculaciÃ³n" : getConstructionEvidenceLinkLabel(item.estado_sistema)}
+                    {item.emision ? `Registro ${item.emision}` : item.estado_sistema === "sin_vinculo" ? "Pendiente de vinculación" : getConstructionEvidenceLinkLabel(item.estado_sistema)}
                   </td>
                   <td className="px-3 py-3 text-[#475467]">{item.fecha_evidencia || "-"}</td>
                   <td className="px-3 py-3">

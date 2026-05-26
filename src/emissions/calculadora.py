@@ -26,7 +26,7 @@ def calcular_emisiones(datos, ruta_factores):
             datos["factor_emision"].isna(),
             "fuente_emision"
             ].unique()
-        raise ValueError(f"Faltan factores de emisiÃ³n para las siguientes fuentes: {fuentes_sin_factor}"
+        raise ValueError(f"Faltan factores de emisión para las siguientes fuentes: {fuentes_sin_factor}"
         )
         
     datos["emisiones"] = datos["cantidad"] * datos["factor_emision"]

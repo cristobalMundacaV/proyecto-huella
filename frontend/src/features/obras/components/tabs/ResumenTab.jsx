@@ -10,19 +10,19 @@ import { DetailItem } from "../common";
 
 const recommendationByCategory = {
   Materiales:
-    "Revisa hormigÃ³n, acero, Ã¡ridos y proveedores para evaluar alternativas de menor carbono incorporado.",
+    "Revisa hormigón, acero, áridos y proveedores para evaluar alternativas de menor carbono incorporado.",
   Transporte:
-    "EvalÃºa proveedores mÃ¡s cercanos, consolidaciÃ³n de viajes y reducciÃ³n de kilÃ³metros recorridos.",
+    "Evalúa proveedores más cercanos, consolidación de viajes y reducción de kilómetros recorridos.",
   Maquinaria:
-    "Controla ralentÃ­, consumo por equipo y mantenciÃ³n para reducir el impacto operativo.",
+    "Controla ralentí­, consumo por equipo y mantención para reducir el impacto operativo.",
   Energia:
-    "Revisa uso de generadores, consumo electrico y posibilidades de conexiÃ³n temporal a red.",
+    "Revisa uso de generadores, consumo electrico y posibilidades de conexión temporal a red.",
   Residuos:
-    "Separa residuos valorizables y mejora la trazabilidad de retiro para reducir disposiciÃ³n final.",
+    "Separa residuos valorizables y mejora la trazabilidad de retiro para reducir disposición final.",
   Agua:
     "Monitorea consumo por etapa para detectar desviaciones y mejorar eficiencia.",
   Otros:
-    "Clasifica mejor los registros para identificar acciones de reducciÃ³n concretas.",
+    "Clasifica mejor los registros para identificar acciones de reducción concretas.",
 };
 
 function ResumenTab({ balanceData, selectedObra }) {
@@ -116,7 +116,7 @@ function ResumenTab({ balanceData, selectedObra }) {
               Resumen ambiental de obra
             </p>
             <h2 className="mt-1 text-2xl font-bold text-[var(--text-main)]">
-              Inteligencia ambiental de construcciÃ³n
+              Inteligencia ambiental de construcción
             </h2>
           </div>
           <div className={`rounded-2xl border px-4 py-3 text-sm font-bold ${environmentalStatus.className}`}>
@@ -131,14 +131,14 @@ function ResumenTab({ balanceData, selectedObra }) {
             value={`${formatNumber(totalEmissions, 1)} kg CO2e`}
           />
           <DetailItem
-            label="kg CO2e/mÂ²"
+            label="kg CO2e/m²"
             value={
               carbonIntensity != null
-                ? `${formatNumber(carbonIntensity, 2)} kg CO2e/mÂ²`
+                ? `${formatNumber(carbonIntensity, 2)} kg CO2e/m²`
                 : "Pendiente de superficie"
             }
           />
-          <DetailItem label="CategorÃ­a critica" value={criticalCategory} />
+          <DetailItem label="Categorí­a critica" value={criticalCategory} />
           <DetailItem label="Etapa critica" value={criticalStage} />
           <DetailItem label="Registros de emision" value={formatNumber(registros.length, 0)} />
           <DetailItem label="Evidencias asociadas" value={`${formatNumber(documents.length, 0)} evidencias`} />
@@ -181,7 +181,7 @@ function ResumenTab({ balanceData, selectedObra }) {
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Panel title="Emisiones por categorÃ­a">
+        <Panel title="Emisiones por categorí­a">
           <div className="space-y-3">
             {categoryDistribution.map((item) => (
               <MetricBar
@@ -252,7 +252,7 @@ function ResumenTab({ balanceData, selectedObra }) {
           </div>
         </Panel>
 
-        <Panel title="RecomendaciÃ³n principal">
+        <Panel title="Recomendación principal">
           <p className="rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] p-4 text-sm font-medium leading-6 text-[var(--primary-dark)]">
             {mainRecommendation}
           </p>
@@ -263,7 +263,7 @@ function ResumenTab({ balanceData, selectedObra }) {
             <p className="mt-2 text-sm text-[var(--text-muted)]">
               {documents.length
                 ? `Evidencias asociadas: ${formatNumber(documents.length, 0)} evidencias`
-                : "Pendiente de vinculaciÃ³n documental"}
+                : "Pendiente de vinculación documental"}
             </p>
           </div>
         </Panel>
@@ -325,11 +325,11 @@ function buildMissingDocumentSuggestions(registrosWithCategories, presentDocumen
   };
 
   if (hasCategory("Materiales")) {
-    addMissing(["Factura de material", "GuÃ­a de despacho", "Ficha tÃ©cnica de material"]);
+    addMissing(["Factura de material", "Guí­a de despacho", "Ficha técnica de material"]);
   }
 
   if (hasCategory("Transporte")) {
-    addMissing(["GuÃ­a de despacho", "Evidencia de transporte", "Ticket de pesaje"]);
+    addMissing(["Guí­a de despacho", "Evidencia de transporte", "Ticket de pesaje"]);
   }
 
   if (hasCategory("Maquinaria")) {
@@ -337,7 +337,7 @@ function buildMissingDocumentSuggestions(registrosWithCategories, presentDocumen
   }
 
   if (hasCategory("Energia")) {
-    addMissing(["Boleta elÃ©ctrica", "Registro de generador"]);
+    addMissing(["Boleta eléctrica", "Registro de generador"]);
   }
 
   if (hasCategory("Residuos")) {
@@ -362,7 +362,7 @@ function getDocumentTraceability({ documents, missingDocumentTypes, registrosWit
 
   if (observedCount > 0) {
     return {
-      label: "En revisiÃ³n",
+      label: "En revisión",
       description: "Hay evidencias observadas o pendientes de ajuste.",
       className: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
     };
@@ -371,7 +371,7 @@ function getDocumentTraceability({ documents, missingDocumentTypes, registrosWit
   if (missingDocumentTypes.length > 0) {
     return {
       label: "Inicial",
-      description: "Existe respaldo documental, pero aÃºn faltan evidencias criticos por categorÃ­a.",
+      description: "Existe respaldo documental, pero aún faltan evidencias criticos por categorí­a.",
       className: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
     };
   }
@@ -379,7 +379,7 @@ function getDocumentTraceability({ documents, missingDocumentTypes, registrosWit
   if (validCount >= 3 && activeCategories >= 3) {
     return {
       label: "Alta trazabilidad",
-      description: "La obra tiene evidencias validadas para varias categorÃ­as criticas.",
+      description: "La obra tiene evidencias validadas para varias categorí­as criticas.",
       className: "border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]",
     };
   }

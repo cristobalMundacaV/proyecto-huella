@@ -3,7 +3,7 @@
   ["registros_emision", "Registros de emision"],
   ["ficha_ambiental", "Ficha"],
   ["evidencias", "Evidencias"],
-  ["transporte", "Transporte / logÃ­stica"],
+  ["transporte", "Transporte / logí­stica"],
   ["historial", "Historial"],
 ];
 

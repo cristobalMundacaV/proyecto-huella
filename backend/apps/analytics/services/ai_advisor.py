@@ -31,7 +31,7 @@ Reglas:
 5) Si Residuos es critico, recomienda segregacion, reciclaje y valorizacion.
 6) Si la trazabilidad documental es baja, recomienda subir y vincular evidencias faltantes.
 7) No prometas reducciones absolutas ni certificaciones oficiales. Diferencia escenario optimo de recomendacion realista.
-8) MantÃ©n tono ejecutivo, claro y aplicable.
+8) Mantén tono ejecutivo, claro y aplicable.
 
 Estructura obligatoria de salida:
 Diagnostico:

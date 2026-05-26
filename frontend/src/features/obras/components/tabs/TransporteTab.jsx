@@ -48,7 +48,7 @@ function TransporteTab({
           </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="VehÃ­culo" error={transportFieldErrors.vehiculo?.[0]}>
+          <Field label="Vehí­culo" error={transportFieldErrors.vehiculo?.[0]}>
             <input
               name="vehiculo"
               value={transportForm.vehiculo}
@@ -146,7 +146,7 @@ function TransporteTab({
           <div>
             <h2 className="text-xl font-semibold">Rutas y movimiento</h2>
             <p className="mt-1 text-sm text-slate-400">
-              Registra viajes asociados a materiales, maquinaria o residuos para estimar emisiones logÃ­sticas de la obra.
+              Registra viajes asociados a materiales, maquinaria o residuos para estimar emisiones logí­sticas de la obra.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -169,7 +169,7 @@ function TransporteTab({
             <thead className="border-b border-slate-800 text-slate-400">
               <tr>
                 <th className="py-3 text-left">Destino obra</th>
-                <th className="py-3 text-left">VehÃ­culo</th>
+                <th className="py-3 text-left">Vehí­culo</th>
                 <th className="py-3 text-right">Litros</th>
                 <th className="py-3 text-right">Factor diesel</th>
                 <th className="py-3 text-right">Emisiones</th>

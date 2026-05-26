@@ -19,7 +19,7 @@ import { Field } from "../common";
 import RouteMapPicker from "../RouteMapPicker";
 
 const fuelUseOptions = [
-  { value: "preparacion", label: "PreparaciÃ³n / movimiento" },
+  { value: "preparacion", label: "Preparación / movimiento" },
   { value: "despacho", label: "Despacho" },
   { value: "transporte", label: "Transporte" },
   { value: "maquinaria", label: "Maquinaria" },
@@ -382,7 +382,7 @@ function RegistrosEmisionTab({
           <thead className="border-b border-slate-800 text-slate-400">
             <tr>
               <th className="w-[40%] py-3 pr-6 text-left">Fuente de emision</th>
-              <th className="w-[14%] px-4 py-3 text-left">CategorÃ­a</th>
+              <th className="w-[14%] px-4 py-3 text-left">Categorí­a</th>
               <th className="w-[14%] px-4 py-3 text-left">Tipo de consumo</th>
               <th className="w-[14%] py-3 px-4 text-right">Cantidad</th>
               <th className="w-[14%] py-3 px-4 text-left">Etapa</th>
@@ -394,7 +394,7 @@ function RegistrosEmisionTab({
             {filteredRegistros.length === 0 && (
               <tr>
                 <td colSpan="7" className="py-8 text-center text-slate-400">
-                  <p>AÃºn no hay registros de emision en esta obra.</p>
+                  <p>Aún no hay registros de emision en esta obra.</p>
                   <p className="mt-1 text-sm">
                     Agrega emisiones por materiales, transporte, maquinaria, Energia, agua o residuos para comenzar a medir la huella del proyecto.
                   </p>
@@ -500,7 +500,7 @@ function RegistrosEmisionTab({
                   className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-300 outline-none"
                 />
               </Field>
-              <Field label="CategorÃ­a de emision">
+              <Field label="Categorí­a de emision">
                 <select
                   value={formCategory}
                   onChange={(event) => setFormCategory(event.target.value)}
@@ -541,7 +541,7 @@ function RegistrosEmisionTab({
               </Field>
               <div className="sm:col-span-2">
                 <Field
-                  label="CatÃ¡logo de factores sugeridos"
+                  label="Catálogo de factores sugeridos"
                   error={registroFieldErrors.factor_emision?.[0]}
                 >
                   <select
