@@ -123,7 +123,7 @@ export default function EmpresaCompletaImport({ onImported }) {
         </label>
       </div>
       <p className="mt-2 text-xs text-slate-500">
-        Empresa, factores, unidades con territorio y estado, lotes asociados a unidad, y actividades con lote, unidad, fecha, observacion y fuente de dato.
+        Constructora, factores, etapas con territorio y estado, obras asociadas a etapa, y registros con obra, etapa, fecha, observacion y fuente de dato.
       </p>
       {state.loading && (
         <div className="mt-3 text-sm text-slate-400 inline-flex items-center gap-2">
@@ -140,7 +140,7 @@ export default function EmpresaCompletaImport({ onImported }) {
           <div className="rounded-2xl border bg-slate-950 p-4">
             <h3 className="text-lg font-semibold">Resumen</h3>
             <p className="text-sm text-slate-400 mt-2">Empresa: {state.result.empresa?.data?.nombre || "(sin datos)"}</p>
-            <p className="text-sm text-slate-400">Unidades: {state.result.unidades?.total ?? 0} â€” Lotes: {state.result.lotes?.total ?? 0} â€” Actividades: {state.result.actividades?.total ?? 0}</p>
+            <p className="text-sm text-slate-400">Etapas: {state.result.unidades?.total ?? 0} - Obras: {state.result.lotes?.total ?? 0} - Registros: {state.result.actividades?.total ?? 0}</p>
             {state.result.blocking_errors && state.result.blocking_errors.length > 0 && (
               <div className="mt-2 text-sm text-red-300">Errores bloqueantes: {state.result.blocking_errors.join("; ")}</div>
             )}
@@ -156,21 +156,21 @@ export default function EmpresaCompletaImport({ onImported }) {
 
           {state.result.unidades && (
             <div className="rounded-2xl border bg-slate-950 p-4">
-              <h4 className="font-semibold">Unidades</h4>
+              <h4 className="font-semibold">Etapas / frentes</h4>
               <RowsPreviewTable rows={state.result.unidades.rows || []} />
             </div>
           )}
 
           {state.result.lotes && (
             <div className="rounded-2xl border bg-slate-950 p-4">
-              <h4 className="font-semibold">Lotes</h4>
+              <h4 className="font-semibold">Obras</h4>
               <RowsPreviewTable rows={state.result.lotes.rows || []} />
             </div>
           )}
 
           {state.result.actividades && (
             <div className="rounded-2xl border bg-slate-950 p-4">
-              <h4 className="font-semibold">Actividades</h4>
+              <h4 className="font-semibold">Registros</h4>
               <RowsPreviewTable rows={state.result.actividades.rows || []} />
             </div>
           )}

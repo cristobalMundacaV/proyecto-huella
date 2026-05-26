@@ -1,9 +1,9 @@
 const tabs = [
-  ["resumen", "Resumen"],
-  ["actividades", "Actividades"],
-  ["pasaporte", "Pasaporte"],
+  ["resumen", "Resumen de obra"],
+  ["actividades", "Registros de emisión"],
+  ["pasaporte", "Ficha"],
   ["evidencias", "Evidencias"],
-  ["transporte", "Transporte"],
+  ["transporte", "Transporte / logística"],
   ["historial", "Historial"],
 ];
 

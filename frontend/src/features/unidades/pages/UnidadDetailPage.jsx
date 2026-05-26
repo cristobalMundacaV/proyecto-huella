@@ -4,7 +4,7 @@ function UnidadDetailPage() {
   return (
     <EmptyState
       title="Detalle de unidad"
-      description="Base preparada para KPIs, lotes, actividades y pasaportes asociados."
+      description="Base preparada para KPIs, obras, registros y fichas asociadas."
     />
   );
 }

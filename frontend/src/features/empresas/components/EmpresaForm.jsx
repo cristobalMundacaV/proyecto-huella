@@ -27,7 +27,7 @@ function EmpresaForm({
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold">Nueva empresa</h2>
+            <h2 className="text-xl font-semibold">Nueva constructora</h2>
             <p className="text-sm text-slate-400">
               Los campos de region y comuna son listas desplegables dependientes.
             </p>
@@ -158,7 +158,7 @@ function EmpresaForm({
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? <Loader2 className="animate-spin" size={18} /> : null}
-          Guardar empresa
+          Guardar constructora
         </button>
       </form>
     </div>

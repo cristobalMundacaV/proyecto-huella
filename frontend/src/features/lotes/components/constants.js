@@ -1,3 +1,7 @@
+import {
+  constructionWorkDocumentTypeOptions,
+} from "@/shared/utils/constructionEvidenceLabels";
+
 const balanceTone = {
   favorable: {
     label: "Favorable",
@@ -22,17 +26,11 @@ const confidenceTone = {
 const documentStatusTone = {
   pendiente: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
   validado: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
+  observada: "border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]",
   rechazado: "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]",
 };
 
-const documentTypes = [
-  ["guia_despacho", "Guia de despacho"],
-  ["factura_combustible", "Factura de combustible"],
-  ["boleta_electrica", "Boleta electrica"],
-  ["registro_produccion", "Registro de produccion"],
-  ["documento_origen", "Documento de origen"],
-  ["registro_transporte", "Registro de transporte"],
-];
+const documentTypes = constructionWorkDocumentTypeOptions;
 
 const ocrFields = [
   ["fecha", "Fecha"],
@@ -40,9 +38,9 @@ const ocrFields = [
   ["litros_combustible", "Litros combustible"],
   ["kwh", "kWh"],
   ["patente", "Patente"],
-  ["origen", "Origen"],
-  ["destino", "Destino"],
-  ["volumen", "Volumen"],
+  ["origen", "Origen proveedor / planta"],
+  ["destino", "Destino obra"],
+  ["volumen", "Cantidad base / superficie"],
   ["monto", "Monto"],
   ["numero_documento", "Numero documento"],
 ];

@@ -27,6 +27,10 @@ import DecisionCenter from "@/features/dashboard/components/DecisionCenter";
 import FactorCategoryBadge from "@/features/factores/components/FactorCategoryBadge";
 import { useEmpresaActiva } from "@/features/empresas/context/EmpresaActivaContext";
 import { optimizeScenario } from "@/features/dashboard/utils/optimizer";
+import {
+  constructionCategories,
+  getConstructionCategoryLabel,
+} from "@/features/lotes/utils/constructionEmissionCategories";
 import AnimatedModalShell from "@/shared/components/AnimatedModalShell";
 import ChartCard from "@/shared/components/ChartCard";
 import EmptyState from "@/shared/components/EmptyState";
@@ -36,17 +40,39 @@ import {
   getEmpresaEmisiones,
   optimizeScenarioApi,
 } from "@/shared/services/api";
+import {
+  getConstructionEvidenceLinkLabel,
+  getConstructionEvidenceReviewLabel,
+  getConstructionEvidenceTypeLabel,
+} from "@/shared/utils/constructionEvidenceLabels";
 import { formatNumber } from "@/shared/utils/formatters";
 
 const rowsPerPage = 8;
 const DIESEL_REDUCTION_SCENARIO = 25;
 
 const fuelUseLabels = {
-  cosecha: "Cosecha",
+  cosecha: "Preparación / movimiento",
   despacho: "Despacho",
   transporte: "Transporte",
   maquinaria: "Maquinaria",
   vehiculos: "Vehiculos",
+};
+
+const categoryInsightRules = {
+  Materiales:
+    "La categoría crítica actualmente es Materiales. Revisa hormigón, acero, áridos y proveedores, ya que suelen concentrar una parte importante del carbono incorporado de una obra.",
+  Transporte:
+    "La categoría crítica actualmente es Transporte. Reduce distancia, consolida viajes y evalúa proveedores cercanos para bajar emisiones logísticas.",
+  Maquinaria:
+    "La categoría crítica actualmente es Maquinaria. Controla ralentí, consumo por equipo y mantención para reducir emisiones durante la ejecución.",
+  Energía:
+    "La categoría crítica actualmente es Energía. Revisa uso de generadores, consumo eléctrico de faena y horarios de operación.",
+  Residuos:
+    "La categoría crítica actualmente es Residuos. Prioriza segregación, reciclaje y valorización para reducir disposición final.",
+  Agua:
+    "La categoría crítica actualmente es Agua. Mejora el monitoreo y control de consumo para detectar desviaciones tempranas.",
+  Otros:
+    "La categoría crítica actualmente es Otros. Clasifica mejor los registros para priorizar acciones de reducción más precisas.",
 };
 
 const tooltipContentStyle = {
@@ -136,13 +162,13 @@ function buildDecisionModel(data) {
   if (!total) {
     return {
       heroTitle: "Aun no hay emisiones para decidir",
-      heroSubtitle: "Registra actividades para identificar focos de impacto y acciones de reduccion.",
-      recommendation: "Carga actividades con factores de emision para activar el analisis operativo.",
+      heroSubtitle: "Registra datos de materiales, transporte, maquinaria, energía y residuos para identificar focos de impacto.",
+      recommendation: "Carga registros de obra con factores de emisión para activar el análisis operativo.",
       dieselLevel,
       estimatedReduction,
       carKmEquivalent,
       homeMonthsEquivalent,
-      risks: ["Aun no existen emisiones registradas para esta empresa."],
+      risks: ["Aun no existen emisiones registradas para esta constructora."],
     };
   }
 
@@ -156,7 +182,7 @@ function buildDecisionModel(data) {
           estimatedReduction,
           0
         )} kg CO₂e con una intervención focalizada en ${criticalUnit}. La recomendación es comenzar con un piloto medible antes de avanzar hacia cambios mayores.`
-      : "Prioriza la actividad principal para convertir el análisis en acción operativa.";
+      : "Prioriza la fuente principal para convertir el análisis en acción operativa.";
   const recommendation =
     dieselPct >= 30
       ? `Iniciar un piloto de reducción de diésel del 20% al 30% en ${criticalUnit}`
@@ -183,13 +209,13 @@ function buildDecisionModel(data) {
 
   if (criticalUnit !== "Sin datos") {
     risks.push(
-      `Riesgo operativo localizado:\nLa unidad de ${criticalUnit} concentra el mayor impacto, por lo que debería ser priorizada en la estrategia de reducción.`
+      `Riesgo operativo localizado:\nLa etapa ${criticalUnit} concentra el mayor impacto, por lo que debería ser priorizada en la estrategia de reducción.`
     );
   }
 
   if (criticalCategory !== "Sin datos") {
     risks.push(
-      `Riesgo por categoría: ${criticalCategory} domina el perfil de emisiones de la empresa.`
+      `Riesgo por categoría: ${getConstructionCategoryLabel(criticalCategory)} domina el perfil de emisiones de la constructora.`
     );
   }
 
@@ -248,7 +274,7 @@ function EmisionesView() {
         if (!cancelled) {
           setError(
             requestError.response?.data?.error ||
-              "No se pudieron cargar las emisiones de la empresa."
+              "No se pudieron cargar las emisiones de la constructora."
           );
         }
       })
@@ -312,14 +338,14 @@ const kpis = data?.kpis ?? {
     if (Array.isArray(data?.emisiones_por_actividad)) {
       return data.emisiones_por_actividad
         .map((item) => ({
-          actividad: item.actividad || "Sin actividad",
+          actividad: item.actividad || "Sin fuente",
           emisiones: Number(item.emisiones || 0),
         }))
         .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
     }
 
     const totals = rows.reduce((accumulator, row) => {
-      const actividad = row.actividad || "Sin actividad";
+      const actividad = row.actividad || "Sin fuente";
       accumulator[actividad] =
         (accumulator[actividad] || 0) + Number(row.emisiones || 0);
       return accumulator;
@@ -332,6 +358,31 @@ const kpis = data?.kpis ?? {
   const unitBarSize = getBarSizeForRowCount(emissionsByUnit.length);
   const activityBarSize = getBarSizeForRowCount(emissionsByActivity.length);
   const decision = useMemo(() => buildDecisionModel(data), [data]);
+  const rowsWithCategories = useMemo(
+    () =>
+      rows.map((row) => ({
+        ...row,
+        categoria_visible: getConstructionCategoryLabel(row.categoria, row.actividad),
+      })),
+    [rows]
+  );
+  const emissionsByCategory = useMemo(() => {
+    const totals = rowsWithCategories.reduce((accumulator, row) => {
+      const category = row.categoria_visible || "Otros";
+      accumulator[category] = (accumulator[category] || 0) + Number(row.emisiones || 0);
+      return accumulator;
+    }, {});
+
+    return Object.entries(totals)
+      .map(([categoria, emisiones]) => ({ categoria, emisiones }))
+      .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
+  }, [rowsWithCategories]);
+  const criticalCategory = emissionsByCategory[0]?.categoria || getConstructionCategoryLabel(kpis.categoria_critica);
+  const criticalSource = emissionsByActivity[0]?.actividad || kpis.actividad_critica || "Sin datos";
+  const rowsWithEvidence = rowsWithCategories.filter(
+    (row) => row.evidencia || row.evidencia_id || row.documento_id || row.documento
+  ).length;
+  const categoryInsight = categoryInsightRules[criticalCategory] || categoryInsightRules.Otros;
   const decisionData = useMemo(
     () => ({
       total_emisiones: kpis.emisiones_totales || 0,
@@ -350,15 +401,15 @@ const kpis = data?.kpis ?? {
     }),
     [activeEmpresa?.nombre, data?.empresa?.nombre, kpis.emisiones_totales, rows]
   );
-  const categoryOptions = useMemo(() => uniqueOptions(rows, "categoria"), [rows]);
+  const categoryOptions = constructionCategories;
   const unitOptions = useMemo(() => uniqueOptions(rows, "unidad_nombre"), [rows]);
   const loteOptions = useMemo(() => uniqueOptions(rows, "id_lote"), [rows]);
   const filteredRows = useMemo(() => {
     const query = normalizeText(search);
 
-    return rows
+    return rowsWithCategories
       .filter((row) => {
-        if (categoryFilter && row.categoria !== categoryFilter) {
+        if (categoryFilter && row.categoria_visible !== categoryFilter) {
           return false;
         }
         if (unitFilter && row.unidad_nombre !== unitFilter) {
@@ -383,7 +434,7 @@ const kpis = data?.kpis ?? {
         ).includes(query);
       })
       .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
-  }, [categoryFilter, loteFilter, rows, search, unitFilter]);
+  }, [categoryFilter, loteFilter, rowsWithCategories, search, unitFilter]);
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / rowsPerPage));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const visibleRows = filteredRows.slice(
@@ -446,14 +497,14 @@ const kpis = data?.kpis ?? {
   };
 
   if (loadingEmpresas) {
-    return <EmptyState title="Cargando empresas" description="Preparando empresa activa." />;
+    return <EmptyState title="Cargando constructoras" description="Preparando constructora activa." />;
   }
 
   if (!activeEmpresaId) {
     return (
       <EmptyState
-        title="Selecciona o crea una empresa para revisar sus emisiones."
-        description="La vista Emisiones trabaja siempre sobre la empresa activa."
+        title="Selecciona o crea una constructora para revisar sus emisiones."
+        description="La vista Emisiones trabaja siempre sobre la constructora activa."
       />
     );
   }
@@ -514,18 +565,18 @@ const kpis = data?.kpis ?? {
       <section className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-4 sm:p-6">
         <p className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
           <Target size={18} />
-          Recomendacion clave
+          Insight automático
         </p>
         <h2 className="mt-2 text-2xl font-bold text-emerald-100">
-          {decision.recommendation}
+          {categoryInsight}
         </h2>
         <p className="mt-2 text-sm leading-6 text-emerald-200">
-          Mide el consumo antes y después del piloto, revisa los resultados semanalmente y escala la intervención solo si la reducción se mantiene sin afectar la operación.
+          Mide el consumo antes y después de cada intervención, revisa resultados semanalmente y escala solo cuando la reducción se mantenga sin afectar la ejecución de obra.
         </p>
       </section>
 
       <section className="space-y-4">
-        <SectionTitle title="Estado actual de la operación" />
+        <SectionTitle title="Estado actual de registros de emisión" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <DecisionKpi
             icon={<Activity />}
@@ -533,39 +584,40 @@ const kpis = data?.kpis ?? {
             value={`${formatNumber(kpis.emisiones_totales || 0, 1)} kg CO2e`}
           />
           <DecisionKpi
-            detail={`${formatNumber(kpis.porcentaje_top_actividad || 0, 1)}% del total`}
-            icon={<BarChart3 />}
-            label="Principal foco de emisiones"
-            value={kpis.actividad_critica || "Sin datos"}
+            icon={<Layers3 />}
+            label="Categoría crítica"
+            value={criticalCategory || "Sin datos"}
           />
           <DecisionKpi
-            icon={<Layers3 />}
-            label="Categoría principal"
-            value={kpis.categoria_critica || "Sin datos"}
+            detail={`${formatNumber(kpis.porcentaje_top_actividad || 0, 1)}% del total`}
+            icon={<BarChart3 />}
+            label="Fuente crítica"
+            value={criticalSource}
           />
           <DecisionKpi
             icon={<Factory />}
-            label="Unidad con mayor impacto"
-            value={kpis.unidad_critica || "Sin datos"}
-          />
-          <DecisionKpi
-            detail={`${formatNumber(kpis.porcentaje_diesel || 0, 1)}% del total`}
-            icon={<Flame />}
-            label="Dependencia de diésel"
-            tone={decision.dieselLevel.panel}
-            value={decision.dieselLevel.label}
-            valueClassName={decision.dieselLevel.tone}
+            label="Registros de emisión"
+            value={formatNumber(rows.length, 0)}
           />
           <DecisionKpi
             icon={<Gauge />}
-            label="Emisión promedio por lote"
-            value={`${formatNumber(kpis.promedio_emision_por_lote || 0, 1)} kg CO2e`}
+            label="Emisiones con evidencia"
+            value={
+              rowsWithEvidence > 0
+                ? formatNumber(rowsWithEvidence, 0)
+                : "Sin dato disponible"
+            }
+          />
+          <DecisionKpi
+            icon={<Target />}
+            label="Etapa crítica"
+            value={kpis.unidad_critica || "Sin datos"}
           />
         </div>
       </section>
 
       <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-        <ChartCard title="Emisiones por unidad operativa">
+        <ChartCard title="Emisiones por etapa / frente">
           <div className="h-64 sm:h-72 lg:h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -607,7 +659,7 @@ const kpis = data?.kpis ?? {
           </div>
         </ChartCard>
 
-        <ChartCard title="Emisiones por actividad">
+        <ChartCard title="Emisiones por fuente">
           <div className="h-64 sm:h-72 lg:h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -666,7 +718,7 @@ const kpis = data?.kpis ?? {
           {Number(kpis.actividades_sin_factor || 0) > 0 && (
             <p className="mt-4 flex items-center gap-2 rounded-2xl border border-[#F1B8B8] bg-[var(--danger-bg)] p-3 text-sm font-semibold text-[#B42318]">
               <AlertTriangle size={18} />
-              Existen actividades sin factor de emision asociado.
+              Existen registros sin factor de emision asociado.
             </p>
           )}
         </div>
@@ -699,7 +751,7 @@ const kpis = data?.kpis ?? {
       <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
         <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-xl font-semibold">Detalle de emisiones</h2>
+            <h2 className="text-xl font-semibold">Registros de emisión</h2>
             <p className="mt-1 text-sm text-slate-400">
               {formatNumber(filteredRows.length, 0)} registros encontrados.
             </p>
@@ -716,7 +768,7 @@ const kpis = data?.kpis ?? {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar actividad, unidad, lote o categoría"
+              placeholder="Buscar fuente, etapa, obra o categoría"
               className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3 pl-11 pr-4 text-sm text-slate-100 outline-none transition focus:border-emerald-400/60"
             />
           </label>
@@ -727,13 +779,13 @@ const kpis = data?.kpis ?? {
             value={categoryFilter}
           />
           <FilterSelect
-            label="Todas las unidades"
+            label="Todas las etapas"
             onChange={setUnitFilter}
             options={unitOptions}
             value={unitFilter}
           />
           <FilterSelect
-            label="Todos los lotes"
+            label="Todas las obras"
             onChange={setLoteFilter}
             options={loteOptions}
             value={loteFilter}
@@ -743,24 +795,26 @@ const kpis = data?.kpis ?? {
         {rows.length === 0 && !loading ? (
           <div className="mt-5">
             <EmptyState
-              title="Esta empresa aun no tiene actividades con emisiones calculadas."
-              description="Importa o registra actividades para comenzar el analisis."
+              title="Aún no hay registros de emisión para esta obra."
+              description="Agrega emisiones por materiales, transporte, maquinaria, energía, agua o residuos para comenzar a medir la huella del proyecto."
             />
           </div>
         ) : (
           <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[1180px] border-collapse text-sm">
+            <table className="w-full min-w-[1380px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-800 text-left text-xs text-slate-400">
                   <th className="px-4 py-3">Fecha</th>
-                  <th className="px-4 py-3">Unidad operativa</th>
-                  <th className="px-4 py-3">Lote</th>
-                  <th className="px-4 py-3">Actividad</th>
-                  <th className="px-4 py-3">Categoria</th>
+                  <th className="px-4 py-3">Obra</th>
+                  <th className="px-4 py-3">Etapa / frente</th>
+                  <th className="px-4 py-3">Categoría</th>
+                  <th className="px-4 py-3">Fuente de emisión</th>
                   <th className="px-4 py-3 text-right">Cantidad</th>
                   <th className="px-4 py-3">Unidad</th>
                   <th className="px-4 py-3 text-right">Factor</th>
                   <th className="px-4 py-3 text-right">Emisiones kg CO2e</th>
+                  <th className="px-4 py-3">Evidencia</th>
+                  <th className="px-4 py-3 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -776,15 +830,15 @@ const kpis = data?.kpis ?? {
                       }`}
                     >
                       <td className="px-4 py-4 text-slate-300">{row.fecha || "-"}</td>
-                      <td className="px-4 py-4 font-semibold text-slate-100">
-                        {row.unidad_nombre || "Sin unidad"}
-                      </td>
                       <td className="px-4 py-4 text-slate-300">{row.id_lote || "-"}</td>
                       <td className="px-4 py-4 font-semibold text-slate-100">
-                        {row.actividad}
+                        {row.unidad_nombre || "Sin etapa"}
                       </td>
                       <td className="px-4 py-4">
-                        <FactorCategoryBadge category={row.categoria} />
+                        <FactorCategoryBadge category={row.categoria_visible} />
+                      </td>
+                      <td className="px-4 py-4 font-semibold text-slate-100">
+                        {row.actividad}
                       </td>
                       <td className="px-4 py-4 text-right text-slate-300">
                         {formatNumber(row.cantidad || 0, 3)}
@@ -795,6 +849,33 @@ const kpis = data?.kpis ?? {
                       </td>
                       <td className="px-4 py-4 text-right font-bold text-cyan-200">
                         {formatNumber(row.emisiones || 0, 1)}
+                      </td>
+                      <td className="px-4 py-4 text-slate-300">
+                        <div className="space-y-1">
+                          <p className="font-semibold text-slate-100">
+                            {row.evidencia || row.documento || row.documento_id || row.evidencia_id ? "Sí" : "No"}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {row.documento || row.documento_id || row.evidencia || row.evidencia_id
+                              ? getConstructionEvidenceTypeLabel(row.tipo_documento || row.tipo_evidencia || row.documento_tipo)
+                              : "Evidencia asociada: pendiente de vinculación"}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {row.estado_documental || row.estado_revision || row.estado_validacion
+                              ? getConstructionEvidenceReviewLabel(row.estado_documental || row.estado_revision || row.estado_validacion)
+                              : "Estado documental: pendiente de vinculación"}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {row.evidencia || row.documento || row.documento_id || row.evidencia_id
+                              ? getConstructionEvidenceLinkLabel(row.estado_vinculo || row.estado_sistema)
+                              : "Sin vínculo"}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <span className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1 text-xs font-bold text-slate-300">
+                          Ver
+                        </span>
                       </td>
                     </tr>
                   );

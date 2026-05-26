@@ -34,17 +34,17 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
     },
     {
       icon: Building2,
-      label: "Empresas",
+      label: "Constructoras",
       view: "empresas",
     },
     {
       icon: Factory,
-      label: "Unidades Operativas",
+      label: "Etapas / frentes",
       view: "unidades",
     },
     {
       icon: Boxes,
-      label: "Lotes",
+      label: "Obras",
       view: "lotes",
     },
     {
@@ -74,11 +74,11 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
     },
   ];
   const statusItems = [
-    ["Unidades", systemStatus?.unidades ?? 0],
-    ["Lotes", systemStatus?.lotes ?? 0],
-    ["Actividades", systemStatus?.actividades ?? 0],
+    ["Etapas / frentes", systemStatus?.unidades ?? 0],
+    ["Obras", systemStatus?.lotes ?? 0],
+    ["Registros", systemStatus?.actividades ?? 0],
     ["Evidencias", systemStatus?.evidencias ?? 0],
-    ["Pasaportes", systemStatus?.pasaportes ?? 0],
+    ["Fichas", systemStatus?.pasaportes ?? 0],
   ];
 
   return (
@@ -89,13 +89,13 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
         </div>
         <div>
           <h2 className="text-xl font-bold">Carbono Zero</h2>
-          <p className="text-xs text-slate-400">Carbon Intelligence</p>
+          <p className="text-xs text-slate-400">Inteligencia ambiental para obras</p>
         </div>
       </div>
 
       <section className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-          Empresa activa
+          Constructora activa
         </p>
         <div className="mt-3 space-y-3">
           <select
@@ -111,7 +111,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
             }}
             className="w-full rounded-xl border border-white/10 bg-[var(--sidebar-active)] px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-[var(--primary)]"
           >
-            <option value="">Selecciona una empresa</option>
+            <option value="">Selecciona una constructora</option>
             {empresas.map((empresa) => (
               <option key={empresa.empresa_id} value={empresa.empresa_id}>
                 {empresa.nombre}
@@ -124,7 +124,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
             onClick={() => onSetActiveView("empresas", { openCreateEmpresa: true })}
             className="w-full rounded-xl border border-[var(--primary)]/30 bg-[var(--primary)] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[var(--primary-dark)]"
           >
-            Nueva empresa
+            Nueva constructora
           </button>
 
           {loadingEmpresas && (

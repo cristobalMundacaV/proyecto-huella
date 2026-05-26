@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import Toast from "@/shared/components/Toast";
+import ImportarDocumentoObraModal from "@/shared/components/ImportarDocumentoObraModal";
 import {
   confirmActivityImport,
   confirmarImportFactores,
@@ -68,23 +69,23 @@ const activitySummaryLabels = [
   ["filas_con_error", "Filas con error"],
   ["factores_encontrados", "Factores encontrados"],
   ["factores_faltantes", "Factores faltantes"],
-  ["lotes_encontrados", "Lotes encontrados"],
-  ["lotes_nuevos_detectados", "Lotes nuevos"],
+  ["lotes_encontrados", "Obras encontradas"],
+  ["lotes_nuevos_detectados", "Obras nuevas"],
 ];
 
 const loteSummaryLabels = [
   ["validas", "Filas validas"],
   ["con_error", "Filas con error"],
-  ["lotes_nuevos", "Lotes nuevos"],
-  ["lotes_existentes", "Lotes existentes"],
+  ["lotes_nuevos", "Obras nuevas"],
+  ["lotes_existentes", "Obras existentes"],
   ["duplicadas", "Duplicados"],
 ];
 
 const unitSummaryLabels = [
   ["validas", "Filas validas"],
   ["con_error", "Filas con error"],
-  ["nuevas", "Unidades nuevas"],
-  ["existentes", "Unidades existentes"],
+  ["nuevas", "Etapas nuevas"],
+  ["existentes", "Etapas existentes"],
   ["duplicadas", "Duplicados"],
 ];
 
@@ -234,12 +235,12 @@ function LotePreviewTable({ rows }) {
           <tr>
             <th className="px-2 py-4 text-left min-w-12 font-semibold">Fila</th>
             <th className="px-3 py-4 text-left min-w-24 font-semibold">Estado</th>
-            <th className="px-3 py-4 text-left min-w-28 font-semibold">ID lote</th>
-            <th className="px-3 py-4 text-left min-w-40 font-semibold">Empresa</th>
+            <th className="px-3 py-4 text-left min-w-28 font-semibold">Código de obra</th>
+            <th className="px-3 py-4 text-left min-w-40 font-semibold">Constructora / proveedor</th>
             <th className="px-3 py-4 text-left min-w-28 font-semibold">Fecha</th>
-            <th className="px-3 py-4 text-left min-w-32 font-semibold">Especie</th>
-            <th className="px-3 py-4 text-right min-w-24 font-semibold">Volumen</th>
-            <th className="px-3 py-4 text-left min-w-32 font-semibold">Origen</th>
+            <th className="px-3 py-4 text-left min-w-32 font-semibold">Material / tipo de obra</th>
+            <th className="px-3 py-4 text-right min-w-24 font-semibold">Cantidad base</th>
+            <th className="px-3 py-4 text-left min-w-32 font-semibold">Ubicación / origen</th>
             <th className="px-3 py-4 text-left min-w-64 font-semibold">Observaciones</th>
           </tr>
         </thead>
@@ -596,10 +597,10 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
     (state.result?.factores?.errores || 0);
   const empresaData = state.result?.empresa?.data || {};
   const summaryCards = [
-    { label: "Empresa", value: state.result?.empresa?.status === "valid" ? "Lista" : "Revisar" },
-    { label: "Unidades", value: formatNumber(state.result?.unidades?.total || 0, 0) },
-    { label: "Lotes", value: formatNumber(state.result?.lotes?.total || 0, 0) },
-    { label: "Actividades", value: formatNumber(state.result?.actividades?.total || 0, 0) },
+    { label: "Constructora", value: state.result?.empresa?.status === "valid" ? "Lista" : "Revisar" },
+    { label: "Etapas", value: formatNumber(state.result?.unidades?.total || 0, 0) },
+    { label: "Obras", value: formatNumber(state.result?.lotes?.total || 0, 0) },
+    { label: "Registros", value: formatNumber(state.result?.actividades?.total || 0, 0) },
     { label: "Factores", value: formatNumber(state.result?.factores?.total || 0, 0) },
   ];
 
@@ -626,7 +627,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
           <div>
             <h2 className="text-xl font-semibold">Importar operación completa</h2>
             <p className="text-sm text-slate-400">
-              Archivo XLSX con hojas <span className="font-semibold text-slate-200">empresa</span>, <span className="font-semibold text-slate-200">unidades</span>, <span className="font-semibold text-slate-200">lotes</span>, <span className="font-semibold text-slate-200">actividades</span> y <span className="font-semibold text-slate-200">factores</span>.
+              Archivo XLSX con hojas <span className="font-semibold text-slate-200">constructora</span>, <span className="font-semibold text-slate-200">etapas</span>, <span className="font-semibold text-slate-200">obras</span>, <span className="font-semibold text-slate-200">registros</span>, <span className="font-semibold text-slate-200">factores</span> y evidencias de obra.
             </p>
           </div>
         </div>
@@ -684,7 +685,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
             <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">
               <h3 className="text-base font-semibold text-cyan-100">Resumen antes de confirmar</h3>
               <div className="mt-3 grid grid-cols-1 gap-3 text-sm text-slate-200 md:grid-cols-2 xl:grid-cols-3">
-                <p>Empresa detectada: <span className="font-semibold">{state.result.resumen.empresa_detectada || "-"}</span></p>
+                <p>Constructora detectada: <span className="font-semibold">{state.result.resumen.empresa_detectada || "-"}</span></p>
                 <p>Periodo detectado: <span className="font-semibold">{state.result.resumen.periodo_detectado || "-"}</span></p>
                 <p>Emisiones estimadas: <span className="font-semibold">{formatNumber(Number(state.result.resumen.emisiones_estimadas_kg_co2e || 0), 1)} kg CO₂e</span></p>
               </div>
@@ -699,7 +700,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
           )}
 
           <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-            <h3 className="text-base font-semibold text-slate-100">Datos de la empresa</h3>
+            <h3 className="text-base font-semibold text-slate-100">Datos de la constructora</h3>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {companyFields.map(([key, label]) => (
                 <div key={key} className="rounded-2xl border border-slate-800/80 bg-slate-900/80 p-3">
@@ -722,7 +723,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
           {/* Mostrar errores y validación de unidades */}
           {state.result?.unidades && (
             <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-              <h3 className="text-base font-semibold text-slate-100">Unidades ({state.result.unidades.validas} vÃ¡lidas, {state.result.unidades.errores} errores)</h3>
+              <h3 className="text-base font-semibold text-slate-100">Etapas / frentes ({state.result.unidades.validas} válidas, {state.result.unidades.errores} errores)</h3>
               {state.result.unidades.errores > 0 && (
                 <div className="mt-3 max-h-40 space-y-2 overflow-y-auto rounded border border-red-500/30 bg-red-500/10 p-2">
                   {state.result.unidades.rows.filter(r => r.status === 'error').map((row) => (
@@ -739,7 +740,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
           {/* Mostrar errores y validación de lotes */}
           {state.result?.lotes && (
             <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-              <h3 className="text-base font-semibold text-slate-100">Lotes ({state.result.lotes.validos} vÃ¡lidos, {state.result.lotes.errores} errores)</h3>
+              <h3 className="text-base font-semibold text-slate-100">Obras ({state.result.lotes.validos} válidas, {state.result.lotes.errores} errores)</h3>
               {state.result.lotes.errores > 0 && (
                 <div className="mt-3 max-h-40 space-y-2 overflow-y-auto rounded border border-red-500/30 bg-red-500/10 p-2">
                   {state.result.lotes.rows.filter(r => r.status === 'error').map((row) => (
@@ -757,7 +758,7 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
           {state.result?.actividades && (
             <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
               <h3 className="text-base font-semibold text-slate-100">
-                Actividades ({state.result.actividades.validas} vÃ¡lidas, {state.result.actividades.errores} errores)
+                Registros ({state.result.actividades.validas} válidos, {state.result.actividades.errores} errores)
                 {state.result.actividades.factores_faltantes > 0 && (
                   <span className="text-xs text-yellow-400"> - {state.result.actividades.factores_faltantes} sin factor de emisión</span>
                 )}
@@ -781,19 +782,19 @@ function EmpresaCompletaImportPanel({ state, onPreview, onConfirm }) {
               <h3 className="text-base font-semibold text-slate-100">Resumen de confirmación</h3>
               <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
                 <div className="rounded border border-slate-700 bg-slate-900/80 p-3 text-center">
-                  <p className="text-xs text-slate-500">Empresa creada</p>
+                  <p className="text-xs text-slate-500">Constructora creada</p>
                   <p className="mt-1 text-2xl font-bold text-emerald-400">{state.result.creados || 0}</p>
                 </div>
                 <div className="rounded border border-slate-700 bg-slate-900/80 p-3 text-center">
-                  <p className="text-xs text-slate-500">Unidades</p>
+                  <p className="text-xs text-slate-500">Etapas</p>
                   <p className="mt-1 text-2xl font-bold text-cyan-400">{state.result.unidades_creadas || 0}</p>
                 </div>
                 <div className="rounded border border-slate-700 bg-slate-900/80 p-3 text-center">
-                  <p className="text-xs text-slate-500">Lotes</p>
+                  <p className="text-xs text-slate-500">Obras</p>
                   <p className="mt-1 text-2xl font-bold text-cyan-400">{state.result.lotes_creados || 0}</p>
                 </div>
                 <div className="rounded border border-slate-700 bg-slate-900/80 p-3 text-center">
-                  <p className="text-xs text-slate-500">Actividades</p>
+                  <p className="text-xs text-slate-500">Registros</p>
                   <p className="mt-1 text-2xl font-bold text-cyan-400">{state.result.actividades_creadas || 0}</p>
                 </div>
               </div>
@@ -840,6 +841,7 @@ function ImportacionesView({ onImportConfirmed }) {
   const [empresaCompleta, setEmpresaCompleta] = useState(emptyImportState);
   const [activities, setActivities] = useState(emptyImportState);
   const [toast, setToast] = useState(null);
+  const [documentImportOpen, setDocumentImportOpen] = useState(false);
   const { activeEmpresa, activeEmpresaId, refreshEmpresas } = useEmpresaActiva();
   const { invalidate: invalidateFactores } = useFactores();
   const empresaCompletaInputRef = useRef(null);
@@ -1039,8 +1041,8 @@ function ImportacionesView({ onImportConfirmed }) {
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
       {!activeEmpresa ? (
         <EmptyState
-          title="Selecciona o crea una empresa para comenzar"
-          description="Las importaciones ahora operan dentro del contexto de una empresa activa."
+          title="Selecciona o crea una constructora para comenzar"
+          description="Las importaciones operan dentro del contexto de la constructora activa."
         />
       ) : (
         <>
@@ -1057,12 +1059,30 @@ function ImportacionesView({ onImportConfirmed }) {
           </div>
           <div>
             <h1 className="text-3xl font-bold sm:text-4xl">Importaciones</h1>
-            <p className="text-slate-400">Carga masiva de datos para mantener actualizada la operación ambiental de {activeEmpresa.nombre}.</p>
+            <p className="text-slate-400">Carga masiva de datos de obra para mantener actualizada la gestión ambiental de {activeEmpresa.nombre}.</p>
           </div>
         </div>
       </header>
       <section className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-100 sm:p-5">
-        Para evitar errores de relación entre datos, importa los archivos en este orden: empresas, factores de emisión, unidades operativas, lotes y actividades. También puedes usar la plantilla completa para cargar todo en un solo archivo XLSX.
+        Para evitar errores de relación entre datos, importa los archivos en este orden: constructoras, factores de emisión, etapas o frentes, obras y registros. También puedes usar la plantilla completa para cargar materiales, transporte, maquinaria, energía, residuos y evidencias en un solo archivo XLSX.
+      </section>
+      <section className="rounded-3xl border border-[#B7DEC9] bg-[var(--success-bg)] p-5 shadow-[0_18px_45px_var(--shadow)] sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--primary-dark)]">Flujo inteligente</p>
+            <h2 className="mt-2 text-2xl font-bold text-[var(--text-main)]">Importar documento de obra</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[#344054]">
+              Analiza un documento, revisa la lectura sugerida y confirma manualmente antes de crear el registro de emisión.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDocumentImportOpen(true)}
+            className="inline-flex items-center justify-center rounded-2xl border border-[var(--primary-dark)] bg-[var(--primary-dark)] px-5 py-3 text-sm font-bold text-white transition hover:bg-[var(--primary-dark-hover)]"
+          >
+            Importar documento de obra
+          </button>
+        </div>
       </section>
       <EmpresaCompletaImportPanel
         state={empresaCompleta}
@@ -1071,7 +1091,7 @@ function ImportacionesView({ onImportConfirmed }) {
       />
 
       <ImportPanel
-        title="Importar empresas"
+        title="Importar constructoras"
         icon={<Building2 size={18} />}
         columns={[
           "ID Empresa",
@@ -1117,9 +1137,9 @@ function ImportacionesView({ onImportConfirmed }) {
       />
 
       <ImportPanel
-        title="Importar unidades operativas"
+        title="Importar etapas / frentes"
         icon={<Factory size={18} />}
-        columns={["ID Unidad", "ID Empresa", "Nombre", "Tipo", "Región", "Comuna", "Dirección", "Estado"]}
+        columns={["ID Etapa", "ID Constructora", "Nombre", "Tipo", "Región", "Comuna", "Dirección", "Estado"]}
         state={units}
         type="unidades"
         summaryLabels={unitSummaryLabels}
@@ -1135,9 +1155,9 @@ function ImportacionesView({ onImportConfirmed }) {
       />
 
       <ImportPanel
-        title="Importar lotes"
+        title="Importar obras"
         icon={<Boxes size={18} />}
-        columns={["ID Lote", "ID Unidad", "Fecha", "Especie", "Volumen (m³)", "Origen"]}
+        columns={["Código de obra", "ID Etapa", "Fecha", "Material / tipo de obra", "Cantidad base", "Ubicación / origen"]}
         state={lotes}
         type="lotes"
         summaryLabels={loteSummaryLabels}
@@ -1153,9 +1173,9 @@ function ImportacionesView({ onImportConfirmed }) {
       />
 
       <ImportPanel
-        title="Importar actividades"
+        title="Importar registros de emisión"
         icon={<DatabaseZap size={18} />}
-        columns={["ID Actividad", "ID Lote", "ID Unidad", "Actividad", "Cantidad", "Unidad", "Fecha", "Observación", "Fuente de dato"]}
+        columns={["ID Registro", "Código de obra", "ID Etapa", "Fuente", "Cantidad", "Unidad", "Fecha", "Observación", "Fuente de dato"]}
         state={activities}
         type="activities"
         summaryLabels={activitySummaryLabels}
@@ -1170,6 +1190,12 @@ function ImportacionesView({ onImportConfirmed }) {
             batchId
           )
         }
+      />
+      <ImportarDocumentoObraModal
+        activeEmpresaId={activeEmpresaId}
+        initialTitle="Importar documento de obra"
+        onClose={() => setDocumentImportOpen(false)}
+        open={documentImportOpen}
       />
         </>
       )}

@@ -26,9 +26,9 @@ function CrearLoteModal({
               <Plus size={18} />
             </div>
             <div>
-              <h2 className="text-xl font-semibold">Nuevo lote</h2>
+              <h2 className="text-xl font-semibold">Nueva obra</h2>
               <p className="text-sm text-slate-400">
-                Registra la base de trazabilidad del Pasaporte Verde.
+                Registra la base de trazabilidad ambiental de la obra.
               </p>
             </div>
           </div>
@@ -43,18 +43,19 @@ function CrearLoteModal({
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="ID lote" error={fieldErrors.id_lote?.[0]}>
+          <Field label="Código de obra" error={fieldErrors.id_lote?.[0]}>
             <input
               name="id_lote"
               value={form.id_lote}
               onChange={onUpdateForm}
               required
+              placeholder="OBRA-LOS-ROBLES-001"
               className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-emerald-400/60"
             />
           </Field>
 
           {activeEmpresa ? (
-            <Field label="Empresa activa">
+            <Field label="Constructora activa">
               <div className="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100">
                 <p className="font-semibold">{activeEmpresa.nombre}</p>
                 <p className="text-xs text-slate-400">{activeEmpresa.empresa_id}</p>
@@ -62,7 +63,7 @@ function CrearLoteModal({
             </Field>
           ) : (
             <Field
-              label="Empresa"
+              label="Constructora / proveedor principal"
               error={fieldErrors.empresa_aserradero?.[0] || fieldErrors.empresa?.[0]}
             >
               <input
@@ -70,13 +71,14 @@ function CrearLoteModal({
                 value={form.empresa_aserradero}
                 onChange={onUpdateForm}
                 required
+                placeholder="Constructora Andina SpA"
                 className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-emerald-400/60"
               />
             </Field>
           )}
 
           <Field
-            label="Unidad operativa"
+            label="Etapa / frente principal"
             error={fieldErrors.unidad_id?.[0] || fieldErrors.unidad_operativa?.[0]}
           >
             <select
@@ -85,7 +87,7 @@ function CrearLoteModal({
               onChange={onUpdateForm}
               className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-emerald-400/60"
             >
-              <option value="">Sin unidad especifica</option>
+              <option value="">Sin etapa específica</option>
               {unidadesOperativas.map((unidad) => (
                 <option key={unidad.unidad_id} value={unidad.unidad_id}>
                   {unidad.nombre} - {unidad.tipo}
@@ -94,7 +96,7 @@ function CrearLoteModal({
             </select>
           </Field>
 
-          <Field label="Fecha" error={fieldErrors.fecha?.[0]}>
+          <Field label="Fecha de inicio" error={fieldErrors.fecha?.[0]}>
             <input
               type="date"
               name="fecha"
@@ -105,23 +107,24 @@ function CrearLoteModal({
             />
           </Field>
 
-          <Field label="Especie" error={fieldErrors.especie?.[0]}>
-            <select
+          <Field label="Tipo de obra / material principal" error={fieldErrors.especie?.[0]}>
+            <input
               name="especie"
               value={form.especie}
               onChange={onUpdateForm}
               required
+              list="obra-materiales-sugeridos"
+              placeholder="Edificio habitacional / Hormigón armado"
               className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-emerald-400/60"
-            >
+            />
+            <datalist id="obra-materiales-sugeridos">
               {especiesMadera.map((especie) => (
-                <option key={especie.id} value={especie.nombre}>
-                  {especie.nombre}
-                </option>
+                <option key={especie.id} value={especie.nombre} />
               ))}
-            </select>
+            </datalist>
           </Field>
 
-          <Field label="Volumen m3" error={fieldErrors.volumen_m3?.[0]}>
+          <Field label="Superficie o cantidad base" error={fieldErrors.volumen_m3?.[0]}>
             <input
               type="number"
               min="0"
@@ -130,17 +133,18 @@ function CrearLoteModal({
               value={form.volumen_m3}
               onChange={onUpdateForm}
               required
+              placeholder="4800"
               className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-emerald-400/60"
             />
           </Field>
 
-          <Field label="Origen" error={fieldErrors.origen?.[0]}>
+          <Field label="Ubicación de obra" error={fieldErrors.origen?.[0]}>
             <input
               name="origen"
               value={form.origen}
               onChange={onUpdateForm}
               required
-              placeholder="Predio, planta o lugar de salida"
+              placeholder="Concepción, Biobío"
               className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-emerald-400/60"
             />
           </Field>
@@ -152,7 +156,7 @@ function CrearLoteModal({
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {saving ? <Loader2 className="animate-spin" size={18} /> : <Plus size={18} />}
-          Guardar lote
+          Guardar obra
         </button>
       </form>
     </div>

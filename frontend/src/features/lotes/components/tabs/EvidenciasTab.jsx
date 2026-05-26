@@ -2,6 +2,10 @@ import { useState } from "react";
 import { FileText, Loader2, Plus, X } from "lucide-react";
 
 import { formatNumber } from "@/shared/utils/formatters";
+import {
+  getConstructionEvidenceReviewLabel,
+  getConstructionWorkDocumentTypeLabel,
+} from "@/shared/utils/constructionEvidenceLabels";
 import { DetailItem, Field } from "../common";
 import { documentStatusTone, documentTypes, ocrFields } from "../constants";
 
@@ -42,7 +46,7 @@ function EvidenciasTab({
                   <FileText size={18} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold">Cargar evidencia</h2>
+                  <h2 className="text-xl font-semibold">Subir evidencia</h2>
                   <p className="text-sm text-slate-400">{selectedLote.id_lote}</p>
                 </div>
               </div>
@@ -58,7 +62,7 @@ function EvidenciasTab({
 
         <div className="grid grid-cols-1 gap-4">
           <Field
-            label="Tipo de documento"
+            label="Tipo de evidencia"
             error={documentFieldErrors.tipo_documento?.[0]}
           >
             <select
@@ -112,7 +116,7 @@ function EvidenciasTab({
           ) : (
             <FileText size={18} />
           )}
-          Adjuntar documento
+          Subir evidencia
         </button>
       </form>
         </div>
@@ -121,7 +125,7 @@ function EvidenciasTab({
       <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-semibold">Evidencias del lote</h2>
+            <h2 className="text-xl font-semibold">Evidencias de obra</h2>
             <p className="mt-1 text-sm text-slate-400">{selectedLote.id_lote}</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -134,7 +138,7 @@ function EvidenciasTab({
               className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20"
             >
               <Plus size={18} />
-              Agregar evidencia
+              Subir evidencia
             </button>
           </div>
         </div>
@@ -151,7 +155,7 @@ function EvidenciasTab({
               <tbody>
                 <tr className="border-y border-slate-800/60">
                   <td className="py-8 text-center text-slate-400">
-                    No se han registrado datos.
+                    No hay evidencias documentales asociadas a esta obra.
                   </td>
                 </tr>
               </tbody>
@@ -168,7 +172,7 @@ function EvidenciasTab({
             >
               <div className="min-w-0">
                 <p className="font-semibold text-slate-100">
-                  {documento.tipo_documento_label}
+                  {getConstructionWorkDocumentTypeLabel(documento.tipo_documento)}
                 </p>
                 <p className="mt-1 text-sm text-slate-400">
                   Fecha: {documento.fecha}
@@ -193,7 +197,7 @@ function EvidenciasTab({
                   ) : (
                     <FileText size={16} />
                   )}
-                  Extraer texto
+                  Analizar documento
                 </button>
                 <button
                   type="button"
@@ -206,7 +210,7 @@ function EvidenciasTab({
                   ) : (
                     <FileText size={16} />
                   )}
-                  Extraer JSON IA
+                  Extraer datos
                 </button>
               </div>
               <div
@@ -215,7 +219,7 @@ function EvidenciasTab({
                   documentStatusTone.pendiente
                 }`}
               >
-                {documento.estado_validacion_label}
+                {getConstructionEvidenceReviewLabel(documento.estado_validacion)}
               </div>
             </div>
             ))}
@@ -227,10 +231,10 @@ function EvidenciasTab({
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-sky-200">
-                  Datos sugeridos por OCR
+                  Datos sugeridos por documento
                 </p>
                 <p className="mt-1 text-sm text-slate-300">
-                  IA sugiere, humano valida. Edita antes de aplicar al calculo.
+                  La automatización sugiere, el equipo valida antes de aplicar al cálculo.
                 </p>
               </div>
               <div className="rounded-2xl border border-sky-400/20 bg-slate-950/50 px-4 py-2 text-sm font-bold text-sky-200">
@@ -281,10 +285,10 @@ function EvidenciasTab({
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-cyan-200">
-                  JSON estructurado por IA
+                  Datos estructurados
                 </p>
                 <p className="mt-1 text-sm text-slate-300">
-                  La extractora transforma el texto del documento en campos listos para calculo.
+                  El documento puede alimentar campos listos para cálculo cuando el flujo esté habilitado.
                 </p>
               </div>
               <div className="rounded-2xl border border-cyan-400/20 bg-slate-950/50 px-4 py-2 text-sm font-bold text-cyan-200">
@@ -296,7 +300,7 @@ function EvidenciasTab({
 
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <DetailItem
-                label="Tipo de documento"
+                label="Tipo de evidencia"
                 value={documentInsight.tipo_documento}
               />
               <DetailItem label="Fecha" value={documentInsight.fecha} />
@@ -309,7 +313,7 @@ function EvidenciasTab({
                 }
               />
               <DetailItem label="Patente" value={documentInsight.patente} />
-              <DetailItem label="ID lote" value={documentInsight.id_lote} />
+              <DetailItem label="Código de obra" value={documentInsight.id_lote} />
               <DetailItem label="Fuente" value={documentInsight.fuente} />
             </div>
           </div>

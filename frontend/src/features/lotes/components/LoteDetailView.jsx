@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import LoteDetailHeader from "./LoteDetailHeader";
 import LoteTabs from "./LoteTabs";
 import ActividadesTab from "./tabs/ActividadesTab";
 import EvidenciasTab from "./tabs/EvidenciasTab";
@@ -30,6 +31,7 @@ function LoteDetailView({
   onActivitySubmit,
   onDocumentSubmit,
   onDownloadCertificate,
+  onImportDocumento,
   onSelectActivityFactor,
   onRejectExtraction,
   onRejectHistoryExtraction,
@@ -58,11 +60,17 @@ function LoteDetailView({
   const [activeTab, setActiveTab] = useState("resumen");
 
   if (!selectedLote) {
-    return <p className="text-slate-400">Selecciona un lote para continuar.</p>;
+    return <p className="text-slate-400">Selecciona una obra para continuar.</p>;
   }
 
   return (
     <div className="space-y-6">
+      <LoteDetailHeader
+        detailLoading={detailLoading}
+        onImportDocumento={onImportDocumento}
+        selectedLote={selectedLote}
+      />
+
       <LoteTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
       {activeTab === "resumen" && (

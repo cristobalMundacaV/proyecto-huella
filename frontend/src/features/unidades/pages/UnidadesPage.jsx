@@ -59,7 +59,7 @@ function UnidadesOperativasView() {
         if (!isCancelled) {
           setError(
             requestError.response?.data?.error ||
-              "No se pudieron cargar las unidades operativas."
+              "No se pudieron cargar las etapas o frentes."
           );
         }
       } finally {
@@ -104,7 +104,7 @@ function UnidadesOperativasView() {
     } catch (requestError) {
       setError(
         requestError.response?.data?.error ||
-          "No se pudo cargar el detalle de la unidad operativa."
+          "No se pudo cargar el detalle de la etapa o frente."
       );
     } finally {
       setSelectedUnidadLoading(false);
@@ -152,7 +152,7 @@ function UnidadesOperativasView() {
   if (loadingEmpresas) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-slate-300">
-        Cargando empresas...
+        Cargando constructoras...
       </div>
     );
   }
@@ -160,8 +160,8 @@ function UnidadesOperativasView() {
   if (!activeEmpresa) {
     return (
       <EmptyState
-        title="Selecciona o crea una empresa para comenzar"
-        description="Las unidades operativas se muestran dentro del workspace activo."
+        title="Selecciona o crea una constructora para comenzar"
+        description="Las etapas y frentes se muestran dentro del workspace activo."
       />
     );
   }
@@ -175,16 +175,16 @@ function UnidadesOperativasView() {
           </div>
           <div>
             <h1 className="text-3xl font-bold sm:text-4xl">
-              Unidades Operativas
+              Etapas / frentes
             </h1>
             <p className="max-w-3xl text-slate-400">
               Centros de trabajo, plantas productivas y nodos logísticos vinculados
-              a la empresa activa.
+              a la constructora activa.
             </p>
           </div>
         </div>
         <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200">
-          {formatNumber(unidades.length, 0)} unidades
+          {formatNumber(unidades.length, 0)} etapas
         </div>
       </header>
 
@@ -195,15 +195,15 @@ function UnidadesOperativasView() {
       )}
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <UnitKpi icon={<Factory />} label="Total de unidades" value={metrics.totalUnits} />
+        <UnitKpi icon={<Factory />} label="Total de etapas" value={metrics.totalUnits} />
         <UnitKpi
-          detail={`${formatNumber(metrics.topLotsUnit?.lotes_count || 0, 0)} lotes`}
+          detail={`${formatNumber(metrics.topLotsUnit?.lotes_count || 0, 0)} obras`}
           icon={<Boxes />}
-          label="Unidad con mas lotes"
+          label="Etapa con más obras"
           value={metrics.topLotsUnit?.nombre || "Sin datos"}
         />
         <UnitKpi
-          detail={`${formatNumber(metrics.topActivitiesUnit?.actividades_count || 0, 0)} actividades`}
+          detail={`${formatNumber(metrics.topActivitiesUnit?.actividades_count || 0, 0)} registros`}
           icon={<Activity />}
           label="Mayor carga operativa"
           value={metrics.topActivitiesUnit?.nombre || "Sin datos"}
@@ -234,9 +234,9 @@ function UnidadesOperativasView() {
       <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
         <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-[var(--text-main)]">Unidades registradas</h2>
+            <h2 className="text-xl font-semibold text-[var(--text-main)]">Etapas registradas</h2>
             <p className="mt-1 text-sm font-medium text-[var(--text-muted)]">
-              {formatNumber(filteredUnidades.length, 0)} unidades encontradas.
+              {formatNumber(filteredUnidades.length, 0)} etapas encontradas.
             </p>
           </div>
           {loading && <Loader2 className="animate-spin text-emerald-300" size={20} />}
@@ -250,7 +250,7 @@ function UnidadesOperativasView() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar por unidad, empresa, tipo, región o comuna"
+            placeholder="Buscar por etapa, constructora, tipo, región o comuna"
             className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] py-3 pl-11 pr-4 text-sm text-[var(--text-main)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]/60"
           />
         </label>
@@ -259,13 +259,13 @@ function UnidadesOperativasView() {
           <table className="w-full min-w-[1180px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] text-left text-xs text-[var(--text-muted)]">
-                <th className="px-4 py-3">Empresa</th>
-                <th className="px-4 py-3">Unidad</th>
+                <th className="px-4 py-3">Constructora</th>
+                <th className="px-4 py-3">Etapa / frente</th>
                 <th className="px-4 py-3">Tipo</th>
                 <th className="px-4 py-3">Region</th>
                 <th className="px-4 py-3">Comuna</th>
-                <th className="px-4 py-3 text-right">Lotes</th>
-                <th className="px-4 py-3 text-right">Actividades</th>
+                <th className="px-4 py-3 text-right">Obras</th>
+                <th className="px-4 py-3 text-right">Registros</th>
                 <th className="px-4 py-3 text-right">Emisiones</th>
                 <th className="px-4 py-3 text-center">Ver detalle</th>
               </tr>
@@ -327,7 +327,7 @@ function UnidadesOperativasView() {
               {!loading && visibleUnidades.length === 0 && (
                 <tr>
                   <td className="px-1 py-8 text-center text-slate-400" colSpan={9}>
-                    No hay unidades operativas para mostrar.
+                    No hay etapas o frentes para mostrar.
                   </td>
                 </tr>
               )}
@@ -337,7 +337,7 @@ function UnidadesOperativasView() {
 
         <Pagination
           currentPage={safeCurrentPage}
-          itemLabel="unidades"
+          itemLabel="etapas"
           onPageChange={setCurrentPage}
           pageSize={rowsPerPage}
           totalItems={filteredUnidades.length}
@@ -420,7 +420,7 @@ function buildOperationalMetrics(unidades) {
 
 function buildOperationalSummary(activeEmpresa, metrics) {
   if (!metrics.totalUnits) {
-    return "La empresa aun no tiene unidades operativas registradas. Crea o importa unidades para habilitar lectura operacional, trazabilidad y analisis de emisiones.";
+    return "La constructora aun no tiene etapas o frentes registrados. Crea o importa etapas para habilitar lectura operacional, trazabilidad y analisis de emisiones.";
   }
 
   const centralization =
@@ -442,16 +442,16 @@ function buildOperationalSummary(activeEmpresa, metrics) {
     ? `, mientras que ${formatUnitNames(metrics.unitsWithoutOperation)} ${metrics.unitsWithoutOperation.length === 1 ? "aparece" : "aparecen"} sin actividad ni emisiones registradas`
     : "";
   const nextEmittersText = nextEmitters.length
-    ? `${formatUnitNamesWithEmissions(nextEmitters)} tambien presentan impactos relevantes. En conjunto, estas unidades explican la mayor parte de la huella de la empresa.`
-    : "No hay suficientes unidades adicionales con emisiones para construir un segundo nivel de priorizacion.";
+    ? `${formatUnitNamesWithEmissions(nextEmitters)} tambien presentan impactos relevantes. En conjunto, estas etapas explican la mayor parte de la huella de la constructora.`
+    : "No hay suficientes etapas adicionales con emisiones para construir un segundo nivel de priorizacion.";
   const operationalLoadText = metrics.topActivitiesUnit
     ? `Por otro lado, ${metrics.topActivitiesUnit.nombre} concentra una alta carga operativa, con ${formatNumber(
         metrics.topActivitiesUnit.lotes_count || 0,
         0
-      )} lotes y ${formatNumber(
+      )} obras y ${formatNumber(
         metrics.topActivitiesUnit.actividades_count || 0,
         0
-      )} actividades.`
+      )} registros.`
     : "";
   const priorityList = [topEmitter, ...nextEmitters]
     .filter(Boolean)
@@ -460,20 +460,20 @@ function buildOperationalSummary(activeEmpresa, metrics) {
   return `${activeEmpresa.nombre} opera con ${formatNumber(
     metrics.totalUnits,
     0
-  )} unidades activas, pero la actividad real se concentra en ${formatNumber(
+  )} etapas activas, pero la actividad real se concentra en ${formatNumber(
     metrics.unitsWithOperationCount,
     0
-  )} unidades con lotes, actividades y emisiones registradas. Estas unidades acumulan ${formatNumber(
+  )} etapas con obras, registros y emisiones registradas. Estas etapas acumulan ${formatNumber(
     metrics.totalLots,
     0
-  )} lotes, ${formatNumber(metrics.totalActivities, 0)} actividades y una huella total de ${formatNumber(
+  )} obras, ${formatNumber(metrics.totalActivities, 0)} registros y una huella total de ${formatNumber(
     metrics.totalEmissions,
     1
   )} kg CO2e.
 
-La operacion se concentra principalmente ${territory}${withoutOperationText}. Esto sugiere una operacion territorialmente ${centralization}, con algunas unidades aun sin trazabilidad operativa activa.
+La operacion se concentra principalmente ${territory}${withoutOperationText}. Esto sugiere una operacion territorialmente ${centralization}, con algunas etapas aun sin trazabilidad operativa activa.
 
-La unidad mas critica es ${topEmitter?.nombre || "Sin datos"}, que concentra ${formatNumber(
+La etapa más crítica es ${topEmitter?.nombre || "Sin datos"}, que concentra ${formatNumber(
     topEmitterEmissions,
     1
   )} kg CO2e, equivalente al ${formatNumber(
@@ -487,7 +487,7 @@ ${operationalLoadText}
 
 Lectura clave
 
-La empresa no tiene un problema distribuido de forma pareja: tiene una operacion donde pocas unidades concentran la mayor parte del impacto. La prioridad deberia estar en ${formatUnitNames(
+La constructora no tiene un problema distribuido de forma pareja: tiene una operación donde pocas etapas concentran la mayor parte del impacto. La prioridad debería estar en ${formatUnitNames(
     priorityList
   )}.`;
 }
@@ -561,6 +561,7 @@ function UnitKpi({ detail, icon, label, tone = "slate", value }) {
 
 function UnitTypeBadge({ type }) {
   const value = type || "Otro";
+  const displayValue = value === "Aserradero" ? "Proveedor / planta" : value;
   const tone = {
     General: "border-[#94A3B8] bg-[#F1F5F9] text-[#334155]",
     Planta: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
@@ -574,7 +575,7 @@ function UnitTypeBadge({ type }) {
 
   return (
     <span className={`rounded-full border px-3 py-1 text-xs font-bold ${tone}`}>
-      {value}
+      {displayValue}
     </span>
   );
 }
@@ -589,8 +590,8 @@ function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
   if (!unidad) {
     return (
       <EmptyState
-        title="Selecciona una unidad operativa"
-        description="Selecciona una unidad operativa para revisar su resumen, lotes, actividades y emisiones asociadas."
+        title="Selecciona una etapa / frente"
+        description="Selecciona una etapa o frente para revisar su resumen, obras, registros y emisiones asociadas."
       />
     );
   }
@@ -602,10 +603,10 @@ function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
     <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm font-bold text-[var(--primary-dark)]">Detalle unidad</p>
+          <p className="text-sm font-bold text-[var(--primary-dark)]">Detalle etapa</p>
           <h2 className="mt-1 text-2xl font-bold text-[var(--text-main)]">{unidad.nombre}</h2>
           <p className="mt-2 text-sm font-medium text-[var(--text-muted)]">
-            {unidad.empresa_nombre || "Sin empresa"} · {unidad.region || "Sin region"} ·{" "}
+            {unidad.empresa_nombre || "Sin constructora"} · {unidad.region || "Sin region"} ·{" "}
             {unidad.comuna || "Sin comuna"}
           </p>
           {unidad.direccion && (
@@ -623,8 +624,8 @@ function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
       )}
 
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <UnitMiniMetric label="Lotes asociados" value={unidad.lotes_count || 0} />
-        <UnitMiniMetric label="Actividades" value={unidad.actividades_count || 0} />
+        <UnitMiniMetric label="Obras asociadas" value={unidad.lotes_count || 0} />
+        <UnitMiniMetric label="Registros" value={unidad.actividades_count || 0} />
         <UnitMiniMetric
           label="Emisiones acumuladas"
           tone="cyan"
@@ -633,7 +634,7 @@ function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
         <UnitMiniMetric
           label="Trazabilidad"
           tone="emerald"
-          value={`${formatNumber(unidad.pasaportes_count || 0, 0)} pasaportes`}
+          value={`${formatNumber(unidad.pasaportes_count || 0, 0)} fichas`}
           detail={`${formatNumber(unidad.evidencias_count || 0, 0)} evidencias`}
         />
       </div>
@@ -643,8 +644,8 @@ function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
         onChange={onTabChange}
         tabs={[
           { label: "Resumen", value: "resumen" },
-          { label: "Actividades", value: "actividades" },
-          { label: "Lotes", value: "lotes" },
+          { label: "Registros", value: "actividades" },
+          { label: "Obras", value: "lotes" },
           { label: "Emisiones", value: "emisiones" },
           { label: "Evidencias / Historial", value: "evidencias" },
         ]}
@@ -654,7 +655,7 @@ function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
         {activeTab === "resumen" && <UnidadResumen unidad={unidad} />}
         {activeTab === "actividades" && (
           <PaginatedSimpleTable
-            columns={["Fecha", "Actividad", "Categoria", "Lote", "Cantidad", "Emisiones"]}
+            columns={["Fecha", "Registro", "Categoria", "Obra", "Cantidad", "Emisiones"]}
             onPageChange={(page) =>
               setDetailPages((currentPages) => ({ ...currentPages, actividades: page }))
             }
@@ -671,7 +672,7 @@ function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
         )}
         {activeTab === "lotes" && (
           <PaginatedSimpleTable
-            columns={["Lote", "Fecha", "Especie", "Estado", "Emisiones", "Balance"]}
+            columns={["Obra", "Fecha", "Material / tipo de obra", "Estado", "Emisiones", "Balance"]}
             onPageChange={(page) =>
               setDetailPages((currentPages) => ({ ...currentPages, lotes: page }))
             }
@@ -688,7 +689,7 @@ function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
         )}
         {activeTab === "emisiones" && (
           <PaginatedSimpleTable
-            columns={["Actividad", "Categoria", "Factor", "Emisiones"]}
+            columns={["Registro", "Categoria", "Factor", "Emisiones"]}
             onPageChange={(page) =>
               setDetailPages((currentPages) => ({ ...currentPages, emisiones: page }))
             }
@@ -703,14 +704,14 @@ function UnidadDetailPanel({ activeTab, loading, onTabChange, unidad }) {
         )}
         {activeTab === "evidencias" && (
           <PaginatedSimpleTable
-            columns={["Lote", "Estado pasaporte", "Evidencias"]}
+            columns={["Obra", "Estado ficha", "Evidencias"]}
             onPageChange={(page) =>
               setDetailPages((currentPages) => ({ ...currentPages, evidencias: page }))
             }
             page={detailPages.evidencias || 1}
             rows={lotes.map((lote) => [
               lote.id_lote,
-              lote.estado_pasaporte || "Sin pasaporte",
+              lote.estado_pasaporte || "Sin ficha",
               formatNumber(lote.evidencias_count || 0, 0),
             ])}
           />
@@ -741,7 +742,7 @@ function UnitMiniMetric({ detail, label, tone = "slate", value }) {
 function UnidadResumen({ unidad }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <UnitMiniMetric label="Unidad ID" value={unidad.unidad_id || "-"} />
+      <UnitMiniMetric label="ID etapa" value={unidad.unidad_id || "-"} />
       <UnitMiniMetric label="Tipo" value={unidad.tipo || "Sin tipo"} />
       <UnitMiniMetric label="Region" value={unidad.region || "Sin region"} />
       <UnitMiniMetric label="Comuna" value={unidad.comuna || "Sin comuna"} />
@@ -751,7 +752,7 @@ function UnidadResumen({ unidad }) {
         </p>
         <p className="mt-2 text-sm font-medium leading-6 text-[var(--text-main)]">
           {unidad.descripcion ||
-            "No hay descripcion operativa registrada para esta unidad."}
+            "No hay descripcion operativa registrada para esta etapa."}
         </p>
       </div>
     </div>
@@ -763,7 +764,7 @@ function PaginatedSimpleTable({ columns, onPageChange, page, rows }) {
     return (
       <EmptyState
         title="Sin datos"
-        description="Esta unidad aun no tiene registros para esta seccion."
+        description="Esta etapa aun no tiene registros para esta seccion."
       />
     );
   }

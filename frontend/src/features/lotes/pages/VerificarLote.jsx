@@ -40,8 +40,8 @@ function VerificarLote() {
         if (!isCancelled) {
           setError(
             requestError.response?.status === 404
-              ? "No existe un Pasaporte Verde verificable para este lote."
-              : "No se pudo verificar el Pasaporte Verde."
+              ? "No existe una ficha ambiental verificable para esta obra."
+              : "No se pudo verificar la ficha ambiental."
           );
         }
       } finally {
@@ -63,7 +63,7 @@ function VerificarLote() {
       <main className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-100">
         <div className="flex items-center gap-3 text-slate-300">
           <Loader2 className="animate-spin" size={22} />
-          Verificando lote...
+          Verificando obra...
         </div>
       </main>
     );
@@ -93,14 +93,14 @@ function VerificarLote() {
               <div className="flex items-center gap-3 text-emerald-200">
                 <ShieldCheck size={24} />
                 <p className="text-sm font-bold uppercase tracking-wide">
-                  Pasaporte verificable
+                  Ficha verificable
                 </p>
               </div>
               <h1 className="mt-3 text-3xl font-bold sm:text-4xl">
                 {verification.id_lote}
               </h1>
               <p className="mt-3 max-w-2xl text-slate-300">
-                El QR permite validar que el pasaporte no es solo un PDF, sino
+                El QR permite validar que la ficha no es solo un PDF, sino
                 un registro trazable del sistema.
               </p>
             </div>
@@ -115,10 +115,10 @@ function VerificarLote() {
 
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <PublicMetric label="Fecha de emision" value={emittedAt} />
-          <PublicMetric label="Aserradero" value={verification.aserradero} />
-          <PublicMetric label="Especie" value={verification.especie} />
+          <PublicMetric label="Constructora / proveedor" value={verification.aserradero} />
+          <PublicMetric label="Material / tipo de obra" value={verification.especie} />
           <PublicMetric
-            label="Volumen"
+            label="Cantidad base / superficie"
             value={`${formatNumber(Number(verification.volumen_m3 || 0))} m3`}
           />
           <PublicMetric
@@ -135,7 +135,7 @@ function VerificarLote() {
             <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-emerald-300">
               <Boxes size={22} />
             </div>
-            <h2 className="text-xl font-bold">Resumen climatico del lote</h2>
+            <h2 className="text-xl font-bold">Resumen climático de obra</h2>
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -146,7 +146,7 @@ function VerificarLote() {
               )} kg CO2e`}
             />
             <PublicMetric
-              label="Carbono almacenado"
+              label="Balance ambiental"
               value={`${formatNumber(
                 Number(verification.co2_almacenado_kg || 0)
               )} kg`}

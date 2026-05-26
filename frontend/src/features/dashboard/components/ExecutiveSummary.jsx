@@ -57,7 +57,7 @@ const formatPercentRange = ({ min, max }) =>
   min === max ? `${min}%` : `${min}%-${max}%`;
 
 const buildStrategicPlan = (actividadCritica, optimizedScenario) => {
-  const activityLabel = actividadCritica || "la actividad prioritaria";
+  const activityLabel = actividadCritica || "la fuente prioritaria";
   const activityKey = normalizePlanText(activityLabel);
   const potentialReduction = Number(optimizedScenario?.reductionPct || 0);
   const optimalActivityReduction =
@@ -193,7 +193,7 @@ function ExecutiveSummary({
           <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
             El principal foco de impacto se concentra en{" "}
             {formatFocusForSentence(actividadCritica)}, siendo {unidadCriticaLabel}{" "}
-            la unidad prioritaria. El nivel de viabilidad es{" "}
+            la etapa prioritaria. El nivel de viabilidad es{" "}
             <strong>{formatViabilityForSentence(strategicPlan.viability)}</strong>,{" "}
             {optimizedScenario ? estimatedImpact : "sin calcular."}
           </p>
@@ -232,7 +232,7 @@ function ExecutiveSummary({
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <SummaryItem label="Foco principal" value={actividadCritica} />
-        <SummaryItem label="Unidad prioritaria" value={unidadCriticaLabel} />
+        <SummaryItem label="Etapa prioritaria" value={unidadCriticaLabel} />
         <SummaryItem
           label="Escenario recomendado"
           value={formatPercentRange(strategicPlan.recommendedRange)}
@@ -286,11 +286,11 @@ function ExecutiveSummary({
             value={riskProfile.factors.totalEmissions.label}
           />
           <ScoreFactor
-            label="Concentracion actividad"
+            label="Concentracion fuente"
             value={`${formatNumber(riskProfile.factors.activityConcentration, 0)}%`}
           />
           <ScoreFactor
-            label="Concentracion unidad"
+            label="Concentracion etapa"
             value={`${formatNumber(riskProfile.factors.companyConcentration, 0)}%`}
           />
           <ScoreFactor

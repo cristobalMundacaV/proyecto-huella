@@ -9,65 +9,23 @@ import {
   getEvidenciasEmpresa,
   getEvidenciasKpisEmpresa,
 } from "@/shared/services/api";
+import ImportarDocumentoObraModal from "@/shared/components/ImportarDocumentoObraModal";
+import {
+  constructionEvidenceScopeOptions,
+  constructionEvidenceTypeOptions,
+  getConstructionEvidenceLinkLabel,
+  getConstructionEvidenceReviewLabel,
+  getConstructionEvidenceScopeLabel,
+  getConstructionEvidenceTypeLabel,
+} from "@/shared/utils/constructionEvidenceLabels";
 import { formatNumber } from "@/shared/utils/formatters";
 
 const pageSize = 10;
-
-const tipoOptions = [
-  "guia_despacho",
-  "factura_combustible",
-  "factura_electrica",
-  "certificado_origen",
-  "certificado_forestal",
-  "documento_transporte",
-  "ticket_pesaje",
-  "registro_gps",
-  "fotografia",
-  "ficha_tecnica",
-  "otro",
-];
-
-function formatOptionLabel(value) {
-  return String(value || "")
-    .replace(/_/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-const alcanceOptions = [
-  { value: "empresa", label: "Empresa completa", helper: "Respalda a la empresa activa completa." },
-  { value: "unidad", label: "Unidad operativa", helper: "Requiere ID unidad de la empresa activa." },
-  { value: "lote", label: "Lote", helper: "Requiere ID lote; la unidad se infiere si existe." },
-  { value: "emision", label: "Actividad / emision", helper: "Requiere ID emision; lote y unidad se infieren si existen." },
-  { value: "transporte", label: "Transporte", helper: "Puede vincularse a un lote o quedar como respaldo corporativo." },
-];
-
-const alcanceLabels = {
-  empresa: "Empresa completa",
-  unidad: "Unidad",
-  lote: "Lote",
-  emision: "Emision",
-  transporte: "Transporte",
-};
-
-const sistemaLabels = {
-  corporativa: "Corporativa",
-  vinculada: "Vinculada",
-  sin_vinculo: "Sin revisar",
-};
 
 const sistemaStyles = {
   corporativa: "border-[#B7DEC9] bg-[var(--success-bg)] text-[var(--primary-dark)]",
   vinculada: "border-[#B9D8D3] bg-[var(--info-bg)] text-[#075985]",
   sin_vinculo: "border-[var(--border)] bg-[var(--bg-surface)] text-[#475467]",
-};
-
-const revisionLabels = {
-  sin_revisar: "Sin revisar",
-  validada: "Validada",
-  observada: "Observada",
-  rechazada: "Rechazada",
 };
 
 const revisionStyles = {
@@ -115,7 +73,7 @@ function KpiImpact({ icon, label, value, detail, tone = "slate" }) {
 function EvidenceBadge({ value }) {
   return (
     <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${sistemaStyles[value] || sistemaStyles.sin_vinculo}`}>
-      {sistemaLabels[value] || "Sin revisar"}
+      {getConstructionEvidenceLinkLabel(value)}
     </span>
   );
 }
@@ -123,9 +81,13 @@ function EvidenceBadge({ value }) {
 function RevisionBadge({ value, label }) {
   return (
     <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${revisionStyles[value] || revisionStyles.sin_revisar}`}>
-      {label || revisionLabels[value] || "Sin revisar"}
+      {label || getConstructionEvidenceReviewLabel(value)}
     </span>
   );
+}
+
+function formatEvidenceType(value) {
+  return getConstructionEvidenceTypeLabel(value);
 }
 
 function EvidenciasPage() {
@@ -139,6 +101,8 @@ function EvidenciasPage() {
   const [filters, setFilters] = useState({ search: "", tipo: "", alcance: "", estado_sistema: "" });
   const [draftFilters, setDraftFilters] = useState(filters);
   const [form, setForm] = useState(emptyForm);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importModalContext, setImportModalContext] = useState(null);
 
   async function loadData(nextFilters = filters) {
     if (!activeEmpresaId) return;
@@ -173,7 +137,16 @@ function EvidenciasPage() {
   }, [evidencias, safeCurrentPage]);
 
   const cobertura = Number(kpis?.cobertura_documental || 0);
-  const selectedScope = alcanceOptions.find((item) => item.value === form.alcance) || alcanceOptions[0];
+  const selectedScope = constructionEvidenceScopeOptions.find((item) => item.value === form.alcance) || constructionEvidenceScopeOptions[0];
+  const totalObservadas = Number(kpis?.por_revision?.observada || 0);
+  const totalPendientes = Number(kpis?.sin_revisar || 0);
+  const totalVinculadas = Number(kpis?.vinculadas || 0);
+  const obrasConRespaldo = Number(kpis?.lotes_con_evidencia || 0);
+  const alcanceOptions = constructionEvidenceScopeOptions;
+  const coverageValue = Number(kpis?.total_lotes || 0) > 0 && obrasConRespaldo > 0 ? `${formatNumber(cobertura, 1)}%` : "Pendiente de vinculación";
+  const coverageDetail = Number(kpis?.total_lotes || 0)
+    ? `${formatNumber(obrasConRespaldo, 0)} de ${formatNumber(kpis?.total_lotes || 0, 0)} obras`
+    : "Sin obras registradas";
 
   async function onApplyFilters() {
     setFilters(draftFilters);
@@ -185,6 +158,15 @@ function EvidenciasPage() {
     setDraftFilters(reset);
     setFilters(reset);
     await loadData(reset);
+  }
+
+  function openImportModal(item) {
+    setImportModalContext({
+      archivoNombre: item.nombre,
+      archivoUrl: item.archivo_url,
+      initialLoteId: item.lote_codigo || "",
+    });
+    setImportModalOpen(true);
   }
 
   function updateScope(nextScope) {
@@ -199,16 +181,16 @@ function EvidenciasPage() {
 
   function validateForm() {
     if (!form.nombre.trim() || !form.tipo_documento || !form.archivo) {
-      return "Nombre, tipo de documento y archivo son obligatorios.";
+      return "Nombre, tipo de evidencia y archivo son obligatorios.";
     }
     if (form.alcance === "unidad" && !form.unidad_id.trim()) {
-      return "Debes indicar un ID de unidad para respaldar una unidad operativa.";
+      return "Debes indicar un ID de etapa para respaldar un frente de obra.";
     }
     if (form.alcance === "lote" && !form.lote_id.trim()) {
-      return "Debes indicar un ID de lote para respaldar un lote.";
+      return "Debes indicar un código de obra para respaldar una obra.";
     }
     if (form.alcance === "emision" && !form.emision_id.trim()) {
-      return "Debes indicar un ID de emision para respaldar una actividad.";
+      return "Debes indicar un ID de emisión para respaldar un registro.";
     }
     return "";
   }
@@ -258,7 +240,7 @@ function EvidenciasPage() {
     return (
       <EmptyState
         title="Evidencias"
-        description="Selecciona o crea una empresa para gestionar evidencias."
+        description="Selecciona o crea una constructora para gestionar respaldos documentales de obra."
       />
     );
   }
@@ -270,51 +252,51 @@ function EvidenciasPage() {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--primary-dark)]">Centro documental</p>
             <h1 className="mt-3 text-3xl font-bold text-[var(--text-main)] sm:text-4xl">
-              Respalda empresas, unidades, lotes y emisiones con documentos verificables
+              Respalda constructoras, etapas, obras y emisiones con documentos verificables
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-[#344054]">
-              Toda evidencia queda dentro de {activeEmpresa?.nombre || activeEmpresaId}. Elige que quieres respaldar y el sistema validara que el vinculo pertenezca a la empresa activa.
+              Sube documentos reales de obra para respaldar cálculos de emisiones, materiales, transporte, maquinaria, energía y residuos.
             </p>
             <p className="mt-3 rounded-2xl border border-[#E6CC82] bg-[var(--warning-bg)] p-3 text-sm font-semibold text-[#7A4F00]">
-              Subir una evidencia no la valida automáticamente. Las evidencias deben ser revisadas antes de considerarse respaldo documental oficial.
+              {activeEmpresa?.nombre || activeEmpresaId} permanece como constructora activa. La evidencia se puede vincular a una obra, etapa o registro de emisión sin cambiar el flujo técnico existente.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            <KpiImpact icon={<FileText size={22} />} label="Evidencias cargadas" value={formatNumber(kpis?.total_evidencias || 0, 0)} detail="Documentos cargados" tone="emerald" />
-            <KpiImpact icon={<Link2 size={22} />} label="Con alcance definido" value={formatNumber(kpis?.vinculadas || 0, 0)} detail="Vinculadas a registros" tone="cyan" />
-            <KpiImpact icon={<Building2 size={22} />} label="Respaldo corporativo" value={formatNumber(kpis?.corporativas || 0, 0)} detail="Evidencias de empresa" tone="slate" />
+            <KpiImpact icon={<FileText size={22} />} label="Evidencias totales" value={formatNumber(kpis?.total_evidencias || 0, 0)} detail="Documentos de respaldo" tone="emerald" />
+            <KpiImpact icon={<Link2 size={22} />} label="Evidencias vinculadas" value={formatNumber(totalVinculadas, 0)} detail="Relacionadas con registros" tone="cyan" />
+            <KpiImpact icon={<Building2 size={22} />} label="Obras con respaldo" value={formatNumber(obrasConRespaldo, 0)} detail="Obras con evidencia asociada" tone="slate" />
           </div>
         </div>
       </section>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiImpact icon={<FileCheck2 size={22} />} label="Cobertura de lotes" value={`${formatNumber(cobertura, 1)}%`} detail={`${formatNumber(kpis?.lotes_con_evidencia || 0, 0)} de ${formatNumber(kpis?.total_lotes || 0, 0)} lotes`} tone={cobertura >= 75 ? "emerald" : cobertura >= 40 ? "amber" : "rose"} />
-        <KpiImpact icon={<ShieldAlert size={22} />} label="Pendientes de revisión" value={formatNumber(kpis?.sin_revisar || 0, 0)} detail="Revisión pendiente" tone="amber" />
-        <KpiImpact icon={<Link2 size={22} />} label="Lotes sin evidencia" value={formatNumber(kpis?.lotes_sin_evidencia || 0, 0)} detail="Prioriza alto impacto" tone="rose" />
-        <KpiImpact icon={<UploadCloud size={22} />} label="Tipos de documento" value={formatNumber(Object.keys(kpis?.por_tipo || {}).length, 0)} detail="Fuentes documentales" tone="cyan" />
+        <KpiImpact icon={<FileCheck2 size={22} />} label="Cobertura documental" value={coverageValue} detail={coverageDetail} tone={cobertura >= 75 ? "emerald" : cobertura >= 40 ? "amber" : "rose"} />
+        <KpiImpact icon={<ShieldAlert size={22} />} label="Evidencias pendientes" value={formatNumber(totalPendientes, 0)} detail="A la espera de revisión" tone="amber" />
+        <KpiImpact icon={<Link2 size={22} />} label="Evidencias observadas" value={formatNumber(totalObservadas, 0)} detail="Requieren ajuste o respaldo" tone="rose" />
+        <KpiImpact icon={<UploadCloud size={22} />} label="Tipos presentes" value={formatNumber(Object.keys(kpis?.por_tipo || {}).length, 0)} detail="Fuentes documentales" tone="cyan" />
       </section>
 
       <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[0_14px_35px_var(--shadow)] sm:p-6">
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_180px_180px_180px_auto]">
           <input
             className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-emerald-100"
-            placeholder="Buscar documento, lote o unidad"
+            placeholder="Buscar documento, obra, etapa o registro"
             value={draftFilters.search}
             onChange={(event) => setDraftFilters((current) => ({ ...current, search: event.target.value }))}
           />
           <select className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" value={draftFilters.tipo} onChange={(event) => setDraftFilters((current) => ({ ...current, tipo: event.target.value }))}>
-            <option value="">Tipo</option>
-            {tipoOptions.map((tipo) => <option key={tipo} value={tipo}>{formatOptionLabel(tipo)}</option>)}
+            <option value="">Tipo de evidencia</option>
+            {constructionEvidenceTypeOptions.map(([tipo, label]) => <option key={tipo} value={tipo}>{label}</option>)}
           </select>
           <select className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" value={draftFilters.alcance} onChange={(event) => setDraftFilters((current) => ({ ...current, alcance: event.target.value }))}>
-            <option value="">Alcance</option>
-            {alcanceOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            <option value="">Vinculación</option>
+            {constructionEvidenceScopeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
           <select className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" value={draftFilters.estado_sistema} onChange={(event) => setDraftFilters((current) => ({ ...current, estado_sistema: event.target.value }))}>
-            <option value="">Estado sistema</option>
-            <option value="corporativa">Corporativa</option>
+            <option value="">Estado documental</option>
+            <option value="corporativa">Sin vínculo</option>
             <option value="vinculada">Vinculada</option>
-            <option value="sin_vinculo">Sin revisar</option>
+            <option value="sin_vinculo">Sin vínculo</option>
           </select>
           <div className="flex gap-2">
             <button type="button" onClick={onApplyFilters} className="rounded-2xl border border-[var(--primary-dark)] bg-[var(--primary-dark)] px-4 py-3 text-sm font-bold text-white">Aplicar</button>
@@ -327,25 +309,25 @@ function EvidenciasPage() {
         <form onSubmit={onSubmit} className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[0_18px_45px_var(--shadow)] sm:p-6">
           <div className="mb-5">
             <p className="text-xs font-bold uppercase tracking-wide text-[var(--primary-dark)]">Nuevo respaldo</p>
-            <h2 className="mt-1 text-xl font-semibold text-[var(--text-main)]">Adjuntar evidencia</h2>
+            <h2 className="mt-1 text-xl font-semibold text-[var(--text-main)]">Subir evidencia</h2>
             <p className="mt-2 text-sm text-[var(--text-muted)]">{selectedScope.helper}</p>
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <input className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" placeholder="Nombre documento" value={form.nombre} onChange={(event) => setForm((current) => ({ ...current, nombre: event.target.value }))} />
+            <input className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" placeholder="Nombre de la evidencia" value={form.nombre} onChange={(event) => setForm((current) => ({ ...current, nombre: event.target.value }))} />
             <select className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" value={form.tipo_documento} onChange={(event) => setForm((current) => ({ ...current, tipo_documento: event.target.value }))}>
-              {tipoOptions.map((tipo) => <option key={tipo} value={tipo}>{formatOptionLabel(tipo)}</option>)}
+              {constructionEvidenceTypeOptions.map(([tipo, label]) => <option key={tipo} value={tipo}>{label}</option>)}
             </select>
             <label className="md:col-span-2">
-              <span className="mb-1 block text-sm font-semibold text-[#344054]">Alcance de la evidencia</span>
+              <span className="mb-1 block text-sm font-semibold text-[#344054]">Vincular evidencia a</span>
               <select className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" value={form.alcance} onChange={(event) => updateScope(event.target.value)}>
-                {alcanceOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                {constructionEvidenceScopeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
             </label>
-            {form.alcance === "unidad" && <input className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] md:col-span-2" placeholder="ID unidad" value={form.unidad_id} onChange={(event) => setForm((current) => ({ ...current, unidad_id: event.target.value }))} />}
-            {form.alcance === "lote" && <input className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] md:col-span-2" placeholder="ID lote" value={form.lote_id} onChange={(event) => setForm((current) => ({ ...current, lote_id: event.target.value }))} />}
-            {form.alcance === "emision" && <input className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] md:col-span-2" placeholder="ID emision" value={form.emision_id} onChange={(event) => setForm((current) => ({ ...current, emision_id: event.target.value }))} />}
-            {form.alcance === "transporte" && <input className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] md:col-span-2" placeholder="ID lote opcional" value={form.lote_id} onChange={(event) => setForm((current) => ({ ...current, lote_id: event.target.value }))} />}
+            {form.alcance === "unidad" && <input className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] md:col-span-2" placeholder="Etapa / frente" value={form.unidad_id} onChange={(event) => setForm((current) => ({ ...current, unidad_id: event.target.value }))} />}
+            {form.alcance === "lote" && <input className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] md:col-span-2" placeholder="Obra asociada" value={form.lote_id} onChange={(event) => setForm((current) => ({ ...current, lote_id: event.target.value }))} />}
+            {form.alcance === "emision" && <input className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] md:col-span-2" placeholder="Registro de emisión asociado" value={form.emision_id} onChange={(event) => setForm((current) => ({ ...current, emision_id: event.target.value }))} />}
+            {form.alcance === "transporte" && <input className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] md:col-span-2" placeholder="Obra asociada opcional" value={form.lote_id} onChange={(event) => setForm((current) => ({ ...current, lote_id: event.target.value }))} />}
             <input type="date" className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)]" value={form.fecha_documento} onChange={(event) => setForm((current) => ({ ...current, fecha_documento: event.target.value }))} />
             <input type="file" className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] file:mr-4 file:rounded-xl file:border-0 file:bg-[var(--success-bg)] file:px-3 file:py-2 file:font-bold file:text-[var(--primary-dark)]" onChange={(event) => setForm((current) => ({ ...current, archivo: event.target.files?.[0] || null }))} />
             <textarea className="min-h-24 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] md:col-span-2" placeholder="Observaciones" value={form.observaciones} onChange={(event) => setForm((current) => ({ ...current, observaciones: event.target.value }))} />
@@ -354,7 +336,7 @@ function EvidenciasPage() {
           {error ? <p className="mt-4 rounded-2xl border border-[#F1B8B8] bg-[var(--danger-bg)] p-3 text-sm text-[#B42318]">{error}</p> : null}
 
           <div className="mt-5 flex flex-wrap gap-3">
-            <button type="submit" disabled={saving} className="rounded-2xl border border-[var(--primary-dark)] bg-[var(--primary-dark)] px-5 py-3 text-sm font-bold text-white disabled:opacity-60">{saving ? "Guardando..." : "Adjuntar evidencia"}</button>
+            <button type="submit" disabled={saving} className="rounded-2xl border border-[var(--primary-dark)] bg-[var(--primary-dark)] px-5 py-3 text-sm font-bold text-white disabled:opacity-60">{saving ? "Guardando..." : "Subir evidencia"}</button>
             <button type="button" onClick={() => setForm(emptyForm)} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-5 py-3 text-sm font-bold text-[#475467]">Limpiar formulario</button>
           </div>
         </form>
@@ -382,45 +364,60 @@ function EvidenciasPage() {
         </div>
 
         <div className="mt-4 overflow-x-auto">
-          <table className="min-w-[1120px] w-full text-sm">
+          <table className="min-w-[1500px] w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wide text-[var(--text-muted)]">
                 <th className="px-3 py-3">Documento</th>
-                <th className="px-3 py-3">Tipo</th>
-                <th className="px-3 py-3">Alcance</th>
-                <th className="px-3 py-3">Vinculo</th>
-                <th className="px-3 py-3">Fecha</th>
-                <th className="px-3 py-3">Estado sistema</th>
-                <th className="px-3 py-3">Revision documental</th>
+                <th className="px-3 py-3">Tipo de evidencia</th>
+                <th className="px-3 py-3">Obra asociada</th>
+                <th className="px-3 py-3">Etapa / frente</th>
+                <th className="px-3 py-3">Registro asociado</th>
+                <th className="px-3 py-3">Fecha documento</th>
+                <th className="px-3 py-3">Estado documental</th>
                 <th className="px-3 py-3">Archivo</th>
+                <th className="px-3 py-3">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {visibleRows.map((item) => (
                 <tr key={item.id} className="border-b border-[#C9D6CF] text-[#1F2937] hover:bg-[var(--bg-surface)]">
                   <td className="px-3 py-3 font-semibold text-[var(--text-main)]">{item.nombre}</td>
-                  <td className="px-3 py-3 text-[#475467]">{formatOptionLabel(item.tipo_documento)}</td>
-                  <td className="px-3 py-3 text-[#475467]">{item.alcance_label || alcanceLabels[item.alcance] || "Empresa completa"}</td>
                   <td className="px-3 py-3 text-[#475467]">
-                    {item.emision ? `Emision ${item.emision}` : item.lote_codigo || item.unidad_codigo || item.empresa_codigo}
+                    {formatEvidenceType(item.tipo_documento)}
+                  </td>
+                  <td className="px-3 py-3">
+                    <div className="space-y-1">
+                      <p className="font-semibold text-[var(--text-main)]">{item.lote_codigo || item.empresa_codigo || "Obra asociada"}</p>
+                      <p className="text-xs text-[var(--text-muted)]">{getConstructionEvidenceScopeLabel(item.alcance)}</p>
+                    </div>
+                  </td>
+                  <td className="px-3 py-3 text-[#475467]">{item.unidad_codigo || item.unidad_nombre || "Sin etapa"}</td>
+                  <td className="px-3 py-3 text-[#475467]">
+                    {item.emision ? `Registro ${item.emision}` : item.estado_sistema === "sin_vinculo" ? "Pendiente de vinculación" : getConstructionEvidenceLinkLabel(item.estado_sistema)}
                   </td>
                   <td className="px-3 py-3 text-[#475467]">{item.fecha_documento || "-"}</td>
-                  <td className="px-3 py-3"><EvidenceBadge value={item.estado_sistema} /></td>
                   <td className="px-3 py-3">
-                    <RevisionBadge
-                      label={item.estado_revision_label}
-                      value={item.estado_revision}
-                    />
+                    <div className="space-y-2">
+                      <RevisionBadge label={getConstructionEvidenceReviewLabel(item.estado_revision || item.estado)} value={item.estado_revision || item.estado} />
+                      <EvidenceBadge value={item.estado_sistema} />
+                    </div>
                   </td>
                   <td className="px-3 py-3">
                     {item.archivo_url ? <a className="font-semibold text-[#00689B] underline" href={item.archivo_url} target="_blank" rel="noreferrer">Ver</a> : <span className="text-[var(--text-muted)]">-</span>}
+                  </td>
+                  <td className="px-3 py-3">
+                    <div className="flex flex-wrap gap-2">
+                      {item.archivo_url ? <a className="rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-3 py-1 text-xs font-bold text-[#475467]" href={item.archivo_url} target="_blank" rel="noreferrer">Ver</a> : null}
+                      {item.archivo_url ? <a className="rounded-full border border-[var(--primary-dark)] bg-[var(--success-bg)] px-3 py-1 text-xs font-bold text-[var(--primary-dark)]" href={item.archivo_url} download>Descargar</a> : null}
+                      {item.archivo_url ? <button type="button" onClick={() => openImportModal(item)} className="rounded-full border border-[#B7DEC9] bg-[var(--success-bg)] px-3 py-1 text-xs font-bold text-[var(--primary-dark)]">Analizar documento</button> : null}
+                    </div>
                   </td>
                 </tr>
               ))}
               {!loading && visibleRows.length === 0 ? (
                 <tr>
-                  <td className="px-3 py-8 text-center text-[var(--text-muted)]" colSpan={8}>
-                    No hay evidencias registradas para los filtros seleccionados.
+                  <td className="px-3 py-8 text-center text-[var(--text-muted)]" colSpan={9}>
+                    No hay evidencias documentales.
                   </td>
                 </tr>
               ) : null}
@@ -434,6 +431,18 @@ function EvidenciasPage() {
           pageSize={pageSize}
           totalItems={evidencias.length}
           itemLabel="evidencias"
+        />
+
+        <ImportarDocumentoObraModal
+          activeEmpresaId={activeEmpresaId}
+          archivoNombre={importModalContext?.archivoNombre || ""}
+          archivoUrl={importModalContext?.archivoUrl || ""}
+          initialLoteId={importModalContext?.initialLoteId || ""}
+          onClose={() => {
+            setImportModalOpen(false);
+            setImportModalContext(null);
+          }}
+          open={importModalOpen}
         />
       </section>
     </main>

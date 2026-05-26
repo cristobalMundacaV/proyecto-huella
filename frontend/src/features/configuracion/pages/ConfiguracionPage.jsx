@@ -20,10 +20,10 @@ import {
 } from "@/shared/services/api";
 
 const tabs = [
-  { value: "empresa", label: "Empresa", icon: Building2 },
+  { value: "empresa", label: "Constructora", icon: Building2 },
   { value: "calculo", label: "Cálculo", icon: Calculator },
   { value: "importaciones", label: "Importación", icon: Import },
-  { value: "pasaporte", label: "Pasaporte Verde", icon: ShieldCheck },
+  { value: "pasaporte", label: "Ficha ambiental", icon: ShieldCheck },
   { value: "evidencias", label: "Evidencias", icon: FileCheck2 },
   { value: "reportes", label: "Reportes", icon: FileText },
 ];
@@ -33,7 +33,7 @@ const defaultConfig = {
     nombre: "",
     empresa_id: "",
     rut: "",
-    rubro: "Madera",
+    rubro: "Construcción",
     region: "",
     comuna: "",
     direccion: "",
@@ -108,7 +108,7 @@ function buildInitialConfig(activeEmpresa) {
       nombre: activeEmpresa?.nombre || "",
       empresa_id: activeEmpresa?.empresa_id || "",
       rut: activeEmpresa?.rut || "",
-      rubro: activeEmpresa?.rubro || "Madera",
+      rubro: activeEmpresa?.rubro || "Construcción",
       region: activeEmpresa?.region || "",
       comuna: activeEmpresa?.comuna || "",
       direccion: activeEmpresa?.direccion || "",
@@ -289,7 +289,7 @@ function ConfiguracionPage() {
     return (
       <EmptyState
         title="Configuración"
-        description="Selecciona una empresa activa para definir las reglas del sistema."
+        description="Selecciona una constructora activa para definir las reglas del sistema."
       />
     );
   }
@@ -319,7 +319,7 @@ function ConfiguracionPage() {
       window.localStorage.setItem(storageKey(activeEmpresaId), JSON.stringify(remoteConfig));
       setConfig(clone(remoteConfig));
       setSavedConfig(clone(remoteConfig));
-      setSuccessMessage("Configuración guardada en el backend para la empresa activa.");
+      setSuccessMessage("Configuración guardada en el backend para la constructora activa.");
     } catch (requestError) {
       setError(requestError?.response?.data?.error || "No se pudo guardar la configuración.");
     } finally {
@@ -340,7 +340,7 @@ function ConfiguracionPage() {
           <p className="text-xs font-bold uppercase tracking-wide text-[var(--primary-dark)]">Configuración</p>
           <h1 className="mt-2 text-3xl font-bold text-[var(--text-main)] sm:text-4xl">Configuración</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
-            Define cómo Carbono Zero calcula emisiones, valida datos, exige evidencias y construye reportes para la empresa activa.
+            Define cómo Carbono Zero calcula emisiones, valida datos, exige evidencias y construye reportes para obras de la constructora activa.
           </p>
         </div>
         {hasChanges ? (
@@ -352,7 +352,7 @@ function ConfiguracionPage() {
 
       {loading ? (
         <div className="rounded-3xl border border-[#B9D8D3] bg-[var(--info-bg)] p-4 text-sm font-semibold text-[#155E75]">
-          Cargando configuración de la empresa activa...
+          Cargando configuración de la constructora activa...
         </div>
       ) : null}
 
@@ -367,26 +367,26 @@ function ConfiguracionPage() {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--primary-dark)]">Reglas de operación</p>
             <h2 className="mt-3 text-2xl font-bold text-[var(--text-main)] sm:text-3xl">
-              Reglas activas para calcular, validar e interpretar la información de {activeEmpresa?.nombre || "la empresa"}
+              Reglas activas para calcular, validar e interpretar la información de {activeEmpresa?.nombre || "la constructora"}
             </h2>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-[#344054]">
-              {activeEmpresa?.nombre || "La empresa"} usa importación {config.importaciones.modo_importacion}, Pasaporte Verde {config.pasaporte.pasaporte_activo ? "activo" : "inactivo"} y evidencia obligatoria para fortalecer la trazabilidad documental. Estos ajustes definen cómo se procesan nuevos datos, cómo se calculan emisiones y qué condiciones debe cumplir la información antes de aparecer en reportes.
+              {activeEmpresa?.nombre || "La constructora"} usa importación {config.importaciones.modo_importacion}, ficha ambiental {config.pasaporte.pasaporte_activo ? "activa" : "inactiva"} y evidencia obligatoria para fortalecer la trazabilidad documental. Estos ajustes definen cómo se procesan nuevos datos de obra, cómo se calculan emisiones y qué condiciones debe cumplir la información antes de aparecer en reportes.
             </p>
             <p className="mt-4 rounded-2xl border border-[#E6CC82] bg-[var(--warning-bg)] p-3 text-sm font-semibold text-[#7A4F00]">
               Los cambios pueden afectar nuevos cálculos, importaciones y validaciones. Los registros históricos no se modifican automáticamente; solo cambiarán si vuelves a procesarlos.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-            <KpiCard icon={<Settings2 size={22} />} label="Gobernanza" value="Configuración activa" detail="Por empresa activa" tone="emerald" />
+            <KpiCard icon={<Settings2 size={22} />} label="Gobernanza" value="Configuración activa" detail="Por constructora activa" tone="emerald" />
             <KpiCard icon={<Gauge size={22} />} label="Unidad de emisión" value={config.calculo.unidad_emisiones} detail="Formato de salida" tone="cyan" />
           </div>
         </div>
       </section>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        <KpiCard icon={<Building2 size={22} />} label="Empresa seleccionada" value={config.empresa.nombre || "Sin nombre"} tone="slate" />
+        <KpiCard icon={<Building2 size={22} />} label="Constructora seleccionada" value={config.empresa.nombre || "Sin nombre"} tone="slate" />
         <KpiCard icon={<Import size={22} />} label="Modo de importación" value={config.importaciones.modo_importacion} tone={config.importaciones.modo_importacion === "estricto" ? "amber" : "cyan"} />
-        <KpiCard icon={<ShieldCheck size={22} />} label="Pasaporte Verde" value={config.pasaporte.pasaporte_activo ? "Activo" : "Inactivo"} tone="emerald" />
+        <KpiCard icon={<ShieldCheck size={22} />} label="Ficha ambiental" value={config.pasaporte.pasaporte_activo ? "Activa" : "Inactiva"} tone="emerald" />
         <KpiCard icon={<FileCheck2 size={22} />} label="Evidencia obligatoria" value={config.evidencias.requerida_pasaporte ? "Si" : "No"} tone="amber" />
         <KpiCard icon={<Calculator size={22} />} label="Emisiones" value={config.calculo.unidad_emisiones} tone="cyan" />
         <KpiCard icon={<FileText size={22} />} label="Período de reportes" value={config.reportes.periodo_default.replace(/_/g, " ")} tone="slate" />
@@ -413,10 +413,10 @@ function ConfiguracionPage() {
       </section>
 
       {activeTab === "empresa" && (
-        <SettingCard title="Datos básicos de empresa" description="Puedes actualizar los datos visibles de la empresa sin modificar las emisiones ya registradas. El ID de empresa se mantiene en solo lectura para proteger las relaciones existentes.">
+        <SettingCard title="Datos básicos de constructora" description="Puedes actualizar los datos visibles de la constructora sin modificar las emisiones ya registradas. El ID interno se mantiene en solo lectura para proteger las relaciones existentes.">
           {Object.entries({
             nombre: "Nombre",
-            empresa_id: "Empresa ID",
+            empresa_id: "ID constructora",
             rut: "RUT",
             rubro: "Rubro",
             region: "Región",
@@ -437,55 +437,55 @@ function ConfiguracionPage() {
       {activeTab === "calculo" && (
         <SettingCard title="Parámetros de cálculo ambiental" description="Estos valores se aplican cuando los datos importados no incluyen toda la información necesaria o cuando el sistema debe calcular indicadores ambientales derivados.">
           <Field label="Unidad de emisiones preferida"><SelectInput value={config.calculo.unidad_emisiones} onChange={(v) => update("calculo", "unidad_emisiones", v)} options={["kg CO2e", "tCO2e"]} /></Field>
-          <Field label="Unidad de volumen madera"><SelectInput value={config.calculo.unidad_volumen_madera} onChange={(v) => update("calculo", "unidad_volumen_madera", v)} options={["m3"]} /></Field>
+          <Field label="Unidad base de obra"><SelectInput value={config.calculo.unidad_volumen_madera} onChange={(v) => update("calculo", "unidad_volumen_madera", v)} options={["m3"]} /></Field>
           <Field label="Porcentaje de carbono por defecto"><TextInput type="number" value={config.calculo.porcentaje_carbono_default} onChange={(v) => update("calculo", "porcentaje_carbono_default", v)} /></Field>
-          <Field label="Densidad madera por defecto kg/m3"><TextInput type="number" value={config.calculo.densidad_madera_default} onChange={(v) => update("calculo", "densidad_madera_default", v)} /></Field>
+          <Field label="Densidad de material por defecto kg/m3"><TextInput type="number" value={config.calculo.densidad_madera_default} onChange={(v) => update("calculo", "densidad_madera_default", v)} /></Field>
           <Field label="Factor electrico preferido"><TextInput value={config.calculo.factor_electrico_default} onChange={(v) => update("calculo", "factor_electrico_default", v)} /></Field>
           <Field label="Region electrica por defecto"><TextInput value={config.calculo.region_electrica_default} onChange={(v) => update("calculo", "region_electrica_default", v)} /></Field>
           <Field label="Redondeo de resultados"><SelectInput value={config.calculo.redondeo_decimales} onChange={(v) => update("calculo", "redondeo_decimales", Number(v))} options={[0, 1, 2]} /></Field>
           <SettingSwitch label="Mostrar balance neto" checked={config.calculo.mostrar_balance_neto} onChange={(v) => update("calculo", "mostrar_balance_neto", v)} />
-          <SettingSwitch label="Permitir carbono almacenado" checked={config.calculo.permitir_co2_almacenado} onChange={(v) => update("calculo", "permitir_co2_almacenado", v)} />
+          <SettingSwitch label="Permitir balance ambiental" checked={config.calculo.permitir_co2_almacenado} onChange={(v) => update("calculo", "permitir_co2_almacenado", v)} />
         </SettingCard>
       )}
 
       {activeTab === "importaciones" && (
         <SettingCard title="Reglas de importación" description="Estas reglas reducen errores al cargar datos y permiten adaptar Carbono Zero a flujos de trabajo más estrictos o más flexibles.">
-          <Field label="Modo de importación" help={config.importaciones.modo_importacion === "flexible" ? "Si un archivo trae empresa_id distinto, Carbono Zero usa la empresa activa y muestra advertencia." : "Si un archivo trae empresa_id distinto, Carbono Zero bloquea la importación."}><SelectInput value={config.importaciones.modo_importacion} onChange={(v) => update("importaciones", "modo_importacion", v)} options={["flexible", "estricto"]} /></Field>
+          <Field label="Modo de importación" help={config.importaciones.modo_importacion === "flexible" ? "Si un archivo trae empresa_id distinto, Carbono Zero usa la constructora activa y muestra advertencia." : "Si un archivo trae empresa_id distinto, Carbono Zero bloquea la importación."}><SelectInput value={config.importaciones.modo_importacion} onChange={(v) => update("importaciones", "modo_importacion", v)} options={["flexible", "estricto"]} /></Field>
           {Object.entries({
-            crear_unidades_automaticamente: "Permitir crear unidades automáticamente",
-            crear_lotes_automaticamente: "Permitir crear lotes automáticamente",
-            permitir_actividades_sin_factor: "Permitir actividades sin factor",
+            crear_unidades_automaticamente: "Permitir crear etapas automáticamente",
+            crear_lotes_automaticamente: "Permitir crear obras automáticamente",
+            permitir_actividades_sin_factor: "Permitir registros sin factor",
             actualizar_registros_existentes: "Actualizar registros existentes",
             bloquear_duplicados: "Bloquear duplicados exactos",
-            requerir_unidad_lote: "Requerir unidad para lotes",
-            requerir_lote_actividad: "Requerir lote para actividades",
+            requerir_unidad_lote: "Requerir etapa para obras",
+            requerir_lote_actividad: "Requerir obra para registros",
             permitir_evidencias_sin_vinculo: "Permitir evidencias sin vinculo especifico",
           }).map(([field, label]) => <SettingSwitch key={field} label={label} checked={config.importaciones[field]} onChange={(v) => update("importaciones", field, v)} />)}
         </SettingCard>
       )}
 
       {activeTab === "pasaporte" && (
-        <SettingCard title="Criterios de Pasaporte Verde" description="Estos criterios definen cuando un lote puede calificarse como Pasaporte Verde o Pasaporte Verde Plus. Ajustarlos cambia el nivel de exigencia documental y ambiental.">
-          <SettingSwitch label="Activar Pasaporte Verde" checked={config.pasaporte.pasaporte_activo} onChange={(v) => update("pasaporte", "pasaporte_activo", v)} />
+        <SettingCard title="Criterios de ficha ambiental" description="Estos criterios definen cuándo una obra puede generar una ficha ambiental verificable. Ajustarlos cambia el nivel de exigencia documental y ambiental.">
+          <SettingSwitch label="Activar ficha ambiental" checked={config.pasaporte.pasaporte_activo} onChange={(v) => update("pasaporte", "pasaporte_activo", v)} />
           <SettingSwitch label="Requerir balance neto favorable" checked={config.pasaporte.requiere_balance_favorable} onChange={(v) => update("pasaporte", "requiere_balance_favorable", v)} />
           <SettingSwitch label="Requerir evidencia documental" checked={config.pasaporte.requiere_evidencia} onChange={(v) => update("pasaporte", "requiere_evidencia", v)} />
           <SettingSwitch label="Requerir trazabilidad completa" checked={config.pasaporte.requiere_trazabilidad} onChange={(v) => update("pasaporte", "requiere_trazabilidad", v)} />
-          <Field label="Score minimo Pasaporte Verde"><TextInput type="number" value={config.pasaporte.score_verde} onChange={(v) => update("pasaporte", "score_verde", v)} /></Field>
-          <Field label="Score minimo Pasaporte Verde Plus"><TextInput type="number" value={config.pasaporte.score_plus} onChange={(v) => update("pasaporte", "score_plus", v)} /></Field>
+          <Field label="Score mínimo ficha base"><TextInput type="number" value={config.pasaporte.score_verde} onChange={(v) => update("pasaporte", "score_verde", v)} /></Field>
+          <Field label="Score mínimo ficha avanzada"><TextInput type="number" value={config.pasaporte.score_plus} onChange={(v) => update("pasaporte", "score_plus", v)} /></Field>
           <Field label="Score minimo confianza dato"><TextInput type="number" value={config.pasaporte.score_confianza_minimo} onChange={(v) => update("pasaporte", "score_confianza_minimo", v)} /></Field>
         </SettingCard>
       )}
 
       {activeTab === "evidencias" && (
-        <SettingCard title="Reglas documentales" description="Las evidencias permiten respaldar cálculos, lotes, actividades y pasaportes. Una mayor cobertura documental mejora la confianza del dato. Subir una evidencia no la valida automáticamente.">
-          <SettingSwitch label="Requerir evidencia para emitir pasaporte" checked={config.evidencias.requerida_pasaporte} onChange={(v) => update("evidencias", "requerida_pasaporte", v)} />
-          <SettingSwitch label="Requerir evidencia para lotes críticos" checked={config.evidencias.requerida_lotes_criticos} onChange={(v) => update("evidencias", "requerida_lotes_criticos", v)} />
-          <Field label="Umbral lote crítico kg CO2e"><TextInput type="number" value={config.evidencias.umbral_lote_critico} onChange={(v) => update("evidencias", "umbral_lote_critico", v)} /></Field>
+        <SettingCard title="Reglas documentales" description="Las evidencias permiten respaldar cálculos, obras, registros y fichas. Una mayor cobertura documental mejora la confianza del dato. Subir una evidencia no la valida automáticamente.">
+          <SettingSwitch label="Requerir evidencia para emitir ficha" checked={config.evidencias.requerida_pasaporte} onChange={(v) => update("evidencias", "requerida_pasaporte", v)} />
+          <SettingSwitch label="Requerir evidencia para obras críticas" checked={config.evidencias.requerida_lotes_criticos} onChange={(v) => update("evidencias", "requerida_lotes_criticos", v)} />
+          <Field label="Umbral obra crítica kg CO2e"><TextInput type="number" value={config.evidencias.umbral_lote_critico} onChange={(v) => update("evidencias", "umbral_lote_critico", v)} /></Field>
           <Field label="Tamaño maximo archivo MB"><TextInput type="number" value={config.evidencias.max_file_size_mb} onChange={(v) => update("evidencias", "max_file_size_mb", v)} /></Field>
           <SettingSwitch label="Permitir evidencia corporativa" checked={config.evidencias.permitir_empresa} onChange={(v) => update("evidencias", "permitir_empresa", v)} />
-          <SettingSwitch label="Permitir evidencia a nivel unidad" checked={config.evidencias.permitir_unidad} onChange={(v) => update("evidencias", "permitir_unidad", v)} />
-          <SettingSwitch label="Permitir evidencia a nivel lote" checked={config.evidencias.permitir_lote} onChange={(v) => update("evidencias", "permitir_lote", v)} />
-          <SettingSwitch label="Permitir evidencia a nivel emision" checked={config.evidencias.permitir_emision} onChange={(v) => update("evidencias", "permitir_emision", v)} />
+          <SettingSwitch label="Permitir evidencia a nivel etapa" checked={config.evidencias.permitir_unidad} onChange={(v) => update("evidencias", "permitir_unidad", v)} />
+          <SettingSwitch label="Permitir evidencia a nivel obra" checked={config.evidencias.permitir_lote} onChange={(v) => update("evidencias", "permitir_lote", v)} />
+          <SettingSwitch label="Permitir evidencia a nivel emisión" checked={config.evidencias.permitir_emision} onChange={(v) => update("evidencias", "permitir_emision", v)} />
           <div className="md:col-span-2">
             <p className="mb-3 text-sm font-semibold text-[#344054]">Formatos permitidos</p>
             <div className="flex flex-wrap gap-2">
@@ -498,12 +498,12 @@ function ConfiguracionPage() {
       )}
 
       {activeTab === "reportes" && (
-        <SettingCard title="Preferencias de reportes" description="Estas preferencias definen como se presentan los reportes ejecutivos y analiticos de la empresa.">
+        <SettingCard title="Preferencias de reportes" description="Estas preferencias definen cómo se presentan los reportes ejecutivos y analíticos de la constructora.">
           <Field label="Agrupacion temporal por defecto"><SelectInput value={config.reportes.agrupacion_default} onChange={(v) => update("reportes", "agrupacion_default", v)} options={[{ value: "dia", label: "Dia" }, { value: "semana", label: "Semana" }, { value: "mes", label: "Mes" }, { value: "trimestre", label: "Trimestre" }, { value: "anio", label: "Año" }]} /></Field>
           <Field label="Período por defecto"><SelectInput value={config.reportes.periodo_default} onChange={(v) => update("reportes", "periodo_default", v)} options={[{ value: "ultimos_30_dias", label: "Últimos 30 días" }, { value: "ultimos_3_meses", label: "Últimos 3 meses" }, { value: "ultimos_6_meses", label: "Últimos 6 meses" }, { value: "ultimos_12_meses", label: "Últimos 12 meses" }, { value: "anio_actual", label: "Año actual" }]} /></Field>
           <Field label="Unidad visual de emisiones"><SelectInput value={config.reportes.unidad_visual_emisiones} onChange={(v) => update("reportes", "unidad_visual_emisiones", v)} options={["kg CO2e", "tCO2e"]} /></Field>
           <SettingSwitch label="Mostrar gráficos por categoría" checked={config.reportes.mostrar_categoria} onChange={(v) => update("reportes", "mostrar_categoria", v)} />
-          <SettingSwitch label="Mostrar gráficos por unidad" checked={config.reportes.mostrar_unidad} onChange={(v) => update("reportes", "mostrar_unidad", v)} />
+          <SettingSwitch label="Mostrar gráficos por etapa" checked={config.reportes.mostrar_unidad} onChange={(v) => update("reportes", "mostrar_unidad", v)} />
           <SettingSwitch label="Mostrar tabla detallada por defecto" checked={config.reportes.mostrar_tabla} onChange={(v) => update("reportes", "mostrar_tabla", v)} />
           <SettingSwitch label="Incluir lectura ejecutiva automática" checked={config.reportes.lectura_ejecutiva} onChange={(v) => update("reportes", "lectura_ejecutiva", v)} />
           <SettingSwitch label="Incluir equivalencias de orden de magnitud" checked={config.reportes.equivalencias} onChange={(v) => update("reportes", "equivalencias", v)} />
@@ -514,7 +514,7 @@ function ConfiguracionPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-[var(--text-main)]">{hasChanges ? "Cambios pendientes" : "Configuración lista"}</p>
-            <p className="text-xs text-[var(--text-muted)]">{successMessage || "Los cambios se guardan por empresa activa y quedan listos para usarse en cálculos, importaciones y reportes."}</p>
+            <p className="text-xs text-[var(--text-muted)]">{successMessage || "Los cambios se guardan por constructora activa y quedan listos para usarse en cálculos, importaciones y reportes."}</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <button type="button" onClick={restoreDefaults} className="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-5 py-3 text-sm font-bold text-[#475467]">

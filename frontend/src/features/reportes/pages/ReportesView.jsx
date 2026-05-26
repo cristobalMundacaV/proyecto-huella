@@ -160,7 +160,7 @@ function buildHeroInsights({ trend, kpis }) {
   return [
     `Mejora observada: ${kpis.tendencia || "Sin datos"}`,
     `Foco a mantener bajo control: ${actividad}`,
-    `Unidad prioritaria: ${unidad}. ${recommendation}`,
+    `Etapa prioritaria: ${unidad}. ${recommendation}`,
   ];
 }
 
@@ -186,7 +186,7 @@ function ReportesHeroEjecutivo({ kpis, activeEmpresa }) {
   const trend = normalizeTrend(kpis.tendencia);
   const title = buildHeroTitle({ trend, variacion: kpis.variacion_periodo });
   const summary = buildHeroParagraph({
-    companyName: activeEmpresa?.nombre || "La empresa",
+    companyName: activeEmpresa?.nombre || "La constructora",
     kpis,
     trend,
   });
@@ -216,8 +216,8 @@ function ReportesHeroEjecutivo({ kpis, activeEmpresa }) {
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
           <HeroBadge label="Comportamiento del período" value={kpis.tendencia || "Sin datos"} tone={trend === "al alza" ? "danger" : trend === "a la baja" ? "success" : trend === "estable" ? "warning" : "default"} />
-          <HeroBadge label="Actividad prioritaria" value={kpis.actividad_critica_periodo || "Sin datos"} tone="default" />
-          <HeroBadge label="Unidad prioritaria" value={kpis.unidad_critica_periodo || "Sin datos"} tone="default" />
+          <HeroBadge label="Fuente prioritaria" value={kpis.actividad_critica_periodo || "Sin datos"} tone="default" />
+          <HeroBadge label="Etapa prioritaria" value={kpis.unidad_critica_periodo || "Sin datos"} tone="default" />
           <HeroBadge label="Período con mayor emisión" value={kpis.periodo_mayor_emision || "Sin datos"} tone="warning" />
         </div>
       </div>
@@ -424,7 +424,7 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
       <main className="mx-auto max-w-7xl px-6 py-10 text-[var(--text-main)]">
         <h1 className="text-4xl font-black">Reportes</h1>
         <div className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center text-[var(--text-muted)]">
-          Selecciona o crea una empresa para revisar reportes temporales de emisiones.
+          Selecciona o crea una constructora para revisar reportes temporales de emisiones.
         </div>
       </main>
     );
@@ -578,11 +578,11 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
               tone="warning"
             />
             <KpiCard
-              label="Actividad prioritaria"
+              label="Fuente prioritaria"
               value={kpis.actividad_critica_periodo || "Sin datos"}
             />
             <KpiCard
-              label="Unidad prioritaria"
+              label="Etapa prioritaria"
               value={kpis.unidad_critica_periodo || "Sin datos"}
             />
             <KpiCard
@@ -734,12 +734,12 @@ export default function ReportesView({ activeEmpresaId, activeEmpresa }) {
                 <thead>
                   <tr className="border-b border-[var(--border)] text-xs uppercase tracking-wide text-[var(--text-muted)]">
                     <th className="px-4 py-3 text-left">Fecha</th>
-                    <th className="px-4 py-3 text-left">Unidad</th>
-                    <th className="px-4 py-3 text-left">Lote</th>
+                    <th className="px-4 py-3 text-left">Etapa / frente</th>
+                    <th className="px-4 py-3 text-left">Obra</th>
                     <th className="px-4 py-3 text-left">Categoría</th>
-                    <th className="px-4 py-3 text-left">Actividad</th>
+                    <th className="px-4 py-3 text-left">Registro</th>
                     <th className="px-4 py-3 text-right">Cantidad</th>
-                    <th className="px-4 py-3 text-left">Unidad</th>
+                    <th className="px-4 py-3 text-left">Unidad de medida</th>
                     <th className="px-4 py-3 text-right">Emisiones</th>
                   </tr>
                 </thead>

@@ -153,7 +153,7 @@ function RealtimeIotMonitoring({ activeEmpresaId }) {
             />
             <KpiCard
               icon={<Gauge />}
-              title="Unidad con mas emisiones hoy"
+              title="Etapa con más emisiones hoy"
               value={
                 <span className="block text-xl leading-tight">
                   {kpis?.unidad_mayor_emision_hoy || "Sin datos"}
@@ -166,7 +166,7 @@ function RealtimeIotMonitoring({ activeEmpresaId }) {
             />
             <KpiCard
               icon={<Activity />}
-              title="Actividad con mas emisiones hoy"
+              title="Fuente con más emisiones hoy"
               value={
                 <span className="block text-xl leading-tight">
                   {formatTipo(kpis?.actividad_mayor_emision_hoy) || "Sin datos"}
@@ -194,7 +194,7 @@ function RealtimeIotMonitoring({ activeEmpresaId }) {
                 <thead className="bg-[var(--bg-surface)] text-xs uppercase tracking-wide text-[var(--text-muted)]">
                   <tr>
                     <th className="px-4 py-3 text-left">Sensor</th>
-                    <th className="px-4 py-3 text-left">Unidad</th>
+                    <th className="px-4 py-3 text-left">Etapa / frente</th>
                     <th className="px-4 py-3 text-left">Tipo</th>
                     <th className="px-4 py-3 text-right">Valor</th>
                     <th className="px-4 py-3 text-right">CO2e</th>

@@ -69,7 +69,7 @@ function LoginPage() {
               <p className="mt-3 text-sm leading-6 text-slate-300">
                 {isBootstrap
                   ? "Aun no hay usuarios en el sistema. Crea una cuenta inicial para administrar empresas y usuarios."
-                  : "Accede al panel para gestionar emisiones, lotes, reportes y trazabilidad ambiental."}
+                  : "Accede al panel para gestionar emisiones, obras, reportes y trazabilidad ambiental."}
               </p>
             </div>
 

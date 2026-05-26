@@ -72,7 +72,7 @@ function UsuariosPage() {
   if (!activeEmpresa) {
     return (
       <EmptyState
-        title="Selecciona una empresa"
+        title="Selecciona una constructora"
         description="Los usuarios se crean dentro de la empresa activa."
       />
     );
@@ -222,7 +222,7 @@ function UsuariosPage() {
 
       <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
         <div className="mb-5">
-          <h2 className="text-xl font-bold text-slate-100">Usuarios de la empresa</h2>
+          <h2 className="text-xl font-bold text-slate-100">Usuarios de la constructora</h2>
           <p className="mt-1 text-sm text-slate-400">
             {loading ? "Cargando usuarios..." : `${usuarios.length} usuarios encontrados.`}
           </p>

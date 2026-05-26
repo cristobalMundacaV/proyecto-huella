@@ -118,6 +118,9 @@ if DATABASE_ENGINE == "django.db.backends.postgresql":
             "PASSWORD": os.getenv("DATABASE_PASSWORD", "carbono_zero"),
             "HOST": os.getenv("DATABASE_HOST", "db"),
             "PORT": os.getenv("DATABASE_PORT", "5432"),
+            "OPTIONS": {
+                "connect_timeout": int(os.getenv("DATABASE_CONNECT_TIMEOUT", "5")),
+            },
         }
     }
 else:

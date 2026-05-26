@@ -26,7 +26,7 @@ export function optimizeScenario(rows) {
       simulatedTotal: currentTotal,
       reductionPct: 0,
       rows,
-      message: "No hay actividades optimizables detectadas.",
+      message: "No hay registros optimizables detectados.",
     };
   }
 

@@ -107,7 +107,7 @@ function EmpresasView({
         if (!isCancelled) {
           setError(
             requestError.response?.data?.error ||
-              "No se pudieron cargar las empresas."
+              "No se pudieron cargar las constructoras."
           );
         }
       } finally {
@@ -242,7 +242,7 @@ function EmpresasView({
         setFieldErrors(responseData);
       }
 
-      setError("Revisa los datos de la empresa antes de guardarla.");
+      setError("Revisa los datos de la constructora antes de guardarla.");
     } finally {
       setSaving(false);
     }
@@ -262,16 +262,16 @@ function EmpresasView({
             <Building2 className="text-emerald-400" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold sm:text-4xl">Empresas</h1>
+            <h1 className="text-3xl font-bold sm:text-4xl">Constructoras</h1>
             <p className="max-w-3xl text-slate-400">
-              Gestiona las empresas, unidades, lotes y actividades desde un mismo
+              Gestiona constructoras, etapas, obras y registros desde un mismo
               lugar, con trazabilidad lista para análisis, reportes y decisiones ambientales.
             </p>
           </div>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] px-5 py-3 text-sm font-bold text-[var(--primary-dark)]">
-            {formatNumber(empresas.length, 0)} empresas
+            {formatNumber(empresas.length, 0)} constructoras
           </div>
           <button
             type="button"
@@ -283,7 +283,7 @@ function EmpresasView({
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] px-5 py-3 text-sm font-bold text-[var(--primary-dark)] transition hover:border-[var(--primary)]/40 hover:bg-[#D9F0E6]"
           >
             <Plus size={18} />
-            Nueva empresa
+            Nueva constructora
           </button>
         </div>
       </header>
@@ -292,28 +292,28 @@ function EmpresasView({
       <section className="rounded-3xl border border-[var(--border)] bg-[var(--info-bg)] p-4 shadow-[var(--shadow-card)] sm:p-6">
         <p className="text-sm font-bold text-[#075985]">Resumen estrategico</p>
         <h2 className="mt-2 text-2xl font-bold text-[var(--text-main)]">
-          Lectura operativa de la empresa
+          Lectura operativa de la constructora
         </h2>
         <p className="mt-3 max-w-5xl whitespace-pre-line text-sm font-medium leading-7 text-[#334155]">
-          {loadingUnidades ? "Cargando unidades operativas..." : buildStrategicSummary(metrics)}
+          {loadingUnidades ? "Cargando etapas / frentes..." : buildStrategicSummary(metrics)}
         </p>
       </section>
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <CompanyKpi
           icon={<Building2 />}
-          label="Empresa seleccionada"
+          label="Constructora seleccionada"
           value={metrics.activeCompany?.nombre || "Sin datos"}
         />
         <CompanyKpi
           icon={<Factory />}
-          label="Unidades activas"
+          label="Etapas activas"
           value={metrics.totalUnits}
         />
-        <CompanyKpi icon={<Boxes />} label="Lotes registrados" value={metrics.totalLotes} />
+        <CompanyKpi icon={<Boxes />} label="Obras registradas" value={metrics.totalLotes} />
         <CompanyKpi
           icon={<Activity />}
-          label="Actividades registradas"
+          label="Registros"
           value={metrics.totalActivities}
         />
         <CompanyKpi
@@ -324,7 +324,7 @@ function EmpresasView({
         />
         <CompanyKpi
           icon={<Leaf />}
-          label="Carbono almacenado"
+          label="Balance ambiental"
           tone="emerald"
           value={`${formatNumber(metrics.totalStoredCarbon, 1)} kg`}
         />
@@ -383,17 +383,17 @@ function EmpresasView({
           dataKey="emisiones"
           description="Permite identificar rapidamente donde se concentra el mayor problema ambiental."
           rows={metrics.unitComparisonRows}
-          title="Emisiones por unidad operativa"
+          title="Emisiones por etapa / frente"
           valueLabel="Emisiones"
         />
 
         <UnitMetricBarChart
           color="#34D399"
           dataKey="carbono_almacenado"
-          description="Muestra que unidades aportan mas al balance ambiental positivo."
+          description="Muestra qué etapas aportan más al balance ambiental positivo."
           rows={metrics.unitComparisonRows}
-          title="Carbono almacenado por unidad operativa"
-          valueLabel="Carbono almacenado"
+          title="Balance ambiental por etapa / frente"
+          valueLabel="Balance ambiental"
         />
       </section>
 
@@ -535,11 +535,11 @@ function buildCompanyMetrics(empresas, unidades = [], activeEmpresaId = "", acti
 
 function buildStrategicSummary(metrics) {
   if (!metrics.activeCompany) {
-    return "Aun no hay una empresa activa. Crea o selecciona una empresa para estructurar unidades, lotes, actividades y trazabilidad dentro del sistema Carbono Zero.";
+    return "Aun no hay una constructora activa. Crea o selecciona una constructora para estructurar etapas, obras, registros y trazabilidad dentro del sistema Carbono Zero.";
   }
 
   if (!metrics.totalUnits) {
-    return `${metrics.activeCompany.nombre} aun no tiene unidades operativas registradas. Carga unidades para analizar emisiones, trazabilidad y cobertura territorial por operacion.`;
+    return `${metrics.activeCompany.nombre} aun no tiene etapas o frentes registrados. Carga etapas para analizar emisiones, trazabilidad y cobertura territorial por obra.`;
   }
 
   const concentration =
@@ -559,12 +559,12 @@ function buildStrategicSummary(metrics) {
   return `${metrics.activeCompany.nombre} registra ${formatNumber(
     metrics.totalUnits,
     0
-  )} unidades operativas activas. ${metrics.topOperational?.nombre || "Sin datos"} concentra la mayor carga operativa, mientras que ${metrics.topEmitter?.nombre || "Sin datos"} representa la mayor huella de carbono, con un ${formatNumber(
+  )} etapas activas. ${metrics.topOperational?.nombre || "Sin datos"} concentra la mayor carga operativa, mientras que ${metrics.topEmitter?.nombre || "Sin datos"} representa la mayor huella de carbono, con un ${formatNumber(
     metrics.topEmissionShare,
     0
-  )}% de las emisiones totales de la empresa.
+  )}% de las emisiones totales de la constructora.
 
-La estructura actual muestra una ${concentration} del peso operativo entre sus unidades. ${traceabilityText}
+La estructura actual muestra una ${concentration} del peso operativo entre sus etapas. ${traceabilityText}
 
 ${balanceText}`;
 }
@@ -641,8 +641,8 @@ function UnitEmissionsCarbonChart({ rows }) {
     <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <ChartHeading
-          description="Contraste entre la huella generada y el carbono almacenado por cada unidad."
-          title="Emisiones vs carbono almacenado"
+          description="Contraste entre la huella generada y el balance ambiental por cada etapa."
+          title="Emisiones vs balance ambiental"
         />
         <div className="flex flex-wrap gap-3 text-xs font-semibold">
           <span className="inline-flex items-center gap-2 text-[#075985]">
@@ -651,7 +651,7 @@ function UnitEmissionsCarbonChart({ rows }) {
           </span>
           <span className="inline-flex items-center gap-2 text-[var(--primary-dark)]">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
-            Carbono almacenado
+            Balance ambiental
           </span>
         </div>
       </div>
@@ -685,7 +685,7 @@ function UnitEmissionsCarbonChart({ rows }) {
                 const label =
                   name === "emisiones_comparacion"
                     ? "Emisiones"
-                    : "Carbono almacenado";
+                    : "Balance ambiental";
 
                 return [
                   `${formatNumber(Math.abs(Number(value || 0)), 1)} kg CO2e`,
@@ -706,7 +706,7 @@ function UnitEmissionsCarbonChart({ rows }) {
               barSize={18}
               dataKey="carbono_almacenado"
               fill="#34D399"
-              name="Carbono almacenado"
+              name="Balance ambiental"
               radius={[0, 10, 10, 0]}
             />
           </BarChart>
@@ -761,7 +761,7 @@ function MonthlyEnvironmentalTrend({ rows }) {
             <Line
               dataKey="carbono_almacenado"
               dot={{ r: 3 }}
-              name="Carbono almacenado"
+              name="Balance ambiental"
               stroke="#34D399"
               strokeWidth={3}
               type="monotone"
@@ -797,8 +797,8 @@ function OrderedUnitComparisonChart({ rows }) {
 
   return (
     <ChartPanel
-      description="Este grafico compara las emisiones y el carbono almacenado por unidad operativa. Las unidades se ordenan por mayor emision para identificar donde actuar primero y que unidades aportan mas al balance ambiental."
-      title="Emisiones y carbono almacenado por unidad"
+      description="Este grafico compara las emisiones y el balance ambiental por etapa. Las etapas se ordenan por mayor emision para identificar donde actuar primero."
+      title="Emisiones y balance ambiental por etapa"
     >
       <div className="w-full" style={{ height: chartHeight }}>
         <ResponsiveContainer width="100%" height="100%">
@@ -828,8 +828,8 @@ function OrderedUnitComparisonChart({ rows }) {
               formatter={(value, name) => {
                 const label =
                   name === "carbono_almacenado"
-                    ? "Carbono almacenado por unidad"
-                    : "Emisiones por unidad";
+                    ? "Balance ambiental por etapa"
+                    : "Emisiones por etapa";
 
                 return [
                   `${formatNumber(Number(value || 0), 1)} kg CO2e`,
@@ -842,14 +842,14 @@ function OrderedUnitComparisonChart({ rows }) {
               barSize={16}
               dataKey="emisiones"
               fill="#22D3EE"
-              name="Emisiones por unidad"
+              name="Emisiones por etapa"
               radius={[0, 8, 8, 0]}
             />
             <Bar
               barSize={16}
               dataKey="carbono_almacenado"
               fill="#34D399"
-              name="Carbono almacenado por unidad"
+              name="Balance ambiental por etapa"
               radius={[0, 8, 8, 0]}
             />
           </BarChart>
@@ -867,7 +867,7 @@ function EnvironmentalBalanceWaterfall({ emissions, storedCarbon }) {
   const rows = [
     {
       color: "bg-[var(--primary)]",
-      label: "Carbono almacenado",
+      label: "Balance ambiental",
       tone: "text-[var(--primary-dark)]",
       value: totalStoredCarbon,
     },
@@ -887,7 +887,7 @@ function EnvironmentalBalanceWaterfall({ emissions, storedCarbon }) {
 
   return (
     <ChartPanel
-      description="Resume el resultado ambiental entre carbono almacenado y emisiones acumuladas."
+      description="Resume el resultado ambiental entre balance calculado y emisiones acumuladas."
       title="Balance ambiental"
     >
       <div className="grid gap-4">
@@ -1012,7 +1012,7 @@ function formatMonth(monthKey) {
 
 const trendLabels = {
   balance_neto: "Balance neto",
-  carbono_almacenado: "Carbono almacenado",
+  carbono_almacenado: "Balance ambiental",
   emisiones: "Emisiones",
 };
 

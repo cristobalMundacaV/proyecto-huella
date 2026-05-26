@@ -48,7 +48,7 @@ function TransporteTab({
           </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Vehiculo" error={transportFieldErrors.vehiculo?.[0]}>
+          <Field label="Vehículo" error={transportFieldErrors.vehiculo?.[0]}>
             <input
               name="vehiculo"
               value={transportForm.vehiculo}
@@ -77,7 +77,7 @@ function TransporteTab({
             />
           </Field>
           <Field
-            label="Consumo estimado l/km"
+            label="Consumo estimado"
             error={transportFieldErrors.consumo_estimado_litro_km?.[0]}
           >
             <input
@@ -145,7 +145,9 @@ function TransporteTab({
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-semibold">Rutas y movimiento</h2>
-            <p className="mt-1 text-sm text-slate-400">{selectedLote.id_lote}</p>
+            <p className="mt-1 text-sm text-slate-400">
+              Registra viajes asociados a materiales, maquinaria o residuos para estimar emisiones logísticas de la obra.
+            </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="rounded-2xl border border-sky-400/20 bg-sky-400/10 px-4 py-3 text-sm font-bold text-sky-200">
@@ -166,8 +168,8 @@ function TransporteTab({
           <table className="min-w-[920px] w-full text-sm">
             <thead className="border-b border-slate-800 text-slate-400">
               <tr>
-                <th className="py-3 text-left">Destino</th>
-                <th className="py-3 text-left">Vehiculo</th>
+                <th className="py-3 text-left">Destino obra</th>
+                <th className="py-3 text-left">Vehículo</th>
                 <th className="py-3 text-right">Litros</th>
                 <th className="py-3 text-right">Factor diesel</th>
                 <th className="py-3 text-right">Emisiones</th>
@@ -177,7 +179,7 @@ function TransporteTab({
               {(selectedLote.transportes?.length || 0) === 0 && (
                 <tr>
                   <td colSpan="5" className="py-8 text-center text-slate-400">
-                    No se han registrado datos.
+                    No hay viajes registrados para esta obra.
                   </td>
                 </tr>
               )}

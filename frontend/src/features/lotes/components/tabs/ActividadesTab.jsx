@@ -8,11 +8,18 @@ import {
   normalizeActivityText,
 } from "@/shared/utils/activitySemantics";
 import { formatNumber } from "@/shared/utils/formatters";
+import {
+  categoryMatchesConstructionFilter,
+  constructionCategories,
+  constructionFactorSuggestions,
+  getCategoryFieldCopy,
+  getConstructionCategoryLabel,
+} from "@/features/lotes/utils/constructionEmissionCategories";
 import { Field } from "../common";
 import RouteMapPicker from "../RouteMapPicker";
 
 const fuelUseOptions = [
-  { value: "cosecha", label: "Cosecha" },
+  { value: "cosecha", label: "Preparación / movimiento" },
   { value: "despacho", label: "Despacho" },
   { value: "transporte", label: "Transporte" },
   { value: "maquinaria", label: "Maquinaria" },
@@ -51,8 +58,11 @@ function ActividadesTab({
   selectedLote,
 }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [factorCategory, setFactorCategory] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [formCategory, setFormCategory] = useState("Materiales");
   const [factorSearch, setFactorSearch] = useState("");
+  const [evidenceReference, setEvidenceReference] = useState("");
+  const [observations, setObservations] = useState("");
   const [routeDestination, setRouteDestination] = useState({
     address: "",
     coords: null,
@@ -63,18 +73,10 @@ function ActividadesTab({
   });
   const [routeResult, setRouteResult] = useState(null);
 
-  const factorCategories = useMemo(
-    () =>
-      Array.from(
-        new Set(factoresEmision.map((factor) => factor.categoria).filter(Boolean))
-      ).sort(),
-    [factoresEmision]
-  );
-
   const visibleFactores = useMemo(() => {
-    const query = factorSearch.trim().toLowerCase();
+    const query = normalizeActivityText(factorSearch);
     return factoresEmision.filter((factor) => {
-      const matchesCategory = !factorCategory || factor.categoria === factorCategory;
+      const matchesCategory = categoryMatchesConstructionFilter(factor, formCategory);
       const searchable = [
         factor.actividad,
         factor.actividad_key,
@@ -83,11 +85,13 @@ function ActividadesTab({
       ]
         .filter(Boolean)
         .join(" ")
-        .toLowerCase();
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
 
       return matchesCategory && (!query || searchable.includes(query));
     });
-  }, [factorCategory, factorSearch, factoresEmision]);
+  }, [factorSearch, factoresEmision, formCategory]);
 
   const factorCategoriesByActivity = useMemo(() => {
     const categoriesByActivity = new Map();
@@ -118,7 +122,15 @@ function ActividadesTab({
     [activityForm.factor_emision_id, factoresEmision]
   );
 
-  const selectedFactorCategory = selectedFactor?.categoria || factorCategory;
+  const selectedFactorCategory =
+    selectedFactor?.categoria || formCategory || "Otros";
+  const visibleCategory = getConstructionCategoryLabel(
+    selectedFactorCategory,
+    activityForm.actividad || selectedFactor?.actividad
+  );
+  const fieldCopy = getCategoryFieldCopy(visibleCategory);
+  const estimatedEmissions =
+    Number(activityForm.cantidad || 0) * Number(activityForm.factor_emision || 0);
   const shouldShowFuelUseSelect = isFuelActivity({
     actividad: activityForm.actividad || selectedFactor?.actividad,
     actividadKey: selectedFactor?.actividad_key,
@@ -126,6 +138,7 @@ function ActividadesTab({
     unidad: activityForm.unidad || selectedFactor?.unidad,
   });
   const shouldShowRouteMap =
+    visibleCategory === "Transporte" ||
     isTransportActivity({
       actividad: activityForm.actividad || selectedFactor?.actividad,
       actividad_key: selectedFactor?.actividad_key,
@@ -221,6 +234,8 @@ function ActividadesTab({
     setRouteOrigin({ address: "", coords: null });
     setRouteDestination({ address: "", coords: null });
     setRouteResult(null);
+    setEvidenceReference("");
+    setObservations("");
   };
 
   const handleRouteDistanceCalculated = (km, result) => {
@@ -298,11 +313,25 @@ function ActividadesTab({
     return activityCategory || activityKeyCategory || "Otros";
   };
 
+  const filteredActivities = useMemo(() => {
+    if (!selectedCategory) {
+      return selectedLote?.actividades || [];
+    }
+
+    return (selectedLote?.actividades || []).filter((actividad) => {
+      const category = getConstructionCategoryLabel(
+        resolveActivityCategory(actividad),
+        actividad.actividad
+      );
+      return category === selectedCategory;
+    });
+  }, [factorCategoriesByActivity, selectedCategory, selectedLote?.actividades]);
+
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Actividades del lote</h2>
+          <h2 className="text-xl font-semibold">Registros de emisión de la obra</h2>
           <p className="mt-1 text-sm text-slate-400">{selectedLote?.id_lote}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -315,40 +344,84 @@ function ActividadesTab({
             className="flex items-center justify-center gap-2 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-bold text-cyan-200 transition hover:bg-cyan-400/20"
           >
             <Plus size={18} />
-            Agregar actividad
+            Nuevo registro de emisión
           </button>
         </div>
+      </div>
+
+      <div className="mb-5 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setSelectedCategory("")}
+          className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+            selectedCategory === ""
+              ? "border-cyan-300 bg-cyan-300/20 text-cyan-100"
+              : "border-slate-700 bg-slate-950 text-slate-300 hover:border-cyan-400/40"
+          }`}
+        >
+          Todas
+        </button>
+        {constructionCategories.map((category) => (
+          <button
+            key={category}
+            type="button"
+            onClick={() => setSelectedCategory(category)}
+            className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+              selectedCategory === category
+                ? "border-cyan-300 bg-cyan-300/20 text-cyan-100"
+                : "border-slate-700 bg-slate-950 text-slate-300 hover:border-cyan-400/40"
+            }`}
+          >
+            {category}
+          </button>
+        ))}
       </div>
 
       <div className="overflow-x-auto">
         <table className="min-w-[980px] w-full table-fixed text-sm">
           <thead className="border-b border-slate-800 text-slate-400">
             <tr>
-              <th className="w-[40%] py-3 pr-6 text-left">Actividad</th>
-              <th className="w-[14%] px-4 py-3 text-left">Categoria</th>
-              <th className="w-[14%] px-4 py-3 text-left">Uso combustible</th>
+              <th className="w-[40%] py-3 pr-6 text-left">Fuente de emisión</th>
+              <th className="w-[14%] px-4 py-3 text-left">Categoría</th>
+              <th className="w-[14%] px-4 py-3 text-left">Tipo de consumo</th>
               <th className="w-[14%] py-3 px-4 text-right">Cantidad</th>
               <th className="w-[14%] py-3 px-4 text-left">Unidad</th>
-              <th className="w-[14%] py-3 px-4 text-right">Factor</th>
+              <th className="w-[14%] py-3 px-4 text-right">Factor de emisión</th>
               <th className="w-[18%] py-3 pl-4 pr-2 text-right">Emisiones</th>
             </tr>
           </thead>
           <tbody>
-            {(selectedLote?.actividades?.length || 0) === 0 && (
+            {filteredActivities.length === 0 && (
               <tr>
                 <td colSpan="7" className="py-8 text-center text-slate-400">
-                  No se han registrado datos.
+                  <p>Aún no hay registros de emisión en esta obra.</p>
+                  <p className="mt-1 text-sm">
+                    Agrega emisiones por materiales, transporte, maquinaria, energía, agua o residuos para comenzar a medir la huella del proyecto.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(true)}
+                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-bold text-cyan-200 transition hover:bg-cyan-400/20"
+                  >
+                    <Plus size={18} />
+                    Nuevo registro de emisión
+                  </button>
                 </td>
               </tr>
             )}
 
-            {selectedLote?.actividades?.map((actividad) => (
+            {filteredActivities.map((actividad) => (
               <tr key={actividad.id} className="border-b border-slate-800/60">
                 <td className="py-3 pr-6 font-semibold text-slate-100 whitespace-nowrap overflow-hidden text-ellipsis">
                   {actividad.actividad}
                 </td>
                 <td className="px-4 py-4 text-left whitespace-nowrap">
-                  <FactorCategoryBadge category={resolveActivityCategory(actividad)} />
+                  <FactorCategoryBadge
+                    category={getConstructionCategoryLabel(
+                      resolveActivityCategory(actividad),
+                      actividad.actividad
+                    )}
+                  />
                 </td>
                 <td className="px-4 py-3 text-slate-300 whitespace-nowrap">
                   {actividad.tipo_consumo_combustible
@@ -388,7 +461,7 @@ function ActividadesTab({
                   <Calculator size={18} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold">Agregar actividad</h2>
+                  <h2 className="text-xl font-semibold">Agregar registro de emisión</h2>
                   <p className="text-sm text-slate-400">{selectedLote?.id_lote}</p>
                 </div>
               </div>
@@ -402,47 +475,85 @@ function ActividadesTab({
               </button>
             </div>
 
+            <div className="mb-5 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3">
+              <p className="text-sm font-bold text-cyan-100">{visibleCategory}</p>
+              <p className="mt-1 text-sm leading-6 text-cyan-200">{fieldCopy.note}</p>
+              {estimatedEmissions > 0 && (
+                <p className="mt-2 text-sm font-bold text-cyan-100">
+                  Emisión estimada: {formatNumber(estimatedEmissions, 3)} kg CO2e
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Categoria">
+              <Field label="Obra">
+                <input
+                  value={selectedLote?.id_lote || ""}
+                  readOnly
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-300 outline-none"
+                />
+              </Field>
+              <Field label="Etapa / frente">
+                <input
+                  value={selectedLote?.unidad_operativa_nombre || "Sin etapa asignada"}
+                  readOnly
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-300 outline-none"
+                />
+              </Field>
+              <Field label="Categoría de emisión">
                 <select
-                  value={factorCategory}
-                  onChange={(event) => setFactorCategory(event.target.value)}
-                  disabled={!selectedLote || factoresEmision.length === 0}
+                  value={formCategory}
+                  onChange={(event) => setFormCategory(event.target.value)}
+                  disabled={!selectedLote}
                   className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <option value="">Todas las categorias</option>
-                  {factorCategories.map((category) => (
+                  {constructionCategories.map((category) => (
                     <option key={category} value={category}>
                       {category}
                     </option>
                   ))}
                 </select>
               </Field>
-              <Field label="Buscar actividad">
+              <Field label="Fecha">
                 <input
-                  value={factorSearch}
-                  onChange={(event) => setFactorSearch(event.target.value)}
-                  disabled={!selectedLote || factoresEmision.length === 0}
-                  placeholder="diesel, carton, electricidad"
+                  type="date"
+                  name="fecha"
+                  value={activityForm.fecha || ""}
+                  onChange={onUpdateActivityForm}
+                  disabled={!selectedLote}
                   className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </Field>
+              <Field label="Buscar fuente">
+                <input
+                  value={factorSearch}
+                  onChange={(event) => setFactorSearch(event.target.value)}
+                  disabled={!selectedLote}
+                  placeholder={fieldCopy.sourcePlaceholder}
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60"
+                  list="construction-factor-suggestions"
+                />
+                <datalist id="construction-factor-suggestions">
+                  {constructionFactorSuggestions.map((suggestion) => (
+                    <option key={suggestion} value={suggestion} />
+                  ))}
+                </datalist>
+              </Field>
               <div className="sm:col-span-2">
                 <Field
-                  label="Actividad del catalogo"
+                  label="Catálogo de factores sugeridos"
                   error={activityFieldErrors.factor_emision?.[0]}
                 >
                   <select
                     name="factor_emision_id"
                     value={activityForm.factor_emision_id}
                     onChange={onSelectActivityFactor}
-                    required
                     disabled={!selectedLote || visibleFactores.length === 0}
                     className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <option value="">
                       {factoresEmision.length
-                        ? "Selecciona una actividad"
+                        ? "Selecciona una fuente"
                         : "No hay factores cargados"}
                     </option>
                     {visibleFactores.map((factor) => (
@@ -453,19 +564,20 @@ function ActividadesTab({
                   </select>
                 </Field>
               </div>
-              <Field label="Actividad" error={activityFieldErrors.actividad?.[0]}>
+              <Field label={fieldCopy.sourceLabel} error={activityFieldErrors.actividad?.[0]}>
                 <input
                   name="actividad"
                   value={activityForm.actividad}
+                  onChange={onUpdateActivityForm}
                   required
-                  readOnly
                   disabled={!selectedLote}
+                  placeholder={fieldCopy.sourcePlaceholder}
                   className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </Field>
               {shouldShowFuelUseSelect && (
                 <Field
-                  label="Uso del combustible"
+                  label="Tipo de consumo"
                   error={activityFieldErrors.tipo_consumo_combustible?.[0]}
                 >
                   <select
@@ -489,13 +601,21 @@ function ActividadesTab({
                 <input
                   name="unidad"
                   value={activityForm.unidad}
+                  onChange={onUpdateActivityForm}
                   required
-                  readOnly
                   disabled={!selectedLote}
+                  placeholder={fieldCopy.unitHelp.split(" · ")[0]}
                   className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60"
+                  list="construction-unit-suggestions"
                 />
+                <span className="block text-xs text-slate-400">{fieldCopy.unitHelp}</span>
+                <datalist id="construction-unit-suggestions">
+                  {fieldCopy.unitHelp.split(" · ").map((unit) => (
+                    <option key={unit} value={unit} />
+                  ))}
+                </datalist>
               </Field>
-              <Field label="Cantidad" error={activityFieldErrors.cantidad?.[0]}>
+              <Field label={fieldCopy.quantityLabel} error={activityFieldErrors.cantidad?.[0]}>
                 <input
                   type="number"
                   min="0"
@@ -504,13 +624,12 @@ function ActividadesTab({
                   value={activityForm.cantidad}
                   onChange={onUpdateActivityForm}
                   required
-                  readOnly={shouldShowRouteMap}
                   disabled={!selectedLote}
                   className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </Field>
               <Field
-                label="Factor de emision"
+                label="Factor de emisión"
                 error={activityFieldErrors.factor_emision?.[0]}
               >
                 <input
@@ -521,11 +640,51 @@ function ActividadesTab({
                   value={activityForm.factor_emision}
                   onChange={onUpdateActivityForm}
                   required
-                  readOnly
                   disabled={!selectedLote}
                   className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </Field>
+              <Field label="Emisiones estimadas">
+                <input
+                  value={
+                    estimatedEmissions > 0
+                      ? `${formatNumber(estimatedEmissions, 3)} kg CO2e`
+                      : "Completa cantidad y factor"
+                  }
+                  readOnly
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-300 outline-none"
+                />
+              </Field>
+              <Field label="Evidencia asociada">
+                <select
+                  value={evidenceReference}
+                  onChange={(event) => setEvidenceReference(event.target.value)}
+                  disabled={!selectedLote || (selectedLote.documentos?.length || 0) === 0}
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <option value="">
+                    {(selectedLote.documentos?.length || 0) > 0
+                      ? "Sin evidencia asociada"
+                      : "No hay evidencias cargadas"}
+                  </option>
+                  {selectedLote.documentos?.map((documento) => (
+                    <option key={documento.id} value={documento.id}>
+                      {documento.tipo_documento_label} · {documento.fecha}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div className="sm:col-span-2">
+                <Field label="Observaciones">
+                  <textarea
+                    value={observations}
+                    onChange={(event) => setObservations(event.target.value)}
+                    rows={3}
+                    placeholder="Proveedor, documento respaldo, destino, tratamiento u otro dato de obra."
+                    className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400/60"
+                  />
+                </Field>
+              </div>
             </div>
 
             {shouldShowRouteMap && (
@@ -565,7 +724,7 @@ function ActividadesTab({
               ) : (
                 <Plus size={18} />
               )}
-              Agregar actividad
+              Agregar registro
             </button>
           </form>
         </div>

@@ -7,6 +7,7 @@ import LotesHeader from "@/features/lotes/components/LotesHeader";
 import LotesKpis from "@/features/lotes/components/LotesKpis";
 import LotesTable from "@/features/lotes/components/LotesTable";
 import EmptyState from "@/shared/components/EmptyState";
+import ImportarDocumentoObraModal from "@/shared/components/ImportarDocumentoObraModal";
 import {
   calculateRouteDistance,
   createLote,
@@ -46,6 +47,7 @@ const emptyActivityForm = {
   tipo_consumo_combustible: "",
   cantidad: "",
   unidad: "",
+  fecha: "",
   factor_emision: "",
   origen_transporte: "",
   destino_transporte: "",
@@ -103,6 +105,7 @@ function LotesView() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailModalLote, setDetailModalLote] = useState(null);
+  const [documentImportOpen, setDocumentImportOpen] = useState(false);
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyPageInfo, setHistoryPageInfo] = useState(null);
@@ -126,21 +129,31 @@ function LotesView() {
     [lotes]
   );
 
-  const totalMasaMadera = useMemo(
+  const totalEvidencias = useMemo(
     () =>
       lotes.reduce(
-        (total, lote) => total + Number(lote.masa_madera_kg || 0),
+        (total, lote) =>
+          total +
+          Number(
+            lote.documentos_count ?? lote.evidencias_count ?? lote.documentos?.length ?? 0
+          ),
         0
       ),
     [lotes]
   );
 
-  const totalCo2Almacenado = useMemo(
+  const obraCritica = useMemo(
     () =>
-      lotes.reduce(
-        (total, lote) => total + Number(lote.co2_almacenado_kg || 0),
-        0
-      ),
+      lotes.reduce((critica, lote) => {
+        if (!critica) {
+          return lote;
+        }
+
+        return Number(lote.emisiones_kg_co2e || 0) >
+          Number(critica.emisiones_kg_co2e || 0)
+          ? lote
+          : critica;
+      }, null)?.id_lote || "",
     [lotes]
   );
 
@@ -199,7 +212,7 @@ function LotesView() {
           ...currentForm,
           empresa_id: activeEmpresaId,
           empresa_aserradero: activeEmpresa?.nombre || currentForm.empresa_aserradero,
-          especie: currentForm.especie || normalizedEspecies[0]?.nombre || "",
+          especie: currentForm.especie || "",
         }));
 
         getFactoresEmision()
@@ -217,7 +230,7 @@ function LotesView() {
       } catch (requestError) {
         if (mountedRef.current) {
           setError(
-            requestError?.response?.data?.error || "No se pudieron cargar los lotes."
+            requestError?.response?.data?.error || "No se pudieron cargar las obras."
           );
         }
       } finally {
@@ -497,7 +510,7 @@ function LotesView() {
         ...emptyForm,
         empresa_id: activeEmpresaId,
         empresa_aserradero: activeEmpresa?.nombre || "",
-        especie: especiesMadera[0]?.nombre || "",
+        especie: "",
       });
       setCreateModalOpen(false);
     } catch (requestError) {
@@ -507,7 +520,7 @@ function LotesView() {
         setFieldErrors(responseData);
       }
 
-      setError("Revisa los datos del lote antes de guardarlo.");
+      setError("Revisa los datos de la obra antes de guardarla.");
     } finally {
       setSaving(false);
     }
@@ -525,8 +538,27 @@ function LotesView() {
     setActivityFieldErrors({});
 
     try {
+      const activityPayload = {
+        actividad: activityForm.actividad,
+        tipo_consumo_combustible: activityForm.tipo_consumo_combustible,
+        cantidad: Number(activityForm.cantidad),
+        unidad: activityForm.unidad,
+        fecha: activityForm.fecha || null,
+        factor_emision: Number(activityForm.factor_emision),
+        origen_transporte: activityForm.origen_transporte,
+        destino_transporte: activityForm.destino_transporte,
+        origen_coords: activityForm.origen_coords,
+        destino_coords: activityForm.destino_coords,
+        distancia_km: activityForm.distancia_km || null,
+        ruta_geometry: activityForm.ruta_geometry || [],
+      };
+
+      if (activityForm.factor_emision_id) {
+        activityPayload.factor_emision_id = activityForm.factor_emision_id;
+      }
+
       const updatedLote = await createLoteActividad(selectedLote.id_lote, {
-        ...activityForm,
+        ...activityPayload,
         cantidad: Number(activityForm.cantidad),
         factor_emision: Number(activityForm.factor_emision),
       });
@@ -540,7 +572,7 @@ function LotesView() {
         setActivityFieldErrors(responseData);
       }
 
-      setActivityError("Revisa los datos de la actividad antes de guardarla.");
+      setActivityError("Revisa los datos del registro de emisión antes de guardarlo.");
     } finally {
       setSavingActivity(false);
     }
@@ -566,7 +598,7 @@ function LotesView() {
     } catch (requestError) {
       setError(
         requestError.response?.data?.error ||
-          "No se pudo generar el Pasaporte Verde."
+          "No se pudo generar la ficha ambiental."
       );
     } finally {
       setGeneratingCertificate(false);
@@ -795,21 +827,21 @@ function LotesView() {
     <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
       {loadingEmpresas ? (
         <div className="min-h-[40vh] flex items-center justify-center text-slate-300">
-          Cargando empresas...
+          Cargando constructoras...
         </div>
       ) : !activeEmpresa ? (
         <EmptyState
-          title="Selecciona o crea una empresa para comenzar"
-          description="Los lotes y actividades se gestionan ahora dentro de la empresa activa."
+          title="Selecciona o crea una constructora para comenzar"
+          description="Las obras y registros de emisión se gestionan dentro de la constructora activa."
         />
       ) : (
         <>
       <LotesHeader onOpenCreate={() => setCreateModalOpen(true)} />
       <LotesKpis
         lotes={lotes}
-        totalCo2Almacenado={totalCo2Almacenado}
         totalEmisiones={totalEmisiones}
-        totalMasaMadera={totalMasaMadera}
+        totalEvidencias={totalEvidencias}
+        obraCritica={obraCritica}
       />
 
       {error && (
@@ -853,6 +885,7 @@ function LotesView() {
         historyPageInfo={historyPageInfo}
         ocrError={ocrError}
         ocrForm={ocrForm}
+        onImportDocumento={() => setDocumentImportOpen(true)}
         onActivitySubmit={handleActivitySubmit}
         onSelectActivityFactor={selectActivityFactor}
         onDocumentSubmit={handleDocumentSubmit}
@@ -896,6 +929,13 @@ function LotesView() {
           saving={saving}
         />
       )}
+
+      <ImportarDocumentoObraModal
+        activeEmpresaId={activeEmpresaId}
+        initialLoteId={selectedLote?.id_lote || ""}
+        onClose={() => setDocumentImportOpen(false)}
+        open={documentImportOpen}
+      />
         </>
       )}
     </div>

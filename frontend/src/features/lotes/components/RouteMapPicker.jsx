@@ -292,7 +292,7 @@ function RouteMapPicker({
     <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950 p-4">
       <div className="mb-3 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-end">
         <label className="space-y-2 text-sm">
-          <span className="text-slate-300">Punto de Partida</span>
+          <span className="text-slate-300">Origen proveedor / planta</span>
           <div className="flex gap-2">
             <input
               value={originValue}
@@ -300,7 +300,7 @@ function RouteMapPicker({
                 onOriginChange({ address: event.target.value, coords: null })
               }
               className="min-w-0 flex-1 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-slate-100 outline-none transition focus:border-emerald-400/60"
-              placeholder="Busca o marca un origen"
+              placeholder="Busca o marca origen proveedor / planta"
             />
             <button
               type="button"
@@ -315,7 +315,7 @@ function RouteMapPicker({
         </label>
 
         <label className="space-y-2 text-sm">
-          <span className="text-slate-300">Destino Final</span>
+          <span className="text-slate-300">Destino obra</span>
           <div className="flex gap-2">
             <input
               value={destinationValue}
@@ -323,7 +323,7 @@ function RouteMapPicker({
                 onDestinationChange({ address: event.target.value, coords: null })
               }
               className="min-w-0 flex-1 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-slate-100 outline-none transition focus:border-emerald-400/60"
-              placeholder="Busca o marca un destino"
+              placeholder="Busca o marca destino obra"
             />
             <button
               type="button"
@@ -348,7 +348,7 @@ function RouteMapPicker({
             }`}
           >
             <MapPin size={16} />
-            Origen
+            Origen proveedor / planta
           </button>
           <button
             type="button"
@@ -360,7 +360,7 @@ function RouteMapPicker({
             }`}
           >
             <LocateFixed size={16} />
-            Destino
+            Destino obra
           </button>
         </div>
       </div>
@@ -372,7 +372,7 @@ function RouteMapPicker({
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <label className="space-y-2 text-sm">
-          <span className="text-slate-300">Punto de Partida</span>
+          <span className="text-slate-300">Origen proveedor / planta</span>
           <input
             readOnly
             value={originValue || ""}
@@ -381,7 +381,7 @@ function RouteMapPicker({
         </label>
 
         <label className="space-y-2 text-sm">
-          <span className="text-slate-300">Destino Final</span>
+          <span className="text-slate-300">Destino obra</span>
           <input
             readOnly
             value={destinationValue || ""}

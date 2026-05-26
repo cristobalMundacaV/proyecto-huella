@@ -20,6 +20,7 @@ function PasaporteTab({
     pasaporteTone[balanceData?.estado_pasaporte] ||
     pasaporteTone["Sin pasaporte"];
   const balanceNeto = Number(balanceData?.balance_neto_kg_co2e || 0);
+  const fichaStatus = getFichaStatusLabel(balanceData?.estado_pasaporte);
 
   return (
     <div className="space-y-6">
@@ -27,10 +28,10 @@ function PasaporteTab({
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide opacity-80">
-              Regla del Pasaporte Verde
+              Regla de ficha ambiental
             </p>
             <h2 className="mt-2 text-2xl font-bold">
-              {balanceData?.estado_pasaporte || "Sin pasaporte"}
+              {fichaStatus}
             </h2>
             <p className="mt-2 text-sm font-semibold opacity-90">
               {balanceData?.razon_pasaporte}
@@ -64,10 +65,10 @@ function PasaporteTab({
         <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-[var(--primary-dark)]">
-              Certificado digital verificable
+              Reporte ambiental verificable
             </p>
             <h2 className="mt-2 text-2xl font-bold text-[var(--text-main)]">
-              Vista previa del Pasaporte Verde
+              Vista previa de ficha ambiental
             </h2>
           </div>
           <button
@@ -81,7 +82,7 @@ function PasaporteTab({
             ) : (
               <Download size={18} />
             )}
-            Generar Pasaporte Verde
+            Generar ficha ambiental
           </button>
         </div>
 
@@ -89,7 +90,7 @@ function PasaporteTab({
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-sm font-bold uppercase tracking-wide text-[var(--primary-dark)]">
-                Pasaporte Verde
+                Ficha ambiental
               </p>
               <h3 className="mt-2 text-3xl font-bold text-[var(--text-main)]">
                 {selectedLote.id_lote}
@@ -104,10 +105,10 @@ function PasaporteTab({
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <PassportMetric label="Fecha del lote" value={selectedLote.fecha} />
-            <PassportMetric label="Especie" value={selectedLote.especie} />
+            <PassportMetric label="Fecha de obra" value={selectedLote.fecha} />
+            <PassportMetric label="Material principal / tipo de obra" value={selectedLote.especie} />
             <PassportMetric
-              label="Volumen"
+              label="Cantidad base / superficie"
               value={`${formatNumber(Number(selectedLote.volumen_m3 || 0))} m3`}
             />
             <PassportMetric
@@ -122,7 +123,7 @@ function PasaporteTab({
               tone="cyan"
             />
             <PassportMetric
-              label="Carbono almacenado"
+              label="Balance ambiental"
               value={`${formatNumber(Number(balanceData?.co2_almacenado_kg || 0))} kg`}
               tone="emerald"
             />
@@ -133,8 +134,8 @@ function PasaporteTab({
               badge={balanceNeto < 0 ? "Positivo" : balanceNeto > 0 ? "Negativo" : "Neutro"}
             />
             <PassportMetric
-              label="Estado del pasaporte"
-              value={balanceData?.estado_pasaporte || "Sin pasaporte"}
+              label="Estado de ficha"
+              value={fichaStatus}
               tone="emerald"
             />
             <PassportMetric
@@ -150,7 +151,7 @@ function PasaporteTab({
                   Integracion BIM / API
                 </p>
                 <p className="mt-2 text-sm font-medium text-[var(--text-muted)]">
-                  Exporta este lote para modelos BIM, fichas tecnicas y sistemas de constructoras.
+                  Exporta esta obra para modelos BIM, reportes ambientales y sistemas de constructoras.
                 </p>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -160,7 +161,7 @@ function PasaporteTab({
                   rel="noreferrer"
                   className="rounded-2xl border border-[#B8D6DE] bg-[var(--bg-card)] px-4 py-3 text-center text-sm font-bold text-[#075985] transition hover:bg-[#DDF0F4]"
                 >
-                  API lote
+                  API obra
                 </a>
                 <a
                   href={getLoteExportJsonUrl(selectedLote.id_lote)}
@@ -192,6 +193,17 @@ function PasaporteTab({
 }
 
 export default PasaporteTab;
+
+function getFichaStatusLabel(status) {
+  const statusLabels = {
+    "Sin pasaporte": "Sin ficha",
+    "Pasaporte Base": "Ficha base",
+    "Pasaporte Verde": "Ficha ambiental",
+    "Pasaporte Verde Plus": "Ficha ambiental plus",
+  };
+
+  return statusLabels[status] || status || "Sin ficha";
+}
 
 function PassportMetric({ badge, label, tone = "slate", value }) {
   const toneClass = {

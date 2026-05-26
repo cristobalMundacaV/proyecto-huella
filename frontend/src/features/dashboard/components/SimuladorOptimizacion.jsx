@@ -178,7 +178,7 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
           </div>
 
           <label className="min-w-56">
-            <span className="text-xs font-medium text-[var(--text-muted)]">Empresa</span>
+            <span className="text-xs font-medium text-[var(--text-muted)]">Constructora</span>
             <select
               value={selectedCompany}
               onChange={(event) => setSelectedCompany(event.target.value)}
@@ -254,7 +254,7 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
 
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 sm:p-5">
             <h3 className="text-sm font-bold text-[var(--text-main)]">
-              Emisiones simuladas por unidad
+              Emisiones simuladas por etapa
             </h3>
             <div className="mt-4" style={{ height: unitChartHeight }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -300,7 +300,7 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
               </ResponsiveContainer>
             </div>
             <p className="mt-2 text-xs font-medium text-[var(--text-muted)]">
-              Pasa el cursor sobre cada barra para ver el detalle de la unidad.
+              Pasa el cursor sobre cada barra para ver el detalle de la etapa.
             </p>
           </div>
         </div>

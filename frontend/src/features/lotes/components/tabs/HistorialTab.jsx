@@ -9,7 +9,7 @@ function HistorialTab({
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
       <div className="mb-5 flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Historial del lote</h2>
+        <h2 className="text-xl font-semibold">Historial de obra</h2>
         <div className="text-sm text-slate-400">
           Registros: {historyPageInfo?.count ?? 0}
         </div>
@@ -23,7 +23,7 @@ function HistorialTab({
             <tbody>
               <tr className="border-y border-slate-800/60">
                 <td className="py-8 text-center text-slate-400">
-                  No se han registrado datos.
+                  Sin movimientos registrados para esta obra.
                 </td>
               </tr>
             </tbody>
