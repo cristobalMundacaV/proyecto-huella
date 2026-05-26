@@ -1,4 +1,4 @@
-﻿import { isDieselEmission } from "@/shared/utils/emissionSemantics";
+import { isDieselEmission } from "@/shared/utils/emissionSemantics";
 
 const clamp = (value, min = 0, max = 100) =>
   Math.min(max, Math.max(min, Number(value) || 0));
@@ -26,6 +26,16 @@ const normalizeSeries = (values = {}) => {
 
 const sumValues = (values = {}) =>
   Object.values(normalizeSeries(values)).reduce((total, value) => total + Number(value || 0), 0);
+
+const getEmissionValue = (row = {}) =>
+  Number(
+    row.emisiones_kg_co2e ??
+      row.emisiones ??
+      row.total_emisiones ??
+      row.emisiones_totales ??
+      row.co2e ??
+      0
+  );
 
 const maxShare = (values = {}, total) => {
   if (!total) {
@@ -88,8 +98,8 @@ export function calculateRiskProfile(data, optimizedScenario) {
     sumValues(data?.emisiones_por_etapa) || total || 1
   );
   const dieselPresent =
-    data?.datos?.some((row) => isDieselEmission(row) && Number(row.emisiones || 0) > 0) ||
-    Object.entries(data?.emisiones_por_fuente_emision || {}).some(
+    data?.datos?.some((row) => isDieselEmission(row) && getEmissionValue(row) > 0) ||
+    Object.entries(normalizeSeries(data?.emisiones_por_fuente_emision || {})).some(
       ([source, emissions]) =>
         isDieselEmission({ fuente_emision: source }) && Number(emissions) > 0
     );

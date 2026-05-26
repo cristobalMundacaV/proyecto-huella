@@ -1,4 +1,4 @@
-﻿export function normalizeEmissionText(value) {
+export function normalizeEmissionText(value) {
   return String(value || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -12,16 +12,22 @@
 function fields(row = {}) {
   return {
     categoria: normalizeEmissionText(row.categoria),
-    sourceKey: normalizeEmissionText(row.fuente_emision_key),
+    sourceKey: normalizeEmissionText(row.fuente_emision_key || row.actividad_key),
     fuente_emision: normalizeEmissionText(row.fuente_emision),
     unidad: normalizeEmissionText(row.unidad),
   };
 }
 
 export function isDieselEmission(row) {
-  const { categoria, sourceKey, fuente_emision } = fields(row);
-  const hasDiesel = sourceKey.includes("diesel") || fuente_emision.includes("diesel");
-  return hasDiesel && (categoria === "" || categoria === "combustible" || hasDiesel);
+  const { categoria, sourceKey, fuente_emision, unidad } = fields(row);
+
+  return (
+    sourceKey.includes("diesel") ||
+    fuente_emision.includes("diesel") ||
+    unidad.includes("diesel") ||
+    unidad.includes("petroleo") ||
+    categoria.includes("combustible")
+  );
 }
 
 export function isElectricityEmission(row) {
