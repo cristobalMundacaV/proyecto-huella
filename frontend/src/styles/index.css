@@ -318,90 +318,88 @@ main > section textarea:focus {
   border-spacing: 0;
 }
 
-/* Contrast pass for light professional screens.
-   Importaciones still uses several legacy slate/cyan/emerald utility colors that were
-   designed for dark panels. These overrides keep the same layout but make icons,
-   helper text and callout messages readable on the current light theme. */
-main .text-slate-400 {
+/* Contraste específico para el contenido de Importaciones.
+   No debe afectar sidebar ni navegación global. */
+.max-w-7xl.space-y-6 .text-slate-400 {
   color: #475569 !important;
 }
 
-main .text-slate-500 {
+.max-w-7xl.space-y-6 .text-slate-500 {
   color: #64748B !important;
 }
 
-main .text-slate-300,
-main .text-slate-200,
-main .text-slate-100 {
+.max-w-7xl.space-y-6 .text-slate-300,
+.max-w-7xl.space-y-6 .text-slate-200,
+.max-w-7xl.space-y-6 .text-slate-100 {
   color: #0F172A !important;
 }
 
-main .text-emerald-400,
-main .text-emerald-300,
-main .text-emerald-200 {
+.max-w-7xl.space-y-6 .text-emerald-400,
+.max-w-7xl.space-y-6 .text-emerald-300,
+.max-w-7xl.space-y-6 .text-emerald-200 {
   color: #047857 !important;
 }
 
-main .text-cyan-400,
-main .text-cyan-300,
-main .text-cyan-200,
-main .text-cyan-100 {
+.max-w-7xl.space-y-6 .text-cyan-400,
+.max-w-7xl.space-y-6 .text-cyan-300,
+.max-w-7xl.space-y-6 .text-cyan-200,
+.max-w-7xl.space-y-6 .text-cyan-100 {
   color: #075985 !important;
 }
 
-main .text-amber-300,
-main .text-amber-200 {
+.max-w-7xl.space-y-6 .text-amber-300,
+.max-w-7xl.space-y-6 .text-amber-200 {
   color: #B45309 !important;
 }
 
-main .text-red-300,
-main .text-red-200 {
+.max-w-7xl.space-y-6 .text-red-300,
+.max-w-7xl.space-y-6 .text-red-200 {
   color: #B42318 !important;
 }
 
-main .border-emerald-400\/20,
-main .border-emerald-400\/30 {
+.max-w-7xl.space-y-6 .border-emerald-400\/20,
+.max-w-7xl.space-y-6 .border-emerald-400\/30 {
   border-color: #A7F3D0 !important;
 }
 
-main .bg-emerald-400\/10,
-main .bg-emerald-400\/20 {
+.max-w-7xl.space-y-6 .bg-emerald-400\/10,
+.max-w-7xl.space-y-6 .bg-emerald-400\/20 {
   background-color: #ECFDF5 !important;
 }
 
-main .border-cyan-400\/20,
-main .border-cyan-400\/30 {
+.max-w-7xl.space-y-6 .border-cyan-400\/20,
+.max-w-7xl.space-y-6 .border-cyan-400\/30 {
   border-color: #A5F3FC !important;
 }
 
-main .bg-cyan-400\/10,
-main .bg-cyan-400\/20 {
+.max-w-7xl.space-y-6 .bg-cyan-400\/10,
+.max-w-7xl.space-y-6 .bg-cyan-400\/20 {
   background-color: #ECFEFF !important;
 }
 
-main .border-amber-400\/30,
-main .bg-amber-400\/10 {
+.max-w-7xl.space-y-6 .border-amber-400\/30,
+.max-w-7xl.space-y-6 .bg-amber-400\/10 {
   border-color: #FCD34D !important;
   background-color: #FFFBEB !important;
 }
 
-main .border-red-400\/30,
-main .bg-red-400\/10,
-main .border-red-500\/30,
-main .bg-red-500\/10 {
+.max-w-7xl.space-y-6 .border-red-400\/30,
+.max-w-7xl.space-y-6 .bg-red-400\/10,
+.max-w-7xl.space-y-6 .border-red-500\/30,
+.max-w-7xl.space-y-6 .bg-red-500\/10 {
   border-color: #FECACA !important;
   background-color: #FEF2F2 !important;
 }
 
-main .bg-slate-950,
-main .bg-slate-900\/80,
-main .bg-slate-800\/30 {
+.max-w-7xl.space-y-6 .bg-slate-950,
+.max-w-7xl.space-y-6 .bg-slate-900\/80,
+.max-w-7xl.space-y-6 .bg-slate-800\/30 {
   background-color: #FFFFFF !important;
 }
 
-main .border-slate-800,
-main .border-slate-800\/60,
-main .border-slate-700,
-main .border-slate-600\/60 {
+.max-w-7xl.space-y-6 .border-slate-800,
+.max-w-7xl.space-y-6 .border-slate-800\/60,
+.max-w-7xl.space-y-6 .border-slate-700,
+.max-w-7xl.space-y-6 .border-slate-600\/60 {
   border-color: var(--border) !important;
 }
