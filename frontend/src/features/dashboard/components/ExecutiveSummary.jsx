@@ -127,21 +127,22 @@ function ExecutiveKpiCard({ label, value, icon, tone = "slate", description, cla
 
   return (
     <div
-      className={`min-w-0 rounded-[18px] border p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition duration-300 ease-out hover:shadow-[0_10px_28px_rgba(15,23,42,0.05)] sm:p-5 ${selectedTone.card} ${className}`}
+      className={`flex min-h-[7.75rem] min-w-0 flex-col rounded-[18px] border p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition duration-300 ease-out hover:shadow-[0_10px_28px_rgba(15,23,42,0.05)] sm:p-5 ${selectedTone.card} ${className}`}
     >
-      <div className="flex items-start gap-4">
+      <div className="flex items-center gap-3">
         <KpiIcon icon={icon} tone={tone} />
-        <div className="min-w-0 flex-1">
-          <p className="break-words text-[11px] font-bold uppercase tracking-[0.18em] text-[#64748B]">
-            {formatTitleCase(label)}
-          </p>
-          <p className={`mt-1 break-words text-xl font-black tracking-tight leading-tight sm:text-2xl ${selectedTone.value}`}>
-            {value}
-          </p>
-          {description ? (
-            <p className="mt-2 text-sm leading-6 text-[#64748B]">{description}</p>
-          ) : null}
-        </div>
+        <p className="min-w-0 text-[11px] font-bold uppercase leading-4 tracking-[0.18em] text-[#64748B]">
+          {formatTitleCase(label)}
+        </p>
+      </div>
+
+      <div className="flex flex-1 flex-col items-center justify-center pt-3 text-center">
+        <p className={`w-full whitespace-normal break-normal text-center text-2xl font-black leading-tight tracking-tight ${selectedTone.value}`}>
+          {value}
+        </p>
+        {description ? (
+          <p className="mt-2 text-center text-sm leading-6 text-[#64748B]">{description}</p>
+        ) : null}
       </div>
     </div>
   );
