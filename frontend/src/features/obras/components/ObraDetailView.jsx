@@ -6,6 +6,7 @@ import EvidenciasTab from "./tabs/EvidenciasTab";
 import HistorialTab from "./tabs/HistorialTab";
 import FichaAmbientalTab from "./tabs/FichaAmbientalTab";
 import ResumenTab from "./tabs/ResumenTab";
+import EstadoEmisionesTab from "./tabs/EstadoEmisionesTab";
 import TransporteTab from "./tabs/TransporteTab";
 
 function ObraDetailView({
@@ -66,6 +67,10 @@ function ObraDetailView({
 
       {activeTab === "resumen" && (
         <ResumenTab balanceData={balanceData} selectedObra={selectedObra} />
+      )}
+
+      {activeTab === "estado_emisiones" && (
+        <EstadoEmisionesTab selectedObra={selectedObra} />
       )}
 
       {activeTab === "registros_emision" && (
