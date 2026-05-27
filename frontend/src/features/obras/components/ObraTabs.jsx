@@ -1,10 +1,11 @@
-﻿const tabs = [
+const tabs = [
   ["resumen", "Resumen de obra"],
-  ["registros_emision", "Registros de emision"],
+  ["estado_emisiones", "Estado de emisiones"],
+  ["registros_emision", "Historial"],
   ["ficha_ambiental", "Ficha"],
   ["evidencias", "Evidencias"],
-  ["transporte", "Transporte / logí­stica"],
-  ["historial", "Historial"],
+  ["transporte", "Transporte / logística"],
+  ["historial", "Movimientos"],
 ];
 
 function ObraTabs({ activeTab, onTabChange }) {
