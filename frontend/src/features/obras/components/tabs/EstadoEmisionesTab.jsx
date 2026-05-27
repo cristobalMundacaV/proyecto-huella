@@ -23,41 +23,49 @@ const categoryConfig = {
     icon: Gauge,
     tone: "danger",
     description: "Huella acumulada de la obra",
+    color: "#E11D48",
   },
   Materiales: {
     icon: Boxes,
     tone: "warning",
     description: "Carbono incorporado",
+    color: "#EA580C",
   },
   Transporte: {
     icon: Route,
     tone: "info",
     description: "Traslados y logística",
+    color: "#2563EB",
   },
   Maquinaria: {
     icon: Factory,
     tone: "lime",
     description: "Equipos y faena",
+    color: "#65A30D",
   },
   Energia: {
     icon: Zap,
     tone: "violet",
     description: "Electricidad y combustibles",
+    color: "#7C3AED",
   },
   Agua: {
     icon: Droplets,
     tone: "cyan",
     description: "Consumo hídrico",
+    color: "#0891B2",
   },
   Residuos: {
     icon: Recycle,
     tone: "success",
     description: "Retiro y disposición",
+    color: "#059669",
   },
   Otros: {
     icon: Layers3,
     tone: "neutral",
     description: "Registros no clasificados",
+    color: "#475569",
   },
 };
 
@@ -65,6 +73,8 @@ function EstadoEmisionesTab({ selectedObra }) {
   const registros = selectedObra?.registros_emision || [];
   const totals = buildCategoryEmissionTotals(registros, selectedObra);
   const totalEmissions = Number(totals.Todas || 0);
+  const categoryRows = buildCategoryRows(totals, totalEmissions);
+  const donutRows = categoryRows.filter((row) => row.category !== "Todas" && row.emissions > 0);
 
   return (
     <section className="premium-card premium-card-interactive rounded-3xl bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
@@ -77,7 +87,7 @@ function EstadoEmisionesTab({ selectedObra }) {
             Distribución ambiental por categoría
           </h2>
           <p className="mt-1 max-w-4xl text-sm font-medium leading-6 text-[var(--text-muted)]">
-            Lectura consolidada de la obra seleccionada. Cada KPI resume cuánto aporta una categoría a la huella total para decidir dónde priorizar acciones.
+            Lectura consolidada de la obra seleccionada. Las categorías se ordenan desde la mayor contribución de emisiones hasta la menor para evidenciar dónde está el foco ambiental real.
           </p>
         </div>
         <div className="rounded-2xl border border-[#B8D6DE] bg-[var(--info-bg)] px-4 py-3 text-sm font-black text-[#075985]">
@@ -86,27 +96,45 @@ function EstadoEmisionesTab({ selectedObra }) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {emissionCategories.map((category) => {
-          const emissions = Number(totals[category] || 0);
-          const share = totalEmissions > 0 ? (emissions / totalEmissions) * 100 : 0;
-          const config = categoryConfig[category] || categoryConfig.Otros;
-          const Icon = config.icon || Activity;
+        {categoryRows.map((row) => {
+          const Icon = row.config.icon || Activity;
 
           return (
             <EmissionCategoryKpi
-              key={category}
-              detail={`${formatNumber(share, 1)}% de la obra`}
+              key={row.category}
+              detail={`${formatNumber(row.share, 1)}% de la obra`}
               icon={<Icon />}
-              label={category === "Todas" ? "Todas las emisiones" : category}
-              note={config.description}
-              tone={config.tone}
-              value={`${formatNumber(emissions, 1)} kg CO2e`}
+              label={row.category === "Todas" ? "Todas las emisiones" : row.category}
+              note={row.config.description}
+              tone={row.config.tone}
+              value={`${formatNumber(row.emissions, 1)} kg CO2e`}
             />
           );
         })}
       </div>
+
+      <EmissionDonutChart rows={donutRows} totalEmissions={totalEmissions} />
     </section>
   );
+}
+
+function buildCategoryRows(totals, totalEmissions) {
+  return emissionCategories
+    .map((category, index) => {
+      const emissions = Number(totals[category] || 0);
+      return {
+        category,
+        config: categoryConfig[category] || categoryConfig.Otros,
+        emissions,
+        originalIndex: index,
+        share: totalEmissions > 0 ? (emissions / totalEmissions) * 100 : 0,
+      };
+    })
+    .sort((left, right) => {
+      if (left.category === "Todas") return -1;
+      if (right.category === "Todas") return 1;
+      return right.emissions - left.emissions || left.originalIndex - right.originalIndex;
+    });
 }
 
 function buildCategoryEmissionTotals(registros, selectedObra) {
@@ -132,6 +160,120 @@ function buildCategoryEmissionTotals(registros, selectedObra) {
   }
 
   return totals;
+}
+
+function EmissionDonutChart({ rows, totalEmissions }) {
+  const radius = 78;
+  const circumference = 2 * Math.PI * radius;
+  let accumulated = 0;
+  const mainCategory = rows[0];
+
+  return (
+    <section className="mt-6 rounded-3xl border border-[var(--border)] bg-[linear-gradient(135deg,#FFFFFF_0%,#F8FAFC_48%,#ECFDF3_100%)] p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] sm:p-6">
+      <div className="mb-5 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--primary-dark)]">
+            Lectura visual
+          </p>
+          <h3 className="mt-1 text-2xl font-bold text-[var(--text-main)]">
+            Participación de emisiones por categoría
+          </h3>
+          <p className="mt-1 max-w-3xl text-sm font-medium leading-6 text-[var(--text-muted)]">
+            El gráfico resume la distribución real de la huella. Cuando una categoría domina la dona, esa categoría debe ser el primer foco operativo.
+          </p>
+        </div>
+        {mainCategory && (
+          <div className="rounded-2xl border border-[#FDBA74] bg-[#FFF7ED] px-4 py-3 text-sm font-black text-[#C2410C]">
+            Foco principal: {mainCategory.category}
+          </div>
+        )}
+      </div>
+
+      {rows.length ? (
+        <div className="grid grid-cols-1 items-center gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+          <div className="relative mx-auto flex h-[300px] w-full max-w-[340px] items-center justify-center">
+            <svg viewBox="0 0 220 220" className="h-[280px] w-[280px] -rotate-90 overflow-visible">
+              <circle
+                cx="110"
+                cy="110"
+                fill="none"
+                r={radius}
+                stroke="#E2E8F0"
+                strokeWidth="28"
+              />
+              {rows.map((row) => {
+                const dash = totalEmissions > 0 ? (row.emissions / totalEmissions) * circumference : 0;
+                const segment = (
+                  <circle
+                    key={row.category}
+                    cx="110"
+                    cy="110"
+                    fill="none"
+                    r={radius}
+                    stroke={row.config.color}
+                    strokeDasharray={`${dash} ${circumference}`}
+                    strokeDashoffset={-accumulated}
+                    strokeLinecap="butt"
+                    strokeWidth="28"
+                  />
+                );
+                accumulated += dash;
+                return segment;
+              })}
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                Total obra
+              </p>
+              <p className="mt-1 text-2xl font-black text-[var(--text-main)]">
+                {formatNumber(totalEmissions, 1)}
+              </p>
+              <p className="text-sm font-bold text-[var(--text-muted)]">kg CO2e</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {rows.map((row) => (
+              <div
+                key={row.category}
+                className="rounded-2xl border border-[var(--border)] bg-white/85 p-4 shadow-[0_8px_22px_rgba(15,23,42,0.04)]"
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="h-3.5 w-3.5 rounded-full shadow-[0_0_0_4px_rgba(15,23,42,0.04)]"
+                      style={{ backgroundColor: row.config.color }}
+                    />
+                    <div>
+                      <p className="font-black text-[var(--text-main)]">{row.category}</p>
+                      <p className="text-xs font-semibold text-[var(--text-muted)]">{row.config.description}</p>
+                    </div>
+                  </div>
+                  <div className="text-left sm:text-right">
+                    <p className="font-black text-[#075985]">{formatNumber(row.emissions, 1)} kg CO2e</p>
+                    <p className="text-xs font-bold text-[var(--text-muted)]">{formatNumber(row.share, 1)}%</p>
+                  </div>
+                </div>
+                <div className="mt-3 h-2 rounded-full bg-[#E2E8F0]">
+                  <div
+                    className="h-2 rounded-full"
+                    style={{
+                      backgroundColor: row.config.color,
+                      width: `${Math.max(0, Math.min(100, row.share))}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p className="rounded-2xl border border-dashed border-[var(--border)] bg-white p-6 text-center text-sm font-semibold text-[var(--text-muted)]">
+          Aún no hay emisiones suficientes para construir la distribución por categoría.
+        </p>
+      )}
+    </section>
+  );
 }
 
 function EmissionCategoryKpi({ detail, icon, label, note, tone = "neutral", value }) {
