@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   BarChart3,
@@ -262,16 +262,15 @@ function ConstructorasView({
             <Building2 className="text-emerald-400" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold sm:text-4xl">Constructoras</h1>
+            <h1 className="text-3xl font-bold sm:text-4xl">Constructora</h1>
             <p className="max-w-3xl text-slate-400">
-              Gestiona constructoras, etapas, obras y registros desde un mismo
-              lugar, con trazabilidad lista para análisis, reportes y decisiones ambientales.
+              Gestiona la constructora activa, sus etapas, obras y registros desde un mismo lugar, con trazabilidad lista para análisis, reportes y decisiones ambientales.
             </p>
           </div>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] px-5 py-3 text-sm font-bold text-[var(--primary-dark)]">
-            {formatNumber(constructoras.length, 0)} constructoras
+            Constructora activa
           </div>
           <button
             type="button"
@@ -288,13 +287,12 @@ function ConstructorasView({
         </div>
       </header>
 
-
       <section className="premium-card premium-card-interactive rounded-3xl bg-[var(--info-bg)] p-4 shadow-[var(--shadow-card)] sm:p-6">
-        <p className="text-sm font-bold text-[#075985]">Resumen estrategico</p>
+        <p className="text-sm font-bold text-[#075985]">Resumen ejecutivo</p>
         <h2 className="mt-2 text-2xl font-bold text-[var(--text-main)]">
           Lectura operativa de la constructora
         </h2>
-        <p className="mt-3 max-w-5xl whitespace-pre-line text-sm font-medium leading-7 text-[#334155]">
+        <p className="mt-3 max-w-6xl text-base font-medium leading-8 text-[#334155]">
           {loadingEtapas ? "Cargando etapas / frentes..." : buildStrategicSummary(metrics)}
         </p>
       </section>
@@ -535,38 +533,36 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
 
 function buildStrategicSummary(metrics) {
   if (!metrics.activeCompany) {
-    return "Aun no hay una constructora activa. Crea o selecciona una constructora para estructurar etapas, obras, registros y trazabilidad dentro del sistema Carbono Zero.";
+    return "Selecciona o crea una constructora para comenzar a organizar sus etapas, obras, registros y evidencias dentro de Carbono Zero.";
   }
+
+  const companyName = metrics.activeCompany.nombre || "La constructora";
 
   if (!metrics.totalUnits) {
-    return `${metrics.activeCompany.nombre} aun no tiene etapas o frentes registrados. Carga etapas para analizar emisiones, trazabilidad y cobertura territorial por obra.`;
+    return `${companyName} aún no tiene etapas o frentes registrados. El siguiente paso es crear su estructura operativa para ordenar obras, asociar registros de emisión y activar una lectura ambiental confiable.`;
   }
 
+  const topOperationalName = metrics.topOperational?.nombre || "la etapa con mayor actividad";
+  const topEmitterName = metrics.topEmitter?.nombre || "la etapa con mayor huella";
+  const topTraceabilityName = metrics.topTraceability?.nombre || "la etapa con mejor trazabilidad";
+  const hasEmissions = Number(metrics.totalEmissions || 0) > 0;
+  const emissionShare = formatNumber(metrics.topEmissionShare, 1);
   const concentration =
     metrics.topEmissionShare >= 60
-      ? "alta concentración"
+      ? "una concentración alta"
       : metrics.topEmissionShare >= 35
-        ? "concentración moderada"
-        : "distribución relativamente balanceada";
+        ? "una concentración relevante"
+        : "una distribución relativamente balanceada";
   const balanceText =
     metrics.globalBalance < 0
-      ? "En términos generales, el balance global es favorable gracias al balance ambiental."
-      : "En términos generales, el balance global sigue siendo intensivo en emisiones y requiere priorizar acciones de reducción.";
-  const traceabilityText = metrics.topTraceability
-    ? `Además, ${metrics.topTraceability.nombre} destaca por contar con un buen nivel de trazabilidad disponible.`
-    : "Además, aún no hay una etapa claramente destacada en trazabilidad.";
+      ? "El balance general se mantiene favorable gracias al aporte ambiental registrado, por lo que conviene proteger esa ventaja con evidencia y seguimiento."
+      : "El balance general todavía requiere acciones de reducción, por lo que conviene priorizar los focos con mayor impacto antes de escalar cambios operativos.";
 
-  return `${metrics.activeCompany.nombre} registra ${formatNumber(
-    metrics.totalUnits,
-    0
-  )} etapas activas. ${metrics.topOperational?.nombre || "Sin datos"} concentra la mayor carga operativa, mientras que ${metrics.topEmitter?.nombre || "Sin datos"} representa la mayor huella de carbono, con un ${formatNumber(
-    metrics.topEmissionShare,
-    0
-  )}% de las emisiones totales de la constructora.
+  if (!hasEmissions) {
+    return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas y su mayor carga operativa se observa en ${topOperationalName}. Aún no existe una huella de carbono suficientemente registrada para definir una etapa crítica por emisiones, por lo que el foco inmediato debe ser completar registros, vincular evidencias y validar factores de emisión antes de tomar decisiones de reducción.`;
+  }
 
-La estructura actual muestra una ${concentration} del peso operativo entre sus etapas. ${traceabilityText}
-
-${balanceText}`;
+  return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas. La mayor carga operativa se observa en ${topOperationalName}, mientras que ${topEmitterName} concentra el ${emissionShare}% de las emisiones registradas, lo que muestra ${concentration} del impacto ambiental. ${topTraceabilityName} presenta el mejor respaldo documental disponible, pero la decisión más importante es cruzar esa trazabilidad con los focos de mayor huella para priorizar acciones medibles. ${balanceText}`;
 }
 
 function UnitMetricBarChart({ color, dataKey, description, rows, title, valueLabel }) {
