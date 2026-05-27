@@ -181,7 +181,7 @@ function buildDecisionModel(data) {
       ? `Puedes reducir cerca de ${formatNumber(
           estimatedReduction,
           0
-        )} kg COâ‚‚e con una intervención focalizada en ${criticalUnit}. La recomendación es comenzar con un piloto medible antes de avanzar hacia cambios mayores.`
+        )} kg CO²e con una intervención focalizada en ${criticalUnit}. La recomendación es comenzar con un piloto medible antes de avanzar hacia cambios mayores.`
       : "Prioriza la fuente principal para convertir el análisis en acción operativa.";
   const recommendation =
     dieselPct >= 30

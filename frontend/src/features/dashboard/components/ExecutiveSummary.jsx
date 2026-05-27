@@ -374,7 +374,7 @@ function ExecutiveSummary({
             value={riskProfile.label}
             tone={riskKpiTone}
             icon={AlertTriangle}
-            description={`Score Carbono Zero: ${formatNumber(riskProfile.score, 0)} / 100`}
+            description={`Score : ${formatNumber(riskProfile.score, 0)} / 100`}
             className="h-full"
           />
           <ExecutiveKpiCard
@@ -417,7 +417,7 @@ function ExecutiveSummary({
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <ExecutiveKpiCard label="Foco principal" value={fuenteCriticaLabel} tone="slate" icon={Target} />
         <ExecutiveKpiCard label="Etapa prioritaria" value={unidadCriticaLabel} tone="blue" icon={Landmark} />
-        <ExecutiveKpiCard label="Esc. recomendado" value={formatPercentRange(strategicPlan.recommendedRange)} tone="teal" icon={TrendingUp} />
+        <ExecutiveKpiCard label="Escenario recomendado" value={formatPercentRange(strategicPlan.recommendedRange)} tone="teal" icon={TrendingUp} />
 
         <ExecutiveKpiCard
           label="Uso de diésel"
