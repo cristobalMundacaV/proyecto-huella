@@ -12,7 +12,6 @@ from .views import (
     constructora_dashboard,
     constructora_detail,
     constructora_estado,
-    constructora_etapas,
     constructora_evidencias,
     constructora_obras,
     constructora_registros_emision,
@@ -32,6 +31,7 @@ from .views import (
     verificar_obra,
 )
 from .views_emisiones import constructora_emisiones
+from .views_etapas import constructora_etapas
 
 urlpatterns = [
     path("auth/me/", auth_me),
