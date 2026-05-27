@@ -1,4 +1,4 @@
-﻿import { Activity, BarChart3, Boxes, FileCheck2, Gauge, Layers3 } from "lucide-react";
+import { Activity, BarChart3, Boxes, FileCheck2, Gauge, Layers3 } from "lucide-react";
 import { formatNumber } from "@/shared/utils/formatters";
 import {
   constructionCategories,
@@ -34,14 +34,10 @@ function ResumenTab({ balanceData, selectedObra }) {
       0
   );
   const declaredSurface = Number(selectedObra.superficie_m2 || 0);
-  const carbonIntensity =
-    declaredSurface > 0 ? totalEmissions / declaredSurface : null;
+  const carbonIntensity = declaredSurface > 0 ? totalEmissions / declaredSurface : null;
   const registrosWithCategories = registros.map((source) => ({
     ...source,
-    categoria_visible: getConstructionCategoryLabel(
-      source.categoria,
-      source.fuente_emision
-    ),
+    categoria_visible: getConstructionCategoryLabel(source.categoria, source.fuente_emision),
   }));
   const categoryDistribution = constructionCategories
     .map((category) => {
@@ -64,9 +60,8 @@ function ResumenTab({ balanceData, selectedObra }) {
   const emissionsByStage = Object.values(
     registrosWithCategories.reduce((accumulator, source) => {
       const stage = source.etapa_nombre || selectedObra.etapa_nombre || "Sin etapa";
-      const current = accumulator[stage] || { stage, emissions: 0, records: 0 };
+      const current = accumulator[stage] || { stage, emissions: 0 };
       current.emissions += Number(source.emisiones_kg_co2e || 0);
-      current.records += 1;
       accumulator[stage] = current;
       return accumulator;
     }, {})
@@ -126,46 +121,12 @@ function ResumenTab({ balanceData, selectedObra }) {
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <WorkSummaryKpi
-            icon={<Gauge />}
-            label="Emisiones de la obra"
-            tone="danger"
-            value={`${formatNumber(totalEmissions, 1)} kg CO2e`}
-          />
-          <WorkSummaryKpi
-            icon={<BarChart3 />}
-            label="kg CO2e/m²"
-            tone="info"
-            value={
-              carbonIntensity != null
-                ? `${formatNumber(carbonIntensity, 2)} kg CO2e/m²`
-                : "Pendiente de superficie"
-            }
-          />
-          <WorkSummaryKpi
-            icon={<Boxes />}
-            label="Categoría crítica"
-            tone="warning"
-            value={criticalCategory}
-          />
-          <WorkSummaryKpi
-            icon={<Layers3 />}
-            label="Etapa crítica"
-            tone="violet"
-            value={criticalStage}
-          />
-          <WorkSummaryKpi
-            icon={<Activity />}
-            label="Registros de emisión"
-            tone="neutral"
-            value={formatNumber(registros.length, 0)}
-          />
-          <WorkSummaryKpi
-            icon={<FileCheck2 />}
-            label="Evidencias asociadas"
-            tone="success"
-            value={`${formatNumber(documents.length, 0)} evidencias`}
-          />
+          <WorkSummaryKpi icon={<Gauge />} label="Emisiones de la obra" tone="danger" value={`${formatNumber(totalEmissions, 1)} kg CO2e`} />
+          <WorkSummaryKpi icon={<BarChart3 />} label="kg CO2e/m²" tone="info" value={carbonIntensity != null ? `${formatNumber(carbonIntensity, 2)} kg CO2e/m²` : "Pendiente de superficie"} />
+          <WorkSummaryKpi icon={<Boxes />} label="Categoría crítica" tone="warning" value={criticalCategory} />
+          <WorkSummaryKpi icon={<Layers3 />} label="Etapa crítica" tone="violet" value={criticalStage} />
+          <WorkSummaryKpi icon={<Activity />} label="Registros de emisión" tone="neutral" value={formatNumber(registros.length, 0)} />
+          <WorkSummaryKpi icon={<FileCheck2 />} label="Evidencias asociadas" tone="success" value={`${formatNumber(documents.length, 0)} evidencias`} />
         </div>
         <p className="mt-4 text-sm font-medium text-[var(--text-muted)]">
           La intensidad relaciona las emisiones registradas con la superficie declarada de la obra seleccionada.
@@ -204,75 +165,25 @@ function ResumenTab({ balanceData, selectedObra }) {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Panel title="Emisiones por categoría">
-          <div className="space-y-3">
-            {categoryDistribution.map((item) => (
-              <MetricBar
-                key={item.category}
-                label={item.category}
-                pct={item.pct}
-                value={`${formatNumber(item.emissions, 1)} kg CO2e`}
-              />
-            ))}
-          </div>
-        </Panel>
-
-        <Panel title="Emisiones por etapa">
-          <div className="space-y-3">
-            {emissionsByStage.length ? (
-              emissionsByStage.map((item) => (
-                <MetricBar
-                  key={item.stage}
-                  detail={`${formatNumber(item.records, 0)} registros`}
-                  label={item.stage}
-                  pct={totalEmissions > 0 ? (item.emissions / totalEmissions) * 100 : 0}
-                  value={`${formatNumber(item.emissions, 1)} kg CO2e`}
-                />
-              ))
-            ) : (
-              <EmptyAnalysis />
-            )}
-          </div>
-        </Panel>
-      </section>
-
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <Panel title="Top fuentes críticas">
           <div className="space-y-3">
             {topSources.length ? (
               topSources.map((source, index) => (
-                <div
-                  key={`${source.source}-${source.category}`}
-                  className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4"
-                >
+                <div key={`${source.source}-${source.category}`} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs font-bold text-[var(--primary-dark)]">
-                        #{index + 1} · {source.category}
-                      </p>
-                      <p className="mt-1 font-semibold text-[var(--text-main)]">
-                        {source.source}
-                      </p>
+                      <p className="text-xs font-bold text-[var(--primary-dark)]">#{index + 1} · {source.category}</p>
+                      <p className="mt-1 font-semibold text-[var(--text-main)]">{source.source}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-[#075985]">
-                        {formatNumber(source.emissions, 1)} kg CO2e
-                      </p>
-                      <p className="text-xs text-[var(--text-muted)]">
-                        {formatNumber(
-                          totalEmissions > 0 ? (source.emissions / totalEmissions) * 100 : 0,
-                          1
-                        )}
-                        %
-                      </p>
+                      <p className="font-bold text-[#075985]">{formatNumber(source.emissions, 1)} kg CO2e</p>
+                      <p className="text-xs text-[var(--text-muted)]">{formatNumber(totalEmissions > 0 ? (source.emissions / totalEmissions) * 100 : 0, 1)}%</p>
                     </div>
                   </div>
                 </div>
               ))
-            ) : (
-              <EmptyAnalysis />
-            )}
+            ) : <EmptyAnalysis />}
           </div>
         </Panel>
 
@@ -281,13 +192,9 @@ function ResumenTab({ balanceData, selectedObra }) {
             {mainRecommendation}
           </p>
           <div className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-            <p className="text-sm font-bold text-[var(--text-main)]">
-              Estado documental / evidencias
-            </p>
+            <p className="text-sm font-bold text-[var(--text-main)]">Estado documental / evidencias</p>
             <p className="mt-2 text-sm text-[var(--text-muted)]">
-              {documents.length
-                ? `Evidencias asociadas: ${formatNumber(documents.length, 0)} evidencias`
-                : "Pendiente de vinculación documental"}
+              {documents.length ? `Evidencias asociadas: ${formatNumber(documents.length, 0)} evidencias` : "Pendiente de vinculación documental"}
             </p>
           </div>
         </Panel>
@@ -306,16 +213,10 @@ function WorkSummaryKpi({ icon, label, tone = "neutral", value }) {
       <div className={`absolute inset-x-6 top-0 h-1.5 rounded-b-full ${toneClasses.accent}`} />
       <div className={`pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full blur-3xl ${toneClasses.glow}`} />
       <div className="relative z-10 flex w-full flex-col items-center text-center">
-        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border shadow-[0_10px_24px_rgba(15,23,42,0.06)] ${toneClasses.icon}`}>
-          {icon}
-        </div>
-        <p className={`mt-3 text-[11px] font-black uppercase tracking-[0.12em] ${toneClasses.title}`}>
-          {label}
-        </p>
+        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border shadow-[0_10px_24px_rgba(15,23,42,0.06)] ${toneClasses.icon}`}>{icon}</div>
+        <p className={`mt-3 text-[11px] font-black uppercase tracking-[0.12em] ${toneClasses.title}`}>{label}</p>
         <div className="flex flex-1 items-center justify-center py-2">
-          <h3 className={`mx-auto max-w-[260px] break-words text-center text-[clamp(1.25rem,2.2vw,1.75rem)] font-black leading-tight ${toneClasses.value}`}>
-            {value || "Sin datos"}
-          </h3>
+          <h3 className={`mx-auto max-w-[260px] break-words text-center text-[clamp(1.25rem,2.2vw,1.75rem)] font-black leading-tight ${toneClasses.value}`}>{value || "Sin datos"}</h3>
         </div>
       </div>
     </div>
@@ -324,95 +225,25 @@ function WorkSummaryKpi({ icon, label, tone = "neutral", value }) {
 
 function getWorkSummaryTone(tone) {
   const tones = {
-    danger: {
-      card: "border-[#FDA4AF] bg-[linear-gradient(135deg,#FFF1F2_0%,#FFFFFF_48%,#FFE4E6_100%)]",
-      icon: "border-[#FDA4AF] bg-white text-[#BE123C]",
-      title: "text-[#64748B]",
-      value: "text-[#BE123C]",
-      accent: "bg-[#E11D48]",
-      glow: "bg-rose-200/70",
-    },
-    info: {
-      card: "border-[#93C5FD] bg-[linear-gradient(135deg,#EFF6FF_0%,#FFFFFF_48%,#DBEAFE_100%)]",
-      icon: "border-[#93C5FD] bg-white text-[#1D4ED8]",
-      title: "text-[#64748B]",
-      value: "text-[#1D4ED8]",
-      accent: "bg-[#2563EB]",
-      glow: "bg-blue-200/70",
-    },
-    warning: {
-      card: "border-[#FDBA74] bg-[linear-gradient(135deg,#FFF7ED_0%,#FFFFFF_48%,#FFEDD5_100%)]",
-      icon: "border-[#FDBA74] bg-white text-[#C2410C]",
-      title: "text-[#64748B]",
-      value: "text-[#C2410C]",
-      accent: "bg-[#EA580C]",
-      glow: "bg-orange-200/70",
-    },
-    violet: {
-      card: "border-[#C4B5FD] bg-[linear-gradient(135deg,#F5F3FF_0%,#FFFFFF_48%,#EDE9FE_100%)]",
-      icon: "border-[#C4B5FD] bg-white text-[#6D28D9]",
-      title: "text-[#64748B]",
-      value: "text-[#6D28D9]",
-      accent: "bg-[#7C3AED]",
-      glow: "bg-violet-200/70",
-    },
-    success: {
-      card: "border-[#86EFAC] bg-[linear-gradient(135deg,#ECFDF3_0%,#FFFFFF_48%,#DCFCE7_100%)]",
-      icon: "border-[#86EFAC] bg-white text-[#047857]",
-      title: "text-[#64748B]",
-      value: "text-[#047857]",
-      accent: "bg-[#059669]",
-      glow: "bg-emerald-200/70",
-    },
-    neutral: {
-      card: "border-[#CBD5E1] bg-[linear-gradient(135deg,#FFFFFF_0%,#F8FAFC_48%,#E2E8F0_100%)]",
-      icon: "border-[#CBD5E1] bg-white text-[#334155]",
-      title: "text-[#64748B]",
-      value: "text-[#334155]",
-      accent: "bg-[#475569]",
-      glow: "bg-slate-200/70",
-    },
+    danger: { card: "border-[#FDA4AF] bg-[linear-gradient(135deg,#FFF1F2_0%,#FFFFFF_48%,#FFE4E6_100%)]", icon: "border-[#FDA4AF] bg-white text-[#BE123C]", title: "text-[#64748B]", value: "text-[#BE123C]", accent: "bg-[#E11D48]", glow: "bg-rose-200/70" },
+    info: { card: "border-[#93C5FD] bg-[linear-gradient(135deg,#EFF6FF_0%,#FFFFFF_48%,#DBEAFE_100%)]", icon: "border-[#93C5FD] bg-white text-[#1D4ED8]", title: "text-[#64748B]", value: "text-[#1D4ED8]", accent: "bg-[#2563EB]", glow: "bg-blue-200/70" },
+    warning: { card: "border-[#FDBA74] bg-[linear-gradient(135deg,#FFF7ED_0%,#FFFFFF_48%,#FFEDD5_100%)]", icon: "border-[#FDBA74] bg-white text-[#C2410C]", title: "text-[#64748B]", value: "text-[#C2410C]", accent: "bg-[#EA580C]", glow: "bg-orange-200/70" },
+    violet: { card: "border-[#C4B5FD] bg-[linear-gradient(135deg,#F5F3FF_0%,#FFFFFF_48%,#EDE9FE_100%)]", icon: "border-[#C4B5FD] bg-white text-[#6D28D9]", title: "text-[#64748B]", value: "text-[#6D28D9]", accent: "bg-[#7C3AED]", glow: "bg-violet-200/70" },
+    success: { card: "border-[#86EFAC] bg-[linear-gradient(135deg,#ECFDF3_0%,#FFFFFF_48%,#DCFCE7_100%)]", icon: "border-[#86EFAC] bg-white text-[#047857]", title: "text-[#64748B]", value: "text-[#047857]", accent: "bg-[#059669]", glow: "bg-emerald-200/70" },
+    neutral: { card: "border-[#CBD5E1] bg-[linear-gradient(135deg,#FFFFFF_0%,#F8FAFC_48%,#E2E8F0_100%)]", icon: "border-[#CBD5E1] bg-white text-[#334155]", title: "text-[#64748B]", value: "text-[#334155]", accent: "bg-[#475569]", glow: "bg-slate-200/70" },
   };
 
   return tones[tone] || tones.neutral;
 }
 
 function getWorkEnvironmentalStatus({ categoryDistribution, documents, totalEmissions }) {
-  if (!totalEmissions) {
-    return {
-      label: "Sin datos",
-      className: "border-slate-300 bg-slate-100 text-slate-700",
-    };
-  }
-
+  if (!totalEmissions) return { label: "Sin datos", className: "border-slate-300 bg-slate-100 text-slate-700" };
   const maxShare = Math.max(...categoryDistribution.map((item) => item.pct || 0), 0);
   const activeCategories = categoryDistribution.filter((item) => item.emissions > 0).length;
-
-  if (documents.length > 0 && maxShare <= 50) {
-    return {
-      label: "Respaldada",
-      className: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
-    };
-  }
-
-  if (maxShare > 60) {
-    return {
-      label: "crítica",
-      className: "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]",
-    };
-  }
-
-  if (activeCategories >= 3) {
-    return {
-      label: "Alta trazabilidad",
-      className: "border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]",
-    };
-  }
-
-  return {
-    label: "Inicial",
-    className: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
-  };
+  if (documents.length > 0 && maxShare <= 50) return { label: "Respaldada", className: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]" };
+  if (maxShare > 60) return { label: "crítica", className: "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]" };
+  if (activeCategories >= 3) return { label: "Alta trazabilidad", className: "border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]" };
+  return { label: "Inicial", className: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]" };
 }
 
 function buildMissingDocumentSuggestions(registrosWithCategories, presentDocumentTypes) {
@@ -421,32 +252,14 @@ function buildMissingDocumentSuggestions(registrosWithCategories, presentDocumen
   const hasDocument = (documentType) => presentDocumentTypes.includes(documentType);
   const addMissing = (items) => {
     items.forEach((item) => {
-      if (!suggestions.includes(item) && !hasDocument(item)) {
-        suggestions.push(item);
-      }
+      if (!suggestions.includes(item) && !hasDocument(item)) suggestions.push(item);
     });
   };
-
-  if (hasCategory("Materiales")) {
-    addMissing(["Factura de material", "Guía de despacho", "Ficha técnica de material"]);
-  }
-
-  if (hasCategory("Transporte")) {
-    addMissing(["Guía de despacho", "Evidencia de transporte", "Ticket de pesaje"]);
-  }
-
-  if (hasCategory("Maquinaria")) {
-    addMissing(["Factura de combustible", "Registro de maquinaria"]);
-  }
-
-  if (hasCategory("Energia")) {
-    addMissing(["Boleta eléctrica", "Registro de generador"]);
-  }
-
-  if (hasCategory("Residuos")) {
-    addMissing(["Ticket de pesaje", "Registro de retiro de residuos"]);
-  }
-
+  if (hasCategory("Materiales")) addMissing(["Factura de material", "Guía de despacho", "Ficha técnica de material"]);
+  if (hasCategory("Transporte")) addMissing(["Guía de despacho", "Evidencia de transporte", "Ticket de pesaje"]);
+  if (hasCategory("Maquinaria")) addMissing(["Factura de combustible", "Registro de maquinaria"]);
+  if (hasCategory("Energia")) addMissing(["Boleta eléctrica", "Registro de generador"]);
+  if (hasCategory("Residuos")) addMissing(["Ticket de pesaje", "Registro de retiro de residuos"]);
   return suggestions.slice(0, 6);
 }
 
@@ -454,44 +267,11 @@ function getDocumentTraceability({ documents, missingDocumentTypes, registrosWit
   const validCount = documents.filter((evidencia) => ["validado", "validada"].includes(evidencia.estado_validacion || evidencia.estado_revision)).length;
   const observedCount = documents.filter((evidencia) => ["observada"].includes(evidencia.estado_revision)).length;
   const activeCategories = registrosWithCategories.filter((source) => source.categoria_visible).length;
-
-  if (documents.length === 0) {
-    return {
-      label: "Sin respaldo",
-      description: "No hay evidencias asociadas a la obra.",
-      className: "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-main)]",
-    };
-  }
-
-  if (observedCount > 0) {
-    return {
-      label: "En revisión",
-      description: "Hay evidencias observadas o pendientes de ajuste.",
-      className: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
-    };
-  }
-
-  if (missingDocumentTypes.length > 0) {
-    return {
-      label: "Inicial",
-      description: "Existe respaldo documental, pero aún faltan evidencias críticas por categoría.",
-      className: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
-    };
-  }
-
-  if (validCount >= 3 && activeCategories >= 3) {
-    return {
-      label: "Alta trazabilidad",
-      description: "La obra tiene evidencias validadas para varias categorías críticas.",
-      className: "border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]",
-    };
-  }
-
-  return {
-    label: "Respaldada",
-    description: "La obra cuenta con evidencias validadas para respaldar sus principales fuentes de emisión.",
-    className: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
-  };
+  if (documents.length === 0) return { label: "Sin respaldo", description: "No hay evidencias asociadas a la obra.", className: "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-main)]" };
+  if (observedCount > 0) return { label: "En revisión", description: "Hay evidencias observadas o pendientes de ajuste.", className: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]" };
+  if (missingDocumentTypes.length > 0) return { label: "Inicial", description: "Existe respaldo documental, pero aún faltan evidencias críticas por categoría.", className: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]" };
+  if (validCount >= 3 && activeCategories >= 3) return { label: "Alta trazabilidad", description: "La obra tiene evidencias validadas para varias categorías críticas.", className: "border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]" };
+  return { label: "Respaldada", description: "La obra cuenta con evidencias validadas para respaldar sus principales fuentes de emisión.", className: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]" };
 }
 
 function Panel({ children, title }) {
@@ -500,29 +280,6 @@ function Panel({ children, title }) {
       <h2 className="text-xl font-semibold text-[var(--text-main)]">{title}</h2>
       <div className="mt-5">{children}</div>
     </section>
-  );
-}
-
-function MetricBar({ detail, label, pct, value }) {
-  return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="font-semibold text-[var(--text-main)]">{label}</p>
-          {detail && <p className="mt-1 text-xs text-[var(--text-muted)]">{detail}</p>}
-        </div>
-        <div className="text-right">
-          <p className="font-bold text-[#075985]">{value}</p>
-          <p className="text-xs text-[var(--text-muted)]">{formatNumber(pct || 0, 1)}%</p>
-        </div>
-      </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
-        <div
-          className="h-full rounded-full bg-[var(--primary)]"
-          style={{ width: `${Math.max(0, Math.min(100, pct || 0))}%` }}
-        />
-      </div>
-    </div>
   );
 }
 
