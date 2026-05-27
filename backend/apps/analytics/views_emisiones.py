@@ -25,7 +25,7 @@ def _normalize_text(value):
 
 
 def _chart_axis_label(value):
-    # Recharts can split long SVG tick labels by spaces. NBSP keeps source names in one line.
+    # Recharts can split long SVG tick labels by spaces. NBSP keeps axis labels in one line.
     return str(value or "").replace(" ", "\u00A0")
 
 
@@ -68,7 +68,7 @@ def _sorted_items(grouped, label_key):
     items = []
 
     for label, value in sorted(grouped.items(), key=lambda item: item[1], reverse=True):
-        display_label = _chart_axis_label(label) if label_key == "fuente_emision" else label
+        display_label = _chart_axis_label(label) if label_key in {"fuente_emision", "unidad"} else label
         items.append({label_key: display_label, "emisiones": round(value, 3)})
 
     return items
