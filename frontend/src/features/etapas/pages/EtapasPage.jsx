@@ -1,7 +1,7 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
-  Boxes,
+  BarChart3,
   Eye,
   Factory,
   Gauge,
@@ -47,9 +47,10 @@ function EtapasObraView() {
         const data = await getConstructoraEtapas(activeConstructoraId);
 
         if (!isCancelled) {
-          setEtapas(Array.isArray(data) ? data : []);
+          const nextEtapas = Array.isArray(data) ? data : [];
+          setEtapas(nextEtapas);
           setSelectedEtapaId((currentId) => {
-            if (currentId && data.some((unidad) => String(unidad.id) === String(currentId))) {
+            if (currentId && nextEtapas.some((unidad) => String(unidad.id) === String(currentId))) {
               return currentId;
             }
             return "";
@@ -59,7 +60,7 @@ function EtapasObraView() {
         if (!isCancelled) {
           setError(
             requestError.response?.data?.error ||
-              "No se pudieron cargar las etapas o frentes."
+              "No se pudieron cargar las etapas."
           );
         }
       } finally {
@@ -104,7 +105,7 @@ function EtapasObraView() {
     } catch (requestError) {
       setError(
         requestError.response?.data?.error ||
-          "No se pudo cargar el detalle de la etapa o frente."
+          "No se pudo cargar el detalle de la etapa."
       );
     } finally {
       setSelectedEtapaLoading(false);
@@ -161,7 +162,7 @@ function EtapasObraView() {
     return (
       <EmptyState
         title="Selecciona o crea una constructora para comenzar"
-        description="Las etapas y frentes se muestran dentro del workspace activo."
+        description="Las etapas se muestran dentro de la constructora activa."
       />
     );
   }
@@ -174,17 +175,14 @@ function EtapasObraView() {
             <Factory className="text-emerald-400" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold sm:text-4xl">
-              Etapas / frentes
-            </h1>
+            <h1 className="text-3xl font-bold sm:text-4xl">Etapas</h1>
             <p className="max-w-3xl text-slate-400">
-              Centros de trabajo, plantas productivas y nodos logí­sticos vinculados
-              a la constructora activa.
+              Fases operativas de la obra vinculadas a registros, evidencias y emisiones de la constructora activa.
             </p>
           </div>
         </div>
-        <div className="premium-card-interactive rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 shadow-[var(--shadow-soft)]">
-          {formatNumber(etapas.length, 0)} etapas
+        <div className="premium-card-interactive rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-[var(--primary-dark)] shadow-[var(--shadow-soft)]">
+          {formatNumber(metrics.totalUnits, 0)} etapas activas
         </div>
       </header>
 
@@ -194,29 +192,32 @@ function EtapasObraView() {
         </p>
       )}
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <UnitKpi icon={<Factory />} label="Total de etapas" value={metrics.totalUnits} />
+      <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <UnitKpi
-          detail={`${formatNumber(metrics.topLotsUnit?.obras_count || 0, 0)} obras`}
-          icon={<Boxes />}
-          label="Etapa con más obras"
-          value={metrics.topLotsUnit?.nombre || "Sin datos"}
+          icon={<Factory />}
+          label="Etapas activas"
+          tone="success"
+          value={metrics.totalUnits}
         />
         <UnitKpi
-          detail={`${formatNumber(metrics.topActivitiesUnit?.registros_count || 0, 0)} registros`}
+          detail={`${formatNumber(metrics.topEmissionUnit?.emisiones_totales_kg_co2e || 0, 1)} kg CO2e`}
+          icon={<BarChart3 />}
+          label="Etapa con mayor emisión"
+          tone="danger"
+          value={metrics.topEmissionUnit?.nombre || "Sin datos"}
+        />
+        <UnitKpi
+          detail={`${formatNumber(metrics.topActivitiesUnit?.registros_count || 0, 0)} registros · ${formatNumber(metrics.topActivitiesUnit?.obras_count || 0, 0)} obras`}
           icon={<Activity />}
           label="Mayor carga operativa"
+          tone="info"
           value={metrics.topActivitiesUnit?.nombre || "Sin datos"}
         />
         <UnitKpi
-          icon={<Gauge />}
-          label="Emisiones asociadas"
-          tone="cyan"
-          value={`${formatNumber(metrics.totalEmissions, 1)} kg CO2e`}
-        />
-        <UnitKpi
+          detail="Alcance operativo registrado"
           icon={<MapPinned />}
           label="Cobertura territorial"
+          tone="warning"
           value={`${formatNumber(metrics.territorialCoverage, 0)} ${metrics.coverageLabel}`}
         />
       </section>
@@ -226,7 +227,7 @@ function EtapasObraView() {
         <h2 className="mt-2 text-2xl font-bold text-[var(--text-main)]">
           Mapa operativo de {activeConstructora.nombre}
         </h2>
-        <p className="mt-3 max-w-5xl whitespace-pre-line text-sm font-medium leading-7 text-[#334155]">
+        <p className="mt-3 max-w-6xl text-base font-medium leading-8 text-[#334155]">
           {buildOperationalSummary(activeConstructora, metrics)}
         </p>
       </section>
@@ -260,9 +261,9 @@ function EtapasObraView() {
             <thead>
               <tr className="border-b border-[var(--border)] text-left text-xs text-[var(--text-muted)]">
                 <th className="px-4 py-3">Constructora</th>
-                <th className="px-4 py-3">Etapa / frente</th>
+                <th className="px-4 py-3">Etapa</th>
                 <th className="px-4 py-3">Tipo</th>
-                <th className="px-4 py-3">Region</th>
+                <th className="px-4 py-3">Región</th>
                 <th className="px-4 py-3">Comuna</th>
                 <th className="px-4 py-3 text-right">Obras</th>
                 <th className="px-4 py-3 text-right">Registros</th>
@@ -307,7 +308,7 @@ function EtapasObraView() {
                     {formatNumber(unidad.registros_count || 0, 0)}
                   </td>
                   <td className="px-4 py-4 text-right font-bold text-[#075985]">
-                    {formatNumber(unidad.emisiones_totales_kg_co2e || 0, 1)}
+                    {formatNumber(unidad.emisiones_totales_kg_co2e || 0, 1)} kg CO2e
                   </td>
                   <td className="px-4 py-4 text-center">
                     <button
@@ -327,7 +328,7 @@ function EtapasObraView() {
               {!loading && visibleEtapas.length === 0 && (
                 <tr>
                   <td className="px-1 py-8 text-center text-slate-400" colSpan={9}>
-                    No hay etapas o frentes para mostrar.
+                    No hay etapas para mostrar.
                   </td>
                 </tr>
               )}
@@ -362,13 +363,6 @@ function buildOperationalMetrics(etapas) {
       Number(unidad.registros_count || 0) > 0 ||
       Number(unidad.emisiones_totales_kg_co2e || 0) > 0
   );
-  const unitsWithoutOperation = activeUnits.filter(
-    (unidad) =>
-      Number(unidad.obras_count || 0) === 0 &&
-      Number(unidad.registros_count || 0) === 0 &&
-      Number(unidad.emisiones_totales_kg_co2e || 0) === 0
-  );
-  const types = new Set(activeUnits.map((unidad) => unidad.tipo).filter(Boolean));
   const comunas = new Set(activeUnits.map((unidad) => unidad.comuna).filter(Boolean));
   const regiones = new Set(activeUnits.map((unidad) => unidad.region).filter(Boolean));
   const totalEmissions = activeUnits.reduce(
@@ -383,9 +377,8 @@ function buildOperationalMetrics(etapas) {
     (total, unidad) => total + Number(unidad.registros_count || 0),
     0
   );
-  const topLotsUnit = maxBy(activeUnits, (unidad) => Number(unidad.obras_count || 0));
   const topActivitiesUnit = maxBy(activeUnits, (unidad) =>
-    Number(unidad.registros_count || 0)
+    Number(unidad.registros_count || 0) + Number(unidad.obras_count || 0)
   );
   const topEmissionUnits = [...activeUnits]
     .filter((unidad) => Number(unidad.emisiones_totales_kg_co2e || 0) > 0)
@@ -394,7 +387,7 @@ function buildOperationalMetrics(etapas) {
         Number(right.emisiones_totales_kg_co2e || 0) -
         Number(left.emisiones_totales_kg_co2e || 0)
     );
-  const dominantType = dominantValue(activeUnits.map((unidad) => unidad.tipo).filter(Boolean));
+  const topEmissionUnit = topEmissionUnits[0] || null;
   const dominantComuna = dominantValue(
     unitsWithOperation.map((unidad) => unidad.comuna).filter(Boolean)
   );
@@ -403,93 +396,38 @@ function buildOperationalMetrics(etapas) {
   return {
     totalUnits: activeUnits.length,
     unitsWithOperationCount: unitsWithOperation.length,
-    unitsWithoutOperation,
-    uniqueTypes: types.size,
-    topLotsUnit,
     topActivitiesUnit,
+    topEmissionUnit,
     topEmissionUnits,
     totalLots,
     totalActivities,
     totalEmissions,
     territorialCoverage,
     coverageLabel: comunas.size ? "comunas" : "regiones",
-    dominantType,
     dominantComuna,
   };
 }
 
 function buildOperationalSummary(activeConstructora, metrics) {
   if (!metrics.totalUnits) {
-    return "La constructora aun no tiene etapas o frentes registrados. Crea o importa etapas para habilitar lectura operacional, trazabilidad y analisis de emisiones.";
+    return "La constructora aún no tiene etapas registradas. Crea o importa etapas para habilitar trazabilidad, registros de emisión y lectura operativa.";
   }
 
-  const centralization =
-    metrics.territorialCoverage <= 1
-      ? "centralizada"
-      : metrics.territorialCoverage <= 3
-        ? "semi-centralizada"
-        : "distribuida";
-  const territory = metrics.dominantComuna
-    ? `en la comuna de ${metrics.dominantComuna}`
-    : "sin cobertura territorial definida";
-  const topEmitter = metrics.topEmissionUnits[0];
-  const nextEmitters = metrics.topEmissionUnits.slice(1, 3);
+  const topEmitter = metrics.topEmissionUnit;
   const topEmitterEmissions = Number(topEmitter?.emisiones_totales_kg_co2e || 0);
   const topEmitterShare = metrics.totalEmissions
     ? (topEmitterEmissions / metrics.totalEmissions) * 100
     : 0;
-  const withoutOperationText = metrics.unitsWithoutOperation.length
-    ? `, mientras que ${formatUnitNames(metrics.unitsWithoutOperation)} ${metrics.unitsWithoutOperation.length === 1 ? "aparece" : "aparecen"} sin fuente_emision ni emisiones registradas`
-    : "";
-  const nextEmittersText = nextEmitters.length
-    ? `${formatUnitNamesWithEmissions(nextEmitters)} tambien presentan impactos relevantes. En conjunto, estas etapas explican la mayor parte de la huella de la constructora.`
-    : "No hay suficientes etapas adicionales con emisiones para construir un segundo nivel de priorizacion.";
-  const operationalLoadText = metrics.topActivitiesUnit
-    ? `Por otro lado, ${metrics.topActivitiesUnit.nombre} concentra una alta carga operativa, con ${formatNumber(
-        metrics.topActivitiesUnit.obras_count || 0,
-        0
-      )} obras y ${formatNumber(
-        metrics.topActivitiesUnit.registros_count || 0,
-        0
-      )} registros.`
-    : "";
-  const priorityList = [topEmitter, ...nextEmitters]
-    .filter(Boolean)
-    .map((unidad) => unidad.nombre);
+  const topOperational = metrics.topActivitiesUnit;
+  const territory = metrics.dominantComuna
+    ? `La operación se concentra principalmente en ${metrics.dominantComuna}`
+    : "La cobertura territorial aún no está completamente definida";
 
-  return `${activeConstructora.nombre} opera con ${formatNumber(
-    metrics.totalUnits,
-    0
-  )} etapas activas, pero la fuente_emision real se concentra en ${formatNumber(
-    metrics.unitsWithOperationCount,
-    0
-  )} etapas con obras, registros y emisiones registradas. Estas etapas acumulan ${formatNumber(
-    metrics.totalLots,
-    0
-  )} obras, ${formatNumber(metrics.totalActivities, 0)} registros y una huella total de ${formatNumber(
-    metrics.totalEmissions,
-    1
-  )} kg CO2e.
+  if (!metrics.totalEmissions) {
+    return `${activeConstructora.nombre} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas y ${formatNumber(metrics.totalActivities, 0)} registros operativos. El foco inmediato debe ser completar registros de emisión y evidencias para identificar qué etapa concentra el mayor impacto ambiental.`;
+  }
 
-La operacion se concentra principalmente ${territory}${withoutOperationText}. Esto sugiere una operacion territorialmente ${centralization}, con algunas etapas aun sin trazabilidad operativa activa.
-
-La etapa más critica es ${topEmitter?.nombre || "Sin datos"}, que concentra ${formatNumber(
-    topEmitterEmissions,
-    1
-  )} kg CO2e, equivalente al ${formatNumber(
-    topEmitterShare,
-    0
-  )}% de las emisiones totales. Esto la convierte en el principal foco de riesgo ambiental y operativo.
-
-${nextEmittersText}
-
-${operationalLoadText}
-
-Lectura clave
-
-La constructora no tiene un problema distribuido de forma pareja: tiene una operación donde pocas etapas concentran la mayor parte del impacto. La prioridad deberí­a estar en ${formatUnitNames(
-    priorityList
-  )}.`;
+  return `${activeConstructora.nombre} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas, ${formatNumber(metrics.totalActivities, 0)} registros y ${formatNumber(metrics.totalLots, 0)} obras asociadas. ${topEmitter?.nombre || "La etapa principal"} concentra ${formatNumber(topEmitterEmissions, 1)} kg CO2e, equivalente al ${formatNumber(topEmitterShare, 0)}% de la huella registrada, por lo que debe priorizarse en la gestión ambiental. ${topOperational?.nombre || "La etapa con mayor actividad"} presenta la mayor carga operativa con ${formatNumber(topOperational?.registros_count || 0, 0)} registros. ${territory}.`;
 }
 
 function maxBy(items, selector) {
@@ -508,55 +446,81 @@ function dominantValue(values) {
   return Object.entries(counts).sort((left, right) => right[1] - left[1])[0]?.[0] || "";
 }
 
-function formatUnitNames(unitsOrNames) {
-  const names = unitsOrNames
-    .map((item) => (typeof item === "string" ? item : item?.nombre))
-    .filter(Boolean);
-
-  if (!names.length) {
-    return "Sin datos";
-  }
-
-  if (names.length === 1) {
-    return names[0];
-  }
-
-  return `${names.slice(0, -1).join(", ")} y ${names[names.length - 1]}`;
-}
-
-function formatUnitNamesWithEmissions(units) {
-  const parts = units.map(
-    (unidad) =>
-      `${unidad.nombre} (${formatNumber(
-        unidad.emisiones_totales_kg_co2e || 0,
-        1
-      )} kg CO2e)`
-  );
-
-  return formatUnitNames(parts);
-}
-
-function UnitKpi({ detail, icon, label, tone = "slate", value }) {
-  const toneClass = {
-    cyan: "text-[#075985]",
-    emerald: "text-[var(--primary-dark)]",
-    slate: "text-[var(--text-main)]",
-  }[tone];
+function UnitKpi({ detail, icon, label, tone = "neutral", value }) {
+  const toneClasses = getUnitKpiTone(tone);
 
   return (
-    <div className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
-      <div className="mb-3 flex items-center gap-3">
-        <div className="text-[var(--primary-dark)]">{icon}</div>
-        <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
+    <div className={`premium-card-interactive relative flex min-h-[190px] overflow-hidden rounded-[24px] border p-5 shadow-[0_18px_45px_rgba(15,23,42,0.10)] ring-1 ring-white/80 transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_60px_rgba(15,23,42,0.16)] ${toneClasses.card}`}>
+      <div className={`absolute inset-x-7 top-0 h-1.5 rounded-b-full ${toneClasses.accent}`} />
+      <div className={`pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full blur-3xl ${toneClasses.glow}`} />
+      <div className="relative z-10 flex w-full flex-col items-center text-center">
+        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-[0_12px_28px_rgba(15,23,42,0.08)] ${toneClasses.icon}`}>
+          {icon}
+        </div>
+        <p className={`mt-4 text-[11px] font-black uppercase tracking-[0.14em] ${toneClasses.title}`}>
           {label}
         </p>
+        <div className="flex flex-1 items-center justify-center py-3">
+          <h3 className={`mx-auto max-w-[260px] break-words text-center text-[clamp(1.5rem,2.4vw,2.15rem)] font-black leading-tight tracking-tight ${toneClasses.value}`}>
+            {typeof value === "number" ? formatNumber(value, 0) : value || "Sin datos"}
+          </h3>
+        </div>
+        {detail && <p className={`text-center text-sm font-bold ${toneClasses.detail}`}>{detail}</p>}
       </div>
-      <p className={`mt-2 line-clamp-2 text-2xl font-bold ${toneClass}`}>
-        {typeof value === "number" ? formatNumber(value, 0) : value || "Sin datos"}
-      </p>
-      {detail && <p className="mt-2 text-sm font-semibold text-[var(--text-muted)]">{detail}</p>}
     </div>
   );
+}
+
+function getUnitKpiTone(tone) {
+  const tones = {
+    success: {
+      card: "border-[#86EFAC] bg-[linear-gradient(135deg,#ECFDF3_0%,#FFFFFF_48%,#DCFCE7_100%)]",
+      icon: "border-[#86EFAC] bg-white text-[#047857]",
+      title: "text-[#64748B]",
+      value: "text-[#047857]",
+      detail: "text-[#047857]",
+      accent: "bg-[#059669]",
+      glow: "bg-emerald-200/70",
+    },
+    danger: {
+      card: "border-[#FDA4AF] bg-[linear-gradient(135deg,#FFF1F2_0%,#FFFFFF_46%,#FFE4E6_100%)]",
+      icon: "border-[#FDA4AF] bg-white text-[#BE123C]",
+      title: "text-[#64748B]",
+      value: "text-[#BE123C]",
+      detail: "text-[#9F1239]",
+      accent: "bg-[#E11D48]",
+      glow: "bg-rose-200/70",
+    },
+    info: {
+      card: "border-[#93C5FD] bg-[linear-gradient(135deg,#EFF6FF_0%,#FFFFFF_48%,#DBEAFE_100%)]",
+      icon: "border-[#93C5FD] bg-white text-[#1D4ED8]",
+      title: "text-[#64748B]",
+      value: "text-[#1D4ED8]",
+      detail: "text-[#1D4ED8]",
+      accent: "bg-[#2563EB]",
+      glow: "bg-blue-200/70",
+    },
+    warning: {
+      card: "border-[#FDBA74] bg-[linear-gradient(135deg,#FFF7ED_0%,#FFFFFF_48%,#FFEDD5_100%)]",
+      icon: "border-[#FDBA74] bg-white text-[#C2410C]",
+      title: "text-[#64748B]",
+      value: "text-[#C2410C]",
+      detail: "text-[#B45309]",
+      accent: "bg-[#EA580C]",
+      glow: "bg-orange-200/70",
+    },
+    neutral: {
+      card: "border-[#CBD5E1] bg-[linear-gradient(135deg,#FFFFFF_0%,#F8FAFC_48%,#E2E8F0_100%)]",
+      icon: "border-[#CBD5E1] bg-white text-[#334155]",
+      title: "text-[#64748B]",
+      value: "text-[#334155]",
+      detail: "text-[#64748B]",
+      accent: "bg-[#475569]",
+      glow: "bg-slate-200/70",
+    },
+  };
+
+  return tones[tone] || tones.neutral;
 }
 
 function UnitTypeBadge({ type }) {
@@ -590,8 +554,8 @@ function EtapaDetailPanel({ activeTab, loading, onTabChange, unidad }) {
   if (!unidad) {
     return (
       <EmptyState
-        title="Selecciona una etapa / frente"
-        description="Selecciona una etapa o frente para revisar su resumen, obras, registros y emisiones asociadas."
+        title="Selecciona una etapa"
+        description="Selecciona una etapa para revisar su resumen, obras, registros y emisiones asociadas."
       />
     );
   }
@@ -606,7 +570,7 @@ function EtapaDetailPanel({ activeTab, loading, onTabChange, unidad }) {
           <p className="text-sm font-bold text-[var(--primary-dark)]">Detalle etapa</p>
           <h2 className="mt-1 text-2xl font-bold text-[var(--text-main)]">{unidad.nombre}</h2>
           <p className="mt-2 text-sm font-medium text-[var(--text-muted)]">
-            {unidad.constructora_nombre || "Sin constructora"} · {unidad.region || "Sin region"} ·{" "}
+            {unidad.constructora_nombre || "Sin constructora"} · {unidad.region || "Sin región"} ·{" "}
             {unidad.comuna || "Sin comuna"}
           </p>
           {unidad.direccion && (
@@ -655,7 +619,7 @@ function EtapaDetailPanel({ activeTab, loading, onTabChange, unidad }) {
         {activeTab === "resumen" && <EtapaResumen unidad={unidad} />}
         {activeTab === "registros_emision" && (
           <PaginatedSimpleTable
-            columns={["Fecha", "Registro", "Categoria", "Obra", "Cantidad", "Emisiones"]}
+            columns={["Fecha", "Registro", "Categoría", "Obra", "Cantidad", "Emisiones"]}
             onPageChange={(page) =>
               setDetailPages((currentPages) => ({ ...currentPages, registros_emision: page }))
             }
@@ -689,7 +653,7 @@ function EtapaDetailPanel({ activeTab, loading, onTabChange, unidad }) {
         )}
         {activeTab === "emisiones" && (
           <PaginatedSimpleTable
-            columns={["Registro", "Categoria", "Factor", "Emisiones"]}
+            columns={["Registro", "Categoría", "Factor", "Emisiones"]}
             onPageChange={(page) =>
               setDetailPages((currentPages) => ({ ...currentPages, emisiones: page }))
             }
@@ -744,15 +708,15 @@ function EtapaResumen({ unidad }) {
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <UnitMiniMetric label="ID etapa" value={unidad.etapa_id || "-"} />
       <UnitMiniMetric label="Tipo" value={unidad.tipo || "Sin tipo"} />
-      <UnitMiniMetric label="Region" value={unidad.region || "Sin region"} />
+      <UnitMiniMetric label="Región" value={unidad.region || "Sin región"} />
       <UnitMiniMetric label="Comuna" value={unidad.comuna || "Sin comuna"} />
       <div className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 sm:col-span-2 xl:col-span-4">
         <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
-          Descripcion
+          Descripción
         </p>
         <p className="mt-2 text-sm font-medium leading-6 text-[var(--text-main)]">
           {unidad.descripcion ||
-            "No hay descripcion operativa registrada para esta etapa."}
+            "No hay descripción operativa registrada para esta etapa."}
         </p>
       </div>
     </div>
@@ -764,7 +728,7 @@ function PaginatedSimpleTable({ columns, onPageChange, page, rows }) {
     return (
       <EmptyState
         title="Sin datos"
-        description="Esta etapa aun no tiene registros para esta seccion."
+        description="Esta etapa aún no tiene registros para esta sección."
       />
     );
   }
