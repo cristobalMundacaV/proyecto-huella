@@ -27,30 +27,36 @@ function ObrasTable({ loading, obras, onOpenDetail, onSelectObra, selectedObra }
   }, [obras]);
 
   const getEvidenceCount = (obra) =>
-    obra.evidencias_count ?? obra.evidencias_count ?? obra.evidencias?.length ?? 0;
+    obra.evidencias_count ?? obra.evidencias?.length ?? 0;
 
   return (
     <section className="premium-card premium-card-interactive slide-up rounded-3xl bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
       <h2 className="mb-4 text-xl font-semibold text-[var(--text-main)]">Obras registradas</h2>
 
       <div className="premium-table-wrapper overflow-x-auto">
-        <table className="premium-table min-w-[980px] w-full text-sm">
+        <table className="premium-table min-w-[940px] w-full table-fixed text-sm">
+          <colgroup>
+            <col className="w-[15%]" />
+            <col className="w-[22%]" />
+            <col className="w-[22%]" />
+            <col className="w-[18%]" />
+            <col className="w-[10%]" />
+            <col className="w-[13%]" />
+          </colgroup>
           <thead className="border-b border-[var(--border)] text-[var(--text-muted)]">
             <tr>
-              <th className="py-3 text-left">Código</th>
-              <th className="py-3 text-left">Obra / proyecto</th>
-              <th className="py-3 text-left">constructora</th>
-              <th className="py-3 text-left">Ubicación</th>
-              <th className="py-3 text-left">Fecha inicio</th>
-              <th className="py-3 text-right">Emisiones kg CO2e</th>
-              <th className="py-3 text-right">Evidencias</th>
-              <th className="py-3 text-right">Estado</th>
+              <th className="px-4 py-3 text-center">Código</th>
+              <th className="px-4 py-3 text-left">Obra / proyecto</th>
+              <th className="px-4 py-3 text-left">Constructora</th>
+              <th className="px-4 py-3 text-right">Emisiones</th>
+              <th className="px-4 py-3 text-center">Evidencias</th>
+              <th className="px-4 py-3 text-center">Estado</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan="8" className="py-8 text-center text-slate-400">
+                <td colSpan="6" className="py-8 text-center text-slate-400">
                   Cargando obras...
                 </td>
               </tr>
@@ -58,10 +64,10 @@ function ObrasTable({ loading, obras, onOpenDetail, onSelectObra, selectedObra }
 
             {!loading && obras.length === 0 && (
               <tr>
-                <td colSpan="8" className="py-8 text-center text-slate-400">
+                <td colSpan="6" className="py-8 text-center text-slate-400">
                   <p>Aún no hay obras registradas.</p>
                   <p className="mt-1 text-sm">
-                    Crea una obra para comenzar a medir emisiones por materiales, transporte, maquinaria, Energia y residuos.
+                    Crea una obra para comenzar a medir emisiones por materiales, transporte, maquinaria, energía y residuos.
                   </p>
                 </td>
               </tr>
@@ -69,6 +75,7 @@ function ObrasTable({ loading, obras, onOpenDetail, onSelectObra, selectedObra }
 
             {visibleObras.map((obra) => {
               const isSelected = obra.codigo_obra === selectedObra?.codigo_obra;
+              const evidenceCount = getEvidenceCount(obra);
 
               return (
                 <tr
@@ -84,36 +91,38 @@ function ObrasTable({ loading, obras, onOpenDetail, onSelectObra, selectedObra }
                       : "hover:bg-[var(--bg-surface)] focus:bg-[var(--bg-surface)]"
                   }`}
                 >
-                  <td className="py-3">
-                    <span className="font-semibold text-[var(--primary-dark)]">
+                  <td className="px-4 py-4 text-center align-middle">
+                    <span className="inline-flex max-w-full items-center justify-center rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-xs font-black text-[var(--primary-dark)] shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
                       {obra.codigo_obra}
                     </span>
                   </td>
-                  <td className="py-3">{obra.tipo_proyecto}</td>
-                  <td className="py-3">{obra.constructora_nombre}</td>
-                  <td className="py-3">{obra.origen || "-"}</td>
-                  <td className="py-3">{obra.fecha || "-"}</td>
-                  <td className="py-3 text-right font-semibold text-[#075985]">
+                  <td className="px-4 py-4 align-middle font-semibold text-[var(--text-main)]">
+                    {obra.tipo_proyecto || "Obra registrada"}
+                  </td>
+                  <td className="px-4 py-4 align-middle text-[var(--text-main)]">
+                    {obra.constructora_nombre || "Constructora activa"}
+                  </td>
+                  <td className="px-4 py-4 text-right align-middle font-black text-[#075985]">
                     {formatNumber(Number(obra.emisiones_kg_co2e || 0))} kg CO2e
                   </td>
-                  <td className="py-3 text-right">
-                    {formatNumber(getEvidenceCount(obra), 0)}
+                  <td className="px-4 py-4 text-center align-middle font-bold text-[var(--text-main)]">
+                    {formatNumber(evidenceCount, 0)}
                   </td>
-                  <td className="py-3">
+                  <td className="px-4 py-4 text-center align-middle">
                     <button
                       type="button"
                       onClick={(event) => {
                         event.stopPropagation();
                         onOpenDetail(obra.codigo_obra);
                       }}
-                      className={`premium-badge inline-flex rounded-full border px-3 py-1 text-xs font-bold transition ${
-                        isSelected
-                          ? "border-[var(--primary)]/30 bg-[#D9F0E6] text-[var(--primary-dark)] hover:bg-[var(--success-bg)]"
-                          : "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-[var(--primary)]/30 hover:bg-[var(--success-bg)] hover:text-[var(--primary-dark)]"
+                      className={`premium-badge mx-auto inline-flex min-w-[132px] items-center justify-center rounded-full border px-3 py-1.5 text-center text-xs font-bold transition ${
+                        evidenceCount > 0
+                          ? "border-emerald-200 bg-[#D9F0E6] text-[var(--primary-dark)] hover:bg-[var(--success-bg)]"
+                          : "border-slate-200 bg-slate-50 text-slate-500 hover:border-[var(--primary)]/30 hover:bg-[var(--success-bg)] hover:text-[var(--primary-dark)]"
                       }`}
                       aria-label={`Abrir detalle de obra ${obra.codigo_obra}`}
                     >
-                      {getEvidenceCount(obra) > 0 ? "Con evidencias" : "En seguimiento"}
+                      {evidenceCount > 0 ? "Con evidencias" : "En seguimiento"}
                     </button>
                   </td>
                 </tr>
