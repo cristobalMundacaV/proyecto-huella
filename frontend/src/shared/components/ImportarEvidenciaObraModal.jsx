@@ -563,7 +563,7 @@ function ImportarEvidenciaObraModal({
           <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">Contexto de obra</p>
             <p className="mt-2 text-sm text-[var(--text-main)]">
-              {selectedObra ? `${selectedObra.codigo_obra} Â· ${selectedObra.constructora_nombre || selectedObra.origen || "Obra"}` : "Selecciona una obra destino para continuar."}
+              {selectedObra ? `${selectedObra.codigo_obra} · ${selectedObra.constructora_nombre || selectedObra.origen || "Obra"}` : "Selecciona una obra destino para continuar."}
             </p>
             {loadingCatalogs ? <p className="mt-2 text-xs text-[var(--text-muted)]">Cargando catalogo de obras y factores...</p> : null}
           </div>

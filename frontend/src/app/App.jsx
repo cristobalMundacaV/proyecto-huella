@@ -1166,7 +1166,7 @@ const environmentalStatus = getEnvironmentalStatus({
               title="Intensidad de carbono"
               value={
                 carbonIntensity != null
-                  ? `${formatNumber(carbonIntensity, 2)} kg CO2e/mÂ²`
+                  ? `${formatNumber(carbonIntensity, 2)} kg CO2e/m²`
                   : "Pendiente de superficie"
               }
             />

@@ -606,7 +606,7 @@ function EtapaDetailPanel({ activeTab, loading, onTabChange, unidad }) {
           <p className="text-sm font-bold text-[var(--primary-dark)]">Detalle etapa</p>
           <h2 className="mt-1 text-2xl font-bold text-[var(--text-main)]">{unidad.nombre}</h2>
           <p className="mt-2 text-sm font-medium text-[var(--text-muted)]">
-            {unidad.constructora_nombre || "Sin constructora"} Â· {unidad.region || "Sin region"} Â·{" "}
+            {unidad.constructora_nombre || "Sin constructora"} · {unidad.region || "Sin region"} ·{" "}
             {unidad.comuna || "Sin comuna"}
           </p>
           {unidad.direccion && (

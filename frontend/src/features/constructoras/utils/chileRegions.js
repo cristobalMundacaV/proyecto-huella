@@ -24,7 +24,7 @@
     comunas: ["Valparaí­so", "Casablanca", "Concón", "Juan Fernández", "Puchuncaví­", "Quintero", "Viña del Mar", "Isla de Pascua", "Los Andes", "Calle Larga", "Rinconada", "San Esteban", "La Ligua", "Cabildo", "Papudo", "Petorca", "Zapallar", "Quillota", "Calera", "Hijuelas", "La Cruz", "Nogales", "San Antonio", "Algarrobo", "Cartagena", "El Quisco", "El Tabo", "Santo Domingo", "San Felipe", "Catemu", "Llaillay", "Panquehue", "Putaendo", "Santa Marí­a", "Quilpué", "Limache", "Olmué", "Villa Alemana"],
   },
   {
-    region: "Región del Libertador Gral. Bernardo Oâ€™Higgins",
+    region: "Región del Libertador Gral. Bernardo O'Higgins",
     comunas: ["Rancagua", "Codegua", "Coinco", "Coltauco", "Doñihue", "Graneros", "Las Cabras", "Machalí­", "Malloa", "Mostazal", "Olivar", "Peumo", "Pichidegua", "Quinta de Tilcoco", "Rengo", "Requí­noa", "San Vicente", "Pichilemu", "La Estrella", "Litueche", "Marchihue", "Navidad", "Paredones", "San Fernando", "Chépica", "Chimbarongo", "Lolol", "Nancagua", "Palmilla", "Peralillo", "Placilla", "Pumanque", "Santa Cruz"],
   },
   {
@@ -53,7 +53,7 @@
   },
   {
     region: "Región Aisén del Gral. Carlos Ibáñez del Campo",
-    comunas: ["Coihaique", "Lago Verde", "Aisén", "Cisnes", "Guaitecas", "Cochrane", "Oâ€™Higgins", "Tortel", "Chile Chico", "Rí­o Ibáñez"],
+    comunas: ["Coihaique", "Lago Verde", "Aisén", "Cisnes", "Guaitecas", "Cochrane", "O'Higgins", "Tortel", "Chile Chico", "Rí­o Ibáñez"],
   },
   {
     region: "Región de Magallanes y de la Antártica Chilena",

@@ -558,7 +558,7 @@ function RegistrosEmisionTab({
                     </option>
                     {visibleFactores.map((factor) => (
                       <option key={factor.id} value={factor.id}>
-                        {factor.fuente_emision} Â· {factor.unidad} Â· {formatNumber(Number(factor.factor_emision), 6)} kgCO2e/{factor.unidad}
+                        {factor.fuente_emision} · {factor.unidad} · {formatNumber(Number(factor.factor_emision), 6)} kgCO2e/{factor.unidad}
                       </option>
                     ))}
                   </select>
@@ -604,13 +604,13 @@ function RegistrosEmisionTab({
                   onChange={onUpdateregistroForm}
                   required
                   disabled={!selectedObra}
-                  placeholder={fieldCopy.unitHelp.split(" Â· ")[0]}
+                  placeholder={fieldCopy.unitHelp.split(" · ")[0]}
                   className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60"
                   list="construction-unit-suggestions"
                 />
                 <span className="block text-xs text-slate-400">{fieldCopy.unitHelp}</span>
                 <datalist id="construction-unit-suggestions">
-                  {fieldCopy.unitHelp.split(" Â· ").map((unit) => (
+                  {fieldCopy.unitHelp.split(" · ").map((unit) => (
                     <option key={unit} value={unit} />
                   ))}
                 </datalist>
@@ -669,7 +669,7 @@ function RegistrosEmisionTab({
                   </option>
                   {selectedObra.evidencias?.map((evidencia) => (
                     <option key={evidencia.id} value={evidencia.id}>
-                      {evidencia.tipo_evidencia_label} Â· {evidencia.fecha}
+                      {evidencia.tipo_evidencia_label} · {evidencia.fecha}
                     </option>
                   ))}
                 </select>

@@ -225,7 +225,7 @@ function ResumenTab({ balanceData, selectedObra }) {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-xs font-bold text-[var(--primary-dark)]">
-                        #{index + 1} Â· {source.category}
+                        #{index + 1} · {source.category}
                       </p>
                       <p className="mt-1 font-semibold text-[var(--text-main)]">
                         {source.source}
