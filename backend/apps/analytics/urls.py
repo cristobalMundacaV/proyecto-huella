@@ -10,7 +10,6 @@ from .views import (
     calcular_distancia_ruta,
     constructora_configuracion,
     constructora_dashboard,
-    constructora_detail,
     constructora_estado,
     constructora_evidencias,
     constructora_obras,
@@ -30,6 +29,7 @@ from .views import (
     sistema_estado,
     verificar_obra,
 )
+from .views_constructoras import constructora_detail_safe
 from .views_emisiones import constructora_emisiones
 from .views_etapas import constructora_etapas
 from .views_importaciones import (
@@ -48,7 +48,7 @@ urlpatterns = [
     path("auth/bootstrap/", auth_bootstrap),
     path("dashboard/", dashboard_data),
     path("constructoras/", constructoras),
-    path("constructoras/<str:constructora_id>/", constructora_detail),
+    path("constructoras/<str:constructora_id>/", constructora_detail_safe),
     path("constructoras/<str:constructora_id>/estado/", constructora_estado),
     path("constructoras/<str:constructora_id>/configuracion/", constructora_configuracion),
     path("constructoras/<str:constructora_id>/dashboard/", constructora_dashboard),
