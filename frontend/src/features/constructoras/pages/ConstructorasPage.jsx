@@ -5,6 +5,7 @@ import {
   Boxes,
   Building2,
   Factory,
+  FileCheck2,
   Gauge,
   Plus,
 } from "lucide-react";
@@ -317,30 +318,47 @@ function ConstructorasView({
         </p>
       </section>
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <CompanyKpi
           icon={<Gauge />}
           label="Emisiones acumuladas"
-          tone="cyan"
+          tone="danger"
           value={`${formatNumber(metrics.totalEmissions, 1)} kg CO2e`}
         />
         <CompanyKpi
-          detail={`${formatNumber(metrics.topObra?.emisiones || 0, 1)} kg CO2e`}
-          icon={<Building2 />}
-          label="Obra con más emisiones"
-          value={metrics.topObra?.label || "Sin datos"}
+          detail={`${formatNumber(metrics.topSource?.emisiones || 0, 1)} kg CO2e`}
+          icon={<Factory />}
+          label="Fuente con más emisiones"
+          tone="warning"
+          value={metrics.topSource?.label || "Sin datos"}
         />
         <CompanyKpi
           detail={`${formatNumber(metrics.topCategory?.emisiones || 0, 1)} kg CO2e`}
           icon={<Boxes />}
           label="Categoría con más emisiones"
+          tone="violet"
           value={metrics.topCategory?.label || "Sin datos"}
         />
         <CompanyKpi
-          detail={`${formatNumber(metrics.topEmitter?.emisiones_totales_kg_co2e || 0, 1)} kg CO2e`}
-          icon={<BarChart3 />}
-          label="Etapa con más emisiones"
-          value={metrics.topEmitter?.nombre || "Sin datos"}
+          detail="Registros formales de emisión"
+          icon={<Activity />}
+          label="Actividad registrada"
+          tone="info"
+          value={formatNumber(metrics.totalActivities, 0)}
+        />
+        <CompanyKpi
+          detail="Respaldos vinculados"
+          icon={<FileCheck2 />}
+          label="Evidencia"
+          tone="success"
+          value={formatNumber(metrics.totalEvidence, 0)}
+        />
+        <CompanyKpi
+          detail="Obras asociadas a la constructora"
+          icon={<Building2 />}
+          label="Obras operativas"
+          tone="neutral"
+          value={formatNumber(metrics.totalObras, 0)}
         />
       </section>
 
@@ -415,6 +433,12 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
     totalActivities: scopedUnits.length
       ? scopedUnits.reduce((acc, unidad) => acc + Number(unidad.registros_count || 0), 0)
       : Number(activeCompany?.registros_count || 0),
+    totalEvidence: scopedUnits.length
+      ? scopedUnits.reduce(
+          (acc, unidad) => acc + Number(unidad.evidencias_count || unidad.fichas_ambientales_count || 0),
+          0
+        )
+      : Number(activeCompany?.evidencias_count || 0),
     totalEmissions: scopedUnits.length
       ? scopedUnits.reduce(
           (acc, unidad) => acc + Number(unidad.emisiones_totales_kg_co2e || 0),
@@ -434,6 +458,9 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
   );
   const topCategory = buildTopEmissionGroup(registros, (registro) =>
     getConstructionCategoryLabel(registro.categoria, registro.fuente_emision) || "Otros"
+  );
+  const topSource = buildTopEmissionGroup(registros, (registro) =>
+    registro.fuente_emision || "Sin fuente"
   );
   const topEmissionShare =
     totals.totalEmissions > 0 && topEmitter
@@ -461,6 +488,7 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
     topEmissionShare,
     topObra,
     topOperational,
+    topSource,
     categoryStackRows: categoryStack.rows,
     categoryStackSegments: categoryStack.segments,
     monthlyRows,
@@ -880,27 +908,78 @@ function maxBy(items, selector) {
   return items.reduce((best, item) => (selector(item) > selector(best) ? item : best), items[0]);
 }
 
-function CompanyKpi({ detail, icon, label, tone = "slate", value }) {
-  const toneClass = {
-    cyan: "text-[#075985]",
-    emerald: "text-[var(--primary-dark)]",
-    slate: "text-[var(--text-main)]",
-  }[tone];
+function CompanyKpi({ detail, icon, label, tone = "neutral", value }) {
+  const toneClasses = getCompanyKpiTone(tone);
 
   return (
-    <div className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
-      <div className="mb-3 flex items-center gap-3">
-        <div className="text-[var(--primary-dark)]">{icon}</div>
-        <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
+    <div className={`premium-card-interactive min-h-[168px] rounded-[18px] border p-6 shadow-[0_12px_30px_rgba(15,23,42,0.06)] ring-1 ring-white/70 ${toneClasses.card}`}>
+      <div className="mb-4 flex flex-col items-center text-center">
+        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border shadow-[0_8px_24px_rgba(15,23,42,0.04)] ${toneClasses.icon}`}>
+          {icon}
+        </div>
+        <p className={`mt-3 text-xs font-black uppercase tracking-[0.12em] ${toneClasses.title}`}>
           {label}
         </p>
       </div>
-      <p className={`mt-2 line-clamp-2 text-2xl font-bold ${toneClass}`}>
+      <h3 className={`mx-auto mt-1 max-w-[260px] break-words text-center text-2xl font-black leading-tight tracking-tight ${toneClasses.value}`}>
         {typeof value === "number" ? formatNumber(value, 0) : value || "Sin datos"}
-      </p>
-      {detail && <p className="mt-2 text-sm font-semibold text-[var(--text-muted)]">{detail}</p>}
+      </h3>
+      {detail && (
+        <p className={`mt-2 text-center text-sm font-semibold ${toneClasses.detail}`}>
+          {detail}
+        </p>
+      )}
     </div>
   );
+}
+
+function getCompanyKpiTone(tone) {
+  const tones = {
+    danger: {
+      card: "border-[#FCA5A5] bg-[linear-gradient(180deg,#FEF2F2,#FFF7F7)]",
+      icon: "border-[#FCA5A5] bg-white text-[#B42318]",
+      title: "text-[#64748B]",
+      value: "text-[#B42318]",
+      detail: "text-[#B42318]",
+    },
+    warning: {
+      card: "border-[#FED7AA] bg-[linear-gradient(180deg,#FFF7ED,#FFFBF5)]",
+      icon: "border-[#FDBA74] bg-white text-[#B45309]",
+      title: "text-[#64748B]",
+      value: "text-[#B45309]",
+      detail: "text-[#B45309]",
+    },
+    success: {
+      card: "border-[#A7F3D0] bg-[linear-gradient(180deg,#ECFDF3,#F7FEFA)]",
+      icon: "border-[#A7F3D0] bg-white text-[#047857]",
+      title: "text-[#64748B]",
+      value: "text-[#047857]",
+      detail: "text-[#047857]",
+    },
+    info: {
+      card: "border-[#BFDBFE] bg-[linear-gradient(180deg,#EFF6FF,#F8FBFF)]",
+      icon: "border-[#BFDBFE] bg-white text-[#1D4ED8]",
+      title: "text-[#64748B]",
+      value: "text-[#1D4ED8]",
+      detail: "text-[#1D4ED8]",
+    },
+    violet: {
+      card: "border-[#DDD6FE] bg-[linear-gradient(180deg,#F5F3FF,#FBFAFF)]",
+      icon: "border-[#DDD6FE] bg-white text-[#6D28D9]",
+      title: "text-[#64748B]",
+      value: "text-[#6D28D9]",
+      detail: "text-[#6D28D9]",
+    },
+    neutral: {
+      card: "border-[#E2E8F0] bg-[linear-gradient(180deg,#FFFFFF,#F8FAFC)]",
+      icon: "border-[#E2E8F0] bg-[#F8FAFC] text-[#334155]",
+      title: "text-[#64748B]",
+      value: "text-[#334155]",
+      detail: "text-[#64748B]",
+    },
+  };
+
+  return tones[tone] || tones.neutral;
 }
 
 const fieldLabels = {
