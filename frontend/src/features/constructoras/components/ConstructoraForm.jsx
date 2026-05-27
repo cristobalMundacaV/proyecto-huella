@@ -53,10 +53,6 @@ function ConstructoraForm({
           </button>
         </div>
 
-        <div className="mb-6 rounded-2xl border border-[#B8D6DE] bg-[linear-gradient(135deg,#ECFEFF_0%,#FFFFFF_55%,#F0FDF4_100%)] p-4 text-sm font-semibold leading-6 text-[#075985]">
-          Región y comuna funcionan como listas dependientes. Selecciona primero la región para habilitar las comunas disponibles.
-        </div>
-
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField
             error={fieldErrors.rut}
