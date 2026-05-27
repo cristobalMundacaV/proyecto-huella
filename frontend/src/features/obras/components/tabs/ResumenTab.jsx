@@ -25,6 +25,8 @@ const recommendationByCategory = {
     "Clasifica mejor los registros para identificar acciones de reducción concretas.",
 };
 
+const topSourceTones = ["danger", "warning", "info", "violet", "success"];
+
 function ResumenTab({ balanceData, selectedObra }) {
   const registros = selectedObra.registros_emision || [];
   const documents = selectedObra.evidencias || [];
@@ -134,6 +136,56 @@ function ResumenTab({ balanceData, selectedObra }) {
       </section>
 
       <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+        <div className="mb-5 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--primary-dark)]">
+              Fuentes críticas
+            </p>
+            <h2 className="mt-1 text-2xl font-bold text-[var(--text-main)]">
+              Top 5 fuentes de mayor impacto
+            </h2>
+            <p className="mt-1 max-w-4xl text-sm font-medium leading-6 text-[var(--text-muted)]">
+              Estas fuentes concentran el mayor peso de la huella y ayudan a priorizar las primeras decisiones de reducción.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-[#B8D6DE] bg-[var(--info-bg)] px-4 py-3 text-sm font-black text-[#075985]">
+            {formatNumber(topSources.length, 0)} focos
+          </div>
+        </div>
+
+        {topSources.length ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+            {topSources.map((source, index) => (
+              <TopSourceKpi
+                key={`${source.source}-${source.category}`}
+                className={index < 3 ? "xl:col-span-2" : "xl:col-span-3"}
+                emissions={source.emissions}
+                index={index}
+                percentage={totalEmissions > 0 ? (source.emissions / totalEmissions) * 100 : 0}
+                source={source.source}
+                category={source.category}
+                tone={topSourceTones[index] || "neutral"}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyAnalysis />
+        )}
+      </section>
+
+      <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+        <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--primary-dark)]">
+          Recomendación principal
+        </p>
+        <h2 className="mt-1 text-2xl font-bold text-[var(--text-main)]">
+          Acción prioritaria sugerida
+        </h2>
+        <p className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] p-4 text-sm font-medium leading-6 text-[var(--primary-dark)]">
+          {mainRecommendation}
+        </p>
+      </section>
+
+      <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">Trazabilidad documental</p>
@@ -164,41 +216,6 @@ function ResumenTab({ balanceData, selectedObra }) {
           </div>
         </div>
       </section>
-
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <Panel title="Top fuentes críticas">
-          <div className="space-y-3">
-            {topSources.length ? (
-              topSources.map((source, index) => (
-                <div key={`${source.source}-${source.category}`} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-bold text-[var(--primary-dark)]">#{index + 1} · {source.category}</p>
-                      <p className="mt-1 font-semibold text-[var(--text-main)]">{source.source}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-[#075985]">{formatNumber(source.emissions, 1)} kg CO2e</p>
-                      <p className="text-xs text-[var(--text-muted)]">{formatNumber(totalEmissions > 0 ? (source.emissions / totalEmissions) * 100 : 0, 1)}%</p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : <EmptyAnalysis />}
-          </div>
-        </Panel>
-
-        <Panel title="Recomendación principal">
-          <p className="rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] p-4 text-sm font-medium leading-6 text-[var(--primary-dark)]">
-            {mainRecommendation}
-          </p>
-          <div className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-            <p className="text-sm font-bold text-[var(--text-main)]">Estado documental / evidencias</p>
-            <p className="mt-2 text-sm text-[var(--text-muted)]">
-              {documents.length ? `Evidencias asociadas: ${formatNumber(documents.length, 0)} evidencias` : "Pendiente de vinculación documental"}
-            </p>
-          </div>
-        </Panel>
-      </section>
     </div>
   );
 }
@@ -218,6 +235,37 @@ function WorkSummaryKpi({ icon, label, tone = "neutral", value }) {
         <div className="flex flex-1 items-center justify-center py-2">
           <h3 className={`mx-auto max-w-[260px] break-words text-center text-[clamp(1.25rem,2.2vw,1.75rem)] font-black leading-tight ${toneClasses.value}`}>{value || "Sin datos"}</h3>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function TopSourceKpi({ category, className = "", emissions, index, percentage, source, tone = "neutral" }) {
+  const toneClasses = getWorkSummaryTone(tone);
+
+  return (
+    <div className={`premium-card-interactive relative flex min-h-[190px] overflow-hidden rounded-[24px] border p-5 shadow-[0_14px_34px_rgba(15,23,42,0.08)] ring-1 ring-white/75 transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_45px_rgba(15,23,42,0.13)] ${toneClasses.card} ${className}`}>
+      <div className={`absolute inset-x-6 top-0 h-1.5 rounded-b-full ${toneClasses.accent}`} />
+      <div className={`pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full blur-3xl ${toneClasses.glow}`} />
+      <div className="relative z-10 flex w-full flex-col items-center text-center">
+        <div className={`inline-flex h-12 min-w-12 items-center justify-center rounded-2xl border px-3 text-lg font-black shadow-[0_10px_24px_rgba(15,23,42,0.06)] ${toneClasses.icon}`}>
+          #{index + 1}
+        </div>
+        <p className={`mt-3 text-[11px] font-black uppercase tracking-[0.12em] ${toneClasses.title}`}>
+          {category || "Sin categoría"}
+        </p>
+        <div className="flex flex-1 flex-col items-center justify-center py-2">
+          <h3 className={`max-w-[280px] text-center text-[clamp(1.1rem,1.8vw,1.55rem)] font-black leading-tight ${toneClasses.value}`}>
+            {source || "Sin fuente"}
+          </h3>
+          <p className={`mt-2 text-base font-black ${toneClasses.value}`}>
+            {formatNumber(emissions, 1)} kg CO2e
+          </p>
+        </div>
+        <div className="w-full rounded-full bg-white/70 p-1 ring-1 ring-black/5">
+          <div className={`h-2 rounded-full ${toneClasses.accent}`} style={{ width: `${Math.max(0, Math.min(100, percentage || 0))}%` }} />
+        </div>
+        <p className={`mt-2 text-sm font-black ${toneClasses.value}`}>{formatNumber(percentage, 1)}% del total</p>
       </div>
     </div>
   );
@@ -272,15 +320,6 @@ function getDocumentTraceability({ documents, missingDocumentTypes, registrosWit
   if (missingDocumentTypes.length > 0) return { label: "Inicial", description: "Existe respaldo documental, pero aún faltan evidencias críticas por categoría.", className: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]" };
   if (validCount >= 3 && activeCategories >= 3) return { label: "Alta trazabilidad", description: "La obra tiene evidencias validadas para varias categorías críticas.", className: "border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]" };
   return { label: "Respaldada", description: "La obra cuenta con evidencias validadas para respaldar sus principales fuentes de emisión.", className: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]" };
-}
-
-function Panel({ children, title }) {
-  return (
-    <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
-      <h2 className="text-xl font-semibold text-[var(--text-main)]">{title}</h2>
-      <div className="mt-5">{children}</div>
-    </section>
-  );
 }
 
 function EmptyAnalysis() {
