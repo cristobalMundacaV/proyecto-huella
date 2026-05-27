@@ -1,4 +1,6 @@
+import { useState } from "react";
 import {
+  AlertTriangle,
   BarChart3,
   Boxes,
   Building2,
@@ -8,18 +10,33 @@ import {
   FileCheck2,
   Flame,
   LayoutDashboard,
+  Loader2,
   LogOut,
   Settings,
+  Trash2,
   UsersRound,
+  X,
 } from "lucide-react";
 
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { deleteConstructora } from "@/shared/services/api";
 
 function Sidebar({ activeView, onSetActiveView, systemStatus }) {
   const { logout, user } = useAuth();
-  const { activeConstructoraId, constructoras, loadingConstructoras, setActiveConstructora } =
-    useConstructoraActiva();
+  const {
+    activeConstructora,
+    activeConstructoraId,
+    clearActiveConstructora,
+    constructoras,
+    loadingConstructoras,
+    refreshConstructoras,
+    setActiveConstructora,
+  } = useConstructoraActiva();
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const navigationItems = [
     {
@@ -81,6 +98,53 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
     ["Fichas", systemStatus?.fichas_ambientales ?? 0],
   ];
 
+  const selectedConstructora =
+    activeConstructora ||
+    constructoras.find((constructora) => String(constructora.constructora_id) === String(activeConstructoraId)) ||
+    null;
+  const deleteToken = selectedConstructora?.constructora_id || selectedConstructora?.nombre || "";
+  const canConfirmDelete = Boolean(deleteToken) && deleteConfirmText.trim() === String(deleteToken).trim();
+
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setDeleteModalOpen(false);
+    setDeleteConfirmText("");
+    setDeleteError("");
+  };
+
+  const handleDeleteConstructora = async () => {
+    if (!selectedConstructora || !canConfirmDelete) return;
+
+    setDeleting(true);
+    setDeleteError("");
+
+    try {
+      const deletedId = selectedConstructora.constructora_id;
+      await deleteConstructora(deletedId);
+      const updatedConstructoras = await refreshConstructoras(deletedId);
+      const nextConstructora = updatedConstructoras.find(
+        (constructora) => String(constructora.constructora_id) !== String(deletedId)
+      );
+
+      if (nextConstructora) {
+        setActiveConstructora(nextConstructora);
+      } else {
+        clearActiveConstructora();
+      }
+
+      setDeleteModalOpen(false);
+      setDeleteConfirmText("");
+      onSetActiveView?.("constructoras");
+    } catch (error) {
+      setDeleteError(
+        error.response?.data?.error ||
+          "No se pudo eliminar la constructora. Revisa si tiene datos relacionados o intenta nuevamente."
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <aside className="w-full shrink-0 border-b border-white/10 bg-[var(--sidebar)] p-4 text-slate-100 shadow-[24px_0_80px_rgba(2,6,23,0.22)] sm:p-6 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:flex-col lg:border-b-0 lg:border-r lg:overflow-y-auto">
       <div className="mb-10 flex items-center gap-3">
@@ -107,6 +171,8 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
 
               if (selected) {
                 setActiveConstructora(selected);
+              } else {
+                clearActiveConstructora();
               }
             }}
             className="w-full rounded-xl border border-emerald-300/18 bg-[var(--sidebar-active)] px-4 py-3 text-sm text-slate-50 shadow-[0_10px_18px_rgba(0,0,0,0.18)] outline-none transition focus:border-emerald-300/60 focus:ring-4 focus:ring-emerald-400/10"
@@ -126,6 +192,21 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
           >
             Nueva constructora
           </button>
+
+          {selectedConstructora && (
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteModalOpen(true);
+                setDeleteConfirmText("");
+                setDeleteError("");
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-300/25 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-100 shadow-[0_10px_24px_rgba(185,28,28,0.08)] transition hover:-translate-y-px hover:border-red-300/45 hover:bg-red-500/18 active:scale-[0.98]"
+            >
+              <Trash2 size={15} />
+              Eliminar constructora activa
+            </button>
+          )}
 
           {loadingConstructoras && (
             <p className="text-xs text-slate-500">Cargando constructoras...</p>
@@ -193,6 +274,78 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
           Cerrar sesion
         </button>
       </div>
+
+      {deleteModalOpen && selectedConstructora && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-3xl border border-red-200 bg-white p-6 text-slate-950 shadow-[0_28px_80px_rgba(15,23,42,0.28)]">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600">
+                  <AlertTriangle size={24} />
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-red-700">
+                    Acción irreversible
+                  </p>
+                  <h2 className="mt-1 text-2xl font-black text-slate-950">
+                    Eliminar constructora
+                  </h2>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="mt-5 text-sm font-medium leading-7 text-slate-600">
+              Se eliminará <strong className="text-slate-950">{selectedConstructora.nombre}</strong> junto con sus datos relacionados. Esta acción sirve para limpiar empresas de prueba, pero no se puede deshacer desde la interfaz.
+            </p>
+
+            <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+              Para confirmar, escribe exactamente:
+              <span className="mt-2 block rounded-xl border border-red-200 bg-white px-3 py-2 font-black text-red-800">
+                {deleteToken}
+              </span>
+            </div>
+
+            <input
+              value={deleteConfirmText}
+              onChange={(event) => setDeleteConfirmText(event.target.value)}
+              placeholder="Escribe el ID de la constructora"
+              className="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-red-300 focus:ring-4 focus:ring-red-100"
+            />
+
+            {deleteError && (
+              <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
+                {deleteError}
+              </p>
+            )}
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-600 transition hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConstructora}
+                disabled={!canConfirmDelete || deleting}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-700 bg-red-600 px-5 py-3 text-sm font-black text-white shadow-[0_16px_32px_rgba(220,38,38,0.22)] transition hover:-translate-y-0.5 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleting ? <Loader2 className="animate-spin" size={17} /> : <Trash2 size={17} />}
+                Eliminar definitivamente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }
