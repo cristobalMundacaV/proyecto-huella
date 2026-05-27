@@ -46,9 +46,9 @@ function ObrasTable({ loading, obras, onOpenDetail, onSelectObra, selectedObra }
           <thead className="border-b border-[var(--border)] text-[var(--text-muted)]">
             <tr>
               <th className="px-4 py-3 text-center">Código</th>
-              <th className="px-4 py-3 text-left">Obra / proyecto</th>
-              <th className="px-4 py-3 text-left">Constructora</th>
-              <th className="px-4 py-3 text-right">Emisiones</th>
+              <th className="px-4 py-3 text-center">Obra / proyecto</th>
+              <th className="px-4 py-3 text-center">Constructora</th>
+              <th className="px-4 py-3 text-center">Emisiones</th>
               <th className="px-4 py-3 text-center">Evidencias</th>
               <th className="px-4 py-3 text-center">Estado</th>
             </tr>
@@ -96,13 +96,13 @@ function ObrasTable({ loading, obras, onOpenDetail, onSelectObra, selectedObra }
                       {obra.codigo_obra}
                     </span>
                   </td>
-                  <td className="px-4 py-4 align-middle font-semibold text-[var(--text-main)]">
+                  <td className="px-4 py-4 text-center align-middle font-semibold text-[var(--text-main)]">
                     {obra.tipo_proyecto || "Obra registrada"}
                   </td>
-                  <td className="px-4 py-4 align-middle text-[var(--text-main)]">
+                  <td className="px-4 py-4 text-center align-middle text-[var(--text-main)]">
                     {obra.constructora_nombre || "Constructora activa"}
                   </td>
-                  <td className="px-4 py-4 text-right align-middle font-black text-[#075985]">
+                  <td className="px-4 py-4 text-center align-middle font-black text-[#075985]">
                     {formatNumber(Number(obra.emisiones_kg_co2e || 0))} kg CO2e
                   </td>
                   <td className="px-4 py-4 text-center align-middle font-bold text-[var(--text-main)]">
