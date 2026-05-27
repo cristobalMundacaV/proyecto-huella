@@ -1,4 +1,5 @@
-﻿import { formatNumber } from "@/shared/utils/formatters";
+﻿import { Activity, BarChart3, Boxes, FileCheck2, Gauge, Layers3 } from "lucide-react";
+import { formatNumber } from "@/shared/utils/formatters";
 import {
   constructionCategories,
   getConstructionCategoryLabel,
@@ -6,7 +7,6 @@ import {
 import {
   getConstructionWorkDocumentTypeLabel,
 } from "@/shared/utils/constructionEvidenceLabels";
-import { DetailItem } from "../common";
 
 const recommendationByCategory = {
   Materiales:
@@ -14,9 +14,9 @@ const recommendationByCategory = {
   Transporte:
     "Evalúa proveedores más cercanos, consolidación de viajes y reducción de kilómetros recorridos.",
   Maquinaria:
-    "Controla ralentí­, consumo por equipo y mantención para reducir el impacto operativo.",
+    "Controla ralentí, consumo por equipo y mantención para reducir el impacto operativo.",
   Energia:
-    "Revisa uso de generadores, consumo electrico y posibilidades de conexión temporal a red.",
+    "Revisa uso de generadores, consumo eléctrico y posibilidades de conexión temporal a red.",
   Residuos:
     "Separa residuos valorizables y mejora la trazabilidad de retiro para reducir disposición final.",
   Agua:
@@ -105,7 +105,7 @@ function ResumenTab({ balanceData, selectedObra }) {
   const mainRecommendation =
     totalEmissions > 0
       ? recommendationByCategory[criticalCategory] || recommendationByCategory.Otros
-      : "Agrega registros de emision para identificar las fuentes criticas de la obra.";
+      : "Agrega registros de emisión para identificar las fuentes críticas de la obra.";
 
   return (
     <div className="space-y-6">
@@ -125,26 +125,50 @@ function ResumenTab({ balanceData, selectedObra }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <DetailItem
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <WorkSummaryKpi
+            icon={<Gauge />}
             label="Emisiones de la obra"
+            tone="danger"
             value={`${formatNumber(totalEmissions, 1)} kg CO2e`}
           />
-          <DetailItem
+          <WorkSummaryKpi
+            icon={<BarChart3 />}
             label="kg CO2e/m²"
+            tone="info"
             value={
               carbonIntensity != null
                 ? `${formatNumber(carbonIntensity, 2)} kg CO2e/m²`
                 : "Pendiente de superficie"
             }
           />
-          <DetailItem label="Categorí­a critica" value={criticalCategory} />
-          <DetailItem label="Etapa critica" value={criticalStage} />
-          <DetailItem label="Registros de emision" value={formatNumber(registros.length, 0)} />
-          <DetailItem label="Evidencias asociadas" value={`${formatNumber(documents.length, 0)} evidencias`} />
+          <WorkSummaryKpi
+            icon={<Boxes />}
+            label="Categoría crítica"
+            tone="warning"
+            value={criticalCategory}
+          />
+          <WorkSummaryKpi
+            icon={<Layers3 />}
+            label="Etapa crítica"
+            tone="violet"
+            value={criticalStage}
+          />
+          <WorkSummaryKpi
+            icon={<Activity />}
+            label="Registros de emisión"
+            tone="neutral"
+            value={formatNumber(registros.length, 0)}
+          />
+          <WorkSummaryKpi
+            icon={<FileCheck2 />}
+            label="Evidencias asociadas"
+            tone="success"
+            value={`${formatNumber(documents.length, 0)} evidencias`}
+          />
         </div>
-        <p className="mt-3 text-sm text-[var(--text-muted)]">
-          La intensidad relaciona emisiones registradas y superficie declarada de la obra.
+        <p className="mt-4 text-sm font-medium text-[var(--text-muted)]">
+          La intensidad relaciona las emisiones registradas con la superficie declarada de la obra seleccionada.
         </p>
       </section>
 
@@ -166,22 +190,22 @@ function ResumenTab({ balanceData, selectedObra }) {
             <div className="mt-3 flex flex-wrap gap-2">
               {presentDocumentTypes.length ? presentDocumentTypes.map((type) => (
                 <span key={type} className="rounded-full border border-[#B9D8D3] bg-[var(--info-bg)] px-3 py-1 text-xs font-bold text-[#075985]">{type}</span>
-              )) : <span className="text-sm text-[var(--text-muted)]">Sin evidencias cargados</span>}
+              )) : <span className="text-sm text-[var(--text-muted)]">Sin evidencias cargadas</span>}
             </div>
           </div>
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
-            <p className="text-sm font-bold text-[var(--text-main)]">Evidencias faltantes sugeridos</p>
+            <p className="text-sm font-bold text-[var(--text-main)]">Evidencias faltantes sugeridas</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {missingDocumentTypes.length ? missingDocumentTypes.map((type) => (
                 <span key={type} className="rounded-full border border-[#E1C56F] bg-[var(--warning-bg)] px-3 py-1 text-xs font-bold text-[#7A4F00]">{type}</span>
-              )) : <span className="text-sm text-[var(--text-muted)]">No hay faltantes criticos sugeridos</span>}
+              )) : <span className="text-sm text-[var(--text-muted)]">No hay faltantes críticos sugeridos</span>}
             </div>
           </div>
         </div>
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Panel title="Emisiones por categorí­a">
+        <Panel title="Emisiones por categoría">
           <div className="space-y-3">
             {categoryDistribution.map((item) => (
               <MetricBar
@@ -214,7 +238,7 @@ function ResumenTab({ balanceData, selectedObra }) {
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <Panel title="Top fuentes criticas">
+        <Panel title="Top fuentes críticas">
           <div className="space-y-3">
             {topSources.length ? (
               topSources.map((source, index) => (
@@ -274,6 +298,85 @@ function ResumenTab({ balanceData, selectedObra }) {
 
 export default ResumenTab;
 
+function WorkSummaryKpi({ icon, label, tone = "neutral", value }) {
+  const toneClasses = getWorkSummaryTone(tone);
+
+  return (
+    <div className={`premium-card-interactive relative flex min-h-[165px] overflow-hidden rounded-[22px] border p-5 shadow-[0_14px_34px_rgba(15,23,42,0.08)] ring-1 ring-white/75 transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_45px_rgba(15,23,42,0.13)] ${toneClasses.card}`}>
+      <div className={`absolute inset-x-6 top-0 h-1.5 rounded-b-full ${toneClasses.accent}`} />
+      <div className={`pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full blur-3xl ${toneClasses.glow}`} />
+      <div className="relative z-10 flex w-full flex-col items-center text-center">
+        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border shadow-[0_10px_24px_rgba(15,23,42,0.06)] ${toneClasses.icon}`}>
+          {icon}
+        </div>
+        <p className={`mt-3 text-[11px] font-black uppercase tracking-[0.12em] ${toneClasses.title}`}>
+          {label}
+        </p>
+        <div className="flex flex-1 items-center justify-center py-2">
+          <h3 className={`mx-auto max-w-[260px] break-words text-center text-[clamp(1.25rem,2.2vw,1.75rem)] font-black leading-tight ${toneClasses.value}`}>
+            {value || "Sin datos"}
+          </h3>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getWorkSummaryTone(tone) {
+  const tones = {
+    danger: {
+      card: "border-[#FDA4AF] bg-[linear-gradient(135deg,#FFF1F2_0%,#FFFFFF_48%,#FFE4E6_100%)]",
+      icon: "border-[#FDA4AF] bg-white text-[#BE123C]",
+      title: "text-[#64748B]",
+      value: "text-[#BE123C]",
+      accent: "bg-[#E11D48]",
+      glow: "bg-rose-200/70",
+    },
+    info: {
+      card: "border-[#93C5FD] bg-[linear-gradient(135deg,#EFF6FF_0%,#FFFFFF_48%,#DBEAFE_100%)]",
+      icon: "border-[#93C5FD] bg-white text-[#1D4ED8]",
+      title: "text-[#64748B]",
+      value: "text-[#1D4ED8]",
+      accent: "bg-[#2563EB]",
+      glow: "bg-blue-200/70",
+    },
+    warning: {
+      card: "border-[#FDBA74] bg-[linear-gradient(135deg,#FFF7ED_0%,#FFFFFF_48%,#FFEDD5_100%)]",
+      icon: "border-[#FDBA74] bg-white text-[#C2410C]",
+      title: "text-[#64748B]",
+      value: "text-[#C2410C]",
+      accent: "bg-[#EA580C]",
+      glow: "bg-orange-200/70",
+    },
+    violet: {
+      card: "border-[#C4B5FD] bg-[linear-gradient(135deg,#F5F3FF_0%,#FFFFFF_48%,#EDE9FE_100%)]",
+      icon: "border-[#C4B5FD] bg-white text-[#6D28D9]",
+      title: "text-[#64748B]",
+      value: "text-[#6D28D9]",
+      accent: "bg-[#7C3AED]",
+      glow: "bg-violet-200/70",
+    },
+    success: {
+      card: "border-[#86EFAC] bg-[linear-gradient(135deg,#ECFDF3_0%,#FFFFFF_48%,#DCFCE7_100%)]",
+      icon: "border-[#86EFAC] bg-white text-[#047857]",
+      title: "text-[#64748B]",
+      value: "text-[#047857]",
+      accent: "bg-[#059669]",
+      glow: "bg-emerald-200/70",
+    },
+    neutral: {
+      card: "border-[#CBD5E1] bg-[linear-gradient(135deg,#FFFFFF_0%,#F8FAFC_48%,#E2E8F0_100%)]",
+      icon: "border-[#CBD5E1] bg-white text-[#334155]",
+      title: "text-[#64748B]",
+      value: "text-[#334155]",
+      accent: "bg-[#475569]",
+      glow: "bg-slate-200/70",
+    },
+  };
+
+  return tones[tone] || tones.neutral;
+}
+
 function getWorkEnvironmentalStatus({ categoryDistribution, documents, totalEmissions }) {
   if (!totalEmissions) {
     return {
@@ -294,7 +397,7 @@ function getWorkEnvironmentalStatus({ categoryDistribution, documents, totalEmis
 
   if (maxShare > 60) {
     return {
-      label: "critica",
+      label: "crítica",
       className: "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]",
     };
   }
@@ -325,11 +428,11 @@ function buildMissingDocumentSuggestions(registrosWithCategories, presentDocumen
   };
 
   if (hasCategory("Materiales")) {
-    addMissing(["Factura de material", "Guí­a de despacho", "Ficha técnica de material"]);
+    addMissing(["Factura de material", "Guía de despacho", "Ficha técnica de material"]);
   }
 
   if (hasCategory("Transporte")) {
-    addMissing(["Guí­a de despacho", "Evidencia de transporte", "Ticket de pesaje"]);
+    addMissing(["Guía de despacho", "Evidencia de transporte", "Ticket de pesaje"]);
   }
 
   if (hasCategory("Maquinaria")) {
@@ -371,7 +474,7 @@ function getDocumentTraceability({ documents, missingDocumentTypes, registrosWit
   if (missingDocumentTypes.length > 0) {
     return {
       label: "Inicial",
-      description: "Existe respaldo documental, pero aún faltan evidencias criticos por categorí­a.",
+      description: "Existe respaldo documental, pero aún faltan evidencias críticas por categoría.",
       className: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
     };
   }
@@ -379,14 +482,14 @@ function getDocumentTraceability({ documents, missingDocumentTypes, registrosWit
   if (validCount >= 3 && activeCategories >= 3) {
     return {
       label: "Alta trazabilidad",
-      description: "La obra tiene evidencias validadas para varias categorí­as criticas.",
+      description: "La obra tiene evidencias validadas para varias categorías críticas.",
       className: "border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]",
     };
   }
 
   return {
     label: "Respaldada",
-    description: "La obra cuenta con evidencias validadas para respaldar sus principales fuentes de emision.",
+    description: "La obra cuenta con evidencias validadas para respaldar sus principales fuentes de emisión.",
     className: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
   };
 }
@@ -426,7 +529,7 @@ function MetricBar({ detail, label, pct, value }) {
 function EmptyAnalysis() {
   return (
     <p className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 text-sm text-[var(--text-muted)]">
-      No hay registros de emision suficientes.
+      No hay registros de emisión suficientes.
     </p>
   );
 }
