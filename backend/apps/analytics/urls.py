@@ -32,6 +32,13 @@ from .views import (
 )
 from .views_emisiones import constructora_emisiones
 from .views_etapas import constructora_etapas
+from .views_importaciones import (
+    importacion_completa_confirm,
+    importacion_completa_preview,
+    importacion_confirm,
+    importacion_preview,
+    plantilla_importacion_construccion,
+)
 
 urlpatterns = [
     path("auth/me/", auth_me),
@@ -52,6 +59,13 @@ urlpatterns = [
     path("constructoras/<str:constructora_id>/emisiones/", constructora_emisiones),
     path("constructoras/<str:constructora_id>/evidencias/", constructora_evidencias),
     path("constructoras/<str:constructora_id>/reportes/", constructora_reportes),
+    path("constructoras/<str:constructora_id>/importaciones/<str:kind>/preview/", importacion_preview),
+    path("constructoras/<str:constructora_id>/importaciones/<str:kind>/confirm/", importacion_confirm),
+    path("importaciones/<str:kind>/preview/", importacion_preview),
+    path("importaciones/<str:kind>/confirm/", importacion_confirm),
+    path("importaciones/completa/preview/", importacion_completa_preview),
+    path("importaciones/completa/confirm/", importacion_completa_confirm),
+    path("importaciones/plantilla-construccion/", plantilla_importacion_construccion),
     path("obras/", obras),
     path("obras/<str:codigo_obra>/", obra_detail),
     path("obras/<str:codigo_obra>/registros-emision/", obra_registros_emision),
