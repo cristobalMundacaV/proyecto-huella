@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
-  Bar,
   Boxes,
   Building2,
   Factory,
@@ -17,6 +16,7 @@ import {
   createConstructora,
   getConstructoraEtapas,
   getConstructoras,
+  getIotKpis,
 } from "@/shared/services/api";
 import { useToast } from "@/shared/hooks/useToast";
 import { formatNumber } from "@/shared/utils/formatters";
@@ -82,6 +82,7 @@ const categoryColorMap = {
 
 const categoryFallbackColors = ["#0F766E", "#D97706", "#2563EB", "#7C3AED", "#DC2626", "#0891B2", "#64748B"];
 const CONSTRUCTORA_REFRESH_MS = 5000;
+const IOT_KPI_REFRESH_MS = 3000;
 
 const monthFormatter = new Intl.DateTimeFormat("es-CL", {
   month: "short",
@@ -103,6 +104,7 @@ function ConstructorasView({
   const [etapasOperativas, setEtapasOperativas] = useState([]);
   const [loadingEtapas, setLoadingEtapas] = useState(false);
   const [metricsPulseKey, setMetricsPulseKey] = useState(0);
+  const [iotKpis, setIotKpis] = useState(null);
   const {
     activeConstructora,
     activeConstructoraId,
@@ -112,8 +114,8 @@ function ConstructorasView({
   const { clearToast, showToast, toast } = useToast();
 
   const metrics = useMemo(
-    () => buildCompanyMetrics(constructoras, etapasOperativas, activeConstructoraId, activeConstructora),
-    [activeConstructora, activeConstructoraId, constructoras, etapasOperativas]
+    () => buildCompanyMetrics(constructoras, etapasOperativas, activeConstructoraId, activeConstructora, iotKpis),
+    [activeConstructora, activeConstructoraId, constructoras, etapasOperativas, iotKpis]
   );
 
   useEffect(() => {
@@ -185,6 +187,41 @@ function ConstructorasView({
     return () => {
       isCancelled = true;
       window.clearInterval(intervalId);
+    };
+  }, [activeConstructoraId]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    let timeoutId;
+
+    async function loadLiveIotKpis() {
+      if (!activeConstructoraId) {
+        setIotKpis(null);
+        return;
+      }
+
+      try {
+        const liveKpis = await getIotKpis(activeConstructoraId);
+
+        if (!isCancelled) {
+          setIotKpis(liveKpis || null);
+        }
+      } catch {
+        if (!isCancelled) {
+          setIotKpis(null);
+        }
+      } finally {
+        if (!isCancelled) {
+          timeoutId = window.setTimeout(loadLiveIotKpis, IOT_KPI_REFRESH_MS);
+        }
+      }
+    }
+
+    loadLiveIotKpis();
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timeoutId);
     };
   }, [activeConstructoraId]);
 
@@ -322,14 +359,14 @@ function ConstructorasView({
           Lectura operativa de la constructora
         </h2>
         <p className="mt-3 max-w-6xl text-base font-medium leading-8 text-[#334155]">
-          {loadingEtapas ? "Cargando etapas / frentes..." : buildStrategicSummary(metrics)}
+          {loadingEtapas ? "Cargando etapas..." : buildStrategicSummary(metrics)}
         </p>
       </section>
 
       <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
         <CompanyKpi
           decimals={1}
-          detail="Mes en curso · actualización automática"
+          detail="Registros mensuales + captura IoT en vivo"
           icon={<Gauge />}
           label="Emisiones del mes"
           live
@@ -382,7 +419,7 @@ function ConstructorasView({
           dataKey="emisiones"
           description="Permite identificar rápidamente dónde se concentra el mayor problema ambiental."
           rows={metrics.unitComparisonRows}
-          title="Emisiones por etapa / frente"
+          title="Emisiones por etapa"
           valueLabel="Emisiones"
         />
 
@@ -428,7 +465,7 @@ function ConstructorasView({
   );
 }
 
-function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = "", activeConstructora = null) {
+function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = "", activeConstructora = null, iotKpis = null) {
   const activeCompany =
     constructoras.find((constructora) => String(constructora.constructora_id) === String(activeConstructoraId)) ||
     constructoras.find((constructora) => String(constructora.id) === String(activeConstructoraId)) ||
@@ -454,6 +491,7 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
 
     return acc + getRecordEmission(registro);
   }, 0);
+  const liveIotEmissions = Number(iotKpis?.emisiones_totales_kg_co2e || 0);
   const totals = {
     totalCompanies: constructoras.length,
     totalUnits: scopedUnits.length || Number(activeCompany?.etapas_count || 0),
@@ -516,7 +554,8 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
   return {
     ...totals,
     activeCompany,
-    currentMonthEmissions,
+    currentMonthEmissions: currentMonthEmissions + liveIotEmissions,
+    liveIotEmissions,
     topCategory,
     topEmitter,
     topEmissionShare,
@@ -650,7 +689,7 @@ function buildStrategicSummary(metrics) {
   const companyName = metrics.activeCompany.nombre || "La constructora";
 
   if (!metrics.totalUnits) {
-    return `${companyName} aún no tiene etapas o frentes registrados. El siguiente paso es crear su estructura operativa para ordenar obras, asociar registros de emisión y activar una lectura ambiental confiable.`;
+    return `${companyName} aún no tiene etapas registradas. El siguiente paso es crear su estructura operativa para ordenar obras, asociar registros de emisión y activar una lectura ambiental confiable.`;
   }
 
   const topOperationalName = metrics.topOperational?.nombre || "la etapa con mayor actividad";
