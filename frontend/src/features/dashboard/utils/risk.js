@@ -14,6 +14,16 @@ const SOURCE_LABEL_KEYS = [
 
 const CATEGORY_LABEL_KEYS = ["categoria_visible", "categoria", "category", "label"];
 
+const STAGE_LABEL_KEYS = [
+  "etapa_nombre",
+  "etapa_frente",
+  "etapa",
+  "stage",
+  "unidad",
+  "nombre",
+  "label",
+];
+
 const getEntryLabel = (item = {}, preferredKeys = SOURCE_LABEL_KEYS) => {
   for (const key of preferredKeys) {
     const value = item?.[key];
@@ -35,6 +45,16 @@ const getEntryEmission = (item = {}) =>
       item.co2e ??
       item.value ??
       item.pct ??
+      0
+  );
+
+const getEmissionValue = (row = {}) =>
+  Number(
+    row.emisiones_kg_co2e ??
+      row.emisiones ??
+      row.total_emisiones ??
+      row.emisiones_totales ??
+      row.co2e ??
       0
   );
 
@@ -63,8 +83,13 @@ const aggregateRows = (rows = [], preferredKeys = SOURCE_LABEL_KEYS) => {
 
   const totals = rows.reduce((accumulator, row) => {
     const label = getEntryLabel(row, preferredKeys);
+    const emissions = getEmissionValue(row);
 
-    accumulator[label] = (accumulator[label] || 0) + getEmissionValue(row);
+    if (!label || label === "Sin datos" || emissions <= 0) {
+      return accumulator;
+    }
+
+    accumulator[label] = (accumulator[label] || 0) + emissions;
     return accumulator;
   }, {});
 
@@ -73,6 +98,19 @@ const aggregateRows = (rows = [], preferredKeys = SOURCE_LABEL_KEYS) => {
     emissions,
   }));
 };
+
+const getDominantEntry = (series = []) =>
+  series.reduce((best, item) => {
+    if (!best) {
+      return item;
+    }
+
+    if ((Number(item.emissions) || 0) > (Number(best.emissions) || 0)) {
+      return item;
+    }
+
+    return best;
+  }, null);
 
 const getDominantSeries = (data = {}) => {
   const sourceSeries = normalizeEntries(data?.emisiones_por_fuente_emision, SOURCE_LABEL_KEYS).filter(
@@ -110,17 +148,22 @@ const getDominantSeries = (data = {}) => {
   return { mode: "unknown", series: [] };
 };
 
-const getEmissionValue = (row = {}) =>
-  Number(
-    row.emisiones_kg_co2e ??
-      row.emisiones ??
-      row.total_emisiones ??
-      row.emisiones_totales ??
-      row.co2e ??
-      0
-  );
+const getStageSeries = (data = {}) => {
+  const directStageSeries = normalizeEntries(
+    data?.emisiones_por_etapa ?? data?.emisiones_por_unidad ?? data?.stageDistribution,
+    STAGE_LABEL_KEYS
+  ).filter((item) => Number(item.emissions || 0) > 0 && item.label !== "Sin datos");
 
-const maxShare = (values = {}, total) => {
+  if (directStageSeries.length) {
+    return directStageSeries;
+  }
+
+  return aggregateRows(data?.datos, STAGE_LABEL_KEYS).filter(
+    (item) => Number(item.emissions || 0) > 0 && item.label !== "Sin datos"
+  );
+};
+
+const maxShare = (values = [], total) => {
   if (!total) {
     return 0;
   }
@@ -176,27 +219,16 @@ export function calculateRiskProfile(data, optimizedScenario) {
     0
   );
   const denominator = total > 0 ? total : totalFromSeries || 1;
-  const dominantSource = dominantSeries.series.reduce((best, item) => {
-    if (!best) {
-      return item;
-    }
-
-    if ((Number(item.emissions) || 0) > (Number(best.emissions) || 0)) {
-      return item;
-    }
-
-    return best;
-  }, null);
+  const dominantSource = getDominantEntry(dominantSeries.series);
   const sourceConcentration = dominantSource ? (Number(dominantSource.emissions || 0) / denominator) * 100 : 0;
 
-  const stageSeries = normalizeEntries(data?.emisiones_por_etapa)
-    .filter((item) => Number(item.emissions || 0) > 0)
-    .length
-    ? normalizeEntries(data?.emisiones_por_etapa)
-    : aggregateRows(data?.datos, ["etapa_nombre", "etapa", "stage", "unidad", "label"]);
-
+  const stageSeries = getStageSeries(data);
   const stageTotal = stageSeries.reduce((accumulator, item) => accumulator + Number(item.emissions || 0), 0);
-  const stageConcentration = maxShare(stageSeries, stageTotal || total || 1);
+  const stageDominant = getDominantEntry(stageSeries);
+  const stageDenominator = stageTotal > 0 ? stageTotal : total || 1;
+  const stageConcentration = stageDominant
+    ? maxShare(stageSeries, stageDenominator)
+    : 0;
   const dieselPresent =
     data?.datos?.some((row) => isDieselEmission(row) && getEmissionValue(row) > 0) ||
     normalizeEntries(data?.emisiones_por_fuente_emision || {}).some(
@@ -208,7 +240,7 @@ export function calculateRiskProfile(data, optimizedScenario) {
   const potentialReduction = clamp(optimizedScenario?.reductionPct || 0);
 
   const score = clamp(
-      totalComponent * 0.3 +
+    totalComponent * 0.3 +
       sourceConcentration * 0.25 +
       stageConcentration * 0.35 +
       dieselComponent * 0.15 +
@@ -229,6 +261,8 @@ export function calculateRiskProfile(data, optimizedScenario) {
       dominantSourcePercentage: clamp(sourceConcentration, 0, 100),
       dominantSourceMode: dominantSeries.mode,
       stageConcentration,
+      dominantStageLabel: stageDominant?.label || "Sin datos",
+      dominantStagePercentage: clamp(stageConcentration, 0, 100),
       dieselPresent,
       potentialReduction,
     },
