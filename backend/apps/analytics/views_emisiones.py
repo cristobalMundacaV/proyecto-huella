@@ -24,6 +24,11 @@ def _normalize_text(value):
     return str(value or "").strip().lower()
 
 
+def _chart_axis_label(value):
+    # Recharts can split long SVG tick labels by spaces. NBSP keeps source names in one line.
+    return str(value or "").replace(" ", "\u00A0")
+
+
 def _effective_emissions(registro):
     """Return stored emissions or calculate a safe fallback from quantity * factor."""
     stored = _to_decimal(registro.emisiones_kg_co2e)
@@ -60,10 +65,13 @@ def _build_serialized_rows(registros):
 
 
 def _sorted_items(grouped, label_key):
-    return [
-        {label_key: label, "emisiones": round(value, 3)}
-        for label, value in sorted(grouped.items(), key=lambda item: item[1], reverse=True)
-    ]
+    items = []
+
+    for label, value in sorted(grouped.items(), key=lambda item: item[1], reverse=True):
+        display_label = _chart_axis_label(label) if label_key == "fuente_emision" else label
+        items.append({label_key: display_label, "emisiones": round(value, 3)})
+
+    return items
 
 
 @api_view(["GET"])
