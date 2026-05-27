@@ -1,8 +1,34 @@
-﻿import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { getFactoresEmision } from "@/shared/services/api";
 
 const FactoresContext = createContext(null);
+
+function normalizeFactor(factor) {
+  return {
+    ...factor,
+    fuente_emision: factor?.fuente_emision || factor?.actividad || factor?.nombre || "Fuente sin nombre",
+    fuente_emision_key: factor?.fuente_emision_key || factor?.actividad_key || "",
+    categoria: factor?.categoria || "Otros",
+    unidad: factor?.unidad || "-",
+    factor_emision: factor?.factor_emision ?? factor?.factor ?? 0,
+    anio: factor?.anio || "-",
+  };
+}
+
+function normalizeFactorResponse(data) {
+  const rows = Array.isArray(data)
+    ? data
+    : Array.isArray(data?.results)
+      ? data.results
+      : Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data?.factores)
+          ? data.factores
+          : [];
+
+  return rows.map(normalizeFactor);
+}
 
 export function FactoresProvider({ children }) {
   const [factores, setFactores] = useState([]);
@@ -16,12 +42,14 @@ export function FactoresProvider({ children }) {
 
     try {
       const data = await getFactoresEmision();
-      setFactores(data);
-      return data;
+      const normalized = normalizeFactorResponse(data);
+      setFactores(normalized);
+      return normalized;
     } catch (requestError) {
+      setFactores([]);
       setError(
         requestError.response?.data?.error ||
-          "No se pudieron cargar los factores de emision."
+          "No se pudieron cargar los factores de emisión."
       );
       throw requestError;
     } finally {
@@ -29,7 +57,6 @@ export function FactoresProvider({ children }) {
     }
   };
 
-  // Initial load and reload on trigger
   useEffect(() => {
     refreshFactores().catch(() => undefined);
   }, [refreshTrigger]);
