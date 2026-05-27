@@ -136,6 +136,29 @@ function formatQuantityWithUnit(row) {
   return unit ? `${quantity} ${unit}` : quantity;
 }
 
+function formatTableDate(value) {
+  if (!value) return "-";
+
+  const text = String(value);
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (match) {
+    return `${match[3]}-${match[2]}-${match[1]}`;
+  }
+
+  const parsedDate = new Date(text);
+
+  if (!Number.isNaN(parsedDate.getTime())) {
+    const day = String(parsedDate.getDate()).padStart(2, "0");
+    const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+    const year = parsedDate.getFullYear();
+
+    return `${day}-${month}-${year}`;
+  }
+
+  return text;
+}
+
 function getEvidenceStatus(row) {
   const evidence = row?.evidencia_asociada || null;
   const hasEvidence = Boolean(evidence || row?.evidencia || row?.evidencia_id);
@@ -156,7 +179,7 @@ function getEvidenceStatus(row) {
   return {
     hasEvidence,
     label: hasEvidence ? "Sí" : "No",
-    status: isValidated ? "Validada" : "No validada",
+    status: hasEvidence ? (isValidated ? "Validada" : "No validada") : "",
   };
 }
 
@@ -839,18 +862,29 @@ function EmisionesView() {
           </div>
         ) : (
           <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[1180px] border-collapse text-sm">
+            <table className="w-full min-w-[1080px] table-fixed border-collapse text-sm">
+              <colgroup>
+                <col className="w-[16%]" />
+                <col className="w-[13%]" />
+                <col className="w-[10%]" />
+                <col className="w-[15%]" />
+                <col className="w-[8%]" />
+                <col className="w-[7%]" />
+                <col className="w-[11%]" />
+                <col className="w-[12%]" />
+                <col className="w-[8%]" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
-                  <th className="px-4 py-3">Nombre de la obra</th>
-                  <th className="px-4 py-3">Etapa / frente</th>
-                  <th className="px-4 py-3">Categoría</th>
-                  <th className="px-4 py-3">Fuente de emisión</th>
-                  <th className="px-4 py-3 text-right">Cantidad</th>
-                  <th className="px-4 py-3 text-right">Factor</th>
-                  <th className="px-4 py-3 text-right">Emisiones</th>
-                  <th className="px-4 py-3">Evidencia</th>
-                  <th className="px-4 py-3 text-right">Fecha</th>
+                  <th className="px-3 py-3">Nombre de la obra</th>
+                  <th className="px-3 py-3">Etapa / frente</th>
+                  <th className="px-3 py-3 text-center">Categoría</th>
+                  <th className="px-3 py-3">Fuente de emisión</th>
+                  <th className="px-3 py-3 text-right">Cantidad</th>
+                  <th className="px-3 py-3 text-right">Factor</th>
+                  <th className="px-3 py-3 text-right">Emisiones</th>
+                  <th className="px-3 py-3 text-center">Evidencia</th>
+                  <th className="px-3 py-3 text-right">Fecha</th>
                 </tr>
               </thead>
               <tbody>
@@ -867,39 +901,41 @@ function EmisionesView() {
                         isCritical ? "bg-red-50/50" : "hover:bg-emerald-50/50"
                       }`}
                     >
-                      <td className="px-4 py-4 font-semibold text-slate-900">{obraName}</td>
-                      <td className="px-4 py-4 font-semibold text-slate-900">
+                      <td className="px-3 py-4 font-semibold leading-5 text-slate-900">{obraName}</td>
+                      <td className="px-3 py-4 font-semibold leading-5 text-slate-900">
                         {row.etapa_nombre || "Sin etapa"}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-3 py-4 text-center">
                         <FactorCategoryBadge category={row.categoria_visible} />
                       </td>
-                      <td className="px-4 py-4 font-semibold text-slate-900">
+                      <td className="px-3 py-4 font-semibold leading-5 text-slate-900">
                         {row.fuente_emision || "Sin fuente"}
                       </td>
-                      <td className="px-4 py-4 text-right font-semibold text-slate-700">
+                      <td className="whitespace-nowrap px-3 py-4 text-right font-semibold text-slate-700">
                         {formatQuantityWithUnit(row)}
                       </td>
-                      <td className="px-4 py-4 text-right text-slate-600">
+                      <td className="whitespace-nowrap px-3 py-4 text-right text-slate-600">
                         {formatNumber(row.factor_emision || 0, 4)}
                       </td>
-                      <td className="px-4 py-4 text-right font-bold text-blue-700">
-                        {formatNumber(rowEmission, 1)} <span className="text-xs font-extrabold text-blue-600">kg CO2e</span>
+                      <td className="whitespace-nowrap px-3 py-4 text-right font-bold text-blue-700">
+                        {formatNumber(rowEmission, 1)} <span className="text-xs font-extrabold text-slate-950">kg CO2e</span>
                       </td>
-                      <td className="px-4 py-4 text-slate-600">
-                        <div className="space-y-1">
+                      <td className="px-3 py-4 text-center text-slate-600">
+                        <div className="space-y-1 whitespace-nowrap">
                           <p className="font-bold text-slate-900">{evidenceStatus.label}</p>
-                          <p
-                            className={`text-xs font-bold ${
-                              evidenceStatus.status === "Validada" ? "text-emerald-700" : "text-red-700"
-                            }`}
-                          >
-                            {evidenceStatus.status}
-                          </p>
+                          {evidenceStatus.status && (
+                            <p
+                              className={`text-xs font-bold ${
+                                evidenceStatus.status === "Validada" ? "text-emerald-700" : "text-red-700"
+                              }`}
+                            >
+                              {evidenceStatus.status}
+                            </p>
+                          )}
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-right font-semibold text-slate-600">
-                        {row.fecha || "-"}
+                      <td className="whitespace-nowrap px-3 py-4 text-right font-semibold text-slate-600">
+                        {formatTableDate(row.fecha)}
                       </td>
                     </tr>
                   );
