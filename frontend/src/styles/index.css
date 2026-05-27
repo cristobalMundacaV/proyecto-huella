@@ -699,6 +699,68 @@ main > section p[class*="border-l-red-500"][class*="text-red-900"] {
   line-height: 1.8rem !important;
 }
 
+/* Dashboard top 3 sections: remove the enclosing Fuentes críticas container and make the two blocks float. */
+main > section section:has(> div[class~="mt-5"][class~="space-y-5"]) {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+main > section section:has(> div[class~="mt-5"][class~="space-y-5"]) > div:first-child {
+  display: none !important;
+}
+
+main > section section:has(> div[class~="mt-5"][class~="space-y-5"]) > div[class~="mt-5"][class~="space-y-5"] {
+  margin-top: 0 !important;
+  display: grid !important;
+  gap: 1.4rem !important;
+}
+
+main > section section:has(> div[class~="mt-5"][class~="space-y-5"]) > div[class~="mt-5"][class~="space-y-5"] > div {
+  border: 1px solid var(--border) !important;
+  border-radius: 1.75rem !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  box-shadow: var(--shadow-card) !important;
+  padding: 1.35rem !important;
+}
+
+main > section section:has(> div[class~="mt-5"][class~="space-y-5"]) > div[class~="mt-5"][class~="space-y-5"] > div > div:first-child {
+  border-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+main > section section:has(> div[class~="mt-5"][class~="space-y-5"]) > div[class~="mt-5"][class~="space-y-5"] > div > div:first-child h3,
+main > section section:has(> div[class~="mt-5"][class~="space-y-5"]) > div[class~="mt-5"][class~="space-y-5"] > div > div:first-child span {
+  display: none !important;
+}
+
+main > section section:has(> div[class~="mt-5"][class~="space-y-5"]) > div[class~="mt-5"][class~="space-y-5"] > div > div:first-child p {
+  color: var(--text-main) !important;
+  font-size: 1.02rem !important;
+  letter-spacing: 0.16em !important;
+}
+
+main > section section:has(> div[class~="mt-5"][class~="space-y-5"]) article > div:first-child > span:last-child {
+  display: none !important;
+}
+
+main > section section:has(> div[class~="mt-5"][class~="space-y-5"]) article > p:last-child {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  margin: 0.9rem auto 0 !important;
+  border: 1px solid rgba(14, 124, 102, 0.18);
+  border-radius: 9999px;
+  background: var(--success-bg);
+  padding: 0.45rem 0.9rem;
+  color: var(--primary-dark) !important;
+  font-size: 0.95rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.01em;
+}
+
 @media print {
   aside,
   button {
