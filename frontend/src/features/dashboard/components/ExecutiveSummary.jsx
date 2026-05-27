@@ -323,12 +323,12 @@ function ExecutiveSummary({
         1
       )}% en las emisiones totales bajo el escenario máximo.`
     : "Aún no existe un escenario de reducción calculado con datos suficientes.";
-  const riskTone =
+  const riskKpiTone =
     riskProfile.score > 70
-      ? "border-[#FDA29B] bg-[#FEF3F2] text-[#B42318]"
+      ? "red"
       : riskProfile.score > 30
-        ? "border-[#FDBA74] bg-[#FFF7ED] text-[#B45309]"
-        : "border-[#A7F3D0] bg-[#ECFDF3] text-[#047857]";
+        ? "amber"
+        : "green";
   const viabilityTone =
     strategicPlan.viability === "Alta"
       ? "green"
@@ -369,18 +369,14 @@ function ExecutiveSummary({
         </div>
 
         <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2">
-          <div className={`min-w-0 rounded-[20px] border p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition duration-300 ease-out sm:p-5 ${riskTone}`}>
-            <div className="flex items-start gap-4">
-              <KpiIcon icon={AlertTriangle} tone="amber" />
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#64748B]">Riesgo</p>
-                <p className="mt-1 break-words text-3xl font-black tracking-tight text-current">{riskProfile.label}</p>
-                <p className="mt-2 text-sm font-semibold leading-5 text-current">
-                  Score Carbono Zero: {formatNumber(riskProfile.score, 0)} / 100
-                </p>
-              </div>
-            </div>
-          </div>
+          <ExecutiveKpiCard
+            label="Riesgo"
+            value={riskProfile.label}
+            tone={riskKpiTone}
+            icon={AlertTriangle}
+            description={`Score Carbono Zero: ${formatNumber(riskProfile.score, 0)} / 100`}
+            className="h-full"
+          />
           <ExecutiveKpiCard
             label="Viabilidad operativa"
             value={strategicPlan.viability}
