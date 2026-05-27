@@ -141,6 +141,10 @@ function ObrasView() {
 
   useEffect(() => {
     if (!activeConstructoraId) {
+      setSelectedObra(null);
+      setSelectedBalanceAmbiental(null);
+      setHistory([]);
+      setHistoryPageInfo(null);
       setLoading(false);
       return;
     }
@@ -182,9 +186,11 @@ function ObrasView() {
             return currentSelected;
           }
 
-          return normalizedObras[0] || null;
+          return null;
         });
         setSelectedBalanceAmbiental(null);
+        setHistory([]);
+        setHistoryPageInfo(null);
         setConstructoras(activeConstructora ? [activeConstructora] : []);
         setForm((currentForm) => ({
           ...currentForm,
@@ -370,53 +376,50 @@ function ObrasView() {
   const updateTransportOrigin = (payload) => {
     setTransportForm((currentForm) => ({
       ...currentForm,
-      punto_partida: payload.name,
-      punto_partida_coords: payload.coords,
+      punto_partida: payload.label || "",
+      punto_partida_coords: payload.coords || null,
+      distancia_km: "",
     }));
+    setTransportDistanceResult(null);
   };
 
   const updateTransportDestination = (payload) => {
     setTransportForm((currentForm) => ({
       ...currentForm,
-      destino: payload.name,
-      destino_coords: payload.coords,
+      destino: payload.label || "",
+      destino_coords: payload.coords || null,
+      distancia_km: "",
     }));
+    setTransportDistanceResult(null);
   };
 
-  const syncObra = (updatedObra) => {
-    if (!updatedObra) {
-      return;
-    }
-
-    setSelectedObra(updatedObra);
-    setSelectedBalanceAmbiental(null);
+  const syncObra = async (updatedObra) => {
+    const detail = await getObraDetail(updatedObra.codigo_obra);
+    setSelectedObra(detail);
+    setSelectedBalanceAmbiental(detail.analisis_ambiental || detail);
     setObras((currentObras) =>
       currentObras.map((obra) =>
-        obra.codigo_obra === updatedObra.codigo_obra ? { ...obra, ...updatedObra } : obra
+        obra.codigo_obra === detail.codigo_obra ? { ...obra, ...detail } : obra
       )
     );
   };
 
-  const loadObraDetail = async (codigoObra, { openModal = false } = {}) => {
-    if (!codigoObra) {
-      return;
-    }
-
+  const loadObraDetail = async (codigoObra, options = {}) => {
+    const { openModal = false } = options;
     setDetailLoading(true);
-    if (openModal) {
-      setDetailModalOpen(true);
-      setDetailModalObra(null);
-    }
+    setError("");
+    setHistory([]);
+    setHistoryPageInfo(null);
 
     try {
       const [detail, balance, historyData] = await Promise.all([
         getObraDetail(codigoObra),
         getObraBalanceAmbiental(codigoObra).catch(() => null),
-        getHistorialObra(codigoObra).catch(() => null),
+        getHistorialObra(codigoObra, { page_size: 5 }).catch(() => null),
       ]);
 
       setSelectedObra(detail);
-      setSelectedBalanceAmbiental(balance);
+      setSelectedBalanceAmbiental(balance || detail.analisis_ambiental || detail);
       setObras((currentObras) =>
         currentObras.map((obra) =>
           obra.codigo_obra === codigoObra ? { ...obra, ...detail } : obra
