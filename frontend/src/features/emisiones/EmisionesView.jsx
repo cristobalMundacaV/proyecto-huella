@@ -40,11 +40,6 @@ import {
   getConstructoraEmisiones,
   optimizeScenarioApi,
 } from "@/shared/services/api";
-import {
-  getConstructionEvidenceLinkLabel,
-  getConstructionEvidenceReviewLabel,
-  getConstructionEvidenceTypeLabel,
-} from "@/shared/utils/constructionEvidenceLabels";
 import { formatNumber } from "@/shared/utils/formatters";
 
 const rowsPerPage = 8;
@@ -118,6 +113,51 @@ function uniqueOptions(rows, field) {
 
 function getRowEmission(row) {
   return Number(row?.emisiones ?? row?.emisiones_kg_co2e ?? 0);
+}
+
+function formatRegistroUnit(value) {
+  const rawUnit = String(value || "").trim();
+  const normalizedUnit = normalizeText(rawUnit);
+
+  if (!rawUnit) return "";
+  if (normalizedUnit.includes("litros") || normalizedUnit === "l") return "L";
+  if (normalizedUnit === "kwh") return "kWh";
+  if (normalizedUnit === "m2" || normalizedUnit.includes("metro cuadrado")) return "m2";
+  if (normalizedUnit === "m3" || normalizedUnit.includes("metro cubico")) return "m3";
+  if (normalizedUnit.includes("ton")) return "ton";
+
+  return rawUnit;
+}
+
+function formatQuantityWithUnit(row) {
+  const unit = formatRegistroUnit(row?.unidad);
+  const quantity = formatNumber(row?.cantidad || 0, 3);
+
+  return unit ? `${quantity} ${unit}` : quantity;
+}
+
+function getEvidenceStatus(row) {
+  const evidence = row?.evidencia_asociada || null;
+  const hasEvidence = Boolean(evidence || row?.evidencia || row?.evidencia_id);
+  const rawStatus =
+    evidence?.estado_documental ||
+    row?.estado_documental ||
+    row?.estado_revision ||
+    row?.estado_validacion ||
+    "";
+  const normalizedStatus = normalizeText(rawStatus);
+  const isValidated =
+    hasEvidence &&
+    (normalizedStatus.includes("validada") ||
+      normalizedStatus.includes("validado") ||
+      normalizedStatus.includes("aprobada") ||
+      normalizedStatus.includes("aprobado"));
+
+  return {
+    hasEvidence,
+    label: hasEvidence ? "Sí" : "No",
+    status: isValidated ? "Validada" : "No validada",
+  };
 }
 
 function dependencyLevel(value) {
@@ -799,28 +839,26 @@ function EmisionesView() {
           </div>
         ) : (
           <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[1380px] border-collapse text-sm">
+            <table className="w-full min-w-[1180px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
-                  <th className="px-4 py-3">Fecha</th>
-                  <th className="px-4 py-3">Obra</th>
+                  <th className="px-4 py-3">Nombre de la obra</th>
                   <th className="px-4 py-3">Etapa / frente</th>
                   <th className="px-4 py-3">Categoría</th>
                   <th className="px-4 py-3">Fuente de emisión</th>
                   <th className="px-4 py-3 text-right">Cantidad</th>
-                  <th className="px-4 py-3">Unidad</th>
                   <th className="px-4 py-3 text-right">Factor</th>
-                  <th className="px-4 py-3 text-right">Emisiones kg CO2e</th>
+                  <th className="px-4 py-3 text-right">Emisiones</th>
                   <th className="px-4 py-3">Evidencia</th>
-                  <th className="px-4 py-3 text-right">Acciones</th>
+                  <th className="px-4 py-3 text-right">Fecha</th>
                 </tr>
               </thead>
               <tbody>
                 {visibleRows.map((row) => {
                   const rowEmission = getRowEmission(row);
                   const isCritical = maxEmission > 0 && rowEmission >= maxEmission * 0.8;
-                  const evidence = row.evidencia_asociada || null;
-                  const hasEvidence = Boolean(evidence || row.evidencia || row.evidencia_id);
+                  const evidenceStatus = getEvidenceStatus(row);
+                  const obraName = row.obra_nombre || row.codigo_obra || row.obra_codigo || "-";
 
                   return (
                     <tr
@@ -829,8 +867,7 @@ function EmisionesView() {
                         isCritical ? "bg-red-50/50" : "hover:bg-emerald-50/50"
                       }`}
                     >
-                      <td className="px-4 py-4 text-slate-600">{row.fecha || "-"}</td>
-                      <td className="px-4 py-4 text-slate-600">{row.codigo_obra || row.obra_codigo || "-"}</td>
+                      <td className="px-4 py-4 font-semibold text-slate-900">{obraName}</td>
                       <td className="px-4 py-4 font-semibold text-slate-900">
                         {row.etapa_nombre || "Sin etapa"}
                       </td>
@@ -838,42 +875,31 @@ function EmisionesView() {
                         <FactorCategoryBadge category={row.categoria_visible} />
                       </td>
                       <td className="px-4 py-4 font-semibold text-slate-900">
-                        {row.fuente_emision}
+                        {row.fuente_emision || "Sin fuente"}
                       </td>
-                      <td className="px-4 py-4 text-right text-slate-600">
-                        {formatNumber(row.cantidad || 0, 3)}
+                      <td className="px-4 py-4 text-right font-semibold text-slate-700">
+                        {formatQuantityWithUnit(row)}
                       </td>
-                      <td className="px-4 py-4 text-slate-600">{row.unidad || "-"}</td>
                       <td className="px-4 py-4 text-right text-slate-600">
                         {formatNumber(row.factor_emision || 0, 4)}
                       </td>
                       <td className="px-4 py-4 text-right font-bold text-blue-700">
-                        {formatNumber(rowEmission, 1)}
+                        {formatNumber(rowEmission, 1)} <span className="text-xs font-extrabold text-blue-600">kg CO2e</span>
                       </td>
                       <td className="px-4 py-4 text-slate-600">
                         <div className="space-y-1">
-                          <p className="font-semibold text-slate-900">{hasEvidence ? "Sí" : "No"}</p>
-                          <p className="text-xs text-slate-500">
-                            {hasEvidence
-                              ? getConstructionEvidenceTypeLabel(evidence?.tipo_evidencia || row.tipo_evidencia || row.evidencia_tipo)
-                              : "Evidencia asociada: pendiente de vinculación"}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {evidence?.estado_documental || row.estado_documental || row.estado_revision || row.estado_validacion
-                              ? getConstructionEvidenceReviewLabel(evidence?.estado_documental || row.estado_documental || row.estado_revision || row.estado_validacion)
-                              : "Estado documental: pendiente de vinculación"}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {hasEvidence
-                              ? getConstructionEvidenceLinkLabel(row.estado_vinculo || row.estado_sistema)
-                              : "Sin vínculo"}
+                          <p className="font-bold text-slate-900">{evidenceStatus.label}</p>
+                          <p
+                            className={`text-xs font-bold ${
+                              evidenceStatus.status === "Validada" ? "text-emerald-700" : "text-red-700"
+                            }`}
+                          >
+                            {evidenceStatus.status}
                           </p>
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-right">
-                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600">
-                          Ver
-                        </span>
+                      <td className="px-4 py-4 text-right font-semibold text-slate-600">
+                        {row.fecha || "-"}
                       </td>
                     </tr>
                   );
