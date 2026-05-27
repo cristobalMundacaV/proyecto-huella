@@ -571,6 +571,8 @@ function buildStrategicSummary(metrics) {
   const topCategoryName = metrics.topCategory?.label || "la categoría principal";
   const hasEmissions = Number(metrics.totalEmissions || 0) > 0;
   const emissionShare = formatNumber(metrics.topEmissionShare, 1);
+  const sameOperationalAndEmitter =
+    normalizeColorKey(topOperationalName) === normalizeColorKey(topEmitterName);
   const concentration =
     metrics.topEmissionShare >= 60
       ? "una concentración alta"
@@ -582,7 +584,11 @@ function buildStrategicSummary(metrics) {
     return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas y su mayor carga operativa se observa en ${topOperationalName}. Aún no existe una huella de carbono suficientemente registrada para definir una etapa crítica por emisiones, por lo que el foco inmediato debe ser completar registros, vincular evidencias y validar factores de emisión antes de tomar decisiones de reducción.`;
   }
 
-  return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas. ${topEmitterName} concentra el ${emissionShare}% de las emisiones registradas y ${topCategoryName} es la categoría con mayor impacto, lo que muestra ${concentration} del resultado ambiental. La decisión más importante es priorizar esa etapa, revisar sus fuentes principales y ejecutar acciones medibles donde exista mayor potencial de reducción.`;
+  const stageReading = sameOperationalAndEmitter
+    ? `${topEmitterName} coincide como la etapa con mayor carga operativa y mayor concentración de emisiones: representa el ${emissionShare}% de la huella registrada.`
+    : `La mayor carga operativa se observa en ${topOperationalName}, mientras que ${topEmitterName} concentra el ${emissionShare}% de las emisiones registradas.`;
+
+  return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas. ${stageReading} ${topCategoryName} es la categoría con mayor impacto, lo que muestra ${concentration} del resultado ambiental. La decisión más importante es priorizar este foco, revisar sus fuentes principales y ejecutar acciones medibles donde exista mayor potencial de reducción.`;
 }
 
 function UnitMetricBarChart({ dataKey, description, rows, title, valueLabel }) {
