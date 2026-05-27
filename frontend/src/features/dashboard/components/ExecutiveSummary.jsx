@@ -89,7 +89,7 @@ function KpiIcon({ icon: Icon, tone = "teal" }) {
   };
 
   return (
-    <div className={`flex h-14 w-14 items-center justify-center rounded-full border ${tones[tone]}`}>
+    <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border ${tones[tone]}`}>
       <Icon size={28} strokeWidth={2.2} />
     </div>
   );
@@ -127,15 +127,15 @@ function ExecutiveKpiCard({ label, value, icon, tone = "slate", description, cla
 
   return (
     <div
-      className={`rounded-[18px] border p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition duration-300 ease-out hover:shadow-[0_10px_28px_rgba(15,23,42,0.05)] sm:p-5 ${selectedTone.card} ${className}`}
+      className={`min-w-0 rounded-[18px] border p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition duration-300 ease-out hover:shadow-[0_10px_28px_rgba(15,23,42,0.05)] sm:p-5 ${selectedTone.card} ${className}`}
     >
       <div className="flex items-start gap-4">
         <KpiIcon icon={icon} tone={tone} />
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#64748B]">
+          <p className="break-words text-[11px] font-bold uppercase tracking-[0.18em] text-[#64748B]">
             {formatTitleCase(label)}
           </p>
-          <p className={`mt-1 text-2xl font-black tracking-tight ${selectedTone.value}`}>
+          <p className={`mt-1 break-words text-xl font-black tracking-tight leading-tight sm:text-2xl ${selectedTone.value}`}>
             {value}
           </p>
           {description ? (
@@ -328,6 +328,12 @@ function ExecutiveSummary({
       : riskProfile.score > 30
         ? "border-[#FDBA74] bg-[#FFF7ED] text-[#B45309]"
         : "border-[#A7F3D0] bg-[#ECFDF3] text-[#047857]";
+  const viabilityTone =
+    strategicPlan.viability === "Alta"
+      ? "green"
+      : strategicPlan.viability === "Media"
+        ? "amber"
+        : "red";
 
   return (
     <section className="premium-card slide-up rounded-[20px] border border-[#E2E8F0] bg-[#F8FAFC] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition-colors duration-300 ease-out sm:p-6">
@@ -340,8 +346,8 @@ function ExecutiveSummary({
         </p>
       </div>
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="max-w-2xl">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(340px,440px)] lg:items-start">
+        <div className="max-w-3xl min-w-0">
           <h2 className="text-3xl font-black tracking-tight text-[#0F172A] sm:text-[2.05rem]">
             {hasValidOptimizedScenario
               ? `Potencial de reduccion del ${formatNumber(
@@ -361,17 +367,27 @@ function ExecutiveSummary({
           </p>
         </div>
 
-        <div className={`min-w-48 rounded-[20px] border p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition duration-300 ease-out ${riskTone}`}>
-          <div className="flex items-start gap-4">
-            <KpiIcon icon={AlertTriangle} tone="amber" />
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#64748B]">Riesgo</p>
-              <p className="mt-1 text-3xl font-black tracking-tight text-current">{riskProfile.label}</p>
-              <p className="mt-2 text-sm font-semibold text-current">
-                Score Carbono Zero: {formatNumber(riskProfile.score, 0)} / 100
-              </p>
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2">
+          <div className={`min-w-0 rounded-[20px] border p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition duration-300 ease-out sm:p-5 ${riskTone}`}>
+            <div className="flex items-start gap-4">
+              <KpiIcon icon={AlertTriangle} tone="amber" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#64748B]">Riesgo</p>
+                <p className="mt-1 break-words text-3xl font-black tracking-tight text-current">{riskProfile.label}</p>
+                <p className="mt-2 text-sm font-semibold leading-5 text-current">
+                  Score Carbono Zero: {formatNumber(riskProfile.score, 0)} / 100
+                </p>
+              </div>
             </div>
           </div>
+          <ExecutiveKpiCard
+            label="Viabilidad operativa"
+            value={strategicPlan.viability}
+            tone={viabilityTone}
+            icon={ShieldCheck}
+            description="Capacidad de ejecutar la mejora sin frenar la obra."
+            className="h-full"
+          />
         </div>
       </div>
 
@@ -401,7 +417,7 @@ function ExecutiveSummary({
         </div>
       )}
 
-      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <ExecutiveKpiCard label="Foco principal" value={fuenteCriticaLabel} tone="slate" icon={Target} />
         <ExecutiveKpiCard label="Etapa prioritaria" value={unidadCriticaLabel} tone="blue" icon={Landmark} />
         <ExecutiveKpiCard label="Esc. recomendado" value={formatPercentRange(strategicPlan.recommendedRange)} tone="teal" icon={TrendingUp} />
@@ -423,17 +439,11 @@ function ExecutiveSummary({
           tone="green"
           icon={TrendingDown}
         />
-        <ExecutiveKpiCard
-          label="Viabilidad operativa"
-          value={strategicPlan.viability}
-          tone={strategicPlan.viability === "Alta" ? "green" : strategicPlan.viability === "Media" ? "amber" : "red"}
-          icon={ShieldCheck}
-        />
       </div>
 
-      <div className="mt-5 rounded-[20px] border border-[#E2E8F0] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition-colors duration-300 ease-out hover:border-[#99F6E4]">
+      <div className="mt-5 rounded-[20px] border border-[#99F6E4] border-l-4 border-l-[#2DD4BF] bg-[#F0FDFA]/70 p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition-colors duration-300 ease-out hover:border-[#5EEAD4] hover:border-l-[#14B8A6]">
         <div className="flex items-start gap-4">
-          <div className="rounded-full border border-[#99F6E4] bg-[#F0FDFA] p-3 text-[#0F766E]">
+          <div className="shrink-0 rounded-full border border-[#99F6E4] bg-white p-3 text-[#0F766E]">
             <Lightbulb size={22} strokeWidth={2.1} />
           </div>
           <div className="min-w-0 flex-1">
@@ -469,7 +479,7 @@ function ExecutiveSummary({
             <FileText size={18} strokeWidth={2.1} />
           </div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#334155]">
-          Factores del score
+            Factores del score
           </p>
         </div>
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
@@ -536,7 +546,7 @@ function ScoreFactor({ label, value, tone = "neutral" }) {
         <span className={`h-2.5 w-2.5 rounded-full ${toneDot}`} />
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#64748B]">{label}</p>
       </div>
-      <p className="mt-1 text-sm font-extrabold text-current">{value}</p>
+      <p className="mt-1 break-words text-sm font-extrabold text-current">{value}</p>
     </div>
   );
 }
