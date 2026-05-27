@@ -684,7 +684,7 @@ function EmisionesView() {
       </section>
 
       <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-        <ChartCard title="Emisiones por etapa / frente">
+        <ChartCard title="Emisiones por etapa">
           <div className="h-64 sm:h-72 lg:h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart

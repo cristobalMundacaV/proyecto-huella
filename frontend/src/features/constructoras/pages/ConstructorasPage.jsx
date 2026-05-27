@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
-  Bar,
   Boxes,
   Building2,
   Factory,
@@ -382,7 +381,7 @@ function ConstructorasView({
           dataKey="emisiones"
           description="Permite identificar rápidamente dónde se concentra el mayor problema ambiental."
           rows={metrics.unitComparisonRows}
-          title="Emisiones por etapa / frente"
+          title="Emisiones por etapa"
           valueLabel="Emisiones"
         />
 
