@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 import ObraTabs from "./ObraTabs";
-import RegistrosEmisionTab from "./tabs/RegistrosEmisionTab";
 import EvidenciasTab from "./tabs/EvidenciasTab";
 import HistorialTab from "./tabs/HistorialTab";
 import FichaAmbientalTab from "./tabs/FichaAmbientalTab";
@@ -11,32 +10,25 @@ import TransporteTab from "./tabs/TransporteTab";
 
 function ObraDetailView({
   activeExtraction,
-  registroError,
-  registroFieldErrors,
-  registroForm,
   balanceData,
   documentError,
   documentFieldErrors,
   documentForm,
   documentInsight,
   extractingDocumentId,
-  factoresEmision,
   generatingCertificate,
   history,
   historyLoading,
   historyPageInfo,
   ocrError,
   ocrForm,
-  onRegistroSubmit,
   onDocumentSubmit,
   onDownloadCertificate,
-  onselectRegistroFactor,
   onRejectExtraction,
   onRejectHistoryExtraction,
   onRunOcr,
   onRunStructuredExtraction,
   onTransportSubmit,
-  onUpdateregistroForm,
   onUpdateDocumentForm,
   onUpdateOcrForm,
   onUpdateTransportDestination,
@@ -45,7 +37,6 @@ function ObraDetailView({
   onValidateExtraction,
   onValidateHistoryExtraction,
   readingDocumentId,
-  savingRegistro,
   savingDocument,
   savingTransport,
   selectedObra,
@@ -71,29 +62,6 @@ function ObraDetailView({
 
       {activeTab === "estado_emisiones" && (
         <EstadoEmisionesTab selectedObra={selectedObra} />
-      )}
-
-      {activeTab === "registros_emision" && (
-        <RegistrosEmisionTab
-          registroError={registroError}
-          registroFieldErrors={registroFieldErrors}
-          registroForm={registroForm}
-          factoresEmision={factoresEmision}
-          onRegistroSubmit={onRegistroSubmit}
-          onselectRegistroFactor={onselectRegistroFactor}
-          onUpdateregistroForm={onUpdateregistroForm}
-          savingRegistro={savingRegistro}
-          selectedObra={selectedObra}
-        />
-      )}
-
-      {activeTab === "ficha_ambiental" && (
-        <FichaAmbientalTab
-          balanceData={balanceData}
-          generatingCertificate={generatingCertificate}
-          onDownloadCertificate={onDownloadCertificate}
-          selectedObra={selectedObra}
-        />
       )}
 
       {activeTab === "evidencias" && (
@@ -143,6 +111,15 @@ function ObraDetailView({
           onRejectHistoryExtraction={onRejectHistoryExtraction}
           onValidateHistoryExtraction={onValidateHistoryExtraction}
           validatingExtraction={validatingExtraction}
+        />
+      )}
+
+      {activeTab === "ficha_ambiental" && (
+        <FichaAmbientalTab
+          balanceData={balanceData}
+          generatingCertificate={generatingCertificate}
+          onDownloadCertificate={onDownloadCertificate}
+          selectedObra={selectedObra}
         />
       )}
     </div>
