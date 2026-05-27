@@ -1,3 +1,8 @@
+import { useEffect, useMemo, useState } from "react";
+
+import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { getConstructoraDashboard } from "@/shared/services/api";
+
 function normalizeKpiTitle(value) {
   return String(value || "")
     .normalize("NFD")
@@ -18,10 +23,51 @@ function getKpiOrder(title) {
   return "";
 }
 
-function KpiCard({ detail, icon, title, tone, value }) {
-  const semanticTone = (() => {
-    const resolvedTitle = normalizeKpiTitle(title);
+function isNumericIdentifier(value) {
+  return /^\d+(\.\d+)?$/.test(String(value ?? "").trim());
+}
 
+function KpiCard({ detail, icon, title, tone, value }) {
+  const { activeConstructoraId } = useConstructoraActiva();
+  const [resolvedCriticalWork, setResolvedCriticalWork] = useState("");
+  const normalizedTitle = useMemo(() => normalizeKpiTitle(title), [title]);
+  const isCriticalWorkCard = normalizedTitle.includes("obra critica");
+
+  useEffect(() => {
+    if (!isCriticalWorkCard) {
+      setResolvedCriticalWork("");
+      return undefined;
+    }
+
+    if (!isNumericIdentifier(value)) {
+      setResolvedCriticalWork("");
+      return undefined;
+    }
+
+    if (!activeConstructoraId) {
+      setResolvedCriticalWork("");
+      return undefined;
+    }
+
+    let isCancelled = false;
+
+    getConstructoraDashboard(activeConstructoraId, { light: "1" })
+      .then((dashboardData) => {
+        if (isCancelled) return;
+        setResolvedCriticalWork(dashboardData?.obra_critica || "");
+      })
+      .catch(() => {
+        if (!isCancelled) setResolvedCriticalWork("");
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeConstructoraId, isCriticalWorkCard, value]);
+
+  const displayValue = isCriticalWorkCard && resolvedCriticalWork ? resolvedCriticalWork : value;
+
+  const semanticTone = (() => {
     if (typeof tone === "string") {
       return tone;
     }
@@ -30,27 +76,27 @@ function KpiCard({ detail, icon, title, tone, value }) {
       return tone;
     }
 
-    if (resolvedTitle.includes("emisiones totales") || resolvedTitle.includes("emisiones actuales")) {
+    if (normalizedTitle.includes("emisiones totales") || normalizedTitle.includes("emisiones actuales")) {
       return "danger";
     }
 
-    if (resolvedTitle.includes("evidencia respaldada") || resolvedTitle.includes("maximo potencial") || resolvedTitle.includes("reduccion") || resolvedTitle.includes("viabilidad") || resolvedTitle.includes("potencial")) {
+    if (normalizedTitle.includes("evidencia respaldada") || normalizedTitle.includes("maximo potencial") || normalizedTitle.includes("reduccion") || normalizedTitle.includes("viabilidad") || normalizedTitle.includes("potencial")) {
       return "success";
     }
 
-    if (resolvedTitle.includes("intensidad de carbono") || resolvedTitle.includes("escenario recomendado") || resolvedTitle.includes("informacion") || resolvedTitle.includes("operativa") || resolvedTitle.includes("etapa prioritaria")) {
+    if (normalizedTitle.includes("intensidad de carbono") || normalizedTitle.includes("escenario recomendado") || normalizedTitle.includes("informacion") || normalizedTitle.includes("operativa") || normalizedTitle.includes("etapa prioritaria")) {
       return "info";
     }
 
-    if (resolvedTitle.includes("obra critica") || resolvedTitle.includes("diesel") || resolvedTitle.includes("concentracion") || resolvedTitle.includes("prioritaria") || resolvedTitle.includes("fuente prioritaria") || resolvedTitle.includes("periodo con mayor emision")) {
+    if (normalizedTitle.includes("obra critica") || normalizedTitle.includes("diesel") || normalizedTitle.includes("concentracion") || normalizedTitle.includes("prioritaria") || normalizedTitle.includes("fuente prioritaria") || normalizedTitle.includes("periodo con mayor emision")) {
       return "warning";
     }
 
-    if (resolvedTitle.includes("riesgo") || resolvedTitle.includes("fuente critica")) {
+    if (normalizedTitle.includes("riesgo") || normalizedTitle.includes("fuente critica")) {
       return "danger";
     }
 
-    if (resolvedTitle.includes("categoria critica")) {
+    if (normalizedTitle.includes("categoria critica")) {
       return "neutral";
     }
 
@@ -117,7 +163,7 @@ function KpiCard({ detail, icon, title, tone, value }) {
         <p className={`mt-3 text-sm font-bold ${titleClasses}`}>{title}</p>
       </div>
       <h3 className={`mt-1 break-words text-center text-2xl font-black tracking-tight ${valueClasses}`}>
-        {value}
+        {displayValue}
       </h3>
       {detail && (
         <p className={`mt-2 text-center text-sm font-semibold ${detailClasses}`}>
