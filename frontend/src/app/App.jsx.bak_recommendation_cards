@@ -68,7 +68,7 @@ const worksiteReductionSteps = [
   {
     title: "Optimizar rutas de despacho y transporte",
     detail:
-      "Planificar mejor los recorridos, evitar viajes vací­os, combinar cargas y priorizar rutas más cortas o con menos tráfico para reducir kilómetros recorridos y consumo de combustible.",
+      "Planificar mejor los recorridos, evitar viajes vacíos, combinar cargas y priorizar rutas más cortas o con menos tráfico para reducir kilómetros recorridos y consumo de combustible.",
   },
   {
     title: "Mejorar eficiencia de maquinaria y camiones",
@@ -341,8 +341,8 @@ const etapas = Object.entries(emisionesPorEtapa).map(
   })
 );
 
-const fuenteCritica = registros_emision[0]?.fuente_emision || "Sin datos";
-const unidadCritica = data?.unidad_critica || etapas[0]?.unidad || "Sin datos";
+const fuenteCritica = data?.fuente_critica || registros_emision[0]?.fuente_emision || "Sin datos";
+const unidadCritica = data?.etapa_critica || etapas[0]?.unidad || "Sin datos";
 const safeDashboardData = {
   ...data,
   datos: dashboardRows,
@@ -609,7 +609,7 @@ const environmentalStatus = getEnvironmentalStatus({
             />
             <KpiCard
               icon={<AlertTriangle />}
-              title="Categorí­a critica"
+              title="Categoría critica"
               value={criticalCategory}
             />
             <KpiCard
@@ -635,12 +635,14 @@ const environmentalStatus = getEnvironmentalStatus({
 
           <section className="grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
             <InsightPanel
+              data={safeDashboardData}
+              scenario={recommendedScenario}
+              riskProfile={riskProfile}
               environmentalStatus={environmentalStatus}
-              insight={categoryInsight}
             />
             <DistributionPanel
               items={categoryDistribution}
-              title="Emisiones por categorí­a"
+              title="Emisiones por categoría"
               total={totalEmissions}
             />
           </section>
@@ -716,7 +718,7 @@ function getEnvironmentalStatus({ categoryDistribution, evidenceBacked, rows, to
   if (maxShare > 60) {
     return {
       label: "critica",
-      detail: "Una categorí­a concentra más del 60% de las emisiones.",
+      detail: "Una categoría concentra más del 60% de las emisiones.",
       className: "border-[#F1B8B8] bg-[var(--danger-bg)] text-[#B42318]",
     };
   }
@@ -724,39 +726,302 @@ function getEnvironmentalStatus({ categoryDistribution, evidenceBacked, rows, to
   if (activeCategories >= 3) {
     return {
       label: "En seguimiento",
-      detail: "Existen registros distribuidos en varias categorí­as.",
+      detail: "Existen registros distribuidos en varias categorías.",
       className: "border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]",
     };
   }
 
   return {
     label: "Inicial",
-    detail: "Existen registros, pero aún falta trazabilidad por categorí­a.",
+    detail: "Existen registros, pero aún falta trazabilidad por categoría.",
     className: "border-[#E1C56F] bg-[var(--warning-bg)] text-[#7A4F00]",
   };
 }
 
-function InsightPanel({ environmentalStatus, insight }) {
+const normalizeInsightText = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const getInsightEmissionValue = (row = {}) =>
+  Number(
+    row.emisiones_kg_co2e ??
+      row.emisiones ??
+      row.total_emisiones ??
+      row.emisiones_totales ??
+      0
+  );
+
+const formatInsightPercent = (value) =>
+  `${formatNumber(Number(value || 0), 1)}%`;
+
+function getConstructionActionPack(category, source) {
+  const normalizedCategory = normalizeInsightText(category);
+  const normalizedSource = normalizeInsightText(source);
+
+  if (normalizedCategory.includes("material")) {
+    const isSteel = normalizedSource.includes("acero");
+    const isConcrete =
+      normalizedSource.includes("hormigon") || normalizedSource.includes("cemento");
+
+    return {
+      intervention: isSteel
+        ? "Piloto de acero con menor carbono incorporado"
+        : isConcrete
+          ? "Piloto de hormigón/cemento con menor factor"
+          : "Piloto de materiales de menor impacto",
+      actions: [
+        isSteel
+          ? "Solicitar al proveedor ficha técnica, origen y factor kg CO2e/ton del acero utilizado."
+          : "Solicitar ficha técnica, composición y factor kg CO2e por unidad del material crítico.",
+        "Comparar el proveedor actual contra al menos dos alternativas con menor factor de emisión.",
+        "Revisar cubicaciones, mermas y sobreconsumo en la etapa prioritaria antes de nuevas compras.",
+        "Vincular facturas, guías de despacho y fichas técnicas al registro de emisión crítico.",
+      ],
+      metrics: [
+        "kg CO2e por unidad comprada",
+        "merma de material",
+        "evidencias validadas",
+      ],
+    };
+  }
+
+  if (normalizedCategory.includes("transporte")) {
+    return {
+      intervention: "Optimización logística de proveedores y despachos",
+      actions: [
+        "Identificar viajes con baja carga útil o recorridos repetidos hacia la obra.",
+        "Consolidar despachos de materiales críticos y reducir viajes parciales.",
+        "Priorizar proveedores cercanos para áridos, hormigón y materiales de alta rotación.",
+        "Registrar distancia, patente, litros y guía de despacho en cada traslado relevante.",
+      ],
+      metrics: ["km por despacho", "litros por viaje", "tonelada-km"],
+    };
+  }
+
+  if (normalizedCategory.includes("maquinaria")) {
+    return {
+      intervention: "Control operativo de maquinaria diésel",
+      actions: [
+        "Medir litros por equipo y por frente de trabajo.",
+        "Reducir ralentí y tiempos muertos en excavadoras, retroexcavadoras y generadores.",
+        "Ajustar la planificación diaria para evitar equipos encendidos sin producción.",
+        "Registrar mantenciones y horas máquina como evidencia operacional.",
+      ],
+      metrics: ["litros por hora", "horas máquina", "tiempo en ralentí"],
+    };
+  }
+
+  if (normalizedCategory.includes("energia")) {
+    return {
+      intervention: "Reducción de consumo energético de faena",
+      actions: [
+        "Separar consumo de red, generadores y equipos temporales.",
+        "Reducir uso de generadores cuando exista alternativa de conexión eléctrica.",
+        "Revisar horarios de mayor consumo y equipos con uso permanente.",
+        "Vincular boletas eléctricas o registros de generador a la obra.",
+      ],
+      metrics: ["kWh semanal", "litros generador", "kg CO2e/kWh"],
+    };
+  }
+
+  if (normalizedCategory.includes("residuo")) {
+    return {
+      intervention: "Segregación y valorización de residuos de obra",
+      actions: [
+        "Separar escombros, fierro, madera, plásticos y residuos mixtos.",
+        "Priorizar retiro valorizado antes de disposición final.",
+        "Exigir ticket de pesaje y certificado de retiro por gestor.",
+        "Medir reducción de residuos mixtos por etapa de obra.",
+      ],
+      metrics: ["ton residuos mixtos", "% valorizado", "tickets validados"],
+    };
+  }
+
+  return {
+    intervention: "Ordenamiento de datos y priorización de fuente crítica",
+    actions: [
+      "Clasificar correctamente la fuente de emisión crítica.",
+      "Validar cantidad, unidad y factor de emisión utilizado.",
+      "Asociar el registro a una etapa y obra específica.",
+      "Subir evidencia documental para respaldar el cálculo.",
+    ],
+    metrics: ["registros completos", "factores validados", "evidencias"],
+  };
+}
+
+function InsightPanel({ data, scenario, riskProfile, environmentalStatus }) {
+  const rows = Array.isArray(data?.datos) ? data.datos : [];
+  const total = Number(data?.total_emisiones || 0);
+
+  const topSourcesFromRows = Object.values(
+    rows.reduce((accumulator, row) => {
+      const source = row.fuente_emision || "Sin fuente";
+      const category = row.categoria_visible || row.categoria || "Otros";
+      const stage = row.etapa_nombre || row.etapa || "Sin etapa";
+      const current = accumulator[source] || {
+        source,
+        category,
+        stage,
+        emissions: 0,
+        records: 0,
+      };
+
+      current.emissions += getInsightEmissionValue(row);
+      current.records += 1;
+      accumulator[source] = current;
+      return accumulator;
+    }, {})
+  ).sort((left, right) => right.emissions - left.emissions);
+
+  const topSource = topSourcesFromRows[0] || null;
+
+  const source =
+    data?.fuente_critica ||
+    topSource?.source ||
+    "Fuente crítica sin datos";
+
+  const category =
+    data?.categoria_critica ||
+    topSource?.category ||
+    "Otros";
+
+  const stage =
+    data?.etapa_critica ||
+    topSource?.stage ||
+    "Etapa sin datos";
+
+  const sourceEmissions = Number(topSource?.emissions || 0);
+  const sourceShare =
+    total > 0 && sourceEmissions > 0
+      ? (sourceEmissions / total) * 100
+      : Number(riskProfile?.factors?.sourceConcentration || 0);
+
+  const reductionPct = Number(
+    scenario?.reductionPct ||
+      riskProfile?.factors?.potentialReduction ||
+      0
+  );
+
+  const evidenceCoverage = Number(data?.evidencia_respaldada || 0);
+  const actionPack = getConstructionActionPack(category, source);
+
+  const priority =
+    sourceShare >= 40 || evidenceCoverage < 60
+      ? "Prioridad alta"
+      : sourceShare >= 20
+        ? "Prioridad media"
+        : "Seguimiento";
+
   return (
-    <section className="premium-card premium-card-interactive rounded-2xl bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/40 sm:p-6">
+    <section className="rounded-2xl border border-cyan-100 bg-white p-5 shadow-[0_8px_22px_rgba(15,23,42,0.045)]">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
-            Insight automático
+            Inteligencia operativa
           </p>
-          <h2 className="mt-2 text-xl font-semibold text-[var(--text-main)]">
-            Acción prioritaria
+          <h2 className="mt-2 text-xl font-black text-[var(--text-main)]">
+            Plan para bajar emisiones
           </h2>
         </div>
-        <div className={`premium-card-interactive rounded-2xl border px-4 py-3 text-sm font-bold ${environmentalStatus.className}`}>
+
+        <div className={`rounded-2xl border px-4 py-3 text-sm font-bold ${environmentalStatus.className}`}>
           <p>Estado ambiental de la obra</p>
           <p className="mt-1 text-lg">{environmentalStatus.label}</p>
         </div>
       </div>
-      <p className="mt-4 leading-6 text-[var(--text-muted)]">{insight}</p>
-      <p className="mt-3 text-sm font-medium text-[var(--text-muted)]">
-        {environmentalStatus.detail}
-      </p>
+
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+        <p className="text-sm leading-6 text-[var(--text-main)]">
+          La principal oportunidad está en{" "}
+          <strong>{source}</strong>, dentro de{" "}
+          <strong>{category}</strong>, con foco operativo en{" "}
+          <strong>{stage}</strong>. Esta fuente representa{" "}
+          <strong>{formatInsightPercent(sourceShare)}</strong> de las emisiones
+          de la obra
+          {sourceEmissions > 0
+            ? ` (${formatNumber(sourceEmissions, 1)} kg CO2e).`
+            : "."}
+          {reductionPct > 0
+            ? ` El sistema estima un máximo realista cercano al ${formatInsightPercent(
+                reductionPct
+              )}, por lo que conviene partir con un piloto controlado antes de escalar.`
+            : " Completa factores y evidencias para calcular un escenario de reducción."}
+        </p>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
+            Intervención recomendada
+          </p>
+          <p className="mt-1 text-sm font-extrabold text-[var(--text-main)]">
+            {actionPack.intervention}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
+            Impacto esperado
+          </p>
+          <p className="mt-1 text-sm font-extrabold text-emerald-700">
+            {reductionPct > 0
+              ? `${formatInsightPercent(Math.max(1, reductionPct * 0.55))} - ${formatInsightPercent(
+                  reductionPct
+                )}`
+              : "Pendiente"}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
+            Respaldo documental
+          </p>
+          <p className="mt-1 text-sm font-extrabold text-[var(--text-main)]">
+            {formatInsightPercent(evidenceCoverage)}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--secondary)]">
+          Qué hacer ahora
+        </p>
+
+        <div className="mt-3 space-y-2">
+          {actionPack.actions.map((action, index) => (
+            <div
+              key={action}
+              className="flex gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2"
+            >
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-black text-emerald-700">
+                {index + 1}
+              </span>
+              <p className="text-sm leading-6 text-[var(--text-main)]">
+                {action}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--secondary)]">
+          Qué medir para validar
+        </p>
+
+        <div className="mt-2 flex flex-wrap gap-2">
+          {actionPack.metrics.map((metric) => (
+            <span
+              key={metric}
+              className="rounded-full border border-cyan-100 bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-800"
+            >
+              {metric}
+            </span>
+          ))}
+        </div>
+      </div>
     </section>
   );
 }
@@ -820,7 +1085,7 @@ function TopSourcesPanel({ items, total }) {
           <thead className="border-b border-[var(--border)] text-left text-[var(--text-muted)]">
             <tr>
               <th className="py-3 pr-4">Fuente de emision</th>
-              <th className="px-4 py-3">Categorí­a</th>
+              <th className="px-4 py-3">Categoría</th>
               <th className="px-4 py-3">Obra / etapa</th>
               <th className="px-4 py-3 text-right">Emisiones kg CO2e</th>
               <th className="py-3 pl-4 text-right">% total</th>

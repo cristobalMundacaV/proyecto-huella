@@ -53,11 +53,11 @@ const categoryInsightRules = {
   Transporte:
     "Transporte aparece como foco critico. Evalúa proveedores más cercanos, consolidación de viajes y reducción de kilómetros recorridos.",
   Maquinaria:
-    "Maquinaria concentra emisiones relevantes. Controlar ralentÃ­, consumo por equipo y mantenciÃ³n puede reducir el impacto operativo.",
+    "Maquinaria concentra emisiones relevantes. Controlar ralentí­, consumo por equipo y mantención puede reducir el impacto operativo.",
   Energia:
     "Energia es una fuente relevante. Revisa uso de generadores, consumo electrico y posibilidades de conexion temporal a red.",
   Residuos:
-    "Residuos aparece como foco de impacto. Separar residuos valorizables y mejorar trazabilidad de retiro puede reducir disposiciÃ³n final.",
+    "Residuos aparece como foco de impacto. Separar residuos valorizables y mejorar trazabilidad de retiro puede reducir disposición final.",
   Agua:
     "Agua requiere seguimiento operativo. Monitorear consumo por etapa ayuda a detectar desviaciones y mejorar eficiencia.",
   Otros:
@@ -68,12 +68,12 @@ const worksiteReductionSteps = [
   {
     title: "Optimizar rutas de despacho y transporte",
     detail:
-      "Planificar mejor los recorridos, evitar viajes vacíos, combinar cargas y priorizar rutas más cortas o con menos trÃ¡fico para reducir kilómetros recorridos y consumo de combustible.",
+      "Planificar mejor los recorridos, evitar viajes vacíos, combinar cargas y priorizar rutas más cortas o con menos tráfico para reducir kilómetros recorridos y consumo de combustible.",
   },
   {
     title: "Mejorar eficiencia de maquinaria y camiones",
     detail:
-      "Implementar mantenciÃ³n preventiva, utilizar neumÃ¡ticos adecuados, mantener los motores correctamente calibrados y reducir el tiempo de ralentÃ­.",
+      "Implementar mantención preventiva, utilizar neumáticos adecuados, mantener los motores correctamente calibrados y reducir el tiempo de ralentí­.",
   },
   {
     title: "Controlar conduccion y operacion",
@@ -574,7 +574,7 @@ const environmentalStatus = getEnvironmentalStatus({
                   Carbono Zero
                 </h1>
                 <p className="text-[var(--text-muted)]">
-                  Convierte datos reales de obra en mediciÃ³n, trazabilidad y decisiones para reducir emisiones durante la ejecuciÃ³n del proyecto.
+                  Convierte datos reales de obra en medición, trazabilidad y decisiones para reducir emisiones durante la ejecución del proyecto.
                 </p>
               </div>
             </div>
@@ -620,7 +620,7 @@ const environmentalStatus = getEnvironmentalStatus({
             <KpiCard
               icon={<Database />}
               title="Evidencia respaldada"
-              value="Pendiente de vinculaciÃ³n"
+              value="Pendiente de vinculación"
             />
             <KpiCard
               icon={<Factory />}
@@ -699,7 +699,7 @@ function getEnvironmentalStatus({ categoryDistribution, evidenceBacked, rows, to
   if (!rows.length || !totalEmissions) {
     return {
       label: "Sin datos",
-      detail: "AÃºn no hay registros suficientes.",
+      detail: "Aún no hay registros suficientes.",
       className: "border-slate-300 bg-slate-100 text-slate-700",
     };
   }
@@ -710,7 +710,7 @@ function getEnvironmentalStatus({ categoryDistribution, evidenceBacked, rows, to
   if (evidenceBacked != null && evidenceBacked >= 50 && maxShare <= 50) {
     return {
       label: "Controlada",
-      detail: "Sin concentraciÃ³n dominante y con documentaciÃ³n suficiente.",
+      detail: "Sin concentración dominante y con documentación suficiente.",
       className: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--primary-dark)]",
     };
   }
@@ -907,120 +907,103 @@ function InsightPanel({ data, scenario, riskProfile, environmentalStatus }) {
   const evidenceCoverage = Number(data?.evidencia_respaldada || 0);
   const actionPack = getConstructionActionPack(category, source);
 
-  const priority =
-    sourceShare >= 40 || evidenceCoverage < 60
-      ? "Prioridad alta"
-      : sourceShare >= 20
-        ? "Prioridad media"
-        : "Seguimiento";
+  const pilotMin = reductionPct > 0 ? Math.max(1, reductionPct * 0.55) : 0;
+  const pilotMax = reductionPct > 0 ? reductionPct : 0;
+
+  const recommendationCards = [
+    {
+      eyebrow: "Prioridad 1",
+      title: actionPack.intervention,
+      value: source,
+      detail: `Atacar primero esta fuente en ${stage}, porque concentra ${formatInsightPercent(
+        sourceShare
+      )} de las emisiones de la obra.`,
+      tone:
+        "border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,0.95),rgba(255,255,255,0.98))] text-amber-900",
+      badge: `${formatNumber(sourceEmissions, 1)} kg CO2e`,
+    },
+    {
+      eyebrow: "Piloto recomendado",
+      title: "Validar reducción antes de escalar",
+      value:
+        reductionPct > 0
+          ? `${formatInsightPercent(pilotMin)} - ${formatInsightPercent(pilotMax)}`
+          : "Pendiente",
+      detail:
+        "Ejecutar un piloto medible antes de cambiar especificaciones, proveedores o planificación de obra.",
+      tone:
+        "border-emerald-200 bg-[linear-gradient(180deg,rgba(236,253,245,0.95),rgba(255,255,255,0.98))] text-emerald-900",
+      badge: "Impacto esperado",
+    },
+    {
+      eyebrow: "Acción concreta",
+      title: actionPack.actions[0],
+      value: category,
+      detail: actionPack.actions[1],
+      tone:
+        "border-cyan-200 bg-[linear-gradient(180deg,rgba(236,254,255,0.95),rgba(255,255,255,0.98))] text-cyan-950",
+      badge: "Siguiente paso",
+    },
+    {
+      eyebrow: "Control y evidencia",
+      title: "Respaldar decisión con documentos",
+      value: `${formatInsightPercent(evidenceCoverage)} respaldo`,
+      detail: `Medir ${actionPack.metrics.join(", ")} y vincular facturas, guías o fichas técnicas al registro crítico.`,
+      tone:
+        "border-slate-200 bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,0.98))] text-slate-900",
+      badge: environmentalStatus.label,
+    },
+  ];
 
   return (
     <section className="rounded-2xl border border-cyan-100 bg-white p-5 shadow-[0_8px_22px_rgba(15,23,42,0.045)]">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
             Inteligencia operativa
           </p>
           <h2 className="mt-2 text-xl font-black text-[var(--text-main)]">
-            Plan para bajar emisiones
+            Recomendaciones priorizadas
           </h2>
         </div>
 
         <div className={`rounded-2xl border px-4 py-3 text-sm font-bold ${environmentalStatus.className}`}>
-          <p>Estado ambiental de la obra</p>
+          <p>Estado ambiental</p>
           <p className="mt-1 text-lg">{environmentalStatus.label}</p>
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-        <p className="text-sm leading-6 text-[var(--text-main)]">
-          La principal oportunidad está en{" "}
-          <strong>{source}</strong>, dentro de{" "}
-          <strong>{category}</strong>, con foco operativo en{" "}
-          <strong>{stage}</strong>. Esta fuente representa{" "}
-          <strong>{formatInsightPercent(sourceShare)}</strong> de las emisiones
-          de la obra
-          {sourceEmissions > 0
-            ? ` (${formatNumber(sourceEmissions, 1)} kg CO2e).`
-            : "."}
-          {reductionPct > 0
-            ? ` El sistema estima un máximo realista cercano al ${formatInsightPercent(
-                reductionPct
-              )}, por lo que conviene partir con un piloto controlado antes de escalar.`
-            : " Completa factores y evidencias para calcular un escenario de reducción."}
-        </p>
-      </div>
+      <div className="space-y-3">
+        {recommendationCards.map((card) => (
+          <article
+            key={`${card.eyebrow}-${card.title}`}
+            className={`rounded-2xl border p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] transition-[border-color,box-shadow] duration-300 ease-out hover:shadow-[0_12px_26px_rgba(15,23,42,0.07)] ${card.tone}`}
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-wide opacity-75">
+                  {card.eyebrow}
+                </p>
+                <h3 className="mt-1 text-lg font-black leading-snug">
+                  {card.title}
+                </h3>
+              </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
-            Intervención recomendada
-          </p>
-          <p className="mt-1 text-sm font-extrabold text-[var(--text-main)]">
-            {actionPack.intervention}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
-            Impacto esperado
-          </p>
-          <p className="mt-1 text-sm font-extrabold text-emerald-700">
-            {reductionPct > 0
-              ? `${formatInsightPercent(Math.max(1, reductionPct * 0.55))} - ${formatInsightPercent(
-                  reductionPct
-                )}`
-              : "Pendiente"}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
-            Respaldo documental
-          </p>
-          <p className="mt-1 text-sm font-extrabold text-[var(--text-main)]">
-            {formatInsightPercent(evidenceCoverage)}
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-[var(--secondary)]">
-          Qué hacer ahora
-        </p>
-
-        <div className="mt-3 space-y-2">
-          {actionPack.actions.map((action, index) => (
-            <div
-              key={action}
-              className="flex gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2"
-            >
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-black text-emerald-700">
-                {index + 1}
+              <span className="w-fit shrink-0 rounded-full border border-current/15 bg-white/70 px-3 py-1 text-xs font-black">
+                {card.badge}
               </span>
-              <p className="text-sm leading-6 text-[var(--text-main)]">
-                {action}
+            </div>
+
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <p className="text-2xl font-black leading-tight">
+                {card.value}
+              </p>
+              <p className="max-w-md text-sm leading-6 text-slate-700">
+                {card.detail}
               </p>
             </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-[var(--secondary)]">
-          Qué medir para validar
-        </p>
-
-        <div className="mt-2 flex flex-wrap gap-2">
-          {actionPack.metrics.map((metric) => (
-            <span
-              key={metric}
-              className="rounded-full border border-cyan-100 bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-800"
-            >
-              {metric}
-            </span>
-          ))}
-        </div>
+          </article>
+        ))}
       </div>
     </section>
   );
@@ -1068,7 +1051,7 @@ function StagePanel({ items, total }) {
           ))
         ) : (
           <p className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 text-sm text-[var(--text-muted)]">
-            AÃºn no hay etapas o frentes asociados a los registros.
+            Aún no hay etapas o frentes asociados a los registros.
           </p>
         )}
       </div>
