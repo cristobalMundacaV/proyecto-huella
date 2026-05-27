@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Bar,
@@ -81,6 +81,7 @@ const categoryColorMap = {
 };
 
 const categoryFallbackColors = ["#0F766E", "#D97706", "#2563EB", "#7C3AED", "#DC2626", "#0891B2", "#64748B"];
+const CONSTRUCTORA_REFRESH_MS = 5000;
 
 const monthFormatter = new Intl.DateTimeFormat("es-CL", {
   month: "short",
@@ -101,6 +102,7 @@ function ConstructorasView({
   const [fieldErrors, setFieldErrors] = useState({});
   const [etapasOperativas, setEtapasOperativas] = useState([]);
   const [loadingEtapas, setLoadingEtapas] = useState(false);
+  const [metricsPulseKey, setMetricsPulseKey] = useState(0);
   const {
     activeConstructora,
     activeConstructoraId,
@@ -147,36 +149,42 @@ function ConstructorasView({
 
   useEffect(() => {
     let isCancelled = false;
+    let intervalId;
 
-    async function loadEtapas() {
+    async function loadEtapas({ showLoading = false } = {}) {
       if (!activeConstructoraId) {
         setEtapasOperativas([]);
         return;
       }
 
-      setLoadingEtapas(true);
+      if (showLoading) {
+        setLoadingEtapas(true);
+      }
 
       try {
         const data = await getConstructoraEtapas(activeConstructoraId, { detail: "1" });
 
         if (!isCancelled) {
           setEtapasOperativas(Array.isArray(data) ? data : []);
+          setMetricsPulseKey((currentKey) => currentKey + 1);
         }
       } catch {
         if (!isCancelled) {
           setEtapasOperativas([]);
         }
       } finally {
-        if (!isCancelled) {
+        if (!isCancelled && showLoading) {
           setLoadingEtapas(false);
         }
       }
     }
 
-    loadEtapas();
+    loadEtapas({ showLoading: true });
+    intervalId = window.setInterval(() => loadEtapas(), CONSTRUCTORA_REFRESH_MS);
 
     return () => {
       isCancelled = true;
+      window.clearInterval(intervalId);
     };
   }, [activeConstructoraId]);
 
@@ -318,12 +326,17 @@ function ConstructorasView({
         </p>
       </section>
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
         <CompanyKpi
+          decimals={1}
+          detail="Mes en curso · actualización automática"
           icon={<Gauge />}
-          label="Emisiones acumuladas"
+          label="Emisiones del mes"
+          live
+          pulseKey={metricsPulseKey}
+          suffix=" kg CO2e"
           tone="danger"
-          value={`${formatNumber(metrics.totalEmissions, 1)} kg CO2e`}
+          value={metrics.currentMonthEmissions}
         />
         <CompanyKpi
           detail={`${formatNumber(metrics.topSource?.emisiones || 0, 1)} kg CO2e`}
@@ -344,21 +357,21 @@ function ConstructorasView({
           icon={<Activity />}
           label="Actividad registrada"
           tone="info"
-          value={formatNumber(metrics.totalActivities, 0)}
+          value={metrics.totalActivities}
         />
         <CompanyKpi
           detail="Respaldos vinculados"
           icon={<FileCheck2 />}
           label="Evidencia"
           tone="success"
-          value={formatNumber(metrics.totalEvidence, 0)}
+          value={metrics.totalEvidence}
         />
         <CompanyKpi
           detail="Obras asociadas a la constructora"
           icon={<Building2 />}
           label="Obras operativas"
           tone="neutral"
-          value={formatNumber(metrics.totalObras, 0)}
+          value={metrics.totalObras}
         />
       </section>
 
@@ -433,6 +446,14 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
     );
   });
   const registros = collectEmissionRecords(scopedUnits);
+  const currentMonthKey = getCurrentMonthKey();
+  const currentMonthEmissions = registros.reduce((acc, registro) => {
+    if (getMonthKey(registro.fecha) !== currentMonthKey) {
+      return acc;
+    }
+
+    return acc + getRecordEmission(registro);
+  }, 0);
   const totals = {
     totalCompanies: constructoras.length,
     totalUnits: scopedUnits.length || Number(activeCompany?.etapas_count || 0),
@@ -495,6 +516,7 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
   return {
     ...totals,
     activeCompany,
+    currentMonthEmissions,
     topCategory,
     topEmitter,
     topEmissionShare,
@@ -913,6 +935,13 @@ function getMonthKey(value) {
     return "";
   }
 
+  const rawValue = String(value);
+  const dateOnlyMatch = rawValue.match(/^(\d{4})-(\d{2})/);
+
+  if (dateOnlyMatch) {
+    return `${dateOnlyMatch[1]}-${dateOnlyMatch[2]}`;
+  }
+
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
@@ -920,6 +949,11 @@ function getMonthKey(value) {
   }
 
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getCurrentMonthKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function formatMonth(monthKey) {
@@ -945,74 +979,188 @@ function maxBy(items, selector) {
   return items.reduce((best, item) => (selector(item) > selector(best) ? item : best), items[0]);
 }
 
-function CompanyKpi({ detail, icon, label, tone = "neutral", value }) {
+function CompanyKpi({ decimals = 0, detail, icon, label, live = false, pulseKey = 0, suffix = "", tone = "neutral", value }) {
   const toneClasses = getCompanyKpiTone(tone);
+  const numericValue = typeof value === "number" && Number.isFinite(value);
 
   return (
-    <div className={`premium-card-interactive min-h-[168px] rounded-[18px] border p-6 shadow-[0_12px_30px_rgba(15,23,42,0.06)] ring-1 ring-white/70 ${toneClasses.card}`}>
-      <div className="mb-4 flex flex-col items-center text-center">
-        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border shadow-[0_8px_24px_rgba(15,23,42,0.04)] ${toneClasses.icon}`}>
+    <div
+      className={`premium-card-interactive relative flex min-h-[220px] overflow-hidden rounded-[26px] border p-6 shadow-[0_18px_45px_rgba(15,23,42,0.10)] ring-1 ring-white/80 transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_60px_rgba(15,23,42,0.16)] ${toneClasses.card}`}
+    >
+      <div className={`absolute inset-x-7 top-0 h-1.5 rounded-b-full ${toneClasses.accent}`} />
+      <div className={`pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full blur-3xl ${toneClasses.glow}`} />
+      <div className={`pointer-events-none absolute -bottom-14 -left-14 h-32 w-32 rounded-full blur-3xl ${toneClasses.softGlow}`} />
+
+      <div className="relative z-10 flex w-full flex-col items-center text-center">
+        <div className={`flex h-14 w-14 items-center justify-center rounded-2xl border shadow-[0_12px_28px_rgba(15,23,42,0.08)] ${toneClasses.icon}`}>
           {icon}
         </div>
-        <p className={`mt-3 text-xs font-black uppercase tracking-[0.12em] ${toneClasses.title}`}>
-          {label}
-        </p>
+
+        <div className="mt-4 flex min-h-[34px] items-center justify-center">
+          <p className={`text-[11px] font-black uppercase tracking-[0.14em] ${toneClasses.title}`}>
+            {label}
+          </p>
+        </div>
+
+        <div className="flex flex-1 items-center justify-center py-3">
+          <h3
+            className={`mx-auto max-w-[280px] break-words text-center text-[clamp(1.6rem,2.8vw,2.35rem)] font-black leading-tight tracking-tight ${toneClasses.value}`}
+            key={numericValue ? undefined : `${label}-${value}`}
+            style={pulseKey ? { animation: "companyKpiPop 760ms ease-out" } : undefined}
+          >
+            {numericValue ? (
+              <AnimatedCompanyCounter decimals={decimals} suffix={suffix} value={value} />
+            ) : (
+              value || "Sin datos"
+            )}
+          </h3>
+        </div>
+
+        {detail && (
+          <p className={`min-h-[20px] text-center text-sm font-bold ${toneClasses.detail}`}>
+            {detail}
+          </p>
+        )}
+
+        {live && (
+          <div className={`mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wide ${toneClasses.badge}`}>
+            <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+              <span className={`absolute h-2.5 w-2.5 rounded-full ${toneClasses.livePulse}`} />
+              <span className={`h-1.5 w-1.5 rounded-full ${toneClasses.liveDot}`} />
+            </span>
+            En vivo
+          </div>
+        )}
       </div>
-      <h3 className={`mx-auto mt-1 max-w-[260px] break-words text-center text-2xl font-black leading-tight tracking-tight ${toneClasses.value}`}>
-        {typeof value === "number" ? formatNumber(value, 0) : value || "Sin datos"}
-      </h3>
-      {detail && (
-        <p className={`mt-2 text-center text-sm font-semibold ${toneClasses.detail}`}>
-          {detail}
-        </p>
-      )}
+
+      <style>{`
+        @keyframes companyKpiPop {
+          0% { transform: translateY(4px) scale(0.985); opacity: 0.78; }
+          45% { transform: translateY(0) scale(1.025); opacity: 1; }
+          100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+      `}</style>
     </div>
+  );
+}
+
+function AnimatedCompanyCounter({ decimals = 0, suffix = "", value }) {
+  const [displayValue, setDisplayValue] = useState(Number(value || 0));
+  const previousValueRef = useRef(Number(value || 0));
+
+  useEffect(() => {
+    const target = Number(value || 0);
+    const start = previousValueRef.current;
+    const duration = 850;
+    const startedAt = performance.now();
+    let animationFrameId;
+
+    const animate = (timestamp) => {
+      const progress = Math.min((timestamp - startedAt) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const nextValue = start + (target - start) * eased;
+
+      setDisplayValue(nextValue);
+
+      if (progress < 1) {
+        animationFrameId = window.requestAnimationFrame(animate);
+      } else {
+        previousValueRef.current = target;
+        setDisplayValue(target);
+      }
+    };
+
+    animationFrameId = window.requestAnimationFrame(animate);
+
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [value]);
+
+  return (
+    <span>
+      {formatNumber(displayValue, decimals)}{suffix}
+    </span>
   );
 }
 
 function getCompanyKpiTone(tone) {
   const tones = {
     danger: {
-      card: "border-[#FCA5A5] bg-[linear-gradient(180deg,#FEF2F2,#FFF7F7)]",
-      icon: "border-[#FCA5A5] bg-white text-[#B42318]",
+      card: "border-[#FDA4AF] bg-[linear-gradient(135deg,#FFF1F2_0%,#FFFFFF_46%,#FFE4E6_100%)]",
+      icon: "border-[#FDA4AF] bg-white text-[#BE123C]",
       title: "text-[#64748B]",
-      value: "text-[#B42318]",
-      detail: "text-[#B42318]",
+      value: "text-[#BE123C]",
+      detail: "text-[#9F1239]",
+      accent: "bg-[#E11D48]",
+      glow: "bg-rose-200/70",
+      softGlow: "bg-red-100/70",
+      badge: "border-[#FDA4AF] bg-white/75 text-[#BE123C]",
+      livePulse: "animate-ping bg-rose-500/30",
+      liveDot: "bg-rose-600",
     },
     warning: {
-      card: "border-[#FED7AA] bg-[linear-gradient(180deg,#FFF7ED,#FFFBF5)]",
-      icon: "border-[#FDBA74] bg-white text-[#B45309]",
+      card: "border-[#FDBA74] bg-[linear-gradient(135deg,#FFF7ED_0%,#FFFFFF_48%,#FFEDD5_100%)]",
+      icon: "border-[#FDBA74] bg-white text-[#C2410C]",
       title: "text-[#64748B]",
-      value: "text-[#B45309]",
+      value: "text-[#C2410C]",
       detail: "text-[#B45309]",
+      accent: "bg-[#EA580C]",
+      glow: "bg-orange-200/70",
+      softGlow: "bg-amber-100/70",
+      badge: "border-[#FDBA74] bg-white/75 text-[#C2410C]",
+      livePulse: "animate-ping bg-orange-500/30",
+      liveDot: "bg-orange-600",
     },
     success: {
-      card: "border-[#A7F3D0] bg-[linear-gradient(180deg,#ECFDF3,#F7FEFA)]",
-      icon: "border-[#A7F3D0] bg-white text-[#047857]",
+      card: "border-[#86EFAC] bg-[linear-gradient(135deg,#ECFDF3_0%,#FFFFFF_48%,#DCFCE7_100%)]",
+      icon: "border-[#86EFAC] bg-white text-[#047857]",
       title: "text-[#64748B]",
       value: "text-[#047857]",
       detail: "text-[#047857]",
+      accent: "bg-[#059669]",
+      glow: "bg-emerald-200/70",
+      softGlow: "bg-green-100/70",
+      badge: "border-[#86EFAC] bg-white/75 text-[#047857]",
+      livePulse: "animate-ping bg-emerald-500/30",
+      liveDot: "bg-emerald-600",
     },
     info: {
-      card: "border-[#BFDBFE] bg-[linear-gradient(180deg,#EFF6FF,#F8FBFF)]",
-      icon: "border-[#BFDBFE] bg-white text-[#1D4ED8]",
+      card: "border-[#93C5FD] bg-[linear-gradient(135deg,#EFF6FF_0%,#FFFFFF_48%,#DBEAFE_100%)]",
+      icon: "border-[#93C5FD] bg-white text-[#1D4ED8]",
       title: "text-[#64748B]",
       value: "text-[#1D4ED8]",
       detail: "text-[#1D4ED8]",
+      accent: "bg-[#2563EB]",
+      glow: "bg-blue-200/70",
+      softGlow: "bg-sky-100/70",
+      badge: "border-[#93C5FD] bg-white/75 text-[#1D4ED8]",
+      livePulse: "animate-ping bg-blue-500/30",
+      liveDot: "bg-blue-600",
     },
     violet: {
-      card: "border-[#DDD6FE] bg-[linear-gradient(180deg,#F5F3FF,#FBFAFF)]",
-      icon: "border-[#DDD6FE] bg-white text-[#6D28D9]",
+      card: "border-[#C4B5FD] bg-[linear-gradient(135deg,#F5F3FF_0%,#FFFFFF_48%,#EDE9FE_100%)]",
+      icon: "border-[#C4B5FD] bg-white text-[#6D28D9]",
       title: "text-[#64748B]",
       value: "text-[#6D28D9]",
       detail: "text-[#6D28D9]",
+      accent: "bg-[#7C3AED]",
+      glow: "bg-violet-200/70",
+      softGlow: "bg-purple-100/70",
+      badge: "border-[#C4B5FD] bg-white/75 text-[#6D28D9]",
+      livePulse: "animate-ping bg-violet-500/30",
+      liveDot: "bg-violet-600",
     },
     neutral: {
-      card: "border-[#E2E8F0] bg-[linear-gradient(180deg,#FFFFFF,#F8FAFC)]",
-      icon: "border-[#E2E8F0] bg-[#F8FAFC] text-[#334155]",
+      card: "border-[#CBD5E1] bg-[linear-gradient(135deg,#FFFFFF_0%,#F8FAFC_48%,#E2E8F0_100%)]",
+      icon: "border-[#CBD5E1] bg-white text-[#334155]",
       title: "text-[#64748B]",
       value: "text-[#334155]",
       detail: "text-[#64748B]",
+      accent: "bg-[#475569]",
+      glow: "bg-slate-200/70",
+      softGlow: "bg-slate-100/70",
+      badge: "border-[#CBD5E1] bg-white/75 text-[#334155]",
+      livePulse: "animate-ping bg-slate-500/30",
+      liveDot: "bg-slate-600",
     },
   };
 
