@@ -318,28 +318,90 @@ main > section textarea:focus {
   border-spacing: 0;
 }
 
-/* Mantiene los contadores KPI estables: sin salto visual y con unidad en una sola línea. */
-main .premium-card-interactive h3:has(> span) {
-  max-width: 100% !important;
-  animation: none !important;
-  word-break: keep-all !important;
-  overflow-wrap: normal !important;
-  letter-spacing: -0.045em;
-  font-size: clamp(1.35rem, 2.05vw, 2rem) !important;
+/* Contrast pass for light professional screens.
+   Importaciones still uses several legacy slate/cyan/emerald utility colors that were
+   designed for dark panels. These overrides keep the same layout but make icons,
+   helper text and callout messages readable on the current light theme. */
+main .text-slate-400 {
+  color: #475569 !important;
 }
 
-main .premium-card-interactive h3 > span {
-  display: inline-flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 0.28rem;
-  white-space: nowrap;
-  line-height: 1.05;
-  font-variant-numeric: tabular-nums;
+main .text-slate-500 {
+  color: #64748B !important;
 }
 
-@media (min-width: 1280px) {
-  main .premium-card-interactive h3:has(> span) {
-    font-size: clamp(1.3rem, 1.65vw, 1.85rem) !important;
-  }
+main .text-slate-300,
+main .text-slate-200,
+main .text-slate-100 {
+  color: #0F172A !important;
+}
+
+main .text-emerald-400,
+main .text-emerald-300,
+main .text-emerald-200 {
+  color: #047857 !important;
+}
+
+main .text-cyan-400,
+main .text-cyan-300,
+main .text-cyan-200,
+main .text-cyan-100 {
+  color: #075985 !important;
+}
+
+main .text-amber-300,
+main .text-amber-200 {
+  color: #B45309 !important;
+}
+
+main .text-red-300,
+main .text-red-200 {
+  color: #B42318 !important;
+}
+
+main .border-emerald-400\/20,
+main .border-emerald-400\/30 {
+  border-color: #A7F3D0 !important;
+}
+
+main .bg-emerald-400\/10,
+main .bg-emerald-400\/20 {
+  background-color: #ECFDF5 !important;
+}
+
+main .border-cyan-400\/20,
+main .border-cyan-400\/30 {
+  border-color: #A5F3FC !important;
+}
+
+main .bg-cyan-400\/10,
+main .bg-cyan-400\/20 {
+  background-color: #ECFEFF !important;
+}
+
+main .border-amber-400\/30,
+main .bg-amber-400\/10 {
+  border-color: #FCD34D !important;
+  background-color: #FFFBEB !important;
+}
+
+main .border-red-400\/30,
+main .bg-red-400\/10,
+main .border-red-500\/30,
+main .bg-red-500\/10 {
+  border-color: #FECACA !important;
+  background-color: #FEF2F2 !important;
+}
+
+main .bg-slate-950,
+main .bg-slate-900\/80,
+main .bg-slate-800\/30 {
+  background-color: #FFFFFF !important;
+}
+
+main .border-slate-800,
+main .border-slate-800\/60,
+main .border-slate-700,
+main .border-slate-600\/60 {
+  border-color: var(--border) !important;
 }
