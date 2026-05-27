@@ -31,6 +31,7 @@ from .views import (
     sistema_estado,
     verificar_obra,
 )
+from .views_emisiones import constructora_emisiones
 
 urlpatterns = [
     path("auth/me/", auth_me),
@@ -48,7 +49,7 @@ urlpatterns = [
     path("constructoras/<str:constructora_id>/usuarios/", constructora_usuarios),
     path("constructoras/<str:constructora_id>/obras/", constructora_obras),
     path("constructoras/<str:constructora_id>/registros-emision/", constructora_registros_emision),
-    path("constructoras/<str:constructora_id>/emisiones/", constructora_registros_emision),
+    path("constructoras/<str:constructora_id>/emisiones/", constructora_emisiones),
     path("constructoras/<str:constructora_id>/evidencias/", constructora_evidencias),
     path("constructoras/<str:constructora_id>/reportes/", constructora_reportes),
     path("obras/", obras),
