@@ -1,4 +1,4 @@
-import unittest
+﻿import unittest
 
 import pandas as pd
 
@@ -9,8 +9,8 @@ class CalcularMetricasTest(unittest.TestCase):
     def test_total_y_agrupaciones_salen_ordenadas(self):
         datos = pd.DataFrame(
             {
-                "empresa": ["A", "B", "B"],
-                "actividad": ["diesel", "diesel", "electricidad"],
+                "constructora": ["A", "B", "B"],
+                "fuente_emision": ["diesel", "diesel", "electricidad"],
                 "emisiones": [100, 300, 50],
             }
         )
@@ -18,8 +18,8 @@ class CalcularMetricasTest(unittest.TestCase):
         metricas = calcular_metricas(datos)
 
         self.assertEqual(metricas["total_emisiones"], 450)
-        self.assertEqual(metricas["emisiones_por_empresa"].index[0], "B")
-        self.assertEqual(metricas["emisiones_por_actividad"].index[0], "diesel")
+        self.assertEqual(metricas["emisiones_por_constructora"].index[0], "B")
+        self.assertEqual(metricas["emisiones_por_fuente"].index[0], "diesel")
 
 
 if __name__ == "__main__":

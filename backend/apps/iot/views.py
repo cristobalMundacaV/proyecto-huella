@@ -30,8 +30,6 @@ def resolve_constructora(request):
     constructora_id = (
         request.query_params.get("constructora_id")
         or request.query_params.get("constructora")
-        or request.query_params.get("empresa_id")
-        or request.query_params.get("empresa")
     )
     if not constructora_id:
         return None
@@ -45,7 +43,7 @@ def resolve_constructora(request):
 def lecturas_constructora_hoy_queryset(constructora=None):
     queryset = lecturas_de_hoy_queryset()
     if constructora:
-        queryset = queryset.filter(empresa__iexact=constructora.nombre)
+        queryset = queryset.filter(constructora__iexact=constructora.nombre)
     return queryset
 
 
@@ -77,8 +75,8 @@ def kpis(request):
         emisiones_totales=Sum("co2e_estimado"),
         consumo_promedio=Avg("valor"),
     )
-    unidad_top = top_emisiones(queryset, "unidad_operativa")
-    actividad_top = top_emisiones(queryset, "tipo")
+    etapa_top = top_emisiones(queryset, "etapa_obra")
+    fuente_top = top_emisiones(queryset, "tipo")
     ultima = queryset.order_by("-fecha_registro").first()
 
     return Response(
@@ -87,17 +85,17 @@ def kpis(request):
             "emisiones_totales_kg_co2e": float(agregados["emisiones_totales"] or 0),
             "consumo_promedio": float(agregados["consumo_promedio"] or 0),
             "sensores_activos": queryset.values("sensor").distinct().count(),
-            "unidad_mayor_emision_hoy": (
-                unidad_top["unidad_operativa"] if unidad_top else None
+            "etapa_mayor_emision_hoy": (
+                etapa_top["etapa_obra"] if etapa_top else None
             ),
-            "unidad_mayor_emision_hoy_kg_co2e": (
-                float(unidad_top["emisiones"] or 0) if unidad_top else 0
+            "etapa_mayor_emision_hoy_kg_co2e": (
+                float(etapa_top["emisiones"] or 0) if etapa_top else 0
             ),
-            "actividad_mayor_emision_hoy": (
-                actividad_top["tipo"] if actividad_top else None
+            "fuente_emision_mayor_emision_hoy": (
+                fuente_top["tipo"] if fuente_top else None
             ),
-            "actividad_mayor_emision_hoy_kg_co2e": (
-                float(actividad_top["emisiones"] or 0) if actividad_top else 0
+            "fuente_emision_mayor_emision_hoy_kg_co2e": (
+                float(fuente_top["emisiones"] or 0) if fuente_top else 0
             ),
             "ultima_actualizacion": (
                 ultima.fecha_registro.isoformat() if ultima else None
@@ -111,7 +109,7 @@ def ultimas_lecturas(request):
     constructora = resolve_constructora(request)
     queryset = LecturaSensor.objects.all()
     if constructora:
-        queryset = queryset.filter(empresa__iexact=constructora.nombre)
+        queryset = queryset.filter(constructora__iexact=constructora.nombre)
     queryset = queryset[:20]
     serializer = LecturaSensorSerializer(queryset, many=True)
     return Response(serializer.data)

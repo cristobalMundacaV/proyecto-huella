@@ -234,7 +234,7 @@ function EvidenciasTab({
                   Datos sugeridos por evidencia
                 </p>
                 <p className="mt-1 text-sm text-slate-300">
-                  La automatizaciÃ³n sugiere, el equipo valida antes de aplicar al cÃ¡lculo.
+                  La automatización sugiere, el equipo valida antes de aplicar al cálculo.
                 </p>
               </div>
               <div className="rounded-2xl border border-sky-400/20 bg-slate-950/50 px-4 py-2 text-sm font-bold text-sky-200">
@@ -288,7 +288,7 @@ function EvidenciasTab({
                   Datos estructurados
                 </p>
                 <p className="mt-1 text-sm text-slate-300">
-                  El evidencia puede alimentar campos listos para cÃ¡lculo cuando el flujo estÃ© habilitado.
+                  El evidencia puede alimentar campos listos para cálculo cuando el flujo esté habilitado.
                 </p>
               </div>
               <div className="rounded-2xl border border-cyan-400/20 bg-slate-950/50 px-4 py-2 text-sm font-bold text-cyan-200">
@@ -313,7 +313,7 @@ function EvidenciasTab({
                 }
               />
               <DetailItem label="Patente" value={documentInsight.patente} />
-              <DetailItem label="CÃ³digo de obra" value={documentInsight.codigo_obra} />
+              <DetailItem label="Código de obra" value={documentInsight.codigo_obra} />
               <DetailItem label="Fuente" value={documentInsight.fuente} />
             </div>
           </div>

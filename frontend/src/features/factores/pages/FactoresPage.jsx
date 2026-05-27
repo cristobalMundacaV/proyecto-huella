@@ -87,7 +87,7 @@ function FactoresView() {
                 setSearch(event.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Buscar fuente_emision, key, unidad o aÃ±o"
+              placeholder="Buscar fuente_emision, key, unidad o año"
               className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3 pl-11 pr-4 text-sm text-slate-100 outline-none transition focus:border-cyan-400/60"
             />
           </label>
@@ -117,7 +117,7 @@ function FactoresView() {
                 <th className="w-[14%] px-4 py-3 text-left">Categoria</th>
                 <th className="w-[12%] px-4 py-3 text-right">Factor</th>
                 <th className="w-[10%] px-4 py-3 text-left">Etapa</th>
-                <th className="w-[6%] px-4 py-3 text-right">AÃ±o</th>
+                <th className="w-[6%] px-4 py-3 text-right">Año</th>
               </tr>
             </thead>
             <tbody>

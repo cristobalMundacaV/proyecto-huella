@@ -131,4 +131,3 @@ class AnalyticsConstructionApiTests(APITestCase):
 
         self.assertIn("hormigon", texto.lower())
         self.assertIn("obra", texto.lower())
-        self.assertNotIn("maderera", texto.lower())

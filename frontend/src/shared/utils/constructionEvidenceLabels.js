@@ -1,42 +1,40 @@
 ﻿const constructionEvidenceTypeOptions = [
-  ["guia_despacho", "GuÃ­a de despacho"],
+  ["guia_despacho", "Guí­a de despacho"],
   ["factura_combustible", "Factura de combustible"],
-  ["factura_electrica", "Boleta elÃ©ctrica"],
-  ["boleta_electrica", "Boleta elÃ©ctrica"],
-  ["certificado_origen", "Certificado de proveedor"],
-  ["certificado_forestal", "Certificado de proveedor"],
-  ["evidencia_transporte", "Evidencia de transporte"],
+  ["factura_electrica", "Boleta eléctrica"],
+  ["boleta_electrica", "Boleta eléctrica"],
+  ["certificado_proveedor", "Certificado de proveedor"],  ["documento_transporte", "Documento de transporte"],
   ["ticket_pesaje", "Ticket de pesaje"],
-  ["registro_gps", "Registro de maquinaria"],
-  ["fotografia", "Registro fotogrÃ¡fico"],
-  ["ficha_tecnica", "Ficha tÃ©cnica de material"],
+  ["registro_maquinaria", "Registro de maquinaria"],
+  ["registro_maquinaria", "Registro de maquinaria"],
+  ["ficha_tecnica_material", "Ficha tecnica de material"],
   ["otro", "Otro"],
 ];
 
 const constructionWorkDocumentTypeOptions = [
-  ["guia_despacho", "GuÃ­a de despacho"],
-  ["registro_produccion", "Factura de material"],
-  ["evidencia_origen", "Orden de compra / Ficha tÃ©cnica"],
+  ["guia_despacho", "Guí­a de despacho"],
+  ["factura_material", "Factura de material"],
+  ["orden_compra", "Orden de compra"],
   ["factura_combustible", "Factura de combustible"],
-  ["boleta_electrica", "Boleta elÃ©ctrica"],
-  ["registro_transporte", "Evidencia de transporte"],
+  ["boleta_electrica", "Boleta eléctrica"],
+  ["documento_transporte", "Documento de transporte"],
   ["otro", "Otro"],
 ];
 
 const constructionWorkDocumentTypeLabelMap = Object.fromEntries(constructionWorkDocumentTypeOptions);
 
 const constructionEvidenceScopeOptions = [
-  { value: "Constructora", label: "Constructora activa", helper: "Respalda la informaciÃ³n de toda la constructora activa." },
+  { value: "Constructora", label: "Constructora activa", helper: "Respalda la información de toda la constructora activa." },
   { value: "unidad", label: "Etapa / frente", helper: "Vincula la evidencia a una etapa o frente de obra." },
-  { value: "obra", label: "Obra asociada", helper: "Relaciona el evidencia con una obra especÃ­fica." },
+  { value: "obra", label: "Obra asociada", helper: "Relaciona el evidencia con una obra especí­fica." },
   { value: "emision", label: "Registro de emision asociado", helper: "Vincula la evidencia a un registro de emision cuando exista." },
-  { value: "transporte", label: "Transporte", helper: "Puede quedar como respaldo de traslado o logÃ­stica de obra." },
+  { value: "transporte", label: "Transporte", helper: "Puede quedar como respaldo de traslado o logí­stica de obra." },
 ];
 
 const constructionEvidenceLinkLabels = {
   vinculada: "Vinculada",
-  corporativa: "Sin vÃ­nculo",
-  sin_vinculo: "Sin vÃ­nculo",
+  corporativa: "Sin ví­nculo",
+  sin_vinculo: "Sin ví­nculo",
 };
 
 const constructionEvidenceReviewLabels = {
@@ -60,7 +58,7 @@ function getConstructionEvidenceScopeLabel(value) {
 }
 
 function getConstructionEvidenceLinkLabel(value) {
-  return constructionEvidenceLinkLabels[value] || "Sin vÃ­nculo";
+  return constructionEvidenceLinkLabels[value] || "Sin ví­nculo";
 }
 
 function getConstructionEvidenceReviewLabel(value) {

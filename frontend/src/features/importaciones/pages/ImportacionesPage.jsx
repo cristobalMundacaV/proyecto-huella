@@ -146,7 +146,7 @@ function PreviewTable({ rows, type }) {
                   ) : (
                     <AlertTriangle size={14} />
                   )}
-                  {row.status === "valid" ? "VÃ¡lida" : "Error"}
+                  {row.status === "valid" ? "Válida" : "Error"}
                 </span>
               </td>
               {isFactors ? (
@@ -812,7 +812,7 @@ function ConstructoraCompletaImportPanel({ state, onPreview, onConfirm }) {
                   </div>
                 ))}
                 {state.result.errores.length > 20 && (
-                  <p className="text-xs italic">... y {state.result.errores.length - 20} errores mÃ¡s</p>
+                  <p className="text-xs italic">... y {state.result.errores.length - 20} errores más</p>
                 )}
               </div>
             </div>
@@ -969,7 +969,7 @@ function ImportacionesView({ onImportConfirmed }) {
 
       showToast(msg);
       
-      // Refresh constructoras despuÃ©s de la importación completa
+      // Refresh constructoras después de la importación completa
       await refreshConstructoras().catch(() => undefined);
       
       await onImportConfirmed?.();
@@ -1013,7 +1013,7 @@ function ImportacionesView({ onImportConfirmed }) {
       
       showToast(toastMessage);
       
-      // Refresh constructoras despuÃ©s de cualquier importación exitosa
+      // Refresh constructoras después de cualquier importación exitosa
       await refreshConstructoras().catch(() => undefined);
       
       // Call onSuccess callback if provided (e.g., to invalidate factores)

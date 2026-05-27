@@ -7,13 +7,13 @@ from .models import LecturaSensor
 class LecturaSensorAdmin(admin.ModelAdmin):
     list_display = (
         "fecha_registro",
-        "empresa",
-        "unidad_operativa",
+        "constructora",
+        "etapa_obra",
         "sensor",
         "tipo",
         "valor",
         "unidad",
         "co2e_estimado",
     )
-    search_fields = ("empresa", "unidad_operativa", "sensor", "tipo")
+    search_fields = ("constructora", "etapa_obra", "sensor", "tipo")
     list_filter = ("tipo", "fecha_registro")

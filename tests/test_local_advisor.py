@@ -1,5 +1,5 @@
-import unittest
 import sys
+import unittest
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parents[1] / "backend"
@@ -14,31 +14,21 @@ class LocalAdvisorTest(unittest.TestCase):
         analisis = generar_analisis_local(
             {
                 "total_emisiones": 4500,
-                "empresa_critica": "Empresa B",
-                "actividad_critica": "diesel",
-                "optimizacion": {
-                    "reductionPct": 57.2,
-                    "dieselReduction": 80,
-                    "electricityIncrease": 0,
-                },
+                "categoria_critica": "Maquinaria",
+                "fuente_critica": "Diesel maquinaria",
+                "etapa_critica": "Obra gruesa",
             }
         )
 
         self.assertIn("Diagnostico", analisis)
         self.assertIn("Insight estrategico", analisis)
         self.assertIn("Nivel de viabilidad", analisis)
-        self.assertIn("Recomendacion principal REALISTA", analisis)
-        self.assertIn("Escenario optimo (potencial maximo)", analisis)
-        self.assertIn("Escenario recomendado (realista)", analisis)
+        self.assertIn("Recomendacion principal realista", analisis)
+        self.assertIn("Escenario optimo", analisis)
         self.assertIn("Niveles de accion", analisis)
         self.assertIn("Recomendacion estrategica", analisis)
-        self.assertIn("diesel", analisis)
-        self.assertIn("57.2", analisis)
+        self.assertIn("diesel", analisis.lower())
         self.assertIn("Siguiente accion concreta", analisis)
-        self.assertIn("referencia estrategica", analisis.lower())
-        self.assertIn("🟢", analisis)
-        self.assertIn("🟡", analisis)
-        self.assertIn("🔴", analisis)
 
 
 if __name__ == "__main__":

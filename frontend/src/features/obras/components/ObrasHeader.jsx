@@ -10,7 +10,7 @@ function ObrasHeader({ onOpenCreate }) {
         <div>
           <h1 className="text-3xl font-bold text-[var(--text-main)] sm:text-4xl">Obras</h1>
           <p className="text-[var(--text-muted)]">
-            Registra y controla las obras o proyectos donde se medirÃ¡n emisiones por materiales, transporte, maquinaria, Energia, residuos y evidencias.
+            Registra y controla las obras o proyectos donde se medirán emisiones por materiales, transporte, maquinaria, Energia, residuos y evidencias.
           </p>
         </div>
       </div>

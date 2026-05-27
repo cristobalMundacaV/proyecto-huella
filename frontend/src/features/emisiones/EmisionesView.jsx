@@ -51,7 +51,7 @@ const rowsPerPage = 8;
 const DIESEL_REDUCTION_SCENARIO = 25;
 
 const fuelUseLabels = {
-  cosecha: "PreparaciÃ³n / movimiento",
+  preparacion: "Preparación / movimiento",
   despacho: "Despacho",
   transporte: "Transporte",
   maquinaria: "Maquinaria",
@@ -60,19 +60,19 @@ const fuelUseLabels = {
 
 const categoryInsightRules = {
   Materiales:
-    "La categorÃ­a critica actualmente es Materiales. Revisa hormigÃ³n, acero, Ã¡ridos y proveedores, ya que suelen concentrar una parte importante del carbono incorporado de una obra.",
+    "La categorí­a critica actualmente es Materiales. Revisa hormigón, acero, áridos y proveedores, ya que suelen concentrar una parte importante del carbono incorporado de una obra.",
   Transporte:
-    "La categorÃ­a critica actualmente es Transporte. Reduce distancia, consolida viajes y evalÃºa proveedores cercanos para bajar emisiones logÃ­sticas.",
+    "La categorí­a critica actualmente es Transporte. Reduce distancia, consolida viajes y evalúa proveedores cercanos para bajar emisiones logí­sticas.",
   Maquinaria:
-    "La categorÃ­a critica actualmente es Maquinaria. Controla ralentÃ­, consumo por equipo y mantenciÃ³n para reducir emisiones durante la ejecuciÃ³n.",
+    "La categorí­a critica actualmente es Maquinaria. Controla ralentí­, consumo por equipo y mantención para reducir emisiones durante la ejecución.",
   Energia:
-    "La categorÃ­a critica actualmente es Energia. Revisa uso de generadores, consumo electrico de faena y horarios de operaciÃ³n.",
+    "La categorí­a critica actualmente es Energia. Revisa uso de generadores, consumo electrico de faena y horarios de operación.",
   Residuos:
-    "La categorÃ­a critica actualmente es Residuos. Prioriza segregaciÃ³n, reciclaje y valorizaciÃ³n para reducir disposiciÃ³n final.",
+    "La categorí­a critica actualmente es Residuos. Prioriza segregación, reciclaje y valorización para reducir disposición final.",
   Agua:
-    "La categorÃ­a critica actualmente es Agua. Mejora el monitoreo y control de consumo para detectar desviaciones tempranas.",
+    "La categorí­a critica actualmente es Agua. Mejora el monitoreo y control de consumo para detectar desviaciones tempranas.",
   Otros:
-    "La categorÃ­a critica actualmente es Otros. Clasifica mejor los registros para priorizar acciones de reducciÃ³n mÃ¡s precisas.",
+    "La categorí­a critica actualmente es Otros. Clasifica mejor los registros para priorizar acciones de reducción más precisas.",
 };
 
 const tooltipContentStyle = {
@@ -163,7 +163,7 @@ function buildDecisionModel(data) {
     return {
       heroTitle: "Aun no hay emisiones para decidir",
       heroSubtitle: "Registra datos de materiales, transporte, maquinaria, Energia y residuos para identificar focos de impacto.",
-      recommendation: "Carga registros de obra con factores de emision para activar el anÃ¡lisis operativo.",
+      recommendation: "Carga registros de obra con factores de emision para activar el análisis operativo.",
       dieselLevel,
       estimatedReduction,
       carKmEquivalent,
@@ -174,33 +174,33 @@ function buildDecisionModel(data) {
 
   const heroTitle =
     dieselPct >= 50
-      ? "El diÃ©sel mÃ³vil concentra el principal riesgo operativo y ambiental"
+      ? "El diésel móvil concentra el principal riesgo operativo y ambiental"
       : `${criticalSource} concentra el principal riesgo operativo y ambiental`;
   const heroSubtitle =
     estimatedReduction > 0
       ? `Puedes reducir cerca de ${formatNumber(
           estimatedReduction,
           0
-        )} kg COâ‚‚e con una intervenciÃ³n focalizada en ${criticalUnit}. La recomendaciÃ³n es comenzar con un piloto medible antes de avanzar hacia cambios mayores.`
-      : "Prioriza la fuente principal para convertir el anÃ¡lisis en acciÃ³n operativa.";
+        )} kg COâ‚‚e con una intervención focalizada en ${criticalUnit}. La recomendación es comenzar con un piloto medible antes de avanzar hacia cambios mayores.`
+      : "Prioriza la fuente principal para convertir el análisis en acción operativa.";
   const recommendation =
     dieselPct >= 30
-      ? `Iniciar un piloto de reducciÃ³n de diÃ©sel del 20% al 30% en ${criticalUnit}`
-      : `Iniciar un piloto de reducciÃ³n sobre ${criticalSource} en ${criticalUnit}`;
+      ? `Iniciar un piloto de reducción de diésel del 20% al 30% en ${criticalUnit}`
+      : `Iniciar un piloto de reducción sobre ${criticalSource} en ${criticalUnit}`;
   const risks = [];
 
   if (dieselPct > 50) {
     risks.push(
-      `Riesgo operativo:\nLa alta dependencia del diÃ©sel, equivalente al ${formatNumber(
+      `Riesgo operativo:\nLa alta dependencia del diésel, equivalente al ${formatNumber(
         dieselPct,
         1
-      )}% del consumo, puede aumentar la exposiciÃ³n a costos, riesgos regulatorios y baja eficiencia energÃ©tica.`
+      )}% del consumo, puede aumentar la exposición a costos, riesgos regulatorios y baja eficiencia energética.`
     );
   }
 
   if (topSourcePct > 40) {
     risks.push(
-      `Riesgo de concentraciÃ³n:\nLa combustiÃ³n mÃ³vil de diÃ©sel representa el ${formatNumber(
+      `Riesgo de concentración:\nLa combustión móvil de diésel representa el ${formatNumber(
         topSourcePct,
         1
       )}% de la huella total, por lo que cualquier mejora en este frente puede generar un impacto relevante.`
@@ -209,13 +209,13 @@ function buildDecisionModel(data) {
 
   if (criticalUnit !== "Sin datos") {
     risks.push(
-      `Riesgo operativo localizado:\nLa etapa ${criticalUnit} concentra el mayor impacto, por lo que deberÃ­a ser priorizada en la estrategia de reducciÃ³n.`
+      `Riesgo operativo localizado:\nLa etapa ${criticalUnit} concentra el mayor impacto, por lo que deberí­a ser priorizada en la estrategia de reducción.`
     );
   }
 
   if (criticalCategory !== "Sin datos") {
     risks.push(
-      `Riesgo por categorÃ­a: ${getConstructionCategoryLabel(criticalCategory)} domina el perfil de emisiones de la constructora.`
+      `Riesgo por categorí­a: ${getConstructionCategoryLabel(criticalCategory)} domina el perfil de emisiones de la constructora.`
     );
   }
 
@@ -565,13 +565,13 @@ const kpis = data?.kpis ?? {
       <section className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-4 sm:p-6">
         <p className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
           <Target size={18} />
-          Insight automÃ¡tico
+          Insight automático
         </p>
         <h2 className="mt-2 text-2xl font-bold text-emerald-100">
           {categoryInsight}
         </h2>
         <p className="mt-2 text-sm leading-6 text-emerald-200">
-          Mide el consumo antes y despuÃ©s de cada intervenciÃ³n, revisa resultados semanalmente y escala solo cuando la reducciÃ³n se mantenga sin afectar la ejecuciÃ³n de obra.
+          Mide el consumo antes y después de cada intervención, revisa resultados semanalmente y escala solo cuando la reducción se mantenga sin afectar la ejecución de obra.
         </p>
       </section>
 
@@ -585,7 +585,7 @@ const kpis = data?.kpis ?? {
           />
           <DecisionKpi
             icon={<Layers3 />}
-            label="CategorÃ­a critica"
+            label="Categorí­a critica"
             value={criticalCategory || "Sin datos"}
           />
           <DecisionKpi
@@ -726,11 +726,11 @@ const kpis = data?.kpis ?? {
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--info-bg)] p-4 shadow-[var(--shadow-card)] sm:p-6">
           <SectionTitle
             eyebrow="Impacto real"
-            title={`Si reduces el consumo de diÃ©sel en un ${DIESEL_REDUCTION_SCENARIO}%`}
+            title={`Si reduces el consumo de diésel en un ${DIESEL_REDUCTION_SCENARIO}%`}
           />
           <div className="mt-4 space-y-3">
             <ImpactRow
-              label="ReducciÃ³n estimada:"
+              label="Reducción estimada:"
               value={`${formatNumber(decision.estimatedReduction, 0)} kg CO2e`}
             />
             <ImpactRow
@@ -768,12 +768,12 @@ const kpis = data?.kpis ?? {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar fuente, etapa, obra o categorÃ­a"
+              placeholder="Buscar fuente, etapa, obra o categorí­a"
               className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3 pl-11 pr-4 text-sm text-slate-100 outline-none transition focus:border-emerald-400/60"
             />
           </label>
           <FilterSelect
-            label="Todas las categorÃ­as"
+            label="Todas las categorí­as"
             onChange={setCategoryFilter}
             options={categoryOptions}
             value={categoryFilter}
@@ -795,7 +795,7 @@ const kpis = data?.kpis ?? {
         {rows.length === 0 && !loading ? (
           <div className="mt-5">
             <EmptyState
-              title="AÃºn no hay registros de emision para esta obra."
+              title="Aún no hay registros de emision para esta obra."
               description="Agrega emisiones por materiales, transporte, maquinaria, Energia, agua o residuos para comenzar a medir la huella del proyecto."
             />
           </div>
@@ -807,7 +807,7 @@ const kpis = data?.kpis ?? {
                   <th className="px-4 py-3">Fecha</th>
                   <th className="px-4 py-3">Obra</th>
                   <th className="px-4 py-3">Etapa / frente</th>
-                  <th className="px-4 py-3">CategorÃ­a</th>
+                  <th className="px-4 py-3">Categorí­a</th>
                   <th className="px-4 py-3">Fuente de emision</th>
                   <th className="px-4 py-3 text-right">Cantidad</th>
                   <th className="px-4 py-3">Etapa</th>
@@ -855,22 +855,22 @@ const kpis = data?.kpis ?? {
                       <td className="px-4 py-4 text-slate-300">
                         <div className="space-y-1">
                           <p className="font-semibold text-slate-100">
-                            {row.evidencia || row.evidencia || row.evidencia_id || row.evidencia_id ? "SÃ­" : "No"}
+                            {row.evidencia || row.evidencia || row.evidencia_id || row.evidencia_id ? "Sí­" : "No"}
                           </p>
                           <p className="text-xs text-slate-400">
                             {row.evidencia || row.evidencia_id || row.evidencia || row.evidencia_id
                               ? getConstructionEvidenceTypeLabel(row.tipo_evidencia || row.tipo_evidencia || row.evidencia_tipo)
-                              : "Evidencia asociada: pendiente de vinculaciÃ³n"}
+                              : "Evidencia asociada: pendiente de vinculación"}
                           </p>
                           <p className="text-xs text-slate-500">
                             {row.estado_documental || row.estado_revision || row.estado_validacion
                               ? getConstructionEvidenceReviewLabel(row.estado_documental || row.estado_revision || row.estado_validacion)
-                              : "Estado documental: pendiente de vinculaciÃ³n"}
+                              : "Estado documental: pendiente de vinculación"}
                           </p>
                           <p className="text-xs text-slate-500">
                             {row.evidencia || row.evidencia || row.evidencia_id || row.evidencia_id
                               ? getConstructionEvidenceLinkLabel(row.estado_vinculo || row.estado_sistema)
-                              : "Sin vÃ­nculo"}
+                              : "Sin ví­nculo"}
                           </p>
                         </div>
                       </td>

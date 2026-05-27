@@ -21,8 +21,8 @@ import {
 
 const tabs = [
   { value: "constructora", label: "Constructora", icon: Building2 },
-  { value: "calculo", label: "CÃ¡lculo", icon: Calculator },
-  { value: "importaciones", label: "ImportaciÃ³n", icon: Import },
+  { value: "calculo", label: "Cálculo", icon: Calculator },
+  { value: "importaciones", label: "Importación", icon: Import },
   { value: "ficha_ambiental", label: "Ficha ambiental", icon: ShieldCheck },
   { value: "evidencias", label: "Evidencias", icon: FileCheck2 },
   { value: "reportes", label: "Reportes", icon: FileText },
@@ -33,7 +33,7 @@ const defaultConfig = {
     nombre: "",
     constructora_id: "",
     rut: "",
-    rubro: "ConstrucciÃ³n",
+    rubro: "Construcción",
     region: "",
     comuna: "",
     direccion: "",
@@ -108,7 +108,7 @@ function buildInitialConfig(activeConstructora) {
       nombre: activeConstructora?.nombre || "",
       constructora_id: activeConstructora?.constructora_id || "",
       rut: activeConstructora?.rut || "",
-      rubro: activeConstructora?.rubro || "ConstrucciÃ³n",
+      rubro: activeConstructora?.rubro || "Construcción",
       region: activeConstructora?.region || "",
       comuna: activeConstructora?.comuna || "",
       direccion: activeConstructora?.direccion || "",
@@ -265,7 +265,7 @@ function ConfiguracionPage() {
         setSavedConfig(clone(localConfig));
         setError(
           requestError?.response?.data?.error ||
-            "No se pudo cargar la configuraciÃ³n desde el backend. Se muestran valores locales."
+            "No se pudo cargar la configuración desde el backend. Se muestran valores locales."
         );
       } finally {
         if (!isCancelled) {
@@ -289,7 +289,7 @@ function ConfiguracionPage() {
   if (!activeConstructoraId || !config) {
     return (
       <EmptyState
-        title="ConfiguraciÃ³n"
+        title="Configuración"
         description="Selecciona una constructora activa para definir las reglas del sistema."
       />
     );
@@ -320,9 +320,9 @@ function ConfiguracionPage() {
       window.localStorage.setItem(storageKey(activeConstructoraId), JSON.stringify(remoteConfig));
       setConfig(clone(remoteConfig));
       setSavedConfig(clone(remoteConfig));
-      setSuccessMessage("ConfiguraciÃ³n guardada en el backend para la constructora activa.");
+      setSuccessMessage("Configuración guardada en el backend para la constructora activa.");
     } catch (requestError) {
-      setError(requestError?.response?.data?.error || "No se pudo guardar la configuraciÃ³n.");
+      setError(requestError?.response?.data?.error || "No se pudo guardar la configuración.");
     } finally {
       setSaving(false);
     }
@@ -338,10 +338,10 @@ function ConfiguracionPage() {
     <main className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-[var(--primary-dark)]">ConfiguraciÃ³n</p>
-          <h1 className="mt-2 text-3xl font-bold text-[var(--text-main)] sm:text-4xl">ConfiguraciÃ³n</h1>
+          <p className="text-xs font-bold uppercase tracking-wide text-[var(--primary-dark)]">Configuración</p>
+          <h1 className="mt-2 text-3xl font-bold text-[var(--text-main)] sm:text-4xl">Configuración</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
-            Define cÃ³mo Carbono Zero calcula emisiones, valida datos, exige evidencias y construye reportes para obras de la constructora activa.
+            Define cómo Carbono Zero calcula emisiones, valida datos, exige evidencias y construye reportes para obras de la constructora activa.
           </p>
         </div>
         {hasChanges ? (
@@ -353,7 +353,7 @@ function ConfiguracionPage() {
 
       {loading ? (
         <div className="rounded-3xl border border-[#B9D8D3] bg-[var(--info-bg)] p-4 text-sm font-semibold text-[#155E75]">
-          Cargando configuraciÃ³n de la constructora activa...
+          Cargando configuración de la constructora activa...
         </div>
       ) : null}
 
@@ -366,19 +366,19 @@ function ConfiguracionPage() {
       <section className="premium-card premium-card-interactive rounded-3xl bg-[var(--success-bg)] p-5 shadow-[var(--shadow-card)] sm:p-7">
         <div className="grid gap-6 lg:grid-cols-[1.35fr_0.75fr] lg:items-center">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--primary-dark)]">Reglas de operaciÃ³n</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--primary-dark)]">Reglas de operación</p>
             <h2 className="mt-3 text-2xl font-bold text-[var(--text-main)] sm:text-3xl">
-              Reglas activas para calcular, validar e interpretar la informaciÃ³n de {activeConstructora?.nombre || "la constructora"}
+              Reglas activas para calcular, validar e interpretar la información de {activeConstructora?.nombre || "la constructora"}
             </h2>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-[#344054]">
-              {activeConstructora?.nombre || "La constructora"} usa importaciÃ³n {config.importaciones.modo_importacion}, ficha ambiental {config.ficha_ambiental.ficha_ambiental_activo ? "activa" : "inactiva"} y evidencia obligatoria para fortalecer la trazabilidad documental. Estos ajustes definen cÃ³mo se procesan nuevos datos de obra, cÃ³mo se calculan emisiones y quÃ© condiciones debe cumplir la informaciÃ³n antes de aparecer en reportes.
+              {activeConstructora?.nombre || "La constructora"} usa importación {config.importaciones.modo_importacion}, ficha ambiental {config.ficha_ambiental.ficha_ambiental_activo ? "activa" : "inactiva"} y evidencia obligatoria para fortalecer la trazabilidad documental. Estos ajustes definen cómo se procesan nuevos datos de obra, cómo se calculan emisiones y qué condiciones debe cumplir la información antes de aparecer en reportes.
             </p>
             <p className="mt-4 rounded-2xl border border-[#E6CC82] bg-[var(--warning-bg)] p-3 text-sm font-semibold text-[#7A4F00]">
-              Los cambios pueden afectar nuevos cÃ¡lculos, importaciones y validaciones. Los registros histÃ³ricos no se modifican automÃ¡ticamente; solo cambiarÃ¡n si vuelves a procesarlos.
+              Los cambios pueden afectar nuevos cálculos, importaciones y validaciones. Los registros históricos no se modifican automáticamente; solo cambiarán si vuelves a procesarlos.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-            <KpiCard icon={<Settings2 size={22} />} label="Gobernanza" value="ConfiguraciÃ³n activa" detail="Por constructora activa" tone="emerald" />
+            <KpiCard icon={<Settings2 size={22} />} label="Gobernanza" value="Configuración activa" detail="Por constructora activa" tone="emerald" />
             <KpiCard icon={<Gauge size={22} />} label="Etapa de emision" value={config.calculo.unidad_emisiones} detail="Formato de salida" tone="info" />
           </div>
         </div>
@@ -386,11 +386,11 @@ function ConfiguracionPage() {
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <KpiCard icon={<Building2 size={22} />} label="Constructora seleccionada" value={config.constructora.nombre || "Sin nombre"} tone="slate" />
-        <KpiCard icon={<Import size={22} />} label="Modo de importaciÃ³n" value={config.importaciones.modo_importacion} tone={config.importaciones.modo_importacion === "estricto" ? "amber" : "info"} />
+        <KpiCard icon={<Import size={22} />} label="Modo de importación" value={config.importaciones.modo_importacion} tone={config.importaciones.modo_importacion === "estricto" ? "amber" : "info"} />
         <KpiCard icon={<ShieldCheck size={22} />} label="Ficha ambiental" value={config.ficha_ambiental.ficha_ambiental_activo ? "Activa" : "Inactiva"} tone="emerald" />
         <KpiCard icon={<FileCheck2 size={22} />} label="Evidencia obligatoria" value={config.evidencias.requerida_ficha_ambiental ? "Si" : "No"} tone="amber" />
         <KpiCard icon={<Calculator size={22} />} label="Emisiones" value={config.calculo.unidad_emisiones} tone="info" />
-        <KpiCard icon={<FileText size={22} />} label="PerÃ­odo de reportes" value={config.reportes.periodo_default.replace(/_/g, " ")} tone="slate" />
+        <KpiCard icon={<FileText size={22} />} label="Perí­odo de reportes" value={config.reportes.periodo_default.replace(/_/g, " ")} tone="slate" />
       </section>
 
       <section className="premium-card premium-card-interactive rounded-3xl bg-[var(--bg-card)] p-2 shadow-[var(--shadow-card)]">
@@ -414,15 +414,15 @@ function ConfiguracionPage() {
       </section>
 
       {activeTab === "constructora" && (
-        <SettingCard title="Datos bÃ¡sicos de constructora" description="Puedes actualizar los datos visibles de la constructora sin modificar las emisiones ya registradas. El ID interno se mantiene en solo lectura para proteger las relaciones existentes.">
+        <SettingCard title="Datos básicos de constructora" description="Puedes actualizar los datos visibles de la constructora sin modificar las emisiones ya registradas. El ID interno se mantiene en solo lectura para proteger las relaciones existentes.">
           {Object.entries({
             nombre: "Nombre",
             constructora_id: "ID constructora",
             rut: "RUT",
             rubro: "Rubro",
-            region: "RegiÃ³n",
+            region: "Región",
             comuna: "Comuna",
-            direccion: "DirecciÃ³n",
+            direccion: "Dirección",
             contacto: "Contacto",
             email: "Email",
             telefono: "Telefono",
@@ -436,7 +436,7 @@ function ConfiguracionPage() {
       )}
 
       {activeTab === "calculo" && (
-        <SettingCard title="ParÃ¡metros de cÃ¡lculo ambiental" description="Estos valores se aplican cuando los datos importados no incluyen toda la informaciÃ³n necesaria o cuando el sistema debe calcular indicadores ambientales derivados.">
+        <SettingCard title="Parámetros de cálculo ambiental" description="Estos valores se aplican cuando los datos importados no incluyen toda la información necesaria o cuando el sistema debe calcular indicadores ambientales derivados.">
           <Field label="Etapa de emisiones preferida"><SelectInput value={config.calculo.unidad_emisiones} onChange={(v) => update("calculo", "unidad_emisiones", v)} options={["kg CO2e", "tCO2e"]} /></Field>
           <Field label="Etapa base de obra"><SelectInput value={config.calculo.unidad_base_obra} onChange={(v) => update("calculo", "unidad_base_obra", v)} options={["m3"]} /></Field>
           <Field label="Porcentaje de carbono por defecto"><TextInput type="number" value={config.calculo.porcentaje_carbono_default} onChange={(v) => update("calculo", "porcentaje_carbono_default", v)} /></Field>
@@ -450,11 +450,11 @@ function ConfiguracionPage() {
       )}
 
       {activeTab === "importaciones" && (
-        <SettingCard title="Reglas de importaciÃ³n" description="Estas reglas reducen errores al cargar datos y permiten adaptar Carbono Zero a flujos de trabajo mÃ¡s estrictos o mÃ¡s flexibles.">
-          <Field label="Modo de importaciÃ³n" help={config.importaciones.modo_importacion === "flexible" ? "Si un archivo trae ID de constructora distinto, Carbono Zero usa la constructora activa y muestra advertencia." : "Si un archivo trae ID de constructora distinto, Carbono Zero bloquea la importaciÃ³n."}><SelectInput value={config.importaciones.modo_importacion} onChange={(v) => update("importaciones", "modo_importacion", v)} options={["flexible", "estricto"]} /></Field>
+        <SettingCard title="Reglas de importación" description="Estas reglas reducen errores al cargar datos y permiten adaptar Carbono Zero a flujos de trabajo más estrictos o más flexibles.">
+          <Field label="Modo de importación" help={config.importaciones.modo_importacion === "flexible" ? "Si un archivo trae ID de constructora distinto, Carbono Zero usa la constructora activa y muestra advertencia." : "Si un archivo trae ID de constructora distinto, Carbono Zero bloquea la importación."}><SelectInput value={config.importaciones.modo_importacion} onChange={(v) => update("importaciones", "modo_importacion", v)} options={["flexible", "estricto"]} /></Field>
           {Object.entries({
-            crear_etapas_automaticamente: "Permitir crear etapas automÃ¡ticamente",
-            crear_obras_automaticamente: "Permitir crear obras automÃ¡ticamente",
+            crear_etapas_automaticamente: "Permitir crear etapas automáticamente",
+            crear_obras_automaticamente: "Permitir crear obras automáticamente",
             permitir_registros_emision_sin_factor: "Permitir registros sin factor",
             actualizar_registros_existentes: "Actualizar registros existentes",
             bloquear_duplicados: "Bloquear duplicados exactos",
@@ -466,23 +466,23 @@ function ConfiguracionPage() {
       )}
 
       {activeTab === "ficha_ambiental" && (
-        <SettingCard title="Criterios de ficha ambiental" description="Estos criterios definen cuÃ¡ndo una obra puede generar una ficha ambiental verificable. Ajustarlos cambia el nivel de exigencia documental y ambiental.">
+        <SettingCard title="Criterios de ficha ambiental" description="Estos criterios definen cuándo una obra puede generar una ficha ambiental verificable. Ajustarlos cambia el nivel de exigencia documental y ambiental.">
           <SettingSwitch label="Activar ficha ambiental" checked={config.ficha_ambiental.ficha_ambiental_activo} onChange={(v) => update("ficha_ambiental", "ficha_ambiental_activo", v)} />
           <SettingSwitch label="Requerir balance neto favorable" checked={config.ficha_ambiental.requiere_balance_favorable} onChange={(v) => update("ficha_ambiental", "requiere_balance_favorable", v)} />
           <SettingSwitch label="Requerir evidencia documental" checked={config.ficha_ambiental.requiere_evidencia} onChange={(v) => update("ficha_ambiental", "requiere_evidencia", v)} />
           <SettingSwitch label="Requerir trazabilidad completa" checked={config.ficha_ambiental.requiere_trazabilidad} onChange={(v) => update("ficha_ambiental", "requiere_trazabilidad", v)} />
-          <Field label="Score mÃ­nimo ficha base"><TextInput type="number" value={config.ficha_ambiental.score_verde} onChange={(v) => update("ficha_ambiental", "score_verde", v)} /></Field>
-          <Field label="Score mÃ­nimo ficha avanzada"><TextInput type="number" value={config.ficha_ambiental.score_plus} onChange={(v) => update("ficha_ambiental", "score_plus", v)} /></Field>
+          <Field label="Score mí­nimo ficha base"><TextInput type="number" value={config.ficha_ambiental.score_verde} onChange={(v) => update("ficha_ambiental", "score_verde", v)} /></Field>
+          <Field label="Score mí­nimo ficha avanzada"><TextInput type="number" value={config.ficha_ambiental.score_plus} onChange={(v) => update("ficha_ambiental", "score_plus", v)} /></Field>
           <Field label="Score minimo confianza dato"><TextInput type="number" value={config.ficha_ambiental.score_confianza_minimo} onChange={(v) => update("ficha_ambiental", "score_confianza_minimo", v)} /></Field>
         </SettingCard>
       )}
 
       {activeTab === "evidencias" && (
-        <SettingCard title="Reglas documentales" description="Las evidencias permiten respaldar cÃ¡lculos, obras, registros y fichas. Una mayor cobertura documental mejora la confianza del dato. Subir una evidencia no la valida automÃ¡ticamente.">
+        <SettingCard title="Reglas documentales" description="Las evidencias permiten respaldar cálculos, obras, registros y fichas. Una mayor cobertura documental mejora la confianza del dato. Subir una evidencia no la valida automáticamente.">
           <SettingSwitch label="Requerir evidencia para emitir ficha" checked={config.evidencias.requerida_ficha_ambiental} onChange={(v) => update("evidencias", "requerida_ficha_ambiental", v)} />
           <SettingSwitch label="Requerir evidencia para obras criticas" checked={config.evidencias.requerida_obras_criticos} onChange={(v) => update("evidencias", "requerida_obras_criticos", v)} />
           <Field label="Umbral obra critica kg CO2e"><TextInput type="number" value={config.evidencias.umbral_obra_critico} onChange={(v) => update("evidencias", "umbral_obra_critico", v)} /></Field>
-          <Field label="TamaÃ±o maximo archivo MB"><TextInput type="number" value={config.evidencias.max_file_size_mb} onChange={(v) => update("evidencias", "max_file_size_mb", v)} /></Field>
+          <Field label="Tamaño maximo archivo MB"><TextInput type="number" value={config.evidencias.max_file_size_mb} onChange={(v) => update("evidencias", "max_file_size_mb", v)} /></Field>
           <SettingSwitch label="Permitir evidencia corporativa" checked={config.evidencias.permitir_constructora} onChange={(v) => update("evidencias", "permitir_constructora", v)} />
           <SettingSwitch label="Permitir evidencia a nivel etapa" checked={config.evidencias.permitir_unidad} onChange={(v) => update("evidencias", "permitir_unidad", v)} />
           <SettingSwitch label="Permitir evidencia a nivel obra" checked={config.evidencias.permitir_obra} onChange={(v) => update("evidencias", "permitir_obra", v)} />
@@ -499,14 +499,14 @@ function ConfiguracionPage() {
       )}
 
       {activeTab === "reportes" && (
-        <SettingCard title="Preferencias de reportes" description="Estas preferencias definen cÃ³mo se presentan los reportes ejecutivos y analÃ­ticos de la constructora.">
-          <Field label="Agrupacion temporal por defecto"><SelectInput value={config.reportes.agrupacion_default} onChange={(v) => update("reportes", "agrupacion_default", v)} options={[{ value: "dia", label: "Dia" }, { value: "semana", label: "Semana" }, { value: "mes", label: "Mes" }, { value: "trimestre", label: "Trimestre" }, { value: "anio", label: "AÃ±o" }]} /></Field>
-          <Field label="PerÃ­odo por defecto"><SelectInput value={config.reportes.periodo_default} onChange={(v) => update("reportes", "periodo_default", v)} options={[{ value: "ultimos_30_dias", label: "Ãšltimos 30 dÃ­as" }, { value: "ultimos_3_meses", label: "Ãšltimos 3 meses" }, { value: "ultimos_6_meses", label: "Ãšltimos 6 meses" }, { value: "ultimos_12_meses", label: "Ãšltimos 12 meses" }, { value: "anio_actual", label: "AÃ±o actual" }]} /></Field>
+        <SettingCard title="Preferencias de reportes" description="Estas preferencias definen cómo se presentan los reportes ejecutivos y analí­ticos de la constructora.">
+          <Field label="Agrupacion temporal por defecto"><SelectInput value={config.reportes.agrupacion_default} onChange={(v) => update("reportes", "agrupacion_default", v)} options={[{ value: "dia", label: "Dia" }, { value: "semana", label: "Semana" }, { value: "mes", label: "Mes" }, { value: "trimestre", label: "Trimestre" }, { value: "anio", label: "Año" }]} /></Field>
+          <Field label="Perí­odo por defecto"><SelectInput value={config.reportes.periodo_default} onChange={(v) => update("reportes", "periodo_default", v)} options={[{ value: "ultimos_30_dias", label: "íšltimos 30 dí­as" }, { value: "ultimos_3_meses", label: "íšltimos 3 meses" }, { value: "ultimos_6_meses", label: "íšltimos 6 meses" }, { value: "ultimos_12_meses", label: "íšltimos 12 meses" }, { value: "anio_actual", label: "Año actual" }]} /></Field>
           <Field label="Etapa visual de emisiones"><SelectInput value={config.reportes.unidad_visual_emisiones} onChange={(v) => update("reportes", "unidad_visual_emisiones", v)} options={["kg CO2e", "tCO2e"]} /></Field>
-          <SettingSwitch label="Mostrar grÃ¡ficos por categorÃ­a" checked={config.reportes.mostrar_categoria} onChange={(v) => update("reportes", "mostrar_categoria", v)} />
-          <SettingSwitch label="Mostrar grÃ¡ficos por etapa" checked={config.reportes.mostrar_unidad} onChange={(v) => update("reportes", "mostrar_unidad", v)} />
+          <SettingSwitch label="Mostrar gráficos por categorí­a" checked={config.reportes.mostrar_categoria} onChange={(v) => update("reportes", "mostrar_categoria", v)} />
+          <SettingSwitch label="Mostrar gráficos por etapa" checked={config.reportes.mostrar_unidad} onChange={(v) => update("reportes", "mostrar_unidad", v)} />
           <SettingSwitch label="Mostrar tabla detallada por defecto" checked={config.reportes.mostrar_tabla} onChange={(v) => update("reportes", "mostrar_tabla", v)} />
-          <SettingSwitch label="Incluir lectura ejecutiva automÃ¡tica" checked={config.reportes.lectura_ejecutiva} onChange={(v) => update("reportes", "lectura_ejecutiva", v)} />
+          <SettingSwitch label="Incluir lectura ejecutiva automática" checked={config.reportes.lectura_ejecutiva} onChange={(v) => update("reportes", "lectura_ejecutiva", v)} />
           <SettingSwitch label="Incluir equivalencias de orden de magnitud" checked={config.reportes.equivalencias} onChange={(v) => update("reportes", "equivalencias", v)} />
         </SettingCard>
       )}
@@ -514,8 +514,8 @@ function ConfiguracionPage() {
       <section className="sticky bottom-4 z-10 rounded-3xl border border-[var(--border)] bg-[#F9FBF9]/95 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.16)] backdrop-blur">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-semibold text-[var(--text-main)]">{hasChanges ? "Cambios pendientes" : "ConfiguraciÃ³n lista"}</p>
-            <p className="text-xs text-[var(--text-muted)]">{successMessage || "Los cambios se guardan por constructora activa y quedan listos para usarse en cÃ¡lculos, importaciones y reportes."}</p>
+            <p className="text-sm font-semibold text-[var(--text-main)]">{hasChanges ? "Cambios pendientes" : "Configuración lista"}</p>
+            <p className="text-xs text-[var(--text-muted)]">{successMessage || "Los cambios se guardan por constructora activa y quedan listos para usarse en cálculos, importaciones y reportes."}</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <button type="button" onClick={restoreDefaults} className="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-5 py-3 text-sm font-bold text-[#475467]">

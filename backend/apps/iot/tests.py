@@ -17,8 +17,8 @@ class LecturaSensorApiTests(TestCase):
         response = self.client.post(
             "/api/iot/lecturas/",
             {
-                "empresa": "Constructora Andina SpA",
-                "unidad_operativa": "Obra gruesa",
+                "constructora": "Constructora Andina SpA",
+                "etapa_obra": "Obra gruesa",
                 "sensor": "SENSOR-DIESEL-001",
                 "tipo": "diesel_litros",
                 "valor": "12.8",
@@ -33,8 +33,8 @@ class LecturaSensorApiTests(TestCase):
 
     def test_kpis_ultimas_24_horas(self):
         LecturaSensor.objects.create(
-            empresa="Constructora Andina SpA",
-            unidad_operativa="Faena electrica",
+            constructora="Constructora Andina SpA",
+            etapa_obra="Faena electrica",
             sensor="SENSOR-ELECTRICIDAD-001",
             tipo=LecturaSensor.Tipo.ELECTRICIDAD_KWH,
             valor=Decimal("10"),
@@ -51,15 +51,15 @@ class LecturaSensorApiTests(TestCase):
         Constructora.objects.create(constructora_id="ANDINA", nombre="Constructora Andina SpA")
         Constructora.objects.create(constructora_id="PACIFICO", nombre="Constructora Pacifico SpA")
         LecturaSensor.objects.create(
-            empresa="Constructora Andina SpA",
-            unidad_operativa="Obra gruesa",
+            constructora="Constructora Andina SpA",
+            etapa_obra="Obra gruesa",
             sensor="SENSOR-DIESEL-001",
             tipo=LecturaSensor.Tipo.DIESEL_LITROS,
             valor=Decimal("10"),
         )
         LecturaSensor.objects.create(
-            empresa="Constructora Pacifico SpA",
-            unidad_operativa="Fundaciones",
+            constructora="Constructora Pacifico SpA",
+            etapa_obra="Fundaciones",
             sensor="SENSOR-MAQUINARIA-001",
             tipo=LecturaSensor.Tipo.HORAS_MAQUINARIA,
             valor=Decimal("8"),
@@ -70,7 +70,7 @@ class LecturaSensorApiTests(TestCase):
 
         self.assertEqual(kpis_response.status_code, status.HTTP_200_OK)
         self.assertEqual(kpis_response.data["total_lecturas"], 1)
-        self.assertEqual(kpis_response.data["unidad_mayor_emision_hoy"], "Obra gruesa")
+        self.assertEqual(kpis_response.data["etapa_mayor_emision_hoy"], "Obra gruesa")
         self.assertEqual(lecturas_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(lecturas_response.data), 1)
-        self.assertEqual(lecturas_response.data[0]["empresa"], "Constructora Andina SpA")
+        self.assertEqual(lecturas_response.data[0]["constructora"], "Constructora Andina SpA")

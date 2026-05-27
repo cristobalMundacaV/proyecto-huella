@@ -1,4 +1,4 @@
-def limpiar_datos(datos):
+﻿def limpiar_datos(datos):
     datos = datos.copy()
 
     datos.columns = (
@@ -10,21 +10,21 @@ def limpiar_datos(datos):
 
     datos = datos.drop_duplicates()
 
-    columnas_obligatorias = ["empresa", "actividad", "cantidad"]
+    columnas_obligatorias = ["constructora", "fuente_emision", "cantidad"]
 
     for columna in columnas_obligatorias:
         if columna not in datos.columns:
             raise ValueError(f"Falta la columna obligatoria: {columna}")
         
-    datos["empresa"] = (
-        datos["empresa"]
+    datos["constructora"] = (
+        datos["constructora"]
         .astype(str)
         .str.strip()
         .str.lower()
         .str.title()
     )
-    datos["actividad"] = (
-        datos["actividad"]
+    datos["fuente_emision"] = (
+        datos["fuente_emision"]
         .astype(str)
         .str.strip()
         .str.lower()

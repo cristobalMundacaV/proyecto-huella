@@ -11,18 +11,18 @@ export const constructionCategories = [
 ];
 
 export const constructionFactorSuggestions = [
-  "HormigÃ³n H30",
+  "Hormigón H30",
   "Cemento",
   "Acero estructural",
-  "Ãridos",
-  "Madera estructural",
-  "DiÃ©sel maquinaria",
+  "íridos",
+  "Panel industrializado",
+  "Diésel maquinaria",
   "Gasolina",
   "Electricidad",
-  "Transporte camiÃ³n",
+  "Transporte camión",
   "Residuos mixtos",
   "Escombros",
-  "Yeso-cartÃ³n",
+  "Yeso-cartón",
 ];
 
 const categoryLabelMap = {
@@ -96,30 +96,30 @@ export function getCategoryFieldCopy(category) {
   const copy = {
     Materiales: {
       sourceLabel: "Material",
-      sourcePlaceholder: "HormigÃ³n H30, acero estructural, Ã¡ridos",
+      sourcePlaceholder: "Hormigón H30, acero estructural, áridos",
       quantityLabel: "Cantidad",
-      unitHelp: "mÂ³ Â· kg Â· ton Â· mÂ² Â· unidad",
+      unitHelp: "mÂ³ Â· kg Â· ton Â· m² Â· unidad",
       note: "Registra materiales relevantes para estimar carbono incorporado.",
     },
     Transporte: {
       sourceLabel: "Fuente de emision",
-      sourcePlaceholder: "Transporte camiÃ³n",
+      sourcePlaceholder: "Transporte camión",
       quantityLabel: "Cantidad transportada",
       unitHelp: "ton Â· kg Â· mÂ³ Â· viajes",
-      note: "Usa esta categorÃ­a para registrar viajes asociados a materiales, maquinaria o residuos.",
+      note: "Usa esta categorí­a para registrar viajes asociados a materiales, maquinaria o residuos.",
     },
     Maquinaria: {
       sourceLabel: "Equipo o maquinaria",
-      sourcePlaceholder: "Excavadora diÃ©sel, grÃºa, generador",
-      quantityLabel: "Litros combustible u horas mÃ¡quina",
-      unitHelp: "litros diÃ©sel Â· litros gasolina Â· horas mÃ¡quina Â· kWh",
-      note: "Controla consumo por equipo, ralentÃ­ y mantenciÃ³n.",
+      sourcePlaceholder: "Excavadora diésel, grúa, generador",
+      quantityLabel: "Litros combustible u horas máquina",
+      unitHelp: "litros diésel Â· litros gasolina Â· horas máquina Â· kWh",
+      note: "Controla consumo por equipo, ralentí­ y mantención.",
     },
     Energia: {
-      sourceLabel: "Fuente energÃ©tica",
-      sourcePlaceholder: "Electricidad de faena, generador diÃ©sel",
+      sourceLabel: "Fuente energética",
+      sourcePlaceholder: "Electricidad de faena, generador diésel",
       quantityLabel: "Consumo",
-      unitHelp: "kWh Â· litros diÃ©sel",
+      unitHelp: "kWh Â· litros diésel",
       note: "Registra consumo electrico o combustible usado para Energia temporal.",
     },
     Agua: {
@@ -127,11 +127,11 @@ export function getCategoryFieldCopy(category) {
       sourcePlaceholder: "Agua de faena",
       quantityLabel: "Consumo",
       unitHelp: "mÂ³ Â· litros",
-      note: "Monitorea consumo de agua asociado a la ejecuciÃ³n de obra.",
+      note: "Monitorea consumo de agua asociado a la ejecución de obra.",
     },
     Residuos: {
       sourceLabel: "Tipo de residuo",
-      sourcePlaceholder: "Escombros, plÃ¡sticos / embalajes, residuos mixtos",
+      sourcePlaceholder: "Escombros, plásticos / embalajes, residuos mixtos",
       quantityLabel: "Cantidad",
       unitHelp: "kg Â· ton Â· mÂ³",
       note: "Registra destino y tratamiento cuando exista respaldo documental.",
@@ -141,7 +141,7 @@ export function getCategoryFieldCopy(category) {
       sourcePlaceholder: "Otra fuente de obra",
       quantityLabel: "Cantidad",
       unitHelp: "kg Â· ton Â· mÂ³ Â· kWh Â· unidad",
-      note: "Clasifica mejor este registro cuando tengas mÃ¡s contexto.",
+      note: "Clasifica mejor este registro cuando tengas más contexto.",
     },
   };
 

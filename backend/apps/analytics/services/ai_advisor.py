@@ -1,4 +1,4 @@
-from django.conf import settings
+﻿from django.conf import settings
 from openai import APIConnectionError, APIStatusError, OpenAI
 
 
@@ -18,8 +18,8 @@ Contexto de Carbono Zero:
 - Emisiones totales: {payload.get("total_emisiones") or payload.get("emisiones_totales")} kg CO2e
 - Obra critica: {payload.get("obra_critica")}
 - Categoria critica: {payload.get("categoria_critica")}
-- Fuente critica: {payload.get("fuente_critica") or payload.get("actividad_critica")}
-- Etapa critica: {payload.get("etapa_critica") or payload.get("unidad_critica")}
+- Fuente critica: {payload.get("fuente_critica")}
+- Etapa critica: {payload.get("etapa_critica")}
 - Intensidad de carbono: {payload.get("intensidad_carbono") or "pendiente"} kg CO2e/m2
 - Evidencia respaldada: {payload.get("evidencia_respaldada") or "pendiente de vinculacion documental"}
 

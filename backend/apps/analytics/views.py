@@ -73,8 +73,6 @@ def serialize_auth_user(user):
         {
             "constructora_id": perfil.constructora.constructora_id,
             "constructora_nombre": perfil.constructora.nombre,
-            "empresa_id": perfil.constructora.constructora_id,
-            "empresa_nombre": perfil.constructora.nombre,
             "rol": perfil.rol,
         }
         for perfil in perfiles
@@ -89,7 +87,6 @@ def serialize_auth_user(user):
         "is_staff": user.is_staff,
         "is_superuser": user.is_superuser,
         "constructoras": constructoras_usuario,
-        "empresas": constructoras_usuario,
     }
 
 

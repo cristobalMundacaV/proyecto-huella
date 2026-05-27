@@ -68,7 +68,6 @@ function ImportarEvidenciaObraModal({
     unit: "",
     factorEmision: "",
     factorEmisionId: "",
-    source: "",
     estimatedEmissions: "",
   });
 
@@ -131,7 +130,6 @@ function ImportarEvidenciaObraModal({
       unit: "",
       factorEmision: "",
       factorEmisionId: "",
-      source: "",
       estimatedEmissions: "",
     });
     setSelectedObraId(initialObraId || "");
@@ -182,7 +180,6 @@ function ImportarEvidenciaObraModal({
       unit: suggestion.emission.unit || "",
       factorEmision: suggestion.emission.factorEmision || "",
       factorEmisionId: String(suggestion.emission.factorEmisionId || ""),
-      source: suggestion.emission.source || "",
       estimatedEmissions: suggestion.emission.estimatedEmissions || "",
     });
     setDocumentDate(structured?.fecha || suggestion.document?.date || documentDate || "");
@@ -329,7 +326,7 @@ function ImportarEvidenciaObraModal({
             <FileText size={24} />
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--primary-dark)]">ImportaciÃ³n inteligente</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--primary-dark)]">Importación inteligente</p>
             <h2 className="mt-1 text-2xl font-bold text-[var(--text-main)]">{initialTitle}</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
               Extrae texto del evidencia, sugiere la lectura de obra y confirma manualmente antes de guardar.
@@ -485,7 +482,7 @@ function ImportarEvidenciaObraModal({
               <span>Fuente / fuente_emision</span>
               <input
                 value={draft.source}
-                onChange={(event) => setDraft((current) => ({ ...current, source: event.target.value, source: event.target.value }))}
+                onChange={(event) => setDraft((current) => ({ ...current, source: event.target.value }))}
                 className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-main)] outline-none"
               />
             </label>
@@ -531,7 +528,7 @@ function ImportarEvidenciaObraModal({
           </label>
 
           <label className="space-y-2 text-sm font-semibold text-[var(--text-main)]">
-            <span>Factor numÃ©rico</span>
+            <span>Factor numérico</span>
             <input
               type="number"
               step="any"

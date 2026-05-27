@@ -10,19 +10,19 @@
       return tone;
     }
 
-    if (resolvedTitle.includes("riesgo") || resolvedTitle.includes("emisiones actuales") || resolvedTitle.includes("emisiones totales") || resolvedTitle.includes("fuente critica") || resolvedTitle.includes("categorÃ­a critica")) {
+    if (resolvedTitle.includes("riesgo") || resolvedTitle.includes("emisiones actuales") || resolvedTitle.includes("emisiones totales") || resolvedTitle.includes("fuente critica") || resolvedTitle.includes("categorí­a critica")) {
       return "danger";
     }
 
-    if (resolvedTitle.includes("escenario recomendado") || resolvedTitle.includes("informaciÃ³n") || resolvedTitle.includes("operativa") || resolvedTitle.includes("intensidad de carbono") || resolvedTitle.includes("etapa prioritaria") || resolvedTitle.includes("modo de importaciÃ³n")) {
+    if (resolvedTitle.includes("escenario recomendado") || resolvedTitle.includes("información") || resolvedTitle.includes("operativa") || resolvedTitle.includes("intensidad de carbono") || resolvedTitle.includes("etapa prioritaria") || resolvedTitle.includes("modo de importación")) {
       return "info";
     }
 
-    if (resolvedTitle.includes("mÃ¡ximo potencial") || resolvedTitle.includes("reducciÃ³n") || resolvedTitle.includes("viabilidad") || resolvedTitle.includes("potencial") ) {
+    if (resolvedTitle.includes("máximo potencial") || resolvedTitle.includes("reducción") || resolvedTitle.includes("viabilidad") || resolvedTitle.includes("potencial") ) {
       return "success";
     }
 
-    if (resolvedTitle.includes("foco principal") || resolvedTitle.includes("diÃ©sel") || resolvedTitle.includes("concentraciÃ³n") || resolvedTitle.includes("prioritaria") || resolvedTitle.includes("obra critica") || resolvedTitle.includes("fuente prioritaria") || resolvedTitle.includes("perÃ­odo con mayor emision") || resolvedTitle.includes("modo de importaciÃ³n")) {
+    if (resolvedTitle.includes("foco principal") || resolvedTitle.includes("diésel") || resolvedTitle.includes("concentración") || resolvedTitle.includes("prioritaria") || resolvedTitle.includes("obra critica") || resolvedTitle.includes("fuente prioritaria") || resolvedTitle.includes("perí­odo con mayor emision") || resolvedTitle.includes("modo de importación")) {
       return "warning";
     }
 
@@ -81,17 +81,17 @@
 
   return (
     <div className={`premium-card premium-card-interactive p-6 ring-1 ring-white/60 ${toneClasses}`}>
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex flex-col items-center text-center">
         <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border shadow-[0_10px_20px_rgba(15,23,42,0.06)] ${iconClasses}`}>
           {icon}
         </div>
-        <p className={`text-sm font-bold ${titleClasses}`}>{title}</p>
+        <p className={`mt-3 text-sm font-bold ${titleClasses}`}>{title}</p>
       </div>
-      <h3 className={`mt-1 text-2xl font-black tracking-tight ${valueClasses}`}>
+      <h3 className={`mt-1 text-center text-2xl font-black tracking-tight ${valueClasses}`}>
         {value}
       </h3>
       {detail && (
-        <p className={`mt-2 text-sm font-semibold ${detailClasses}`}>
+        <p className={`mt-2 text-center text-sm font-semibold ${detailClasses}`}>
           {detail}
         </p>
       )}
