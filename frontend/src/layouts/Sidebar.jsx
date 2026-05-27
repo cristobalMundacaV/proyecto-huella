@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   BarChart3,
@@ -145,6 +146,82 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
     }
   };
 
+  const deleteModal =
+    deleteModalOpen && selectedConstructora
+      ? createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm">
+            <div className="relative z-[10000] w-full max-w-lg rounded-3xl border border-red-200 bg-white p-6 text-slate-950 shadow-[0_28px_90px_rgba(15,23,42,0.35)]">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600">
+                    <AlertTriangle size={24} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-red-700">
+                      Acción irreversible
+                    </p>
+                    <h2 className="mt-1 text-2xl font-black text-slate-950">
+                      Eliminar constructora
+                    </h2>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeDeleteModal}
+                  className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <p className="mt-5 text-sm font-medium leading-7 text-slate-600">
+                Se eliminará <strong className="text-slate-950">{selectedConstructora.nombre}</strong> junto con sus datos relacionados. Esta acción sirve para limpiar empresas de prueba, pero no se puede deshacer desde la interfaz.
+              </p>
+
+              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                Para confirmar, escribe exactamente:
+                <span className="mt-2 block rounded-xl border border-red-200 bg-white px-3 py-2 font-black text-red-800">
+                  {deleteToken}
+                </span>
+              </div>
+
+              <input
+                value={deleteConfirmText}
+                onChange={(event) => setDeleteConfirmText(event.target.value)}
+                placeholder="Escribe el ID de la constructora"
+                className="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-red-300 focus:ring-4 focus:ring-red-100"
+              />
+
+              {deleteError && (
+                <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
+                  {deleteError}
+                </p>
+              )}
+
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeDeleteModal}
+                  className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-600 transition hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteConstructora}
+                  disabled={!canConfirmDelete || deleting}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-700 bg-red-600 px-5 py-3 text-sm font-black text-white shadow-[0_16px_32px_rgba(220,38,38,0.22)] transition hover:-translate-y-0.5 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {deleting ? <Loader2 className="animate-spin" size={17} /> : <Trash2 size={17} />}
+                  Eliminar definitivamente
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
     <aside className="w-full shrink-0 border-b border-white/10 bg-[var(--sidebar)] p-4 text-slate-100 shadow-[24px_0_80px_rgba(2,6,23,0.22)] sm:p-6 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:flex-col lg:border-b-0 lg:border-r lg:overflow-y-auto">
       <div className="mb-10 flex items-center gap-3">
@@ -275,77 +352,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
         </button>
       </div>
 
-      {deleteModalOpen && selectedConstructora && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl border border-red-200 bg-white p-6 text-slate-950 shadow-[0_28px_80px_rgba(15,23,42,0.28)]">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600">
-                  <AlertTriangle size={24} />
-                </div>
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-red-700">
-                    Acción irreversible
-                  </p>
-                  <h2 className="mt-1 text-2xl font-black text-slate-950">
-                    Eliminar constructora
-                  </h2>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={closeDeleteModal}
-                className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <p className="mt-5 text-sm font-medium leading-7 text-slate-600">
-              Se eliminará <strong className="text-slate-950">{selectedConstructora.nombre}</strong> junto con sus datos relacionados. Esta acción sirve para limpiar empresas de prueba, pero no se puede deshacer desde la interfaz.
-            </p>
-
-            <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
-              Para confirmar, escribe exactamente:
-              <span className="mt-2 block rounded-xl border border-red-200 bg-white px-3 py-2 font-black text-red-800">
-                {deleteToken}
-              </span>
-            </div>
-
-            <input
-              value={deleteConfirmText}
-              onChange={(event) => setDeleteConfirmText(event.target.value)}
-              placeholder="Escribe el ID de la constructora"
-              className="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-red-300 focus:ring-4 focus:ring-red-100"
-            />
-
-            {deleteError && (
-              <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
-                {deleteError}
-              </p>
-            )}
-
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={closeDeleteModal}
-                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-600 transition hover:bg-slate-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteConstructora}
-                disabled={!canConfirmDelete || deleting}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-700 bg-red-600 px-5 py-3 text-sm font-black text-white shadow-[0_16px_32px_rgba(220,38,38,0.22)] transition hover:-translate-y-0.5 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {deleting ? <Loader2 className="animate-spin" size={17} /> : <Trash2 size={17} />}
-                Eliminar definitivamente
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {deleteModal}
     </aside>
   );
 }
