@@ -281,7 +281,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
               className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-300/25 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-100 shadow-[0_10px_24px_rgba(185,28,28,0.08)] transition hover:-translate-y-px hover:border-red-300/45 hover:bg-red-500/18 active:scale-[0.98]"
             >
               <Trash2 size={15} />
-              Eliminar constructora activa
+              Eliminar constructora
             </button>
           )}
 
