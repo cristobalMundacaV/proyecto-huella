@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -7,8 +7,8 @@ import {
   Flame,
   Gauge,
   Layers3,
-  Sparkles,
   Search,
+  Sparkles,
   Target,
   TrendingDown,
   X,
@@ -55,24 +55,26 @@ const fuelUseLabels = {
   despacho: "Despacho",
   transporte: "Transporte",
   maquinaria: "Maquinaria",
-  vehiculos: "Vehiculos",
+  vehiculos: "Vehículos",
 };
 
 const categoryInsightRules = {
   Materiales:
-    "La categorí­a critica actualmente es Materiales. Revisa hormigón, acero, áridos y proveedores, ya que suelen concentrar una parte importante del carbono incorporado de una obra.",
+    "La categoría crítica actualmente es Materiales. Revisa hormigón, acero, áridos y proveedores, ya que suelen concentrar una parte importante del carbono incorporado de una obra.",
   Transporte:
-    "La categorí­a critica actualmente es Transporte. Reduce distancia, consolida viajes y evalúa proveedores cercanos para bajar emisiones logí­sticas.",
+    "La categoría crítica actualmente es Transporte. Reduce distancia, consolida viajes y evalúa proveedores cercanos para bajar emisiones logísticas.",
   Maquinaria:
-    "La categorí­a critica actualmente es Maquinaria. Controla ralentí­, consumo por equipo y mantención para reducir emisiones durante la ejecución.",
+    "La categoría crítica actualmente es Maquinaria. Controla ralentí, consumo por equipo y mantención para reducir emisiones durante la ejecución.",
   Energia:
-    "La categorí­a critica actualmente es Energia. Revisa uso de generadores, consumo electrico de faena y horarios de operación.",
+    "La categoría crítica actualmente es Energía. Revisa uso de generadores, consumo eléctrico de faena y horarios de operación.",
+  Energía:
+    "La categoría crítica actualmente es Energía. Revisa uso de generadores, consumo eléctrico de faena y horarios de operación.",
   Residuos:
-    "La categorí­a critica actualmente es Residuos. Prioriza segregación, reciclaje y valorización para reducir disposición final.",
+    "La categoría crítica actualmente es Residuos. Prioriza segregación, reciclaje y valorización para reducir disposición final.",
   Agua:
-    "La categorí­a critica actualmente es Agua. Mejora el monitoreo y control de consumo para detectar desviaciones tempranas.",
+    "La categoría crítica actualmente es Agua. Mejora el monitoreo y control de consumo para detectar desviaciones tempranas.",
   Otros:
-    "La categorí­a critica actualmente es Otros. Clasifica mejor los registros para priorizar acciones de reducción más precisas.",
+    "La categoría crítica actualmente es Otros. Clasifica mejor los registros para priorizar acciones de reducción más precisas.",
 };
 
 const tooltipContentStyle = {
@@ -91,22 +93,13 @@ const horizontalActiveBarStyle = {
 
 function truncateChartLabel(value) {
   const text = String(value || "");
-  return text.length > 28 ? `${text.slice(0, 28)}...` : text;
+  return text.length > 34 ? `${text.slice(0, 34)}...` : text;
 }
 
 function getBarSizeForRowCount(rowCount) {
-  if (rowCount <= 1) {
-    return 34;
-  }
-
-  if (rowCount <= 2) {
-    return 30;
-  }
-
-  if (rowCount <= 4) {
-    return 24;
-  }
-
+  if (rowCount <= 1) return 34;
+  if (rowCount <= 2) return 30;
+  if (rowCount <= 4) return 24;
   return 18;
 }
 
@@ -123,31 +116,39 @@ function uniqueOptions(rows, field) {
   );
 }
 
+function getRowEmission(row) {
+  return Number(row?.emisiones ?? row?.emisiones_kg_co2e ?? 0);
+}
+
 function dependencyLevel(value) {
   const pct = Number(value || 0);
 
   if (pct >= 60) {
-    return { label: "Alta", tone: "text-[#B42318]", panel: "border-[#F1B8B8] bg-[var(--danger-bg)]" };
+    return {
+      label: "Alta",
+      tone: "text-[#B42318]",
+      panel: "border-[#FDA29B] bg-[#FEF3F2]",
+    };
   }
 
   if (pct >= 30) {
     return {
       label: "Media",
-      tone: "text-[#7A4F00]",
-      panel: "border-[#E1C56F] bg-[var(--warning-bg)]",
+      tone: "text-[#B45309]",
+      panel: "border-[#FDBA74] bg-[#FFF7ED]",
     };
   }
 
   return {
     label: "Baja",
-    tone: "text-[var(--primary-dark)]",
-    panel: "border-[var(--border)] bg-[var(--success-bg)]",
+    tone: "text-[#047857]",
+    panel: "border-[#A7F3D0] bg-[#ECFDF3]",
   };
 }
 
 function buildDecisionModel(data) {
   const kpis = data?.kpis || {};
-  const total = Number(kpis.emisiones_totales || 0);
+  const total = Number(kpis.emisiones_totales || data?.total_emisiones || 0);
   const dieselPct = Number(kpis.porcentaje_diesel || 0);
   const topSourcePct = Number(kpis.porcentaje_top_fuente_emision || 0);
   const dieselEmissions = total * (dieselPct / 100);
@@ -155,20 +156,24 @@ function buildDecisionModel(data) {
   const carKmEquivalent = estimatedReduction * 4;
   const homeMonthsEquivalent = estimatedReduction / 120;
   const dieselLevel = dependencyLevel(dieselPct);
-  const criticalSource = kpis.fuente_critica || "Sin datos";
-  const criticalUnit = kpis.unidad_critica || "Sin datos";
-  const criticalCategory = kpis.categoria_critica || "Sin datos";
+  const criticalSource = kpis.fuente_critica || data?.fuente_critica || "Sin datos";
+  const criticalUnit = kpis.unidad_critica || data?.unidad_critica || data?.etapa_critica || "Sin datos";
+  const criticalCategory = kpis.categoria_critica || data?.categoria_critica || "Sin datos";
 
   if (!total) {
     return {
-      heroTitle: "Aun no hay emisiones para decidir",
-      heroSubtitle: "Registra datos de materiales, transporte, maquinaria, Energia y residuos para identificar focos de impacto.",
-      recommendation: "Carga registros de obra con factores de emision para activar el análisis operativo.",
+      heroTitle: "Aún no hay emisiones para decidir",
+      heroSubtitle:
+        "Registra datos de materiales, transporte, maquinaria, energía y residuos para identificar focos de impacto.",
+      recommendation:
+        "Carga registros de obra con factores de emisión para activar el análisis operativo.",
       dieselLevel,
       estimatedReduction,
       carKmEquivalent,
       homeMonthsEquivalent,
-      risks: ["Aun no existen emisiones registradas para esta constructora."],
+      risks: [
+        "Todavía no existen emisiones calculadas para esta constructora. El primer riesgo operativo es tomar decisiones sin una línea base confiable de materiales, energía, transporte, maquinaria y residuos.",
+      ],
     };
   }
 
@@ -181,7 +186,7 @@ function buildDecisionModel(data) {
       ? `Puedes reducir cerca de ${formatNumber(
           estimatedReduction,
           0
-        )} kg COâ‚‚e con una intervención focalizada en ${criticalUnit}. La recomendación es comenzar con un piloto medible antes de avanzar hacia cambios mayores.`
+        )} kg CO2e con una intervención focalizada en ${criticalUnit}. La recomendación es comenzar con un piloto medible antes de avanzar hacia cambios mayores.`
       : "Prioriza la fuente principal para convertir el análisis en acción operativa.";
   const recommendation =
     dieselPct >= 30
@@ -191,31 +196,33 @@ function buildDecisionModel(data) {
 
   if (dieselPct > 50) {
     risks.push(
-      `Riesgo operativo:\nLa alta dependencia del diésel, equivalente al ${formatNumber(
+      `La operación depende fuertemente del diésel: representa el ${formatNumber(
         dieselPct,
         1
-      )}% del consumo, puede aumentar la exposición a costos, riesgos regulatorios y baja eficiencia energética.`
+      )}% de la huella total. Esto aumenta la exposición a costos de combustible, baja eficiencia energética y posibles exigencias ambientales futuras.`
     );
   }
 
   if (topSourcePct > 40) {
     risks.push(
-      `Riesgo de concentración:\nLa combustión móvil de diésel representa el ${formatNumber(
+      `La huella está muy concentrada en ${criticalSource}: esta fuente representa el ${formatNumber(
         topSourcePct,
         1
-      )}% de la huella total, por lo que cualquier mejora en este frente puede generar un impacto relevante.`
+      )}% del total. Si no se interviene primero este foco, las reducciones en otras áreas tendrán un impacto limitado.`
     );
   }
 
   if (criticalUnit !== "Sin datos") {
     risks.push(
-      `Riesgo operativo localizado:\nLa etapa ${criticalUnit} concentra el mayor impacto, por lo que deberí­a ser priorizada en la estrategia de reducción.`
+      `${criticalUnit} es la etapa que más presiona el resultado ambiental. Conviene priorizarla en la planificación, revisar consumos asociados y validar decisiones antes de avanzar a cambios de mayor costo.`
     );
   }
 
   if (criticalCategory !== "Sin datos") {
     risks.push(
-      `Riesgo por categorí­a: ${getConstructionCategoryLabel(criticalCategory)} domina el perfil de emisiones de la constructora.`
+      `${getConstructionCategoryLabel(
+        criticalCategory
+      )} domina el perfil de emisiones. El riesgo está en seguir comprando, ejecutando o registrando esta categoría sin trazabilidad suficiente para comparar alternativas.`
     );
   }
 
@@ -264,25 +271,25 @@ function EmisionesView() {
       }
 
       return getConstructoraEmisiones(activeConstructoraId)
-      .then((response) => {
-        if (!cancelled) {
-          setData(response);
-          setCurrentPage(1);
-        }
-      })
-      .catch((requestError) => {
-        if (!cancelled) {
-          setError(
-            requestError.response?.data?.error ||
-              "No se pudieron cargar las emisiones de la constructora."
-          );
-        }
-      })
-      .finally(() => {
-        if (!cancelled && showLoading) {
-          setLoading(false);
-        }
-      });
+        .then((response) => {
+          if (!cancelled) {
+            setData(response);
+            setCurrentPage(1);
+          }
+        })
+        .catch((requestError) => {
+          if (!cancelled) {
+            setError(
+              requestError.response?.data?.error ||
+                "No se pudieron cargar las emisiones de la constructora."
+            );
+          }
+        })
+        .finally(() => {
+          if (!cancelled && showLoading) {
+            setLoading(false);
+          }
+        });
     };
 
     loadEmisiones(true);
@@ -294,39 +301,40 @@ function EmisionesView() {
     };
   }, [activeConstructoraId]);
 
-const rows = Array.isArray(data?.rows)
-  ? data.rows
-  : Array.isArray(data?.results)
-    ? data.results
-  : Array.isArray(data?.datos)
-    ? data.datos
-    : Array.isArray(data)
-      ? data
-      : [];
+  const rows = Array.isArray(data?.rows)
+    ? data.rows
+    : Array.isArray(data?.results)
+      ? data.results
+      : Array.isArray(data?.datos)
+        ? data.datos
+        : Array.isArray(data)
+          ? data
+          : [];
 
-const kpis = data?.kpis ?? {
-  emisiones_totales: data?.total_emisiones ?? 0,
-  fuente_critica: data?.fuente_critica ?? "Sin datos",
-  unidad_critica: data?.unidad_critica ?? "Sin datos",
-  categoria_critica: data?.categoria_critica ?? "Sin datos",
-  porcentaje_diesel: data?.porcentaje_diesel ?? 0,
-  porcentaje_top_fuente_emision: data?.porcentaje_top_fuente_emision ?? 0,
-  promedio_emision_por_obra: data?.promedio_emision_por_obra ?? 0,
-  registros_emision_sin_factor: data?.registros_emision_sin_factor ?? 0,
-};
+  const kpis = data?.kpis ?? {
+    emisiones_totales: data?.total_emisiones ?? 0,
+    fuente_critica: data?.fuente_critica ?? "Sin datos",
+    unidad_critica: data?.unidad_critica ?? data?.etapa_critica ?? "Sin datos",
+    categoria_critica: data?.categoria_critica ?? "Sin datos",
+    porcentaje_diesel: data?.porcentaje_diesel ?? 0,
+    porcentaje_top_fuente_emision: data?.porcentaje_top_fuente_emision ?? 0,
+    promedio_emision_por_obra: data?.promedio_emision_por_obra ?? 0,
+    registros_emision_sin_factor: data?.registros_emision_sin_factor ?? 0,
+  };
+
   const emissionsByUnit = useMemo(() => {
     if (Array.isArray(data?.emisiones_por_unidad)) {
       return data.emisiones_por_unidad
         .map((item) => ({
           unidad: item.unidad || "Sin unidad",
-          emisiones: Number(item.emisiones || 0),
+          emisiones: Number(item.emisiones || item.emisiones_kg_co2e || 0),
         }))
         .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
     }
 
     const totals = rows.reduce((accumulator, row) => {
       const unidad = row.etapa_nombre || "Sin unidad";
-      accumulator[unidad] = (accumulator[unidad] || 0) + Number(row.emisiones || 0);
+      accumulator[unidad] = (accumulator[unidad] || 0) + getRowEmission(row);
       return accumulator;
     }, {});
 
@@ -334,12 +342,13 @@ const kpis = data?.kpis ?? {
       .map(([unidad, emisiones]) => ({ unidad, emisiones }))
       .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
   }, [data?.emisiones_por_unidad, rows]);
+
   const emissionsByActivity = useMemo(() => {
     if (Array.isArray(data?.emisiones_por_fuente_emision)) {
       return data.emisiones_por_fuente_emision
         .map((item) => ({
           fuente_emision: item.fuente_emision || "Sin fuente",
-          emisiones: Number(item.emisiones || 0),
+          emisiones: Number(item.emisiones || item.emisiones_kg_co2e || 0),
         }))
         .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
     }
@@ -347,7 +356,7 @@ const kpis = data?.kpis ?? {
     const totals = rows.reduce((accumulator, row) => {
       const fuente_emision = row.fuente_emision || "Sin fuente";
       accumulator[fuente_emision] =
-        (accumulator[fuente_emision] || 0) + Number(row.emisiones || 0);
+        (accumulator[fuente_emision] || 0) + getRowEmission(row);
       return accumulator;
     }, {});
 
@@ -355,21 +364,25 @@ const kpis = data?.kpis ?? {
       .map(([fuente_emision, emisiones]) => ({ fuente_emision, emisiones }))
       .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
   }, [data?.emisiones_por_fuente_emision, rows]);
+
   const unitBarSize = getBarSizeForRowCount(emissionsByUnit.length);
   const activityBarSize = getBarSizeForRowCount(emissionsByActivity.length);
   const decision = useMemo(() => buildDecisionModel(data), [data]);
+
   const rowsWithCategories = useMemo(
     () =>
       rows.map((row) => ({
         ...row,
+        emisiones: getRowEmission(row),
         categoria_visible: getConstructionCategoryLabel(row.categoria, row.fuente_emision),
       })),
     [rows]
   );
+
   const emissionsByCategory = useMemo(() => {
     const totals = rowsWithCategories.reduce((accumulator, row) => {
       const category = row.categoria_visible || "Otros";
-      accumulator[category] = (accumulator[category] || 0) + Number(row.emisiones || 0);
+      accumulator[category] = (accumulator[category] || 0) + getRowEmission(row);
       return accumulator;
     }, {});
 
@@ -377,16 +390,19 @@ const kpis = data?.kpis ?? {
       .map(([categoria, emisiones]) => ({ categoria, emisiones }))
       .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
   }, [rowsWithCategories]);
-  const criticalCategory = emissionsByCategory[0]?.categoria || getConstructionCategoryLabel(kpis.categoria_critica);
+
+  const criticalCategory =
+    emissionsByCategory[0]?.categoria || getConstructionCategoryLabel(kpis.categoria_critica);
   const criticalSource = emissionsByActivity[0]?.fuente_emision || kpis.fuente_critica || "Sin datos";
   const rowsWithEvidence = rowsWithCategories.filter(
-    (row) => row.evidencia || row.evidencia_id || row.evidencia_id || row.evidencia
+    (row) => row.evidencia_asociada || row.evidencia || row.evidencia_id
   ).length;
   const categoryInsight = categoryInsightRules[criticalCategory] || categoryInsightRules.Otros;
+
   const decisionData = useMemo(
     () => ({
       total_emisiones: kpis.emisiones_totales || 0,
-      datos: rows.map((row) => ({
+      datos: rowsWithCategories.map((row) => ({
         constructora: row.constructora || data?.constructora?.nombre || activeConstructora?.nombre || "",
         fuente_emision: row.fuente_emision,
         fuente_emision_key: row.fuente_emision_key,
@@ -394,47 +410,49 @@ const kpis = data?.kpis ?? {
         cantidad: row.cantidad,
         unidad: row.unidad,
         factor_emision: row.factor_emision,
-        emisiones: row.emisiones,
+        emisiones: getRowEmission(row),
         etapa: row.etapa_nombre,
-        codigo_obra: row.codigo_obra,
+        codigo_obra: row.codigo_obra || row.obra_codigo,
       })),
     }),
-    [activeConstructora?.nombre, data?.constructora?.nombre, kpis.emisiones_totales, rows]
+    [activeConstructora?.nombre, data?.constructora?.nombre, kpis.emisiones_totales, rowsWithCategories]
   );
+
   const categoryOptions = constructionCategories;
   const unitOptions = useMemo(() => uniqueOptions(rows, "etapa_nombre"), [rows]);
-  const obraOptions = useMemo(() => uniqueOptions(rows, "codigo_obra"), [rows]);
+  const obraOptions = useMemo(
+    () => Array.from(new Set(rows.map((row) => row.codigo_obra || row.obra_codigo).filter(Boolean))).sort(),
+    [rows]
+  );
+
   const filteredRows = useMemo(() => {
     const query = normalizeText(search);
 
     return rowsWithCategories
       .filter((row) => {
-        if (categoryFilter && row.categoria_visible !== categoryFilter) {
-          return false;
-        }
-        if (unitFilter && row.etapa_nombre !== unitFilter) {
-          return false;
-        }
-        if (obraFilter && row.codigo_obra !== obraFilter) {
-          return false;
-        }
-        if (!query) {
-          return true;
-        }
+        const rowObra = row.codigo_obra || row.obra_codigo;
+
+        if (categoryFilter && row.categoria_visible !== categoryFilter) return false;
+        if (unitFilter && row.etapa_nombre !== unitFilter) return false;
+        if (obraFilter && rowObra !== obraFilter) return false;
+        if (!query) return true;
 
         return normalizeText(
           [
             row.fuente_emision,
             row.etapa_nombre,
             row.etapa_id,
-            row.codigo_obra,
+            rowObra,
+            row.obra_nombre,
             row.categoria,
+            row.categoria_visible,
             fuelUseLabels[row.tipo_consumo_combustible],
           ].join(" ")
         ).includes(query);
       })
-      .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
+      .sort((left, right) => getRowEmission(right) - getRowEmission(left));
   }, [categoryFilter, obraFilter, rowsWithCategories, search, unitFilter]);
+
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / rowsPerPage));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const visibleRows = filteredRows.slice(
@@ -442,10 +460,7 @@ const kpis = data?.kpis ?? {
     safeCurrentPage * rowsPerPage
   );
   const maxEmission = filteredRows[0]?.emisiones || 0;
-  const formatTooltipValue = (value) => [
-    `${formatNumber(value)} kg CO2e`,
-    "Emisiones",
-  ];
+  const formatTooltipValue = (value) => [`${formatNumber(value)} kg CO2e`, "Emisiones"];
 
   useEffect(() => {
     setCurrentPage(1);
@@ -463,8 +478,7 @@ const kpis = data?.kpis ?? {
 
   const handleAiAnalysis = async () => {
     setAiModalOpen(true);
-    const advisorScenario =
-      optimizedScenario || optimizeScenario(decisionData.datos || []);
+    const advisorScenario = optimizedScenario || optimizeScenario(decisionData.datos || []);
 
     try {
       setLoadingAi(true);
@@ -481,7 +495,7 @@ const kpis = data?.kpis ?? {
     } catch (requestError) {
       console.error(requestError);
       setAiAnalysis(
-        requestError.response?.data?.error || "No se pudo generar el analisis IA."
+        requestError.response?.data?.error || "No se pudo generar el análisis IA."
       );
       setAiSource("");
     } finally {
@@ -491,9 +505,7 @@ const kpis = data?.kpis ?? {
 
   const openDecisionCenter = (shouldOptimize = false) => {
     setDecisionModalOpen(true);
-    if (shouldOptimize) {
-      handleOptimize();
-    }
+    if (shouldOptimize) handleOptimize();
   };
 
   if (loadingConstructoras) {
@@ -518,9 +530,7 @@ const kpis = data?.kpis ?? {
               <Flame size={18} />
               Emisiones
             </p>
-            <h1 className="mt-3 text-3xl font-bold sm:text-5xl">
-              {decision.heroTitle}
-            </h1>
+            <h1 className="mt-3 text-3xl font-bold sm:text-5xl">{decision.heroTitle}</h1>
             <p className="mt-4 text-base leading-7 text-[var(--text-muted)]">
               {decision.heroSubtitle}
             </p>
@@ -531,15 +541,15 @@ const kpis = data?.kpis ?? {
               type="button"
               onClick={handleAiAnalysis}
               disabled={loadingAi}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 text-sm font-bold text-cyan-200 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-500"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
             >
               <Sparkles size={18} />
-              {loadingAi ? "Analizando..." : "Generar analisis IA"}
+              {loadingAi ? "Analizando..." : "Generar análisis IA"}
             </button>
             <button
               type="button"
               onClick={() => openDecisionCenter(false)}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700 transition hover:bg-emerald-100"
             >
               <TrendingDown size={18} />
               Simular escenario
@@ -547,7 +557,7 @@ const kpis = data?.kpis ?? {
             <button
               type="button"
               onClick={() => openDecisionCenter(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 text-sm font-bold text-cyan-200 transition hover:bg-cyan-400/20"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
             >
               <Target size={18} />
               Ver plan operativo
@@ -557,26 +567,24 @@ const kpis = data?.kpis ?? {
       </section>
 
       {error && (
-        <p className="rounded-2xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">
+        <p className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {error}
         </p>
       )}
 
-      <section className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-4 sm:p-6">
-        <p className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
+      <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-4 shadow-[var(--shadow-card)] sm:p-6">
+        <p className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
           <Target size={18} />
           Insight automático
         </p>
-        <h2 className="mt-2 text-2xl font-bold text-emerald-100">
-          {categoryInsight}
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-emerald-200">
+        <h2 className="mt-2 text-2xl font-bold text-emerald-900">{categoryInsight}</h2>
+        <p className="mt-2 text-sm leading-6 text-emerald-800">
           Mide el consumo antes y después de cada intervención, revisa resultados semanalmente y escala solo cuando la reducción se mantenga sin afectar la ejecución de obra.
         </p>
       </section>
 
       <section className="space-y-4">
-        <SectionTitle title="Estado actual de registros de emision" />
+        <SectionTitle title="Estado actual de registros de emisión" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <DecisionKpi
             icon={<Activity />}
@@ -585,33 +593,29 @@ const kpis = data?.kpis ?? {
           />
           <DecisionKpi
             icon={<Layers3 />}
-            label="Categorí­a critica"
+            label="Categoría crítica"
             value={criticalCategory || "Sin datos"}
           />
           <DecisionKpi
             detail={`${formatNumber(kpis.porcentaje_top_fuente_emision || 0, 1)}% del total`}
             icon={<BarChart3 />}
-            label="Fuente critica"
+            label="Fuente crítica"
             value={criticalSource}
           />
           <DecisionKpi
             icon={<Factory />}
-            label="Registros de emision"
+            label="Registros de emisión"
             value={formatNumber(rows.length, 0)}
           />
           <DecisionKpi
             icon={<Gauge />}
             label="Emisiones con evidencia"
-            value={
-              rowsWithEvidence > 0
-                ? formatNumber(rowsWithEvidence, 0)
-                : "Sin dato disponible"
-            }
+            value={rowsWithEvidence > 0 ? formatNumber(rowsWithEvidence, 0) : "Sin dato disponible"}
           />
           <DecisionKpi
             icon={<Target />}
-            label="Etapa critica"
-            value={kpis.unidad_critica || "Sin datos"}
+            label="Etapa crítica"
+            value={kpis.unidad_critica || kpis.etapa_critica || "Sin datos"}
           />
         </div>
       </section>
@@ -623,7 +627,7 @@ const kpis = data?.kpis ?? {
               <BarChart
                 data={emissionsByUnit}
                 layout="vertical"
-                margin={{ top: 10, right: 10, left: 24, bottom: 10 }}
+                margin={{ top: 10, right: 10, left: 46, bottom: 10 }}
               >
                 <XAxis
                   type="number"
@@ -638,7 +642,7 @@ const kpis = data?.kpis ?? {
                   tick={{ fill: "#475569", fontSize: 11, fontWeight: 600 }}
                   tickFormatter={truncateChartLabel}
                   type="category"
-                  width={150}
+                  width={185}
                 />
                 <Tooltip
                   contentStyle={tooltipContentStyle}
@@ -665,7 +669,7 @@ const kpis = data?.kpis ?? {
               <BarChart
                 data={emissionsByActivity}
                 layout="vertical"
-                margin={{ top: 10, right: 10, left: 24, bottom: 10 }}
+                margin={{ top: 10, right: 10, left: 46, bottom: 10 }}
               >
                 <XAxis
                   type="number"
@@ -680,7 +684,7 @@ const kpis = data?.kpis ?? {
                   tick={{ fill: "#475569", fontSize: 11, fontWeight: 600 }}
                   tickFormatter={truncateChartLabel}
                   type="category"
-                  width={150}
+                  width={185}
                 />
                 <Tooltip
                   contentStyle={tooltipContentStyle}
@@ -703,42 +707,36 @@ const kpis = data?.kpis ?? {
       </section>
 
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-2xl border border-[#E1C56F] bg-[var(--warning-bg)] p-4 shadow-[var(--shadow-card)] sm:p-6">
-          <SectionTitle eyebrow="Riesgos" title="Lo que puede afectar la operacion" />
+        <div className="rounded-2xl border border-red-200 bg-red-50/80 p-4 shadow-[0_12px_28px_rgba(185,28,28,0.08)] sm:p-6">
+          <SectionTitle eyebrow="Riesgos" title="Lo que puede afectar la operación" />
           <div className="mt-4 space-y-3">
             {decision.risks.map((risk) => (
-              <p
-                key={risk}
-                className="whitespace-pre-line rounded-2xl border border-[#E1C56F] bg-[#FFF9E8] p-4 text-sm font-medium leading-6 text-[#5F3B00]"
-              >
-                {risk}
-              </p>
+              <RiskMessage key={risk}>{risk}</RiskMessage>
             ))}
           </div>
           {Number(kpis.registros_emision_sin_factor || 0) > 0 && (
-            <p className="mt-4 flex items-center gap-2 rounded-2xl border border-[#F1B8B8] bg-[var(--danger-bg)] p-3 text-sm font-semibold text-[#B42318]">
-              <AlertTriangle size={18} />
-              Existen registros sin factor de emision asociado.
-            </p>
+            <RiskMessage icon={<AlertTriangle size={18} />}>
+              Existen registros sin factor de emisión asociado. Antes de cerrar el análisis, valida esos datos para evitar decisiones con una huella subestimada.
+            </RiskMessage>
           )}
         </div>
 
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--info-bg)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+        <div className="rounded-2xl border border-blue-200 bg-blue-50/80 p-4 shadow-[0_12px_28px_rgba(37,99,235,0.08)] sm:p-6">
           <SectionTitle
             eyebrow="Impacto real"
             title={`Si reduces el consumo de diésel en un ${DIESEL_REDUCTION_SCENARIO}%`}
           />
           <div className="mt-4 space-y-3">
             <ImpactRow
-              label="Reducción estimada:"
+              label="Reducción estimada"
               value={`${formatNumber(decision.estimatedReduction, 0)} kg CO2e`}
             />
             <ImpactRow
-              label="Equivalente aproximado a:"
+              label="Equivalente aproximado"
               value={`${formatNumber(decision.carKmEquivalent, 0)} km recorridos en auto`}
             />
             <ImpactRow
-              label="Impacto comparable con:"
+              label="Impacto comparable"
               value={`Las emisiones mensuales aproximadas de ${formatNumber(
                 decision.homeMonthsEquivalent,
                 0
@@ -748,32 +746,32 @@ const kpis = data?.kpis ?? {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 sm:p-6">
+      <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[var(--shadow-card)] sm:p-6">
         <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-xl font-semibold">Registros de emision</h2>
-            <p className="mt-1 text-sm text-slate-400">
+            <h2 className="text-xl font-semibold text-[var(--text-main)]">Registros de emisión</h2>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">
               {formatNumber(filteredRows.length, 0)} registros encontrados.
             </p>
           </div>
-          {loading && <p className="text-sm font-semibold text-emerald-300">Cargando...</p>}
+          {loading && <p className="text-sm font-semibold text-emerald-700">Cargando...</p>}
         </div>
 
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <label className="relative block">
             <Search
               size={18}
-              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
             />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar fuente, etapa, obra o categorí­a"
-              className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3 pl-11 pr-4 text-sm text-slate-100 outline-none transition focus:border-emerald-400/60"
+              placeholder="Buscar fuente, etapa, obra o categoría"
+              className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-emerald-400/60"
             />
           </label>
           <FilterSelect
-            label="Todas las categorí­as"
+            label="Todas las categorías"
             onChange={setCategoryFilter}
             options={categoryOptions}
             value={categoryFilter}
@@ -795,22 +793,22 @@ const kpis = data?.kpis ?? {
         {rows.length === 0 && !loading ? (
           <div className="mt-5">
             <EmptyState
-              title="Aún no hay registros de emision para esta obra."
-              description="Agrega emisiones por materiales, transporte, maquinaria, Energia, agua o residuos para comenzar a medir la huella del proyecto."
+              title="Aún no hay registros de emisión para esta obra."
+              description="Agrega emisiones por materiales, transporte, maquinaria, energía, agua o residuos para comenzar a medir la huella del proyecto."
             />
           </div>
         ) : (
           <div className="mt-5 overflow-x-auto">
             <table className="w-full min-w-[1380px] border-collapse text-sm">
               <thead>
-                <tr className="border-b border-slate-800 text-left text-xs text-slate-400">
+                <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
                   <th className="px-4 py-3">Fecha</th>
                   <th className="px-4 py-3">Obra</th>
                   <th className="px-4 py-3">Etapa / frente</th>
-                  <th className="px-4 py-3">Categorí­a</th>
-                  <th className="px-4 py-3">Fuente de emision</th>
+                  <th className="px-4 py-3">Categoría</th>
+                  <th className="px-4 py-3">Fuente de emisión</th>
                   <th className="px-4 py-3 text-right">Cantidad</th>
-                  <th className="px-4 py-3">Etapa</th>
+                  <th className="px-4 py-3">Unidad</th>
                   <th className="px-4 py-3 text-right">Factor</th>
                   <th className="px-4 py-3 text-right">Emisiones kg CO2e</th>
                   <th className="px-4 py-3">Evidencia</th>
@@ -819,63 +817,61 @@ const kpis = data?.kpis ?? {
               </thead>
               <tbody>
                 {visibleRows.map((row) => {
-                  const isCritical =
-                    maxEmission > 0 && Number(row.emisiones || 0) >= maxEmission * 0.8;
+                  const rowEmission = getRowEmission(row);
+                  const isCritical = maxEmission > 0 && rowEmission >= maxEmission * 0.8;
+                  const evidence = row.evidencia_asociada || null;
+                  const hasEvidence = Boolean(evidence || row.evidencia || row.evidencia_id);
 
                   return (
                     <tr
                       key={row.id}
-                      className={`border-b border-slate-800/80 transition ${
-                        isCritical
-                          ? "bg-[var(--danger-bg)]/50"
-                          : "hover:bg-[var(--success-bg)]/50"
+                      className={`border-b border-slate-100 transition ${
+                        isCritical ? "bg-red-50/50" : "hover:bg-emerald-50/50"
                       }`}
                     >
-                      <td className="px-4 py-4 text-slate-300">{row.fecha || "-"}</td>
-                      <td className="px-4 py-4 text-slate-300">{row.codigo_obra || "-"}</td>
-                      <td className="px-4 py-4 font-semibold text-slate-100">
+                      <td className="px-4 py-4 text-slate-600">{row.fecha || "-"}</td>
+                      <td className="px-4 py-4 text-slate-600">{row.codigo_obra || row.obra_codigo || "-"}</td>
+                      <td className="px-4 py-4 font-semibold text-slate-900">
                         {row.etapa_nombre || "Sin etapa"}
                       </td>
                       <td className="px-4 py-4">
                         <FactorCategoryBadge category={row.categoria_visible} />
                       </td>
-                      <td className="px-4 py-4 font-semibold text-slate-100">
+                      <td className="px-4 py-4 font-semibold text-slate-900">
                         {row.fuente_emision}
                       </td>
-                      <td className="px-4 py-4 text-right text-slate-300">
+                      <td className="px-4 py-4 text-right text-slate-600">
                         {formatNumber(row.cantidad || 0, 3)}
                       </td>
-                      <td className="px-4 py-4 text-slate-300">{row.unidad || "-"}</td>
-                      <td className="px-4 py-4 text-right text-slate-300">
+                      <td className="px-4 py-4 text-slate-600">{row.unidad || "-"}</td>
+                      <td className="px-4 py-4 text-right text-slate-600">
                         {formatNumber(row.factor_emision || 0, 4)}
                       </td>
-                      <td className="px-4 py-4 text-right font-bold text-cyan-200">
-                        {formatNumber(row.emisiones || 0, 1)}
+                      <td className="px-4 py-4 text-right font-bold text-blue-700">
+                        {formatNumber(rowEmission, 1)}
                       </td>
-                      <td className="px-4 py-4 text-slate-300">
+                      <td className="px-4 py-4 text-slate-600">
                         <div className="space-y-1">
-                          <p className="font-semibold text-slate-100">
-                            {row.evidencia || row.evidencia || row.evidencia_id || row.evidencia_id ? "Sí­" : "No"}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {row.evidencia || row.evidencia_id || row.evidencia || row.evidencia_id
-                              ? getConstructionEvidenceTypeLabel(row.tipo_evidencia || row.tipo_evidencia || row.evidencia_tipo)
+                          <p className="font-semibold text-slate-900">{hasEvidence ? "Sí" : "No"}</p>
+                          <p className="text-xs text-slate-500">
+                            {hasEvidence
+                              ? getConstructionEvidenceTypeLabel(evidence?.tipo_evidencia || row.tipo_evidencia || row.evidencia_tipo)
                               : "Evidencia asociada: pendiente de vinculación"}
                           </p>
                           <p className="text-xs text-slate-500">
-                            {row.estado_documental || row.estado_revision || row.estado_validacion
-                              ? getConstructionEvidenceReviewLabel(row.estado_documental || row.estado_revision || row.estado_validacion)
+                            {evidence?.estado_documental || row.estado_documental || row.estado_revision || row.estado_validacion
+                              ? getConstructionEvidenceReviewLabel(evidence?.estado_documental || row.estado_documental || row.estado_revision || row.estado_validacion)
                               : "Estado documental: pendiente de vinculación"}
                           </p>
                           <p className="text-xs text-slate-500">
-                            {row.evidencia || row.evidencia || row.evidencia_id || row.evidencia_id
+                            {hasEvidence
                               ? getConstructionEvidenceLinkLabel(row.estado_vinculo || row.estado_sistema)
-                              : "Sin ví­nculo"}
+                              : "Sin vínculo"}
                           </p>
                         </div>
                       </td>
                       <td className="px-4 py-4 text-right">
-                        <span className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1 text-xs font-bold text-slate-300">
+                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600">
                           Ver
                         </span>
                       </td>
@@ -899,47 +895,43 @@ const kpis = data?.kpis ?? {
       <AnimatePresence>
         {aiModalOpen && (
           <AnimatedModalShell
-            ariaLabel="Analisis estrategico IA"
-            contentClassName="my-4 flex max-h-[calc(100vh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl sm:my-6"
+            ariaLabel="Análisis estratégico IA"
+            contentClassName="my-4 flex max-h-[calc(100vh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl sm:my-6"
             onBackdropClick={() => setAiModalOpen(false)}
           >
-            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-800 bg-slate-950 p-4 sm:p-6">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 bg-white p-4 sm:p-6">
               <div>
-                <p className="text-sm font-semibold text-cyan-300">
-                  Carbono Zero AI
-                </p>
-                <h2 className="mt-1 text-2xl font-bold text-slate-100">
-                  Analisis estrategico generado por IA
+                <p className="text-sm font-semibold text-blue-700">Carbono Zero AI</p>
+                <h2 className="mt-1 text-2xl font-bold text-slate-900">
+                  Análisis estratégico generado por IA
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setAiModalOpen(false)}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 text-slate-300 transition hover:bg-slate-800"
-                aria-label="Cerrar analisis IA"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
+                aria-label="Cerrar análisis IA"
               >
                 <X size={18} />
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
               {loadingAi ? (
-                <p className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-5 text-sm font-semibold text-cyan-200">
-                  Generando analisis...
+                <p className="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm font-semibold text-blue-700">
+                  Generando análisis...
                 </p>
               ) : (
-                <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-5 text-slate-200">
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-slate-700">
                   {aiSource === "carbono_zero_engine" && (
-                    <p className="mb-4 text-xs font-semibold text-emerald-300">
-                      Generado por motor analitico Carbono Zero
+                    <p className="mb-4 text-xs font-semibold text-emerald-700">
+                      Generado por motor analítico Carbono Zero
                     </p>
                   )}
                   {aiSource === "openai" && (
-                    <p className="mb-4 text-xs font-semibold text-cyan-300">
-                      Generado con OpenAI
-                    </p>
+                    <p className="mb-4 text-xs font-semibold text-blue-700">Generado con OpenAI</p>
                   )}
                   <p className="whitespace-pre-line leading-7">
-                    {aiAnalysis || "Aun no hay analisis disponible."}
+                    {aiAnalysis || "Aún no hay análisis disponible."}
                   </p>
                 </div>
               )}
@@ -950,22 +942,20 @@ const kpis = data?.kpis ?? {
         {decisionModalOpen && (
           <AnimatedModalShell
             ariaLabel="Centro de decisiones"
-            contentClassName="my-4 flex max-h-[calc(100vh-2rem)] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl sm:my-6"
+            contentClassName="my-4 flex max-h-[calc(100vh-2rem)] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl sm:my-6"
             onBackdropClick={() => setDecisionModalOpen(false)}
           >
-            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-800 bg-slate-950 p-4 sm:p-6">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 bg-white p-4 sm:p-6">
               <div>
-                <p className="text-sm font-semibold text-emerald-300">
-                  Centro de decisiones
-                </p>
-                <h2 className="mt-1 text-2xl font-bold text-slate-100">
-                  Simula y optimiza la operacion activa
+                <p className="text-sm font-semibold text-emerald-700">Centro de decisiones</p>
+                <h2 className="mt-1 text-2xl font-bold text-slate-900">
+                  Simula y optimiza la operación activa
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setDecisionModalOpen(false)}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 text-slate-300 transition hover:bg-slate-800"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
                 aria-label="Cerrar centro de decisiones"
               >
                 <X size={18} />
@@ -989,9 +979,11 @@ const kpis = data?.kpis ?? {
 function SectionTitle({ eyebrow, title }) {
   return (
     <div>
-      <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
-        {eyebrow}
-      </p>
+      {eyebrow && (
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
+          {eyebrow}
+        </p>
+      )}
       <h2 className="mt-1 text-xl font-bold text-[var(--text-main)]">{title}</h2>
     </div>
   );
@@ -1014,11 +1006,20 @@ function DecisionKpi({ detail, icon, label, tone = "border-[var(--border)] bg-[v
   );
 }
 
+function RiskMessage({ children, icon }) {
+  return (
+    <p className="flex gap-3 rounded-2xl border border-red-100 border-l-4 border-l-red-500 bg-white p-4 text-sm font-medium leading-6 text-red-900 shadow-[0_8px_18px_rgba(185,28,28,0.06)]">
+      {icon && <span className="mt-0.5 shrink-0 text-red-600">{icon}</span>}
+      <span>{children}</span>
+    </p>
+  );
+}
+
 function ImpactRow({ label, value }) {
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-      <p className="text-xs font-bold uppercase tracking-wide text-[var(--secondary)]">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-[#075985]">{value}</p>
+    <div className="rounded-2xl border border-blue-100 border-l-4 border-l-blue-600 bg-white p-4 shadow-[0_8px_18px_rgba(37,99,235,0.06)]">
+      <p className="text-xs font-bold uppercase tracking-wide text-blue-800">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-blue-900">{value}</p>
     </div>
   );
 }
@@ -1028,7 +1029,7 @@ function FilterSelect({ label, onChange, options, value }) {
     <select
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-emerald-400/60"
+      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-400/60"
     >
       <option value="">{label}</option>
       {options.map((option) => (
