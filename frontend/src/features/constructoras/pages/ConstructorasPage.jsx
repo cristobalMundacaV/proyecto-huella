@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import ConstructoraForm from "../components/ConstructoraForm";
+import RealtimeIotMonitoring from "@/features/dashboard/components/RealtimeIotMonitoring";
 import Toast from "@/shared/components/Toast";
 import {
   createConstructora,
@@ -316,23 +317,7 @@ function ConstructorasView({
         </p>
       </section>
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <CompanyKpi
-          icon={<Building2 />}
-          label="constructora seleccionada"
-          value={metrics.activeCompany?.nombre || "Sin datos"}
-        />
-        <CompanyKpi
-          icon={<Factory />}
-          label="Etapas activas"
-          value={metrics.totalUnits}
-        />
-        <CompanyKpi icon={<Boxes />} label="Obras registradas" value={metrics.totalObras} />
-        <CompanyKpi
-          icon={<Activity />}
-          label="Registros"
-          value={metrics.totalActivities}
-        />
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <CompanyKpi
           icon={<Gauge />}
           label="Emisiones acumuladas"
@@ -340,15 +325,26 @@ function ConstructorasView({
           value={`${formatNumber(metrics.totalEmissions, 1)} kg CO2e`}
         />
         <CompanyKpi
-          detail={`${formatNumber(
-            metrics.topEmitter?.emisiones_totales_kg_co2e || 0,
-            1
-          )} kg CO2e`}
+          detail={`${formatNumber(metrics.topObra?.emisiones || 0, 1)} kg CO2e`}
+          icon={<Building2 />}
+          label="Obra con más emisiones"
+          value={metrics.topObra?.label || "Sin datos"}
+        />
+        <CompanyKpi
+          detail={`${formatNumber(metrics.topCategory?.emisiones || 0, 1)} kg CO2e`}
+          icon={<Boxes />}
+          label="Categoría con más emisiones"
+          value={metrics.topCategory?.label || "Sin datos"}
+        />
+        <CompanyKpi
+          detail={`${formatNumber(metrics.topEmitter?.emisiones_totales_kg_co2e || 0, 1)} kg CO2e`}
           icon={<BarChart3 />}
-          label="Etapa con mayor emisión"
+          label="Etapa con más emisiones"
           value={metrics.topEmitter?.nombre || "Sin datos"}
         />
       </section>
+
+      <RealtimeIotMonitoring activeConstructoraId={activeConstructoraId} />
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <UnitMetricBarChart
@@ -409,6 +405,7 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
       String(unidad.constructora || "") === String(activeCompany.id || "")
     );
   });
+  const registros = collectEmissionRecords(scopedUnits);
   const totals = {
     totalCompanies: constructoras.length,
     totalUnits: scopedUnits.length || Number(activeCompany?.etapas_count || 0),
@@ -432,6 +429,12 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
   const topOperational = maxBy(scopedUnits, (unidad) =>
     Number(unidad.obras_count || 0) + Number(unidad.registros_count || 0)
   );
+  const topObra = buildTopEmissionGroup(registros, (registro) =>
+    registro.obra_nombre || registro.obra_codigo || registro.codigo_obra || "Sin obra"
+  );
+  const topCategory = buildTopEmissionGroup(registros, (registro) =>
+    getConstructionCategoryLabel(registro.categoria, registro.fuente_emision) || "Otros"
+  );
   const topEmissionShare =
     totals.totalEmissions > 0 && topEmitter
       ? (Number(topEmitter.emisiones_totales_kg_co2e || 0) / totals.totalEmissions) * 100
@@ -453,14 +456,44 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
   return {
     ...totals,
     activeCompany,
+    topCategory,
     topEmitter,
     topEmissionShare,
+    topObra,
     topOperational,
     categoryStackRows: categoryStack.rows,
     categoryStackSegments: categoryStack.segments,
     monthlyRows,
     unitComparisonRows,
   };
+}
+
+function collectEmissionRecords(etapas) {
+  return etapas.flatMap((unidad) =>
+    (unidad.registros_emision_resumen || []).map((registro) => ({
+      ...registro,
+      etapa_nombre: registro.etapa_nombre || unidad.nombre || unidad.etapa_id || "Sin etapa",
+    }))
+  );
+}
+
+function getRecordEmission(registro) {
+  return Number(registro?.emisiones_kg_co2e || registro?.emisiones || 0);
+}
+
+function buildTopEmissionGroup(registros, labelSelector) {
+  const totals = new Map();
+
+  registros.forEach((registro) => {
+    const emissions = getRecordEmission(registro);
+    if (!emissions) return;
+    const label = labelSelector(registro) || "Sin datos";
+    totals.set(label, Number(totals.get(label) || 0) + emissions);
+  });
+
+  return Array.from(totals.entries())
+    .map(([label, emisiones]) => ({ label, emisiones }))
+    .sort((left, right) => right.emisiones - left.emisiones)[0] || null;
 }
 
 function buildCategoryStackData(etapas) {
@@ -477,7 +510,7 @@ function buildCategoryStackData(etapas) {
         registro.categoria,
         registro.fuente_emision
       ) || "Otros";
-      const emissions = Number(registro.emisiones_kg_co2e || registro.emisiones || 0);
+      const emissions = getRecordEmission(registro);
 
       if (!emissions) return;
 
@@ -535,6 +568,7 @@ function buildStrategicSummary(metrics) {
 
   const topOperationalName = metrics.topOperational?.nombre || "la etapa con mayor actividad";
   const topEmitterName = metrics.topEmitter?.nombre || "la etapa con mayor huella";
+  const topCategoryName = metrics.topCategory?.label || "la categoría principal";
   const hasEmissions = Number(metrics.totalEmissions || 0) > 0;
   const emissionShare = formatNumber(metrics.topEmissionShare, 1);
   const concentration =
@@ -548,7 +582,7 @@ function buildStrategicSummary(metrics) {
     return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas y su mayor carga operativa se observa en ${topOperationalName}. Aún no existe una huella de carbono suficientemente registrada para definir una etapa crítica por emisiones, por lo que el foco inmediato debe ser completar registros, vincular evidencias y validar factores de emisión antes de tomar decisiones de reducción.`;
   }
 
-  return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas. La mayor carga operativa se observa en ${topOperationalName}, mientras que ${topEmitterName} concentra el ${emissionShare}% de las emisiones registradas, lo que muestra ${concentration} del impacto ambiental. La decisión más importante es priorizar esta etapa, revisar sus fuentes principales y ejecutar acciones medibles donde exista mayor potencial de reducción.`;
+  return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas. ${topEmitterName} concentra el ${emissionShare}% de las emisiones registradas y ${topCategoryName} es la categoría con mayor impacto, lo que muestra ${concentration} del resultado ambiental. La decisión más importante es priorizar esa etapa, revisar sus fuentes principales y ejecutar acciones medibles donde exista mayor potencial de reducción.`;
 }
 
 function UnitMetricBarChart({ dataKey, description, rows, title, valueLabel }) {
@@ -780,7 +814,7 @@ function buildMonthlyRows(etapas) {
       }
 
       const row = ensureMonth(months, monthKey);
-      row.emisiones += Number(fuente_emision.emisiones_kg_co2e || 0);
+      row.emisiones += getRecordEmission(fuente_emision);
     });
   });
 
