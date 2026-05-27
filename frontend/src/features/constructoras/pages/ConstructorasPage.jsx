@@ -5,12 +5,8 @@ import {
   Boxes,
   Building2,
   Factory,
-  FileCheck2,
   Gauge,
-  Leaf,
   Plus,
-  ShieldCheck,
-  Target,
 } from "lucide-react";
 
 import ConstructoraForm from "../components/ConstructoraForm";
@@ -34,7 +30,6 @@ import {
   CartesianGrid,
   Line,
   LineChart,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -200,15 +195,15 @@ function ConstructorasView({
     });
 
     if (form.rut && !isValidChileanRut(form.rut)) {
-      nextFieldErrors.rut = ["Ingresa un RUT chileno valido."];
+      nextFieldErrors.rut = ["Ingresa un RUT chileno válido."];
     }
 
     if (form.email && !isValidEmail(form.email)) {
-      nextFieldErrors.email = ["Ingresa un email valido."];
+      nextFieldErrors.email = ["Ingresa un email válido."];
     }
 
     if (form.telefono && !isValidPhone(form.telefono)) {
-      nextFieldErrors.telefono = ["Ingresa un telefono valido."];
+      nextFieldErrors.telefono = ["Ingresa un teléfono válido."];
     }
 
     if (Object.keys(nextFieldErrors).length > 0) {
@@ -216,9 +211,9 @@ function ConstructorasView({
       if (missingFields.length === 1) {
         showToast(`Falta completar ${fieldLabels[missingFields[0]]}.`);
       } else if (missingFields.length > 1) {
-        showToast("Hay campos vacios.");
+        showToast("Hay campos vacíos.");
       } else {
-        showToast("Hay campos con formato invalido.");
+        showToast("Hay campos con formato inválido.");
       }
       return;
     }
@@ -297,7 +292,7 @@ function ConstructorasView({
         </p>
       </section>
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <CompanyKpi
           icon={<Building2 />}
           label="constructora seleccionada"
@@ -321,85 +316,26 @@ function ConstructorasView({
           value={`${formatNumber(metrics.totalEmissions, 1)} kg CO2e`}
         />
         <CompanyKpi
-          icon={<Leaf />}
-          label="Balance ambiental"
-          tone="emerald"
-          value={`${formatNumber(metrics.totalStoredCarbon, 1)} kg`}
-        />
-        <CompanyKpi
           detail={`${formatNumber(
             metrics.topEmitter?.emisiones_totales_kg_co2e || 0,
             1
           )} kg CO2e`}
           icon={<BarChart3 />}
-          label="Etapa con mayor emision"
+          label="Etapa con mayor emisión"
           value={metrics.topEmitter?.nombre || "Sin datos"}
-        />
-        <CompanyKpi
-          detail={`${formatNumber(
-            Math.abs(Number(metrics.bestBalance?.balance_neto_kg_co2e || 0)),
-            1
-          )} kg CO2e`}
-          icon={<ShieldCheck />}
-          label="Etapa con mejor balance"
-          tone="emerald"
-          value={metrics.bestBalance?.nombre || "Sin datos"}
         />
       </section>
 
-      <EnvironmentalBalanceWaterfall
-        emissions={metrics.totalEmissions}
-        storedCarbon={metrics.totalStoredCarbon}
+      <UnitMetricBarChart
+        color="#22D3EE"
+        dataKey="emisiones"
+        description="Permite identificar rápidamente dónde se concentra el mayor problema ambiental."
+        rows={metrics.unitComparisonRows}
+        title="Emisiones por etapa / frente"
+        valueLabel="Emisiones"
       />
 
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-        <InsightCard
-          icon={<Gauge />}
-          label="Etapa lider en emisiones"
-          value={metrics.topEmitter?.nombre || "Sin datos"}
-        />
-        <InsightCard
-          icon={<Factory />}
-          label="Etapa con mayor fuente_emision"
-          value={metrics.topOperational?.nombre || "Sin datos"}
-        />
-        <InsightCard
-          icon={<Leaf />}
-          label="Etapa con mayor balance ambiental"
-          value={metrics.topStorage?.nombre || "Sin datos"}
-        />
-        <InsightCard
-          icon={<FileCheck2 />}
-          label="Etapa con mayor trazabilidad"
-          value={metrics.topTraceability?.nombre || "Sin datos"}
-        />
-      </section>
-
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <UnitMetricBarChart
-          color="#22D3EE"
-          dataKey="emisiones"
-          description="Permite identificar rapidamente donde se concentra el mayor problema ambiental."
-          rows={metrics.unitComparisonRows}
-          title="Emisiones por etapa / frente"
-          valueLabel="Emisiones"
-        />
-
-        <UnitMetricBarChart
-          color="#34D399"
-          dataKey="balance_ambiental"
-          description="Muestra qué etapas aportan más al balance ambiental positivo."
-          rows={metrics.unitComparisonRows}
-          title="Balance ambiental por etapa / frente"
-          valueLabel="Balance ambiental"
-        />
-      </section>
-
-      <UnitEmissionsCarbonChart rows={metrics.unitComparisonRows} />
-
       <MonthlyEnvironmentalTrend rows={metrics.monthlyRows} />
-
-      <OrderedUnitComparisonChart rows={metrics.unitComparisonRows} />
 
       {error && (
         <p className="rounded-2xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">
@@ -458,15 +394,6 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
           0
         )
       : Number(activeCompany?.emisiones_totales_kg_co2e || 0),
-    totalStoredCarbon: scopedUnits.length
-      ? scopedUnits.reduce((acc, unidad) => acc + getUnitStoredCarbon(unidad), 0)
-      : Number(activeCompany?.balance_ambiental_kg || 0),
-    totalPassports: scopedUnits.length
-      ? scopedUnits.reduce((acc, unidad) => acc + Number(unidad.fichas_ambientales_count || 0), 0)
-      : Number(activeCompany?.fichas_ambientales_emitidas || 0),
-    totalEvidence: scopedUnits.length
-      ? scopedUnits.reduce((acc, unidad) => acc + Number(unidad.evidencias_count || 0), 0)
-      : Number(activeCompany?.evidencias_count || 0),
   };
 
   const topEmitter = maxBy(scopedUnits, (unidad) =>
@@ -475,57 +402,24 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
   const topOperational = maxBy(scopedUnits, (unidad) =>
     Number(unidad.obras_count || 0) + Number(unidad.registros_count || 0)
   );
-  const topStorage = maxBy(scopedUnits, getUnitStoredCarbon);
-  const topTraceability = maxBy(scopedUnits, (unidad) =>
-    Number(unidad.fichas_ambientales_count || 0) + Number(unidad.evidencias_count || 0)
-  );
-  const bestBalance =
-    scopedUnits
-      .map((unidad) => ({
-        ...unidad,
-        balance_neto_kg_co2e:
-          Number(unidad.emisiones_totales_kg_co2e || 0) - getUnitStoredCarbon(unidad),
-      }))
-      .filter((unidad) => Number(unidad.balance_neto_kg_co2e || 0) < 0)
-      .sort(
-        (left, right) =>
-          Number(left.balance_neto_kg_co2e || 0) -
-          Number(right.balance_neto_kg_co2e || 0)
-      )[0] || null;
   const topEmissionShare =
     totals.totalEmissions > 0 && topEmitter
       ? (Number(topEmitter.emisiones_totales_kg_co2e || 0) / totals.totalEmissions) * 100
       : 0;
-  const globalBalance = totals.totalEmissions - totals.totalStoredCarbon;
   const unitComparisonRows = scopedUnits
-    .map((unidad) => {
-      const emissions = Number(unidad.emisiones_totales_kg_co2e || 0);
-      const storedCarbon = getUnitStoredCarbon(unidad);
-
-      return {
-        unidad: unidad.nombre || unidad.etapa_id || "Sin etapa",
-        balance_ambiental: storedCarbon,
-        emisiones: emissions,
-        emisiones_comparacion: emissions ? -emissions : 0,
-      };
-    })
-    .sort(
-      (left, right) =>
-        Math.max(right.emisiones, right.balance_ambiental) -
-        Math.max(left.emisiones, left.balance_ambiental)
-    );
+    .map((unidad) => ({
+      unidad: unidad.nombre || unidad.etapa_id || "Sin etapa",
+      emisiones: Number(unidad.emisiones_totales_kg_co2e || 0),
+    }))
+    .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
   const monthlyRows = buildMonthlyRows(scopedUnits);
 
   return {
     ...totals,
     activeCompany,
-    bestBalance,
-    globalBalance,
     topEmitter,
     topEmissionShare,
     topOperational,
-    topStorage,
-    topTraceability,
     monthlyRows,
     unitComparisonRows,
   };
@@ -544,7 +438,6 @@ function buildStrategicSummary(metrics) {
 
   const topOperationalName = metrics.topOperational?.nombre || "la etapa con mayor actividad";
   const topEmitterName = metrics.topEmitter?.nombre || "la etapa con mayor huella";
-  const topTraceabilityName = metrics.topTraceability?.nombre || "la etapa con mejor trazabilidad";
   const hasEmissions = Number(metrics.totalEmissions || 0) > 0;
   const emissionShare = formatNumber(metrics.topEmissionShare, 1);
   const concentration =
@@ -553,16 +446,12 @@ function buildStrategicSummary(metrics) {
       : metrics.topEmissionShare >= 35
         ? "una concentración relevante"
         : "una distribución relativamente balanceada";
-  const balanceText =
-    metrics.globalBalance < 0
-      ? "El balance general se mantiene favorable gracias al aporte ambiental registrado, por lo que conviene proteger esa ventaja con evidencia y seguimiento."
-      : "El balance general todavía requiere acciones de reducción, por lo que conviene priorizar los focos con mayor impacto antes de escalar cambios operativos.";
 
   if (!hasEmissions) {
     return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas y su mayor carga operativa se observa en ${topOperationalName}. Aún no existe una huella de carbono suficientemente registrada para definir una etapa crítica por emisiones, por lo que el foco inmediato debe ser completar registros, vincular evidencias y validar factores de emisión antes de tomar decisiones de reducción.`;
   }
 
-  return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas. La mayor carga operativa se observa en ${topOperationalName}, mientras que ${topEmitterName} concentra el ${emissionShare}% de las emisiones registradas, lo que muestra ${concentration} del impacto ambiental. ${topTraceabilityName} presenta el mejor respaldo documental disponible, pero la decisión más importante es cruzar esa trazabilidad con los focos de mayor huella para priorizar acciones medibles. ${balanceText}`;
+  return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas. La mayor carga operativa se observa en ${topOperationalName}, mientras que ${topEmitterName} concentra el ${emissionShare}% de las emisiones registradas, lo que muestra ${concentration} del impacto ambiental. La decisión más importante es priorizar esta etapa, revisar sus fuentes principales y ejecutar acciones medibles donde exista mayor potencial de reducción.`;
 }
 
 function UnitMetricBarChart({ color, dataKey, description, rows, title, valueLabel }) {
@@ -623,95 +512,6 @@ function UnitMetricBarChart({ color, dataKey, description, rows, title, valueLab
   );
 }
 
-function UnitEmissionsCarbonChart({ rows }) {
-  const visibleRows = (rows || []).filter(
-    (row) => Number(row.emisiones || 0) > 0 || Number(row.balance_ambiental || 0) > 0
-  );
-  const chartHeight = Math.max(320, Math.min(560, visibleRows.length * 58 + 120));
-
-  if (!visibleRows.length) {
-    return null;
-  }
-
-  return (
-    <section className="premium-card premium-card-interactive rounded-3xl bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
-      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <ChartHeading
-          description="Contraste entre la huella generada y el balance ambiental por cada etapa."
-          title="Emisiones vs balance ambiental"
-        />
-        <div className="flex flex-wrap gap-3 text-xs font-semibold">
-          <span className="inline-flex items-center gap-2 text-[#075985]">
-            <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
-            Emisiones
-          </span>
-          <span className="inline-flex items-center gap-2 text-[var(--primary-dark)]">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
-            Balance ambiental
-          </span>
-        </div>
-      </div>
-
-      <div className="w-full" style={{ height: chartHeight }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={visibleRows}
-            layout="vertical"
-            margin={{ top: 8, right: 24, bottom: 8, left: 24 }}
-          >
-            <XAxis
-              axisLine={{ stroke: "#64748B" }}
-              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
-              tickFormatter={(value) => formatNumber(Math.abs(Number(value || 0)), 0)}
-              tickLine={false}
-              type="number"
-            />
-            <YAxis
-              axisLine={{ stroke: "#64748B" }}
-              dataKey="unidad"
-              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
-              tickLine={false}
-              type="category"
-              width={170}
-            />
-            <Tooltip
-              contentStyle={unitChartTooltipStyle}
-              cursor={{ fill: "rgba(148, 163, 184, 0.08)" }}
-              formatter={(value, name) => {
-                const label =
-                  name === "emisiones_comparacion"
-                    ? "Emisiones"
-                    : "Balance ambiental";
-
-                return [
-                  `${formatNumber(Math.abs(Number(value || 0)), 1)} kg CO2e`,
-                  label,
-                ];
-              }}
-              labelStyle={{ color: "#1F2937", fontWeight: 700 }}
-            />
-            <ReferenceLine stroke="#64748B" x={0} />
-            <Bar
-              barSize={18}
-              dataKey="emisiones_comparacion"
-              fill="#22D3EE"
-              name="Emisiones"
-              radius={[10, 0, 0, 10]}
-            />
-            <Bar
-              barSize={18}
-              dataKey="balance_ambiental"
-              fill="#34D399"
-              name="Balance ambiental"
-              radius={[0, 10, 10, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </section>
-  );
-}
-
 function MonthlyEnvironmentalTrend({ rows }) {
   if (!rows?.length) {
     return null;
@@ -719,8 +519,8 @@ function MonthlyEnvironmentalTrend({ rows }) {
 
   return (
     <ChartPanel
-      description="Ayuda a ver si la operacion esta aumentando o reduciendo su impacto en el tiempo."
-      title="Evolucion mensual de emisiones, carbono y balance"
+      description="Ayuda a ver si la operación aumenta o reduce sus emisiones en el tiempo."
+      title="Evolución mensual de emisiones"
     >
       <div className="h-[360px] w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -754,157 +554,8 @@ function MonthlyEnvironmentalTrend({ rows }) {
               strokeWidth={3}
               type="monotone"
             />
-            <Line
-              dataKey="balance_ambiental"
-              dot={{ r: 3 }}
-              name="Balance ambiental"
-              stroke="#34D399"
-              strokeWidth={3}
-              type="monotone"
-            />
-            <Line
-              dataKey="balance_neto"
-              dot={{ r: 3 }}
-              name="Balance neto"
-              stroke="#FBBF24"
-              strokeWidth={3}
-              type="monotone"
-            />
           </LineChart>
         </ResponsiveContainer>
-      </div>
-    </ChartPanel>
-  );
-}
-
-function OrderedUnitComparisonChart({ rows }) {
-  const visibleRows = (rows || [])
-    .filter((row) => Number(row.emisiones || 0) > 0 || Number(row.balance_ambiental || 0) > 0)
-    .sort(
-      (left, right) =>
-        Number(right.emisiones || 0) - Number(left.emisiones || 0) ||
-        Number(right.balance_ambiental || 0) - Number(left.balance_ambiental || 0)
-    );
-  const chartHeight = Math.max(340, Math.min(560, visibleRows.length * 62 + 120));
-
-  if (!visibleRows.length) {
-    return null;
-  }
-
-  return (
-    <ChartPanel
-      description="Este grafico compara las emisiones y el balance ambiental por etapa. Las etapas se ordenan por mayor emision para identificar donde actuar primero."
-      title="Emisiones y balance ambiental por etapa"
-    >
-      <div className="w-full" style={{ height: chartHeight }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={visibleRows}
-            layout="vertical"
-            margin={{ top: 8, right: 24, bottom: 8, left: 24 }}
-          >
-            <CartesianGrid horizontal={false} stroke="#B8C6BE" />
-            <XAxis
-              axisLine={{ stroke: "#64748B" }}
-              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
-              tickFormatter={(value) => formatNumber(Number(value || 0), 0)}
-              tickLine={false}
-              type="number"
-            />
-            <YAxis
-              axisLine={{ stroke: "#64748B" }}
-              dataKey="unidad"
-              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
-              tickLine={false}
-              type="category"
-              width={180}
-            />
-            <Tooltip
-              contentStyle={unitChartTooltipStyle}
-              formatter={(value, name) => {
-                const label =
-                  name === "balance_ambiental"
-                    ? "Balance ambiental por etapa"
-                    : "Emisiones por etapa";
-
-                return [
-                  `${formatNumber(Number(value || 0), 1)} kg CO2e`,
-                  label,
-                ];
-              }}
-              labelStyle={{ color: "#1F2937", fontWeight: 700 }}
-            />
-            <Bar
-              barSize={16}
-              dataKey="emisiones"
-              fill="#22D3EE"
-              name="Emisiones por etapa"
-              radius={[0, 8, 8, 0]}
-            />
-            <Bar
-              barSize={16}
-              dataKey="balance_ambiental"
-              fill="#34D399"
-              name="Balance ambiental por etapa"
-              radius={[0, 8, 8, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </ChartPanel>
-  );
-}
-
-function EnvironmentalBalanceWaterfall({ emissions, storedCarbon }) {
-  const totalEmissions = Number(emissions || 0);
-  const totalStoredCarbon = Number(storedCarbon || 0);
-  const balance = totalStoredCarbon - totalEmissions;
-  const maxValue = Math.max(totalEmissions, totalStoredCarbon, Math.abs(balance), 1);
-  const rows = [
-    {
-      color: "bg-[var(--primary)]",
-      label: "Balance ambiental",
-      tone: "text-[var(--primary-dark)]",
-      value: totalStoredCarbon,
-    },
-    {
-      color: "bg-[#0EA5C6]",
-      label: "Emisiones generadas",
-      tone: "text-[#075985]",
-      value: -totalEmissions,
-    },
-    {
-      color: balance >= 0 ? "bg-[var(--primary)]" : "bg-[#D92D20]",
-      label: "Balance ambiental neto",
-      tone: balance >= 0 ? "text-[var(--primary-dark)]" : "text-[#B42318]",
-      value: balance,
-    },
-  ];
-
-  return (
-    <ChartPanel
-      description="Resume el resultado ambiental entre balance calculado y emisiones acumuladas."
-      title="Balance ambiental"
-    >
-      <div className="grid gap-4">
-        {rows.map((row) => {
-          const width = `${Math.max(6, (Math.abs(row.value) / maxValue) * 100)}%`;
-
-          return (
-            <div key={row.label} className="premium-card-interactive rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
-              <div className="mb-3 flex items-center justify-between gap-4">
-                <p className="text-sm font-bold text-[var(--text-muted)]">{row.label}</p>
-                <p className={`text-lg font-bold ${row.tone}`}>
-                  {row.value >= 0 ? "+" : "-"}
-                  {formatNumber(Math.abs(row.value), 1)} kg CO2e
-                </p>
-              </div>
-              <div className="h-3 overflow-hidden rounded-full bg-[#DDE6E0]">
-                <div className={`h-full rounded-full ${row.color}`} style={{ width }} />
-              </div>
-            </div>
-          );
-        })}
       </div>
     </ChartPanel>
   );
@@ -944,27 +595,12 @@ function buildMonthlyRows(etapas) {
       const row = ensureMonth(months, monthKey);
       row.emisiones += Number(fuente_emision.emisiones_kg_co2e || 0);
     });
-
-    (unidad.obras_resumen || []).forEach((obra) => {
-      const monthKey = getMonthKey(obra.fecha);
-
-      if (!monthKey) {
-        return;
-      }
-
-      const row = ensureMonth(months, monthKey);
-      row.balance_ambiental += Math.max(
-        Number(obra.emisiones_kg_co2e || 0) - Number(obra.balance_neto_kg_co2e || 0),
-        0
-      );
-    });
   });
 
   return Array.from(months.values())
     .sort((left, right) => left.mes.localeCompare(right.mes))
     .map((row) => ({
       ...row,
-      balance_neto: row.balance_ambiental - row.emisiones,
       mes_label: formatMonth(row.mes),
     }));
 }
@@ -974,7 +610,6 @@ function ensureMonth(months, monthKey) {
     months.set(monthKey, {
       mes: monthKey,
       emisiones: 0,
-      balance_ambiental: 0,
     });
   }
 
@@ -1007,34 +642,8 @@ function formatMonth(monthKey) {
 }
 
 const trendLabels = {
-  balance_neto: "Balance neto",
-  balance_ambiental: "Balance ambiental",
   emisiones: "Emisiones",
 };
-
-function getUnitStoredCarbon(unidad) {
-  const directValue = Number(unidad.balance_ambiental_kg || 0);
-
-  if (directValue) {
-    return directValue;
-  }
-
-  return (unidad.obras_resumen || []).reduce((acc, obra) => {
-    const explicitCarbon = Number(obra.balance_ambiental_kg || 0);
-
-    if (explicitCarbon) {
-      return acc + explicitCarbon;
-    }
-
-    return (
-      acc +
-      Math.max(
-        Number(obra.emisiones_kg_co2e || 0) - Number(obra.balance_neto_kg_co2e || 0),
-        0
-      )
-    );
-  }, 0);
-}
 
 function maxBy(items, selector) {
   if (!items.length) {
@@ -1067,24 +676,10 @@ function CompanyKpi({ detail, icon, label, tone = "slate", value }) {
   );
 }
 
-function InsightCard({ icon, label, value }) {
-  return (
-    <div className="premium-card-interactive rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
-      <div className="mb-3 flex items-center gap-3">
-        <div className="text-[var(--primary-dark)]">{icon}</div>
-        <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
-          {label}
-        </p>
-      </div>
-      <p className="mt-2 line-clamp-2 text-lg font-bold text-[var(--text-main)]">{value}</p>
-    </div>
-  );
-}
-
 const fieldLabels = {
   rut: "RUT",
   nombre: "nombre",
-  region: "region",
+  region: "región",
   comuna: "comuna",
   rubro: "rubro",
   email: "email",
