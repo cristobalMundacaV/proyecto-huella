@@ -99,10 +99,14 @@ function ResumenTab({ balanceData, selectedObra }) {
     missingDocumentTypes,
     registrosWithCategories,
   });
-  const mainRecommendation =
-    totalEmissions > 0
-      ? recommendationByCategory[criticalCategory] || recommendationByCategory.Otros
-      : "Agrega registros de emisión para identificar las fuentes críticas de la obra.";
+  const operationalRecommendations = buildOperationalRecommendations({
+    carbonIntensity,
+    criticalCategory,
+    criticalStage,
+    documents,
+    registros,
+    topSources,
+  });
 
   return (
     <div className="space-y-6">
@@ -176,17 +180,7 @@ function ResumenTab({ balanceData, selectedObra }) {
         )}
       </section>
 
-      <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
-        <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--primary-dark)]">
-          Recomendación principal
-        </p>
-        <h2 className="mt-1 text-2xl font-bold text-[var(--text-main)]">
-          Acción prioritaria sugerida
-        </h2>
-        <p className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] p-4 text-sm font-medium leading-6 text-[var(--primary-dark)]">
-          {mainRecommendation}
-        </p>
-      </section>
+      <RecommendationPanel recommendations={operationalRecommendations} />
 
       <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -272,6 +266,80 @@ function TopSourceKpi({ category, className = "", emissions, index, percentage, 
       </div>
     </div>
   );
+}
+
+function RecommendationPanel({ recommendations }) {
+  return (
+    <section className="rounded-3xl border border-[#A7F3D0] bg-[linear-gradient(135deg,#F0FDF4_0%,#FFFFFF_50%,#ECFDF5_100%)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--primary-dark)]">
+        Recomendación principal
+      </p>
+      <h2 className="mt-1 text-2xl font-bold text-[var(--text-main)]">
+        Plan operativo recomendado
+      </h2>
+      <p className="mt-1 max-w-4xl text-sm font-medium leading-6 text-[var(--text-muted)]">
+        El sistema transforma la lectura ambiental en acciones concretas, priorizadas y medibles para reducir emisiones sin frenar la operación.
+      </p>
+
+      <div className="mt-5 space-y-3">
+        {recommendations.steps.map((item, index) => (
+          <article key={item.title} className="rounded-2xl border border-[#BBF7D0] bg-white p-4 shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
+            <div className="flex gap-4">
+              <div className="flex h-9 min-w-9 items-center justify-center rounded-2xl border border-[#86EFAC] bg-[#ECFDF5] text-sm font-black text-[#047857]">
+                {index + 1}
+              </div>
+              <div>
+                <h3 className="text-base font-black text-[var(--text-main)]">{item.title}</h3>
+                <p className="mt-1 text-[15px] font-semibold leading-7 text-[#065F46]">{item.description}</p>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="mt-5 rounded-2xl border-l-4 border-[#059669] bg-white p-5 shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
+        <p className="text-xs font-black uppercase tracking-[0.14em] text-[#047857]">Lectura fuerte</p>
+        <p className="mt-2 text-lg font-black leading-8 text-[var(--text-main)]">{recommendations.summary}</p>
+      </div>
+    </section>
+  );
+}
+
+function buildOperationalRecommendations({ carbonIntensity, criticalCategory, criticalStage, documents, registros, topSources }) {
+  const mainCategory = criticalCategory && criticalCategory !== "Sin datos" ? criticalCategory : "la categoría crítica";
+  const mainStage = criticalStage && criticalStage !== "Sin datos" ? criticalStage : "la etapa crítica";
+  const mainSource = topSources[0]?.source || "la fuente más emisora";
+  const evidenceCount = Math.min(20, registros.length || 20);
+  const intensityText = carbonIntensity != null ? `${formatNumber(carbonIntensity, 2)} kg CO2e/m²` : "la intensidad kg CO2e/m²";
+  const documentAction = documents.length
+    ? "Asegurar que los respaldos existentes estén vinculados a los registros de mayor impacto."
+    : "Cargar factura, guía o ficha técnica antes de aprobar nuevos registros críticos.";
+
+  return {
+    steps: [
+      {
+        title: `Priorizar ${mainCategory} en ${mainStage}`,
+        description: `Revisar ${mainSource}, proveedores, cantidades y alternativas antes de nuevas compras o avances de obra.`,
+      },
+      {
+        title: "Exigir validación ambiental en compras críticas",
+        description: `No aprobar materiales, combustibles o servicios de alto impacto sin factor de emisión, evidencia y origen verificable.`,
+      },
+      {
+        title: "Regularizar evidencias de los registros más emisores",
+        description: `Los ${formatNumber(evidenceCount, 0)} registros con mayor kg CO2e deben quedar respaldados con factura, guía, ficha técnica o documento equivalente. ${documentAction}`,
+      },
+      {
+        title: "Controlar intensidad kg CO2e/m² semanalmente",
+        description: `Usar ${intensityText} como línea base y medir la reducción contra el avance real de la obra, no solo contra el total acumulado.`,
+      },
+      {
+        title: `Ejecutar piloto en ${mainStage}`,
+        description: `Concentrar el primer esfuerzo en la etapa crítica, medir resultados y escalar solo cuando la reducción se mantenga sin afectar la ejecución.`,
+      },
+    ],
+    summary: `La empresa no necesita hacer de todo al mismo tiempo. Necesita intervenir ${mainStage}, controlar ${mainCategory}, exigir evidencia documental y medir reducción por kg CO2e/m². Ese es el camino más realista para bajar emisiones sin romper la operación.`,
+  };
 }
 
 function SourceDonutChart({ rows, totalEmissions }) {
