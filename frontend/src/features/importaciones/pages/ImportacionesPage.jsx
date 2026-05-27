@@ -1137,7 +1137,7 @@ function ImportacionesView({ onImportConfirmed }) {
       />
 
       <ImportPanel
-        title="Importar etapas / frentes"
+        title="Importar etapas"
         icon={<Factory size={18} />}
         columns={["ID Etapa", "ID constructora", "Nombre", "Tipo", "Región", "Comuna", "Dirección", "Estado"]}
         state={units}
