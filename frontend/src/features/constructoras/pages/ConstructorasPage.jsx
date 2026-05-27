@@ -24,6 +24,7 @@ import {
   isValidPhone,
 } from "@/shared/utils/validators";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { getConstructionCategoryLabel } from "@/features/obras/utils/constructionEmissionCategories";
 import {
   Bar,
   BarChart,
@@ -55,6 +56,16 @@ const unitChartTooltipStyle = {
   color: "#1F2937",
   boxShadow: "0 16px 35px rgba(15, 23, 42, 0.12)",
 };
+
+const categoryStackColors = [
+  "#0891B2",
+  "#0E7C66",
+  "#7C3AED",
+  "#D97706",
+  "#DC2626",
+  "#2563EB",
+  "#64748B",
+];
 
 const monthFormatter = new Intl.DateTimeFormat("es-CL", {
   month: "short",
@@ -335,6 +346,11 @@ function ConstructorasView({
         valueLabel="Emisiones"
       />
 
+      <CategoryStackedBarChart
+        rows={metrics.categoryStackRows}
+        segments={metrics.categoryStackSegments}
+      />
+
       <MonthlyEnvironmentalTrend rows={metrics.monthlyRows} />
 
       {error && (
@@ -412,6 +428,7 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
       emisiones: Number(unidad.emisiones_totales_kg_co2e || 0),
     }))
     .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
+  const categoryStack = buildCategoryStackData(scopedUnits);
   const monthlyRows = buildMonthlyRows(scopedUnits);
 
   return {
@@ -420,8 +437,59 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
     topEmitter,
     topEmissionShare,
     topOperational,
+    categoryStackRows: categoryStack.rows,
+    categoryStackSegments: categoryStack.segments,
     monthlyRows,
     unitComparisonRows,
+  };
+}
+
+function buildCategoryStackData(etapas) {
+  const categoryMap = new Map();
+  const categoryTotals = new Map();
+  const rows = etapas.map((unidad) => {
+    const row = {
+      unidad: unidad.nombre || unidad.etapa_id || "Sin etapa",
+      total: 0,
+    };
+
+    (unidad.registros_emision_resumen || []).forEach((registro) => {
+      const categoryLabel = getConstructionCategoryLabel(
+        registro.categoria,
+        registro.fuente_emision
+      ) || "Otros";
+      const emissions = Number(registro.emisiones_kg_co2e || registro.emisiones || 0);
+
+      if (!emissions) return;
+
+      if (!categoryMap.has(categoryLabel)) {
+        categoryMap.set(categoryLabel, `categoria_${categoryMap.size}`);
+      }
+
+      const key = categoryMap.get(categoryLabel);
+      row[key] = Number(row[key] || 0) + emissions;
+      row.total += emissions;
+      categoryTotals.set(categoryLabel, Number(categoryTotals.get(categoryLabel) || 0) + emissions);
+    });
+
+    return row;
+  });
+
+  const segments = Array.from(categoryMap.entries())
+    .map(([label, key]) => ({
+      key,
+      label,
+      total: Number(categoryTotals.get(label) || 0),
+    }))
+    .sort((left, right) => right.total - left.total)
+    .map((segment, index) => ({
+      ...segment,
+      color: categoryStackColors[index % categoryStackColors.length],
+    }));
+
+  return {
+    rows: rows.filter((row) => row.total > 0).sort((left, right) => right.total - left.total),
+    segments,
   };
 }
 
@@ -505,6 +573,81 @@ function UnitMetricBarChart({ color, dataKey, description, rows, title, valueLab
               name={valueLabel}
               radius={[0, 10, 10, 0]}
             />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </ChartPanel>
+  );
+}
+
+function CategoryStackedBarChart({ rows, segments }) {
+  const visibleRows = rows || [];
+  const visibleSegments = (segments || []).filter((segment) => Number(segment.total || 0) > 0);
+  const chartHeight = Math.max(320, Math.min(560, visibleRows.length * 58 + 135));
+
+  if (!visibleRows.length || !visibleSegments.length) {
+    return null;
+  }
+
+  return (
+    <ChartPanel
+      description="Muestra cómo se distribuyen las emisiones de cada etapa según sus categorías principales."
+      title="Emisiones por categoría"
+    >
+      <div className="mb-4 flex flex-wrap gap-3">
+        {visibleSegments.map((segment) => (
+          <span
+            key={segment.key}
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600"
+          >
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: segment.color }} />
+            {segment.label}
+          </span>
+        ))}
+      </div>
+      <div className="w-full" style={{ height: chartHeight }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={visibleRows}
+            layout="vertical"
+            margin={{ top: 8, right: 24, bottom: 8, left: 24 }}
+          >
+            <CartesianGrid horizontal={false} stroke="#B8C6BE" />
+            <XAxis
+              axisLine={{ stroke: "#64748B" }}
+              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
+              tickFormatter={(value) => formatNumber(Number(value || 0), 0)}
+              tickLine={false}
+              type="number"
+            />
+            <YAxis
+              axisLine={{ stroke: "#64748B" }}
+              dataKey="unidad"
+              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
+              tickLine={false}
+              type="category"
+              width={180}
+            />
+            <Tooltip
+              contentStyle={unitChartTooltipStyle}
+              cursor={{ fill: "rgba(148, 163, 184, 0.08)" }}
+              formatter={(value, name) => [
+                `${formatNumber(Number(value || 0), 1)} kg CO2e`,
+                name,
+              ]}
+              labelStyle={{ color: "#1F2937", fontWeight: 700 }}
+            />
+            {visibleSegments.map((segment, index) => (
+              <Bar
+                key={segment.key}
+                barSize={22}
+                dataKey={segment.key}
+                fill={segment.color}
+                name={segment.label}
+                radius={index === visibleSegments.length - 1 ? [0, 10, 10, 0] : [0, 0, 0, 0]}
+                stackId="emisiones_categoria"
+              />
+            ))}
           </BarChart>
         </ResponsiveContainer>
       </div>
