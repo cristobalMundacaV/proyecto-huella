@@ -22,7 +22,7 @@
       return "success";
     }
 
-    if (resolvedTitle.includes("foco principal") || resolvedTitle.includes("diésel") || resolvedTitle.includes("concentración") || resolvedTitle.includes("prioritaria") || resolvedTitle.includes("obra critica") || resolvedTitle.includes("fuente prioritaria") || resolvedTitle.includes("perí­odo con mayor emision") || resolvedTitle.includes("modo de importación")) {
+    if (resolvedTitle.includes("diésel") || resolvedTitle.includes("concentración") || resolvedTitle.includes("prioritaria") || resolvedTitle.includes("obra critica") || resolvedTitle.includes("fuente prioritaria") || resolvedTitle.includes("perí­odo con mayor emision") || resolvedTitle.includes("modo de importación")) {
       return "warning";
     }
 
@@ -31,46 +31,46 @@
 
   const toneMap = {
     danger: {
-      card: "border-[var(--kpi-danger-border)] bg-[var(--kpi-danger-bg)]",
-      icon: "border-[var(--kpi-danger-border)] bg-white text-[var(--kpi-danger-text)]",
-      title: "text-[var(--kpi-neutral-text)]",
-      value: "text-[var(--kpi-danger-text)]",
-      detail: "text-[var(--kpi-danger-text)]",
+      card: "border-[#FDA29B] bg-[#FEF3F2]",
+      icon: "border-[#FDA29B] bg-white text-[#B42318]",
+      title: "text-[#64748B]",
+      value: "text-[#B42318]",
+      detail: "text-[#B42318]",
     },
     warning: {
-      card: "border-[var(--kpi-warning-border)] bg-[var(--kpi-warning-bg)]",
-      icon: "border-[var(--kpi-warning-border)] bg-white text-[var(--kpi-warning-text)]",
-      title: "text-[var(--kpi-neutral-text)]",
-      value: "text-[var(--kpi-warning-text)]",
-      detail: "text-[var(--kpi-warning-text)]",
+      card: "border-[#FDBA74] bg-[#FFF7ED]",
+      icon: "border-[#FDBA74] bg-white text-[#B45309]",
+      title: "text-[#64748B]",
+      value: "text-[#B45309]",
+      detail: "text-[#B45309]",
     },
     success: {
-      card: "border-[var(--kpi-success-border)] bg-[var(--kpi-success-bg)]",
-      icon: "border-[var(--kpi-success-border)] bg-white text-[var(--kpi-success-text)]",
-      title: "text-[var(--kpi-neutral-text)]",
-      value: "text-[var(--kpi-success-text)]",
-      detail: "text-[var(--kpi-success-text)]",
+      card: "border-[#A7F3D0] bg-[#ECFDF3]",
+      icon: "border-[#A7F3D0] bg-white text-[#047857]",
+      title: "text-[#64748B]",
+      value: "text-[#047857]",
+      detail: "text-[#047857]",
     },
     info: {
-      card: "border-[var(--kpi-info-border)] bg-[var(--kpi-info-bg)]",
-      icon: "border-[var(--kpi-info-border)] bg-white text-[var(--kpi-info-text)]",
-      title: "text-[var(--kpi-neutral-text)]",
-      value: "text-[var(--kpi-info-text)]",
-      detail: "text-[var(--kpi-info-text)]",
+      card: "border-[#BFDBFE] bg-[#EFF6FF]",
+      icon: "border-[#BFDBFE] bg-white text-[#1D4ED8]",
+      title: "text-[#64748B]",
+      value: "text-[#1D4ED8]",
+      detail: "text-[#1D4ED8]",
     },
     neutral: {
-      card: "border-[var(--kpi-neutral-border)] bg-[var(--kpi-neutral-bg)]",
-      icon: "border-[var(--kpi-neutral-border)] bg-white text-[var(--kpi-neutral-text)]",
-      title: "text-[var(--kpi-neutral-text)]",
-      value: "text-[var(--kpi-dark-text)]",
-      detail: "text-[var(--kpi-neutral-text)]",
+      card: "border-[#E2E8F0] bg-white",
+      icon: "border-[#E2E8F0] bg-[#F8FAFC] text-[#334155]",
+      title: "text-[#64748B]",
+      value: "text-[#334155]",
+      detail: "text-[#64748B]",
     },
   }[semanticTone] || {
-    card: "border-[var(--kpi-neutral-border)] bg-[var(--kpi-neutral-bg)]",
-    icon: "border-[var(--kpi-neutral-border)] bg-white text-[var(--kpi-neutral-text)]",
-    title: "text-[var(--kpi-neutral-text)]",
-    value: "text-[var(--kpi-dark-text)]",
-    detail: "text-[var(--kpi-neutral-text)]",
+    card: "border-[#E2E8F0] bg-white",
+    icon: "border-[#E2E8F0] bg-[#F8FAFC] text-[#334155]",
+    title: "text-[#64748B]",
+    value: "text-[#334155]",
+    detail: "text-[#64748B]",
   };
 
   const toneClasses = toneMap.card;
@@ -80,9 +80,9 @@
   const detailClasses = toneMap.detail;
 
   return (
-    <div className={`premium-card premium-card-interactive p-6 ring-1 ring-white/60 ${toneClasses}`}>
+    <div className={`rounded-[18px] p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)] ring-1 ring-white/60 ${toneClasses}`}>
       <div className="mb-4 flex flex-col items-center text-center">
-        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border shadow-[0_10px_20px_rgba(15,23,42,0.06)] ${iconClasses}`}>
+        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border shadow-[0_8px_24px_rgba(15,23,42,0.04)] ${iconClasses}`}>
           {icon}
         </div>
         <p className={`mt-3 text-sm font-bold ${titleClasses}`}>{title}</p>
