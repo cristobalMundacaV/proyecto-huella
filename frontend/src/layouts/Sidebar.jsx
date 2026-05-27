@@ -39,7 +39,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
     },
     {
       icon: Factory,
-      label: "Etapas / frentes",
+      label: "Etapas",
       view: "etapas",
     },
     {
@@ -74,7 +74,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
     },
   ];
   const statusItems = [
-    ["Etapas / frentes", systemStatus?.etapas ?? 0],
+    ["Etapas", systemStatus?.etapas ?? 0],
     ["Obras", systemStatus?.obras ?? 0],
     ["Registros", systemStatus?.registros_emision ?? 0],
     ["Evidencias", systemStatus?.evidencias ?? 0],
