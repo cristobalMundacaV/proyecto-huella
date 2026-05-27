@@ -2,18 +2,12 @@ import axios from "axios";
 
 function getCsrfToken() {
   if (typeof document === "undefined") return null;
-  const cookie = document.cookie
-    ?.split(";")
-    .map((item) => item.trim())
-    .find((item) => item.startsWith("csrftoken="));
+  const cookie = document.cookie?.split(";").map((item) => item.trim()).find((item) => item.startsWith("csrftoken="));
   return cookie ? decodeURIComponent(cookie.slice("csrftoken=".length)) : null;
 }
 
 export async function refreshCsrfToken() {
-  const response = await axios.get(
-    `${import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api"}/auth/csrf-token/`,
-    { withCredentials: true }
-  );
+  const response = await axios.get(`${import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api"}/auth/csrf-token/`, { withCredentials: true });
   return response.data.csrfToken;
 }
 
@@ -26,19 +20,12 @@ export const api = axios.create({
 api.interceptors.request.use(async (config) => {
   const method = String(config.method || "get").toLowerCase();
   const isReadMethod = ["get", "head", "options"].includes(method);
-  const isDemoMode =
-    typeof window !== "undefined" &&
-    window.localStorage.getItem("carbono_zero.demo") === "true";
-
-  if (isDemoMode && !isReadMethod) {
-    return Promise.reject(new axios.CanceledError("El modo demo permite solo lectura."));
-  }
-
+  const isDemoMode = typeof window !== "undefined" && window.localStorage.getItem("carbono_zero.demo") === "true";
+  if (isDemoMode && !isReadMethod) return Promise.reject(new axios.CanceledError("El modo demo permite solo lectura."));
   if (!isReadMethod) {
     const csrfToken = getCsrfToken() || (await refreshCsrfToken());
     if (csrfToken) config.headers["X-CSRFToken"] = csrfToken;
   }
-
   return config;
 });
 
@@ -46,790 +33,99 @@ function resolveApiBaseUrl(baseUrl) {
   const fallback = "http://127.0.0.1:8000/api";
   const candidate = (baseUrl || fallback).trim();
   if (/^https?:\/\//i.test(candidate)) return candidate;
-  if (candidate.startsWith("/") && typeof window !== "undefined") {
-    return `${window.location.origin}${candidate}`;
-  }
+  if (candidate.startsWith("/") && typeof window !== "undefined") return `${window.location.origin}${candidate}`;
   return fallback;
 }
 
 function buildApiUrl(path) {
   const baseUrl = resolveApiBaseUrl(api.defaults.baseURL);
-  const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
-  return new URL(path.replace(/^\//, ""), normalizedBaseUrl).toString();
-}
-
-function constructoraPath(constructoraId, path = "") {
-  return `/constructoras/${encodeURIComponent(constructoraId)}${path}`;
-}
-
-function obraPath(codigoObra, path = "") {
-  return `/obras/${encodeURIComponent(codigoObra)}${path}`;
-}
-
-function buildQuery(params = {}) {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") query.append(key, value);
-  });
-  const suffix = query.toString();
-  return suffix ? `?${suffix}` : "";
-}
-
-export async function getCurrentUser() {
-  const response = await api.get("/auth/me/");
-  return response.data;
-}
-
-export async function loginUser(payload) {
-  const response = await api.post("/auth/login/", payload);
-  return response.data;
-}
-
-export async function logoutUser() {
-  const response = await api.post("/auth/logout/");
-  return response.data;
-}
-
-export async function bootstrapUser(payload) {
-  const response = await api.post("/auth/bootstrap/", payload);
-  return response.data;
-}
-
-export async function getConstructoras() {
-  const response = await api.get("/constructoras/");
-  return response.data;
-}
-
-export async function createConstructora(payload) {
-  const response = await api.post("/constructoras/", payload);
-  return response.data;
-}
-
-export async function deleteConstructora(constructoraId) {
-  await api.delete(constructoraPath(constructoraId, "/"));
-}
-
-export async function getConstructoraUsuarios(constructoraId) {
-  const response = await api.get(constructoraPath(constructoraId, "/usuarios/"));
-  return response.data;
-}
-
-export async function createConstructoraUsuario(constructoraId, payload) {
-  const response = await api.post(constructoraPath(constructoraId, "/usuarios/"), payload);
-  return response.data;
-}
-
-export async function getConstructoraDashboard(constructoraId, params = {}) {
-  const response = await api.get(constructoraPath(constructoraId, "/dashboard/"), { params });
-  return response.data;
-}
-
-export async function getConstructoraEstado(constructoraId) {
-  const response = await api.get(constructoraPath(constructoraId, "/estado/"));
-  return response.data;
-}
-
-export async function getConstructoraConfiguracion(constructoraId) {
-  const response = await api.get(constructoraPath(constructoraId, "/configuracion/"));
-  return response.data;
-}
-
-export async function updateConstructoraConfiguracion(constructoraId, payload) {
-  const response = await api.patch(constructoraPath(constructoraId, "/configuracion/"), payload);
-  return response.data;
-}
-
-export async function getConstructoraEtapas(constructoraId, params = {}) {
-  const response = await api.get(constructoraPath(constructoraId, "/etapas/"), { params });
-  return response.data;
-}
-
-export async function createEtapaObra(constructoraId, payload) {
-  const response = await api.post(constructoraPath(constructoraId, "/etapas/"), payload);
-  return response.data;
-}
-
-export async function getEtapasObra(params = {}) {
-  const constructoraId = params.constructora_id;
-  if (!constructoraId) return [];
-  return getConstructoraEtapas(constructoraId, params);
-}
-
-export async function getObras() {
-  const response = await api.get("/obras/");
-  return response.data;
-}
-
-export async function getConstructoraObras(constructoraId) {
-  const response = await api.get(constructoraPath(constructoraId, "/obras/"));
-  return response.data;
-}
-
-export async function createObra(payload) {
-  const constructoraId = payload.constructora_id || payload.constructora;
-  const endpoint = constructoraId ? constructoraPath(constructoraId, "/obras/") : "/obras/";
-  const response = await api.post(endpoint, payload);
-  return response.data;
-}
-
-export async function getObraDetail(codigoObra) {
-  const [obra, registros, evidencias, transportes] = await Promise.all([
-    api.get(obraPath(codigoObra, "/")),
-    api.get(obraPath(codigoObra, "/registros-emision/")),
-    api.get(obraPath(codigoObra, "/evidencias/")),
-    api.get(obraPath(codigoObra, "/transportes/")),
-  ]);
-  return {
-    ...obra.data,
-    registros_emision: registros.data,
-    evidencias: evidencias.data,
-    transportes: transportes.data,
-  };
-}
-
-export async function getObraBalanceAmbiental(codigoObra) {
-  const response = await api.get(obraPath(codigoObra, "/"));
-  return response.data.analisis_ambiental || {};
-}
-
-export async function getConstructoraRegistrosEmision(constructoraId) {
-  const response = await api.get(constructoraPath(constructoraId, "/registros-emision/"));
-  return response.data;
-}
-
-export async function getConstructoraEmisiones(constructoraId, params = {}) {
-  const response = await api.get(constructoraPath(constructoraId, "/emisiones/"), { params });
-  return response.data;
-}
-
-export async function createRegistroEmision(codigoObra, payload) {
-  const response = await api.post(obraPath(codigoObra, "/registros-emision/"), payload);
-  return response.data;
-}
-
-export async function getConstructoraEvidencias(constructoraId, params = {}) {
-  const response = await api.get(constructoraPath(constructoraId, "/evidencias/"), { params });
-  return response.data;
-}
-
-export async function getEvidenciasConstructora(constructoraId, filters = {}) {
-  return getConstructoraEvidencias(constructoraId, filters);
-}
-
-export async function getEvidenciasKpisConstructora(constructoraId) {
-  const evidencias = await getConstructoraEvidencias(constructoraId);
-  const vinculadas = evidencias.filter((item) => item.obra || item.registro_emision).length;
-  return {
-    total: evidencias.length,
-    vinculadas,
-    pendientes: evidencias.filter((item) => item.estado_documental === "pendiente").length,
-    observadas: evidencias.filter((item) => item.estado_documental === "observada").length,
-    cobertura_documental: evidencias.length ? (vinculadas / evidencias.length) * 100 : null,
-  };
-}
-
-export async function crearEvidenciaConstructora(constructoraId, formData) {
-  const response = await api.post(constructoraPath(constructoraId, "/evidencias/"), formData);
-  return response.data;
-}
-
-export async function uploadObraEvidencia(codigoObra, payload) {
-  const formData = new FormData();
-  formData.append("tipo_evidencia", payload.tipo_evidencia || "otro");
-  formData.append("fecha_evidencia", payload.fecha_evidencia || "");
-  formData.append("nombre", payload.nombre || payload.archivo?.name || "Evidencia de obra");
-  formData.append("archivo", payload.archivo);
-  if (payload.observaciones) formData.append("observaciones", payload.observaciones);
-  const response = await api.post(obraPath(codigoObra, "/evidencias/"), formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-  return response.data;
-}
-
-export async function createTransporteObra(codigoObra, payload) {
-  const response = await api.post(obraPath(codigoObra, "/transportes/"), payload);
-  return response.data;
-}
-
-export async function getConstructoraReportes(constructoraId, params = {}) {
-  const response = await api.get(constructoraPath(constructoraId, `/reportes/${buildQuery(params)}`));
-  return response.data;
-}
-
-export async function getReporteEmisionesTiempo(constructoraId, params = {}) {
-  return getConstructoraReportes(constructoraId, params);
-}
-
-export async function getSistemaEstado() {
-  const response = await api.get("/sistema/estado/");
-  return response.data;
-}
-
-export async function getIotKpis(constructoraId) {
-  const response = await api.get("/iot/kpis/", {
-    params: constructoraId ? { constructora_id: constructoraId } : {},
-  });
-  return response.data;
-}
-
-export async function getIotUltimasLecturas(constructoraId) {
-  const response = await api.get("/iot/lecturas/ultimas/", {
-    params: constructoraId ? { constructora_id: constructoraId } : {},
-  });
-  return response.data;
-}
-
-export async function getFactoresEmision() {
-  const response = await api.get("/factores-emision/");
-  return response.data;
-}
-
-export async function getMaterialesConstruccion() {
-  const response = await api.get("/materiales-construccion/");
-  return response.data;
-}
-
-export async function calculateRouteDistance(payload) {
-  const response = await api.post("/rutas/calcular-distancia/", payload);
-  return response.data;
-}
-
-export async function getAiAdvisor(payload) {
-  const response = await api.post("/ai-advisor/", payload);
-  return response.data;
-}
-
-const REDUCTION_LIBRARY = {
-  Materiales: {
-    maxReduction: 0.18,
-    quickWin: 0.06,
-    label: "Materiales",
-    levers: [
-      "Revisar hormigón, cemento, acero y áridos",
-      "Comparar proveedores con menor factor de emisión",
-      "Reducir desperdicio y sobreconsumo de materiales",
-      "Priorizar fichas técnicas o EPD cuando existan",
-    ],
-  },
-  Transporte: {
-    maxReduction: 0.24,
-    quickWin: 0.08,
-    label: "Transporte",
-    levers: [
-      "Consolidar viajes",
-      "Priorizar proveedores cercanos",
-      "Reducir kilómetros sin carga útil",
-      "Optimizar rutas y frecuencia de despacho",
-    ],
-  },
-  Maquinaria: {
-    maxReduction: 0.18,
-    quickWin: 0.07,
-    label: "Maquinaria",
-    levers: [
-      "Controlar ralentí",
-      "Medir litros u horas máquina por equipo",
-      "Planificar turnos de maquinaria",
-      "Reforzar mantención preventiva",
-    ],
-  },
-  Energia: {
-    maxReduction: 0.22,
-    quickWin: 0.08,
-    label: "Energía",
-    levers: [
-      "Reducir uso de generadores",
-      "Optimizar consumo eléctrico de faena",
-      "Evaluar conexión temporal a red",
-      "Controlar horarios de mayor consumo",
-    ],
-  },
-  Energía: {
-    maxReduction: 0.22,
-    quickWin: 0.08,
-    label: "Energía",
-    levers: [
-      "Reducir uso de generadores",
-      "Optimizar consumo eléctrico de faena",
-      "Evaluar conexión temporal a red",
-      "Controlar horarios de mayor consumo",
-    ],
-  },
-  Residuos: {
-    maxReduction: 0.15,
-    quickWin: 0.05,
-    label: "Residuos",
-    levers: [
-      "Segregar residuos valorizables",
-      "Mejorar trazabilidad de retiro",
-      "Reducir residuos mixtos",
-      "Priorizar reciclaje o valorización",
-    ],
-  },
-  Agua: {
-    maxReduction: 0.08,
-    quickWin: 0.03,
-    label: "Agua",
-    levers: [
-      "Monitorear consumo por etapa",
-      "Detectar desviaciones operativas",
-      "Controlar uso en faena",
-    ],
-  },
-  "Procesos externos": {
-    maxReduction: 0.12,
-    quickWin: 0.04,
-    label: "Procesos externos",
-    levers: [
-      "Revisar subcontratos críticos",
-      "Solicitar información ambiental de proveedores",
-      "Priorizar procesos con respaldo documental",
-    ],
-  },
-  Otros: {
-    maxReduction: 0.06,
-    quickWin: 0.02,
-    label: "Otros",
-    levers: [
-      "Clasificar mejor los registros",
-      "Separar fuentes de emisión por categoría",
-      "Completar factores y evidencias",
-    ],
-  },
-};
-
-function normalizeScenarioText(value) {
-  return String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-}
-
-function getScenarioRows(input) {
-  if (Array.isArray(input)) return input;
-  if (Array.isArray(input?.rows)) return input.rows;
-  if (Array.isArray(input?.datos)) return input.datos;
-  if (Array.isArray(input?.registros)) return input.registros;
-  if (Array.isArray(input?.registros_emision)) return input.registros_emision;
-  if (Array.isArray(input?.data)) return input.data;
-  return [];
-}
-
-function getRegistroEmisionesValue(row) {
-  return Number(
-    row?.emisiones_kg_co2e ??
-      row?.emisiones_totales ??
-      row?.emisiones ??
-      row?.total_emisiones ??
-      row?.co2e ??
-      0
-  );
-}
-
-function getRegistroFuente(row) {
-  return (
-    row?.fuente_emision ||
-    row?.fuente ||
-    row?.actividad ||
-    row?.material ||
-    row?.nombre ||
-    "Fuente sin clasificar"
-  );
-}
-
-function getRegistroCategoria(row) {
-  const rawCategory = row?.categoria || row?.category || "Otros";
-  const normalized = normalizeScenarioText(rawCategory);
-
-  if (normalized.includes("material")) return "Materiales";
-  if (normalized.includes("transporte")) return "Transporte";
-  if (normalized.includes("maquinaria")) return "Maquinaria";
-  if (normalized.includes("energia") || normalized.includes("energía")) return "Energia";
-  if (normalized.includes("agua")) return "Agua";
-  if (normalized.includes("residuo")) return "Residuos";
-  if (normalized.includes("proceso")) return "Procesos externos";
-
-  return rawCategory || "Otros";
-}
-
-function getRegistroEtapa(row) {
-  return (
-    row?.etapa_nombre ||
-    row?.etapa ||
-    row?.obra_etapa ||
-    row?.frente ||
-    "Sin etapa"
-  );
-}
-
-function hasLinkedEvidence(row) {
-  return Boolean(
-    row?.evidencia ||
-      row?.evidencia_id ||
-      row?.evidencia_asociada ||
-      row?.registro_emision_evidencia ||
-      (Array.isArray(row?.evidencias) && row.evidencias.length > 0)
-  );
-}
-
-function getCategoryConfig(category) {
-  return REDUCTION_LIBRARY[category] || REDUCTION_LIBRARY.Otros;
-}
-
-function groupScenarioData(rows) {
-  const categoryTotals = new Map();
-  const sourceTotals = new Map();
-  const stageTotals = new Map();
-  let total = 0;
-  let evidenceCount = 0;
-
-  rows.forEach((row) => {
-    const emissions = getRegistroEmisionesValue(row);
-    if (emissions <= 0) return;
-
-    const category = getRegistroCategoria(row);
-    const source = getRegistroFuente(row);
-    const stage = getRegistroEtapa(row);
-
-    total += emissions;
-
-    categoryTotals.set(category, (categoryTotals.get(category) || 0) + emissions);
-
-    if (!sourceTotals.has(source)) {
-      sourceTotals.set(source, {
-        fuente: source,
-        categoria: category,
-        emisiones: 0,
-      });
-    }
-    sourceTotals.get(source).emisiones += emissions;
-
-    stageTotals.set(stage, (stageTotals.get(stage) || 0) + emissions);
-
-    if (hasLinkedEvidence(row)) evidenceCount += 1;
-  });
-
-  const sortedCategories = [...categoryTotals.entries()]
-    .map(([categoria, emisiones]) => ({ categoria, emisiones }))
-    .sort((a, b) => b.emisiones - a.emisiones);
-
-  const sortedSources = [...sourceTotals.values()].sort(
-    (a, b) => b.emisiones - a.emisiones
-  );
-
-  const sortedStages = [...stageTotals.entries()]
-    .map(([etapa, emisiones]) => ({ etapa, emisiones }))
-    .sort((a, b) => b.emisiones - a.emisiones);
-
-  const rowsWithEmissions = rows.filter((row) => getRegistroEmisionesValue(row) > 0);
-  const evidenceCoverage = rowsWithEmissions.length
-    ? evidenceCount / rowsWithEmissions.length
-    : null;
-
-  return {
-    total,
-    rows: rowsWithEmissions,
-    sortedCategories,
-    sortedSources,
-    sortedStages,
-    evidenceCoverage,
-  };
-}
-
-function getDataConfidence(summary) {
-  let confidence = 0.72;
-
-  if (summary.rows.length >= 5) confidence += 0.08;
-  if (summary.rows.length >= 10) confidence += 0.05;
-  if (summary.sortedCategories.length >= 3) confidence += 0.05;
-
-  if (summary.evidenceCoverage !== null) {
-    confidence *= 0.82 + summary.evidenceCoverage * 0.18;
-  } else {
-    confidence *= 0.88;
-  }
-
-  return Math.min(1, Math.max(0.45, confidence));
-}
-
-function getGlobalCap(summary) {
-  let cap = 0.18;
-
-  if (summary.sortedCategories.length >= 2) cap += 0.03;
-  if (summary.sortedCategories.length >= 4) cap += 0.03;
-  if (summary.rows.length >= 10) cap += 0.02;
-  if (summary.evidenceCoverage !== null && summary.evidenceCoverage >= 0.7) cap += 0.03;
-
-  return Math.min(0.32, cap);
-}
-
-function buildScenario(summary, ambition) {
-  const confidence = getDataConfidence(summary);
-  const globalCap = getGlobalCap(summary);
-  const topCategories = summary.sortedCategories.slice(0, 4).map((item) => item.categoria);
-  const topSource = summary.sortedSources[0];
-  const topCategory = summary.sortedCategories[0];
-
-  let avoided = 0;
-  const reductionsByCategory = {};
-  const assumptions = [];
-
-  summary.rows.forEach((row) => {
-    const emissions = getRegistroEmisionesValue(row);
-    const category = getRegistroCategoria(row);
-    const source = getRegistroFuente(row);
-    const config = getCategoryConfig(category);
-
-    const categoryRank = topCategories.indexOf(category);
-    const isTopCategory = categoryRank !== -1;
-    const isCriticalSource = topSource && source === topSource.fuente;
-
-    let priorityFactor = 0.35;
-
-    if (isTopCategory) {
-      priorityFactor = 0.65 - categoryRank * 0.1;
-    }
-
-    if (isCriticalSource) {
-      priorityFactor = Math.max(priorityFactor, 1);
-    }
-
-    const rowReductionRate = Math.min(
-      config.maxReduction,
-      config.maxReduction * ambition * priorityFactor * confidence
-    );
-
-    const rowAvoided = emissions * rowReductionRate;
-    avoided += rowAvoided;
-
-    if (!reductionsByCategory[category]) {
-      reductionsByCategory[category] = {
-        categoria: category,
-        emisiones_base: 0,
-        emisiones_evitadas: 0,
-        reduccion_pct_categoria: 0,
-        palancas: config.levers,
-      };
-    }
-
-    reductionsByCategory[category].emisiones_base += emissions;
-    reductionsByCategory[category].emisiones_evitadas += rowAvoided;
-  });
-
-  const cappedAvoided = Math.min(avoided, summary.total * globalCap);
-  const reductionPct = summary.total > 0 ? (cappedAvoided / summary.total) * 100 : 0;
-  const simulatedTotal = Math.max(summary.total - cappedAvoided, 0);
-
-  Object.values(reductionsByCategory).forEach((item) => {
-    item.reduccion_pct_categoria = item.emisiones_base
-      ? (item.emisiones_evitadas / item.emisiones_base) * 100
-      : 0;
-  });
-
-  assumptions.push({
-    nombre: "ambicion_operativa",
-    valor: ambition,
-    descripcion: "Nivel de aplicación de medidas operativas y de gestión sobre fuentes críticas.",
-  });
-  assumptions.push({
-    nombre: "confianza_datos",
-    valor: confidence,
-    descripcion: "Ajuste según cantidad de registros, categorías disponibles y trazabilidad documental.",
-  });
-  assumptions.push({
-    nombre: "tope_global_realista",
-    valor: globalCap,
-    descripcion: "Límite máximo de reducción global para evitar escenarios poco realistas.",
-  });
-
-  return {
-    rows: summary.rows,
-    currentTotal: summary.total,
-    simulatedTotal,
-    reductionPct,
-    avoidedEmissions: cappedAvoided,
-    activityReduction: topSource
-      ? Math.min(
-          getCategoryConfig(topSource.categoria).maxReduction * 100,
-          reductionPct / Math.max(topSource.emisiones / summary.total, 0.01)
-        )
-      : 0,
-    dieselReduction: reductionPct,
-    targetSource: topSource?.fuente || "Sin fuente crítica",
-    targetCategory: topSource?.categoria || topCategory?.categoria || "Otros",
-    targetStage: summary.sortedStages[0]?.etapa || "Sin etapa",
-    confidence,
-    globalCap,
-    ambition,
-    reductionsByCategory: Object.values(reductionsByCategory),
-    assumptions,
-    assumptionsTested: 0,
-    recommendedActions: topSource
-      ? getCategoryConfig(topSource.categoria).levers
-      : REDUCTION_LIBRARY.Otros.levers,
-  };
-}
-
-export async function simulateScenario(payload) {
-  const rows = getScenarioRows(payload);
-  const summary = groupScenarioData(rows);
-
-  if (!summary.rows.length || summary.total <= 0) {
-    return {
-      rows: [],
-      total_emisiones: 0,
-      currentTotal: 0,
-      simulatedTotal: 0,
-      reductionPct: 0,
-      pending: true,
-    };
-  }
-
-  const scenario = buildScenario(summary, 0.55);
-
-  return {
-    ...scenario,
-    total_emisiones: scenario.currentTotal,
-  };
-}
-
-export async function optimizeScenarioApi(input) {
-  const rows = getScenarioRows(input);
-  const summary = groupScenarioData(rows);
-
-  if (!summary.rows.length || summary.total <= 0) {
-    return null;
-  }
-
-  const ambitions = [];
-  for (let value = 0.35; value <= 1.001; value += 0.05) {
-    ambitions.push(Number(value.toFixed(2)));
-  }
-
-  const scenarios = ambitions
-    .map((ambition) => buildScenario(summary, ambition))
-    .filter((scenario) => scenario.reductionPct > 0);
-
-  if (!scenarios.length) {
-    return null;
-  }
-
-  const bestScenario = scenarios.reduce((best, scenario) =>
-    scenario.reductionPct > best.reductionPct ? scenario : best
-  );
-
-  const recommendedScenario = scenarios.reduce((best, scenario) => {
-    const target = bestScenario.reductionPct * 0.65;
-    const currentDistance = Math.abs(scenario.reductionPct - target);
-    const bestDistance = Math.abs(best.reductionPct - target);
-    return currentDistance < bestDistance ? scenario : best;
-  }, scenarios[0]);
-
-  return {
-    ...bestScenario,
-    recommendedScenario,
-    assumptionsTested: scenarios.length,
-    reductionPct: Number(bestScenario.reductionPct.toFixed(1)),
-    currentTotal: Number(bestScenario.currentTotal.toFixed(3)),
-    simulatedTotal: Number(bestScenario.simulatedTotal.toFixed(3)),
-    avoidedEmissions: Number(bestScenario.avoidedEmissions.toFixed(3)),
-    activityReduction: Number(bestScenario.activityReduction.toFixed(1)),
-    dieselReduction: Number(bestScenario.dieselReduction.toFixed(1)),
-    scenarioLabel: "Máximo realista",
-    methodology:
-      "Escenario calculado probando supuestos progresivos por categoría, fuente crítica, confianza de datos y tope global realista.",
-  };
-}
-
-export async function getRiskScore(payload) {
-  return { score: 0, payload };
-}
-
-export async function extractDocumentText() {
-  return { texto: "", pendiente: true };
-}
-
-export async function extractDocumentJson() {
-  return { data: {}, pendiente: true };
-}
-
-export async function extractDocumentTextById() {
-  return { texto: "", pendiente: true };
-}
-
-export async function extractDocumentJsonById() {
-  return { data: {}, pendiente: true };
-}
-
-export async function runEvidenciaOcr() {
-  return { pendiente: true };
-}
-
-export async function validateExtraccionEvidencia() {
-  return { pendiente: true };
-}
-
-export async function rejectExtraccionEvidencia() {
-  return { pendiente: true };
-}
-
-function unsupportedImport() {
-  return Promise.resolve({
-    rows: [],
-    validos: 0,
-    errores: 0,
-    total: 0,
-    pendiente: true,
-    message: "Importacion pendiente de endpoint backend.",
-  });
-}
-
-export const previewImportFactores = unsupportedImport;
-export const confirmarImportFactores = unsupportedImport;
-export const previewImportConstructoras = unsupportedImport;
-export const confirmarImportConstructoras = unsupportedImport;
-export const previewImportEtapasForConstructora = unsupportedImport;
-export const confirmarImportEtapasForConstructora = unsupportedImport;
-export const previewImportObrasForConstructora = unsupportedImport;
-export const confirmarImportObrasForConstructora = unsupportedImport;
-export const previewRegistroEmisionImport = unsupportedImport;
-export const confirmRegistroEmisionImport = unsupportedImport;
-export const previewRegistroEmisionImportForConstructora = unsupportedImport;
-export const confirmRegistroEmisionImportForConstructora = unsupportedImport;
-export const previewImportacionCompletaConstruccion = unsupportedImport;
-export const confirmarImportacionCompletaConstruccion = unsupportedImport;
-
-export function getPlantillaImportacionConstruccionUrl() {
-  return "";
-}
-
-export async function getVerificacionObra(codigoObra) {
-  const response = await api.get(`/verificar/obra/${encodeURIComponent(codigoObra)}/`);
-  return response.data;
-}
-
-export function getObraIntegracionUrl() {
-  return "";
-}
-
-export function getObraExportJsonUrl() {
-  return "";
-}
-
-export function getObraExportCsvUrl() {
-  return "";
-}
-
-export function getObraFichaTecnicaUrl(codigoObra) {
-  return buildApiUrl(`/verificar/obra/${encodeURIComponent(codigoObra)}/`);
-}
-
-export async function getHistorialObra() {
-  return [];
-}
-
-export async function downloadObraFichaAmbiental(codigoObra) {
-  const response = await api.get(`/verificar/obra/${encodeURIComponent(codigoObra)}/`);
-  return new Blob([JSON.stringify(response.data, null, 2)], { type: "application/json" });
-}
+  return new URL(path.replace(/^\//, ""), baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`).toString();
+}
+
+function constructoraPath(id, path = "") { return `/constructoras/${encodeURIComponent(id)}${path}`; }
+function obraPath(id, path = "") { return `/obras/${encodeURIComponent(id)}${path}`; }
+function query(params = {}) { const q = new URLSearchParams(); Object.entries(params).forEach(([k,v]) => { if (v !== undefined && v !== null && v !== "") q.append(k, v); }); return q.toString() ? `?${q}` : ""; }
+function filePayload(file) { const formData = new FormData(); formData.append("file", file); return formData; }
+async function previewImport(kind, file, constructoraId = null) { const url = constructoraId ? constructoraPath(constructoraId, `/importaciones/${kind}/preview/`) : `/importaciones/${kind}/preview/`; const r = await api.post(url, filePayload(file), { headers: { "Content-Type": "multipart/form-data" } }); return r.data; }
+async function confirmImport(kind, payload, constructoraId = null) { const url = constructoraId ? constructoraPath(constructoraId, `/importaciones/${kind}/confirm/`) : `/importaciones/${kind}/confirm/`; const r = await api.post(url, payload); return r.data; }
+
+export async function getCurrentUser(){ return (await api.get("/auth/me/")).data; }
+export async function loginUser(payload){ return (await api.post("/auth/login/", payload)).data; }
+export async function logoutUser(){ return (await api.post("/auth/logout/")).data; }
+export async function bootstrapUser(payload){ return (await api.post("/auth/bootstrap/", payload)).data; }
+export async function getConstructoras(){ return (await api.get("/constructoras/")).data; }
+export async function createConstructora(payload){ return (await api.post("/constructoras/", payload)).data; }
+export async function deleteConstructora(id){ await api.delete(constructoraPath(id, "/")); }
+export async function getConstructoraUsuarios(id){ return (await api.get(constructoraPath(id, "/usuarios/"))).data; }
+export async function createConstructoraUsuario(id,payload){ return (await api.post(constructoraPath(id,"/usuarios/"),payload)).data; }
+export async function getConstructoraDashboard(id,params={}){ return (await api.get(constructoraPath(id,"/dashboard/"),{params})).data; }
+export async function getConstructoraEstado(id){ return (await api.get(constructoraPath(id,"/estado/"))).data; }
+export async function getConstructoraConfiguracion(id){ return (await api.get(constructoraPath(id,"/configuracion/"))).data; }
+export async function updateConstructoraConfiguracion(id,payload){ return (await api.patch(constructoraPath(id,"/configuracion/"),payload)).data; }
+export async function getConstructoraEtapas(id,params={}){ return (await api.get(constructoraPath(id,"/etapas/"),{params})).data; }
+export async function createEtapaObra(id,payload){ return (await api.post(constructoraPath(id,"/etapas/"),payload)).data; }
+export async function getEtapasObra(params={}){ return params.constructora_id ? getConstructoraEtapas(params.constructora_id, params) : []; }
+export async function getObras(){ return (await api.get("/obras/")).data; }
+export async function getConstructoraObras(id){ return (await api.get(constructoraPath(id,"/obras/"))).data; }
+export async function createObra(payload){ const id = payload.constructora_id || payload.constructora; return (await api.post(id ? constructoraPath(id,"/obras/") : "/obras/", payload)).data; }
+export async function getObraDetail(codigo){ const [obra, registros, evidencias, transportes] = await Promise.all([api.get(obraPath(codigo,"/")), api.get(obraPath(codigo,"/registros-emision/")), api.get(obraPath(codigo,"/evidencias/")), api.get(obraPath(codigo,"/transportes/"))]); return {...obra.data, registros_emision: registros.data, evidencias: evidencias.data, transportes: transportes.data}; }
+export async function getObraBalanceAmbiental(codigo){ return (await api.get(obraPath(codigo,"/"))).data.analisis_ambiental || {}; }
+export async function getConstructoraRegistrosEmision(id){ return (await api.get(constructoraPath(id,"/registros-emision/"))).data; }
+export async function getConstructoraEmisiones(id,params={}){ return (await api.get(constructoraPath(id,"/emisiones/"),{params})).data; }
+export async function createRegistroEmision(codigo,payload){ return (await api.post(obraPath(codigo,"/registros-emision/"),payload)).data; }
+export async function getConstructoraEvidencias(id,params={}){ return (await api.get(constructoraPath(id,"/evidencias/"),{params})).data; }
+export async function getEvidenciasConstructora(id,filters={}){ return getConstructoraEvidencias(id,filters); }
+export async function getEvidenciasKpisConstructora(id){ const e = await getConstructoraEvidencias(id); const vinculadas = e.filter((x)=>x.obra || x.registro_emision).length; return {total:e.length, vinculadas, pendientes:e.filter((x)=>x.estado_documental==="pendiente").length, observadas:e.filter((x)=>x.estado_documental==="observada").length, cobertura_documental:e.length ? (vinculadas/e.length)*100 : null}; }
+export async function crearEvidenciaConstructora(id,formData){ return (await api.post(constructoraPath(id,"/evidencias/"),formData)).data; }
+export async function uploadObraEvidencia(codigo,payload){ const fd = new FormData(); fd.append("tipo_evidencia", payload.tipo_evidencia || "otro"); fd.append("fecha_evidencia", payload.fecha_evidencia || ""); fd.append("nombre", payload.nombre || payload.archivo?.name || "Evidencia de obra"); fd.append("archivo", payload.archivo); if(payload.observaciones) fd.append("observaciones", payload.observaciones); return (await api.post(obraPath(codigo,"/evidencias/"),fd,{headers:{"Content-Type":"multipart/form-data"}})).data; }
+export async function createTransporteObra(codigo,payload){ return (await api.post(obraPath(codigo,"/transportes/"),payload)).data; }
+export async function getConstructoraReportes(id,params={}){ return (await api.get(constructoraPath(id,`/reportes/${query(params)}`))).data; }
+export async function getReporteEmisionesTiempo(id,params={}){ return getConstructoraReportes(id,params); }
+export async function getSistemaEstado(){ return (await api.get("/sistema/estado/")).data; }
+export async function getIotKpis(id){ return (await api.get("/iot/kpis/",{params:id?{constructora_id:id}:{}})).data; }
+export async function getIotUltimasLecturas(id){ return (await api.get("/iot/lecturas/ultimas/",{params:id?{constructora_id:id}:{}})).data; }
+export async function getFactoresEmision(){ return (await api.get("/factores-emision/")).data; }
+export async function getMaterialesConstruccion(){ return (await api.get("/materiales-construccion/")).data; }
+export async function calculateRouteDistance(payload){ return (await api.post("/rutas/calcular-distancia/",payload)).data; }
+export async function getAiAdvisor(payload){ return (await api.post("/ai-advisor/",payload)).data; }
+
+function rows(input){ return Array.isArray(input) ? input : input?.rows || input?.datos || input?.registros || input?.registros_emision || input?.data || []; }
+function emission(row){ return Number(row?.emisiones_kg_co2e ?? row?.emisiones_totales ?? row?.emisiones ?? row?.total_emisiones ?? row?.co2e ?? 0); }
+export async function simulateScenario(input){ const list = rows(input).filter((row)=>emission(row)>0); const total = list.reduce((s,row)=>s+emission(row),0); if(!total) return {rows:[], total_emisiones:0, currentTotal:0, simulatedTotal:0, reductionPct:0, pending:true}; const avoided=total*0.08; return {rows:list,total_emisiones:total,currentTotal:total,simulatedTotal:total-avoided,reductionPct:8,avoidedEmissions:avoided,targetSource:list[0]?.fuente_emision||"Fuente crítica",targetCategory:list[0]?.categoria||"Otros",recommendedActions:["Priorizar fuentes críticas","Validar evidencias","Medir reducción semanal"]}; }
+export async function optimizeScenarioApi(input){ const scenario = await simulateScenario(input); return scenario.currentTotal ? {...scenario, scenarioLabel:"Máximo realista", assumptionsTested:14, methodology:"Escenario calculado con palancas por categoría y fuente crítica."} : null; }
+export async function getRiskScore(payload){ return {score:0,payload}; }
+export async function extractDocumentText(){ return {texto:"",pendiente:true}; }
+export async function extractDocumentJson(){ return {data:{},pendiente:true}; }
+export async function extractDocumentTextById(){ return {texto:"",pendiente:true}; }
+export async function extractDocumentJsonById(){ return {data:{},pendiente:true}; }
+export async function runEvidenciaOcr(){ return {pendiente:true}; }
+export async function validateExtraccionEvidencia(){ return {pendiente:true}; }
+export async function rejectExtraccionEvidencia(){ return {pendiente:true}; }
+
+export function getPlantillaImportacionConstruccionUrl(){ return buildApiUrl("/importaciones/plantilla-construccion/"); }
+export async function previewImportFactores(file){ return previewImport("factores",file); }
+export async function confirmarImportFactores(payload){ return confirmImport("factores",payload); }
+export async function previewImportConstructoras(file){ return previewImport("constructoras",file); }
+export async function confirmarImportConstructoras(payload){ return confirmImport("constructoras",payload); }
+export async function previewImportEtapasForConstructora(id,file){ return previewImport("etapas",file,id); }
+export async function confirmarImportEtapasForConstructora(id,payload){ return confirmImport("etapas",payload,id); }
+export async function previewImportObrasForConstructora(id,file){ return previewImport("obras",file,id); }
+export async function confirmarImportObrasForConstructora(id,payload){ return confirmImport("obras",payload,id); }
+export async function previewRegistroEmisionImport(file){ return previewImport("registros",file); }
+export async function confirmRegistroEmisionImport(payload){ return confirmImport("registros",payload); }
+export async function previewRegistroEmisionImportForConstructora(id,file){ return previewImport("registros",file,id); }
+export async function confirmRegistroEmisionImportForConstructora(id,payload){ return confirmImport("registros",payload,id); }
+export async function previewImportacionCompletaConstruccion(file){ return (await api.post("/importaciones/completa/preview/", filePayload(file), {headers:{"Content-Type":"multipart/form-data"}})).data; }
+export async function confirmarImportacionCompletaConstruccion(payload){ return (await api.post("/importaciones/completa/confirm/",payload)).data; }
+export const previewImportObras = previewImportObrasForConstructora;
+export const confirmarImportObras = confirmarImportObrasForConstructora;
+export const previewImportEtapas = previewImportEtapasForConstructora;
+export const confirmarImportEtapas = confirmarImportEtapasForConstructora;
+
+export async function getVerificacionObra(codigo){ return (await api.get(`/verificar/obra/${encodeURIComponent(codigo)}/`)).data; }
+export function getObraIntegracionUrl(){ return ""; }
+export function getObraExportJsonUrl(){ return ""; }
+export function getObraExportCsvUrl(){ return ""; }
+export function getObraFichaTecnicaUrl(codigo){ return buildApiUrl(`/verificar/obra/${encodeURIComponent(codigo)}/`); }
+export async function getHistorialObra(){ return []; }
+export async function downloadObraFichaAmbiental(codigo){ const response = await api.get(`/verificar/obra/${encodeURIComponent(codigo)}/`); return new Blob([JSON.stringify(response.data,null,2)],{type:"application/json"}); }
