@@ -129,34 +129,6 @@ function ObrasView() {
     [obras]
   );
 
-  const totalEvidencias = useMemo(
-    () =>
-      obras.reduce(
-        (total, obra) =>
-          total +
-          Number(
-            obra.evidencias_count ?? obra.evidencias_count ?? obra.evidencias?.length ?? 0
-          ),
-        0
-      ),
-    [obras]
-  );
-
-  const obraCritica = useMemo(
-    () =>
-      obras.reduce((critica, obra) => {
-        if (!critica) {
-          return obra;
-        }
-
-        return Number(obra.emisiones_kg_co2e || 0) >
-          Number(critica.emisiones_kg_co2e || 0)
-          ? obra
-          : critica;
-      }, null)?.codigo_obra || "",
-    [obras]
-  );
-
   const etapasDisponibles = useMemo(() => {
     if (!form.constructora_id) {
       return etapasOperativas;
@@ -205,7 +177,13 @@ function ObrasView() {
         setEtapasOperativas(normalizedEtapas);
         setMaterialesConstruccion(normalizedMateriales);
         setFactoresEmision([]);
-        setSelectedObra(normalizedObras[0] || null);
+        setSelectedObra((currentSelected) => {
+          if (currentSelected && normalizedObras.some((obra) => obra.codigo_obra === currentSelected.codigo_obra)) {
+            return currentSelected;
+          }
+
+          return normalizedObras[0] || null;
+        });
         setSelectedBalanceAmbiental(null);
         setConstructoras(activeConstructora ? [activeConstructora] : []);
         setForm((currentForm) => ({
@@ -375,6 +353,11 @@ function ObrasView() {
     }));
   };
 
+  const updateOcrForm = (event) => {
+    const { name, value } = event.target;
+    setOcrForm((currentForm) => ({ ...currentForm, [name]: value }));
+  };
+
   const updateTransportForm = (event) => {
     const { name, value } = event.target;
     setTransportForm((currentForm) => ({ ...currentForm, [name]: value }));
@@ -384,96 +367,76 @@ function ObrasView() {
     }));
   };
 
-  const updateTransportOrigin = ({ address, coords }) => {
+  const updateTransportOrigin = (payload) => {
     setTransportForm((currentForm) => ({
       ...currentForm,
-      punto_partida: address,
-      punto_partida_coords: coords,
-    }));
-    setTransportDistanceResult(null);
-    setTransportFieldErrors((currentErrors) => ({
-      ...currentErrors,
-      latitud: null,
-      longitud: null,
+      punto_partida: payload.name,
+      punto_partida_coords: payload.coords,
     }));
   };
 
-  const updateTransportDestination = ({ address, coords }) => {
+  const updateTransportDestination = (payload) => {
     setTransportForm((currentForm) => ({
       ...currentForm,
-      destino: address,
-      destino_coords: coords,
+      destino: payload.name,
+      destino_coords: payload.coords,
     }));
-    setTransportDistanceResult(null);
-    setTransportFieldErrors((currentErrors) => ({
-      ...currentErrors,
-      ruta: null,
-    }));
-  };
-
-  const updateOcrForm = (event) => {
-    const { name, value } = event.target;
-    setOcrForm((currentForm) => ({ ...currentForm, [name]: value }));
   };
 
   const syncObra = (updatedObra) => {
+    if (!updatedObra) {
+      return;
+    }
+
     setSelectedObra(updatedObra);
     setSelectedBalanceAmbiental(null);
     setObras((currentObras) =>
       currentObras.map((obra) =>
-        obra.codigo_obra === updatedObra.codigo_obra ? updatedObra : obra
+        obra.codigo_obra === updatedObra.codigo_obra ? { ...obra, ...updatedObra } : obra
       )
     );
   };
 
-  const fetchHistory = async (codigoObra, page = 1, pageSize = 20) => {
-    setHistoryLoading(true);
-
-    try {
-      const data = await getHistorialObra(codigoObra, {
-        page,
-        page_size: pageSize,
-      });
-      setHistory(data.results || []);
-      setHistoryPageInfo({
-        next: data.next,
-        previous: data.previous,
-        count: data.count,
-      });
-    } catch (requestError) {
-      console.error(requestError);
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
-
   const loadObraDetail = async (codigoObra, { openModal = false } = {}) => {
-    setDetailLoading(true);
-    setError("");
-    setDocumentInsight(null);
+    if (!codigoObra) {
+      return;
+    }
 
+    setDetailLoading(true);
     if (openModal) {
       setDetailModalOpen(true);
       setDetailModalObra(null);
     }
 
     try {
-      const [detail, carbono] = await Promise.all([
+      const [detail, balance, historyData] = await Promise.all([
         getObraDetail(codigoObra),
-        getObraBalanceAmbiental(codigoObra),
+        getObraBalanceAmbiental(codigoObra).catch(() => null),
+        getHistorialObra(codigoObra).catch(() => null),
       ]);
+
       setSelectedObra(detail);
-      setSelectedBalanceAmbiental(carbono);
+      setSelectedBalanceAmbiental(balance);
+      setObras((currentObras) =>
+        currentObras.map((obra) =>
+          obra.codigo_obra === codigoObra ? { ...obra, ...detail } : obra
+        )
+      );
+
       if (openModal) {
         setDetailModalObra(detail);
       }
-      fetchHistory(codigoObra);
+
+      if (historyData) {
+        setHistory(Array.isArray(historyData.results) ? historyData.results : []);
+        setHistoryPageInfo(historyData);
+      }
     } catch (requestError) {
       setError(
-        requestError.response?.data?.error || "No se pudo cargar el detalle."
+        requestError.response?.data?.error || "No se pudo cargar el detalle de la obra."
       );
       if (openModal) {
-        setDetailModalObra(null);
+        setDetailModalOpen(false);
       }
     } finally {
       setDetailLoading(false);
@@ -492,27 +455,19 @@ function ObrasView() {
     setFieldErrors({});
 
     try {
-      const createdObra = await createObra({
-        codigo_obra: form.codigo_obra,
-        constructora_id: activeConstructoraId || form.constructora_id || undefined,
-        etapa_id: form.etapa_id || undefined,
-        constructora_nombre: form.constructora_nombre,
-        fecha: form.fecha,
-        tipo_proyecto: form.tipo_proyecto,
-        superficie_m2: Number(form.superficie_m2),
-        origen: form.origen,
-      });
-
+      const payload = {
+        ...form,
+        superficie_m2: form.superficie_m2 ? Number(form.superficie_m2) : null,
+      };
+      const createdObra = await createObra(payload);
       setObras((currentObras) => [createdObra, ...currentObras]);
       setSelectedObra(createdObra);
-      setSelectedBalanceAmbiental(null);
+      setCreateModalOpen(false);
       setForm({
         ...emptyForm,
         constructora_id: activeConstructoraId,
         constructora_nombre: activeConstructora?.nombre || "",
-        tipo_proyecto: "",
       });
-      setCreateModalOpen(false);
     } catch (requestError) {
       const responseData = requestError.response?.data;
 
@@ -839,9 +794,8 @@ function ObrasView() {
       <ObrasHeader onOpenCreate={() => setCreateModalOpen(true)} />
       <ObrasKpis
         obras={obras}
+        selectedObra={selectedObra}
         totalEmisiones={totalEmisiones}
-        totalEvidencias={totalEvidencias}
-        obraCritica={obraCritica}
       />
 
       {error && (
@@ -873,7 +827,6 @@ function ObrasView() {
         registroForm={registroForm}
         factoresEmision={factoresEmision}
         balanceData={balanceData}
-        detailLoading={detailLoading}
         documentError={documentError}
         documentFieldErrors={documentFieldErrors}
         documentForm={documentForm}
@@ -885,7 +838,6 @@ function ObrasView() {
         historyPageInfo={historyPageInfo}
         ocrError={ocrError}
         ocrForm={ocrForm}
-        onImportEvidencia={() => setDocumentImportOpen(true)}
         onRegistroSubmit={handleRegistroSubmit}
         onselectRegistroFactor={selectRegistroFactor}
         onDocumentSubmit={handleDocumentSubmit}
