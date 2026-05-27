@@ -1,6 +1,5 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 
-import ObraDetailHeader from "./ObraDetailHeader";
 import ObraTabs from "./ObraTabs";
 import RegistrosEmisionTab from "./tabs/RegistrosEmisionTab";
 import EvidenciasTab from "./tabs/EvidenciasTab";
@@ -15,7 +14,6 @@ function ObraDetailView({
   registroFieldErrors,
   registroForm,
   balanceData,
-  detailLoading,
   documentError,
   documentFieldErrors,
   documentForm,
@@ -31,7 +29,6 @@ function ObraDetailView({
   onRegistroSubmit,
   onDocumentSubmit,
   onDownloadCertificate,
-  onImportEvidencia,
   onselectRegistroFactor,
   onRejectExtraction,
   onRejectHistoryExtraction,
@@ -65,12 +62,6 @@ function ObraDetailView({
 
   return (
     <div className="space-y-6">
-      <ObraDetailHeader
-        detailLoading={detailLoading}
-        onImportEvidencia={onImportEvidencia}
-        selectedObra={selectedObra}
-      />
-
       <ObraTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
       {activeTab === "resumen" && (
