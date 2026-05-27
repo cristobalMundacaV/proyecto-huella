@@ -26,6 +26,7 @@ const recommendationByCategory = {
 };
 
 const topSourceTones = ["danger", "warning", "info", "violet", "success"];
+const sourceDonutColors = ["#E11D48", "#EA580C", "#2563EB", "#7C3AED", "#059669", "#0891B2", "#65A30D", "#475569", "#DB2777", "#0F766E"];
 
 function ResumenTab({ balanceData, selectedObra }) {
   const registros = selectedObra.registros_emision || [];
@@ -69,7 +70,7 @@ function ResumenTab({ balanceData, selectedObra }) {
     }, {})
   ).sort((left, right) => right.emissions - left.emissions);
   const criticalStage = emissionsByStage[0]?.stage || "Sin datos";
-  const topSources = Object.values(
+  const allSources = Object.values(
     registrosWithCategories.reduce((accumulator, registro) => {
       const source = registro.fuente_emision || "Sin fuente";
       const key = `${source}|${registro.categoria_visible}`;
@@ -82,9 +83,8 @@ function ResumenTab({ balanceData, selectedObra }) {
       accumulator[key] = current;
       return accumulator;
     }, {})
-  )
-    .sort((left, right) => right.emissions - left.emissions)
-    .slice(0, 5);
+  ).sort((left, right) => right.emissions - left.emissions);
+  const topSources = allSources.slice(0, 5);
   const environmentalStatus = getWorkEnvironmentalStatus({
     categoryDistribution,
     documents,
@@ -154,20 +154,23 @@ function ResumenTab({ balanceData, selectedObra }) {
         </div>
 
         {topSources.length ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
-            {topSources.map((source, index) => (
-              <TopSourceKpi
-                key={`${source.source}-${source.category}`}
-                className={index < 3 ? "xl:col-span-2" : "xl:col-span-3"}
-                emissions={source.emissions}
-                index={index}
-                percentage={totalEmissions > 0 ? (source.emissions / totalEmissions) * 100 : 0}
-                source={source.source}
-                category={source.category}
-                tone={topSourceTones[index] || "neutral"}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+              {topSources.map((source, index) => (
+                <TopSourceKpi
+                  key={`${source.source}-${source.category}`}
+                  className={index < 3 ? "xl:col-span-2" : "xl:col-span-3"}
+                  emissions={source.emissions}
+                  index={index}
+                  percentage={totalEmissions > 0 ? (source.emissions / totalEmissions) * 100 : 0}
+                  source={source.source}
+                  category={source.category}
+                  tone={topSourceTones[index] || "neutral"}
+                />
+              ))}
+            </div>
+            <SourceDonutChart rows={allSources} totalEmissions={totalEmissions} />
+          </>
         ) : (
           <EmptyAnalysis />
         )}
@@ -268,6 +271,95 @@ function TopSourceKpi({ category, className = "", emissions, index, percentage, 
         <p className={`mt-2 text-sm font-black ${toneClasses.value}`}>{formatNumber(percentage, 1)}% del total</p>
       </div>
     </div>
+  );
+}
+
+function SourceDonutChart({ rows, totalEmissions }) {
+  const chartRows = rows.filter((row) => Number(row.emissions || 0) > 0);
+  const radius = 78;
+  const circumference = 2 * Math.PI * radius;
+  let accumulated = 0;
+  const mainSource = chartRows[0];
+
+  if (!chartRows.length) return null;
+
+  return (
+    <section className="mt-6 rounded-3xl border border-[var(--border)] bg-[linear-gradient(135deg,#FFFFFF_0%,#F8FAFC_48%,#EFF6FF_100%)] p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] sm:p-6">
+      <div className="mb-5 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--primary-dark)]">Lectura visual</p>
+          <h3 className="mt-1 text-2xl font-bold text-[var(--text-main)]">Participación de emisiones por fuente</h3>
+          <p className="mt-1 max-w-3xl text-sm font-medium leading-6 text-[var(--text-muted)]">
+            La dona muestra todas las fuentes que generan emisiones. Mientras más grande sea el segmento, mayor es la responsabilidad de esa fuente dentro de la huella de la obra.
+          </p>
+        </div>
+        {mainSource && (
+          <div className="rounded-2xl border border-[#FDA4AF] bg-[#FFF1F2] px-4 py-3 text-sm font-black text-[#BE123C]">
+            Fuente dominante: {mainSource.source}
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 items-center gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <div className="relative mx-auto flex h-[300px] w-full max-w-[340px] items-center justify-center">
+          <svg viewBox="0 0 220 220" className="h-[280px] w-[280px] -rotate-90 overflow-visible">
+            <circle cx="110" cy="110" fill="none" r={radius} stroke="#E2E8F0" strokeWidth="28" />
+            {chartRows.map((row, index) => {
+              const dash = totalEmissions > 0 ? (row.emissions / totalEmissions) * circumference : 0;
+              const segment = (
+                <circle
+                  key={`${row.source}-${row.category}`}
+                  cx="110"
+                  cy="110"
+                  fill="none"
+                  r={radius}
+                  stroke={sourceDonutColors[index % sourceDonutColors.length]}
+                  strokeDasharray={`${dash} ${circumference}`}
+                  strokeDashoffset={-accumulated}
+                  strokeLinecap="butt"
+                  strokeWidth="28"
+                />
+              );
+              accumulated += dash;
+              return segment;
+            })}
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">Total obra</p>
+            <p className="mt-1 text-2xl font-black text-[var(--text-main)]">{formatNumber(totalEmissions, 1)}</p>
+            <p className="text-sm font-bold text-[var(--text-muted)]">kg CO2e</p>
+          </div>
+        </div>
+
+        <div className="max-h-[430px] space-y-3 overflow-y-auto pr-1">
+          {chartRows.map((row, index) => {
+            const share = totalEmissions > 0 ? (row.emissions / totalEmissions) * 100 : 0;
+            const color = sourceDonutColors[index % sourceDonutColors.length];
+
+            return (
+              <div key={`${row.source}-${row.category}`} className="rounded-2xl border border-[var(--border)] bg-white/85 p-4 shadow-[0_8px_22px_rgba(15,23,42,0.04)]">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="h-3.5 w-3.5 rounded-full shadow-[0_0_0_4px_rgba(15,23,42,0.04)]" style={{ backgroundColor: color }} />
+                    <div>
+                      <p className="font-black text-[var(--text-main)]">{row.source}</p>
+                      <p className="text-xs font-semibold text-[var(--text-muted)]">{row.category || "Sin categoría"}</p>
+                    </div>
+                  </div>
+                  <div className="text-left sm:text-right">
+                    <p className="font-black text-[#075985]">{formatNumber(row.emissions, 1)} kg CO2e</p>
+                    <p className="text-xs font-bold text-[var(--text-muted)]">{formatNumber(share, 1)}%</p>
+                  </div>
+                </div>
+                <div className="mt-3 h-2 rounded-full bg-[#E2E8F0]">
+                  <div className="h-2 rounded-full" style={{ backgroundColor: color, width: `${Math.max(0, Math.min(100, share))}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
   );
 }
 
