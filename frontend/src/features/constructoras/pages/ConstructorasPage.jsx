@@ -29,6 +29,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -57,15 +58,27 @@ const unitChartTooltipStyle = {
   boxShadow: "0 16px 35px rgba(15, 23, 42, 0.12)",
 };
 
-const categoryStackColors = [
+const stageBarColors = [
   "#0891B2",
-  "#0E7C66",
+  "#0F766E",
+  "#2563EB",
   "#7C3AED",
   "#D97706",
   "#DC2626",
-  "#2563EB",
-  "#64748B",
+  "#475569",
 ];
+
+const categoryColorMap = {
+  materiales: "#0F766E",
+  residuos: "#D97706",
+  maquinaria: "#2563EB",
+  energia: "#7C3AED",
+  transporte: "#DC2626",
+  agua: "#0891B2",
+  otros: "#64748B",
+};
+
+const categoryFallbackColors = ["#0F766E", "#D97706", "#2563EB", "#7C3AED", "#DC2626", "#0891B2", "#64748B"];
 
 const monthFormatter = new Intl.DateTimeFormat("es-CL", {
   month: "short",
@@ -337,19 +350,20 @@ function ConstructorasView({
         />
       </section>
 
-      <UnitMetricBarChart
-        color="#22D3EE"
-        dataKey="emisiones"
-        description="Permite identificar rápidamente dónde se concentra el mayor problema ambiental."
-        rows={metrics.unitComparisonRows}
-        title="Emisiones por etapa / frente"
-        valueLabel="Emisiones"
-      />
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <UnitMetricBarChart
+          dataKey="emisiones"
+          description="Permite identificar rápidamente dónde se concentra el mayor problema ambiental."
+          rows={metrics.unitComparisonRows}
+          title="Emisiones por etapa / frente"
+          valueLabel="Emisiones"
+        />
 
-      <CategoryStackedBarChart
-        rows={metrics.categoryStackRows}
-        segments={metrics.categoryStackSegments}
-      />
+        <CategoryStackedBarChart
+          rows={metrics.categoryStackRows}
+          segments={metrics.categoryStackSegments}
+        />
+      </section>
 
       <MonthlyEnvironmentalTrend rows={metrics.monthlyRows} />
 
@@ -423,11 +437,16 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
       ? (Number(topEmitter.emisiones_totales_kg_co2e || 0) / totals.totalEmissions) * 100
       : 0;
   const unitComparisonRows = scopedUnits
-    .map((unidad) => ({
+    .map((unidad, index) => ({
       unidad: unidad.nombre || unidad.etapa_id || "Sin etapa",
       emisiones: Number(unidad.emisiones_totales_kg_co2e || 0),
+      color: stageBarColors[index % stageBarColors.length],
     }))
-    .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0));
+    .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0))
+    .map((row, index) => ({
+      ...row,
+      color: stageBarColors[index % stageBarColors.length],
+    }));
   const categoryStack = buildCategoryStackData(scopedUnits);
   const monthlyRows = buildMonthlyRows(scopedUnits);
 
@@ -476,21 +495,31 @@ function buildCategoryStackData(etapas) {
   });
 
   const segments = Array.from(categoryMap.entries())
-    .map(([label, key]) => ({
+    .map(([label, key], index) => ({
       key,
       label,
       total: Number(categoryTotals.get(label) || 0),
+      color: getCategoryColor(label, index),
     }))
-    .sort((left, right) => right.total - left.total)
-    .map((segment, index) => ({
-      ...segment,
-      color: categoryStackColors[index % categoryStackColors.length],
-    }));
+    .sort((left, right) => right.total - left.total);
 
   return {
     rows: rows.filter((row) => row.total > 0).sort((left, right) => right.total - left.total),
     segments,
   };
+}
+
+function normalizeColorKey(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function getCategoryColor(label, index = 0) {
+  const key = normalizeColorKey(label);
+  return categoryColorMap[key] || categoryFallbackColors[index % categoryFallbackColors.length];
 }
 
 function buildStrategicSummary(metrics) {
@@ -522,11 +551,12 @@ function buildStrategicSummary(metrics) {
   return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas. La mayor carga operativa se observa en ${topOperationalName}, mientras que ${topEmitterName} concentra el ${emissionShare}% de las emisiones registradas, lo que muestra ${concentration} del impacto ambiental. La decisión más importante es priorizar esta etapa, revisar sus fuentes principales y ejecutar acciones medibles donde exista mayor potencial de reducción.`;
 }
 
-function UnitMetricBarChart({ color, dataKey, description, rows, title, valueLabel }) {
+function UnitMetricBarChart({ dataKey, description, rows, title, valueLabel }) {
   const visibleRows = (rows || [])
     .filter((row) => Number(row[dataKey] || 0) > 0)
     .sort((left, right) => Number(right[dataKey] || 0) - Number(left[dataKey] || 0));
-  const chartHeight = Math.max(300, Math.min(520, visibleRows.length * 52 + 110));
+  const chartHeight = Math.max(300, Math.min(470, visibleRows.length * 48 + 105));
+  const legendItems = visibleRows.map((row) => ({ label: row.unidad, color: row.color }));
 
   if (!visibleRows.length) {
     return null;
@@ -539,12 +569,12 @@ function UnitMetricBarChart({ color, dataKey, description, rows, title, valueLab
           <BarChart
             data={visibleRows}
             layout="vertical"
-            margin={{ top: 8, right: 24, bottom: 8, left: 24 }}
+            margin={{ top: 8, right: 18, bottom: 8, left: 10 }}
           >
-            <CartesianGrid horizontal={false} stroke="#B8C6BE" />
+            <CartesianGrid horizontal={false} stroke="#D8E1DC" />
             <XAxis
               axisLine={{ stroke: "#64748B" }}
-              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
+              tick={{ fill: "#475569", fontSize: 11, fontWeight: 600 }}
               tickFormatter={(value) => formatNumber(Number(value || 0), 0)}
               tickLine={false}
               type="number"
@@ -552,10 +582,10 @@ function UnitMetricBarChart({ color, dataKey, description, rows, title, valueLab
             <YAxis
               axisLine={{ stroke: "#64748B" }}
               dataKey="unidad"
-              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
+              tick={{ fill: "#475569", fontSize: 11, fontWeight: 600 }}
               tickLine={false}
               type="category"
-              width={180}
+              width={135}
             />
             <Tooltip
               contentStyle={unitChartTooltipStyle}
@@ -569,13 +599,17 @@ function UnitMetricBarChart({ color, dataKey, description, rows, title, valueLab
             <Bar
               barSize={18}
               dataKey={dataKey}
-              fill={color}
               name={valueLabel}
               radius={[0, 10, 10, 0]}
-            />
+            >
+              {visibleRows.map((row) => (
+                <Cell key={row.unidad} fill={row.color} />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
+      <ChartLegend items={legendItems} />
     </ChartPanel>
   );
 }
@@ -583,7 +617,7 @@ function UnitMetricBarChart({ color, dataKey, description, rows, title, valueLab
 function CategoryStackedBarChart({ rows, segments }) {
   const visibleRows = rows || [];
   const visibleSegments = (segments || []).filter((segment) => Number(segment.total || 0) > 0);
-  const chartHeight = Math.max(320, Math.min(560, visibleRows.length * 58 + 135));
+  const chartHeight = Math.max(300, Math.min(470, visibleRows.length * 48 + 105));
 
   if (!visibleRows.length || !visibleSegments.length) {
     return null;
@@ -594,28 +628,17 @@ function CategoryStackedBarChart({ rows, segments }) {
       description="Muestra cómo se distribuyen las emisiones de cada etapa según sus categorías principales."
       title="Emisiones por categoría"
     >
-      <div className="mb-4 flex flex-wrap gap-3">
-        {visibleSegments.map((segment) => (
-          <span
-            key={segment.key}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600"
-          >
-            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: segment.color }} />
-            {segment.label}
-          </span>
-        ))}
-      </div>
       <div className="w-full" style={{ height: chartHeight }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={visibleRows}
             layout="vertical"
-            margin={{ top: 8, right: 24, bottom: 8, left: 24 }}
+            margin={{ top: 8, right: 18, bottom: 8, left: 10 }}
           >
-            <CartesianGrid horizontal={false} stroke="#B8C6BE" />
+            <CartesianGrid horizontal={false} stroke="#D8E1DC" />
             <XAxis
               axisLine={{ stroke: "#64748B" }}
-              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
+              tick={{ fill: "#475569", fontSize: 11, fontWeight: 600 }}
               tickFormatter={(value) => formatNumber(Number(value || 0), 0)}
               tickLine={false}
               type="number"
@@ -623,10 +646,10 @@ function CategoryStackedBarChart({ rows, segments }) {
             <YAxis
               axisLine={{ stroke: "#64748B" }}
               dataKey="unidad"
-              tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }}
+              tick={{ fill: "#475569", fontSize: 11, fontWeight: 600 }}
               tickLine={false}
               type="category"
-              width={180}
+              width={135}
             />
             <Tooltip
               contentStyle={unitChartTooltipStyle}
@@ -651,7 +674,28 @@ function CategoryStackedBarChart({ rows, segments }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
+      <ChartLegend items={visibleSegments.map((segment) => ({ label: segment.label, color: segment.color }))} />
     </ChartPanel>
+  );
+}
+
+function ChartLegend({ items }) {
+  if (!items?.length) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 flex flex-wrap justify-center gap-2.5 border-t border-slate-100 pt-4">
+      {items.map((item) => (
+        <span
+          key={`${item.label}-${item.color}`}
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-bold text-slate-600 shadow-[0_4px_10px_rgba(15,23,42,0.04)]"
+        >
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+          {item.label}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -693,7 +737,7 @@ function MonthlyEnvironmentalTrend({ rows }) {
               dataKey="emisiones"
               dot={{ r: 3 }}
               name="Emisiones"
-              stroke="#22D3EE"
+              stroke="#0891B2"
               strokeWidth={3}
               type="monotone"
             />
