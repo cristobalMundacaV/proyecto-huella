@@ -107,9 +107,7 @@ def kpis(request):
 @api_view(["GET"])
 def ultimas_lecturas(request):
     constructora = resolve_constructora(request)
-    queryset = LecturaSensor.objects.all()
-    if constructora:
-        queryset = queryset.filter(constructora__iexact=constructora.nombre)
-    queryset = queryset[:20]
+    queryset = lecturas_constructora_hoy_queryset(constructora)
+    queryset = queryset.order_by("-fecha_registro")[:20]
     serializer = LecturaSensorSerializer(queryset, many=True)
     return Response(serializer.data)
