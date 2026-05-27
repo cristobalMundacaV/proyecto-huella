@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
-  BarChart3,
+  Bar,
   Boxes,
   Building2,
   Factory,
@@ -28,7 +28,7 @@ import {
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import { getConstructionCategoryLabel } from "@/features/obras/utils/constructionEmissionCategories";
 import {
-  Bar,
+  Bar as RechartsBar,
   BarChart,
   CartesianGrid,
   Cell,
@@ -379,6 +379,15 @@ function ConstructorasView({
         />
       </section>
 
+      <UnitMetricBarChart
+        dataKey="emisiones"
+        description="Ordena las fuentes específicas que explican la mayor parte de la huella registrada."
+        rows={metrics.sourceComparisonRows}
+        title="Emisiones por fuente"
+        valueLabel="Emisiones"
+        yAxisWidth={190}
+      />
+
       <MonthlyEnvironmentalTrend rows={metrics.monthlyRows} />
 
       {error && (
@@ -477,6 +486,9 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
       ...row,
       color: stageBarColors[index % stageBarColors.length],
     }));
+  const sourceComparisonRows = buildEmissionGroupRows(registros, (registro) =>
+    registro.fuente_emision || "Sin fuente"
+  );
   const categoryStack = buildCategoryStackData(scopedUnits);
   const monthlyRows = buildMonthlyRows(scopedUnits);
 
@@ -492,6 +504,7 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
     categoryStackRows: categoryStack.rows,
     categoryStackSegments: categoryStack.segments,
     monthlyRows,
+    sourceComparisonRows,
     unitComparisonRows,
   };
 }
@@ -522,6 +535,30 @@ function buildTopEmissionGroup(registros, labelSelector) {
   return Array.from(totals.entries())
     .map(([label, emisiones]) => ({ label, emisiones }))
     .sort((left, right) => right.emisiones - left.emisiones)[0] || null;
+}
+
+function buildEmissionGroupRows(registros, labelSelector) {
+  const totals = new Map();
+
+  registros.forEach((registro) => {
+    const emissions = getRecordEmission(registro);
+    if (!emissions) return;
+
+    const label = labelSelector(registro) || "Sin datos";
+    totals.set(label, Number(totals.get(label) || 0) + emissions);
+  });
+
+  return Array.from(totals.entries())
+    .map(([label, emisiones], index) => ({
+      unidad: label,
+      emisiones,
+      color: stageBarColors[index % stageBarColors.length],
+    }))
+    .sort((left, right) => Number(right.emisiones || 0) - Number(left.emisiones || 0))
+    .map((row, index) => ({
+      ...row,
+      color: stageBarColors[index % stageBarColors.length],
+    }));
 }
 
 function buildCategoryStackData(etapas) {
@@ -619,7 +656,7 @@ function buildStrategicSummary(metrics) {
   return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas. ${stageReading} ${topCategoryName} es la categoría con mayor impacto, lo que muestra ${concentration} del resultado ambiental. La decisión más importante es priorizar este foco, revisar sus fuentes principales y ejecutar acciones medibles donde exista mayor potencial de reducción.`;
 }
 
-function UnitMetricBarChart({ dataKey, description, rows, title, valueLabel }) {
+function UnitMetricBarChart({ dataKey, description, rows, title, valueLabel, yAxisWidth = 135 }) {
   const visibleRows = (rows || [])
     .filter((row) => Number(row[dataKey] || 0) > 0)
     .sort((left, right) => Number(right[dataKey] || 0) - Number(left[dataKey] || 0));
@@ -653,7 +690,7 @@ function UnitMetricBarChart({ dataKey, description, rows, title, valueLabel }) {
               tick={{ fill: "#475569", fontSize: 11, fontWeight: 600 }}
               tickLine={false}
               type="category"
-              width={135}
+              width={yAxisWidth}
             />
             <Tooltip
               contentStyle={unitChartTooltipStyle}
@@ -664,7 +701,7 @@ function UnitMetricBarChart({ dataKey, description, rows, title, valueLabel }) {
               ]}
               labelStyle={{ color: "#1F2937", fontWeight: 700 }}
             />
-            <Bar
+            <RechartsBar
               barSize={18}
               dataKey={dataKey}
               name={valueLabel}
@@ -673,7 +710,7 @@ function UnitMetricBarChart({ dataKey, description, rows, title, valueLabel }) {
               {visibleRows.map((row) => (
                 <Cell key={row.unidad} fill={row.color} />
               ))}
-            </Bar>
+            </RechartsBar>
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -729,7 +766,7 @@ function CategoryStackedBarChart({ rows, segments }) {
               labelStyle={{ color: "#1F2937", fontWeight: 700 }}
             />
             {visibleSegments.map((segment, index) => (
-              <Bar
+              <RechartsBar
                 key={segment.key}
                 barSize={22}
                 dataKey={segment.key}
