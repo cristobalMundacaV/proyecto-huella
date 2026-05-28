@@ -2,12 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import { getConstructoraDashboard } from "@/shared/services/api";
+import { formatNumber } from "@/shared/utils/formatters";
 
 function normalizeKpiTitle(value) {
   return String(value || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+}
+
+function normalizeText(value) {
+  return normalizeKpiTitle(value).trim();
 }
 
 function getKpiOrder(title) {
@@ -27,25 +32,89 @@ function isNumericIdentifier(value) {
   return /^\d+(\.\d+)?$/.test(String(value ?? "").trim());
 }
 
+function isPendingValue(value) {
+  const normalized = normalizeText(value);
+  return normalized.includes("pendiente") || normalized.includes("sin datos");
+}
+
+function buildEvidenceValue(dashboardData) {
+  const coverage = Number(dashboardData?.evidencia_respaldada);
+  const evidenceCount = Number(dashboardData?.evidencias_count || 0);
+  const recordsCount = Number(dashboardData?.registros_count || 0);
+
+  if (Number.isFinite(coverage) && coverage > 0) {
+    return `${formatNumber(coverage, 0)}% respaldada`;
+  }
+
+  if (evidenceCount > 0) {
+    return `${formatNumber(evidenceCount, 0)} evidencias cargadas`;
+  }
+
+  if (recordsCount > 0) {
+    return "Requiere respaldo documental";
+  }
+
+  return "Sin registros para validar";
+}
+
+function buildIntensityValue(dashboardData) {
+  const backendIntensity = Number(dashboardData?.intensidad_carbono);
+
+  if (Number.isFinite(backendIntensity) && backendIntensity > 0) {
+    return `${formatNumber(backendIntensity, 2)} kg CO2e/m²`;
+  }
+
+  const totalEmissions = Number(
+    dashboardData?.total_emisiones ?? dashboardData?.emisiones_totales ?? 0
+  );
+  const obras = Array.isArray(dashboardData?.obras) ? dashboardData.obras : [];
+  const totalSurface = obras.reduce(
+    (total, obra) => total + Number(obra?.superficie_m2 || obra?.superficie || 0),
+    0
+  );
+
+  if (totalEmissions > 0 && totalSurface > 0) {
+    return `${formatNumber(totalEmissions / totalSurface, 2)} kg CO2e/m²`;
+  }
+
+  if (totalEmissions > 0) {
+    return "Superficie en revisión";
+  }
+
+  return "Sin emisiones registradas";
+}
+
+function resolveDashboardKpiValue({ dashboardData, isCriticalWorkCard, isEvidenceCard, isIntensityCard, value }) {
+  if (isCriticalWorkCard && isNumericIdentifier(value)) {
+    return dashboardData?.obra_critica || "";
+  }
+
+  if (isEvidenceCard && isPendingValue(value)) {
+    return buildEvidenceValue(dashboardData);
+  }
+
+  if (isIntensityCard && isPendingValue(value)) {
+    return buildIntensityValue(dashboardData);
+  }
+
+  return "";
+}
+
 function KpiCard({ detail, icon, title, tone, value }) {
   const { activeConstructoraId } = useConstructoraActiva();
-  const [resolvedCriticalWork, setResolvedCriticalWork] = useState("");
+  const [resolvedDashboardValue, setResolvedDashboardValue] = useState("");
   const normalizedTitle = useMemo(() => normalizeKpiTitle(title), [title]);
   const isCriticalWorkCard = normalizedTitle.includes("obra critica");
+  const isEvidenceCard = normalizedTitle.includes("evidencia respaldada");
+  const isIntensityCard = normalizedTitle.includes("intensidad de carbono");
+  const shouldResolveFromDashboard =
+    (isCriticalWorkCard && isNumericIdentifier(value)) ||
+    (isEvidenceCard && isPendingValue(value)) ||
+    (isIntensityCard && isPendingValue(value));
 
   useEffect(() => {
-    if (!isCriticalWorkCard) {
-      setResolvedCriticalWork("");
-      return undefined;
-    }
-
-    if (!isNumericIdentifier(value)) {
-      setResolvedCriticalWork("");
-      return undefined;
-    }
-
-    if (!activeConstructoraId) {
-      setResolvedCriticalWork("");
+    if (!shouldResolveFromDashboard || !activeConstructoraId) {
+      setResolvedDashboardValue("");
       return undefined;
     }
 
@@ -54,18 +123,33 @@ function KpiCard({ detail, icon, title, tone, value }) {
     getConstructoraDashboard(activeConstructoraId, { light: "1" })
       .then((dashboardData) => {
         if (isCancelled) return;
-        setResolvedCriticalWork(dashboardData?.obra_critica || "");
+        setResolvedDashboardValue(
+          resolveDashboardKpiValue({
+            dashboardData,
+            isCriticalWorkCard,
+            isEvidenceCard,
+            isIntensityCard,
+            value,
+          })
+        );
       })
       .catch(() => {
-        if (!isCancelled) setResolvedCriticalWork("");
+        if (!isCancelled) setResolvedDashboardValue("");
       });
 
     return () => {
       isCancelled = true;
     };
-  }, [activeConstructoraId, isCriticalWorkCard, value]);
+  }, [
+    activeConstructoraId,
+    isCriticalWorkCard,
+    isEvidenceCard,
+    isIntensityCard,
+    shouldResolveFromDashboard,
+    value,
+  ]);
 
-  const displayValue = isCriticalWorkCard && resolvedCriticalWork ? resolvedCriticalWork : value;
+  const displayValue = resolvedDashboardValue || value;
 
   const semanticTone = (() => {
     if (typeof tone === "string") {
