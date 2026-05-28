@@ -38,7 +38,8 @@ const getEntryLabel = (item = {}, preferredKeys = SOURCE_LABEL_KEYS) => {
 
 const getEntryEmission = (item = {}) =>
   Number(
-    item.emisiones_kg_co2e ??
+    item.emissions ??
+      item.emisiones_kg_co2e ??
       item.emisiones ??
       item.total_emisiones ??
       item.emisiones_totales ??
@@ -50,7 +51,8 @@ const getEntryEmission = (item = {}) =>
 
 const getEmissionValue = (row = {}) =>
   Number(
-    row.emisiones_kg_co2e ??
+    row.emissions ??
+      row.emisiones_kg_co2e ??
       row.emisiones ??
       row.total_emisiones ??
       row.emisiones_totales ??
