@@ -39,8 +39,17 @@ function isPendingValue(value) {
 
 function buildEvidenceValue(dashboardData) {
   const coverage = Number(dashboardData?.evidencia_respaldada);
-  const evidenceCount = Number(dashboardData?.evidencias_count || 0);
-  const recordsCount = Number(dashboardData?.registros_count || 0);
+  const evidenceCount = Number(
+    dashboardData?.evidencias_count ??
+      dashboardData?.total_evidencias ??
+      dashboardData?.evidencias_asociadas ??
+      0
+  );
+  const recordsCount = Number(
+    dashboardData?.registros_count ??
+      dashboardData?.total_registros ??
+      (Array.isArray(dashboardData?.datos) ? dashboardData.datos.length : 0)
+  );
 
   if (Number.isFinite(coverage) && coverage > 0) {
     return `${formatNumber(coverage, 0)}% respaldada`;
@@ -51,7 +60,7 @@ function buildEvidenceValue(dashboardData) {
   }
 
   if (recordsCount > 0) {
-    return "Requiere respaldo documental";
+    return "Trazabilidad en revisión";
   }
 
   return "Sin registros para validar";
@@ -181,7 +190,7 @@ function KpiCard({ detail, icon, title, tone, value }) {
     }
 
     if (normalizedTitle.includes("categoria critica")) {
-      return "neutral";
+      return "violet";
     }
 
     return "neutral";
@@ -189,43 +198,50 @@ function KpiCard({ detail, icon, title, tone, value }) {
 
   const toneMap = {
     danger: {
-      card: "border-[#FCA5A5] bg-[linear-gradient(180deg,#FEF2F2,#FFF7F7)]",
-      icon: "border-[#FCA5A5] bg-white text-[#B42318]",
+      card: "border-[#FDA29B] bg-[linear-gradient(180deg,#FFF1F3,#FFFFFF)] before:bg-[#E11D48]",
+      icon: "border-[#FDA29B] bg-white text-[#BE123C]",
       title: "text-[#64748B]",
-      value: "text-[#B42318]",
-      detail: "text-[#B42318]",
+      value: "text-[#BE123C]",
+      detail: "text-[#BE123C]",
     },
     warning: {
-      card: "border-[#FED7AA] bg-[linear-gradient(180deg,#FFF7ED,#FFFBF5)]",
-      icon: "border-[#FDBA74] bg-white text-[#B45309]",
+      card: "border-[#FDBA74] bg-[linear-gradient(180deg,#FFF7ED,#FFFFFF)] before:bg-[#EA580C]",
+      icon: "border-[#FDBA74] bg-white text-[#C2410C]",
       title: "text-[#64748B]",
-      value: "text-[#B45309]",
-      detail: "text-[#B45309]",
+      value: "text-[#C2410C]",
+      detail: "text-[#C2410C]",
     },
     success: {
-      card: "border-[#A7F3D0] bg-[linear-gradient(180deg,#ECFDF3,#F7FEFA)]",
-      icon: "border-[#A7F3D0] bg-white text-[#047857]",
+      card: "border-[#86EFAC] bg-[linear-gradient(180deg,#ECFDF3,#FFFFFF)] before:bg-[#059669]",
+      icon: "border-[#86EFAC] bg-white text-[#047857]",
       title: "text-[#64748B]",
       value: "text-[#047857]",
       detail: "text-[#047857]",
     },
     info: {
-      card: "border-[#BFDBFE] bg-[linear-gradient(180deg,#EFF6FF,#F8FBFF)]",
-      icon: "border-[#BFDBFE] bg-white text-[#1D4ED8]",
+      card: "border-[#93C5FD] bg-[linear-gradient(180deg,#EFF6FF,#FFFFFF)] before:bg-[#2563EB]",
+      icon: "border-[#93C5FD] bg-white text-[#1D4ED8]",
       title: "text-[#64748B]",
       value: "text-[#1D4ED8]",
       detail: "text-[#1D4ED8]",
     },
+    violet: {
+      card: "border-[#C4B5FD] bg-[linear-gradient(180deg,#F5F3FF,#FFFFFF)] before:bg-[#7C3AED]",
+      icon: "border-[#C4B5FD] bg-white text-[#6D28D9]",
+      title: "text-[#64748B]",
+      value: "text-[#6D28D9]",
+      detail: "text-[#6D28D9]",
+    },
     neutral: {
-      card: "border-[#E2E8F0] bg-[linear-gradient(180deg,#FFFFFF,#F8FAFC)]",
-      icon: "border-[#E2E8F0] bg-[#F8FAFC] text-[#334155]",
+      card: "border-[#CBD5E1] bg-[linear-gradient(180deg,#FFFFFF,#F8FAFC)] before:bg-[#475569]",
+      icon: "border-[#CBD5E1] bg-[#F8FAFC] text-[#334155]",
       title: "text-[#64748B]",
       value: "text-[#334155]",
       detail: "text-[#64748B]",
     },
   }[semanticTone] || {
-    card: "border-[#E2E8F0] bg-[linear-gradient(180deg,#FFFFFF,#F8FAFC)]",
-    icon: "border-[#E2E8F0] bg-[#F8FAFC] text-[#334155]",
+    card: "border-[#CBD5E1] bg-[linear-gradient(180deg,#FFFFFF,#F8FAFC)] before:bg-[#475569]",
+    icon: "border-[#CBD5E1] bg-[#F8FAFC] text-[#334155]",
     title: "text-[#64748B]",
     value: "text-[#334155]",
     detail: "text-[#64748B]",
@@ -239,14 +255,14 @@ function KpiCard({ detail, icon, title, tone, value }) {
   const orderClass = getKpiOrder(title);
 
   return (
-    <div className={`rounded-[18px] p-6 shadow-[0_10px_26px_rgba(15,23,42,0.045)] ring-1 ring-white/70 ${toneClasses} ${orderClass}`}>
+    <div className={`relative min-h-[10.25rem] overflow-hidden rounded-[24px] border p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] ring-1 ring-white/80 before:absolute before:left-6 before:right-6 before:top-0 before:h-1.5 before:rounded-b-full ${toneClasses} ${orderClass}`}>
       <div className="mb-4 flex flex-col items-center text-center">
-        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border shadow-[0_8px_24px_rgba(15,23,42,0.04)] ${iconClasses}`}>
+        <div className={`flex h-14 w-14 items-center justify-center rounded-2xl border shadow-[0_10px_26px_rgba(15,23,42,0.08)] ${iconClasses}`}>
           {icon}
         </div>
-        <p className={`mt-3 text-sm font-bold ${titleClasses}`}>{title}</p>
+        <p className={`mt-3 text-[12px] font-black uppercase tracking-[0.2em] ${titleClasses}`}>{title}</p>
       </div>
-      <h3 className={`mt-1 break-words text-center text-2xl font-black tracking-tight ${valueClasses}`}>
+      <h3 className={`mx-auto mt-1 max-w-[20rem] break-words text-center text-2xl font-black leading-tight tracking-tight sm:text-[1.75rem] ${valueClasses}`}>
         {displayValue}
       </h3>
       {detail && (
