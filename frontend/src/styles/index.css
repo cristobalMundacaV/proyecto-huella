@@ -136,7 +136,7 @@ a {
     border-color: rgba(14, 124, 102, 0.18);
   }
 
-  .premium-card-interactive:hover {
+.premium-card-interactive:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-hover);
   border-color: rgba(14, 124, 102, 0.28);
@@ -316,6 +316,27 @@ main > section textarea:focus {
 .premium-table {
   border-collapse: separate;
   border-spacing: 0;
+}
+
+/* Estado seleccionado para tarjetas interactivas del dashboard ejecutivo. */
+button.premium-card-interactive[aria-pressed="true"] {
+  border-color: #34D399 !important;
+  background: linear-gradient(135deg, #ECFDF3 0%, #FFFFFF 70%) !important;
+  box-shadow: 0 18px 42px rgba(5, 150, 105, 0.18) !important;
+  outline: 3px solid rgba(52, 211, 153, 0.18);
+}
+
+button.premium-card-interactive[aria-pressed="true"] p:first-child {
+  color: #065F46 !important;
+}
+
+button.premium-card-interactive[aria-pressed="true"] span[class*="SELECCIONADA"],
+button.premium-card-interactive[aria-pressed="true"] span {
+  border-color: rgba(5, 150, 105, 0.28);
+}
+
+button.premium-card-interactive[aria-pressed="true"] div.h-2 > div {
+  background: #059669 !important;
 }
 
 /* Contraste específico para el contenido de Importaciones.
