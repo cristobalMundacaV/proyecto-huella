@@ -335,6 +335,15 @@ function ExecutiveSummary({
       : strategicPlan.viability === "Media"
         ? "amber"
         : "red";
+  const stageConcentrationLabel = getExecutiveLabel(
+    riskProfile.factors.dominantStageLabel,
+    unidadCriticaLabel
+  );
+  const stageConcentrationValue = Number(riskProfile.factors.stageConcentration || 0);
+  const stageConcentrationDisplay =
+    stageConcentrationValue > 0
+      ? `${stageConcentrationLabel} · ${formatNumber(stageConcentrationValue, 1)}%`
+      : "Sin datos suficientes";
 
   return (
     <section className="premium-card slide-up rounded-[20px] border border-[#E2E8F0] bg-[#F8FAFC] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition-colors duration-300 ease-out sm:p-6">
@@ -494,9 +503,10 @@ function ExecutiveSummary({
             tone="warning"
           />
           <ScoreFactor
-            label="Concentracion etapa"
-            value={`${formatNumber(riskProfile.factors.stageConcentration, 0)}%`}
+            label="Etapa dominante"
+            value={stageConcentrationDisplay}
             tone="info"
+            description="Porcentaje de la huella concentrado en la etapa con mayor emisión."
           />
           <ScoreFactor
             label="Diesel presente"
@@ -528,7 +538,7 @@ function ExecutiveSummary({
   );
 }
 
-function ScoreFactor({ label, value, tone = "neutral" }) {
+function ScoreFactor({ label, value, tone = "neutral", description }) {
   const toneDot = {
     neutral: "bg-[#64748B]",
     warning: "bg-[#B45309]",
@@ -544,6 +554,9 @@ function ScoreFactor({ label, value, tone = "neutral" }) {
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#64748B]">{label}</p>
       </div>
       <p className="mt-1 break-words text-sm font-extrabold text-current">{value}</p>
+      {description ? (
+        <p className="mt-1 text-[11px] font-medium leading-4 text-[#64748B]">{description}</p>
+      ) : null}
     </div>
   );
 }
