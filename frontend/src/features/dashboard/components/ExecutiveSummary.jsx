@@ -513,7 +513,7 @@ function ExecutiveSummary({
             tone={riskProfile.factors.dieselPresent ? "warning" : "neutral"}
           />
           <ScoreFactor
-            label="Potencial reduccion"
+            label="% Reducción"
             value={
               hasValidOptimizedScenario
                 ? `${formatNumber(riskProfile.factors.potentialReduction, 1)}%`
