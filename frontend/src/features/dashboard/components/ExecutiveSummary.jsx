@@ -506,7 +506,6 @@ function ExecutiveSummary({
             label="Etapa dominante"
             value={stageConcentrationDisplay}
             tone="info"
-            description="Porcentaje de la huella concentrado en la etapa con mayor emisión."
           />
           <ScoreFactor
             label="Diesel presente"
