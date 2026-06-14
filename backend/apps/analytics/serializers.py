@@ -360,7 +360,6 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
             "registro_fuente",
             "archivo_url",
             "texto_extraido",
-            "metadata_extraccion",
             "created_at",
             "updated_at",
         ]
