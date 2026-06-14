@@ -148,3 +148,57 @@ Este enfoque permite evolucionar a modelos especificos en fases futuras sin perd
 - Conectar importaciones reales para transporte e industrial.
 - Migrar progresivamente textos internos de `constructora` a `empresa` sin tocar la base hasta una fase dedicada.
 - Agregar pruebas automatizadas de preset activo, navegacion e importaciones por preset.
+
+## Validacion final ejecutada
+
+Fecha de validacion: 2026-06-14.
+
+### Comandos ejecutados
+
+Backend:
+
+```bash
+cd backend
+python manage.py makemigrations --check
+python manage.py migrate
+python manage.py check
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm run build
+npm run lint
+```
+
+### Resultado backend
+
+- `python manage.py makemigrations --check`: OK. No se detectaron cambios de modelo pendientes de migracion.
+- Migraciones presentes revisadas:
+  - `0002_constructora_preset.py`
+  - `0003_factoremision_activo_factoremision_metadata_and_more.py`
+  - `0004_alter_factoremision_categoria.py`
+- `python manage.py migrate`: bloqueado por autenticacion local de Postgres. Error: `password authentication failed for user "admin_carbono"` contra `127.0.0.1:5433`.
+- `python manage.py check`: OK. `System check identified no issues`.
+
+### Resultado frontend
+
+- `npm run build`: OK. Vite genero build de produccion correctamente.
+- Advertencia no bloqueante: chunk principal mayor a 500 kB despues de minificacion.
+
+### Resultado lint
+
+- `npm run lint`: OK con codigo exitoso.
+- Quedan 14 warnings antiguos de dependencias de hooks (`react-hooks/exhaustive-deps`) en auth, constructoras, emisiones, mapas, registros de emision y Toast.
+- No quedan errores de lint introducidos por el refactor de presets.
+
+### Pendientes conocidos
+
+- Corregir credenciales o disponibilidad de Postgres local para poder ejecutar `python manage.py migrate`.
+- Revisar warnings historicos de hooks en una tarea separada, sin mezclarlo con el cierre de presets.
+- Validar manualmente en navegador la creacion de empresas por preset y los flujos operativos descritos en la checklist QA manual.
+
+### Decision final
+
+El refactor incremental queda cerrado como `nucleo + presets estabilizado` a nivel de codigo y build frontend. La unica validacion bloqueada es la aplicacion local de migraciones por credenciales de base de datos, no por cambios pendientes de modelo.

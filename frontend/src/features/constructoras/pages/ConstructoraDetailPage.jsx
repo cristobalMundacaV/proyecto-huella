@@ -3,8 +3,8 @@
 function ConstructoraDetailPage() {
   return (
     <EmptyState
-      title="Detalle de constructora"
-      description="Base preparada para resumen, etapas, obras, registros y reportes."
+      title="Detalle de empresa"
+      description="Base preparada para resumen, unidades operativas, procesos, registros y reportes."
     />
   );
 }

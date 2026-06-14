@@ -111,11 +111,13 @@ function ConstructorasView({
     setActiveConstructora,
   } = useConstructoraActiva();
   const activePreset = getActivePreset(activeConstructora?.preset || "construccion");
+  const processPluralLower = activePreset.processPluralLabel.toLowerCase();
+  const processLabelLower = activePreset.processLabel.toLowerCase();
   const { clearToast, showToast, toast } = useToast();
 
   const metrics = useMemo(
-    () => buildCompanyMetrics(constructoras, etapasOperativas, activeConstructoraId, activeConstructora),
-    [activeConstructora, activeConstructoraId, constructoras, etapasOperativas]
+    () => buildCompanyMetrics(constructoras, etapasOperativas, activeConstructoraId, activeConstructora, activePreset),
+    [activeConstructora, activeConstructoraId, activePreset, constructoras, etapasOperativas]
   );
 
   useEffect(() => {
@@ -324,7 +326,7 @@ function ConstructorasView({
           Lectura operativa de la empresa
         </h2>
         <p className="mt-3 max-w-6xl text-base font-medium leading-8 text-[#334155]">
-          {loadingEtapas ? "Cargando etapas / frentes..." : buildStrategicSummary(metrics)}
+          {loadingEtapas ? `Cargando ${processPluralLower}...` : buildStrategicSummary(metrics, activePreset)}
         </p>
       </section>
 
@@ -369,9 +371,9 @@ function ConstructorasView({
           value={metrics.totalEvidence}
         />
         <CompanyKpi
-          detail="Obras asociadas a la constructora"
+          detail={`${activePreset.unitPluralLabel} asociadas a la empresa`}
           icon={<Building2 />}
-          label="Obras operativas"
+          label={`${activePreset.unitPluralLabel} operativas`}
           tone="neutral"
           value={metrics.totalObras}
         />
@@ -382,15 +384,16 @@ function ConstructorasView({
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <UnitMetricBarChart
           dataKey="emisiones"
-          description="Permite identificar rápidamente dónde se concentra el mayor problema ambiental."
           rows={metrics.unitComparisonRows}
-          title="Emisiones por etapa"
+          description={`Permite identificar rapidamente en que ${processLabelLower} se concentra el mayor problema ambiental.`}
+          title={`Emisiones por ${activePreset.processLabel.toLowerCase()}`}
           valueLabel="Emisiones"
         />
 
         <CategoryStackedBarChart
           rows={metrics.categoryStackRows}
           segments={metrics.categoryStackSegments}
+          processLabel={activePreset.processLabel}
         />
       </section>
 
@@ -430,7 +433,9 @@ function ConstructorasView({
   );
 }
 
-function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = "", activeConstructora = null) {
+function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = "", activeConstructora = null, preset = getActivePreset()) {
+  const processFallback = `Sin ${preset.processLabel.toLowerCase()}`;
+  const unitFallback = `Sin ${preset.unitLabel.toLowerCase()}`;
   const activeCompany =
     constructoras.find((constructora) => String(constructora.constructora_id) === String(activeConstructoraId)) ||
     constructoras.find((constructora) => String(constructora.id) === String(activeConstructoraId)) ||
@@ -447,7 +452,7 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
       String(unidad.constructora || "") === String(activeCompany.id || "")
     );
   });
-  const registros = collectEmissionRecords(scopedUnits);
+  const registros = collectEmissionRecords(scopedUnits, processFallback);
   const currentMonthKey = getCurrentMonthKey();
   const currentMonthEmissions = registros.reduce((acc, registro) => {
     if (getMonthKey(registro.fecha) !== currentMonthKey) {
@@ -486,7 +491,7 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
     Number(unidad.obras_count || 0) + Number(unidad.registros_count || 0)
   );
   const topObra = buildTopEmissionGroup(registros, (registro) =>
-    registro.obra_nombre || registro.obra_codigo || registro.codigo_obra || "Sin obra"
+    registro.obra_nombre || registro.obra_codigo || registro.codigo_obra || unitFallback
   );
   const topCategory = buildTopEmissionGroup(registros, (registro) =>
     getConstructionCategoryLabel(registro.categoria, registro.fuente_emision) || "Otros"
@@ -500,7 +505,7 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
       : 0;
   const unitComparisonRows = scopedUnits
     .map((unidad, index) => ({
-      unidad: unidad.nombre || unidad.etapa_id || "Sin etapa",
+      unidad: unidad.nombre || unidad.etapa_id || processFallback,
       emisiones: Number(unidad.emisiones_totales_kg_co2e || 0),
       color: stageBarColors[index % stageBarColors.length],
     }))
@@ -512,7 +517,7 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
   const sourceComparisonRows = buildEmissionGroupRows(registros, (registro) =>
     registro.fuente_emision || "Sin fuente"
   );
-  const categoryStack = buildCategoryStackData(scopedUnits);
+  const categoryStack = buildCategoryStackData(scopedUnits, processFallback);
   const monthlyRows = buildMonthlyRows(scopedUnits);
 
   return {
@@ -533,11 +538,11 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
   };
 }
 
-function collectEmissionRecords(etapas) {
+function collectEmissionRecords(etapas, processFallback = "Sin proceso") {
   return etapas.flatMap((unidad) =>
     (unidad.registros_emision_resumen || []).map((registro) => ({
       ...registro,
-      etapa_nombre: registro.etapa_nombre || unidad.nombre || unidad.etapa_id || "Sin etapa",
+      etapa_nombre: registro.etapa_nombre || unidad.nombre || unidad.etapa_id || processFallback,
     }))
   );
 }
@@ -585,12 +590,12 @@ function buildEmissionGroupRows(registros, labelSelector) {
     }));
 }
 
-function buildCategoryStackData(etapas) {
+function buildCategoryStackData(etapas, processFallback = "Sin proceso") {
   const categoryMap = new Map();
   const categoryTotals = new Map();
   const rows = etapas.map((unidad) => {
     const row = {
-      unidad: unidad.nombre || unidad.etapa_id || "Sin etapa",
+      unidad: unidad.nombre || unidad.etapa_id || processFallback,
       total: 0,
     };
 
@@ -644,42 +649,45 @@ function getCategoryColor(label, index = 0) {
   return categoryColorMap[key] || categoryFallbackColors[index % categoryFallbackColors.length];
 }
 
-function buildStrategicSummary(metrics) {
+function buildStrategicSummary(metrics, preset) {
+  const processPluralLower = preset.processPluralLabel.toLowerCase();
+  const processLabelLower = preset.processLabel.toLowerCase();
+  const unitPluralLower = preset.unitPluralLabel.toLowerCase();
+
   if (!metrics.activeCompany) {
-    return "Selecciona o crea una constructora para comenzar a organizar sus etapas, obras, registros y evidencias dentro de Carbono Zero.";
+    return `Selecciona o crea una empresa para comenzar a organizar sus ${processPluralLower}, ${unitPluralLower}, registros y evidencias dentro de Carbono Zero.`;
   }
 
-  const companyName = metrics.activeCompany.nombre || "La constructora";
+  const companyName = metrics.activeCompany.nombre || "La empresa";
 
   if (!metrics.totalUnits) {
-    return `${companyName} aún no tiene etapas o frentes registrados. El siguiente paso es crear su estructura operativa para ordenar obras, asociar registros de emisión y activar una lectura ambiental confiable.`;
+    return `${companyName} aun no tiene ${processPluralLower} registrados. El siguiente paso es crear su estructura operativa para ordenar ${unitPluralLower}, asociar registros ambientales y activar una lectura confiable.`;
   }
 
-  const topOperationalName = metrics.topOperational?.nombre || "la etapa con mayor actividad";
-  const topEmitterName = metrics.topEmitter?.nombre || "la etapa con mayor huella";
-  const topCategoryName = metrics.topCategory?.label || "la categoría principal";
+  const topOperationalName = metrics.topOperational?.nombre || `el ${processLabelLower} con mayor actividad`;
+  const topEmitterName = metrics.topEmitter?.nombre || `el ${processLabelLower} con mayor huella`;
+  const topCategoryName = metrics.topCategory?.label || "la categoria principal";
   const hasEmissions = Number(metrics.totalEmissions || 0) > 0;
   const emissionShare = formatNumber(metrics.topEmissionShare, 1);
   const sameOperationalAndEmitter =
     normalizeColorKey(topOperationalName) === normalizeColorKey(topEmitterName);
   const concentration =
     metrics.topEmissionShare >= 60
-      ? "una concentración alta"
+      ? "una concentracion alta"
       : metrics.topEmissionShare >= 35
-        ? "una concentración relevante"
-        : "una distribución relativamente balanceada";
+        ? "una concentracion relevante"
+        : "una distribucion relativamente balanceada";
 
   if (!hasEmissions) {
-    return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas y su mayor carga operativa se observa en ${topOperationalName}. Aún no existe una huella de carbono suficientemente registrada para definir una etapa crítica por emisiones, por lo que el foco inmediato debe ser completar registros, vincular evidencias y validar factores de emisión antes de tomar decisiones de reducción.`;
+    return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} ${processPluralLower} activos y su mayor carga operativa se observa en ${topOperationalName}. Aun no existe una huella de carbono suficientemente registrada para definir un foco critico por emisiones, por lo que el foco inmediato debe ser completar registros, vincular evidencias y validar factores de emision antes de tomar decisiones de reduccion.`;
   }
 
-  const stageReading = sameOperationalAndEmitter
-    ? `${topEmitterName} coincide como la etapa con mayor carga operativa y mayor concentración de emisiones: representa el ${emissionShare}% de la huella registrada.`
+  const processReading = sameOperationalAndEmitter
+    ? `${topEmitterName} coincide como el foco con mayor carga operativa y mayor concentracion de emisiones: representa el ${emissionShare}% de la huella registrada.`
     : `La mayor carga operativa se observa en ${topOperationalName}, mientras que ${topEmitterName} concentra el ${emissionShare}% de las emisiones registradas.`;
 
-  return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas. ${stageReading} ${topCategoryName} es la categoría con mayor impacto, lo que muestra ${concentration} del resultado ambiental. La decisión más importante es priorizar este foco, revisar sus fuentes principales y ejecutar acciones medibles donde exista mayor potencial de reducción.`;
+  return `${companyName} cuenta con ${formatNumber(metrics.totalUnits, 0)} ${processPluralLower} activos. ${processReading} ${topCategoryName} es la categoria con mayor impacto, lo que muestra ${concentration} del resultado ambiental. La decision mas importante es priorizar este foco, revisar sus fuentes principales y ejecutar acciones medibles donde exista mayor potencial de reduccion.`;
 }
-
 function UnitMetricBarChart({ dataKey, description, rows, title, valueLabel, yAxisWidth = 135 }) {
   const visibleRows = (rows || [])
     .filter((row) => Number(row[dataKey] || 0) > 0)
@@ -743,7 +751,7 @@ function UnitMetricBarChart({ dataKey, description, rows, title, valueLabel, yAx
   );
 }
 
-function CategoryStackedBarChart({ rows, segments }) {
+function CategoryStackedBarChart({ processLabel = "Proceso", rows, segments }) {
   const visibleRows = rows || [];
   const visibleSegments = (segments || []).filter((segment) => Number(segment.total || 0) > 0);
   const chartHeight = Math.max(300, Math.min(470, visibleRows.length * 48 + 105));
@@ -754,7 +762,7 @@ function CategoryStackedBarChart({ rows, segments }) {
 
   return (
     <ChartPanel
-      description="Muestra cómo se distribuyen las emisiones de cada etapa según sus categorías principales."
+      description={`Muestra como se distribuyen las emisiones de cada ${processLabel.toLowerCase()} segun sus categorias principales.`}
       title="Emisiones por categoría"
     >
       <div className="w-full" style={{ height: chartHeight }}>
@@ -1179,3 +1187,4 @@ const fieldLabels = {
 };
 
 export default ConstructorasView;
+

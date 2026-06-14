@@ -71,7 +71,7 @@ export function ConstructoraActivaProvider({ children }) {
 
       return normalized;
     } catch (error) {
-      setErrorConstructoras(error.response?.data?.error || "No se pudieron cargar las constructoras.");
+      setErrorConstructoras(error.response?.data?.error || "No se pudieron cargar las empresas.");
       throw error;
     } finally {
       setLoadingConstructoras(false);

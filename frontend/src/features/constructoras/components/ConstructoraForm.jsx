@@ -45,7 +45,7 @@ function ConstructoraForm({
                 Registrar empresa
               </h2>
               <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[var(--text-muted)]">
-                Completa los datos base para crear la empresa y dejarla disponible para obras, emisiones, evidencias e importaciones.
+                Completa los datos base para crear la empresa y dejarla disponible para registros ambientales, evidencias e importaciones.
               </p>
             </div>
           </div>
@@ -143,7 +143,7 @@ function ConstructoraForm({
             label="Email"
             name="email"
             onChange={onUpdateForm}
-            placeholder="contacto@constructora.cl"
+            placeholder="contacto@empresa.cl"
             type="email"
             value={form.email}
             required

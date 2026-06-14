@@ -209,7 +209,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
         </div>
         <div>
           <h2 className="text-xl font-black tracking-tight">Carbono Zero</h2>
-          <p className="text-xs text-slate-400">Inteligencia ambiental para obras</p>
+          <p className="text-xs text-slate-400">Inteligencia ambiental por rubro</p>
         </div>
       </div>
 
