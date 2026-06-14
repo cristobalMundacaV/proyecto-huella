@@ -232,7 +232,13 @@ function ActiveView({
 
   if (activeView === "etapas") return <EtapasObraView />;
   if (activeView === "reportes") {
-    return <ReportesView activeConstructoraId={activeConstructoraId} activeConstructora={activeConstructora} />;
+    return (
+      <ReportesView
+        activeConstructoraId={activeConstructoraId}
+        activeConstructora={activeConstructora}
+        onSetActiveView={onSetActiveView}
+      />
+    );
   }
   if (activeView === "emisiones") return <EmisionesView onSetActiveView={onSetActiveView} />;
   if (activeView === "factores") return <FactoresView />;
