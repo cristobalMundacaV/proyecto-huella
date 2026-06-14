@@ -1,3 +1,5 @@
+import { sawmillIntelligence } from "./intelligence";
+
 const aserraderoPreset = {
   key: "aserradero",
   name: "Aserradero",
@@ -10,6 +12,7 @@ const aserraderoPreset = {
   dashboardTitle: "Panel forestal",
   primaryKpi: "Emisiones por produccion",
   categories: ["Materia prima", "Secado", "Energia", "Transporte", "Residuos", "Mantencion", "Otros"],
+  intelligence: sawmillIntelligence,
   navigation: [
     { view: "dashboard", label: "Panel principal" },
     { view: "emisiones", label: "Emisiones" },

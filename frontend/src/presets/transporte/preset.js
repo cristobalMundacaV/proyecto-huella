@@ -1,3 +1,5 @@
+import { transportIntelligence } from "./intelligence";
+
 const transportePreset = {
   key: "transporte",
   name: "Transporte",
@@ -10,6 +12,7 @@ const transportePreset = {
   dashboardTitle: "Panel logistico",
   primaryKpi: "Emisiones por km",
   categories: ["Combustible", "Flota", "Rutas", "Carga", "Mantencion", "Energia", "Otros"],
+  intelligence: transportIntelligence,
   navigation: [
     { view: "dashboard", label: "Panel principal" },
     { view: "emisiones", label: "Emisiones" },

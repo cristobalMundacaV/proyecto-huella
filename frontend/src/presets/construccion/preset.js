@@ -1,3 +1,5 @@
+import { constructionIntelligence } from "./intelligence";
+
 const construccionPreset = {
   key: "construccion",
   name: "Construccion",
@@ -10,6 +12,7 @@ const construccionPreset = {
   dashboardTitle: "Panel principal",
   primaryKpi: "Emisiones totales",
   categories: ["Materiales", "Residuos", "Maquinaria", "Energia", "Transporte", "Agua", "Otros"],
+  intelligence: constructionIntelligence,
   navigation: [
     { view: "dashboard", label: "Panel principal" },
     { view: "emisiones", label: "Emisiones" },

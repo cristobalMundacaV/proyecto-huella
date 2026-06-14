@@ -1,3 +1,5 @@
+import { industrialIntelligence } from "./intelligence";
+
 const industrialPreset = {
   key: "industrial",
   name: "Industrial",
@@ -10,6 +12,7 @@ const industrialPreset = {
   dashboardTitle: "Panel industrial",
   primaryKpi: "Emisiones por produccion",
   categories: ["Energia", "Combustibles", "Procesos", "Insumos", "Residuos", "Transporte", "Otros"],
+  intelligence: industrialIntelligence,
   navigation: [
     { view: "dashboard", label: "Panel principal" },
     { view: "emisiones", label: "Emisiones" },
