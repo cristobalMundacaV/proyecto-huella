@@ -74,6 +74,9 @@ export async function createObra(payload){ const id = payload.constructora_id ||
 export async function getObraDetail(codigo){ const [obra, registros, evidencias, transportes] = await Promise.all([api.get(obraPath(codigo,"/")), api.get(obraPath(codigo,"/registros-emision/")), api.get(obraPath(codigo,"/evidencias/")), api.get(obraPath(codigo,"/transportes/"))]); return {...obra.data, registros_emision: registros.data, evidencias: evidencias.data, transportes: transportes.data}; }
 export async function getObraBalanceAmbiental(codigo){ return (await api.get(obraPath(codigo,"/"))).data.analisis_ambiental || {}; }
 export async function getConstructoraRegistrosEmision(id){ return (await api.get(constructoraPath(id,"/registros-emision/"))).data; }
+export async function createConstructoraRegistroEmision(id,payload){ return (await api.post(constructoraPath(id,"/registros-emision/"),payload)).data; }
+export async function getEmpresaRegistrosAmbientales(id){ return getConstructoraRegistrosEmision(id); }
+export async function createEmpresaRegistroAmbiental(id,payload){ return createConstructoraRegistroEmision(id,payload); }
 export async function getConstructoraEmisiones(id,params={}){ return (await api.get(constructoraPath(id,"/emisiones/"),{params})).data; }
 export async function createRegistroEmision(codigo,payload){ return (await api.post(obraPath(codigo,"/registros-emision/"),payload)).data; }
 export async function getConstructoraEvidencias(id,params={}){ return (await api.get(constructoraPath(id,"/evidencias/"),{params})).data; }

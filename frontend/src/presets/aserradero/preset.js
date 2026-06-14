@@ -11,7 +11,7 @@ const aserraderoPreset = {
   processPluralLabel: "Procesos",
   dashboardTitle: "Panel forestal",
   primaryKpi: "Emisiones por produccion",
-  categories: ["Materia prima", "Secado", "Energia", "Transporte", "Residuos", "Mantencion", "Otros"],
+  categories: ["Materia prima", "Produccion", "Secado", "Energia", "Transporte", "Residuos", "Subproductos", "Otros"],
   intelligence: sawmillIntelligence,
   navigation: [
     { view: "dashboard", label: "Panel principal", core: true },

@@ -26,6 +26,12 @@ import ObrasView from "@/features/obras/pages/ObrasPage";
 import EtapasObraView from "@/features/etapas/pages/EtapasPage";
 import ReportesView from "@/features/reportes/pages/ReportesView";
 import UsuariosPage from "@/features/usuarios/pages/UsuariosPage";
+import RecepcionTrozasPage from "@/presets/aserradero/pages/RecepcionTrozasPage";
+import ProduccionAserraderoPage from "@/presets/aserradero/pages/ProduccionAserraderoPage";
+import SecadoAserraderoPage from "@/presets/aserradero/pages/SecadoAserraderoPage";
+import EnergiaAserraderoPage from "@/presets/aserradero/pages/EnergiaAserraderoPage";
+import TransporteForestalPage from "@/presets/aserradero/pages/TransporteForestalPage";
+import ResiduosSubproductosPage from "@/presets/aserradero/pages/ResiduosSubproductosPage";
 import {
   getConstructoraDashboard,
   getConstructoraEmisiones,
@@ -544,6 +550,18 @@ const environmentalStatus = getEnvironmentalStatus({
           <ConfiguracionPage />
         ) : activeView === "importaciones" ? (
           <ImportacionesView onImportConfirmed={refreshInternalDashboard} />
+        ) : activeView === "recepcion_trozas" ? (
+          <RecepcionTrozasPage />
+        ) : activeView === "produccion" ? (
+          <ProduccionAserraderoPage />
+        ) : activeView === "secado" ? (
+          <SecadoAserraderoPage />
+        ) : activeView === "energia" ? (
+          <EnergiaAserraderoPage />
+        ) : activeView === "transporte_forestal" ? (
+          <TransporteForestalPage />
+        ) : activeView === "residuos_subproductos" ? (
+          <ResiduosSubproductosPage />
         ) : presetPlaceholderViews[activeView] ? (
           <PresetComingSoon
             title={presetPlaceholderViews[activeView].title}
