@@ -100,7 +100,7 @@ function ObrasTable({ loading, obras, onOpenDetail, onSelectObra, selectedObra }
                     {obra.tipo_proyecto || "Obra registrada"}
                   </td>
                   <td className="px-4 py-4 text-center align-middle text-[var(--text-main)]">
-                    {obra.constructora_nombre || "Constructora activa"}
+                    {obra.constructora_nombre || "Empresa activa"}
                   </td>
                   <td className="px-4 py-4 text-center align-middle font-black text-[#075985]">
                     {formatNumber(Number(obra.emisiones_kg_co2e || 0))} kg CO2e

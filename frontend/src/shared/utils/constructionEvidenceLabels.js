@@ -24,7 +24,7 @@ const constructionWorkDocumentTypeOptions = [
 const constructionWorkDocumentTypeLabelMap = Object.fromEntries(constructionWorkDocumentTypeOptions);
 
 const constructionEvidenceScopeOptions = [
-  { value: "Constructora", label: "Constructora activa", helper: "Respalda la información de toda la constructora activa." },
+  { value: "Constructora", label: "Empresa activa", helper: "Respalda la información de toda la empresa activa." },
   { value: "unidad", label: "Etapa / frente", helper: "Vincula la evidencia a una etapa o frente de obra." },
   { value: "obra", label: "Obra asociada", helper: "Relaciona el evidencia con una obra especí­fica." },
   { value: "emision", label: "Registro de emision asociado", helper: "Vincula la evidencia a un registro de emision cuando exista." },

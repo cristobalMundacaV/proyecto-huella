@@ -21,10 +21,12 @@ import {
 
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
-import { deleteConstructora } from "@/shared/services/api";
+import { getActivePreset } from "@/presets/registry";
+import { deleteEmpresa } from "@/shared/services/api";
 
 function Sidebar({ activeView, onSetActiveView, systemStatus }) {
   const { logout, user } = useAuth();
+  const activePreset = getActivePreset();
   const {
     activeConstructora,
     activeConstructoraId,
@@ -38,36 +40,38 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const getNavigationLabel = (view, fallback) =>
+    activePreset.navigation.find((item) => item.view === view)?.label || fallback;
 
   const navigationItems = [
     {
       icon: LayoutDashboard,
-      label: "Panel principal",
+      label: getNavigationLabel("dashboard", activePreset.dashboardTitle),
       view: "dashboard",
     },
     {
       icon: Flame,
-      label: "Emisiones",
+      label: getNavigationLabel("emisiones", "Emisiones"),
       view: "emisiones",
     },
     {
       icon: Building2,
-      label: "Constructoras",
+      label: getNavigationLabel("constructoras", activePreset.entityPluralLabel),
       view: "constructoras",
     },
     {
       icon: Factory,
-      label: "Etapas",
+      label: getNavigationLabel("etapas", activePreset.processPluralLabel),
       view: "etapas",
     },
     {
       icon: Boxes,
-      label: "Obras",
+      label: getNavigationLabel("obras", activePreset.unitPluralLabel),
       view: "obras",
     },
     {
       icon: BarChart3,
-      label: "Reportes",
+      label: getNavigationLabel("reportes", "Reportes"),
       view: "reportes",
     },
     {
@@ -77,12 +81,12 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
     },
     {
       icon: FileCheck2,
-      label: "Evidencias",
+      label: getNavigationLabel("evidencias", "Evidencias"),
       view: "evidencias",
     },
     {
       icon: UsersRound,
-      label: "Usuarios",
+      label: getNavigationLabel("usuarios", "Usuarios"),
       view: "usuarios",
     },
     {
@@ -92,8 +96,8 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
     },
   ];
   const statusItems = [
-    ["Etapas", systemStatus?.etapas ?? 0],
-    ["Obras", systemStatus?.obras ?? 0],
+    [activePreset.processPluralLabel, systemStatus?.etapas ?? 0],
+    [activePreset.unitPluralLabel, systemStatus?.obras ?? 0],
     ["Registros", systemStatus?.registros_emision ?? 0],
     ["Evidencias", systemStatus?.evidencias ?? 0],
     ["Fichas", systemStatus?.fichas_ambientales ?? 0],
@@ -121,7 +125,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
 
     try {
       const deletedId = selectedConstructora.constructora_id;
-      await deleteConstructora(deletedId);
+      await deleteEmpresa(deletedId);
       const updatedConstructoras = await refreshConstructoras(deletedId);
       const nextConstructora = updatedConstructoras.find(
         (constructora) => String(constructora.constructora_id) !== String(deletedId)
@@ -139,7 +143,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
     } catch (error) {
       setDeleteError(
         error.response?.data?.error ||
-          "No se pudo eliminar la constructora. Revisa si tiene datos relacionados o intenta nuevamente."
+          "No se pudo eliminar la empresa. Revisa si tiene datos relacionados o intenta nuevamente."
       );
     } finally {
       setDeleting(false);
@@ -161,7 +165,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
                       Acción irreversible
                     </p>
                     <h2 className="mt-1 text-2xl font-black text-slate-950">
-                      Eliminar constructora
+                      Eliminar empresa
                     </h2>
                   </div>
                 </div>
@@ -188,7 +192,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
               <input
                 value={deleteConfirmText}
                 onChange={(event) => setDeleteConfirmText(event.target.value)}
-                placeholder="Escribe el ID de la constructora"
+                placeholder="Escribe el ID de la empresa"
                 className="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-red-300 focus:ring-4 focus:ring-red-100"
               />
 
@@ -236,7 +240,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
 
       <section className="group mb-8 rounded-2xl border border-emerald-300/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[0_12px_28px_rgba(0,0,0,0.14)] transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200/40 hover:shadow-[0_18px_36px_rgba(0,0,0,0.2)]">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 transition group-hover:text-emerald-200">
-          constructora activa
+          Empresa activa
         </p>
         <div className="mt-3 space-y-3">
           <select
@@ -254,7 +258,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
             }}
             className="w-full rounded-xl border border-emerald-300/18 bg-[var(--sidebar-active)] px-4 py-3 text-sm text-slate-50 shadow-[0_10px_18px_rgba(0,0,0,0.18)] outline-none transition focus:border-emerald-300/60 focus:ring-4 focus:ring-emerald-400/10"
           >
-            <option value="">Selecciona una constructora</option>
+            <option value="">Selecciona una empresa</option>
             {constructoras.map((constructora) => (
               <option key={constructora.constructora_id} value={constructora.constructora_id}>
                 {constructora.nombre}
@@ -267,7 +271,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
             onClick={() => onSetActiveView("constructoras", { openCreateConstructora: true })}
             className="w-full rounded-2xl border border-[var(--primary)]/35 bg-[linear-gradient(180deg,var(--primary),var(--primary-dark))] px-3 py-2 text-xs font-bold text-white shadow-[0_14px_28px_rgba(14,124,102,0.28)] transition hover:-translate-y-px hover:shadow-[0_16px_32px_rgba(14,124,102,0.34)] active:scale-[0.98]"
           >
-            Nueva constructora
+            Nueva empresa
           </button>
 
           {selectedConstructora && (
@@ -281,12 +285,12 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
               className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-300/25 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-100 shadow-[0_10px_24px_rgba(185,28,28,0.08)] transition hover:-translate-y-px hover:border-red-300/45 hover:bg-red-500/18 active:scale-[0.98]"
             >
               <Trash2 size={15} />
-              Eliminar constructora
+              Eliminar empresa
             </button>
           )}
 
           {loadingConstructoras && (
-            <p className="text-xs text-slate-500">Cargando constructoras...</p>
+            <p className="text-xs text-slate-500">Cargando empresas...</p>
           )}
         </div>
       </section>
@@ -322,7 +326,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
 
       <div className="group mt-10 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_12px_28px_rgba(15,23,42,0.16)] transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200/20 hover:bg-white/7 hover:shadow-[0_18px_36px_rgba(15,23,42,0.22)]">
         <p className="text-xs text-slate-500 transition group-hover:text-emerald-200">
-          Estado de la constructora
+          Estado de la empresa
         </p>
         <div className="mt-3 space-y-2">
           {statusItems.map(([label, value]) => (

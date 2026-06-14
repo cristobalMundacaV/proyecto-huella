@@ -32,10 +32,10 @@ function ConstructoraForm({
             </div>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--primary-dark)]">
-                Nueva constructora
+                Nueva empresa
               </p>
               <h2 className="mt-1 text-2xl font-black leading-tight text-[var(--text-main)]">
-                Registrar empresa constructora
+                Registrar empresa
               </h2>
               <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[var(--text-muted)]">
                 Completa los datos base para crear la empresa y dejarla disponible para obras, emisiones, evidencias e importaciones.
@@ -68,10 +68,10 @@ function ConstructoraForm({
           <FormField
             error={fieldErrors.nombre}
             icon={<Building2 size={17} />}
-            label="Nombre de la constructora"
+            label="Nombre de la empresa"
             name="nombre"
             onChange={onUpdateForm}
-            placeholder="Ej: Constructora Andina SpA"
+            placeholder="Ej: Empresa Andina SpA"
             value={form.nombre}
             className="sm:col-span-2"
             required
@@ -178,7 +178,7 @@ function ConstructoraForm({
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#0E7C66]/20 bg-[linear-gradient(180deg,#0E7C66,#095C4C)] px-6 py-3 text-sm font-black text-white shadow-[0_16px_32px_rgba(14,124,102,0.22)] hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-            Guardar constructora
+            Guardar empresa
           </button>
         </div>
       </form>

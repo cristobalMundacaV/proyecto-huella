@@ -56,6 +56,9 @@ export async function bootstrapUser(payload){ return (await api.post("/auth/boot
 export async function getConstructoras(){ return (await api.get("/constructoras/")).data; }
 export async function createConstructora(payload){ return (await api.post("/constructoras/", payload)).data; }
 export async function deleteConstructora(id){ await api.delete(constructoraPath(id, "/")); }
+export async function getEmpresas(){ return getConstructoras(); }
+export async function createEmpresa(payload){ return createConstructora(payload); }
+export async function deleteEmpresa(id){ return deleteConstructora(id); }
 export async function getConstructoraUsuarios(id){ return (await api.get(constructoraPath(id, "/usuarios/"))).data; }
 export async function createConstructoraUsuario(id,payload){ return (await api.post(constructoraPath(id,"/usuarios/"),payload)).data; }
 export async function getConstructoraDashboard(id,params={}){ return (await api.get(constructoraPath(id,"/dashboard/"),{params})).data; }

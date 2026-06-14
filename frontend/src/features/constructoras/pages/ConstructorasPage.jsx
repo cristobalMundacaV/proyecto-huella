@@ -12,11 +12,11 @@ import {
 import ConstructoraForm from "../components/ConstructoraForm";
 import RealtimeIotMonitoring from "@/features/dashboard/components/RealtimeIotMonitoring";
 import Toast from "@/shared/components/Toast";
+import { getActivePreset } from "@/presets/registry";
 import {
-  createConstructora,
+  createEmpresa,
   getConstructoraEtapas,
-  getConstructoras,
-  getIotKpis,
+  getEmpresas,
 } from "@/shared/services/api";
 import { useToast } from "@/shared/hooks/useToast";
 import { formatNumber } from "@/shared/utils/formatters";
@@ -82,7 +82,6 @@ const categoryColorMap = {
 
 const categoryFallbackColors = ["#0F766E", "#D97706", "#2563EB", "#7C3AED", "#DC2626", "#0891B2", "#64748B"];
 const CONSTRUCTORA_REFRESH_MS = 5000;
-const IOT_KPI_REFRESH_MS = 3000;
 
 const monthFormatter = new Intl.DateTimeFormat("es-CL", {
   month: "short",
@@ -104,7 +103,7 @@ function ConstructorasView({
   const [etapasOperativas, setEtapasOperativas] = useState([]);
   const [loadingEtapas, setLoadingEtapas] = useState(false);
   const [metricsPulseKey, setMetricsPulseKey] = useState(0);
-  const [iotKpis, setIotKpis] = useState(null);
+  const activePreset = getActivePreset();
   const {
     activeConstructora,
     activeConstructoraId,
@@ -114,8 +113,8 @@ function ConstructorasView({
   const { clearToast, showToast, toast } = useToast();
 
   const metrics = useMemo(
-    () => buildCompanyMetrics(constructoras, etapasOperativas, activeConstructoraId, activeConstructora, iotKpis),
-    [activeConstructora, activeConstructoraId, constructoras, etapasOperativas, iotKpis]
+    () => buildCompanyMetrics(constructoras, etapasOperativas, activeConstructoraId, activeConstructora),
+    [activeConstructora, activeConstructoraId, constructoras, etapasOperativas]
   );
 
   useEffect(() => {
@@ -123,7 +122,7 @@ function ConstructorasView({
 
     async function loadconstructoras() {
       try {
-        const data = await getConstructoras();
+        const data = await getEmpresas();
 
         if (!isCancelled) {
           setConstructoras(Array.isArray(data) ? data : []);
@@ -132,7 +131,7 @@ function ConstructorasView({
         if (!isCancelled) {
           setError(
             requestError.response?.data?.error ||
-              "No se pudieron cargar las constructoras."
+              "No se pudieron cargar las empresas."
           );
         }
       } finally {
@@ -187,41 +186,6 @@ function ConstructorasView({
     return () => {
       isCancelled = true;
       window.clearInterval(intervalId);
-    };
-  }, [activeConstructoraId]);
-
-  useEffect(() => {
-    let isCancelled = false;
-    let timeoutId;
-
-    async function loadLiveIotKpis() {
-      if (!activeConstructoraId) {
-        setIotKpis(null);
-        return;
-      }
-
-      try {
-        const liveKpis = await getIotKpis(activeConstructoraId);
-
-        if (!isCancelled) {
-          setIotKpis(liveKpis || null);
-        }
-      } catch {
-        if (!isCancelled) {
-          setIotKpis(null);
-        }
-      } finally {
-        if (!isCancelled) {
-          timeoutId = window.setTimeout(loadLiveIotKpis, IOT_KPI_REFRESH_MS);
-        }
-      }
-    }
-
-    loadLiveIotKpis();
-
-    return () => {
-      isCancelled = true;
-      window.clearTimeout(timeoutId);
     };
   }, [activeConstructoraId]);
 
@@ -294,7 +258,7 @@ function ConstructorasView({
     setFieldErrors({});
 
     try {
-      const createdConstructora = await createConstructora(form);
+      const createdConstructora = await createEmpresa(form);
       setConstructoras((currentConstructoras) => [createdConstructora, ...currentConstructoras]);
       setActiveConstructora(createdConstructora);
       await refreshConstructoras();
@@ -308,7 +272,7 @@ function ConstructorasView({
         setFieldErrors(responseData);
       }
 
-      setError("Revisa los datos de la constructora antes de guardarla.");
+      setError("Revisa los datos de la empresa antes de guardarla.");
     } finally {
       setSaving(false);
     }
@@ -328,15 +292,15 @@ function ConstructorasView({
             <Building2 className="text-emerald-400" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold sm:text-4xl">Constructora</h1>
+            <h1 className="text-3xl font-bold sm:text-4xl">{activePreset.entityLabel}</h1>
             <p className="max-w-3xl text-slate-400">
-              Gestiona la constructora activa, sus etapas, obras y registros desde un mismo lugar, con trazabilidad lista para análisis, reportes y decisiones ambientales.
+              Gestiona la empresa activa, sus {activePreset.processPluralLabel.toLowerCase()}, {activePreset.unitPluralLabel.toLowerCase()} y registros desde un mismo lugar, con trazabilidad lista para análisis, reportes y decisiones ambientales.
             </p>
           </div>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] px-5 py-3 text-sm font-bold text-[var(--primary-dark)]">
-            Constructora activa
+            Empresa activa
           </div>
           <button
             type="button"
@@ -348,7 +312,7 @@ function ConstructorasView({
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] px-5 py-3 text-sm font-bold text-[var(--primary-dark)] transition hover:border-[var(--primary)]/40 hover:bg-[#D9F0E6]"
           >
             <Plus size={18} />
-            Nueva constructora
+            Nueva empresa
           </button>
         </div>
       </header>
@@ -356,17 +320,17 @@ function ConstructorasView({
       <section className="premium-card premium-card-interactive rounded-3xl bg-[var(--info-bg)] p-4 shadow-[var(--shadow-card)] sm:p-6">
         <p className="text-sm font-bold text-[#075985]">Resumen ejecutivo</p>
         <h2 className="mt-2 text-2xl font-bold text-[var(--text-main)]">
-          Lectura operativa de la constructora
+          Lectura operativa de la empresa
         </h2>
         <p className="mt-3 max-w-6xl text-base font-medium leading-8 text-[#334155]">
-          {loadingEtapas ? "Cargando etapas..." : buildStrategicSummary(metrics)}
+          {loadingEtapas ? "Cargando etapas / frentes..." : buildStrategicSummary(metrics)}
         </p>
       </section>
 
       <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
         <CompanyKpi
           decimals={1}
-          detail="Registros mensuales + captura IoT en vivo"
+          detail="Mes en curso · actualización automática"
           icon={<Gauge />}
           label="Emisiones del mes"
           live
@@ -465,7 +429,7 @@ function ConstructorasView({
   );
 }
 
-function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = "", activeConstructora = null, iotKpis = null) {
+function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = "", activeConstructora = null) {
   const activeCompany =
     constructoras.find((constructora) => String(constructora.constructora_id) === String(activeConstructoraId)) ||
     constructoras.find((constructora) => String(constructora.id) === String(activeConstructoraId)) ||
@@ -491,7 +455,6 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
 
     return acc + getRecordEmission(registro);
   }, 0);
-  const liveIotEmissions = Number(iotKpis?.emisiones_totales_kg_co2e || 0);
   const totals = {
     totalCompanies: constructoras.length,
     totalUnits: scopedUnits.length || Number(activeCompany?.etapas_count || 0),
@@ -554,8 +517,7 @@ function buildCompanyMetrics(constructoras, etapas = [], activeConstructoraId = 
   return {
     ...totals,
     activeCompany,
-    currentMonthEmissions: currentMonthEmissions + liveIotEmissions,
-    liveIotEmissions,
+    currentMonthEmissions,
     topCategory,
     topEmitter,
     topEmissionShare,
@@ -689,7 +651,7 @@ function buildStrategicSummary(metrics) {
   const companyName = metrics.activeCompany.nombre || "La constructora";
 
   if (!metrics.totalUnits) {
-    return `${companyName} aún no tiene etapas registradas. El siguiente paso es crear su estructura operativa para ordenar obras, asociar registros de emisión y activar una lectura ambiental confiable.`;
+    return `${companyName} aún no tiene etapas o frentes registrados. El siguiente paso es crear su estructura operativa para ordenar obras, asociar registros de emisión y activar una lectura ambiental confiable.`;
   }
 
   const topOperationalName = metrics.topOperational?.nombre || "la etapa con mayor actividad";

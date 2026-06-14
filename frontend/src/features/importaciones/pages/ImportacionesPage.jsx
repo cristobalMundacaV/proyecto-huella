@@ -58,7 +58,7 @@ const companySummaryLabels = [
   ["validas", "Válidas"],
   ["con_error", "Con error"],
   ["duplicadas", "Duplicadas"],
-  ["posibles_creaciones", "Constructoras nuevas"],
+  ["posibles_creaciones", "Empresas nuevas"],
   ["posibles_actualizaciones", "Actualizaciones"],
 ];
 
