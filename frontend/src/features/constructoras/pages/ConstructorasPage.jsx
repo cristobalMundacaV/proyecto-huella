@@ -41,6 +41,7 @@ import {
 } from "recharts";
 
 const emptyForm = {
+  preset: "construccion",
   rut: "",
   nombre: "",
   region: "",
@@ -103,13 +104,13 @@ function ConstructorasView({
   const [etapasOperativas, setEtapasOperativas] = useState([]);
   const [loadingEtapas, setLoadingEtapas] = useState(false);
   const [metricsPulseKey, setMetricsPulseKey] = useState(0);
-  const activePreset = getActivePreset();
   const {
     activeConstructora,
     activeConstructoraId,
     refreshConstructoras,
     setActiveConstructora,
   } = useConstructoraActiva();
+  const activePreset = getActivePreset(activeConstructora?.preset || "construccion");
   const { clearToast, showToast, toast } = useToast();
 
   const metrics = useMemo(

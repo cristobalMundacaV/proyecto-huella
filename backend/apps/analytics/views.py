@@ -73,6 +73,7 @@ def serialize_auth_user(user):
         {
             "constructora_id": perfil.constructora.constructora_id,
             "constructora_nombre": perfil.constructora.nombre,
+            "preset": perfil.constructora.preset,
             "rol": perfil.rol,
         }
         for perfil in perfiles
@@ -340,6 +341,7 @@ def constructora_estado(request, constructora_id):
     return Response(
         {
             "constructora_id": constructora.constructora_id,
+            "preset": constructora.preset,
             "etapas": constructora.etapas.count(),
             "obras": constructora.obras.count(),
             "registros": registros.count(),
@@ -358,6 +360,7 @@ def constructora_dashboard(request, constructora_id):
     payload = build_environmental_summary(registros, obras=obras, evidencias=evidencias)
     payload["constructora_id"] = constructora.constructora_id
     payload["constructora_nombre"] = constructora.nombre
+    payload["preset"] = constructora.preset
     payload["datos"] = RegistroEmisionSerializer(registros.order_by("-fecha", "-created_at")[:200], many=True).data
     return Response(payload)
 
@@ -407,6 +410,7 @@ def constructora_reportes(request, constructora_id):
     )
     payload["constructora_id"] = constructora.constructora_id
     payload["constructora_nombre"] = constructora.nombre
+    payload["preset"] = constructora.preset
     payload["reporte"] = {
         "lectura_ejecutiva": payload["insight"],
         "unidad_visual_emisiones": "kg CO2e",

@@ -3,6 +3,13 @@ import { Building2, Loader2, Mail, MapPin, Phone, Save, X } from "lucide-react";
 
 import { CHILE_REGION_NAMES, getComunasByRegion } from "../utils/chileRegions";
 
+const PRESET_OPTIONS = [
+  { value: "construccion", label: "Construcción" },
+  { value: "aserradero", label: "Aserradero / Forestal" },
+  { value: "transporte", label: "Transporte" },
+  { value: "industrial", label: "Industrial" },
+];
+
 function ConstructoraForm({
   error,
   fieldErrors = {},
@@ -107,6 +114,16 @@ function ConstructoraForm({
             value={form.rubro}
             className="sm:col-span-2"
             required
+          />
+
+          <SelectField
+            error={fieldErrors.preset}
+            label="Preset"
+            name="preset"
+            onChange={onUpdateForm}
+            value={form.preset || "construccion"}
+            options={PRESET_OPTIONS}
+            placeholder="Selecciona un preset"
           />
 
           <FormField
@@ -247,11 +264,16 @@ function SelectField({
         className={`${inputClass(error)} disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 disabled:opacity-80`}
       >
         <option value="">{placeholder}</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
+        {options.map((option) => {
+          const optionValue = typeof option === "string" ? option : option.value;
+          const optionLabel = typeof option === "string" ? option : option.label;
+
+          return (
+          <option key={optionValue} value={optionValue}>
+            {optionLabel}
           </option>
-        ))}
+          );
+        })}
       </select>
       <ErrorText error={error} />
     </label>

@@ -113,7 +113,7 @@ function App() {
   const [ConstructoraCreateSignal, setConstructoraCreateSignal] = useState(0);
   const { loadingAuth, user } = useAuth();
   const { activeConstructora, activeConstructoraId, loadingConstructoras } = useConstructoraActiva();
-  const activePreset = getActivePreset();
+  const activePreset = getActivePreset(activeConstructora?.preset || "construccion");
   const dashboardIntelligence = activePreset.intelligence || getPreset(DEFAULT_PRESET_KEY).intelligence;
 
   const handleSetActiveView = useCallback((view, options = {}) => {

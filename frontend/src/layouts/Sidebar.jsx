@@ -21,7 +21,7 @@ import {
 
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
-import { getActivePreset } from "@/presets/registry";
+import { getActivePreset, getPresetLabel } from "@/presets/registry";
 import { deleteEmpresa } from "@/shared/services/api";
 
 const navigationIconMap = {
@@ -50,7 +50,6 @@ const navigationIconMap = {
 
 function Sidebar({ activeView, onSetActiveView, systemStatus }) {
   const { logout, user } = useAuth();
-  const activePreset = getActivePreset();
   const {
     activeConstructora,
     activeConstructoraId,
@@ -60,6 +59,8 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
     refreshConstructoras,
     setActiveConstructora,
   } = useConstructoraActiva();
+  const activePresetKey = activeConstructora?.preset || "construccion";
+  const activePreset = getActivePreset(activePresetKey);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleteError, setDeleteError] = useState("");
@@ -265,6 +266,10 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
           {loadingConstructoras && (
             <p className="text-xs text-slate-500">Cargando empresas...</p>
           )}
+
+          <div className="rounded-xl border border-emerald-300/15 bg-white/5 px-3 py-2 text-[11px] font-black uppercase tracking-wide text-emerald-100">
+            Preset: {getPresetLabel(activePresetKey)}
+          </div>
         </div>
       </section>
 

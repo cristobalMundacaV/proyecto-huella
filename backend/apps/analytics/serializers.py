@@ -32,6 +32,7 @@ class ConstructoraSerializer(serializers.ModelSerializer):
             "comuna",
             "direccion",
             "rubro",
+            "preset",
             "activa",
             "email",
             "telefono",

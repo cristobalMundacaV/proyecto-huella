@@ -17,7 +17,15 @@ export function getPreset(key = DEFAULT_PRESET_KEY) {
   return presets[key] || presets[DEFAULT_PRESET_KEY];
 }
 
-export function getActivePreset() {
+export function getPresetLabel(key = DEFAULT_PRESET_KEY) {
+  return getPreset(key).name;
+}
+
+export function getActivePreset(key = null) {
+  if (key) {
+    return getPreset(key);
+  }
+
   if (typeof window === "undefined") {
     return getPreset();
   }

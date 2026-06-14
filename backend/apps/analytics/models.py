@@ -43,6 +43,12 @@ def evidencia_formatos_default():
 
 
 class Constructora(models.Model):
+    class Preset(models.TextChoices):
+        CONSTRUCCION = "construccion", "Construcción"
+        ASERRADERO = "aserradero", "Aserradero / Forestal"
+        TRANSPORTE = "transporte", "Transporte"
+        INDUSTRIAL = "industrial", "Industrial"
+
     constructora_id = models.CharField(max_length=80, unique=True, blank=True)
     nombre = models.CharField(max_length=180)
     rut = models.CharField(max_length=30, blank=True)
@@ -50,6 +56,7 @@ class Constructora(models.Model):
     comuna = models.CharField(max_length=120, blank=True)
     direccion = models.CharField(max_length=240, blank=True)
     rubro = models.CharField(max_length=120, blank=True)
+    preset = models.CharField(max_length=40, choices=Preset.choices, default=Preset.CONSTRUCCION, db_index=True)
     activa = models.BooleanField(default=True)
     email = models.EmailField(blank=True)
     telefono = models.CharField(max_length=40, blank=True)
