@@ -251,16 +251,28 @@ class Obra(models.Model):
 
 class FactorEmision(models.Model):
     class Categoria(models.TextChoices):
+        MATERIA_PRIMA = "Materia prima", "Materia prima"
         MATERIALES = "Materiales", "Materiales"
+        PRODUCCION = "Produccion", "Produccion"
+        SECADO = "Secado", "Secado"
         TRANSPORTE = "Transporte", "Transporte"
+        COMBUSTIBLE = "Combustible", "Combustible"
+        RUTAS = "Rutas", "Rutas"
+        FLOTA = "Flota", "Flota"
+        MANTENCION = "Mantencion", "Mantencion"
+        CARGA = "Carga", "Carga"
         MAQUINARIA = "Maquinaria", "Maquinaria"
         ENERGIA = "Energia", "Energia"
         AGUA = "Agua", "Agua"
         RESIDUOS = "Residuos", "Residuos"
+        SUBPRODUCTOS = "Subproductos", "Subproductos"
+        PROCESOS = "Procesos", "Procesos"
         PROCESOS_EXTERNOS = "Procesos externos", "Procesos externos"
         OTROS = "Otros", "Otros"
 
     actividad = models.CharField(max_length=120)
+    preset = models.CharField(max_length=40, choices=Constructora.Preset.choices, default=Constructora.Preset.CONSTRUCCION, db_index=True)
+    module = models.CharField(max_length=80, blank=True)
     categoria = models.CharField(max_length=40, choices=Categoria.choices, default=Categoria.OTROS)
     unidad = models.CharField(max_length=40)
     factor_emision = models.DecimalField(max_digits=12, decimal_places=6)
@@ -269,6 +281,8 @@ class FactorEmision(models.Model):
     alcance = models.CharField(max_length=80, blank=True)
     descripcion = models.TextField(blank=True)
     actividad_key = models.CharField(max_length=160, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    activo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

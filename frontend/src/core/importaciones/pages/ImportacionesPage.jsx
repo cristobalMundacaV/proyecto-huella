@@ -1,0 +1,249 @@
+import { useMemo, useState } from "react";
+
+import {
+  confirmarImportConstructoras,
+  confirmarImportEtapasForConstructora,
+  confirmarImportFactores,
+  confirmarImportObrasForConstructora,
+  confirmRegistroEmisionImportForConstructora,
+  createEmpresaRegistroAmbiental,
+  previewImportConstructoras,
+  previewImportEtapasForConstructora,
+  previewImportFactores,
+  previewImportObrasForConstructora,
+  previewRegistroEmisionImportForConstructora,
+} from "@/shared/services/api";
+import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { DEFAULT_PRESET_KEY, getActivePreset } from "@/presets/registry";
+import { aserraderoImport } from "@/presets/aserradero/import";
+import { construccionImport } from "@/presets/construccion/import";
+import { industrialImport } from "@/presets/industrial/import";
+import { transporteImport } from "@/presets/transporte/import";
+import {
+  buildImportSummary,
+  mapPresetImportPayload,
+  normalizeImportRows,
+} from "@/presets/shared/importConfig";
+import SystemClosureChecklist from "@/core/system/SystemClosureChecklist";
+
+import ImportCloseChecklist from "../components/ImportCloseChecklist";
+import ImportConfirmPanel from "../components/ImportConfirmPanel";
+import ImportEmptyState from "../components/ImportEmptyState";
+import ImportHero from "../components/ImportHero";
+import ImportPresetSelector from "../components/ImportPresetSelector";
+import ImportPreviewTable from "../components/ImportPreviewTable";
+import ImportTemplatePanel from "../components/ImportTemplatePanel";
+import ImportUploadPanel from "../components/ImportUploadPanel";
+import ImportValidationSummary from "../components/ImportValidationSummary";
+
+const importByPreset = {
+  construccion: construccionImport,
+  aserradero: aserraderoImport,
+  transporte: transporteImport,
+  industrial: industrialImport,
+};
+
+const constructionPreview = {
+  constructoras: previewImportConstructoras,
+  factores: previewImportFactores,
+  etapas: previewImportEtapasForConstructora,
+  obras: previewImportObrasForConstructora,
+  registros: previewRegistroEmisionImportForConstructora,
+};
+
+const constructionConfirm = {
+  constructoras: confirmarImportConstructoras,
+  factores: confirmarImportFactores,
+  etapas: confirmarImportEtapasForConstructora,
+  obras: confirmarImportObrasForConstructora,
+  registros: confirmRegistroEmisionImportForConstructora,
+};
+
+function ImportacionesPage({ onImportConfirmed }) {
+  const { activeConstructora, activeConstructoraId, refreshConstructoras } = useConstructoraActiva();
+  const activePreset = getActivePreset(activeConstructora?.preset || DEFAULT_PRESET_KEY);
+  const config = importByPreset[activePreset.key] || construccionImport;
+  const [selectedModule, setSelectedModule] = useState(config.modules[0]?.key || "");
+  const [previewRows, setPreviewRows] = useState([]);
+  const [backendBatchId, setBackendBatchId] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const moduleConfig = useMemo(
+    () => config.modules.find((item) => item.key === selectedModule) || config.modules[0],
+    [config.modules, selectedModule]
+  );
+
+  async function handleFile(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !moduleConfig) return;
+
+    setLoading(true);
+    setError("");
+    setMessage("");
+    setBackendBatchId(null);
+
+    try {
+      if (activePreset.key === "construccion" && constructionPreview[selectedModule]) {
+        const previewFn = constructionPreview[selectedModule];
+        const result = ["etapas", "obras", "registros"].includes(selectedModule)
+          ? await previewFn(activeConstructoraId, file)
+          : await previewFn(file);
+        const rows = normalizeImportRows(result.rows || result);
+        setPreviewRows(rows);
+        setSummary(result.summary || buildImportSummary(rows));
+        setBackendBatchId(result.batch_id || null);
+      } else {
+        const rows = normalizeImportRows(parseCsv(await file.text(), moduleConfig.columns));
+        setPreviewRows(rows);
+        setSummary(buildImportSummary(rows));
+      }
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || requestError.message || "No se pudo previsualizar el archivo.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleConfirm() {
+    if (!activeConstructoraId || !moduleConfig || !previewRows.length) return;
+    setSaving(true);
+    setError("");
+    setMessage("");
+
+    try {
+      if (activePreset.key === "construccion" && constructionConfirm[selectedModule]) {
+        const confirmFn = constructionConfirm[selectedModule];
+        const payload = backendBatchId ? { batch_id: backendBatchId } : { rows: previewRows.filter((row) => row.status === "valid") };
+        const result = ["etapas", "obras", "registros"].includes(selectedModule)
+          ? await confirmFn(activeConstructoraId, payload)
+          : await confirmFn(payload);
+        setMessage(`Importacion confirmada. Creados: ${result.creados ?? result.created ?? 0}.`);
+        await refreshConstructoras().catch(() => undefined);
+        await onImportConfirmed?.();
+      } else if (activePreset.key === "aserradero" && moduleConfig.supported) {
+        const payloads = mapPresetImportPayload("aserradero", selectedModule, previewRows, config.buildPayload);
+        for (const payload of payloads) {
+          await createEmpresaRegistroAmbiental(activeConstructoraId, payload);
+        }
+        setMessage(`${payloads.length} registros forestales importados correctamente.`);
+        await onImportConfirmed?.();
+      } else {
+        setMessage("Modulo preparado. La confirmacion masiva quedara conectada en una fase backend posterior.");
+      }
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || requestError.message || "No se pudo confirmar la importacion.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!activeConstructora) {
+    return (
+      <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center text-[var(--text-muted)]">
+        Selecciona o crea una empresa para comenzar importaciones.
+      </div>
+    );
+  }
+
+  const recommendations = config.buildRecommendations(summary || {});
+  const canConfirm = Boolean(activeConstructoraId && previewRows.some((row) => row.status === "valid") && moduleConfig?.supported);
+
+  return (
+    <main className="mx-auto max-w-7xl space-y-8">
+      <ImportHero activeConstructora={activeConstructora} config={config} preset={activePreset} />
+      {message && <p className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-800">{message}</p>}
+      {error && <p className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-black text-rose-800">{error}</p>}
+
+      <ImportPresetSelector modules={config.modules} selectedModule={selectedModule} onChange={(next) => { setSelectedModule(next); setPreviewRows([]); setSummary(null); }} />
+      <ImportTemplatePanel modules={config.templates} />
+
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <ImportUploadPanel disabled={loading || !moduleConfig?.supported} module={moduleConfig} onFile={handleFile} />
+        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-amber-800">
+          <h2 className="text-xl font-black">Recomendaciones</h2>
+          <div className="mt-3 space-y-2">
+            {recommendations.map((item) => <p key={item} className="text-sm font-semibold leading-6">{item}</p>)}
+          </div>
+        </div>
+      </section>
+
+      {summary ? <ImportValidationSummary summary={summary} /> : <ImportEmptyState message={config.emptyMessage} />}
+      <ImportPreviewTable columns={moduleConfig?.columns || []} rows={previewRows} />
+      <ImportConfirmPanel
+        canConfirm={canConfirm}
+        message={moduleConfig?.supported ? "Confirma solo filas validas y con empresa activa." : "Modulo preparado para proxima conexion backend."}
+        onConfirm={handleConfirm}
+        saving={saving}
+      />
+
+      <ImportCloseChecklist
+        items={[
+          "Construccion conserva importaciones actuales",
+          "Aserradero importa registros operativos desde CSV",
+          "Transporte e industrial tienen plantillas preparadas",
+          "Metadata preserva preset, modulo y fila original",
+        ]}
+      />
+      <SystemClosureChecklist />
+    </main>
+  );
+}
+
+function parseCsv(text, columns) {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  if (!lines.length) return [];
+  const headers = splitCsvLine(lines[0]).map((item) => item.trim());
+  const missing = columns.filter((column) => !headers.includes(column));
+
+  return lines.slice(1).map((line, index) => {
+    const values = splitCsvLine(line);
+    const data = Object.fromEntries(headers.map((header, idx) => [header, values[idx] ?? ""]));
+    const rowErrors = [...missing.map((column) => `Falta columna ${column}`)];
+    if (
+      !data.cantidad &&
+      !data.consumo_kwh &&
+      !data.energia_kwh &&
+      !data.volumen_m3 &&
+      !data.volumen_entrada_m3 &&
+      !data.volumen_secado_m3 &&
+      !data.distancia_km &&
+      !data.litros_diesel &&
+      !data.carga_m3
+    ) {
+      rowErrors.push("Falta cantidad operacional.");
+    }
+    return {
+      row_number: index + 2,
+      status: rowErrors.length ? "error" : "valid",
+      data,
+      errors: rowErrors,
+      warnings: Number(data.factor_emision || 0) ? [] : ["Sin factor de emision"],
+    };
+  });
+}
+
+function splitCsvLine(line) {
+  const result = [];
+  let current = "";
+  let inQuotes = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      result.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+  return result.map((value) => value.replace(/^"|"$/g, "").replace(/""/g, '"'));
+}
+
+export default ImportacionesPage;

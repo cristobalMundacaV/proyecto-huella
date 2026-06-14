@@ -544,11 +544,61 @@ def verificar_obra(request, codigo_obra):
 def factores_emision(request):
     if request.method == "GET":
         queryset = FactorEmision.objects.order_by("categoria", "actividad")
+        filters = {
+            "preset": request.query_params.get("preset"),
+            "categoria": request.query_params.get("categoria"),
+            "unidad": request.query_params.get("unidad"),
+            "module": request.query_params.get("module"),
+            "actividad_key": request.query_params.get("actividad_key"),
+        }
+        for field, value in filters.items():
+            if value:
+                queryset = queryset.filter(**{field: value})
+        activo = request.query_params.get("activo")
+        if activo not in (None, ""):
+            queryset = queryset.filter(activo=str(activo).lower() in {"1", "true", "si", "yes"})
         return Response(FactorEmisionSerializer(queryset, many=True).data)
     serializer = FactorEmisionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     factor = serializer.save()
     return Response(FactorEmisionSerializer(factor).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+def constructora_registro_aplicar_factor(request, constructora_id, registro_id):
+    constructora = get_constructora_or_404(constructora_id)
+    registro = get_object_or_404(RegistroEmision, pk=registro_id, constructora=constructora)
+    factor_id = request.data.get("factor_id")
+    if not factor_id:
+        return Response({"error": "factor_id es obligatorio."}, status=status.HTTP_400_BAD_REQUEST)
+    factor = get_object_or_404(FactorEmision, pk=factor_id, activo=True)
+    metadata = dict(registro.metadata or {})
+    metadata["factor_aplicado_id"] = factor.id
+    metadata["factor_fuente"] = factor.fuente
+    metadata["factor_preset"] = factor.preset
+    metadata["factor_module"] = factor.module
+    registro.factor_emision = factor.factor_emision
+    registro.categoria = map_factor_category_to_registro_category(factor.categoria)
+    registro.unidad = registro.unidad or factor.unidad
+    registro.metadata = metadata
+    registro.save()
+    return Response(RegistroEmisionSerializer(registro).data)
+
+
+def map_factor_category_to_registro_category(category):
+    mapping = {
+        "Materia prima": RegistroEmision.Categoria.MATERIALES,
+        "Produccion": RegistroEmision.Categoria.PROCESOS_EXTERNOS,
+        "Secado": RegistroEmision.Categoria.ENERGIA,
+        "Combustible": RegistroEmision.Categoria.TRANSPORTE,
+        "Rutas": RegistroEmision.Categoria.TRANSPORTE,
+        "Flota": RegistroEmision.Categoria.MAQUINARIA,
+        "Mantencion": RegistroEmision.Categoria.MAQUINARIA,
+        "Carga": RegistroEmision.Categoria.TRANSPORTE,
+        "Subproductos": RegistroEmision.Categoria.RESIDUOS,
+        "Procesos": RegistroEmision.Categoria.PROCESOS_EXTERNOS,
+    }
+    return mapping.get(category, category if category in dict(RegistroEmision.Categoria.choices) else RegistroEmision.Categoria.OTROS)
 
 
 @api_view(["GET", "POST"])

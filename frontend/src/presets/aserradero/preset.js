@@ -16,6 +16,7 @@ const aserraderoPreset = {
   navigation: [
     { view: "dashboard", label: "Panel principal", core: true },
     { view: "emisiones", label: "Emisiones", core: true },
+    { view: "factores", label: "Factores de emision", core: true },
     { view: "constructoras", label: "Empresas", core: true },
     { view: "recepcion_trozas", label: "Recepcion de trozas", presetOnly: true },
     { view: "produccion", label: "Produccion", presetOnly: true },

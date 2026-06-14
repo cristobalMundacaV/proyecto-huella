@@ -212,6 +212,8 @@ class FactorEmisionSerializer(serializers.ModelSerializer):
         model = FactorEmision
         fields = [
             "id",
+            "preset",
+            "module",
             "actividad",
             "actividad_key",
             "categoria",
@@ -221,6 +223,8 @@ class FactorEmisionSerializer(serializers.ModelSerializer):
             "anio",
             "alcance",
             "descripcion",
+            "metadata",
+            "activo",
             "label",
             "created_at",
             "updated_at",

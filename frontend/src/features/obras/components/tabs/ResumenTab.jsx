@@ -346,7 +346,11 @@ function SourceDonutChart({ rows, totalEmissions }) {
   const chartRows = rows.filter((row) => Number(row.emissions || 0) > 0);
   const radius = 78;
   const circumference = 2 * Math.PI * radius;
-  let accumulated = 0;
+  const donutRows = chartRows.reduce((segments, row) => {
+    const dash = totalEmissions > 0 ? (row.emissions / totalEmissions) * circumference : 0;
+    const previous = segments.at(-1);
+    return [...segments, { ...row, dash, offset: previous ? previous.offset + previous.dash : 0 }];
+  }, []);
   const mainSource = chartRows[0];
 
   if (!chartRows.length) return null;
@@ -372,9 +376,7 @@ function SourceDonutChart({ rows, totalEmissions }) {
         <div className="relative mx-auto flex h-[300px] w-full max-w-[340px] items-center justify-center">
           <svg viewBox="0 0 220 220" className="h-[280px] w-[280px] -rotate-90 overflow-visible">
             <circle cx="110" cy="110" fill="none" r={radius} stroke="#E2E8F0" strokeWidth="28" />
-            {chartRows.map((row, index) => {
-              const dash = totalEmissions > 0 ? (row.emissions / totalEmissions) * circumference : 0;
-              const segment = (
+            {donutRows.map((row, index) => (
                 <circle
                   key={`${row.source}-${row.category}`}
                   cx="110"
@@ -382,15 +384,12 @@ function SourceDonutChart({ rows, totalEmissions }) {
                   fill="none"
                   r={radius}
                   stroke={sourceDonutColors[index % sourceDonutColors.length]}
-                  strokeDasharray={`${dash} ${circumference}`}
-                  strokeDashoffset={-accumulated}
+                  strokeDasharray={`${row.dash} ${circumference}`}
+                  strokeDashoffset={-row.offset}
                   strokeLinecap="butt"
                   strokeWidth="28"
                 />
-              );
-              accumulated += dash;
-              return segment;
-            })}
+            ))}
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">Total obra</p>

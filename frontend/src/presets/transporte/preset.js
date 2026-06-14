@@ -16,6 +16,7 @@ const transportePreset = {
   navigation: [
     { view: "dashboard", label: "Panel principal", core: true },
     { view: "emisiones", label: "Emisiones", core: true },
+    { view: "factores", label: "Factores de emision", core: true },
     { view: "constructoras", label: "Empresas", core: true },
     { view: "flota", label: "Flota", presetOnly: true },
     { view: "viajes", label: "Viajes", presetOnly: true },

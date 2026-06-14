@@ -323,15 +323,15 @@ function ConfiguracionPage() {
         setSavedConfig(clone(normalized));
       } catch (requestError) {
         if (isCancelled) return;
-        let parsedLocalConfig = null;
-
-        try {
-          parsedLocalConfig = JSON.parse(
-            window.localStorage.getItem(storageKey(activeConstructoraId)) || "null"
-          );
-        } catch {
-          parsedLocalConfig = null;
-        }
+        const parsedLocalConfig = (() => {
+          try {
+            return JSON.parse(
+              window.localStorage.getItem(storageKey(activeConstructoraId)) || "null"
+            );
+          } catch {
+            return null;
+          }
+        })();
 
         const localConfig = mergeConfig(defaults, parsedLocalConfig || {});
         setConfig(clone(localConfig));

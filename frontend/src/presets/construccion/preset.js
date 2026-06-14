@@ -16,6 +16,7 @@ const construccionPreset = {
   navigation: [
     { view: "dashboard", label: "Panel principal", core: true },
     { view: "emisiones", label: "Emisiones", core: true },
+    { view: "factores", label: "Factores de emision", core: true },
     { view: "constructoras", label: "Empresas", core: true },
     { view: "obras", label: "Obras", presetOnly: true },
     { view: "etapas", label: "Etapas", presetOnly: true },

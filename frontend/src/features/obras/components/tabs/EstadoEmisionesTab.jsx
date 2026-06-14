@@ -165,7 +165,11 @@ function buildCategoryEmissionTotals(registros, selectedObra) {
 function EmissionDonutChart({ rows, totalEmissions }) {
   const radius = 78;
   const circumference = 2 * Math.PI * radius;
-  let accumulated = 0;
+  const donutRows = rows.reduce((segments, row) => {
+    const dash = totalEmissions > 0 ? (row.emissions / totalEmissions) * circumference : 0;
+    const previous = segments.at(-1);
+    return [...segments, { ...row, dash, offset: previous ? previous.offset + previous.dash : 0 }];
+  }, []);
   const mainCategory = rows[0];
 
   return (
@@ -201,9 +205,7 @@ function EmissionDonutChart({ rows, totalEmissions }) {
                 stroke="#E2E8F0"
                 strokeWidth="28"
               />
-              {rows.map((row) => {
-                const dash = totalEmissions > 0 ? (row.emissions / totalEmissions) * circumference : 0;
-                const segment = (
+              {donutRows.map((row) => (
                   <circle
                     key={row.category}
                     cx="110"
@@ -211,15 +213,12 @@ function EmissionDonutChart({ rows, totalEmissions }) {
                     fill="none"
                     r={radius}
                     stroke={row.config.color}
-                    strokeDasharray={`${dash} ${circumference}`}
-                    strokeDashoffset={-accumulated}
+                    strokeDasharray={`${row.dash} ${circumference}`}
+                    strokeDashoffset={-row.offset}
                     strokeLinecap="butt"
                     strokeWidth="28"
                   />
-                );
-                accumulated += dash;
-                return segment;
-              })}
+              ))}
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
               <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">

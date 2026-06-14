@@ -27,6 +27,7 @@ import { deleteEmpresa } from "@/shared/services/api";
 const navigationIconMap = {
   dashboard: LayoutDashboard,
   emisiones: Flame,
+  factores: Database,
   constructoras: Building2,
   obras: Boxes,
   etapas: Factory,

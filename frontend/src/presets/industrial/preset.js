@@ -16,6 +16,7 @@ const industrialPreset = {
   navigation: [
     { view: "dashboard", label: "Panel principal", core: true },
     { view: "emisiones", label: "Emisiones", core: true },
+    { view: "factores", label: "Factores de emision", core: true },
     { view: "constructoras", label: "Empresas", core: true },
     { view: "obras", label: "Lineas", presetOnly: true },
     { view: "etapas", label: "Procesos", presetOnly: true },

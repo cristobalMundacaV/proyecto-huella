@@ -90,7 +90,9 @@ export async function getReporteEmisionesTiempo(id,params={}){ return getConstru
 export async function getSistemaEstado(){ return (await api.get("/sistema/estado/")).data; }
 export async function getIotKpis(id){ return (await api.get("/iot/kpis/",{params:id?{constructora_id:id}:{}})).data; }
 export async function getIotUltimasLecturas(id){ return (await api.get("/iot/lecturas/ultimas/",{params:id?{constructora_id:id}:{}})).data; }
-export async function getFactoresEmision(){ return (await api.get("/factores-emision/")).data; }
+export async function getFactoresEmision(params={}){ return (await api.get("/factores-emision/",{params})).data; }
+export async function createFactorEmision(payload){ return (await api.post("/factores-emision/",payload)).data; }
+export async function aplicarFactorRegistroEmision(constructoraId,registroId,payload){ return (await api.post(constructoraPath(constructoraId,`/registros-emision/${encodeURIComponent(registroId)}/aplicar-factor/`),payload)).data; }
 export async function getMaterialesConstruccion(){ return (await api.get("/materiales-construccion/")).data; }
 export async function calculateRouteDistance(payload){ return (await api.post("/rutas/calcular-distancia/",payload)).data; }
 export async function getAiAdvisor(payload){ return (await api.post("/ai-advisor/",payload)).data; }
