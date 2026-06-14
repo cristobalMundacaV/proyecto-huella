@@ -24,6 +24,30 @@ import { useConstructoraActiva } from "@/features/constructoras/context/Construc
 import { getActivePreset } from "@/presets/registry";
 import { deleteEmpresa } from "@/shared/services/api";
 
+const navigationIconMap = {
+  dashboard: LayoutDashboard,
+  emisiones: Flame,
+  constructoras: Building2,
+  obras: Boxes,
+  etapas: Factory,
+  evidencias: FileCheck2,
+  importaciones: DatabaseZap,
+  reportes: BarChart3,
+  usuarios: UsersRound,
+  configuracion: Settings,
+  recepcion_trozas: Database,
+  produccion: Factory,
+  secado: Flame,
+  energia: DatabaseZap,
+  transporte_forestal: Factory,
+  residuos_subproductos: Boxes,
+  flota: Factory,
+  viajes: BarChart3,
+  combustible: Flame,
+  rutas: Database,
+  mantenciones: Settings,
+};
+
 function Sidebar({ activeView, onSetActiveView, systemStatus }) {
   const { logout, user } = useAuth();
   const activePreset = getActivePreset();
@@ -40,61 +64,10 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const getNavigationLabel = (view, fallback) =>
-    activePreset.navigation.find((item) => item.view === view)?.label || fallback;
-
-  const navigationItems = [
-    {
-      icon: LayoutDashboard,
-      label: getNavigationLabel("dashboard", activePreset.dashboardTitle),
-      view: "dashboard",
-    },
-    {
-      icon: Flame,
-      label: getNavigationLabel("emisiones", "Emisiones"),
-      view: "emisiones",
-    },
-    {
-      icon: Building2,
-      label: getNavigationLabel("constructoras", activePreset.entityPluralLabel),
-      view: "constructoras",
-    },
-    {
-      icon: Factory,
-      label: getNavigationLabel("etapas", activePreset.processPluralLabel),
-      view: "etapas",
-    },
-    {
-      icon: Boxes,
-      label: getNavigationLabel("obras", activePreset.unitPluralLabel),
-      view: "obras",
-    },
-    {
-      icon: BarChart3,
-      label: getNavigationLabel("reportes", "Reportes"),
-      view: "reportes",
-    },
-    {
-      icon: DatabaseZap,
-      label: "Importación de datos",
-      view: "importaciones",
-    },
-    {
-      icon: FileCheck2,
-      label: getNavigationLabel("evidencias", "Evidencias"),
-      view: "evidencias",
-    },
-    {
-      icon: UsersRound,
-      label: getNavigationLabel("usuarios", "Usuarios"),
-      view: "usuarios",
-    },
-    {
-      icon: Settings,
-      label: "Configuración",
-      view: "configuracion",
-    },
-  ];
+  const navigationItems = (activePreset.navigation || []).map((item) => ({
+    ...item,
+    icon: navigationIconMap[item.view] || LayoutDashboard,
+  }));
   const statusItems = [
     [activePreset.processPluralLabel, systemStatus?.etapas ?? 0],
     [activePreset.unitPluralLabel, systemStatus?.obras ?? 0],

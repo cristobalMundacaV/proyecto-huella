@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import Sidebar from "@/layouts/Sidebar";
 import KpiCard from "@/shared/components/KpiCard";
+import PresetComingSoon from "@/shared/components/PresetComingSoon";
 import LoginPage from "@/features/auth/pages/LoginPage";
 import ExecutiveSummary from "@/features/dashboard/components/ExecutiveSummary";
 import RealtimeIotMonitoring from "@/features/dashboard/components/RealtimeIotMonitoring";
@@ -43,6 +44,64 @@ const viewTransition = {
 };
 
 const DASHBOARD_REFRESH_INTERVAL_MS = 10000;
+
+const presetPlaceholderViews = {
+  recepcion_trozas: {
+    title: "Recepcion de trozas",
+    description: "Modulo para registrar origen, volumen, humedad y trazabilidad inicial de las trozas antes de entrar al proceso productivo.",
+    items: ["Lotes de recepcion", "Origen y proveedor", "Volumen, humedad y especie"],
+  },
+  produccion: {
+    title: "Produccion",
+    description: "Modulo para organizar turnos, rendimiento, mermas y conversion de materia prima en productos del aserradero.",
+    items: ["Turnos productivos", "Rendimiento por linea", "Mermas y productos terminados"],
+  },
+  secado: {
+    title: "Secado",
+    description: "Modulo para controlar ciclos de secado, consumo energetico, humedad final y eficiencia operacional.",
+    items: ["Ciclos de secado", "Consumo energetico", "Humedad final y rechazos"],
+  },
+  energia: {
+    title: "Energia",
+    description: "Modulo para separar consumos electricos, termicos y combustibles asociados a la operacion del preset.",
+    items: ["Consumos por fuente", "Medidores y periodos", "Indicadores de eficiencia"],
+  },
+  transporte_forestal: {
+    title: "Transporte forestal",
+    description: "Modulo para medir traslados forestales, distancias, cargas y consumo asociado a abastecimiento o despacho.",
+    items: ["Viajes forestales", "Carga y distancia", "Combustible por traslado"],
+  },
+  residuos_subproductos: {
+    title: "Residuos / Subproductos",
+    description: "Modulo para trazabilidad de aserrin, corteza, despuntes, valorizacion y residuos no aprovechados.",
+    items: ["Subproductos valorizados", "Residuos por destino", "Evidencia de retiro o uso"],
+  },
+  flota: {
+    title: "Flota",
+    description: "Modulo para administrar vehiculos, capacidad, estado operativo y atributos relevantes para emisiones.",
+    items: ["Vehiculos y capacidad", "Estado operativo", "Clasificacion por tipo"],
+  },
+  viajes: {
+    title: "Viajes",
+    description: "Modulo para registrar viajes, cargas, origen, destino y actividad logistica asociada.",
+    items: ["Origen y destino", "Carga transportada", "Eventos por viaje"],
+  },
+  combustible: {
+    title: "Combustible",
+    description: "Modulo para controlar consumos, cargas, rendimiento y conciliacion con viajes o unidades de flota.",
+    items: ["Cargas de combustible", "Rendimiento por unidad", "Conciliacion operacional"],
+  },
+  rutas: {
+    title: "Rutas",
+    description: "Modulo para gestionar rutas frecuentes, kilometraje, tramos criticos y oportunidades de optimizacion.",
+    items: ["Rutas frecuentes", "Kilometraje por tramo", "Oportunidades de optimizacion"],
+  },
+  mantenciones: {
+    title: "Mantenciones",
+    description: "Modulo para planificar mantenciones, registrar intervenciones y relacionarlas con eficiencia y disponibilidad.",
+    items: ["Plan de mantencion", "Intervenciones realizadas", "Disponibilidad de flota"],
+  },
+};
 
 function App() {
   const [data, setData] = useState(null);
@@ -485,6 +544,13 @@ const environmentalStatus = getEnvironmentalStatus({
           <ConfiguracionPage />
         ) : activeView === "importaciones" ? (
           <ImportacionesView onImportConfirmed={refreshInternalDashboard} />
+        ) : presetPlaceholderViews[activeView] ? (
+          <PresetComingSoon
+            title={presetPlaceholderViews[activeView].title}
+            description={presetPlaceholderViews[activeView].description}
+            presetName={activePreset.name}
+            items={presetPlaceholderViews[activeView].items}
+          />
         ) : (
 
         <div className="stagger-in max-w-7xl mx-auto space-y-6 sm:space-y-8">
