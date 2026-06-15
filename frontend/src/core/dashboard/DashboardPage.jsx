@@ -260,8 +260,8 @@ function DashboardPage({ onStatusChange }) {
 
   const dieselReductionImpactKg = dashboardEmissionKpis
     ? Number(dashboardEmissionKpis.emisiones_totales || 0) *
-      (Number(dashboardEmissionKpis.porcentaje_diesel || 0) / 100) *
-      0.25
+    (Number(dashboardEmissionKpis.porcentaje_diesel || 0) / 100) *
+    0.25
     : null;
   const dieselReductionEquivalentKm = dieselReductionImpactKg != null ? dieselReductionImpactKg * 4 : null;
   const environmentalStatus = getEnvironmentalStatus({
@@ -329,7 +329,15 @@ function DashboardPage({ onStatusChange }) {
         <KpiCard icon={<Factory />} title={`${activePreset.unitLabel} critica`} value={dashboardModel.criticalWork} />
         <KpiCard icon={<AlertTriangle />} title="Categoría critica" value={dashboardModel.criticalCategory} />
         <KpiCard icon={<AlertTriangle />} title="Fuente critica" value={dashboardModel.fuenteCritica} />
-        <KpiCard icon={<Database />} title="Evidencia respaldada" value={data?.evidencia_respaldada || "Pendiente de vinculación"} />
+        <KpiCard
+          icon={<Database />}
+          title="Evidencia respaldada"
+          value={
+            data?.evidencia_respaldada !== undefined && data?.evidencia_respaldada !== null
+              ? Number(data.evidencia_respaldada)
+              : 0
+          }
+        />
         <KpiCard
           icon={<Factory />}
           title="Intensidad de carbono"
@@ -531,8 +539,11 @@ function OperationalIntelligenceModule({ data, intelligence, items, total, envir
   const documentationNote = buildDocumentationNote(selectedCopy.evidence, data?.evidencia_respaldada || 0, selectedCopy.metrics);
 
   return (
-    <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-premium)] sm:p-6">
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <section className="relative overflow-hidden rounded-[32px] border border-emerald-300/50 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.20),transparent_32%),linear-gradient(135deg,rgba(236,253,245,0.98),rgba(240,253,250,0.94)_42%,rgba(255,255,255,0.98))] p-5 shadow-[0_28px_80px_rgba(15,118,110,0.16)] ring-1 ring-white/70 sm:p-6">
+      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-28 left-10 h-72 w-72 rounded-full bg-teal-300/20 blur-3xl" />
+
+      <div className="relative mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-3xl space-y-2">
           <p className="text-xs font-black uppercase tracking-[0.28em] text-[var(--text-muted)]">Inteligencia operativa</p>
           <h2 className="text-2xl font-black tracking-tight text-[var(--text-main)] sm:text-3xl">Módulo integrado de decisión ambiental</h2>
@@ -547,7 +558,7 @@ function OperationalIntelligenceModule({ data, intelligence, items, total, envir
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+      <div className="relative grid grid-cols-1 gap-5 xl:grid-cols-[1.05fr_0.95fr]">
         <OperationalDetailCard
           title={getCategoryLabel(selectedItem.category)}
           subtitle={selectedCopy.relevanceLabel}
@@ -631,8 +642,10 @@ function StageOperationalModule({ data, intelligence, items, total, environmenta
   });
 
   return (
-    <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-premium)] sm:p-6">
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <section className="relative overflow-hidden rounded-[32px] border border-teal-300/45 bg-[radial-gradient(circle_at_top_right,rgba(20,184,166,0.18),transparent_34%),linear-gradient(135deg,rgba(240,253,250,0.98),rgba(255,255,255,0.98))] p-5 shadow-[0_28px_80px_rgba(15,118,110,0.12)] ring-1 ring-white/70 sm:p-6">
+      <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-cyan-300/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-28 right-10 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
+      <div className="relative mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-3xl space-y-2">
           <p className="text-xs font-black uppercase tracking-[0.28em] text-[var(--text-muted)]">Inteligencia por {processLabel.toLowerCase()}</p>
           <h2 className="text-2xl font-black tracking-tight text-[var(--text-main)] sm:text-3xl">Módulo operativo por proceso</h2>
@@ -647,7 +660,7 @@ function StageOperationalModule({ data, intelligence, items, total, environmenta
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+      <div className="relative grid grid-cols-1 gap-5 xl:grid-cols-[1.05fr_0.95fr]">
         <OperationalDetailCard
           title={getStageLabel(selectedItem.stage)}
           subtitle={selectedCopy.relevanceLabel || relevance.label}
@@ -685,7 +698,7 @@ function StageOperationalModule({ data, intelligence, items, total, environmenta
 
 function OperationalDetailCard({ amount, amountLabel, copy, diagnosisLabel, documentationNote, percent, subtitle, title }) {
   return (
-    <div className="rounded-[28px] border border-[color-mix(in_srgb,var(--primary)_16%,white)] bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(255,255,255,0.99))] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.04)] sm:p-6">
+    <div className="rounded-[28px] border border-emerald-300/45 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(236,253,245,0.88))] p-5 shadow-[0_18px_45px_rgba(15,118,110,0.10)] ring-1 ring-white/80 sm:p-6">
       <div className="flex flex-col gap-3 border-b border-[var(--border)] pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1 space-y-2 text-center sm:pr-6 sm:text-left">
           <h3 className="text-2xl font-black tracking-tight text-[var(--text-main)]">{title}</h3>
@@ -732,7 +745,7 @@ function OperationalDetailCard({ amount, amountLabel, copy, diagnosisLabel, docu
 
 function InteractiveBars({ activeClassName, description, emptyMessage, eyebrow, items, onSelect, renderDetail, renderKey, renderLabel, renderValue, selectedKey, title, total }) {
   return (
-    <div className="rounded-[28px] border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.04)] sm:p-5">
+    <div className="rounded-[28px] border border-teal-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(240,253,250,0.92))] p-4 shadow-[0_18px_45px_rgba(15,118,110,0.08)] ring-1 ring-white/80 sm:p-5">
       <div className="border-b border-[var(--border)] pb-4">
         <p className="whitespace-nowrap text-xs font-black uppercase tracking-[0.18em] text-[var(--text-muted)] sm:text-[11px]">{eyebrow}</p>
         <h3 className="mt-2 text-xl font-black text-[var(--text-main)]">{title}</h3>
@@ -859,11 +872,10 @@ function MetricBar({ activeClassName, badge, detail, isActive, label, onClick, p
       type={onClick ? "button" : undefined}
       onClick={onClick}
       aria-pressed={onClick ? Boolean(isActive) : undefined}
-      className={`premium-card-interactive w-full rounded-2xl border p-4 text-left ${onClick ? "cursor-pointer" : ""} ${
-        isActive
-          ? activeClassName || "border-[var(--primary)]/45 bg-[var(--success-bg)] shadow-[0_14px_28px_rgba(14,124,102,0.14)] ring-1 ring-[var(--primary)]/15"
-          : "border-[var(--border)] bg-[var(--bg-card)]"
-      }`}
+      className={`premium-card-interactive w-full rounded-2xl border p-4 text-left ${onClick ? "cursor-pointer" : ""} ${isActive
+        ? activeClassName || "border-[var(--primary)]/45 bg-[var(--success-bg)] shadow-[0_14px_28px_rgba(14,124,102,0.14)] ring-1 ring-[var(--primary)]/15"
+        : "border-[var(--border)] bg-[var(--bg-card)]"
+        }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">

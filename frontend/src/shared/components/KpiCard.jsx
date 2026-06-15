@@ -37,33 +37,43 @@ function isPendingValue(value) {
   return normalized.includes("pendiente") || normalized.includes("sin datos");
 }
 
+function formatEvidencePercentage(value) {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return "0%";
+  }
+
+  return `${formatNumber(Math.max(0, Math.min(100, numericValue)), 0)}%`;
+}
+
 function buildEvidenceValue(dashboardData) {
   const coverage = Number(dashboardData?.evidencia_respaldada);
   const evidenceCount = Number(
     dashboardData?.evidencias_count ??
-      dashboardData?.total_evidencias ??
-      dashboardData?.evidencias_asociadas ??
-      0
+    dashboardData?.total_evidencias ??
+    dashboardData?.evidencias_asociadas ??
+    0
   );
   const recordsCount = Number(
     dashboardData?.registros_count ??
-      dashboardData?.total_registros ??
-      (Array.isArray(dashboardData?.datos) ? dashboardData.datos.length : 0)
+    dashboardData?.total_registros ??
+    (Array.isArray(dashboardData?.datos) ? dashboardData.datos.length : 0)
   );
 
-  if (Number.isFinite(coverage) && coverage > 0) {
-    return `${formatNumber(coverage, 0)}% respaldada`;
+  if (Number.isFinite(coverage)) {
+    return `${formatEvidencePercentage(coverage)} respaldada`;
+  }
+
+  if (evidenceCount > 0 && recordsCount > 0) {
+    return `${formatEvidencePercentage((evidenceCount / recordsCount) * 100)} respaldada`;
   }
 
   if (evidenceCount > 0) {
     return `${formatNumber(evidenceCount, 0)} evidencias cargadas`;
   }
 
-  if (recordsCount > 0) {
-    return "Trazabilidad en revisión";
-  }
-
-  return "Sin registros para validar";
+  return "0% respaldada";
 }
 
 function buildIntensityValue(dashboardData) {
@@ -158,7 +168,21 @@ function KpiCard({ detail, icon, title, tone, value }) {
     value,
   ]);
 
-  const displayValue = resolvedDashboardValue || value;
+  const displayValue = (() => {
+    if (resolvedDashboardValue) {
+      return resolvedDashboardValue;
+    }
+
+    if (isEvidenceCard && typeof value === "number") {
+      return `${formatEvidencePercentage(value)} respaldada`;
+    }
+
+    if (isEvidenceCard && /^\d+(\.\d+)?$/.test(String(value ?? "").trim())) {
+      return `${formatEvidencePercentage(value)} respaldada`;
+    }
+
+    return value;
+  })();
 
   const semanticTone = (() => {
     if (typeof tone === "string") {
