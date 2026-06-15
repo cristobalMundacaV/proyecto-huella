@@ -68,10 +68,10 @@ const isValidExecutiveLabel = (value) => {
 
   return Boolean(
     text &&
-      text !== "0" &&
-      normalized !== "null" &&
-      normalized !== "undefined" &&
-      normalized !== "nan"
+    text !== "0" &&
+    normalized !== "null" &&
+    normalized !== "undefined" &&
+    normalized !== "nan"
   );
 };
 
@@ -151,9 +151,9 @@ function ExecutiveKpiCard({ label, value, icon, tone = "slate", description, cla
 const hasValidScenario = (scenario) =>
   Boolean(
     scenario &&
-      Number(scenario.currentTotal) > 0 &&
-      Number(scenario.simulatedTotal) > 0 &&
-      Number(scenario.reductionPct) > 0
+    Number(scenario.currentTotal) > 0 &&
+    Number(scenario.simulatedTotal) > 0 &&
+    Number(scenario.reductionPct) > 0
   );
 
 const capRangeToPotential = (range, potentialReduction) => {
@@ -212,7 +212,9 @@ const buildProgressiveActionRanges = (potentialReduction) => {
 };
 
 const buildStrategicPlan = (fuenteCritica, optimizedScenario) => {
-  const activityLabel = fuenteCritica || "la fuente prioritaria";
+  const activityLabel = fuenteCritica || optimizedScenario?.targetSource || "la fuente prioritaria";
+  const categoryLabel = optimizedScenario?.targetCategory || "la categoría crítica";
+  const stageLabel = optimizedScenario?.targetStage || "la etapa prioritaria";
   const sourceKey = normalizePlanText(activityLabel);
   const potentialReduction = Number(optimizedScenario?.reductionPct || 0);
   const optimalActivityReduction =
@@ -221,10 +223,12 @@ const buildStrategicPlan = (fuenteCritica, optimizedScenario) => {
       : Number(optimizedScenario?.activityReduction || 0);
 
   let viability = "Alta";
-  if (sourceKey === "diesel" || potentialReduction > 40) {
+
+  if (sourceKey.includes("diesel") || sourceKey.includes("hormigon") || sourceKey.includes("acero") || potentialReduction > 18) {
     viability = "Media";
   }
-  if (potentialReduction > 50 || optimalActivityReduction >= 70) {
+
+  if (potentialReduction > 32 || optimalActivityReduction >= 38) {
     viability = "Baja";
   }
 
@@ -232,16 +236,30 @@ const buildStrategicPlan = (fuenteCritica, optimizedScenario) => {
   const recommendedRange = actionRanges.pilotRange;
   const initialTarget = recommendedRange.min;
 
-  const principalRecommendation = potentialReduction > 0
-    ? `Apuntar a un piloto controlado sobre el impacto asociado a ${activityLabel}, buscando una reducción inicial entre un ${formatPercentRange(recommendedRange)}, antes de escalar hacia cambios estructurales.`
-    : `Completar datos y validar factores antes de definir un piloto de reducción para ${activityLabel}.`;
+  const recommendedActions = Array.isArray(optimizedScenario?.recommendedActions)
+    ? optimizedScenario.recommendedActions
+    : [];
 
-  const optimalReference = potentialReduction > 0
-    ? `El escenario máximo proyectado contempla una reducción total de hasta un ${formatNumber(
+  const evidenceNeeded = Array.isArray(optimizedScenario?.evidenceNeeded)
+    ? optimizedScenario.evidenceNeeded
+    : [];
+
+  const operationalNextStep =
+    optimizedScenario?.operationalNextStep ||
+    `Validar datos y evidencia de ${activityLabel} antes de ejecutar una intervención.`;
+
+  const principalRecommendation =
+    potentialReduction > 0
+      ? `El sistema detecta que ${categoryLabel} es el foco principal y que ${activityLabel} explica una parte relevante de la huella. Se recomienda partir con un piloto medible en ${stageLabel}, buscando una reducción inicial entre ${formatPercentRange(recommendedRange)} antes de escalar cambios estructurales.`
+      : `Completar datos y validar factores antes de definir un piloto de reducción para ${activityLabel}.`;
+
+  const optimalReference =
+    potentialReduction > 0
+      ? `El máximo potencial proyectado es de ${formatNumber(
         potentialReduction,
         1
-      )}%; sin embargo, no corresponde a una acción inmediata, ya que requeriría cambios estructurales para su implementación.`
-    : "El máximo potencial proyectado debe tratarse como referencia estratégica de largo plazo, no como acción inmediata.";
+      )}%. Esta cifra debe usarse como referencia estratégica, no como promesa inmediata, porque depende de evidencia, proveedores, operación y validación técnica.`
+      : "El máximo potencial proyectado debe tratarse como referencia estratégica de largo plazo, no como acción inmediata.";
 
   const actionLevels = [
     {
@@ -251,7 +269,7 @@ const buildStrategicPlan = (fuenteCritica, optimizedScenario) => {
       icon: Zap,
       iconTone: "green",
       detail:
-        "Ajustes de bajo esfuerzo: control de consumo, revisión operativa, mejor coordinación y correcciones rápidas sin cambiar especificaciones ni contratos principales.",
+        "Ajustes de bajo esfuerzo: depurar datos, separar fuentes, validar cantidades, asociar evidencia y corregir registros incompletos.",
     },
     {
       label: "Piloto recomendado",
@@ -260,7 +278,7 @@ const buildStrategicPlan = (fuenteCritica, optimizedScenario) => {
       icon: FlaskConical,
       iconTone: "amber",
       detail:
-        "Intervención controlada y medible sobre la fuente prioritaria. Permite validar impacto real antes de comprometer inversión, proveedores o rediseños mayores.",
+        "Intervención controlada sobre la fuente crítica. Permite medir impacto real antes de cambiar proveedores, especificaciones, rutas o procesos.",
     },
     {
       label: "Cambio estructural",
@@ -269,7 +287,7 @@ const buildStrategicPlan = (fuenteCritica, optimizedScenario) => {
       icon: Building2,
       iconTone: "red",
       detail:
-        "Requiere decisiones de mayor alcance: cambios de especificación, proveedores, diseño, planificación o tecnología. Representa el máximo realista, no el primer paso.",
+        "Requiere decisiones de mayor alcance: cambio de proveedor, tecnología, diseño, especificación, logística o modelo operacional.",
     },
   ];
 
@@ -280,6 +298,11 @@ const buildStrategicPlan = (fuenteCritica, optimizedScenario) => {
     principalRecommendation,
     optimalReference,
     actionLevels,
+    recommendedActions,
+    evidenceNeeded,
+    operationalNextStep,
+    categoryLabel,
+    stageLabel,
   };
 };
 
@@ -319,9 +342,9 @@ function ExecutiveSummary({
   );
   const estimatedImpact = hasValidOptimizedScenario
     ? `con un potencial proyectado de reducción del ${formatNumber(
-        optimizedScenario.reductionPct,
-        1
-      )}% en las emisiones totales bajo el escenario máximo.`
+      optimizedScenario.reductionPct,
+      1
+    )}% en las emisiones totales bajo el escenario máximo.`
     : "Aún no existe un escenario de reducción calculado con datos suficientes.";
   const riskKpiTone =
     riskProfile.score > 70
@@ -361,11 +384,11 @@ function ExecutiveSummary({
           <h2 className="text-3xl font-black tracking-tight text-[#0F172A] sm:text-[2.05rem]">
             {hasValidOptimizedScenario
               ? `Potencial de reduccion del ${formatNumber(
-                  optimizedScenario.reductionPct,
-                  1
-                )}% con una reduccion progresiva en ${formatTitleCase(
-                  fuenteCriticaLabel
-                )}`
+                optimizedScenario.reductionPct,
+                1
+              )}% con una reduccion progresiva en ${formatTitleCase(
+                fuenteCriticaLabel
+              )}`
               : `Priorizar intervención sobre ${fuenteCriticaLabel}`}
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#64748B]">
@@ -463,7 +486,7 @@ function ExecutiveSummary({
           </div>
         </div>
       </div>
-
+      <SpecificRecommendationPanel strategicPlan={strategicPlan} />
       <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-3">
         {strategicPlan.actionLevels.map((level) => (
           <div key={level.label} className={`rounded-[20px] border p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition duration-300 ease-out hover:shadow-[0_10px_28px_rgba(15,23,42,0.05)] ${level.tone}`}>
@@ -525,15 +548,87 @@ function ExecutiveSummary({
       </div>
 
       <p className="mt-5 rounded-2xl border border-[#99F6E4] bg-[#F0FDFA] px-4 py-3 text-sm leading-6 text-[#334155] shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition">
-        Carbono Zero recomienda priorizar una intervencion progresiva en {unidadCriticaLabel} sobre {fuenteCritica}, empezando con quick wins y escalando por fases
-        segun resultados medidos.
+        Carbono Zero recomienda seguir este orden: primero validar la huella total, luego aislar el punto crítico,
+        después confirmar la evidencia de {formatTitleCase(fuenteCriticaLabel)} y finalmente ejecutar un piloto medible
+        en {unidadCriticaLabel}.
         {(optimizedScenario || reductionEquivalentKm != null) &&
-          ` Si la hoja de ruta se consolida por etapas, la reducción operativa estimada equivale a aproximadamente ${formatNumber(
+          ` Si la hoja de ruta se consolida por etapas, la reducción operativa estimada equivale aproximadamente a ${formatNumber(
             equivalentCarKm,
             0
           )} km recorridos en auto.`}
       </p>
     </section>
+  );
+}
+
+function SpecificRecommendationPanel({ strategicPlan }) {
+  const actions = strategicPlan.recommendedActions || [];
+  const evidence = strategicPlan.evidenceNeeded || [];
+
+  if (!actions.length && !evidence.length) {
+    return null;
+  }
+
+  return (
+    <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+      <section className="rounded-[22px] border border-emerald-200 bg-[linear-gradient(135deg,rgba(236,253,245,0.96),rgba(255,255,255,0.98))] p-5 shadow-[0_12px_30px_rgba(15,118,110,0.08)]">
+        <div className="flex items-start gap-3">
+          <div className="rounded-full border border-emerald-200 bg-white p-3 text-emerald-700">
+            <Sparkles size={20} />
+          </div>
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-700">
+              Recomendaciones específicas
+            </p>
+            <h3 className="mt-1 text-lg font-black text-[#0F172A]">
+              Qué debería hacer la empresa ahora
+            </h3>
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          {actions.map((action) => (
+            <div
+              key={action}
+              className="rounded-2xl border border-emerald-100 bg-white/80 p-3 text-sm font-semibold leading-6 text-[#334155]"
+            >
+              {action}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-[22px] border border-sky-200 bg-[linear-gradient(135deg,rgba(239,246,255,0.96),rgba(255,255,255,0.98))] p-5 shadow-[0_12px_30px_rgba(37,99,235,0.06)]">
+        <div className="flex items-start gap-3">
+          <div className="rounded-full border border-sky-200 bg-white p-3 text-sky-700">
+            <FileText size={20} />
+          </div>
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-sky-700">
+              Evidencia necesaria
+            </p>
+            <h3 className="mt-1 text-lg font-black text-[#0F172A]">
+              Qué debe respaldar el usuario
+            </h3>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {evidence.map((item) => (
+            <span
+              key={item}
+              className="rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-black text-sky-700"
+            >
+              {formatTitleCase(item)}
+            </span>
+          ))}
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-sky-100 bg-white/80 p-3 text-sm font-semibold leading-6 text-[#334155]">
+          {strategicPlan.operationalNextStep}
+        </div>
+      </section>
+    </div>
   );
 }
 

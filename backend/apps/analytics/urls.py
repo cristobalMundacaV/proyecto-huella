@@ -72,6 +72,10 @@ urlpatterns = [
     ),
     path("constructoras/<str:constructora_id>/emisiones/", constructora_emisiones),
     path("constructoras/<str:constructora_id>/evidencias/", constructora_evidencias),
+    path(
+        "constructoras/<str:constructora_id>/evidencias/extraer/",
+        constructora_evidencia_extraer,
+    ),
     path("constructoras/<str:constructora_id>/reportes/", constructora_reportes),
     path("importaciones/completa/preview/", importacion_completa_preview),
     path("importaciones/completa/confirm/", importacion_completa_confirm),
