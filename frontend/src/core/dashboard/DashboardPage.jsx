@@ -793,9 +793,6 @@ function CriticalDriversPanel({ categoryItems, intelligence, processPluralLabel,
           <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">Fuentes críticas</p>
           <h2 className="mt-1 text-2xl font-black tracking-tight text-[var(--text-main)]">Top 3 de mayor impacto</h2>
         </div>
-        <p className="max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
-          El sistema prioriza las tres categorías y los tres {processPluralLabel.toLowerCase()} con mayor impacto para orientar la lectura ejecutiva.
-        </p>
       </div>
 
       <div className="mt-5 space-y-5">
