@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-
+import PlatformLoader from "@/shared/components/PlatformLoader";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import { DEFAULT_PRESET_KEY, getActivePreset } from "@/presets/registry";
 import { aserraderoFactors } from "@/presets/aserradero/factors";
@@ -156,16 +156,18 @@ function FactoresPage() {
       </div>
     );
   }
-
+  if (loading && !factors.length && !records.length) {
+    return (
+      <PlatformLoader
+        title="Cargando factores de emisión"
+        description="Estamos preparando catálogo, registros pendientes y reglas de cálculo ambiental."
+      />
+    );
+  }
   return (
     <main className="mx-auto max-w-7xl space-y-8">
       <FactorHero activeConstructora={activeConstructora} config={config} preset={activePreset} status={status} />
 
-      {loading && (
-        <p className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 text-center text-sm font-semibold text-[var(--text-muted)]">
-          Cargando factores...
-        </p>
-      )}
 
       {message && (
         <p className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center text-sm font-bold text-emerald-800">

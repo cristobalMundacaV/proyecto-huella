@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import PlatformLoader from "@/shared/components/PlatformLoader";
 import {
   Activity,
   AlertTriangle,
@@ -247,9 +248,9 @@ function buildDecisionModel(data) {
   const heroSubtitle =
     estimatedReduction > 0
       ? `Puedes reducir cerca de ${formatNumber(
-          estimatedReduction,
-          0
-        )} kg CO2e con una intervención focalizada en ${criticalUnit}. La recomendación es comenzar con un piloto medible antes de avanzar hacia cambios mayores.`
+        estimatedReduction,
+        0
+      )} kg CO2e con una intervención focalizada en ${criticalUnit}. La recomendación es comenzar con un piloto medible antes de avanzar hacia cambios mayores.`
       : "Prioriza la fuente principal para convertir el análisis en acción operativa.";
   const recommendation =
     dieselPct >= 30
@@ -344,7 +345,7 @@ function EmisionesView() {
           if (!cancelled) {
             setError(
               requestError.response?.data?.error ||
-                "No se pudieron cargar las emisiones de la constructora."
+              "No se pudieron cargar las emisiones de la constructora."
             );
           }
         })
@@ -572,10 +573,23 @@ function EmisionesView() {
   };
 
   if (loadingConstructoras) {
-    return <EmptyState title="Cargando constructoras" description="Preparando constructora activa." />;
+    return (
+      <PlatformLoader
+        title="Cargando empresa activa"
+        description="Estamos preparando la información ambiental de la empresa seleccionada."
+      />
+    );
   }
 
   if (!activeConstructoraId) {
+    if (loading && !data) {
+      return (
+        <PlatformLoader
+          title="Cargando emisiones"
+          description="Estamos calculando huella, fuentes críticas, evidencias y registros ambientales."
+        />
+      );
+    }
     return (
       <EmptyState
         title="Selecciona o crea una constructora para revisar sus emisiones."
@@ -897,9 +911,8 @@ function EmisionesView() {
                   return (
                     <tr
                       key={row.id}
-                      className={`border-b border-slate-100 transition ${
-                        isCritical ? "bg-red-50/50" : "hover:bg-emerald-50/50"
-                      }`}
+                      className={`border-b border-slate-100 transition ${isCritical ? "bg-red-50/50" : "hover:bg-emerald-50/50"
+                        }`}
                     >
                       <td className="px-3 py-4 font-semibold leading-5 text-slate-900">{obraName}</td>
                       <td className="px-3 py-4 font-semibold leading-5 text-slate-900">
@@ -925,9 +938,8 @@ function EmisionesView() {
                           <p className="font-bold text-slate-900">{evidenceStatus.label}</p>
                           {evidenceStatus.status && (
                             <p
-                              className={`text-xs font-bold ${
-                                evidenceStatus.status === "Validada" ? "text-emerald-700" : "text-red-700"
-                              }`}
+                              className={`text-xs font-bold ${evidenceStatus.status === "Validada" ? "text-emerald-700" : "text-red-700"
+                                }`}
                             >
                               {evidenceStatus.status}
                             </p>
