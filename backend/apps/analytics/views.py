@@ -38,6 +38,7 @@ from .serializers import (
     UsuarioConstructoraSerializer,
 )
 from .services.local_advisor import generar_analisis_local
+from .services.document_extraction import extract_environmental_document
 
 try:
     from .services.ai_advisor import generar_analisis_ia
@@ -547,6 +548,22 @@ def constructora_evidencias(request, constructora_id):
         EvidenciaObraSerializer(evidencia, context={"request": request}).data,
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(["POST"])
+@parser_classes([MultiPartParser, FormParser])
+def constructora_evidencia_extraer(request, constructora_id):
+    constructora = get_constructora_or_404(constructora_id)
+    upload = request.FILES.get("file") or request.FILES.get("archivo")
+
+    if not upload:
+        return Response(
+            {"error": "Debes adjuntar un archivo para analizar."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    result = extract_environmental_document(upload, preset=constructora.preset)
+    return Response(result)
 
 
 @api_view(["GET", "POST"])

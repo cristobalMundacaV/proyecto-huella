@@ -171,7 +171,13 @@ function EvidenciasPage() {
       <EvidenceKpiGrid kpis={kpis} />
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <EvidenceUploadPanel config={config} onSubmit={handleSubmit} records={records} saving={saving} />
+        <EvidenceUploadPanel
+          config={config}
+          constructoraId={activeConstructoraId}
+          onSubmit={handleSubmit}
+          records={records}
+          saving={saving}
+        />
         <div className="space-y-6">
           <EvidenceChecklist items={config.checklist} />
           <EvidenceValidationPanel recommendations={recommendations} />

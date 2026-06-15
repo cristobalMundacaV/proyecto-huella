@@ -12,6 +12,7 @@ from .views import (
     constructora_dashboard,
     constructora_estado,
     constructora_evidencias,
+    constructora_evidencia_extraer,
     constructora_obras,
     constructora_registro_aplicar_factor,
     constructora_registros_emision,

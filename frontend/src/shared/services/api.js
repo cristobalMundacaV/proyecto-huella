@@ -86,6 +86,14 @@ export async function getConstructoraEvidencias(id, params = {}) { return (await
 export async function getEvidenciasConstructora(id, filters = {}) { return getConstructoraEvidencias(id, filters); }
 export async function getEvidenciasKpisConstructora(id) { const e = await getConstructoraEvidencias(id); const vinculadas = e.filter((x) => x.obra || x.registro_emision).length; return { total: e.length, vinculadas, pendientes: e.filter((x) => x.estado_documental === "pendiente").length, observadas: e.filter((x) => x.estado_documental === "observada").length, cobertura_documental: e.length ? (vinculadas / e.length) * 100 : null }; }
 export async function crearEvidenciaConstructora(id, formData) { return (await api.post(constructoraPath(id, "/evidencias/"), formData)).data; }
+export async function extraerEvidenciaDocumento(id, file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return (await api.post(constructoraPath(id, "/evidencias/extraer/"), formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  })).data;
+}
 export async function uploadObraEvidencia(codigo, payload) { const fd = new FormData(); fd.append("tipo_evidencia", payload.tipo_evidencia || "otro"); fd.append("fecha_evidencia", payload.fecha_evidencia || ""); fd.append("nombre", payload.nombre || payload.archivo?.name || "Evidencia de obra"); fd.append("archivo", payload.archivo); if (payload.observaciones) fd.append("observaciones", payload.observaciones); return (await api.post(obraPath(codigo, "/evidencias/"), fd, { headers: { "Content-Type": "multipart/form-data" } })).data; }
 export async function createTransporteObra(codigo, payload) { return (await api.post(obraPath(codigo, "/transportes/"), payload)).data; }
 export async function getConstructoraReportes(id, params = {}) { return (await api.get(constructoraPath(id, `/reportes/${query(params)}`))).data; }

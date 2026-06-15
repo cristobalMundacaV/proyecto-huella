@@ -2,7 +2,7 @@ import Pagination from "@/shared/components/Pagination";
 import { getEvidenceStatus } from "@/presets/shared/evidenceConfig";
 import { useMemo, useState } from "react";
 
-const pageSize = 10;
+const pageSize = 8;
 
 const statusStyles = {
   success: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -28,11 +28,11 @@ function EvidenceTable({ config, rows = [] }) {
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-2xl border border-[var(--border)]">
-        <table className="min-w-[1100px] w-full text-sm">
+        <table className="min-w-[1100px] w-full text-center text-sm">
           <thead>
-            <tr className="border-b border-[var(--border)] bg-[var(--bg-surface)] text-left text-xs uppercase tracking-wide text-[var(--text-muted)]">
-              {columns.map((column) => <th key={column.key} className="px-3 py-3">{column.label}</th>)}
-              <th className="px-3 py-3">Acciones</th>
+            <tr className="border-b border-[var(--border)] bg-[var(--bg-surface)] text-center text-xs uppercase tracking-wide text-[var(--text-muted)]">
+              {columns.map((column) => <th key={column.key} className="px-3 py-3 text-center">{column.label}</th>)}
+              <th className="px-3 py-3 text-center">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -41,7 +41,7 @@ function EvidenceTable({ config, rows = [] }) {
               return (
                 <tr key={item.id} className="border-b border-[#C9D6CF] text-[#1F2937] hover:bg-[var(--bg-surface)]">
                   {columns.map((column) => (
-                    <td key={column.key} className="px-3 py-3">
+                    <td key={column.key} className="px-3 py-3 text-center">
                       {column.key === "estado" ? (
                         <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusStyles[status.tone]}`}>
                           {status.label}
@@ -53,8 +53,8 @@ function EvidenceTable({ config, rows = [] }) {
                       )}
                     </td>
                   ))}
-                  <td className="px-3 py-3">
-                    <div className="flex flex-wrap gap-2">
+                  <td className="px-3 py-3 text-center">
+                    <div className="flex flex-wrap justify-center gap-2">
                       {item.archivo_url ? <a className="rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-3 py-1 text-xs font-bold text-[#475467]" href={item.archivo_url} target="_blank" rel="noreferrer">Ver</a> : null}
                       {item.archivo_url ? <a className="rounded-full border border-[var(--primary-dark)] bg-[var(--success-bg)] px-3 py-1 text-xs font-bold text-[var(--primary-dark)]" href={item.archivo_url} download>Descargar</a> : null}
                       <button type="button" disabled title="Disponible en la siguiente fase backend." className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-bold text-slate-400">Vincular</button>
