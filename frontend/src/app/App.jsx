@@ -1,7 +1,9 @@
 import { useCallback, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-
+import Navbar from "@/layouts/Navbar";
+import PlatformLoader from "@/shared/components/PlatformLoader";
+import ProfessionalFooter from "@/shared/components/ProfessionalFooter";
 import DashboardPage from "@/core/dashboard/DashboardPage";
 import Sidebar from "@/layouts/Sidebar";
 import PresetComingSoon from "@/shared/components/PresetComingSoon";
@@ -77,9 +79,11 @@ function App() {
 
   if (loadingAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-main)] text-[var(--text-main)]">
-        Cargando sesion...
-      </div>
+      <PlatformLoader
+        fullScreen
+        title="Iniciando sesión"
+        description="Estamos preparando tu espacio de gestión ambiental."
+      />
     );
   }
 
@@ -89,9 +93,11 @@ function App() {
 
   if (loadingConstructoras) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-main)] text-[var(--text-main)]">
-        Cargando constructoras...
-      </div>
+      <PlatformLoader
+        fullScreen
+        title="Cargando empresas"
+        description="Estamos preparando empresas, presets y estado operativo."
+      />
     );
   }
 
@@ -101,10 +107,15 @@ function App() {
         <div className="hidden lg:block">
           <Sidebar activeView={activeView} onSetActiveView={handleSetActiveView} systemStatus={companyStatus} />
         </div>
-        <section className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-10 lg:py-12">
-          <EmisionesView onSetActiveView={handleSetActiveView} />
+        <section className="flex min-h-screen flex-1 flex-col overflow-y-auto">
+          <Navbar onSetActiveView={handleSetActiveView} />
+
+          <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+            <EmisionesView onSetActiveView={handleSetActiveView} />
+            <ProfesionalFooter />
+          </div>
         </section>
-      </main>
+      </main >
     );
   }
 
