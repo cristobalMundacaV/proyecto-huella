@@ -115,6 +115,25 @@ export async function validateExtraccionEvidencia() { return { pendiente: true }
 export async function rejectExtraccionEvidencia() { return { pendiente: true }; }
 
 export function getPlantillaImportacionConstruccionUrl() { return buildApiUrl("/importaciones/plantilla-construccion/"); }
+export function getPlantillaGenericaXlsxUrl(columns = [], filename = "plantilla_importacion.xlsx") {
+  const params = new URLSearchParams();
+  params.set("columns", columns.join(","));
+  params.set("filename", filename);
+  return buildApiUrl(`/importaciones/plantilla-generica/?${params.toString()}`);
+}
+
+export async function previewImportGenerica(file, { columns = [], module = "" } = {}) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("columns", JSON.stringify(columns));
+  formData.append("module", module);
+
+  const response = await api.post("/importaciones/generica/preview/", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+  return response.data;
+}
 export async function previewImportFactores(file) { return previewImport("factores", file); }
 export async function confirmarImportFactores(payload) { return confirmImport("factores", payload); }
 export async function previewImportConstructoras(file) { return previewImport("constructoras", file); }

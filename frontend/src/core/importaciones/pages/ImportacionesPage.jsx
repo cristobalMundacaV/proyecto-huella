@@ -10,6 +10,7 @@ import {
   previewImportConstructoras,
   previewImportEtapasForConstructora,
   previewImportFactores,
+  previewImportGenerica,
   previewImportObrasForConstructora,
   previewRegistroEmisionImportForConstructora,
 } from "@/shared/services/api";
@@ -58,7 +59,47 @@ const constructionConfirm = {
   obras: confirmarImportObrasForConstructora,
   registros: confirmRegistroEmisionImportForConstructora,
 };
+function hasOperationalAmount(data) {
+  return [
+    "cantidad",
+    "consumo_kwh",
+    "energia_kwh",
+    "volumen_m3",
+    "volumen_entrada_m3",
+    "volumen_salida_m3",
+    "volumen_secado_m3",
+    "distancia_km",
+    "litros_diesel",
+    "carga_m3",
+    "horas_secado",
+    "superficie_m2",
+    "peso_ton",
+  ].some((field) => String(data?.[field] || "").trim());
+}
 
+function validatePreviewRows(rows, columns) {
+  return normalizeImportRows(rows).map((row) => {
+    const data = row.data || {};
+    const errors = [];
+
+    columns.forEach((column) => {
+      if (!(column in data)) {
+        errors.push(`Falta columna ${column}`);
+      }
+    });
+
+    if (!hasOperationalAmount(data)) {
+      errors.push("Falta cantidad operacional.");
+    }
+
+    return {
+      ...row,
+      status: errors.length ? "error" : "valid",
+      errors,
+      warnings: Number(data.factor_emision || 0) ? [] : ["Sin factor de emisión"],
+    };
+  });
+}
 function ImportacionesPage({ onImportConfirmed }) {
   const { activeConstructora, activeConstructoraId, refreshConstructoras } = useConstructoraActiva();
   const activePreset = getActivePreset(activeConstructora?.preset || DEFAULT_PRESET_KEY);
@@ -93,20 +134,38 @@ function ImportacionesPage({ onImportConfirmed }) {
         const result = ["etapas", "obras", "registros"].includes(selectedModule)
           ? await previewFn(activeConstructoraId, file)
           : await previewFn(file);
+
         const rows = normalizeImportRows(result.rows || result);
         setPreviewRows(rows);
         setSummary(result.summary || buildImportSummary(rows));
         setBackendBatchId(result.batch_id || null);
       } else {
-        const rows = normalizeImportRows(parseCsv(await file.text(), moduleConfig.columns));
+        const result = await previewImportGenerica(file, {
+          columns: moduleConfig.columns,
+          module: selectedModule,
+        });
+
+        const rows = validatePreviewRows(result.rows || result, moduleConfig.columns);
         setPreviewRows(rows);
-        setSummary(buildImportSummary(rows));
+        setSummary(result.summary || buildImportSummary(rows));
+        setBackendBatchId(result.batch_id || null);
       }
     } catch (requestError) {
-      setError(requestError.response?.data?.error || requestError.message || "No se pudo previsualizar el archivo.");
+      setError(
+        requestError.response?.data?.error ||
+        requestError.message ||
+        "No se pudo previsualizar el archivo."
+      );
     } finally {
       setLoading(false);
     }
+  }
+
+  function handlePreviewRowsChange(nextRows) {
+    const rows = validatePreviewRows(nextRows, moduleConfig?.columns || []);
+    setPreviewRows(rows);
+    setSummary(buildImportSummary(rows));
+    setBackendBatchId(null);
   }
 
   async function handleConfirm() {
@@ -173,7 +232,11 @@ function ImportacionesPage({ onImportConfirmed }) {
       </section>
 
       {summary ? <ImportValidationSummary summary={summary} /> : <ImportEmptyState message={config.emptyMessage} />}
-      <ImportPreviewTable columns={moduleConfig?.columns || []} rows={previewRows} />
+      <ImportPreviewTable
+        columns={moduleConfig?.columns || []}
+        rows={previewRows}
+        onRowsChange={handlePreviewRowsChange}
+      />
       <ImportConfirmPanel
         canConfirm={canConfirm}
         message={moduleConfig?.supported ? "Confirma solo filas validas y con empresa activa." : "Modulo preparado para proxima conexion backend."}
@@ -194,56 +257,5 @@ function ImportacionesPage({ onImportConfirmed }) {
   );
 }
 
-function parseCsv(text, columns) {
-  const lines = text.split(/\r?\n/).filter((line) => line.trim());
-  if (!lines.length) return [];
-  const headers = splitCsvLine(lines[0]).map((item) => item.trim());
-  const missing = columns.filter((column) => !headers.includes(column));
-
-  return lines.slice(1).map((line, index) => {
-    const values = splitCsvLine(line);
-    const data = Object.fromEntries(headers.map((header, idx) => [header, values[idx] ?? ""]));
-    const rowErrors = [...missing.map((column) => `Falta columna ${column}`)];
-    if (
-      !data.cantidad &&
-      !data.consumo_kwh &&
-      !data.energia_kwh &&
-      !data.volumen_m3 &&
-      !data.volumen_entrada_m3 &&
-      !data.volumen_secado_m3 &&
-      !data.distancia_km &&
-      !data.litros_diesel &&
-      !data.carga_m3
-    ) {
-      rowErrors.push("Falta cantidad operacional.");
-    }
-    return {
-      row_number: index + 2,
-      status: rowErrors.length ? "error" : "valid",
-      data,
-      errors: rowErrors,
-      warnings: Number(data.factor_emision || 0) ? [] : ["Sin factor de emision"],
-    };
-  });
-}
-
-function splitCsvLine(line) {
-  const result = [];
-  let current = "";
-  let inQuotes = false;
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === "," && !inQuotes) {
-      result.push(current);
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-  result.push(current);
-  return result.map((value) => value.replace(/^"|"$/g, "").replace(/""/g, '"'));
-}
 
 export default ImportacionesPage;

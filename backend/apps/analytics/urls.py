@@ -38,8 +38,10 @@ from .views_importaciones import (
     importacion_completa_confirm,
     importacion_completa_preview,
     importacion_confirm,
+    importacion_generica_preview,
     importacion_preview,
     plantilla_importacion_construccion,
+    plantilla_importacion_generica,
 )
 
 urlpatterns = [
@@ -73,6 +75,8 @@ urlpatterns = [
     path("importaciones/completa/preview/", importacion_completa_preview),
     path("importaciones/completa/confirm/", importacion_completa_confirm),
     path("importaciones/plantilla-construccion/", plantilla_importacion_construccion),
+    path("importaciones/plantilla-generica/", plantilla_importacion_generica),
+    path("importaciones/generica/preview/", importacion_generica_preview),
     path(
         "constructoras/<str:constructora_id>/importaciones/<str:kind>/preview/",
         importacion_preview,
