@@ -600,41 +600,50 @@ function EmisionesView() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
-      <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-[var(--shadow-card)] sm:p-7">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-3xl">
-            <p className="flex items-center gap-2 text-sm font-semibold text-[var(--secondary)]">
-              <Flame size={18} />
-              Emisiones
+      <section className="relative overflow-hidden rounded-[34px] border border-emerald-200/70 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.20),transparent_34%),linear-gradient(135deg,rgba(15,45,39,0.98),rgba(18,61,52,0.96))] p-6 text-white shadow-[0_28px_90px_rgba(15,45,39,0.24)] sm:p-8">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 left-10 h-72 w-72 rounded-full bg-teal-300/20 blur-3xl" />
+
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-4xl">
+            <p className="inline-flex items-center gap-2 rounded-full border border-emerald-300/25 bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-emerald-100">
+              <Flame size={16} />
+              Emisiones operativas
             </p>
-            <h1 className="mt-3 text-3xl font-bold sm:text-5xl">{decision.heroTitle}</h1>
-            <p className="mt-4 text-base leading-7 text-[var(--text-muted)]">
+
+            <h1 className="mt-5 text-3xl font-black leading-tight tracking-tight sm:text-5xl">
+              {decision.heroTitle}
+            </h1>
+
+            <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-emerald-50/85 sm:text-base">
               {decision.heroSubtitle}
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+          <div className="grid min-w-[260px] gap-3">
             <button
               type="button"
               onClick={handleAiAnalysis}
               disabled={loadingAi}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-black text-white shadow-[0_16px_32px_rgba(0,0,0,0.12)] transition hover:-translate-y-px hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Sparkles size={18} />
               {loadingAi ? "Analizando..." : "Generar análisis IA"}
             </button>
+
             <button
               type="button"
               onClick={() => openDecisionCenter(false)}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700 transition hover:bg-emerald-100"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-300/25 bg-emerald-300/15 px-5 py-3 text-sm font-black text-emerald-50 shadow-[0_16px_32px_rgba(0,0,0,0.12)] transition hover:-translate-y-px hover:bg-emerald-300/20"
             >
               <TrendingDown size={18} />
               Simular escenario
             </button>
+
             <button
               type="button"
               onClick={() => openDecisionCenter(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-teal-300/25 bg-teal-300/15 px-5 py-3 text-sm font-black text-teal-50 shadow-[0_16px_32px_rgba(0,0,0,0.12)] transition hover:-translate-y-px hover:bg-teal-300/20"
             >
               <Target size={18} />
               Ver plan operativo
@@ -666,7 +675,8 @@ function EmisionesView() {
           <DecisionKpi
             icon={<Activity />}
             label="Emisiones totales"
-            value={`${formatNumber(kpis.emisiones_totales || 0, 1)} kg CO2e`}
+            value={<EmissionValue value={kpis.emisiones_totales || 0} />}
+            tone="success"
           />
           <DecisionKpi
             icon={<Layers3 />}
@@ -773,7 +783,7 @@ function EmisionesView() {
                 <Bar
                   activeBar={horizontalActiveBarStyle}
                   dataKey="emisiones"
-                  fill="#38BDF8"
+                  fill="#059669"
                   barSize={activityBarSize}
                   radius={[0, 10, 10, 0]}
                 />
@@ -806,7 +816,7 @@ function EmisionesView() {
           <div className="mt-4 space-y-3">
             <ImpactRow
               label="Reducción estimada"
-              value={`${formatNumber(decision.estimatedReduction, 0)} kg CO2e`}
+              value={<EmissionValue value={decision.estimatedReduction} decimals={0} />}
             />
             <ImpactRow
               label="Equivalente aproximado"
@@ -823,11 +833,13 @@ function EmisionesView() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[var(--shadow-card)] sm:p-6">
+      <section className="rounded-[32px] border border-emerald-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(240,253,250,0.82))] p-5 shadow-[0_24px_70px_rgba(15,118,110,0.10)] ring-1 ring-white/80 sm:p-6">
         <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-[var(--text-main)]">Registros de emisión</h2>
-            <p className="mt-1 text-sm text-[var(--text-muted)]">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">
+              Trazabilidad ambiental
+            </p>
+            <h2 className="mt-1 text-2xl font-black text-slate-950">Registros de emisión</h2>            <p className="mt-1 text-sm text-[var(--text-muted)]">
               {formatNumber(filteredRows.length, 0)} registros encontrados.
             </p>
           </div>
@@ -876,7 +888,7 @@ function EmisionesView() {
           </div>
         ) : (
           <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[1080px] table-fixed border-collapse text-sm">
+            <table className="w-full min-w-[1080px] table-fixed border-collapse text-center text-sm">
               <colgroup>
                 <col className="w-[16%]" />
                 <col className="w-[13%]" />
@@ -889,7 +901,7 @@ function EmisionesView() {
                 <col className="w-[8%]" />
               </colgroup>
               <thead>
-                <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
+                <tr className="border-b border-emerald-100 bg-emerald-50/60 text-center text-xs font-black uppercase tracking-[0.14em] text-emerald-900">
                   <th className="px-3 py-3">Nombre de la obra</th>
                   <th className="px-3 py-3">Etapa / frente</th>
                   <th className="px-3 py-3 text-center">Categoría</th>
@@ -930,8 +942,8 @@ function EmisionesView() {
                       <td className="whitespace-nowrap px-3 py-4 text-right text-slate-600">
                         {formatNumber(row.factor_emision || 0, 4)}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-right font-bold text-blue-700">
-                        {formatNumber(rowEmission, 1)} <span className="text-xs font-extrabold text-slate-950">kg CO2e</span>
+                      <td className="whitespace-nowrap px-3 py-4 text-center font-black">
+                        <EmissionValue value={rowEmission} />
                       </td>
                       <td className="px-3 py-4 text-center text-slate-600">
                         <div className="space-y-1 whitespace-nowrap">
@@ -1063,37 +1075,69 @@ function SectionTitle({ eyebrow, title }) {
   );
 }
 
-function DecisionKpi({ detail, icon, label, tone = "border-[var(--border)] bg-[var(--bg-card)]", value, valueClassName = "text-[var(--text-main)]" }) {
-  return (
-    <div className={`relative rounded-2xl border p-5 shadow-[var(--shadow-card)] ${tone}`}>
-      {detail && (
-        <p className="absolute right-4 top-4 rounded-full border border-[var(--border)] bg-[var(--info-bg)] px-3 py-1 text-xs font-bold text-[#075985]">
-          {detail}
-        </p>
-      )}
-      <div className="mb-4 flex items-center gap-3 pr-24">
-        <div className="text-[var(--primary-dark)]">{icon}</div>
-        <p className="text-sm font-medium text-[var(--text-muted)]">{label}</p>
-      </div>
-      <h3 className={`mt-1 pr-20 text-2xl font-bold ${valueClassName}`}>{value}</h3>
-    </div>
-  );
-}
+function DecisionKpi({ detail, icon, label, tone = "neutral", value }) {
+  const tones = {
+    success: {
+      card: "border-emerald-200 bg-[linear-gradient(180deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98))] shadow-[0_18px_45px_rgba(15,118,110,0.10)]",
+      icon: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      value: "text-emerald-700",
+    },
+    warning: {
+      card: "border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,0.98),rgba(255,255,255,0.98))] shadow-[0_18px_45px_rgba(180,83,9,0.08)]",
+      icon: "border-amber-200 bg-amber-50 text-amber-700",
+      value: "text-amber-700",
+    },
+    danger: {
+      card: "border-rose-200 bg-[linear-gradient(180deg,rgba(255,241,242,0.98),rgba(255,255,255,0.98))] shadow-[0_18px_45px_rgba(190,18,60,0.08)]",
+      icon: "border-rose-200 bg-rose-50 text-rose-700",
+      value: "text-rose-700",
+    },
+    info: {
+      card: "border-sky-200 bg-[linear-gradient(180deg,rgba(240,249,255,0.98),rgba(255,255,255,0.98))] shadow-[0_18px_45px_rgba(2,132,199,0.08)]",
+      icon: "border-sky-200 bg-sky-50 text-sky-700",
+      value: "text-sky-700",
+    },
+    neutral: {
+      card: "border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] shadow-[0_18px_45px_rgba(15,23,42,0.06)]",
+      icon: "border-slate-200 bg-slate-50 text-slate-700",
+      value: "text-slate-900",
+    },
+  };
 
-function RiskMessage({ children, icon }) {
+  const selectedTone = tones[tone] || tones.neutral;
+
   return (
-    <p className="flex gap-3 rounded-2xl border border-red-100 border-l-4 border-l-red-500 bg-white p-4 text-sm font-medium leading-6 text-red-900 shadow-[0_8px_18px_rgba(185,28,28,0.06)]">
-      {icon && <span className="mt-0.5 shrink-0 text-red-600">{icon}</span>}
-      <span>{children}</span>
-    </p>
+    <article className={`relative min-h-[170px] rounded-[28px] border p-5 text-center ring-1 ring-white/70 ${selectedTone.card}`}>
+      {detail ? (
+        <div className="absolute right-4 top-4 rounded-full border border-white/70 bg-white/80 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-slate-600 shadow-sm">
+          {detail}
+        </div>
+      ) : null}
+
+      <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border shadow-sm ${selectedTone.icon}`}>
+        {icon}
+      </div>
+
+      <p className="mt-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </p>
+
+      <div className={`mt-3 flex min-h-[48px] items-center justify-center text-2xl font-black leading-tight ${selectedTone.value}`}>
+        {value}
+      </div>
+    </article>
   );
 }
 
 function ImpactRow({ label, value }) {
   return (
-    <div className="rounded-2xl border border-blue-100 border-l-4 border-l-blue-600 bg-white p-4 shadow-[0_8px_18px_rgba(37,99,235,0.06)]">
-      <p className="text-xs font-bold uppercase tracking-wide text-blue-800">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-blue-900">{value}</p>
+    <div className="rounded-2xl border border-emerald-200 bg-white/90 p-4 text-center shadow-[0_12px_28px_rgba(15,118,110,0.08)]">
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">
+        {label}
+      </p>
+      <p className="mt-2 text-xl font-black text-emerald-900">
+        {value}
+      </p>
     </div>
   );
 }

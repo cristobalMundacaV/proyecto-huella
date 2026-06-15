@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import EmissionValue from "@/shared/components/EmissionValue";
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import { DEFAULT_PRESET_KEY, getActivePreset } from "@/presets/registry";
