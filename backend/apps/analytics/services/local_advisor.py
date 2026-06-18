@@ -1,4 +1,4 @@
-﻿CONSTRUCTION_REDUCTION_STEPS = [
+CONSTRUCTION_REDUCTION_STEPS = [
     (
         "Optimizar materiales de alto impacto",
         "Revisar hormigon, cemento, acero, aridos y proveedores para priorizar alternativas con menor carbono incorporado.",
@@ -31,6 +31,10 @@
         "Medir kg CO2e/m2 por obra",
         "Comparar intensidad de carbono entre proyectos para detectar desviaciones y oportunidades de mejora.",
     ),
+    (
+        "Automatizar la captura operacional",
+        "Usar sensores de combustible, energia, horas encendido, agua y GPS para transformar la obra en una fuente continua de datos ambientales.",
+    ),
 ]
 
 
@@ -58,8 +62,11 @@ def _recommendation_for_category(categoria):
 def _viability_for(payload, categoria):
     total = float(payload.get("total_emisiones", 0) or 0)
     cobertura = payload.get("evidencia_respaldada")
-    if total <= 0:
+    iot_count = int(payload.get("registros_iot") or 0)
+    if total <= 0 and iot_count <= 0:
         return "Media"
+    if iot_count >= 10:
+        return "Alta"
     if categoria in {"Materiales", "Transporte", "Maquinaria"}:
         return "Media"
     if isinstance(cobertura, (int, float)) and cobertura >= 70:
@@ -74,6 +81,11 @@ def generar_analisis_local(payload):
     etapa = payload.get("etapa_critica") or "Sin etapa critica"
     intensidad = payload.get("intensidad_carbono")
     cobertura = payload.get("evidencia_respaldada")
+    iot_count = int(payload.get("registros_iot") or 0)
+    iot_emisiones = float(payload.get("emisiones_iot_kg_co2e") or 0)
+    iot_por_tipo = payload.get("emisiones_iot_por_tipo") or {}
+    top_dispositivos = payload.get("top_dispositivos_iot") or []
+    dispositivo_critico = top_dispositivos[0]["dispositivo_id"] if top_dispositivos else "sin dispositivo critico"
     viabilidad = _viability_for(payload, categoria)
     recomendacion_categoria = _recommendation_for_category(categoria)
 
@@ -92,29 +104,35 @@ def generar_analisis_local(payload):
 Diagnostico:
 La obra registra {_format_number_es(total, 1)} kg CO2e. La categoria critica es {categoria}, con foco principal en {fuente}. La etapa critica identificada es {etapa}. La intensidad actual es {intensidad_texto} y la cobertura documental esta {cobertura_texto}.
 
+Lectura operacional IoT:
+La ventana actual contiene {iot_count} registros de sensores y {_format_number_es(iot_emisiones, 1)} kg CO2e estimados por telemetria. El dispositivo con mayor impacto operativo es {dispositivo_critico}. Distribucion por tipo: {iot_por_tipo}.
+
 Insight estrategico:
 {recomendacion_categoria}
+
+Riesgo operacional detectado:
+Si los sensores muestran combustible, horas encendido o kWh concentrados en pocos equipos, la prioridad es detectar ralenti, uso fuera de horario, sobrerrecorridos o maquinaria con bajo rendimiento.
 
 Nivel de viabilidad:
 {viabilidad}. La reduccion debe abordarse con acciones progresivas, medibles y compatibles con la continuidad de obra.
 
 Recomendacion principal realista:
-Priorizar la categoria {categoria} durante el siguiente ciclo de control, cruzando emisiones, costos, proveedores y evidencias disponibles para seleccionar medidas de reduccion aplicables.
+Priorizar la categoria {categoria} durante el siguiente ciclo de control, cruzando emisiones, costos, proveedores, telemetria IoT y evidencias disponibles para seleccionar medidas de reduccion aplicables.
 
 Escenario optimo:
-Una obra con registros completos por categoria, evidencias vinculadas a las fuentes criticas e intensidad kg CO2e/m2 monitoreada por etapa.
+Una obra con registros completos por categoria, evidencias vinculadas a fuentes criticas, intensidad kg CO2e/m2 monitoreada por etapa y sensores alimentando alertas operacionales en tiempo casi real.
 
 Niveles de accion:
-- Bajo esfuerzo: completar evidencias faltantes, ordenar registros por categoria y revisar consumos atipicos.
-- Medio impacto: ajustar proveedores, planificacion de viajes, uso de equipos y compras de materiales de alto impacto.
-- Transformacional: incorporar criterios de carbono en especificaciones, contratos y planificacion de obra desde etapas tempranas.
+- Bajo esfuerzo: completar evidencias faltantes, ordenar registros por categoria y revisar consumos atipicos detectados por sensores.
+- Medio impacto: ajustar proveedores, planificacion de viajes, uso de equipos, compras de materiales y horarios de consumo energetico.
+- Transformacional: incorporar criterios de carbono y telemetria en contratos, planificacion de obra y control diario de operaciones.
 
 Pasos a seguir:
 {_steps_text()}
 
 Recomendacion estrategica:
-Usar Carbono Zero como tablero de control operativo: medir, documentar, comparar intensidad por obra y priorizar acciones sobre las fuentes con mayor kg CO2e.
+Usar Carbono Zero como tablero de control operativo continuo: medir, documentar, detectar desviaciones, comparar intensidad por obra y priorizar acciones sobre las fuentes con mayor kg CO2e.
 
 Siguiente accion concreta:
-Revisar los 5 registros con mayor emision, verificar si tienen evidencia asociada y definir una accion de reduccion por cada fuente critica.
+Revisar los 5 registros con mayor emision y los 5 dispositivos IoT con mayor impacto, verificar si tienen evidencia asociada y definir una accion de reduccion por cada fuente critica.
 """.strip()
