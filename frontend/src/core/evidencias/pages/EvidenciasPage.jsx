@@ -6,6 +6,7 @@ import {
   crearEvidenciaConstructora,
   getEvidenciasConstructora,
   getEmpresaRegistrosAmbientales,
+  getLotesForestales,
 } from "@/shared/services/api";
 import { DEFAULT_PRESET_KEY, getActivePreset } from "@/presets/registry";
 import { construccionEvidence } from "@/presets/construccion/evidence";
@@ -38,18 +39,21 @@ function EvidenciasPage() {
   const config = evidenceByPreset[activePreset.key] || construccionEvidence;
   const [evidencias, setEvidencias] = useState([]);
   const [records, setRecords] = useState([]);
+  const [lotesForestales, setLotesForestales] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [loteFilter, setLoteFilter] = useState("");
 
   async function loadData() {
     if (!activeConstructoraId) return;
     try {
       setLoading(true);
       setError("");
-      const [evidenciasData, recordsData] = await Promise.allSettled([
+      const [evidenciasData, recordsData, lotesData] = await Promise.allSettled([
         getEvidenciasConstructora(activeConstructoraId),
         getEmpresaRegistrosAmbientales(activeConstructoraId),
+        activePreset.key === "aserradero" ? getLotesForestales(activeConstructoraId) : Promise.resolve([]),
       ]);
 
       if (evidenciasData.status === "fulfilled") {
@@ -62,6 +66,12 @@ function EvidenciasPage() {
         setRecords(Array.isArray(recordsData.value) ? recordsData.value : recordsData.value?.results || []);
       } else {
         setRecords([]);
+      }
+
+      if (lotesData.status === "fulfilled") {
+        setLotesForestales(Array.isArray(lotesData.value) ? lotesData.value : []);
+      } else {
+        setLotesForestales([]);
       }
 
       if (evidenciasData.status === "rejected" && recordsData.status === "rejected") {
@@ -81,8 +91,10 @@ function EvidenciasPage() {
 
   const presetRows = useMemo(() => {
     const matching = evidencias.filter((row) => row.metadata?.preset === activePreset.key);
-    return matching.length ? matching : evidencias;
-  }, [activePreset.key, evidencias]);
+    const baseRows = matching.length ? matching : evidencias;
+    if (!loteFilter) return baseRows;
+    return baseRows.filter((row) => row.lote_forestal_id === loteFilter || row.metadata?.lote === loteFilter);
+  }, [activePreset.key, evidencias, loteFilter]);
 
   const coverage = useMemo(
     () => getEvidenceCoverage(presetRows, config.requiredEvidenceTypes),
@@ -104,6 +116,7 @@ function EvidenciasPage() {
       evidence_type: form.evidenceType,
       evidence_label: form.selectedType?.label || form.evidenceType,
       module: form.metadata?.module || "",
+      lote: form.lote_id || form.metadata?.lote || "",
       ...Object.fromEntries(
         Object.entries(form.metadata || {}).filter(([, value]) => value !== undefined && value !== null && value !== "")
       ),
@@ -120,6 +133,8 @@ function EvidenciasPage() {
       formData.append("metadata_extraccion", JSON.stringify(metadata));
       if (form.fecha_documento) formData.append("fecha_documento", form.fecha_documento);
       if (form.registro_emision) formData.append("registro_emision", form.registro_emision);
+      if (form.lote_forestal) formData.append("lote_forestal", form.lote_forestal);
+      if (form.lote_id) formData.append("lote_id", form.lote_id);
       if (form.observaciones.trim()) formData.append("observaciones", form.observaciones.trim());
 
       await crearEvidenciaConstructora(activeConstructoraId, formData);
@@ -174,7 +189,9 @@ function EvidenciasPage() {
         <EvidenceUploadPanel
           config={config}
           constructoraId={activeConstructoraId}
+          lotesForestales={lotesForestales}
           onSubmit={handleSubmit}
+          presetKey={activePreset.key}
           records={records}
           saving={saving}
         />
@@ -183,6 +200,26 @@ function EvidenciasPage() {
           <EvidenceValidationPanel recommendations={recommendations} />
         </div>
       </section>
+
+      {activePreset.key === "aserradero" && lotesForestales.length ? (
+        <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[0_12px_28px_var(--shadow)]">
+          <label className="text-xs font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">
+            Filtrar por lote forestal
+          </label>
+          <select
+            className="mt-2 w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100 sm:max-w-md"
+            value={loteFilter}
+            onChange={(event) => setLoteFilter(event.target.value)}
+          >
+            <option value="">Todos los lotes</option>
+            {lotesForestales.map((lote) => (
+              <option key={lote.id} value={lote.lote_id}>
+                {lote.lote_id} - {lote.especie}
+              </option>
+            ))}
+          </select>
+        </section>
+      ) : null}
 
       {!loading && presetRows.length === 0 ? (
         <EvidenceEmptyState message={config.emptyMessage} />

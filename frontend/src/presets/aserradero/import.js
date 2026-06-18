@@ -50,6 +50,14 @@ const modules = [
     source: "Transporte forestal",
   },
   {
+    key: "lotes_forestales",
+    label: "Lotes forestales",
+    supported: false,
+    columns: ["fecha", "lote_id", "especie", "volumen_m3", "origen", "destino", "tipo_producto", "densidad_kg_m3", "porcentaje_carbono", "estado", "observaciones"],
+    category: "Materia prima",
+    source: "Lote forestal",
+  },
+  {
     key: "residuos_subproductos",
     label: "Residuos / Subproductos",
     supported: true,

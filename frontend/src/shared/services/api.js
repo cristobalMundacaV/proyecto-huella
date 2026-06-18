@@ -81,6 +81,14 @@ export async function createConstructoraRegistroEmision(id, payload) { return (a
 export async function getEmpresaRegistrosAmbientales(id) { return getConstructoraRegistrosEmision(id); }
 export async function createEmpresaRegistroAmbiental(id, payload) { return createConstructoraRegistroEmision(id, payload); }
 export async function getConstructoraEmisiones(id, params = {}) { return (await api.get(constructoraPath(id, "/emisiones/"), { params })).data; }
+export async function getLotesForestales(constructoraId) { return (await api.get(constructoraPath(constructoraId, "/lotes-forestales/"))).data; }
+export async function getLoteForestalDetail(constructoraId, loteId) { return (await api.get(constructoraPath(constructoraId, `/lotes-forestales/${encodeURIComponent(loteId)}/`))).data; }
+export async function createLoteForestal(constructoraId, payload) { return (await api.post(constructoraPath(constructoraId, "/lotes-forestales/"), payload)).data; }
+export async function updateLoteForestal(constructoraId, loteId, payload) { return (await api.patch(constructoraPath(constructoraId, `/lotes-forestales/${encodeURIComponent(loteId)}/`), payload)).data; }
+export async function deleteLoteForestal(constructoraId, loteId) { await api.delete(constructoraPath(constructoraId, `/lotes-forestales/${encodeURIComponent(loteId)}/`)); }
+export async function getLotesForestalesResumen(constructoraId) { return (await api.get(constructoraPath(constructoraId, "/lotes-forestales/resumen/"))).data; }
+export async function getTransportesLoteForestal(constructoraId, loteId) { return (await api.get(constructoraPath(constructoraId, `/lotes-forestales/${encodeURIComponent(loteId)}/transportes/`))).data; }
+export async function createTransporteLoteForestal(constructoraId, loteId, payload) { return (await api.post(constructoraPath(constructoraId, `/lotes-forestales/${encodeURIComponent(loteId)}/transportes/`), payload)).data; }
 export async function createRegistroEmision(codigo, payload) { return (await api.post(obraPath(codigo, "/registros-emision/"), payload)).data; }
 export async function getConstructoraEvidencias(id, params = {}) { return (await api.get(constructoraPath(id, "/evidencias/"), { params })).data; }
 export async function getEvidenciasConstructora(id, filters = {}) { return getConstructoraEvidencias(id, filters); }

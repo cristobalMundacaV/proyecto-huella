@@ -4,15 +4,25 @@ from rest_framework import serializers
 from .models import (
     ConfiguracionConstructora,
     Constructora,
+    EspecieMadera,
     EtapaObra,
     EvidenciaObra,
     FactorEmision,
+    LoteForestal,
     MaterialConstruccion,
     Obra,
     RegistroEmision,
+    TransporteLoteForestal,
     TransporteObra,
     UsuarioConstructora,
 )
+from .services.forestal_carbono import calcular_balance_neto_lote
+
+
+def normalize_carbon_percentage(value):
+    if value is not None and value > 1:
+        return value / 100
+    return value
 
 
 class ConstructoraSerializer(serializers.ModelSerializer):
@@ -250,6 +260,7 @@ class RegistroEmisionSerializer(serializers.ModelSerializer):
     obra_nombre = serializers.CharField(source="obra.nombre", read_only=True)
     etapa_nombre = serializers.CharField(source="etapa.nombre", read_only=True)
     evidencia_asociada = serializers.SerializerMethodField()
+    lote_forestal_id = serializers.CharField(source="lote_forestal.lote_id", read_only=True)
 
     class Meta:
         model = RegistroEmision
@@ -263,6 +274,8 @@ class RegistroEmisionSerializer(serializers.ModelSerializer):
             "obra_nombre",
             "etapa",
             "etapa_nombre",
+            "lote_forestal",
+            "lote_forestal_id",
             "categoria",
             "fuente_emision",
             "actividad_key",
@@ -290,6 +303,7 @@ class RegistroEmisionSerializer(serializers.ModelSerializer):
             "obra_codigo",
             "obra_nombre",
             "etapa_nombre",
+            "lote_forestal_id",
             "actividad_key",
             "emisiones_kg_co2e",
             "evidencia_asociada",
@@ -321,12 +335,14 @@ class RegistroEmisionSerializer(serializers.ModelSerializer):
 
 class EvidenciaObraSerializer(serializers.ModelSerializer):
     archivo_url = serializers.SerializerMethodField()
+    lote_id = serializers.CharField(write_only=True, required=False, allow_blank=True)
     constructora_id = serializers.CharField(source="constructora.constructora_id", read_only=True)
     constructora_nombre = serializers.CharField(source="constructora.nombre", read_only=True)
     obra_codigo = serializers.CharField(source="obra.codigo_obra", read_only=True)
     obra_nombre = serializers.CharField(source="obra.nombre", read_only=True)
     etapa_nombre = serializers.CharField(source="etapa.nombre", read_only=True)
     registro_fuente = serializers.CharField(source="registro_emision.fuente_emision", read_only=True)
+    lote_forestal_id = serializers.CharField(source="lote_forestal.lote_id", read_only=True)
 
     class Meta:
         model = EvidenciaObra
@@ -342,6 +358,9 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
             "etapa_nombre",
             "registro_emision",
             "registro_fuente",
+            "lote_forestal",
+            "lote_forestal_id",
+            "lote_id",
             "tipo_evidencia",
             "estado_documental",
             "fecha_documento",
@@ -362,11 +381,30 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
             "obra_nombre",
             "etapa_nombre",
             "registro_fuente",
+            "lote_forestal_id",
             "archivo_url",
             "texto_extraido",
             "created_at",
             "updated_at",
         ]
+
+    def validate(self, attrs):
+        lote_id = attrs.pop("lote_id", "")
+        metadata = attrs.get("metadata_extraccion")
+        if isinstance(metadata, str):
+            import json
+
+            try:
+                metadata = json.loads(metadata)
+                attrs["metadata_extraccion"] = metadata
+            except json.JSONDecodeError:
+                metadata = {}
+        constructora = attrs.get("constructora") or getattr(self.instance, "constructora", None)
+        if lote_id and constructora and not attrs.get("lote_forestal"):
+            lote = LoteForestal.objects.filter(constructora=constructora, lote_id=lote_id.strip()).first()
+            if lote:
+                attrs["lote_forestal"] = lote
+        return attrs
 
     def get_archivo_url(self, evidencia):
         if not evidencia.archivo:
@@ -414,3 +452,183 @@ class TransporteObraSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+
+class EspecieMaderaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EspecieMadera
+        fields = "__all__"
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_porcentaje_carbono(self, value):
+        value = normalize_carbon_percentage(value)
+        if value <= 0:
+            raise serializers.ValidationError("El porcentaje de carbono debe ser mayor a 0.")
+        return value
+
+    def validate_densidad_kg_m3(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("La densidad debe ser mayor a 0.")
+        return value
+
+
+class TransporteLoteForestalSerializer(serializers.ModelSerializer):
+    lote_id = serializers.CharField(source="lote_forestal.lote_id", read_only=True)
+    registro_emision_id = serializers.IntegerField(source="registro_emision.id", read_only=True)
+
+    class Meta:
+        model = TransporteLoteForestal
+        fields = [
+            "id",
+            "lote_forestal",
+            "lote_id",
+            "fecha",
+            "vehiculo",
+            "patente",
+            "conductor",
+            "origen",
+            "destino",
+            "distancia_km",
+            "litros_diesel",
+            "consumo_estimado_litro_km",
+            "factor_diesel",
+            "emisiones_transporte_kg_co2e",
+            "registro_emision",
+            "registro_emision_id",
+            "observaciones",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "lote_id",
+            "emisiones_transporte_kg_co2e",
+            "registro_emision",
+            "registro_emision_id",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate_distancia_km(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("La distancia debe ser mayor a 0.")
+        return value
+
+    def validate_litros_diesel(self, value):
+        if value is not None and value <= 0:
+            raise serializers.ValidationError("Los litros diesel deben ser mayores a 0.")
+        return value
+
+
+class LoteForestalSerializer(serializers.ModelSerializer):
+    cantidad_registros_emision = serializers.IntegerField(source="registros_emision.count", read_only=True)
+    cantidad_transportes = serializers.IntegerField(source="transportes.count", read_only=True)
+    cantidad_evidencias = serializers.IntegerField(source="evidencias.count", read_only=True)
+
+    class Meta:
+        model = LoteForestal
+        fields = [
+            "id",
+            "lote_id",
+            "constructora",
+            "fecha",
+            "especie",
+            "volumen_m3",
+            "origen",
+            "destino",
+            "tipo_producto",
+            "densidad_kg_m3",
+            "porcentaje_carbono",
+            "estado",
+            "observaciones",
+            "metadata",
+            "cantidad_registros_emision",
+            "cantidad_transportes",
+            "cantidad_evidencias",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "cantidad_registros_emision",
+            "cantidad_transportes",
+            "cantidad_evidencias",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate_volumen_m3(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("El volumen debe ser mayor a 0.")
+        return value
+
+    def validate_densidad_kg_m3(self, value):
+        if value is not None and value <= 0:
+            raise serializers.ValidationError("La densidad debe ser mayor a 0.")
+        return value
+
+    def validate_porcentaje_carbono(self, value):
+        value = normalize_carbon_percentage(value)
+        if value is not None and value <= 0:
+            raise serializers.ValidationError("El porcentaje de carbono debe ser mayor a 0.")
+        return value
+
+
+class LoteForestalDetailSerializer(LoteForestalSerializer):
+    emisiones_generadas_kg_co2e = serializers.SerializerMethodField()
+    co2_almacenado_kg = serializers.SerializerMethodField()
+    balance_neto_kg_co2e = serializers.SerializerMethodField()
+    estado_balance = serializers.SerializerMethodField()
+    descripcion_balance = serializers.SerializerMethodField()
+    calculo_completo = serializers.SerializerMethodField()
+    campos_faltantes = serializers.SerializerMethodField()
+    registros_emision = serializers.SerializerMethodField()
+    transportes = TransporteLoteForestalSerializer(many=True, read_only=True)
+    evidencias = serializers.SerializerMethodField()
+
+    class Meta(LoteForestalSerializer.Meta):
+        fields = LoteForestalSerializer.Meta.fields + [
+            "emisiones_generadas_kg_co2e",
+            "co2_almacenado_kg",
+            "balance_neto_kg_co2e",
+            "estado_balance",
+            "descripcion_balance",
+            "calculo_completo",
+            "campos_faltantes",
+            "registros_emision",
+            "transportes",
+            "evidencias",
+        ]
+
+    def _balance(self, lote):
+        if not hasattr(lote, "_balance_cache"):
+            lote._balance_cache = calcular_balance_neto_lote(lote)
+        return lote._balance_cache
+
+    def get_emisiones_generadas_kg_co2e(self, lote):
+        return self._balance(lote)["emisiones_generadas_kg_co2e"]
+
+    def get_co2_almacenado_kg(self, lote):
+        return self._balance(lote)["co2_almacenado_kg"]
+
+    def get_balance_neto_kg_co2e(self, lote):
+        return self._balance(lote)["balance_neto_kg_co2e"]
+
+    def get_estado_balance(self, lote):
+        return self._balance(lote)["estado_balance"]
+
+    def get_descripcion_balance(self, lote):
+        return self._balance(lote)["descripcion_balance"]
+
+    def get_calculo_completo(self, lote):
+        return self._balance(lote)["calculo_completo"]
+
+    def get_campos_faltantes(self, lote):
+        return self._balance(lote)["campos_faltantes"]
+
+    def get_registros_emision(self, lote):
+        registros = lote.registros_emision.order_by("-fecha", "-created_at")
+        return RegistroEmisionSerializer(registros, many=True).data
+
+    def get_evidencias(self, lote):
+        return EvidenciaObraSerializer(lote.evidencias.order_by("-created_at"), many=True, context=self.context).data

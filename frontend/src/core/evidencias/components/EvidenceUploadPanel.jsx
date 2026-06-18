@@ -27,7 +27,7 @@ function buildPreviewUrl(file) {
   return isPreviewable ? URL.createObjectURL(file) : "";
 }
 
-function EvidenceUploadPanel({ config, constructoraId, onSubmit, records = [], saving }) {
+function EvidenceUploadPanel({ config, constructoraId, lotesForestales = [], onSubmit, presetKey = "", records = [], saving }) {
   const evidenceTypes = [...config.requiredEvidenceTypes, ...config.optionalEvidenceTypes];
   const metadataFields = config.getUploadMetadataFields();
   const initialMetadata = useMemo(() => buildInitialMetadata(metadataFields), [metadataFields]);
@@ -37,6 +37,8 @@ function EvidenceUploadPanel({ config, constructoraId, onSubmit, records = [], s
     evidenceType: evidenceTypes[0]?.key || "otro",
     fecha_documento: "",
     archivo: null,
+    lote_id: "",
+    lote_forestal: "",
     registro_emision: "",
     estado_documental: "pendiente",
     observaciones: "",
@@ -156,6 +158,8 @@ function EvidenceUploadPanel({ config, constructoraId, onSubmit, records = [], s
       evidenceType: evidenceTypes[0]?.key || "otro",
       fecha_documento: "",
       archivo: null,
+      lote_id: "",
+      lote_forestal: "",
       registro_emision: "",
       estado_documental: "pendiente",
       observaciones: "",
@@ -307,6 +311,32 @@ function EvidenceUploadPanel({ config, constructoraId, onSubmit, records = [], s
             </option>
           ))}
         </select>
+
+        {presetKey === "aserradero" ? (
+          <select
+            className={`${inputClass} md:col-span-2`}
+            value={form.lote_forestal}
+            onChange={(event) => {
+              const lote = lotesForestales.find((item) => String(item.id) === event.target.value);
+              setForm((current) => ({
+                ...current,
+                lote_forestal: event.target.value,
+                lote_id: lote?.lote_id || "",
+                metadata: {
+                  ...current.metadata,
+                  lote: lote?.lote_id || current.metadata.lote || "",
+                },
+              }));
+            }}
+          >
+            <option value="">Lote forestal vinculado</option>
+            {lotesForestales.map((lote) => (
+              <option key={lote.id} value={lote.id}>
+                {lote.lote_id} - {lote.especie}
+              </option>
+            ))}
+          </select>
+        ) : null}
 
         {metadataFields.map((field) =>
           field.type === "select" ? (

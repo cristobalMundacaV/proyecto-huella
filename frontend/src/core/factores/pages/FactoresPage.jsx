@@ -20,7 +20,6 @@ import FactorCatalog from "../components/FactorCatalog";
 import FactorCreateModal from "../components/FactorCreateModal";
 import FactorHero from "../components/FactorHero";
 import FactorKpiGrid from "../components/FactorKpiGrid";
-import FactorSuggestionPanel from "../components/FactorSuggestionPanel";
 import PendingFactorRecords from "../components/PendingFactorRecords";
 
 const configByPreset = {
@@ -43,7 +42,7 @@ function normalizeFactor(factor) {
   };
 }
 
-function FactoresPage() {
+function FactoresPage({ onSetActiveView }) {
   const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
   const activePreset = getActivePreset(activeConstructora?.preset || DEFAULT_PRESET_KEY);
   const config = configByPreset[activePreset.key] || construccionFactors;
@@ -95,7 +94,7 @@ function FactoresPage() {
   );
 
   const kpis = useMemo(() => config.buildKpis(factors, scopedRecords), [config, factors, scopedRecords]);
-  const recommendations = useMemo(() => config.buildRecommendations(factors, pendingRecords), [config, factors, pendingRecords]);
+  const firstSuggestion = pendingRecords[0] ? config.suggestionRules.suggestFactor(pendingRecords[0], factors) : null;
   const status = useMemo(() => config.getFactorQualityStatus(factors, scopedRecords), [config, factors, scopedRecords]);
   const firstSuggestion = pendingRecords[0] ? config.suggestionRules.suggestFactor(pendingRecords[0], factors) : null;
 
@@ -184,30 +183,14 @@ function FactoresPage() {
 
       <FactorKpiGrid kpis={kpis} />
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_0.8fr]">
-        <FactorCatalog
-          config={config}
-          factors={factors}
-          onCreate={() => setCreateOpen(true)}
-          onEdit={setEditFactor}
-          onToggleActive={handleToggleActive}
-        />
-
-        <div className="space-y-4">
-          <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-[var(--shadow-premium)]">
-            <h2 className="text-xl font-black text-[var(--text-main)]">Recomendaciones</h2>
-            <div className="mt-4 space-y-3">
-              {recommendations.map((item) => (
-                <p key={item} className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center text-sm font-semibold text-amber-800">
-                  {item}
-                </p>
-              ))}
-            </div>
-          </div>
-
-          <FactorSuggestionPanel suggestion={firstSuggestion} />
-        </div>
-      </section>
+      <FactorCatalog
+        config={config}
+        factors={factors}
+        onCreate={() => setCreateOpen(true)}
+        onEdit={setEditFactor}
+        onImport={() => onSetActiveView?.("importaciones")}
+        onToggleActive={handleToggleActive}
+      />
 
       <PendingFactorRecords
         factors={factors}

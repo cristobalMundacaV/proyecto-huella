@@ -42,9 +42,15 @@ export const aserraderoDashboard = {
     const transporte = moduleRows(rows, "transporte_forestal");
     const residuos = moduleRows(rows, "residuos_subproductos");
     const valorizados = residuos.filter((row) => String(row.metadata?.valorizado || "").toLowerCase().includes("si")).length;
+    const lotesForestales = context.safeDashboardData?.lotes_forestales || context.lotes_forestales || {};
 
     return [
       { label: "Huella total", value: `${formatNumber(context.totalEmissions, 1)} kg CO2e`, description: "Registros forestales calculados", icon: "leaf", tone: "danger" },
+      { label: "Lotes forestales", value: formatNumber(lotesForestales.total_lotes || 0, 0), description: "Lotes con trazabilidad forestal", icon: "package", tone: "success" },
+      { label: "CO2 almacenado", value: `${formatNumber(lotesForestales.co2_almacenado_kg || 0, 1)} kg`, description: "Carbono retenido por lotes", icon: "leaf", tone: "success" },
+      { label: "Balance neto", value: `${formatNumber(lotesForestales.balance_neto_kg_co2e || 0, 1)} kg`, description: "Emisiones menos CO2 almacenado", icon: "gauge", tone: "info" },
+      { label: "Balance favorable", value: formatNumber(lotesForestales.lotes_balance_favorable || 0, 0), description: "Lotes con balance negativo", icon: "target", tone: "success" },
+      { label: "Criticos / incompletos", value: `${formatNumber(lotesForestales.lotes_balance_critico || 0, 0)} / ${formatNumber(lotesForestales.lotes_balance_incompleto || 0, 0)}`, description: "Lotes a revisar", icon: "alert", tone: "warning" },
       { label: "m3 recibidos", value: formatNumber(sum(recepcion, "volumen_m3", "cantidad"), 1), description: "Materia prima registrada", icon: "package", tone: "success" },
       { label: "m3 procesados", value: formatNumber(sum(produccion, "volumen_entrada_m3", "cantidad"), 1), description: "Volumen de aserrio", icon: "factory", tone: "info" },
       { label: "Rendimiento promedio", value: `${formatNumber(avg(produccion, "rendimiento_pct"), 1)}%`, description: "Entrada versus salida", icon: "gauge", tone: "success" },

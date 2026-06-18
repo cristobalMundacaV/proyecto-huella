@@ -35,6 +35,12 @@ from .views import (
 from .views_constructoras import constructora_detail_safe
 from .views_emisiones import constructora_emisiones
 from .views_etapas import constructora_etapas
+from .views_forestal import (
+    constructora_lote_forestal_detail,
+    constructora_lote_forestal_transportes,
+    constructora_lotes_forestales,
+    constructora_lotes_forestales_resumen,
+)
 from .views_importaciones import (
     importacion_completa_confirm,
     importacion_completa_preview,
@@ -71,6 +77,10 @@ urlpatterns = [
         constructora_registro_aplicar_factor,
     ),
     path("constructoras/<str:constructora_id>/emisiones/", constructora_emisiones),
+    path("constructoras/<str:constructora_id>/lotes-forestales/", constructora_lotes_forestales),
+    path("constructoras/<str:constructora_id>/lotes-forestales/resumen/", constructora_lotes_forestales_resumen),
+    path("constructoras/<str:constructora_id>/lotes-forestales/<str:lote_id>/transportes/", constructora_lote_forestal_transportes),
+    path("constructoras/<str:constructora_id>/lotes-forestales/<str:lote_id>/", constructora_lote_forestal_detail),
     path("constructoras/<str:constructora_id>/evidencias/", constructora_evidencias),
     path(
         "constructoras/<str:constructora_id>/evidencias/extraer/",

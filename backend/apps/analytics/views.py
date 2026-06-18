@@ -18,6 +18,7 @@ from .models import (
     EtapaObra,
     EvidenciaObra,
     FactorEmision,
+    LoteForestal,
     MaterialConstruccion,
     Obra,
     RegistroEmision,
@@ -39,6 +40,7 @@ from .serializers import (
 )
 from .services.local_advisor import generar_analisis_local
 from .services.document_extraction import extract_environmental_document
+from .services.forestal_carbono import calcular_balance_neto_lote
 
 try:
     from .services.ai_advisor import generar_analisis_ia
@@ -428,6 +430,17 @@ def constructora_dashboard(request, constructora_id):
     payload["datos"] = RegistroEmisionSerializer(
         registros.order_by("-fecha", "-created_at")[:200], many=True
     ).data
+    if constructora.preset == Constructora.Preset.ASERRADERO:
+        lotes = LoteForestal.objects.filter(constructora=constructora)
+        lotes_balance = [calcular_balance_neto_lote(lote) for lote in lotes]
+        payload["lotes_forestales"] = {
+            "total_lotes": lotes.count(),
+            "co2_almacenado_kg": round(sum(item["co2_almacenado_kg"] for item in lotes_balance), 3),
+            "balance_neto_kg_co2e": round(sum(item["balance_neto_kg_co2e"] for item in lotes_balance), 3),
+            "lotes_balance_favorable": sum(1 for item in lotes_balance if item["estado_balance"] == "favorable"),
+            "lotes_balance_critico": sum(1 for item in lotes_balance if item["estado_balance"] == "critico"),
+            "lotes_balance_incompleto": sum(1 for item in lotes_balance if item["estado_balance"] == "incompleto"),
+        }
     return Response(payload)
 
 
@@ -531,9 +544,12 @@ def constructora_evidencias(request, constructora_id):
     if request.method == "GET":
         evidencias = (
             EvidenciaObra.objects.filter(constructora=constructora)
-            .select_related("obra", "etapa", "registro_emision")
+            .select_related("obra", "etapa", "registro_emision", "lote_forestal")
             .order_by("-created_at")
         )
+        lote_id = request.query_params.get("lote_id") or request.query_params.get("lote")
+        if lote_id:
+            evidencias = evidencias.filter(lote_forestal__lote_id=lote_id)
         return Response(
             EvidenciaObraSerializer(
                 evidencias, many=True, context={"request": request}

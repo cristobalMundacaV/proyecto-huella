@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
+import { Pencil, Plus, Power, PowerOff, Upload } from "lucide-react";
 
 import Pagination from "@/shared/components/Pagination";
 import { formatNumber } from "@/shared/utils/formatters";
 
 const PAGE_SIZE = 8;
 
-function FactorCatalog({ config, factors = [], onCreate, onEdit, onToggleActive }) {
+function FactorCatalog({ config, factors = [], onCreate, onEdit, onImport, onToggleActive }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState({
     categoria: "",
@@ -109,8 +110,8 @@ function FactorCatalog({ config, factors = [], onCreate, onEdit, onToggleActive 
                 <td className="px-4 py-3 text-center">{factor.alcance || "-"}</td>
                 <td className="px-4 py-3 text-center">
                   <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${factor.activo
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-slate-200 bg-slate-100 text-slate-600"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-slate-200 bg-slate-100 text-slate-600"
                     }`}>
                     {factor.metadata?.requires_validation ? "Requiere validación" : factor.activo ? "Activo" : "Inactivo"}
                   </span>

@@ -13,7 +13,13 @@ const statusStyles = {
 
 function EvidenceTable({ config, rows = [] }) {
   const [currentPage, setCurrentPage] = useState(1);
-  const columns = config.getTableColumns();
+  const hasForestLots = rows.some((row) => row.lote_forestal_id);
+  const columns = hasForestLots
+    ? [
+        ...config.getTableColumns(),
+        { key: "lote_forestal", label: "Lote forestal", resolver: (item) => item.lote_forestal_id || "-" },
+      ]
+    : config.getTableColumns();
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const visibleRows = useMemo(() => rows.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize), [rows, safeCurrentPage]);

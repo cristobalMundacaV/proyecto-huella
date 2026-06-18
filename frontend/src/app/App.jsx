@@ -24,6 +24,7 @@ import SecadoAserraderoPage from "@/presets/aserradero/pages/SecadoAserraderoPag
 import EnergiaAserraderoPage from "@/presets/aserradero/pages/EnergiaAserraderoPage";
 import TransporteForestalPage from "@/presets/aserradero/pages/TransporteForestalPage";
 import ResiduosSubproductosPage from "@/presets/aserradero/pages/ResiduosSubproductosPage";
+import LotesForestalesPage from "@/presets/aserradero/pages/LotesForestalesPage";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { DEFAULT_PRESET_KEY, getActivePreset } from "@/presets/registry";
@@ -112,7 +113,7 @@ function App() {
 
           <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
             <EmisionesView onSetActiveView={handleSetActiveView} />
-            <ProfesionalFooter />
+            <ProfessionalFooter />
           </div>
         </section>
       </main >
@@ -252,7 +253,9 @@ function ActiveView({
     );
   }
   if (activeView === "emisiones") return <EmisionesView onSetActiveView={onSetActiveView} />;
-  if (activeView === "factores") return <FactoresView />;
+  if (activeView === "factores") {
+    return <FactoresView onSetActiveView={onSetActiveView} />;
+  }
   if (activeView === "evidencias") return <EvidenciasPage />;
   if (activeView === "usuarios") return <UsuariosPage />;
   if (activeView === "configuracion") return <ConfiguracionPage />;
@@ -262,6 +265,7 @@ function ActiveView({
   if (activeView === "secado") return <SecadoAserraderoPage />;
   if (activeView === "energia") return <EnergiaAserraderoPage />;
   if (activeView === "transporte_forestal") return <TransporteForestalPage />;
+  if (activeView === "lotes_forestales") return <LotesForestalesPage />;
   if (activeView === "residuos_subproductos") return <ResiduosSubproductosPage />;
 
   if (presetPlaceholderViews[activeView]) {

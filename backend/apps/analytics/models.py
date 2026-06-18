@@ -319,6 +319,59 @@ class MaterialConstruccion(models.Model):
         return self.nombre
 
 
+class EspecieMadera(models.Model):
+    nombre = models.CharField(max_length=120, unique=True)
+    densidad_kg_m3 = models.DecimalField(max_digits=10, decimal_places=3)
+    porcentaje_carbono = models.DecimalField(max_digits=8, decimal_places=4)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["nombre"]
+
+    def save(self, *args, **kwargs):
+        if self.porcentaje_carbono and self.porcentaje_carbono > 1:
+            self.porcentaje_carbono = self.porcentaje_carbono / Decimal("100")
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.nombre
+
+
+class LoteForestal(models.Model):
+    lote_id = models.CharField(max_length=80, unique=True)
+    constructora = models.ForeignKey(Constructora, on_delete=models.PROTECT, related_name="lotes_forestales")
+    fecha = models.DateField()
+    especie = models.CharField(max_length=120)
+    volumen_m3 = models.DecimalField(max_digits=14, decimal_places=3)
+    origen = models.CharField(max_length=240)
+    destino = models.CharField(max_length=240, blank=True)
+    tipo_producto = models.CharField(max_length=120, blank=True)
+    densidad_kg_m3 = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)
+    porcentaje_carbono = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
+    estado = models.CharField(max_length=80, blank=True)
+    observaciones = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-fecha", "lote_id"]
+        indexes = [
+            models.Index(fields=["constructora_id", "fecha"]),
+            models.Index(fields=["constructora_id", "lote_id"]),
+            models.Index(fields=["constructora_id", "especie"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.porcentaje_carbono and self.porcentaje_carbono > 1:
+            self.porcentaje_carbono = self.porcentaje_carbono / Decimal("100")
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.constructora.constructora_id} - {self.lote_id}"
+
+
 class RegistroEmision(models.Model):
     class Categoria(models.TextChoices):
         MATERIALES = "Materiales", "Materiales"
@@ -333,6 +386,7 @@ class RegistroEmision(models.Model):
     constructora = models.ForeignKey(Constructora, on_delete=models.PROTECT, related_name="registros_emision", null=True, blank=True)
     obra = models.ForeignKey(Obra, on_delete=models.CASCADE, related_name="registros_emision", null=True, blank=True)
     etapa = models.ForeignKey(EtapaObra, on_delete=models.PROTECT, related_name="registros_emision", null=True, blank=True)
+    lote_forestal = models.ForeignKey(LoteForestal, on_delete=models.SET_NULL, related_name="registros_emision", null=True, blank=True)
     categoria = models.CharField(max_length=40, choices=Categoria.choices, default=Categoria.OTROS)
     fuente_emision = models.CharField(max_length=120)
     actividad_key = models.CharField(max_length=160, blank=True)
@@ -359,6 +413,7 @@ class RegistroEmision(models.Model):
             models.Index(fields=["constructora_id", "actividad_key"]),
             models.Index(fields=["obra_id", "categoria"]),
             models.Index(fields=["etapa_id", "categoria"]),
+            models.Index(fields=["lote_forestal_id"]),
         ]
 
     def save(self, *args, **kwargs):
@@ -368,6 +423,14 @@ class RegistroEmision(models.Model):
                 self.etapa = self.obra.etapa_principal
         elif self.etapa_id and not self.constructora_id:
             self.constructora = self.etapa.constructora
+        if not self.lote_forestal_id and self.constructora_id:
+            metadata = self.metadata if isinstance(self.metadata, dict) else {}
+            lote_reference = metadata.get("lote") or metadata.get("lote_id") or metadata.get("lote_forestal")
+            if lote_reference:
+                self.lote_forestal = LoteForestal.objects.filter(
+                    constructora_id=self.constructora_id,
+                    lote_id=str(lote_reference).strip(),
+                ).first()
         if not self.actividad_key:
             self.actividad_key = normalize_key(self.fuente_emision).replace(" ", "_")
         self.emisiones_kg_co2e = (self.cantidad or Decimal("0")) * (self.factor_emision or Decimal("0"))
@@ -383,12 +446,16 @@ class EvidenciaObra(models.Model):
         GUIA_DESPACHO = "guia_despacho", "Guia de despacho"
         ORDEN_COMPRA = "orden_compra", "Orden de compra"
         FACTURA_COMBUSTIBLE = "factura_combustible", "Factura de combustible"
+        DOCUMENTO_ORIGEN = "documento_origen", "Documento de origen"
         BOLETA_ELECTRICA = "boleta_electrica", "Boleta electrica"
         TICKET_PESAJE = "ticket_pesaje", "Ticket de pesaje"
         FICHA_TECNICA = "ficha_tecnica_material", "Ficha tecnica de material"
         CERTIFICADO_PROVEEDOR = "certificado_proveedor", "Certificado de proveedor"
+        CERTIFICADO_FORESTAL = "certificado_forestal", "Certificado forestal"
         REGISTRO_MAQUINARIA = "registro_maquinaria", "Registro de maquinaria"
         REGISTRO_RESIDUOS = "registro_retiro_residuos", "Registro de retiro de residuos"
+        REGISTRO_PRODUCCION = "registro_produccion", "Registro produccion"
+        REGISTRO_SECADO = "registro_secado", "Registro secado"
         DOCUMENTO_TRANSPORTE = "documento_transporte", "Documento de transporte"
         OTRO = "otro", "Otro"
 
@@ -404,6 +471,7 @@ class EvidenciaObra(models.Model):
     obra = models.ForeignKey(Obra, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias")
     etapa = models.ForeignKey(EtapaObra, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias")
     registro_emision = models.ForeignKey(RegistroEmision, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias")
+    lote_forestal = models.ForeignKey(LoteForestal, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias")
     tipo_evidencia = models.CharField(max_length=40, choices=TipoEvidencia.choices, default=TipoEvidencia.OTRO)
     estado_documental = models.CharField(max_length=20, choices=EstadoDocumental.choices, default=EstadoDocumental.PENDIENTE)
     fecha_documento = models.DateField(null=True, blank=True)
@@ -422,12 +490,25 @@ class EvidenciaObra(models.Model):
             models.Index(fields=["constructora_id", "tipo_evidencia"]),
             models.Index(fields=["obra_id", "estado_documental"]),
             models.Index(fields=["registro_emision_id"]),
+            models.Index(fields=["lote_forestal_id"]),
         ]
 
     def save(self, *args, **kwargs):
         if self.obra_id and not self.constructora_id:
             self.constructora = self.obra.constructora
+        if self.registro_emision_id and not self.lote_forestal_id:
+            self.lote_forestal = self.registro_emision.lote_forestal
+        if not self.lote_forestal_id and self.constructora_id:
+            metadata = self.metadata_extraccion if isinstance(self.metadata_extraccion, dict) else {}
+            lote_reference = metadata.get("lote") or metadata.get("lote_id") or metadata.get("lote_forestal")
+            if lote_reference:
+                self.lote_forestal = LoteForestal.objects.filter(
+                    constructora_id=self.constructora_id,
+                    lote_id=str(lote_reference).strip(),
+                ).first()
         if self.registro_emision_id and self.estado_documental in {"sin_vinculo", ""}:
+            self.estado_documental = self.EstadoDocumental.VINCULADA
+        elif self.lote_forestal_id and self.estado_documental in {"sin_vinculo", ""}:
             self.estado_documental = self.EstadoDocumental.VINCULADA
         elif not self.obra_id and self.estado_documental == self.EstadoDocumental.PENDIENTE:
             self.estado_documental = self.EstadoDocumental.SIN_VINCULO
@@ -495,6 +576,81 @@ class TransporteObra(models.Model):
 
     def __str__(self):
         return f"{self.obra.codigo_obra} - {self.patente}"
+
+
+class TransporteLoteForestal(models.Model):
+    lote_forestal = models.ForeignKey(LoteForestal, on_delete=models.CASCADE, related_name="transportes")
+    fecha = models.DateField(null=True, blank=True)
+    vehiculo = models.CharField(max_length=120, blank=True)
+    patente = models.CharField(max_length=30, blank=True)
+    conductor = models.CharField(max_length=120, blank=True)
+    origen = models.CharField(max_length=240)
+    destino = models.CharField(max_length=240)
+    distancia_km = models.DecimalField(max_digits=12, decimal_places=3)
+    litros_diesel = models.DecimalField(max_digits=12, decimal_places=3, null=True, blank=True)
+    consumo_estimado_litro_km = models.DecimalField(max_digits=8, decimal_places=4, default=Decimal("0.3000"))
+    factor_diesel = models.DecimalField(max_digits=8, decimal_places=4, default=Decimal("2.6800"))
+    emisiones_transporte_kg_co2e = models.DecimalField(max_digits=14, decimal_places=3, editable=False)
+    registro_emision = models.OneToOneField(RegistroEmision, on_delete=models.SET_NULL, null=True, blank=True, related_name="transporte_lote_forestal")
+    observaciones = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-fecha", "-created_at"]
+        indexes = [
+            models.Index(fields=["lote_forestal_id", "fecha"]),
+            models.Index(fields=["patente"]),
+        ]
+
+    @property
+    def litros_calculados(self):
+        if self.litros_diesel is not None:
+            return self.litros_diesel
+        return (self.distancia_km or Decimal("0")) * (self.consumo_estimado_litro_km or Decimal("0"))
+
+    def save(self, *args, **kwargs):
+        litros = self.litros_calculados
+        self.emisiones_transporte_kg_co2e = litros * (self.factor_diesel or Decimal("0"))
+        super().save(*args, **kwargs)
+        self.sync_registro_emision(litros)
+
+    def sync_registro_emision(self, litros):
+        metadata = {
+            "preset": "aserradero",
+            "module": "transporte_forestal",
+            "lote": self.lote_forestal.lote_id,
+            "patente": self.patente,
+            "origen": self.origen,
+            "destino": self.destino,
+            "distancia_km": str(self.distancia_km),
+        }
+        defaults = {
+            "constructora": self.lote_forestal.constructora,
+            "lote_forestal": self.lote_forestal,
+            "categoria": RegistroEmision.Categoria.TRANSPORTE,
+            "fuente_emision": "Transporte forestal",
+            "cantidad": litros,
+            "unidad": "litros diesel",
+            "factor_emision": self.factor_diesel,
+            "fecha": self.fecha,
+            "origen_transporte": self.origen,
+            "destino_transporte": self.destino,
+            "distancia_km": self.distancia_km,
+            "observaciones": self.observaciones,
+            "metadata": metadata,
+        }
+        if self.registro_emision_id:
+            for field, value in defaults.items():
+                setattr(self.registro_emision, field, value)
+            self.registro_emision.save()
+            return
+        registro = RegistroEmision.objects.create(**defaults)
+        TransporteLoteForestal.objects.filter(pk=self.pk).update(registro_emision=registro)
+        self.registro_emision = registro
+
+    def __str__(self):
+        return f"{self.lote_forestal.lote_id} - {self.patente or self.fecha}"
 
 
 class HistorialCambioObra(models.Model):

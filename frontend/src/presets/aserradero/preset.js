@@ -23,6 +23,7 @@ const aserraderoPreset = {
     { view: "secado", label: "Secado", presetOnly: true },
     { view: "energia", label: "Energia", presetOnly: true },
     { view: "transporte_forestal", label: "Transporte forestal", presetOnly: true },
+    { view: "lotes_forestales", label: "Lotes forestales", presetOnly: true },
     { view: "residuos_subproductos", label: "Residuos / Subproductos", presetOnly: true },
     { view: "evidencias", label: "Evidencias", core: true },
     { view: "importaciones", label: "Importacion de datos", core: true },
