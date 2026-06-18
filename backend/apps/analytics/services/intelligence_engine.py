@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db.models import Q, Sum
 from django.utils import timezone
 
@@ -17,7 +19,7 @@ def to_float(value):
 
 
 def build_iot_context(constructora_id=None, hours=24):
-    since = timezone.now() - timezone.timedelta(hours=hours)
+    since = timezone.now() - timedelta(hours=hours)
     queryset = RegistroSensor.objects.select_related("dispositivo", "constructora", "obra", "etapa").filter(
         timestamp_sensor__gte=since
     )
@@ -63,18 +65,10 @@ def build_recommendation_context(payload):
     evidencias = EvidenciaObra.objects.all()
 
     if constructora_id:
-        registros = registros.filter(
-            Q(constructora__constructora_id=constructora_id)
-            | Q(constructora__nombre__iexact=constructora_id)
-        ).distinct()
-        obras = obras.filter(
-            Q(constructora__constructora_id=constructora_id)
-            | Q(constructora__nombre__iexact=constructora_id)
-        ).distinct()
-        evidencias = evidencias.filter(
-            Q(constructora__constructora_id=constructora_id)
-            | Q(constructora__nombre__iexact=constructora_id)
-        ).distinct()
+        filtro_constructora = Q(constructora__constructora_id=constructora_id) | Q(constructora__nombre__iexact=constructora_id)
+        registros = registros.filter(filtro_constructora).distinct()
+        obras = obras.filter(filtro_constructora).distinct()
+        evidencias = evidencias.filter(filtro_constructora).distinct()
 
     if obra_codigo:
         registros = registros.filter(obra__codigo_obra=obra_codigo)
