@@ -50,6 +50,7 @@ from .views_importaciones import (
     plantilla_importacion_construccion,
     plantilla_importacion_generica,
 )
+from .views_recommendations import recommendation_context, recomendaciones
 
 urlpatterns = [
     path("auth/me/", auth_me),
@@ -61,45 +62,28 @@ urlpatterns = [
     path("constructoras/", constructoras),
     path("constructoras/<str:constructora_id>/", constructora_detail_safe),
     path("constructoras/<str:constructora_id>/estado/", constructora_estado),
-    path(
-        "constructoras/<str:constructora_id>/configuracion/", constructora_configuracion
-    ),
+    path("constructoras/<str:constructora_id>/configuracion/", constructora_configuracion),
     path("constructoras/<str:constructora_id>/dashboard/", constructora_dashboard),
     path("constructoras/<str:constructora_id>/etapas/", constructora_etapas),
     path("constructoras/<str:constructora_id>/usuarios/", constructora_usuarios),
     path("constructoras/<str:constructora_id>/obras/", constructora_obras),
-    path(
-        "constructoras/<str:constructora_id>/registros-emision/",
-        constructora_registros_emision,
-    ),
-    path(
-        "constructoras/<str:constructora_id>/registros-emision/<int:registro_id>/aplicar-factor/",
-        constructora_registro_aplicar_factor,
-    ),
+    path("constructoras/<str:constructora_id>/registros-emision/", constructora_registros_emision),
+    path("constructoras/<str:constructora_id>/registros-emision/<int:registro_id>/aplicar-factor/", constructora_registro_aplicar_factor),
     path("constructoras/<str:constructora_id>/emisiones/", constructora_emisiones),
     path("constructoras/<str:constructora_id>/lotes-forestales/", constructora_lotes_forestales),
     path("constructoras/<str:constructora_id>/lotes-forestales/resumen/", constructora_lotes_forestales_resumen),
     path("constructoras/<str:constructora_id>/lotes-forestales/<str:lote_id>/transportes/", constructora_lote_forestal_transportes),
     path("constructoras/<str:constructora_id>/lotes-forestales/<str:lote_id>/", constructora_lote_forestal_detail),
     path("constructoras/<str:constructora_id>/evidencias/", constructora_evidencias),
-    path(
-        "constructoras/<str:constructora_id>/evidencias/extraer/",
-        constructora_evidencia_extraer,
-    ),
+    path("constructoras/<str:constructora_id>/evidencias/extraer/", constructora_evidencia_extraer),
     path("constructoras/<str:constructora_id>/reportes/", constructora_reportes),
     path("importaciones/completa/preview/", importacion_completa_preview),
     path("importaciones/completa/confirm/", importacion_completa_confirm),
     path("importaciones/plantilla-construccion/", plantilla_importacion_construccion),
     path("importaciones/plantilla-generica/", plantilla_importacion_generica),
     path("importaciones/generica/preview/", importacion_generica_preview),
-    path(
-        "constructoras/<str:constructora_id>/importaciones/<str:kind>/preview/",
-        importacion_preview,
-    ),
-    path(
-        "constructoras/<str:constructora_id>/importaciones/<str:kind>/confirm/",
-        importacion_confirm,
-    ),
+    path("constructoras/<str:constructora_id>/importaciones/<str:kind>/preview/", importacion_preview),
+    path("constructoras/<str:constructora_id>/importaciones/<str:kind>/confirm/", importacion_confirm),
     path("importaciones/<str:kind>/preview/", importacion_preview),
     path("importaciones/<str:kind>/confirm/", importacion_confirm),
     path("obras/", obras),
@@ -115,4 +99,6 @@ urlpatterns = [
     path("rutas/calcular-distancia/", calcular_distancia_ruta),
     path("sistema/estado/", sistema_estado),
     path("ai-advisor/", ai_advisor),
+    path("intelligence/context/", recommendation_context),
+    path("intelligence/recommendations/", recomendaciones),
 ]
