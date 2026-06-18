@@ -1,12 +1,13 @@
 from decimal import Decimal
 
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.analytics.models import Constructora
+from apps.analytics.models import Constructora, EtapaObra, Obra, RegistroEmision
 
-from .models import LecturaSensor
+from .models import DispositivoSensor, LecturaSensor, RegistroSensor
 
 
 class LecturaSensorApiTests(TestCase):
@@ -74,3 +75,84 @@ class LecturaSensorApiTests(TestCase):
         self.assertEqual(lecturas_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(lecturas_response.data), 1)
         self.assertEqual(lecturas_response.data[0]["constructora"], "Constructora Andina SpA")
+
+
+class SensorIngestionApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient(HTTP_HOST="localhost")
+        self.constructora = Constructora.objects.create(
+            constructora_id="ANDINA",
+            nombre="Constructora Andina SpA",
+        )
+        self.etapa = EtapaObra.objects.create(
+            constructora=self.constructora,
+            nombre="Obra gruesa",
+            tipo=EtapaObra.Tipo.OBRA_GRUESA,
+        )
+        self.obra = Obra.objects.create(
+            constructora=self.constructora,
+            etapa_principal=self.etapa,
+            nombre="Edificio Sensorizado",
+            tipo_proyecto=Obra.TipoProyecto.EDIFICIO,
+            fecha_inicio=timezone.localdate(),
+            superficie_m2=Decimal("1200"),
+        )
+        self.dispositivo = DispositivoSensor.objects.create(
+            dispositivo_id="SENSOR-DIESEL-001",
+            nombre="Sensor estanque diesel",
+            constructora=self.constructora,
+            obra=self.obra,
+            etapa=self.etapa,
+            tipo_sensor=DispositivoSensor.TipoSensor.COMBUSTIBLE,
+        )
+
+    def test_ingesta_crea_registro_sensor_y_registro_emision(self):
+        response = self.client.post(
+            "/api/iot/ingesta/",
+            {
+                "device_id": "SENSOR-DIESEL-001",
+                "external_id": "msg-001",
+                "type": "diesel_litros",
+                "value": "10.5",
+                "timestamp": timezone.now().isoformat(),
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        registro_sensor = RegistroSensor.objects.get()
+        self.assertEqual(registro_sensor.estado_procesamiento, RegistroSensor.EstadoProcesamiento.CONSOLIDADO)
+        self.assertEqual(registro_sensor.co2e_estimado, Decimal("28.140"))
+        self.assertEqual(RegistroEmision.objects.count(), 1)
+        self.assertEqual(RegistroEmision.objects.get().metadata["origen"], "iot_sensor")
+
+    def test_ingesta_es_idempotente_por_external_id(self):
+        payload = {
+            "device_id": "SENSOR-DIESEL-001",
+            "external_id": "msg-duplicado",
+            "type": "diesel_litros",
+            "value": "3",
+        }
+        first = self.client.post("/api/iot/ingesta/", payload, format="json")
+        second = self.client.post("/api/iot/ingesta/", payload, format="json")
+
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertEqual(RegistroSensor.objects.count(), 1)
+        self.assertEqual(RegistroEmision.objects.count(), 1)
+
+    def test_telemetria_ambiental_no_crea_emision(self):
+        response = self.client.post(
+            "/api/iot/ingesta/",
+            {
+                "device_id": "SENSOR-DIESEL-001",
+                "external_id": "msg-temp",
+                "type": "temperatura",
+                "value": "21.4",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(RegistroSensor.objects.get().estado_procesamiento, RegistroSensor.EstadoProcesamiento.SOLO_TELEMETRIA)
+        self.assertEqual(RegistroEmision.objects.count(), 0)
