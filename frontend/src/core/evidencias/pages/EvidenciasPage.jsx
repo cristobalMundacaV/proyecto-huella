@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import EmptyState from "@/shared/components/EmptyState";
+import PlatformLoader from "@/shared/components/PlatformLoader";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import {
   crearEvidenciaConstructora,
@@ -41,6 +42,7 @@ function EvidenciasPage() {
   const [records, setRecords] = useState([]);
   const [lotesForestales, setLotesForestales] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [loteFilter, setLoteFilter] = useState("");
@@ -80,11 +82,16 @@ function EvidenciasPage() {
     } catch (requestError) {
       setError(requestError?.response?.data?.error || "No se pudieron cargar las evidencias.");
     } finally {
+      setHasLoaded(true);
       setLoading(false);
     }
   }
 
   useEffect(() => {
+    setHasLoaded(false);
+    setEvidencias([]);
+    setRecords([]);
+    setLotesForestales([]);
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConstructoraId, activePreset.key]);
@@ -161,6 +168,15 @@ function EvidenciasPage() {
     );
   }
 
+  if (loading && !hasLoaded) {
+    return (
+      <PlatformLoader
+        title="Cargando evidencias"
+        description="Estamos preparando documentos, cobertura, pendientes críticos y checklist ambiental."
+      />
+    );
+  }
+
   return (
     <main className="mx-auto max-w-7xl space-y-8">
       <EvidenceHero
@@ -174,12 +190,6 @@ function EvidenciasPage() {
       {error ? (
         <p className="rounded-2xl border border-[#F1B8B8] bg-[var(--danger-bg)] p-3 text-sm text-[#B42318]">
           {error}
-        </p>
-      ) : null}
-
-      {loading ? (
-        <p className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 text-sm font-semibold text-[var(--text-muted)]">
-          Cargando evidencias...
         </p>
       ) : null}
 
