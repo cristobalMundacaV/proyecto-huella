@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ChevronDown, Leaf, Plus, RefreshCw, Save, Truck } from "lucide-react";
+import { AlertTriangle, ChevronDown, FilePlus2, Leaf, Plus, RefreshCw, Save, Truck, X } from "lucide-react";
 
 import EmptyState from "@/shared/components/EmptyState";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
@@ -59,11 +59,14 @@ function LotesForestalesPage() {
   const [form, setForm] = useState(initialLoteForm);
   const [transportForm, setTransportForm] = useState(initialTransportForm);
   const [expandedLote, setExpandedLote] = useState("");
+  const [transportTarget, setTransportTarget] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingTransport, setSavingTransport] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isTransportModalOpen, setIsTransportModalOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!activeConstructoraId) {
@@ -97,6 +100,16 @@ function LotesForestalesPage() {
     [expandedLote, lotes]
   );
 
+  function openTransportModal(lote) {
+    setTransportTarget(lote);
+    setTransportForm({
+      ...initialTransportForm,
+      origen: lote.origen || "",
+      destino: lote.destino || "",
+    });
+    setIsTransportModalOpen(true);
+  }
+
   async function handleCreateLote(event) {
     event.preventDefault();
     if (!activeConstructoraId) return;
@@ -106,6 +119,7 @@ function LotesForestalesPage() {
       setMessage("");
       await createLoteForestal(activeConstructoraId, compactPayload(form));
       setForm(initialLoteForm);
+      setIsCreateModalOpen(false);
       setMessage("Lote forestal creado y balance calculado.");
       await loadData();
     } catch (requestError) {
@@ -119,18 +133,20 @@ function LotesForestalesPage() {
 
   async function handleCreateTransport(event) {
     event.preventDefault();
-    if (!activeConstructoraId || !selectedLote) return;
+    const target = transportTarget || selectedLote;
+    if (!activeConstructoraId || !target) return;
     try {
       setSavingTransport(true);
       setError("");
       setMessage("");
-      await createTransporteLoteForestal(activeConstructoraId, selectedLote.lote_id, compactPayload(transportForm));
+      await createTransporteLoteForestal(activeConstructoraId, target.lote_id, compactPayload(transportForm));
       setTransportForm({
         ...initialTransportForm,
-        origen: selectedLote.origen || "",
-        destino: selectedLote.destino || "",
+        origen: target.origen || "",
+        destino: target.destino || "",
       });
-      setMessage("Transporte asociado y registro de emision sincronizado.");
+      setIsTransportModalOpen(false);
+      setMessage("Transporte asociado y registro de emisión sincronizado.");
       await loadData();
     } catch (requestError) {
       const data = requestError.response?.data;
@@ -165,17 +181,27 @@ function LotesForestalesPage() {
               Lotes forestales y balance neto
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
-              Gestiona trazabilidad por lote, CO2 almacenado, emisiones asociadas, transportes y evidencias de la empresa forestal.
+              Gestiona trazabilidad por lote, CO₂ almacenado, emisiones asociadas, transportes y evidencias de la empresa forestal.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={loadData}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-black text-emerald-700 shadow-[0_12px_28px_rgba(15,118,110,0.08)]"
-          >
-            <RefreshCw size={16} />
-            Actualizar
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-4 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,124,109,0.16)] hover:bg-[var(--primary-dark)]"
+            >
+              <FilePlus2 size={16} />
+              Nuevo lote
+            </button>
+            <button
+              type="button"
+              onClick={loadData}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-black text-emerald-700 shadow-[0_12px_28px_rgba(15,118,110,0.08)]"
+            >
+              <RefreshCw size={16} />
+              Actualizar
+            </button>
+          </div>
         </div>
       </section>
 
@@ -184,66 +210,125 @@ function LotesForestalesPage() {
 
       <KpiGrid summary={summary} />
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <form onSubmit={handleCreateLote} className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-[0_18px_45px_var(--shadow)]">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Alta rapida</p>
-              <h2 className="mt-1 text-xl font-black text-[var(--text-main)]">Crear lote forestal</h2>
-            </div>
-            <Plus className="text-emerald-700" size={22} />
+      <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-[0_18px_45px_var(--shadow)]">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Trazabilidad por lote</p>
+            <h2 className="text-xl font-black text-[var(--text-main)]">Lotes registrados</h2>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">
+              {loading ? "Cargando..." : `${lotes.length} lotes con balance calculado.`}
+            </p>
           </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <Field className={inputClass} form={form} name="lote_id" onChange={setForm} placeholder="LOTE-PINO-001" required />
-            <Field className={inputClass} form={form} name="fecha" onChange={setForm} type="date" required />
-            <Field className={inputClass} form={form} name="especie" onChange={setForm} placeholder="Pino radiata" required />
-            <Field className={inputClass} form={form} name="volumen_m3" onChange={setForm} placeholder="Volumen m3" required type="number" />
-            <Field className={inputClass} form={form} name="origen" onChange={setForm} placeholder="Origen" required />
-            <Field className={inputClass} form={form} name="destino" onChange={setForm} placeholder="Destino" />
-            <Field className={inputClass} form={form} name="tipo_producto" onChange={setForm} placeholder="Tipo producto" />
-            <Field className={inputClass} form={form} name="densidad_kg_m3" onChange={setForm} placeholder="Densidad kg/m3" type="number" />
-            <Field className={inputClass} form={form} name="porcentaje_carbono" onChange={setForm} placeholder="Carbono 0.5 o 50" type="number" />
-            <textarea
-              className={`${inputClass} min-h-24 resize-y md:col-span-2`}
-              placeholder="Observaciones"
-              value={form.observaciones}
-              onChange={(event) => setForm((current) => ({ ...current, observaciones: event.target.value }))}
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={saving}
-            className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-[var(--primary-dark)] px-5 py-3 text-sm font-black text-white shadow-[0_16px_32px_rgba(14,124,102,0.22)] disabled:opacity-60"
-          >
-            <Save size={17} />
-            {saving ? "Guardando..." : "Crear lote"}
-          </button>
-        </form>
-
-        <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-[0_18px_45px_var(--shadow)]">
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="text-xl font-black text-[var(--text-main)]">Lotes registrados</h2>
-              <p className="mt-1 text-sm text-[var(--text-muted)]">
-                {loading ? "Cargando..." : `${lotes.length} lotes con balance calculado.`}
-              </p>
-            </div>
-          </div>
-          <LotesTable lotes={lotes} onExpand={setExpandedLote} selected={expandedLote} />
-        </section>
+        </div>
+        <LotesTable lotes={lotes} onExpand={setExpandedLote} selected={expandedLote} />
       </section>
 
       {selectedLote ? (
         <LoteDetail
-          inputClass={inputClass}
           lote={selectedLote}
-          onCreateTransport={handleCreateTransport}
-          savingTransport={savingTransport}
-          setTransportForm={setTransportForm}
-          transportForm={transportForm}
+          onOpenTransport={openTransportModal}
         />
       ) : null}
+
+      {isCreateModalOpen ? (
+        <ModalShell title="Crear lote forestal" onClose={() => setIsCreateModalOpen(false)}>
+          <form onSubmit={handleCreateLote} className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <Field className={inputClass} form={form} name="lote_id" onChange={setForm} placeholder="LOTE-PINO-001" required />
+              <Field className={inputClass} form={form} name="fecha" onChange={setForm} type="date" required />
+              <Field className={inputClass} form={form} name="especie" onChange={setForm} placeholder="Pino radiata" required />
+              <Field className={inputClass} form={form} name="volumen_m3" onChange={setForm} placeholder="Volumen m³" required type="number" />
+              <Field className={inputClass} form={form} name="origen" onChange={setForm} placeholder="Origen" required />
+              <Field className={inputClass} form={form} name="destino" onChange={setForm} placeholder="Destino" />
+              <Field className={inputClass} form={form} name="tipo_producto" onChange={setForm} placeholder="Tipo producto" />
+              <Field className={inputClass} form={form} name="densidad_kg_m3" onChange={setForm} placeholder="Densidad kg/m³" type="number" />
+              <Field className={inputClass} form={form} name="porcentaje_carbono" onChange={setForm} placeholder="Carbono 0.5 o 50" type="number" />
+              <textarea
+                className={`${inputClass} min-h-24 resize-y md:col-span-2`}
+                placeholder="Observaciones"
+                value={form.observaciones}
+                onChange={(event) => setForm((current) => ({ ...current, observaciones: event.target.value }))}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary-dark)] px-5 py-3 text-sm font-black text-white shadow-[0_16px_32px_rgba(14,124,102,0.22)] disabled:opacity-60"
+            >
+              <Save size={17} />
+              {saving ? "Guardando..." : "Crear lote"}
+            </button>
+          </form>
+        </ModalShell>
+      ) : null}
+
+      {isTransportModalOpen && transportTarget ? (
+        <ModalShell title={`Agregar transporte a ${transportTarget.lote_id}`} onClose={() => setIsTransportModalOpen(false)}>
+          <form onSubmit={handleCreateTransport} className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {[
+                ["fecha", "date", ""],
+                ["patente", "text", "Patente"],
+                ["conductor", "text", "Conductor"],
+                ["vehiculo", "text", "Vehículo"],
+                ["origen", "text", "Origen"],
+                ["destino", "text", "Destino"],
+                ["distancia_km", "number", "Distancia km"],
+                ["litros_diesel", "number", "Litros diésel"],
+                ["consumo_estimado_litro_km", "number", "Consumo L/km"],
+              ].map(([name, type, placeholder]) => (
+                <Field
+                  key={name}
+                  className={inputClass}
+                  form={transportForm}
+                  name={name}
+                  onChange={setTransportForm}
+                  placeholder={placeholder}
+                  required={["origen", "destino", "distancia_km"].includes(name)}
+                  type={type}
+                />
+              ))}
+              <textarea
+                className={`${inputClass} min-h-24 resize-y md:col-span-2 xl:col-span-3`}
+                placeholder="Observaciones"
+                value={transportForm.observaciones}
+                onChange={(event) => setTransportForm((current) => ({ ...current, observaciones: event.target.value }))}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={savingTransport}
+              className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary-dark)] px-5 py-3 text-sm font-black text-white disabled:opacity-60"
+            >
+              <Truck size={17} />
+              {savingTransport ? "Guardando..." : "Agregar transporte"}
+            </button>
+          </form>
+        </ModalShell>
+      ) : null}
     </main>
+  );
+}
+
+function ModalShell({ children, onClose, title }) {
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/35 px-4 py-6 backdrop-blur-sm">
+      <div className="relative max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-[32px] border border-emerald-100 bg-white p-5 shadow-[0_30px_90px_rgba(15,23,42,0.22)] sm:p-6">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 z-10 rounded-2xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm hover:bg-slate-50"
+          aria-label="Cerrar modal"
+        >
+          <X size={18} />
+        </button>
+        <div className="mb-5 pr-12">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Acción de lote</p>
+          <h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">{title}</h2>
+        </div>
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -266,11 +351,11 @@ function Field({ className, form, name, onChange, placeholder, required = false,
 function KpiGrid({ summary }) {
   const items = [
     ["Total lotes", summary?.total_lotes, "lotes"],
-    ["Volumen total", summary?.volumen_total_m3, "m3"],
-    ["CO2 almacenado", summary?.co2_almacenado_kg, "kg"],
+    ["Volumen total", summary?.volumen_total_m3, "m³"],
+    ["CO₂ almacenado", summary?.co2_almacenado_kg, "kg"],
     ["Emisiones generadas", summary?.emisiones_generadas_kg_co2e, "kg"],
     ["Balance neto", summary?.balance_neto_kg_co2e, "kg"],
-    ["Favorables / criticos", `${summary?.lotes_balance_favorable || 0} / ${summary?.lotes_balance_critico || 0}`, "lotes"],
+    ["Favorables / críticos", `${summary?.lotes_balance_favorable || 0} / ${summary?.lotes_balance_critico || 0}`, "lotes"],
   ];
 
   return (
@@ -294,7 +379,7 @@ function LotesTable({ lotes, onExpand, selected }) {
       <table className="min-w-[1120px] w-full text-center text-sm">
         <thead>
           <tr className="border-b border-[var(--border)] bg-[var(--bg-surface)] text-xs uppercase tracking-wide text-[var(--text-muted)]">
-            {["Lote", "Especie", "Volumen", "Origen", "Emisiones", "CO2 almacenado", "Balance", "Estado", "Evidencias", "Transportes", ""].map((header) => (
+            {["Lote", "Especie", "Volumen", "Origen", "Emisiones", "CO₂ almacenado", "Balance", "Estado", "Evidencias", "Transportes", ""].map((header) => (
               <th key={header} className="px-3 py-3">{header}</th>
             ))}
           </tr>
@@ -304,7 +389,7 @@ function LotesTable({ lotes, onExpand, selected }) {
             <tr key={lote.id} className="border-b border-[#C9D6CF] text-[#1F2937] hover:bg-[var(--bg-surface)]">
               <td className="px-3 py-3 font-black">{lote.lote_id}</td>
               <td className="px-3 py-3">{lote.especie}</td>
-              <td className="px-3 py-3">{formatNumber(lote.volumen_m3, 1)} m3</td>
+              <td className="px-3 py-3">{formatNumber(lote.volumen_m3, 1)} m³</td>
               <td className="px-3 py-3">{lote.origen}</td>
               <td className="px-3 py-3">{formatNumber(lote.emisiones_generadas_kg_co2e, 1)}</td>
               <td className="px-3 py-3">{formatNumber(lote.co2_almacenado_kg, 1)}</td>
@@ -339,15 +424,7 @@ function LotesTable({ lotes, onExpand, selected }) {
   );
 }
 
-function LoteDetail({ inputClass, lote, onCreateTransport, savingTransport, setTransportForm, transportForm }) {
-  useEffect(() => {
-    setTransportForm((current) => ({
-      ...current,
-      origen: current.origen || lote.origen || "",
-      destino: current.destino || lote.destino || "",
-    }));
-  }, [lote, setTransportForm]);
-
+function LoteDetail({ lote, onOpenTransport }) {
   return (
     <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-[0_18px_45px_var(--shadow)]">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -356,64 +433,29 @@ function LoteDetail({ inputClass, lote, onCreateTransport, savingTransport, setT
           <h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">{lote.lote_id}</h2>
           <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-[var(--text-muted)]">{lote.descripcion_balance}</p>
         </div>
-        {!lote.calculo_completo ? (
-          <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
-            <AlertTriangle size={14} />
-            Faltan: {lote.campos_faltantes?.join(", ")}
-          </span>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {!lote.calculo_completo ? (
+            <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
+              <AlertTriangle size={14} />
+              Faltan: {lote.campos_faltantes?.join(", ")}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => onOpenTransport(lote)}
+            className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)] px-4 py-2 text-xs font-black text-white shadow-[0_12px_24px_rgba(15,124,109,0.16)] hover:bg-[var(--primary-dark)]"
+          >
+            <Truck size={15} />
+            Agregar transporte
+          </button>
+        </div>
       </div>
 
       <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <DetailList title="Registros de emision" rows={lote.registros_emision} resolver={(item) => `#${item.id} - ${item.fuente_emision} - ${formatNumber(item.emisiones_kg_co2e, 1)} kg`} />
+        <DetailList title="Registros de emisión" rows={lote.registros_emision} resolver={(item) => `#${item.id} - ${item.fuente_emision} - ${formatNumber(item.emisiones_kg_co2e, 1)} kg`} />
         <DetailList title="Transportes asociados" rows={lote.transportes} resolver={(item) => `${item.patente || "Sin patente"} - ${formatNumber(item.distancia_km, 1)} km - ${formatNumber(item.emisiones_transporte_kg_co2e, 1)} kg`} />
         <DetailList title="Evidencias asociadas" rows={lote.evidencias} resolver={(item) => item.nombre || `Evidencia #${item.id}`} />
       </div>
-
-      <form onSubmit={onCreateTransport} className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50/50 p-4">
-        <div className="mb-4 flex items-center gap-2">
-          <Truck className="text-emerald-700" size={20} />
-          <h3 className="text-lg font-black text-[var(--text-main)]">Agregar transporte al lote</h3>
-        </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {[
-            ["fecha", "date", ""],
-            ["patente", "text", "Patente"],
-            ["conductor", "text", "Conductor"],
-            ["vehiculo", "text", "Vehiculo"],
-            ["origen", "text", "Origen"],
-            ["destino", "text", "Destino"],
-            ["distancia_km", "number", "Distancia km"],
-            ["litros_diesel", "number", "Litros diesel"],
-            ["consumo_estimado_litro_km", "number", "Consumo L/km"],
-          ].map(([name, type, placeholder]) => (
-            <Field
-              key={name}
-              className={inputClass}
-              form={transportForm}
-              name={name}
-              onChange={setTransportForm}
-              placeholder={placeholder}
-              required={["origen", "destino", "distancia_km"].includes(name)}
-              type={type}
-            />
-          ))}
-          <textarea
-            className={`${inputClass} min-h-24 resize-y md:col-span-2 xl:col-span-4`}
-            placeholder="Observaciones"
-            value={transportForm.observaciones}
-            onChange={(event) => setTransportForm((current) => ({ ...current, observaciones: event.target.value }))}
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={savingTransport}
-          className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-[var(--primary-dark)] px-5 py-3 text-sm font-black text-white disabled:opacity-60"
-        >
-          <Truck size={17} />
-          {savingTransport ? "Guardando..." : "Agregar transporte"}
-        </button>
-      </form>
     </section>
   );
 }
