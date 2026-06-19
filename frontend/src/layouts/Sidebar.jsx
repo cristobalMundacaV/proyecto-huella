@@ -71,6 +71,24 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
 
   return (
     <aside className="w-full shrink-0 border-b border-[var(--sidebar-border)] bg-[var(--sidebar)] p-4 text-[var(--text-main)] shadow-[18px_0_50px_rgba(19,34,56,0.06)] sm:p-6 lg:sticky lg:top-[72px] lg:flex lg:h-[calc(100vh-72px)] lg:w-72 lg:flex-col lg:border-b-0 lg:border-r lg:overflow-y-auto">
+      <section className="group mb-9 mt-2 rounded-2xl border border-[var(--sidebar-border)] bg-white/64 p-4 shadow-[0_12px_28px_rgba(19,34,56,0.05)] transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white/84 hover:shadow-[0_18px_36px_rgba(19,34,56,0.08)]">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--text-muted)] transition group-hover:text-[var(--primary-dark)]">
+          Estado de la empresa
+        </p>
+
+        <div className="mt-3 space-y-2">
+          {statusItems.map(([label, value]) => (
+            <div
+              key={label}
+              className="flex items-center justify-between gap-4 rounded-xl px-2 py-1 text-sm transition group-hover:bg-emerald-50/70"
+            >
+              <span className="text-slate-600">{label}</span>
+              <span className="font-black text-[var(--primary-dark)]">{value}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <nav className="space-y-2">
         <p className="px-1 text-xs font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">
           Navegación principal
@@ -100,25 +118,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
         })}
       </nav>
 
-      <div className="mt-10 space-y-5 pb-6 lg:mt-auto">
-        <section className="group rounded-2xl border border-[var(--sidebar-border)] bg-white/58 p-4 shadow-[0_12px_28px_rgba(19,34,56,0.05)] transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white/80 hover:shadow-[0_18px_36px_rgba(19,34,56,0.08)]">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--text-muted)] transition group-hover:text-[var(--primary-dark)]">
-            Estado de la empresa
-          </p>
-
-          <div className="mt-3 space-y-2">
-            {statusItems.map(([label, value]) => (
-              <div
-                key={label}
-                className="flex items-center justify-between gap-4 rounded-xl px-2 py-1 text-sm transition group-hover:bg-emerald-50/70"
-              >
-                <span className="text-slate-600">{label}</span>
-                <span className="font-black text-[var(--primary-dark)]">{value}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
+      <div className="mt-9 space-y-5 pb-6 lg:mt-auto">
         <div className="mx-auto h-px w-[82%] bg-gradient-to-r from-transparent via-[var(--sidebar-border)] to-transparent" />
 
         <section className="group rounded-2xl border border-[var(--sidebar-border)] bg-white/62 p-4 shadow-[0_12px_28px_rgba(19,34,56,0.05)] transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white/85 hover:shadow-[0_18px_36px_rgba(19,34,56,0.08)]">
