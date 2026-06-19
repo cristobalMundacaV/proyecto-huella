@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { FilePlus2, X } from "lucide-react";
 
 import PresetComingSoon from "@/shared/components/PresetComingSoon";
 import {
@@ -36,6 +37,7 @@ function AserraderoModulePage({ moduleKey }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [isQuickFormOpen, setIsQuickFormOpen] = useState(false);
 
   const loadRecords = useCallback(async () => {
     if (!activeConstructoraId) {
@@ -106,16 +108,17 @@ function AserraderoModulePage({ moduleKey }) {
       setMessage(
         factor > 0
           ? "Registro ambiental calculado correctamente."
-          : "Registro operativo creado. Falta asociar factor de emision para cerrar calculo ambiental."
+          : "Registro operativo creado. Falta asociar factor de emisión para cerrar cálculo ambiental."
       );
       await loadRecords();
+      setIsQuickFormOpen(false);
     } catch (requestError) {
       const data = requestError.response?.data;
       const firstError =
         typeof data === "string"
           ? data
           : data?.error || data?.detail || Object.values(data || {})?.flat?.()?.[0];
-      setError(firstError || "No se pudo registrar la operacion.");
+      setError(firstError || "No se pudo registrar la operación.");
     } finally {
       setSaving(false);
     }
@@ -124,8 +127,8 @@ function AserraderoModulePage({ moduleKey }) {
   if (!config) {
     return (
       <PresetComingSoon
-        title="Modulo no configurado"
-        description="Este modulo todavia no tiene configuracion operativa para el preset aserradero."
+        title="Módulo no configurado"
+        description="Este módulo todavía no tiene configuración operativa para el preset aserradero."
         presetName="Aserradero / Forestal"
       />
     );
@@ -137,7 +140,7 @@ function AserraderoModulePage({ moduleKey }) {
         title={config.title}
         description="Selecciona una empresa activa para registrar operaciones del preset aserradero."
         presetName="Aserradero / Forestal"
-        items={["Empresa activa", "Registros operativos", "KPIs del modulo"]}
+        items={["Empresa activa", "Registros operativos", "KPIs del módulo"]}
       />
     );
   }
@@ -145,10 +148,43 @@ function AserraderoModulePage({ moduleKey }) {
   return (
     <AserraderoModuleShell config={config} error={error} loading={loading} message={message}>
       <AserraderoOperationalKpis moduleKey={moduleKey} records={moduleRecords} />
-      <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[1.05fr_0.95fr]">
-        <AserraderoQuickForm config={config} disabled={!activeConstructoraId} onSubmit={handleSubmit} saving={saving} />
-        <AserraderoRecentRecords records={moduleRecords} />
-      </div>
+
+      <section className="flex flex-col gap-4 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-[var(--shadow-card)] lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-800">Acción operacional</p>
+          <h2 className="mt-1 text-xl font-black text-[var(--text-main)]">Registrar {config.title.toLowerCase()}</h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
+            El formulario se abre como modal para mantener el proceso enfocado en indicadores, historial y trazabilidad ambiental.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsQuickFormOpen(true)}
+          disabled={!activeConstructoraId}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,124,109,0.18)] hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <FilePlus2 size={18} />
+          Nuevo registro
+        </button>
+      </section>
+
+      <AserraderoRecentRecords records={moduleRecords} />
+
+      {isQuickFormOpen ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/35 px-4 py-6 backdrop-blur-sm">
+          <div className="relative max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-[32px] border border-emerald-100 bg-white p-4 shadow-[0_30px_90px_rgba(15,23,42,0.22)] sm:p-6">
+            <button
+              type="button"
+              onClick={() => setIsQuickFormOpen(false)}
+              className="absolute right-4 top-4 z-10 rounded-2xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm hover:bg-slate-50"
+              aria-label="Cerrar modal"
+            >
+              <X size={18} />
+            </button>
+            <AserraderoQuickForm config={config} disabled={!activeConstructoraId} onSubmit={handleSubmit} saving={saving} />
+          </div>
+        </div>
+      ) : null}
     </AserraderoModuleShell>
   );
 }
