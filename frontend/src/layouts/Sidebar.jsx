@@ -100,71 +100,75 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
         })}
       </nav>
 
-      <section className="group mt-8 rounded-2xl border border-[var(--sidebar-border)] bg-white/58 p-4 shadow-[0_12px_28px_rgba(19,34,56,0.05)] transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white/80 hover:shadow-[0_18px_36px_rgba(19,34,56,0.08)]">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--text-muted)] transition group-hover:text-[var(--primary-dark)]">
-          Estado de la empresa
-        </p>
+      <div className="mt-10 space-y-5 pb-6 lg:mt-auto">
+        <section className="group rounded-2xl border border-[var(--sidebar-border)] bg-white/58 p-4 shadow-[0_12px_28px_rgba(19,34,56,0.05)] transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white/80 hover:shadow-[0_18px_36px_rgba(19,34,56,0.08)]">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--text-muted)] transition group-hover:text-[var(--primary-dark)]">
+            Estado de la empresa
+          </p>
 
-        <div className="mt-3 space-y-2">
-          {statusItems.map(([label, value]) => (
-            <div
-              key={label}
-              className="flex items-center justify-between gap-4 rounded-xl px-2 py-1 text-sm transition group-hover:bg-emerald-50/70"
-            >
-              <span className="text-slate-600">{label}</span>
-              <span className="font-black text-[var(--primary-dark)]">{value}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="group mt-6 rounded-2xl border border-[var(--sidebar-border)] bg-white/62 p-4 shadow-[0_12px_28px_rgba(19,34,56,0.05)] transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white/85 hover:shadow-[0_18px_36px_rgba(19,34,56,0.08)] lg:mt-auto">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--text-muted)] transition group-hover:text-[var(--primary-dark)]">
-          Empresa activa
-        </p>
-
-        <div className="mt-3 space-y-3">
-          <select
-            value={activeConstructoraId}
-            onChange={(event) => {
-              const selected = constructoras.find(
-                (constructora) =>
-                  String(constructora.constructora_id) === String(event.target.value)
-              );
-
-              if (selected) {
-                setActiveConstructora(selected);
-              } else {
-                clearActiveConstructora();
-              }
-            }}
-            className="w-full rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-sm font-bold text-[var(--text-main)] shadow-sm outline-none transition focus:border-emerald-300/60 focus:ring-4 focus:ring-emerald-400/10"
-          >
-            <option value="">Selecciona una empresa</option>
-            {constructoras.map((constructora) => (
-              <option key={constructora.constructora_id} value={constructora.constructora_id}>
-                {constructora.nombre}
-              </option>
+          <div className="mt-3 space-y-2">
+            {statusItems.map(([label, value]) => (
+              <div
+                key={label}
+                className="flex items-center justify-between gap-4 rounded-xl px-2 py-1 text-sm transition group-hover:bg-emerald-50/70"
+              >
+                <span className="text-slate-600">{label}</span>
+                <span className="font-black text-[var(--primary-dark)]">{value}</span>
+              </div>
             ))}
-          </select>
-
-          {loadingConstructoras && (
-            <p className="text-xs text-[var(--text-muted)]">Cargando empresas...</p>
-          )}
-
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2 text-center text-[11px] font-black uppercase tracking-wide text-[var(--primary-dark)]">
-            Preset: {getPresetLabel(activePresetKey)}
           </div>
+        </section>
 
-          <button
-            type="button"
-            onClick={() => onSetActiveView?.("administracion")}
-            className="w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-xs font-bold text-[var(--primary-dark)] shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50"
-          >
-            Gestionar administración
-          </button>
-        </div>
-      </section>
+        <div className="mx-auto h-px w-[82%] bg-gradient-to-r from-transparent via-[var(--sidebar-border)] to-transparent" />
+
+        <section className="group rounded-2xl border border-[var(--sidebar-border)] bg-white/62 p-4 shadow-[0_12px_28px_rgba(19,34,56,0.05)] transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white/85 hover:shadow-[0_18px_36px_rgba(19,34,56,0.08)]">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--text-muted)] transition group-hover:text-[var(--primary-dark)]">
+            Empresa activa
+          </p>
+
+          <div className="mt-3 space-y-3">
+            <select
+              value={activeConstructoraId}
+              onChange={(event) => {
+                const selected = constructoras.find(
+                  (constructora) =>
+                    String(constructora.constructora_id) === String(event.target.value)
+                );
+
+                if (selected) {
+                  setActiveConstructora(selected);
+                } else {
+                  clearActiveConstructora();
+                }
+              }}
+              className="w-full rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-sm font-bold text-[var(--text-main)] shadow-sm outline-none transition focus:border-emerald-300/60 focus:ring-4 focus:ring-emerald-400/10"
+            >
+              <option value="">Selecciona una empresa</option>
+              {constructoras.map((constructora) => (
+                <option key={constructora.constructora_id} value={constructora.constructora_id}>
+                  {constructora.nombre}
+                </option>
+              ))}
+            </select>
+
+            {loadingConstructoras && (
+              <p className="text-xs text-[var(--text-muted)]">Cargando empresas...</p>
+            )}
+
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2 text-center text-[11px] font-black uppercase tracking-wide text-[var(--primary-dark)]">
+              Preset: {getPresetLabel(activePresetKey)}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onSetActiveView?.("administracion")}
+              className="w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-xs font-bold text-[var(--primary-dark)] shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50"
+            >
+              Gestionar administración
+            </button>
+          </div>
+        </section>
+      </div>
     </aside>
   );
 }
