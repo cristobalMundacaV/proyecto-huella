@@ -8,7 +8,7 @@ import DashboardPage from "@/core/dashboard/DashboardPage";
 import Sidebar from "@/layouts/Sidebar";
 import PresetComingSoon from "@/shared/components/PresetComingSoon";
 import LoginPage from "@/features/auth/pages/LoginPage";
-import EmisionesView from "@/features/emisiones/EmisionesView";
+import EmisionesView from "@/features/emisiones/EmisionesStableView";
 import ConstructorasView from "@/features/constructoras/pages/ConstructorasPage";
 import EvidenciasPage from "@/features/evidencias/pages/EvidenciasPage";
 import ConfiguracionPage from "@/features/configuracion/pages/ConfiguracionPage";
@@ -111,7 +111,6 @@ function App() {
         </div>
         <section className="flex min-h-screen flex-1 flex-col overflow-y-auto">
           <Navbar onSetActiveView={handleSetActiveView} />
-
           <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
             <EmisionesView onSetActiveView={handleSetActiveView} />
             <ProfessionalFooter />
@@ -194,26 +193,29 @@ function App() {
         )}
       </AnimatePresence>
 
-      <section className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-10 lg:py-12">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={`${activeView}-${activeConstructoraId}`}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={viewTransition}
-          >
-            <ActiveView
-              activeConstructora={activeConstructora}
-              activeConstructoraId={activeConstructoraId}
-              activePreset={activePreset}
-              activeView={activeView}
-              constructoraCreateSignal={constructoraCreateSignal}
-              onSetActiveView={handleSetActiveView}
-              onStatusChange={setCompanyStatus}
-            />
-          </motion.div>
-        </AnimatePresence>
+      <section className="flex min-h-screen flex-1 flex-col overflow-y-auto">
+        <Navbar onSetActiveView={handleSetActiveView} />
+        <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-12">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${activeView}-${activeConstructoraId}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={viewTransition}
+            >
+              <ActiveView
+                activeConstructora={activeConstructora}
+                activeConstructoraId={activeConstructoraId}
+                activePreset={activePreset}
+                activeView={activeView}
+                constructoraCreateSignal={constructoraCreateSignal}
+                onSetActiveView={handleSetActiveView}
+                onStatusChange={setCompanyStatus}
+              />
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </section>
     </main>
   );
