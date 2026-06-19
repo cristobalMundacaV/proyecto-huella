@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Activity, AlertTriangle, BarChart3, Factory, Layers3, Search, Target } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-import IntelligencePanel from "@/features/intelligence/components/IntelligencePanel";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import EmptyState from "@/shared/components/EmptyState";
 import PlatformLoader from "@/shared/components/PlatformLoader";
@@ -187,14 +186,16 @@ function EmisionesStableView() {
               Emisiones de {activeConstructora?.nombre || "la empresa"}
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
-              Esta vista no es solo un listado de registros: identifica las fuentes, etapas y categorías que explican la huella para priorizar acciones de gestión ambiental.
+              Esta vista identifica las fuentes, etapas y categorías que explican la huella para priorizar acciones de gestión ambiental.
             </p>
           </div>
 
           <div className="rounded-3xl border border-emerald-200 bg-white/80 p-4 text-sm shadow-sm">
-            <p className="font-black text-emerald-900">Recomendación inmediata</p>
+            <p className="font-black text-emerald-900">Lectura de huella</p>
             <p className="mt-1 max-w-sm leading-6 text-slate-600">
-              Prioriza {criticalSource} en {criticalStage}. Representa el foco más relevante para convertir la medición en una acción ambiental concreta.
+              {criticalSource !== "Sin datos"
+                ? `La fuente ${criticalSource} concentra ${formatNumber(sourceShare, 1)}% del impacto medido. Revisa cantidad, factor y etapa antes de intervenir fuentes menores.`
+                : "Carga registros válidos para identificar una fuente crítica y priorizar acciones de reducción."}
             </p>
           </div>
         </div>
@@ -208,8 +209,6 @@ function EmisionesStableView() {
         <KpiCard icon={<Factory />} label="Etapa prioritaria" value={criticalStage} />
         <KpiCard icon={<Target />} label="Fuente crítica" value={criticalSource} detail={`${formatNumber(sourceShare, 1)}% del total`} />
       </section>
-
-      <IntelligencePanel initialScope="dashboard" compact />
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <HorizontalChart title="Emisiones por etapa" data={byStage} nameKey="etapa" dataKey="emisiones" />
