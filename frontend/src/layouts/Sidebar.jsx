@@ -70,7 +70,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
   ];
 
   return (
-    <aside className="w-full shrink-0 border-b border-white/10 bg-[var(--sidebar)] p-4 text-slate-100 shadow-[24px_0_80px_rgba(2,6,23,0.22)] sm:p-6 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:flex-col lg:border-b-0 lg:border-r lg:overflow-y-auto">
+    <aside className="w-full shrink-0 border-b border-white/10 bg-[var(--sidebar)] p-4 text-slate-100 shadow-[24px_0_80px_rgba(2,6,23,0.22)] sm:p-6 lg:sticky lg:top-[72px] lg:flex lg:h-[calc(100vh-72px)] lg:w-72 lg:flex-col lg:border-b-0 lg:border-r lg:overflow-y-auto">
       <nav className="space-y-3">
         <p className="px-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
           Navegación principal
