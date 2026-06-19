@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, AlertTriangle, BarChart3, Database, Factory, Leaf, Radar } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-import IntelligencePanel from "@/features/intelligence/components/IntelligencePanel";
 import RealtimeIotMonitoring from "@/features/dashboard/components/RealtimeIotMonitoring";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import KpiCard from "@/shared/components/KpiCard";
@@ -245,8 +244,6 @@ function DashboardPage({ onStatusChange }) {
         <KpiCard icon={<Radar />} title="Concentración principal" value={`${formatNumber(topShare, 1)}%`} />
         <KpiCard icon={<BarChart3 />} title="Registros analizados" value={formatNumber(rows.length, 0)} />
       </section>
-
-      <IntelligencePanel initialScope="dashboard" compact />
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <DashboardChart title="Emisiones por etapa" data={byStage} nameKey="etapa" />
