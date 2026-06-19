@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BarChart3, Database, RefreshCcw } from "lucide-react";
 
-import Toast from "@/shared/components/Toast";
+import PlatformLoader from "@/shared/components/PlatformLoader";
 import { getConstructoraDashboard, getEmpresaRegistrosAmbientales } from "@/shared/services/api";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import { DEFAULT_PRESET_KEY, getActivePreset } from "@/presets/registry";
@@ -43,6 +43,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
   const [draftFilters, setDraftFilters] = useState(defaultFilters);
   const [isFiltersModalOpen, setIsFiltersModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState("");
 
   const loadReport = async (showLoading = true) => {
@@ -74,6 +75,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
       setError(requestError.response?.data?.error || "No se pudieron cargar los registros para construir el reporte.");
     } finally {
       if (showLoading) setLoading(false);
+      setHasLoaded(true);
     }
   };
 
@@ -82,6 +84,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
     setDashboardData(null);
     setFilters(defaultFilters);
     setDraftFilters(defaultFilters);
+    setHasLoaded(false);
     if (!activeConstructoraId) return undefined;
     loadReport(true);
     const intervalId = window.setInterval(() => loadReport(false), 10000);
@@ -141,15 +144,17 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
     );
   }
 
+  if (loading && !hasLoaded) {
+    return (
+      <PlatformLoader
+        title="Cargando reportes"
+        description="Estamos preparando tendencias, KPIs del periodo y tablas ambientales del preset activo."
+      />
+    );
+  }
+
   return (
     <main className="mx-auto max-w-7xl space-y-8 text-[var(--text-main)]">
-      <Toast
-        message={loading ? "Cargando reportes..." : ""}
-        loading={loading}
-        onClose={() => undefined}
-        toastKey={loading ? "report-loading" : "report-idle"}
-      />
-
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-[var(--secondary)]">Reporte adaptativo</p>
