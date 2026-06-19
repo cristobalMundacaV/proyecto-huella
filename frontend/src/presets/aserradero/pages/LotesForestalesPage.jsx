@@ -1,5 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ChevronDown, FilePlus2, Leaf, Plus, RefreshCw, Save, Truck, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronDown,
+  FilePlus2,
+  Leaf,
+  RefreshCw,
+  Route,
+  Save,
+  Scale,
+  TreePine,
+  Truck,
+  X,
+} from "lucide-react";
 
 import EmptyState from "@/shared/components/EmptyState";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
@@ -12,6 +24,7 @@ import {
 } from "@/shared/services/api";
 
 const today = new Date().toISOString().slice(0, 10);
+const DIESEL_FACTOR = 2.68;
 
 const initialLoteForm = {
   lote_id: "",
@@ -41,6 +54,29 @@ const initialTransportForm = {
 
 function compactPayload(values) {
   return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== "" && value !== null && value !== undefined));
+}
+
+function toNumber(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function calculateTransportPreview(form) {
+  const distanciaKm = toNumber(form.distancia_km);
+  const consumoLitroKm = toNumber(form.consumo_estimado_litro_km || 0.3);
+  const litrosInformados = toNumber(form.litros_diesel);
+  const litrosEstimados = distanciaKm * consumoLitroKm;
+  const litrosUsados = litrosInformados > 0 ? litrosInformados : litrosEstimados;
+  const emisionesKg = litrosUsados * DIESEL_FACTOR;
+
+  return {
+    distanciaKm,
+    consumoLitroKm,
+    litrosEstimados,
+    litrosUsados,
+    emisionesKg,
+    usaLitrosInformados: litrosInformados > 0,
+  };
 }
 
 function statusClass(status) {
@@ -99,6 +135,8 @@ function LotesForestalesPage() {
     () => lotes.find((lote) => lote.lote_id === expandedLote),
     [expandedLote, lotes]
   );
+
+  const transportPreview = useMemo(() => calculateTransportPreview(transportForm), [transportForm]);
 
   function openTransportModal(lote) {
     setTransportTarget(lote);
@@ -265,6 +303,8 @@ function LotesForestalesPage() {
       {isTransportModalOpen && transportTarget ? (
         <ModalShell title={`Agregar transporte a ${transportTarget.lote_id}`} onClose={() => setIsTransportModalOpen(false)}>
           <form onSubmit={handleCreateTransport} className="space-y-4">
+            <TransportPreview preview={transportPreview} target={transportTarget} />
+
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               {[
                 ["fecha", "date", ""],
@@ -274,7 +314,7 @@ function LotesForestalesPage() {
                 ["origen", "text", "Origen"],
                 ["destino", "text", "Destino"],
                 ["distancia_km", "number", "Distancia km"],
-                ["litros_diesel", "number", "Litros diésel"],
+                ["litros_diesel", "number", "Litros diésel reales (opcional)"],
                 ["consumo_estimado_litro_km", "number", "Consumo L/km"],
               ].map(([name, type, placeholder]) => (
                 <Field
@@ -451,10 +491,84 @@ function LoteDetail({ lote, onOpenTransport }) {
         </div>
       </div>
 
+      <LifecyclePanel lote={lote} />
+
       <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <DetailList title="Registros de emisión" rows={lote.registros_emision} resolver={(item) => `#${item.id} - ${item.fuente_emision} - ${formatNumber(item.emisiones_kg_co2e, 1)} kg`} />
         <DetailList title="Transportes asociados" rows={lote.transportes} resolver={(item) => `${item.patente || "Sin patente"} - ${formatNumber(item.distancia_km, 1)} km - ${formatNumber(item.emisiones_transporte_kg_co2e, 1)} kg`} />
         <DetailList title="Evidencias asociadas" rows={lote.evidencias} resolver={(item) => item.nombre || `Evidencia #${item.id}`} />
+      </div>
+    </section>
+  );
+}
+
+function LifecyclePanel({ lote }) {
+  const co2Almacenado = toNumber(lote.co2_almacenado_kg);
+  const emisiones = toNumber(lote.emisiones_generadas_kg_co2e);
+  const balance = toNumber(lote.balance_neto_kg_co2e);
+  const transportes = lote.transportes || [];
+  const evidencias = lote.evidencias || [];
+  const registros = lote.registros_emision || [];
+  const transportEmissions = transportes.reduce((sum, item) => sum + toNumber(item.emisiones_transporte_kg_co2e), 0);
+  const processEmissions = Math.max(0, emisiones - transportEmissions);
+
+  return (
+    <div className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50/60 p-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-800">Lectura de ciclo de vida</p>
+          <h3 className="mt-1 text-xl font-black text-[var(--text-main)]">Del origen del lote al balance neto</h3>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
+            Esta lectura conecta carbono almacenado, transporte, procesos, evidencias y balance para acercar el lote a una medición de ciclo completo.
+          </p>
+        </div>
+        <span className={`w-fit rounded-full border px-3 py-1 text-xs font-black ${statusClass(lote.estado_balance)}`}>
+          {lote.estado_balance || "sin estado"}
+        </span>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricPill icon={<TreePine size={18} />} label="CO₂ almacenado" value={`${formatNumber(co2Almacenado, 1)} kg`} />
+        <MetricPill icon={<Truck size={18} />} label="Transporte" value={`${formatNumber(transportEmissions, 1)} kg`} detail={`${transportes.length} viajes`} />
+        <MetricPill icon={<Scale size={18} />} label="Procesos asociados" value={`${formatNumber(processEmissions, 1)} kg`} detail={`${registros.length} registros`} />
+        <MetricPill icon={<Leaf size={18} />} label="Balance neto" value={`${formatNumber(balance, 1)} kg`} detail={`${evidencias.length} evidencias`} />
+      </div>
+    </div>
+  );
+}
+
+function MetricPill({ detail, icon, label, value }) {
+  return (
+    <article className="rounded-2xl border border-white/70 bg-white/82 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+      <div className="flex items-center gap-2 text-emerald-700">
+        {icon}
+        <p className="text-xs font-black uppercase tracking-[0.14em]">{label}</p>
+      </div>
+      <p className="mt-2 text-xl font-black text-[var(--text-main)]">{value}</p>
+      {detail ? <p className="mt-1 text-xs font-bold text-[var(--text-muted)]">{detail}</p> : null}
+    </article>
+  );
+}
+
+function TransportPreview({ preview, target }) {
+  return (
+    <section className="rounded-3xl border border-sky-200 bg-sky-50/80 p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-800">Estimación antes de guardar</p>
+          <h3 className="mt-1 text-xl font-black text-[var(--text-main)]">Ruta y huella de transporte</h3>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
+            Para {target?.lote_id}, Carbono Zero estimará litros y emisiones con distancia, consumo L/km o litros reales si los informas.
+          </p>
+        </div>
+        <Route className="text-sky-700" size={30} />
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricPill icon={<Route size={18} />} label="Distancia" value={`${formatNumber(preview.distanciaKm, 1)} km`} />
+        <MetricPill icon={<Truck size={18} />} label="Litros usados" value={`${formatNumber(preview.litrosUsados, 1)} L`} detail={preview.usaLitrosInformados ? "Dato real ingresado" : "Estimado por consumo"} />
+        <MetricPill icon={<Scale size={18} />} label="Factor diésel" value={`${formatNumber(DIESEL_FACTOR, 2)} kg/L`} />
+        <MetricPill icon={<Leaf size={18} />} label="Huella estimada" value={`${formatNumber(preview.emisionesKg, 1)} kg`} />
       </div>
     </section>
   );
