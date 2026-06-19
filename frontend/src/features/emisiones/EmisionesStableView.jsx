@@ -10,6 +10,7 @@ import {
   Route,
   Search,
   Target,
+  X,
 } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
@@ -93,6 +94,7 @@ function buildLifecycleUnits(rows, totalEmissions) {
       otros: 0,
       fuentes: {},
       etapas: {},
+      rows: [],
     };
 
     const value = Number(row.emisiones || 0);
@@ -102,6 +104,7 @@ function buildLifecycleUnits(rows, totalEmissions) {
     current[bucket] += value;
     current.fuentes[row.fuente_visible] = (current.fuentes[row.fuente_visible] || 0) + value;
     current.etapas[row.etapa_visible] = (current.etapas[row.etapa_visible] || 0) + value;
+    current.rows.push(row);
     accumulator[key] = current;
     return accumulator;
   }, {});
@@ -122,6 +125,10 @@ function buildLifecycleUnits(rows, totalEmissions) {
       };
     })
     .sort((left, right) => right.emisiones - left.emisiones);
+}
+
+function sortedEntries(object = {}) {
+  return Object.entries(object).sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0));
 }
 
 function KpiCard({ icon, label, value, detail }) {
@@ -182,7 +189,7 @@ function HorizontalChart({ data, dataKey, nameKey, title }) {
   );
 }
 
-function LifecycleOverview({ activePreset, lifecycleUnits }) {
+function LifecycleOverview({ activePreset, lifecycleUnits, onSelectUnit }) {
   const topUnits = lifecycleUnits.slice(0, 4);
   const label = activePreset === "aserradero" ? "lote/producto" : "obra/unidad";
 
@@ -206,7 +213,12 @@ function LifecycleOverview({ activePreset, lifecycleUnits }) {
       {topUnits.length ? (
         <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
           {topUnits.map((unit) => (
-            <article key={unit.unidad} className="rounded-3xl border border-white/70 bg-white/85 p-5 shadow-[0_14px_32px_rgba(15,23,42,0.05)]">
+            <button
+              key={unit.unidad}
+              type="button"
+              onClick={() => onSelectUnit(unit)}
+              className="rounded-3xl border border-white/70 bg-white/85 p-5 text-left shadow-[0_14px_32px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-[0_20px_44px_rgba(15,118,110,0.12)]"
+            >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-700">{label}</p>
@@ -232,7 +244,8 @@ function LifecycleOverview({ activePreset, lifecycleUnits }) {
               <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
                 Fuente crítica: <strong>{unit.fuenteCritica}</strong>. Etapa crítica: <strong>{unit.etapaCritica}</strong>. Cobertura de ciclo: <strong>{unit.coberturaCiclo}/5 bloques</strong>.
               </div>
-            </article>
+              <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-emerald-700">Ver detalle de ciclo completo</p>
+            </button>
           ))}
         </div>
       ) : (
@@ -256,12 +269,142 @@ function CycleMetric({ icon, label, value }) {
   );
 }
 
+function LifecycleDetailModal({ activePreset, onClose, totalEmissions, unit }) {
+  const label = activePreset === "aserradero" ? "lote/producto" : "obra/unidad";
+  const rows = [...(unit.rows || [])].sort((left, right) => String(right.fecha || "").localeCompare(String(left.fecha || "")));
+  const topSources = sortedEntries(unit.fuentes).slice(0, 5);
+  const topStages = sortedEntries(unit.etapas).slice(0, 5);
+  const share = totalEmissions > 0 ? (unit.emisiones / totalEmissions) * 100 : 0;
+  const actionFocus = unit.transporte >= unit.materiales && unit.transporte >= unit.energia
+    ? "Revisar rutas, distancia real, consolidación de viajes y consumo por kilómetro."
+    : unit.materiales >= unit.energia
+      ? "Revisar materiales críticos, proveedores y respaldo documental de compras."
+      : "Revisar consumo energético, horarios de operación y equipos de mayor demanda.";
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/35 px-4 py-6 backdrop-blur-sm">
+      <div className="relative max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-[32px] border border-emerald-100 bg-white p-5 shadow-[0_30px_90px_rgba(15,23,42,0.22)] sm:p-6">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 z-10 rounded-2xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm hover:bg-slate-50"
+          aria-label="Cerrar detalle de ciclo completo"
+        >
+          <X size={18} />
+        </button>
+
+        <div className="mb-6 pr-12">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">Detalle de ciclo completo</p>
+          <h2 className="mt-2 text-3xl font-black tracking-tight text-[var(--text-main)]">{unit.unidad}</h2>
+          <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--text-muted)]">
+            Lectura del {label} desde sus registros ambientales: composición por bloque, focos críticos, timeline operacional y acciones sugeridas.
+          </p>
+        </div>
+
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+          <SummaryCard icon={<Leaf size={18} />} label="Huella total" value={`${formatNumber(unit.emisiones, 1)} kg`} detail={`${formatNumber(share, 1)}% del total`} />
+          <SummaryCard icon={<BarChart3 size={18} />} label="Registros" value={formatNumber(unit.registros, 0)} detail="datos analizados" />
+          <SummaryCard icon={<Target size={18} />} label="Fuente crítica" value={unit.fuenteCritica} detail={unit.etapaCritica} />
+          <SummaryCard icon={<Layers3 size={18} />} label="Cobertura" value={`${unit.coberturaCiclo}/5`} detail="bloques del ciclo" />
+        </section>
+
+        <section className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-800">Acción sugerida</p>
+              <h3 className="mt-1 text-xl font-black text-[var(--text-main)]">Prioriza el bloque dominante antes de optimizar detalles menores</h3>
+              <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-700">{actionFocus}</p>
+            </div>
+            <AlertTriangle className="text-emerald-700" size={28} />
+          </div>
+        </section>
+
+        <section className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-600">Composición del ciclo</p>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+              <CycleMetric icon={<PackageCheck size={16} />} label="Materiales" value={unit.materiales} />
+              <CycleMetric icon={<Route size={16} />} label="Transporte" value={unit.transporte} />
+              <CycleMetric icon={<Activity size={16} />} label="Energía" value={unit.energia} />
+              <CycleMetric icon={<Factory size={16} />} label="Procesos" value={unit.procesos} />
+              <CycleMetric icon={<Leaf size={16} />} label="Cierre" value={unit.cierre + unit.otros} />
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-5">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-600">Ranking crítico</p>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-1">
+              <RankingList title="Fuentes" rows={topSources} />
+              <RankingList title="Etapas" rows={topStages} />
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-600">Timeline operacional</p>
+              <h3 className="text-xl font-black text-[var(--text-main)]">Últimos registros que explican esta huella</h3>
+            </div>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-600">
+              {formatNumber(rows.length, 0)} registros
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {rows.slice(0, 8).map((row, index) => (
+              <div key={`${row.id || row.fuente_visible}-${index}`} className="grid gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:grid-cols-[140px_1fr_auto] sm:items-center">
+                <p className="text-sm font-black text-slate-700">{row.fecha || "Sin fecha"}</p>
+                <div>
+                  <p className="font-black text-[var(--text-main)]">{row.fuente_visible}</p>
+                  <p className="text-sm text-slate-600">{row.categoria_visible} · {row.etapa_visible}</p>
+                </div>
+                <p className="text-right text-sm font-black text-emerald-800">{formatNumber(row.emisiones, 1)} kg</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({ detail, icon, label, value }) {
+  return (
+    <article className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.05)]">
+      <div className="flex items-center gap-2 text-emerald-700">
+        {icon}
+        <p className="text-xs font-black uppercase tracking-[0.14em]">{label}</p>
+      </div>
+      <p className="mt-2 line-clamp-2 text-xl font-black text-[var(--text-main)]">{value}</p>
+      {detail ? <p className="mt-1 text-xs font-bold text-[var(--text-muted)]">{detail}</p> : null}
+    </article>
+  );
+}
+
+function RankingList({ rows, title }) {
+  return (
+    <div>
+      <h4 className="text-sm font-black text-[var(--text-main)]">{title}</h4>
+      <div className="mt-2 space-y-2">
+        {rows.map(([label, value]) => (
+          <div key={label} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm">
+            <span className="font-bold text-slate-700">{label}</span>
+            <span className="font-black text-emerald-800">{formatNumber(value, 1)} kg</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function EmisionesStableView() {
   const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [selectedLifecycleUnit, setSelectedLifecycleUnit] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -280,6 +423,7 @@ function EmisionesStableView() {
       }
     }
 
+    setSelectedLifecycleUnit(null);
     load();
 
     return () => {
@@ -358,7 +502,11 @@ function EmisionesStableView() {
         <KpiCard icon={<Target />} label="Fuente crítica" value={criticalSource} detail={`${formatNumber(sourceShare, 1)}% del total`} />
       </section>
 
-      <LifecycleOverview activePreset={activeConstructora?.preset} lifecycleUnits={lifecycleUnits} />
+      <LifecycleOverview
+        activePreset={activeConstructora?.preset}
+        lifecycleUnits={lifecycleUnits}
+        onSelectUnit={setSelectedLifecycleUnit}
+      />
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <HorizontalChart title="Emisiones por etapa" data={byStage} nameKey="etapa" dataKey="emisiones" />
@@ -422,6 +570,15 @@ function EmisionesStableView() {
           </p>
         )}
       </section>
+
+      {selectedLifecycleUnit ? (
+        <LifecycleDetailModal
+          activePreset={activeConstructora?.preset}
+          onClose={() => setSelectedLifecycleUnit(null)}
+          totalEmissions={totalEmissions}
+          unit={selectedLifecycleUnit}
+        />
+      ) : null}
     </main>
   );
 }
