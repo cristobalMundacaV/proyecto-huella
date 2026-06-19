@@ -96,7 +96,6 @@ function FactoresPage({ onSetActiveView }) {
   const kpis = useMemo(() => config.buildKpis(factors, scopedRecords), [config, factors, scopedRecords]);
   const firstSuggestion = pendingRecords[0] ? config.suggestionRules.suggestFactor(pendingRecords[0], factors) : null;
   const status = useMemo(() => config.getFactorQualityStatus(factors, scopedRecords), [config, factors, scopedRecords]);
-  const firstSuggestion = pendingRecords[0] ? config.suggestionRules.suggestFactor(pendingRecords[0], factors) : null;
 
   async function handleCreateFactor(payload) {
     try {
