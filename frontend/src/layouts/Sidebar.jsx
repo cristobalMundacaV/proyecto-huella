@@ -70,9 +70,9 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
   ];
 
   return (
-    <aside className="w-full shrink-0 border-b border-white/10 bg-[var(--sidebar)] p-4 text-slate-100 shadow-[24px_0_80px_rgba(2,6,23,0.22)] sm:p-6 lg:sticky lg:top-[72px] lg:flex lg:h-[calc(100vh-72px)] lg:w-72 lg:flex-col lg:border-b-0 lg:border-r lg:overflow-y-auto">
-      <nav className="space-y-3">
-        <p className="px-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+    <aside className="w-full shrink-0 border-b border-[var(--sidebar-border)] bg-[var(--sidebar)] p-4 text-[var(--text-main)] shadow-[18px_0_50px_rgba(19,34,56,0.06)] sm:p-6 lg:sticky lg:top-[72px] lg:flex lg:h-[calc(100vh-72px)] lg:w-72 lg:flex-col lg:border-b-0 lg:border-r lg:overflow-y-auto">
+      <nav className="space-y-2">
+        <p className="px-1 text-xs font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">
           Navegación principal
         </p>
 
@@ -86,11 +86,11 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
               type="button"
               onClick={() => onSetActiveView(item.view)}
               disabled={item.disabled}
-              className={`sidebar-nav-item flex w-full items-center gap-3 rounded-2xl border px-4 py-3 transition ${isActive
-                  ? "sidebar-nav-item--active border-[var(--primary)]/35 bg-[var(--sidebar-active)] text-white"
+              className={`sidebar-nav-item flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-bold transition ${isActive
+                  ? "sidebar-nav-item--active border-emerald-200 bg-[var(--sidebar-active)] text-[var(--primary-dark)] shadow-[0_12px_28px_rgba(15,124,109,0.12)]"
                   : item.disabled
-                    ? "cursor-not-allowed border-white/10 bg-white/5 text-slate-500"
-                    : "border-transparent bg-transparent text-slate-300 hover:-translate-x-0.5 hover:border-white/10 hover:bg-white/10 hover:text-white"
+                    ? "cursor-not-allowed border-transparent bg-white/30 text-slate-400"
+                    : "border-transparent bg-transparent text-slate-600 hover:-translate-x-0.5 hover:border-[var(--border)] hover:bg-white/75 hover:text-[var(--primary-dark)]"
                 }`}
             >
               <Icon size={18} />
@@ -100,8 +100,8 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
         })}
       </nav>
 
-      <section className="group mt-8 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_12px_28px_rgba(15,23,42,0.16)] transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200/20 hover:bg-white/7 hover:shadow-[0_18px_36px_rgba(15,23,42,0.22)]">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 transition group-hover:text-emerald-200">
+      <section className="group mt-8 rounded-2xl border border-[var(--sidebar-border)] bg-white/58 p-4 shadow-[0_12px_28px_rgba(19,34,56,0.05)] transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white/80 hover:shadow-[0_18px_36px_rgba(19,34,56,0.08)]">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--text-muted)] transition group-hover:text-[var(--primary-dark)]">
           Estado de la empresa
         </p>
 
@@ -109,17 +109,17 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
           {statusItems.map(([label, value]) => (
             <div
               key={label}
-              className="flex items-center justify-between gap-4 rounded-xl px-2 py-1 text-sm transition group-hover:bg-white/5"
+              className="flex items-center justify-between gap-4 rounded-xl px-2 py-1 text-sm transition group-hover:bg-emerald-50/70"
             >
-              <span className="text-slate-400">{label}</span>
-              <span className="font-black text-emerald-100">{value}</span>
+              <span className="text-slate-600">{label}</span>
+              <span className="font-black text-[var(--primary-dark)]">{value}</span>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="group mt-6 rounded-2xl border border-emerald-300/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[0_12px_28px_rgba(0,0,0,0.14)] transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200/40 hover:shadow-[0_18px_36px_rgba(0,0,0,0.2)] lg:mt-auto">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 transition group-hover:text-emerald-200">
+      <section className="group mt-6 rounded-2xl border border-[var(--sidebar-border)] bg-white/62 p-4 shadow-[0_12px_28px_rgba(19,34,56,0.05)] transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white/85 hover:shadow-[0_18px_36px_rgba(19,34,56,0.08)] lg:mt-auto">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--text-muted)] transition group-hover:text-[var(--primary-dark)]">
           Empresa activa
         </p>
 
@@ -138,7 +138,7 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
                 clearActiveConstructora();
               }
             }}
-            className="w-full rounded-xl border border-emerald-300/18 bg-[var(--sidebar-active)] px-4 py-3 text-sm text-slate-50 shadow-[0_10px_18px_rgba(0,0,0,0.18)] outline-none transition focus:border-emerald-300/60 focus:ring-4 focus:ring-emerald-400/10"
+            className="w-full rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-sm font-bold text-[var(--text-main)] shadow-sm outline-none transition focus:border-emerald-300/60 focus:ring-4 focus:ring-emerald-400/10"
           >
             <option value="">Selecciona una empresa</option>
             {constructoras.map((constructora) => (
@@ -149,17 +149,17 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
           </select>
 
           {loadingConstructoras && (
-            <p className="text-xs text-slate-500">Cargando empresas...</p>
+            <p className="text-xs text-[var(--text-muted)]">Cargando empresas...</p>
           )}
 
-          <div className="rounded-xl border border-emerald-300/15 bg-white/5 px-3 py-2 text-center text-[11px] font-black uppercase tracking-wide text-emerald-100">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2 text-center text-[11px] font-black uppercase tracking-wide text-[var(--primary-dark)]">
             Preset: {getPresetLabel(activePresetKey)}
           </div>
 
           <button
             type="button"
             onClick={() => onSetActiveView?.("administracion")}
-            className="w-full rounded-xl border border-emerald-300/15 bg-white/5 px-3 py-2 text-xs font-bold text-emerald-100 transition hover:border-emerald-200/40 hover:bg-white/10"
+            className="w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-xs font-bold text-[var(--primary-dark)] shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50"
           >
             Gestionar administración
           </button>
