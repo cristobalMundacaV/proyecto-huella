@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Clock3, Lightbulb, Plus, Sparkles, X } from "lucide-react";
 
+const inputClass = "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100";
+
 const statusOptions = [
   { value: "pendiente", label: "Pendiente" },
   { value: "en_progreso", label: "En progreso" },
@@ -222,24 +224,24 @@ function TraceableActionsPanel({ cards = [], constructoraId }) {
 
             <div className="grid grid-cols-1 gap-4">
               <Field label="Título">
-                <input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="input-modal" />
+                <input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className={inputClass} />
               </Field>
               <Field label="Descripción">
-                <textarea value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} className="input-modal min-h-28 resize-y" />
+                <textarea value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} className={`${inputClass} min-h-28 resize-y`} />
               </Field>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Responsable">
-                  <input value={draft.responsible} onChange={(event) => setDraft({ ...draft, responsible: event.target.value })} className="input-modal" />
+                  <input value={draft.responsible} onChange={(event) => setDraft({ ...draft, responsible: event.target.value })} className={inputClass} />
                 </Field>
                 <Field label="Fecha objetivo">
-                  <input type="date" value={draft.dueDate} onChange={(event) => setDraft({ ...draft, dueDate: event.target.value })} className="input-modal" />
+                  <input type="date" value={draft.dueDate} onChange={(event) => setDraft({ ...draft, dueDate: event.target.value })} className={inputClass} />
                 </Field>
               </div>
               <Field label="Evidencia esperada">
-                <input value={draft.evidence} onChange={(event) => setDraft({ ...draft, evidence: event.target.value })} className="input-modal" />
+                <input value={draft.evidence} onChange={(event) => setDraft({ ...draft, evidence: event.target.value })} className={inputClass} />
               </Field>
               <Field label="KPI de seguimiento">
-                <input value={draft.trackingKpi} onChange={(event) => setDraft({ ...draft, trackingKpi: event.target.value })} className="input-modal" />
+                <input value={draft.trackingKpi} onChange={(event) => setDraft({ ...draft, trackingKpi: event.target.value })} className={inputClass} />
               </Field>
             </div>
 
