@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, BarChart3, Factory, Layers3, Search, Target } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  Factory,
+  Layers3,
+  Leaf,
+  PackageCheck,
+  Route,
+  Search,
+  Target,
+} from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
@@ -28,14 +39,20 @@ function normalizeRows(input) {
     ? input
     : input?.rows || input?.results || input?.datos || input?.registros || input?.registros_emision || [];
 
-  return rows.map((row) => ({
-    ...row,
-    emisiones: Number(row?.emisiones ?? row?.emisiones_kg_co2e ?? row?.total_emisiones ?? row?.co2e ?? 0) || 0,
-    categoria_visible: row?.categoria || row?.categoria_visible || "Otros",
-    etapa_visible: row?.etapa_nombre || row?.etapa || "Sin etapa asociada",
-    obra_visible: row?.obra_nombre || row?.codigo_obra || row?.obra_codigo || "Sin obra asociada",
-    fuente_visible: row?.fuente_emision || row?.actividad || "Sin fuente",
-  }));
+  return rows.map((row) => {
+    const metadata = row?.metadata && typeof row.metadata === "object" ? row.metadata : {};
+    const loteVisible = metadata.lote || metadata.lote_id || row?.lote_forestal_id || row?.lote_id;
+
+    return {
+      ...row,
+      metadata,
+      emisiones: Number(row?.emisiones ?? row?.emisiones_kg_co2e ?? row?.total_emisiones ?? row?.co2e ?? 0) || 0,
+      categoria_visible: row?.categoria || row?.categoria_visible || "Otros",
+      etapa_visible: row?.etapa_nombre || row?.etapa || metadata.module || "Sin etapa asociada",
+      obra_visible: loteVisible || row?.obra_nombre || row?.codigo_obra || row?.obra_codigo || "Sin obra asociada",
+      fuente_visible: row?.fuente_emision || row?.actividad || "Sin fuente",
+    };
+  });
 }
 
 function groupBy(rows, key, labelKey = "name") {
@@ -49,6 +66,62 @@ function groupBy(rows, key, labelKey = "name") {
       return accumulator;
     }, {})
   ).sort((left, right) => right.emisiones - left.emisiones);
+}
+
+function categoryBucket(category) {
+  const normalized = normalizeText(category);
+  if (normalized.includes("material") || normalized.includes("materia")) return "materiales";
+  if (normalized.includes("transporte") || normalized.includes("ruta")) return "transporte";
+  if (normalized.includes("energia") || normalized.includes("combustible")) return "energia";
+  if (normalized.includes("maquinaria") || normalized.includes("proceso") || normalized.includes("produccion")) return "procesos";
+  if (normalized.includes("residuo") || normalized.includes("agua")) return "cierre";
+  return "otros";
+}
+
+function buildLifecycleUnits(rows, totalEmissions) {
+  const grouped = rows.reduce((accumulator, row) => {
+    const key = row.obra_visible || "Sin unidad";
+    const current = accumulator[key] || {
+      unidad: key,
+      emisiones: 0,
+      registros: 0,
+      materiales: 0,
+      transporte: 0,
+      energia: 0,
+      procesos: 0,
+      cierre: 0,
+      otros: 0,
+      fuentes: {},
+      etapas: {},
+    };
+
+    const value = Number(row.emisiones || 0);
+    const bucket = categoryBucket(row.categoria_visible);
+    current.emisiones += value;
+    current.registros += 1;
+    current[bucket] += value;
+    current.fuentes[row.fuente_visible] = (current.fuentes[row.fuente_visible] || 0) + value;
+    current.etapas[row.etapa_visible] = (current.etapas[row.etapa_visible] || 0) + value;
+    accumulator[key] = current;
+    return accumulator;
+  }, {});
+
+  return Object.values(grouped)
+    .map((unit) => {
+      const topSource = Object.entries(unit.fuentes).sort((a, b) => b[1] - a[1])[0];
+      const topStage = Object.entries(unit.etapas).sort((a, b) => b[1] - a[1])[0];
+      const share = totalEmissions > 0 ? (unit.emisiones / totalEmissions) * 100 : 0;
+      const coverage = [unit.materiales, unit.transporte, unit.energia, unit.procesos, unit.cierre].filter((value) => value > 0).length;
+
+      return {
+        ...unit,
+        participacion: share,
+        coberturaCiclo: coverage,
+        fuenteCritica: topSource?.[0] || "Sin fuente",
+        etapaCritica: topStage?.[0] || "Sin etapa",
+      };
+    })
+    .sort((left, right) => right.emisiones - left.emisiones);
 }
 
 function KpiCard({ icon, label, value, detail }) {
@@ -109,6 +182,80 @@ function HorizontalChart({ data, dataKey, nameKey, title }) {
   );
 }
 
+function LifecycleOverview({ activePreset, lifecycleUnits }) {
+  const topUnits = lifecycleUnits.slice(0, 4);
+  const label = activePreset === "aserradero" ? "lote/producto" : "obra/unidad";
+
+  return (
+    <section className="rounded-[30px] border border-emerald-200 bg-emerald-50/60 p-5 shadow-[var(--shadow-card)] ring-1 ring-white/70">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-800">Lectura de ciclo completo</p>
+          <h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">
+            Huella acumulada por {label}
+          </h2>
+          <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-700">
+            Esta lectura cruza materiales, transporte, energía, procesos y cierre para detectar qué unidad explica la mayor parte del impacto medido.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-black text-emerald-800">
+          {formatNumber(lifecycleUnits.length, 0)} unidades comparadas
+        </div>
+      </div>
+
+      {topUnits.length ? (
+        <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
+          {topUnits.map((unit) => (
+            <article key={unit.unidad} className="rounded-3xl border border-white/70 bg-white/85 p-5 shadow-[0_14px_32px_rgba(15,23,42,0.05)]">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-700">{label}</p>
+                  <h3 className="mt-1 text-xl font-black text-[var(--text-main)]">{unit.unidad}</h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {formatNumber(unit.registros, 0)} registros · {formatNumber(unit.participacion, 1)}% de la huella total
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-right">
+                  <p className="text-xs font-black uppercase tracking-wide text-emerald-700">Total</p>
+                  <p className="text-lg font-black text-emerald-900">{formatNumber(unit.emisiones, 1)} kg</p>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                <CycleMetric icon={<PackageCheck size={16} />} label="Materiales" value={unit.materiales} />
+                <CycleMetric icon={<Route size={16} />} label="Transporte" value={unit.transporte} />
+                <CycleMetric icon={<Activity size={16} />} label="Energía" value={unit.energia} />
+                <CycleMetric icon={<Factory size={16} />} label="Procesos" value={unit.procesos} />
+                <CycleMetric icon={<Leaf size={16} />} label="Cierre" value={unit.cierre + unit.otros} />
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+                Fuente crítica: <strong>{unit.fuenteCritica}</strong>. Etapa crítica: <strong>{unit.etapaCritica}</strong>. Cobertura de ciclo: <strong>{unit.coberturaCiclo}/5 bloques</strong>.
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-5 rounded-2xl border border-dashed border-emerald-200 bg-white/70 p-6 text-center text-sm font-semibold text-[var(--text-muted)]">
+          Aún no hay datos suficientes para comparar ciclo completo por unidad.
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CycleMetric({ icon, label, value }) {
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 text-center">
+      <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-xl bg-white text-emerald-700">
+        {icon}
+      </div>
+      <p className="mt-2 text-[10px] font-black uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-black text-slate-900">{formatNumber(value, 1)}</p>
+    </div>
+  );
+}
+
 function EmisionesStableView() {
   const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
   const [data, setData] = useState(null);
@@ -157,6 +304,7 @@ function EmisionesStableView() {
   const byCategory = useMemo(() => groupBy(rows, "categoria_visible", "categoria"), [rows]);
   const byStage = useMemo(() => groupBy(rows, "etapa_visible", "etapa"), [rows]);
   const bySource = useMemo(() => groupBy(rows, "fuente_visible", "fuente"), [rows]);
+  const lifecycleUnits = useMemo(() => buildLifecycleUnits(rows, totalEmissions), [rows, totalEmissions]);
 
   const criticalCategory = byCategory[0]?.categoria || data?.kpis?.categoria_critica || "Sin datos";
   const criticalStage = byStage[0]?.etapa || data?.kpis?.unidad_critica || data?.kpis?.etapa_critica || "Sin datos";
@@ -186,7 +334,7 @@ function EmisionesStableView() {
               Emisiones de {activeConstructora?.nombre || "la empresa"}
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
-              Esta vista identifica las fuentes, etapas y categorías que explican la huella para priorizar acciones de gestión ambiental.
+              Esta vista identifica fuentes, etapas, categorías y unidades completas para priorizar acciones de gestión ambiental.
             </p>
           </div>
 
@@ -209,6 +357,8 @@ function EmisionesStableView() {
         <KpiCard icon={<Factory />} label="Etapa prioritaria" value={criticalStage} />
         <KpiCard icon={<Target />} label="Fuente crítica" value={criticalSource} detail={`${formatNumber(sourceShare, 1)}% del total`} />
       </section>
+
+      <LifecycleOverview activePreset={activeConstructora?.preset} lifecycleUnits={lifecycleUnits} />
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <HorizontalChart title="Emisiones por etapa" data={byStage} nameKey="etapa" dataKey="emisiones" />
@@ -244,7 +394,7 @@ function EmisionesStableView() {
             <table className="w-full min-w-[920px] table-fixed border-collapse text-sm">
               <thead>
                 <tr className="border-b border-emerald-100 bg-emerald-50/70 text-xs font-black uppercase tracking-[0.14em] text-emerald-900">
-                  <th className="px-3 py-3 text-left">Obra</th>
+                  <th className="px-3 py-3 text-left">Obra / lote</th>
                   <th className="px-3 py-3 text-left">Etapa</th>
                   <th className="px-3 py-3 text-left">Categoría</th>
                   <th className="px-3 py-3 text-left">Fuente</th>
