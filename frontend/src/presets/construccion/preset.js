@@ -15,6 +15,7 @@ const construccionPreset = {
   intelligence: constructionIntelligence,
   navigation: [
     { view: "dashboard", label: "Panel principal", core: true },
+    { view: "inteligencia", label: "Inteligencia", core: true },
     { view: "emisiones", label: "Emisiones", core: true },
     { view: "factores", label: "Factores de emision", core: true },
     { view: "constructoras", label: "Empresas", core: true },
