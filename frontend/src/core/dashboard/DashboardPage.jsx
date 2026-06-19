@@ -33,6 +33,7 @@ const normalizeRows = (input) => {
 
   return rows.map((row) => ({
     ...row,
+    metadata: row?.metadata && typeof row.metadata === "object" ? row.metadata : {},
     emisiones: Number(row?.emisiones ?? row?.emisiones_kg_co2e ?? row?.total_emisiones ?? row?.co2e ?? 0) || 0,
     categoria_visible: row?.categoria || row?.categoria_visible || row?.metadata?.aserradero_category || "Otros",
     etapa_visible: row?.etapa_nombre || row?.etapa || row?.metadata?.module || "Sin etapa",
@@ -126,10 +127,20 @@ function DashboardPage({ onStatusChange }) {
       getEmpresaRegistrosAmbientales(activeConstructoraId),
     ]);
 
+    const normalizedRecords = recordsResult.status === "fulfilled" ? normalizeRows(recordsResult.value) : [];
+
     if (dashboardResult.status === "fulfilled") setData(dashboardResult.value);
-    if (estadoResult.status === "fulfilled") onStatusChange?.(estadoResult.value);
     if (emissionsResult.status === "fulfilled") setEmissionKpis(emissionsResult.value?.kpis || null);
-    if (recordsResult.status === "fulfilled") setAmbientRecords(normalizeRows(recordsResult.value));
+    if (recordsResult.status === "fulfilled") setAmbientRecords(normalizedRecords);
+
+    if (estadoResult.status === "fulfilled") {
+      onStatusChange?.({
+        ...estadoResult.value,
+        registros_emision: normalizedRecords.length || estadoResult.value?.registros_emision || 0,
+      });
+    } else if (normalizedRecords.length) {
+      onStatusChange?.({ registros_emision: normalizedRecords.length });
+    }
 
     if (dashboardResult.status === "rejected" && recordsResult.status === "rejected") {
       throw dashboardResult.reason || recordsResult.reason;
