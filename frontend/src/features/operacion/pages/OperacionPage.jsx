@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Factory, Layers3, Route, Settings2, Truck, Zap } from "lucide-react";
 
-import IntelligencePanel from "@/features/intelligence/components/IntelligencePanel";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import ObrasView from "@/features/obras/pages/ObrasPage";
 import EtapasObraView from "@/features/etapas/pages/EtapasPage";
@@ -18,34 +17,34 @@ const tabBaseClass = "rounded-2xl px-4 py-3 text-sm font-black transition";
 function getTabsForPreset(presetKey) {
   if (presetKey === "aserradero") {
     return [
-      { id: "recepcion", label: "Recepción", scope: "dashboard", component: <RecepcionTrozasPage /> },
-      { id: "produccion", label: "Producción", scope: "materiales", component: <ProduccionAserraderoPage /> },
-      { id: "secado", label: "Secado", scope: "energia", component: <SecadoAserraderoPage /> },
-      { id: "energia", label: "Energía", scope: "energia", component: <EnergiaAserraderoPage /> },
-      { id: "transporte", label: "Transporte", scope: "transporte", component: <TransporteForestalPage /> },
-      { id: "lotes", label: "Lotes", scope: "obra", component: <LotesForestalesPage /> },
-      { id: "residuos", label: "Residuos", scope: "evidencias", component: <ResiduosSubproductosPage /> },
+      { id: "recepcion", label: "Recepción", scope: "dashboard", component: <RecepcionTrozasPage />, insight: "Controla entrada de trozas, lote, volumen y trazabilidad desde el origen." },
+      { id: "produccion", label: "Producción", scope: "materiales", component: <ProduccionAserraderoPage />, insight: "Mide rendimiento de aserrío y vincula producción con consumo energético y residuos." },
+      { id: "secado", label: "Secado", scope: "energia", component: <SecadoAserraderoPage />, insight: "Prioriza cámara, humedad y energía para reducir emisiones por etapa de secado." },
+      { id: "energia", label: "Energía", scope: "energia", component: <EnergiaAserraderoPage />, insight: "Separa electricidad, biomasa, generadores y consumo térmico para detectar desvíos." },
+      { id: "transporte", label: "Transporte", scope: "transporte", component: <TransporteForestalPage />, insight: "Evalúa rutas, origen, destino, distancia y carga para estimar huella logística." },
+      { id: "lotes", label: "Lotes", scope: "obra", component: <LotesForestalesPage />, insight: "Los lotes deben volver a conectar recepción, transporte, procesos y emisiones específicas." },
+      { id: "residuos", label: "Residuos", scope: "evidencias", component: <ResiduosSubproductosPage />, insight: "Diferencia residuos, subproductos y valorización para no castigar material aprovechable." },
     ];
   }
 
   if (presetKey === "transporte") {
     return [
-      { id: "flota", label: "Flota", scope: "maquinaria", placeholder: "Administra vehículos, capacidad, estado operativo y emisiones por unidad." },
-      { id: "viajes", label: "Viajes", scope: "transporte", placeholder: "Centraliza viajes, origen, destino, carga y emisiones por ruta." },
-      { id: "combustible", label: "Combustible", scope: "iot", placeholder: "Controla cargas, rendimiento, consumo y telemetría de combustible." },
-      { id: "rutas", label: "Rutas", scope: "transporte", placeholder: "Evalúa rutas frecuentes, kilómetros críticos y oportunidades de optimización." },
-      { id: "mantencion", label: "Mantenciones", scope: "maquinaria", placeholder: "Relaciona mantenimiento, disponibilidad y eficiencia ambiental de la flota." },
+      { id: "flota", label: "Flota", scope: "maquinaria", placeholder: "Administra vehículos, capacidad, estado operativo y emisiones por unidad.", insight: "La flota debe conectar combustible, kilometraje, mantención y carga para medir eficiencia real." },
+      { id: "viajes", label: "Viajes", scope: "transporte", placeholder: "Centraliza viajes, origen, destino, carga y emisiones por ruta.", insight: "Cada viaje debe transformarse en huella por ruta, vehículo y tonelada transportada." },
+      { id: "combustible", label: "Combustible", scope: "iot", placeholder: "Controla cargas, rendimiento, consumo y telemetría de combustible.", insight: "El combustible es el dato operacional más directo para detectar desvíos y consumos anómalos." },
+      { id: "rutas", label: "Rutas", scope: "transporte", placeholder: "Evalúa rutas frecuentes, kilómetros críticos y oportunidades de optimización.", insight: "La distancia debe pasar de dato logístico a variable ambiental prioritaria." },
+      { id: "mantencion", label: "Mantenciones", scope: "maquinaria", placeholder: "Relaciona mantenimiento, disponibilidad y eficiencia ambiental de la flota.", insight: "Mantención deficiente aumenta consumo, ralentí y emisiones por kilómetro." },
     ];
   }
 
   return [
-    { id: "unidades", label: presetKey === "industrial" ? "Líneas" : "Obras", scope: "obra", component: <ObrasView /> },
-    { id: "etapas", label: presetKey === "industrial" ? "Procesos" : "Etapas", scope: "etapas", component: <EtapasObraView /> },
-    { id: "materiales", label: "Materiales", scope: "materiales", placeholder: "Analiza materiales críticos, proveedores y partidas con mayor carbono incorporado." },
-    { id: "maquinaria", label: "Maquinaria", scope: "maquinaria", placeholder: "Controla combustible, horas de uso, ralentí, mantención y desempeño por equipo." },
-    { id: "transporte", label: "Transporte", scope: "transporte", placeholder: "Evalúa viajes, proveedores cercanos, kilómetros y logística asociada a la obra." },
-    { id: "energia", label: "Energía", scope: "energia", placeholder: "Revisa kWh, generadores, horarios de consumo y desviaciones por etapa." },
-    { id: "residuos", label: "Residuos", scope: "evidencias", placeholder: "Gestiona segregación, valorización, retiros trazables y disposición final." },
+    { id: "unidades", label: presetKey === "industrial" ? "Líneas" : "Obras", scope: "obra", component: <ObrasView />, insight: "Cada obra debe mostrar qué etapa, fuente y actividad explican la huella acumulada." },
+    { id: "etapas", label: presetKey === "industrial" ? "Procesos" : "Etapas", scope: "etapas", component: <EtapasObraView />, insight: "Las etapas permiten priorizar dónde intervenir primero sin mirar registros aislados." },
+    { id: "materiales", label: "Materiales", scope: "materiales", placeholder: "Analiza materiales críticos, proveedores y partidas con mayor carbono incorporado.", insight: "Materiales debe responder qué compra o partida concentra carbono incorporado." },
+    { id: "maquinaria", label: "Maquinaria", scope: "maquinaria", placeholder: "Controla combustible, horas de uso, ralentí, mantención y desempeño por equipo.", insight: "Maquinaria debe cruzar consumo, horas encendido y avance para detectar ineficiencia." },
+    { id: "transporte", label: "Transporte", scope: "transporte", placeholder: "Evalúa viajes, proveedores cercanos, kilómetros y logística asociada a la obra.", insight: "Transporte debe estimar huella por ruta y proponer consolidación de viajes." },
+    { id: "energia", label: "Energía", scope: "energia", placeholder: "Revisa kWh, generadores, horarios de consumo y desviaciones por etapa.", insight: "Energía debe separar consumo por etapa para detectar generadores o horarios críticos." },
+    { id: "residuos", label: "Residuos", scope: "evidencias", placeholder: "Gestiona segregación, valorización, retiros trazables y disposición final.", insight: "Residuos debe diferenciar disposición final de valorización para mejorar gestión circular." },
   ];
 }
 
@@ -116,7 +115,13 @@ function OperacionPage() {
         </div>
       </div>
 
-      <IntelligencePanel initialScope={selectedTab.scope || "obra"} compact />
+      <section className="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-[var(--shadow-card)]">
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-800">Lectura del proceso</p>
+        <h2 className="mt-2 text-xl font-black text-[var(--text-main)]">{selectedTab.label}</h2>
+        <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-700">
+          {selectedTab.insight || "Este proceso debe mostrar datos, acciones y trazabilidad ambiental sin repetir la vista completa de inteligencia."}
+        </p>
+      </section>
 
       {selectedTab.component || <OperationPlaceholder tab={selectedTab} />}
     </main>
