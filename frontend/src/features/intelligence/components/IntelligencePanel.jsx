@@ -4,6 +4,7 @@ import { BrainCircuit, CheckCircle2, Clock3, Lightbulb, Radar, Route, Sparkles }
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import { getIntelligenceRecommendations } from "@/shared/services/intelligenceApi";
 import { formatNumber } from "@/shared/utils/formatters";
+import TraceableActionsPanel from "./TraceableActionsPanel";
 
 const scopeOptions = [
   { value: "dashboard", label: "Dashboard" },
@@ -319,6 +320,8 @@ function IntelligencePanel({ initialScope = "dashboard", compact = false }) {
           {cards.map((card) => <RecommendationCard key={card.id} card={card} />)}
         </div>
       )}
+
+      {!loading && !error && <TraceableActionsPanel cards={cards} constructoraId={activeConstructoraId} />}
 
       {!loading && !error && <ActionPlan actions={actions} />}
     </section>
