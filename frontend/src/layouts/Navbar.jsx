@@ -1,9 +1,9 @@
-import { ChevronDown, Leaf, LogOut, UserRound } from "lucide-react";
+import { ChevronDown, Leaf, LogOut, Menu, UserRound } from "lucide-react";
 import { useState } from "react";
 
 import { useAuth } from "@/features/auth/context/AuthContext";
 
-function Navbar({ onSetActiveView }) {
+function Navbar({ onOpenMobileMenu, onSetActiveView }) {
     const { logout, user } = useAuth();
     const [open, setOpen] = useState(false);
 
@@ -15,24 +15,35 @@ function Navbar({ onSetActiveView }) {
 
     return (
         <header className="sticky top-0 z-40 border-b border-emerald-100/80 bg-white/88 px-4 py-3 shadow-[0_14px_42px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:px-6 lg:px-10">
-            <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-                <button
-                    type="button"
-                    onClick={() => onSetActiveView?.("dashboard")}
-                    className="flex items-center gap-3"
-                >
-                    <div className="rounded-2xl border border-emerald-200 bg-[linear-gradient(180deg,#123D34,#0F2D27)] p-2.5 text-emerald-200 shadow-[0_14px_30px_rgba(15,45,39,0.22)]">
-                        <Leaf size={22} />
-                    </div>
-                    <div className="hidden text-left sm:block">
-                        <p className="text-lg font-black tracking-tight text-slate-950">
-                            Carbono Zero
-                        </p>
-                        <p className="text-xs font-semibold text-slate-500">
-                            Inteligencia ambiental por rubro
-                        </p>
-                    </div>
-                </button>
+            <div className="mx-auto flex max-w-none items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={onOpenMobileMenu}
+                        className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-100 bg-white text-slate-700 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 lg:hidden"
+                        aria-label="Abrir menú"
+                    >
+                        <Menu size={20} />
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => onSetActiveView?.("dashboard")}
+                        className="flex items-center gap-3"
+                    >
+                        <div className="rounded-2xl border border-emerald-200 bg-[linear-gradient(180deg,#123D34,#0F2D27)] p-2.5 text-emerald-200 shadow-[0_14px_30px_rgba(15,45,39,0.22)]">
+                            <Leaf size={22} />
+                        </div>
+                        <div className="hidden text-left sm:block">
+                            <p className="text-lg font-black tracking-tight text-slate-950">
+                                Carbono Zero
+                            </p>
+                            <p className="text-xs font-semibold text-slate-500">
+                                Inteligencia ambiental por rubro
+                            </p>
+                        </div>
+                    </button>
+                </div>
 
                 <div className="relative">
                     <button
