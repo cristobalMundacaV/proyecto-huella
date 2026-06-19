@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { FileUp, X } from "lucide-react";
 
 import EmptyState from "@/shared/components/EmptyState";
 import PlatformLoader from "@/shared/components/PlatformLoader";
@@ -46,6 +47,7 @@ function EvidenciasPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [loteFilter, setLoteFilter] = useState("");
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   async function loadData() {
     if (!activeConstructoraId) return;
@@ -146,6 +148,7 @@ function EvidenciasPage() {
 
       await crearEvidenciaConstructora(activeConstructoraId, formData);
       await loadData();
+      setIsUploadModalOpen(false);
     } catch (requestError) {
       const responseData = requestError?.response?.data;
       const firstError =
@@ -193,22 +196,29 @@ function EvidenciasPage() {
         </p>
       ) : null}
 
+      <section className="flex flex-col gap-4 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-[var(--shadow-card)] sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-800">Acción documental</p>
+          <h2 className="mt-1 text-xl font-black text-[var(--text-main)]">Subir evidencia ambiental</h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
+            La carga de documentos se realiza en modal para mantener esta vista enfocada en cobertura, pendientes y trazabilidad.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsUploadModalOpen(true)}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,124,109,0.18)] hover:bg-[var(--primary-dark)]"
+        >
+          <FileUp size={18} />
+          Subir evidencia
+        </button>
+      </section>
+
       <EvidenceKpiGrid kpis={kpis} />
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <EvidenceUploadPanel
-          config={config}
-          constructoraId={activeConstructoraId}
-          lotesForestales={lotesForestales}
-          onSubmit={handleSubmit}
-          presetKey={activePreset.key}
-          records={records}
-          saving={saving}
-        />
-        <div className="space-y-6">
-          <EvidenceChecklist items={config.checklist} />
-          <EvidenceValidationPanel recommendations={recommendations} />
-        </div>
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <EvidenceChecklist items={config.checklist} />
+        <EvidenceValidationPanel recommendations={recommendations} />
       </section>
 
       {activePreset.key === "aserradero" && lotesForestales.length ? (
@@ -236,6 +246,30 @@ function EvidenciasPage() {
       ) : (
         <EvidenceTable config={config} rows={presetRows} />
       )}
+
+      {isUploadModalOpen ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/35 px-4 py-6 backdrop-blur-sm">
+          <div className="relative max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-[32px] border border-emerald-100 bg-white p-4 shadow-[0_30px_90px_rgba(15,23,42,0.22)] sm:p-6">
+            <button
+              type="button"
+              onClick={() => setIsUploadModalOpen(false)}
+              className="absolute right-4 top-4 z-10 rounded-2xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm hover:bg-slate-50"
+              aria-label="Cerrar modal"
+            >
+              <X size={18} />
+            </button>
+            <EvidenceUploadPanel
+              config={config}
+              constructoraId={activeConstructoraId}
+              lotesForestales={lotesForestales}
+              onSubmit={handleSubmit}
+              presetKey={activePreset.key}
+              records={records}
+              saving={saving}
+            />
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
