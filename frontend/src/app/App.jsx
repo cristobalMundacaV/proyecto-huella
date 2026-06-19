@@ -18,6 +18,7 @@ import ObrasView from "@/features/obras/pages/ObrasPage";
 import EtapasObraView from "@/features/etapas/pages/EtapasPage";
 import ReportesView from "@/features/reportes/pages/ReportesView";
 import UsuariosPage from "@/features/usuarios/pages/UsuariosPage";
+import IntelligencePage from "@/features/intelligence/pages/IntelligencePage";
 import RecepcionTrozasPage from "@/presets/aserradero/pages/RecepcionTrozasPage";
 import ProduccionAserraderoPage from "@/presets/aserradero/pages/ProduccionAserraderoPage";
 import SecadoAserraderoPage from "@/presets/aserradero/pages/SecadoAserraderoPage";
@@ -230,6 +231,8 @@ function ActiveView({
   if (activeView === "dashboard") {
     return <DashboardPage onStatusChange={onStatusChange} />;
   }
+
+  if (activeView === "inteligencia") return <IntelligencePage />;
 
   if (activeView === "obras") return <ObrasView />;
 
