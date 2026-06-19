@@ -34,6 +34,7 @@ function EvidenciasTab({
   validatingExtraction,
 }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isExtractionModalDismissed, setIsExtractionModalDismissed] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const evidencias = selectedObra.evidencias || [];
   const totalPages = Math.max(1, Math.ceil(evidencias.length / evidenciasPageSize));
@@ -46,6 +47,10 @@ function EvidenciasTab({
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedObra.codigo_obra]);
+
+  useEffect(() => {
+    setIsExtractionModalDismissed(false);
+  }, [activeExtraction?.id]);
 
   return (
     <section className="space-y-6">
@@ -130,6 +135,18 @@ function EvidenciasTab({
         </div>
       )}
 
+      {activeExtraction && !isExtractionModalDismissed && (
+        <ExtractionReviewModal
+          activeExtraction={activeExtraction}
+          ocrForm={ocrForm}
+          onClose={() => setIsExtractionModalDismissed(true)}
+          onRejectExtraction={onRejectExtraction}
+          onUpdateOcrForm={onUpdateOcrForm}
+          onValidateExtraction={onValidateExtraction}
+          validatingExtraction={validatingExtraction}
+        />
+      )}
+
       <section className="premium-card premium-card-interactive rounded-3xl bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)] sm:p-6">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -162,6 +179,31 @@ function EvidenciasTab({
           </p>
         )}
 
+        {activeExtraction && isExtractionModalDismissed && (
+          <div className="mb-4 flex flex-col gap-3 rounded-3xl border border-[#B8D6DE] bg-[var(--info-bg)] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wide text-[#075985]">Sugerencia OCR pendiente</p>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">Hay datos extraídos esperando revisión antes de aplicar cálculo.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setIsExtractionModalDismissed(false)}
+                className="rounded-2xl border border-[#B8D6DE] bg-white px-4 py-2 text-sm font-black text-[#075985]"
+              >
+                Revisar sugerencia
+              </button>
+              <button
+                type="button"
+                onClick={onRejectExtraction}
+                className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-black text-rose-700"
+              >
+                Rechazar
+              </button>
+            </div>
+          </div>
+        )}
+
         {evidencias.length === 0 && (
           <EmptyEvidenceState onAction={() => setIsModalOpen(true)} />
         )}
@@ -191,56 +233,6 @@ function EvidenciasTab({
               />
             )}
           </>
-        )}
-
-        {activeExtraction && (
-          <div className="mt-5 rounded-3xl border border-[#B8D6DE] bg-[var(--info-bg)] p-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-[#075985]">
-                  Datos sugeridos por evidencia
-                </p>
-                <p className="mt-1 text-sm text-[var(--text-muted)]">
-                  La automatización sugiere datos; el equipo valida antes de aplicar al cálculo.
-                </p>
-              </div>
-              <div className="rounded-2xl border border-[#B8D6DE] bg-white px-4 py-2 text-sm font-bold text-[#075985]">
-                {activeExtraction.estado_revision_label}
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {ocrFields.map(([name, label]) => (
-                <Field key={name} label={label}>
-                  <input
-                    name={name}
-                    value={ocrForm[name] ?? ""}
-                    onChange={onUpdateOcrForm}
-                    className="w-full rounded-2xl border border-[var(--border)] bg-white px-4 py-3 text-[var(--text-main)] outline-none transition focus:border-[var(--primary)]/60"
-                  />
-                </Field>
-              ))}
-            </div>
-
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={onValidateExtraction}
-                disabled={validatingExtraction}
-                className="premium-button-primary flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {validatingExtraction ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
-                Validar y aplicar
-              </button>
-              <button
-                type="button"
-                onClick={onRejectExtraction}
-                className="premium-button-secondary rounded-2xl px-5 py-3 text-sm font-bold"
-              >
-                Rechazar sugerencia
-              </button>
-            </div>
-          </div>
         )}
 
         {documentInsight && (
@@ -276,6 +268,79 @@ function EvidenciasTab({
         )}
       </section>
     </section>
+  );
+}
+
+function ExtractionReviewModal({
+  activeExtraction,
+  ocrForm,
+  onClose,
+  onRejectExtraction,
+  onUpdateOcrForm,
+  onValidateExtraction,
+  validatingExtraction,
+}) {
+  return (
+    <div className="premium-modal-overlay fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4">
+      <div className="premium-modal-shell my-8 w-full max-w-4xl p-4 sm:p-6">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#B8D6DE] bg-[var(--info-bg)] text-[#075985]">
+              <Search size={18} />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-wide text-[#075985]">Datos sugeridos por evidencia</p>
+              <h2 className="mt-1 text-xl font-black text-[var(--text-main)]">Revisar extracción antes de aplicar</h2>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">La automatización sugiere datos; el equipo valida antes de aplicar al cálculo.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-main)] transition hover:bg-slate-100"
+            aria-label="Cerrar modal"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="mb-4 w-fit rounded-2xl border border-[#B8D6DE] bg-white px-4 py-2 text-sm font-bold text-[#075985]">
+          {activeExtraction.estado_revision_label}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {ocrFields.map(([name, label]) => (
+            <Field key={name} label={label}>
+              <input
+                name={name}
+                value={ocrForm[name] ?? ""}
+                onChange={onUpdateOcrForm}
+                className="w-full rounded-2xl border border-[var(--border)] bg-white px-4 py-3 text-[var(--text-main)] outline-none transition focus:border-[var(--primary)]/60"
+              />
+            </Field>
+          ))}
+        </div>
+
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onRejectExtraction}
+            className="premium-button-secondary rounded-2xl px-5 py-3 text-sm font-bold"
+          >
+            Rechazar sugerencia
+          </button>
+          <button
+            type="button"
+            onClick={onValidateExtraction}
+            disabled={validatingExtraction}
+            className="premium-button-primary flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {validatingExtraction ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
+            Validar y aplicar
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
