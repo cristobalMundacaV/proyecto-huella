@@ -17,7 +17,10 @@ import { getActivePreset, getPresetLabel } from "@/presets/registry";
 
 const navigationIconMap = {
   dashboard: LayoutDashboard,
+  inteligencia: DatabaseZap,
   emisiones: Flame,
+  operacion: Factory,
+  administracion: Settings,
   factores: Database,
   constructoras: Building2,
   obras: Boxes,
@@ -155,10 +158,10 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
 
           <button
             type="button"
-            onClick={() => onSetActiveView?.("constructoras")}
+            onClick={() => onSetActiveView?.("administracion")}
             className="w-full rounded-xl border border-emerald-300/15 bg-white/5 px-3 py-2 text-xs font-bold text-emerald-100 transition hover:border-emerald-200/40 hover:bg-white/10"
           >
-            Gestionar empresas
+            Gestionar administración
           </button>
         </div>
       </section>
