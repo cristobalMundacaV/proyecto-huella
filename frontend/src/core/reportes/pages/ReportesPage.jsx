@@ -32,6 +32,77 @@ const defaultFilters = {
   agrupacion: "mes",
 };
 
+function findKpi(report, includes) {
+  const needle = includes.toLowerCase();
+  return report?.kpis?.find((kpi) => String(kpi.label || "").toLowerCase().includes(needle));
+}
+
+function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary, filters, report }) {
+  const empresa = activeConstructora?.nombre || "La empresa";
+  const preset = activePreset?.name || "ambiental";
+  const totalEmissions = findKpi(report, "emisiones")?.value || "Sin datos";
+  const criticalSource = findKpi(report, "fuente")?.value || "Sin datos";
+  const criticalStage = findKpi(report, "etapa")?.value || findKpi(report, "proceso")?.value || "Sin datos";
+  const criticalCategory = findKpi(report, "categoria")?.value || "Sin datos";
+  const records = report?.rows?.length || 0;
+  const activeActions = actionsSummary?.active || 0;
+  const completedActions = actionsSummary?.completed || 0;
+  const overdueActions = actionsSummary?.overdue || 0;
+  const traceabilityPct = actionsSummary?.traceabilityPct || 0;
+  const completionPct = actionsSummary?.completionPct || 0;
+  const hasPeriod = filters?.fecha_inicio || filters?.fecha_fin;
+  const period = hasPeriod
+    ? `${filters.fecha_inicio || "inicio"} a ${filters.fecha_fin || "hoy"}`
+    : "periodo disponible";
+
+  const headline = `${empresa} presenta una lectura ambiental ${records ? "activa" : "pendiente de datos"} para el preset ${preset}.`;
+  const diagnosis = records
+    ? `En el ${periodoClean(period)}, se analizaron ${records} registros y se observó una huella total de ${totalEmissions}. El foco principal se concentra en ${criticalSource}, asociado a ${criticalStage} y a la categoría ${criticalCategory}.`
+    : `En el ${periodoClean(period)}, todavía no existen registros suficientes para construir una lectura ambiental completa.`;
+  const management = actionsSummary?.total
+    ? `La gestión accionable registra ${actionsSummary.total} acciones: ${activeActions} activas, ${completedActions} completadas y ${overdueActions} vencidas. El avance de cierre es ${completionPct}% y la trazabilidad operacional alcanza ${traceabilityPct}%.`
+    : "Todavía no existen acciones ambientales registradas para cerrar el ciclo entre medición, gestión y seguimiento.";
+  const priority = records
+    ? `Priorizar acciones sobre ${criticalSource}, reforzar evidencia operacional y revisar el avance de acciones activas. Un nivel de trazabilidad bajo debe corregirse vinculando acciones a obras, lotes, registros o evidencias.`
+    : "Priorizar carga o importación de registros ambientales para activar diagnóstico, acciones y reportabilidad ejecutiva.";
+
+  const bullets = [
+    `Huella total: ${totalEmissions}`,
+    `Fuente crítica: ${criticalSource}`,
+    `Etapa/proceso crítico: ${criticalStage}`,
+    `Categoría dominante: ${criticalCategory}`,
+    `Acciones activas: ${activeActions}`,
+    `Trazabilidad de acciones: ${traceabilityPct}%`,
+  ];
+
+  const text = [
+    "INFORME EJECUTIVO AMBIENTAL",
+    `Empresa: ${empresa}`,
+    `Preset: ${preset}`,
+    `Periodo: ${periodoClean(period)}`,
+    "",
+    headline,
+    "",
+    "Diagnóstico:",
+    diagnosis,
+    "",
+    "Gestión accionable:",
+    management,
+    "",
+    "Prioridad sugerida:",
+    priority,
+    "",
+    "Indicadores clave:",
+    ...bullets.map((item) => `- ${item}`),
+  ].join("\n");
+
+  return { bullets, diagnosis, headline, management, priority, text };
+}
+
+function periodoClean(value) {
+  return String(value || "periodo disponible").replace(/\s+/g, " ").trim();
+}
+
 function ReportesPage({ activeConstructora: propActiveConstructora, activeConstructoraId: propActiveConstructoraId, onSetActiveView }) {
   const context = useConstructoraActiva();
   const activeConstructora = propActiveConstructora || context.activeConstructora;
@@ -113,14 +184,22 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
     [activeConstructora, activePreset, allRows, dashboardData, filters, reportConfig]
   );
 
+  const executiveBrief = useMemo(
+    () => buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary, filters, report }),
+    [activeConstructora, activePreset, actionsSummary, filters, report]
+  );
+
   const exportPayload = useMemo(
-    () =>
-      reportConfig.buildExportPayload(report, {
+    () => ({
+      ...reportConfig.buildExportPayload(report, {
         activeConstructora,
         activePreset,
         filters,
       }),
-    [activeConstructora, activePreset, filters, report, reportConfig]
+      informe_ejecutivo: executiveBrief,
+      acciones_resumen: actionsSummary,
+    }),
+    [activeConstructora, activePreset, actionsSummary, executiveBrief, filters, report, reportConfig]
   );
 
   function openFiltersModal() {
@@ -174,7 +253,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <ReportExportActions exportPayload={exportPayload} report={report} reportConfig={reportConfig} />
+          <ReportExportActions executiveBriefText={executiveBrief.text} exportPayload={exportPayload} report={report} reportConfig={reportConfig} />
           <button
             onClick={() => loadReport(true)}
             className="inline-flex items-center gap-2 rounded-2xl border border-[#B8D6DE] bg-[var(--info-bg)] px-4 py-3 text-sm font-bold text-[#075985] shadow-[0_12px_24px_rgba(15,23,42,0.05)]"
@@ -211,6 +290,8 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
         reportConfig={reportConfig}
       />
 
+      <ExecutiveBriefCard brief={executiveBrief} />
+
       <ReportActionsSummary onOpenActions={() => onSetActiveView?.("acciones")} summary={actionsSummary} />
 
       {!loading && !report.rows.length ? (
@@ -228,6 +309,52 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
         </>
       )}
     </main>
+  );
+}
+
+function ExecutiveBriefCard({ brief }) {
+  if (!brief) return null;
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[var(--shadow-card)]">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Informe ejecutivo</p>
+          <h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">Lectura ambiental para gerencia</h2>
+          <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--text-muted)]">{brief.headline}</p>
+        </div>
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
+          <p className="text-[10px] font-black uppercase tracking-wide text-emerald-700">Salida</p>
+          <p className="mt-1 text-sm font-black text-emerald-950">TXT + JSON</p>
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="space-y-4">
+          <BriefBlock title="Diagnóstico" text={brief.diagnosis} />
+          <BriefBlock title="Gestión accionable" text={brief.management} />
+          <BriefBlock title="Prioridad sugerida" text={brief.priority} />
+        </div>
+        <div className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Indicadores clave</p>
+          <div className="mt-3 space-y-2">
+            {brief.bullets.map((bullet) => (
+              <div key={bullet} className="rounded-2xl border border-slate-100 bg-white px-3 py-2 text-sm font-bold text-slate-700">
+                {bullet}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BriefBlock({ text, title }) {
+  return (
+    <div className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-700">{text}</p>
+    </div>
   );
 }
 
