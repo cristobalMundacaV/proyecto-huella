@@ -35,6 +35,7 @@ from .views import (
 from .views_acciones import (
     constructora_accion_ambiental_detail,
     constructora_acciones_ambientales,
+    constructora_acciones_ambientales_resumen,
 )
 from .views_constructoras import constructora_detail_safe
 from .views_emisiones import constructora_emisiones
@@ -74,6 +75,7 @@ urlpatterns = [
     path("constructoras/<str:constructora_id>/registros-emision/", constructora_registros_emision),
     path("constructoras/<str:constructora_id>/registros-emision/<int:registro_id>/aplicar-factor/", constructora_registro_aplicar_factor),
     path("constructoras/<str:constructora_id>/emisiones/", constructora_emisiones),
+    path("constructoras/<str:constructora_id>/acciones-ambientales/resumen/", constructora_acciones_ambientales_resumen),
     path("constructoras/<str:constructora_id>/acciones-ambientales/", constructora_acciones_ambientales),
     path("constructoras/<str:constructora_id>/acciones-ambientales/<int:action_id>/", constructora_accion_ambiental_detail),
     path("constructoras/<str:constructora_id>/lotes-forestales/", constructora_lotes_forestales),
