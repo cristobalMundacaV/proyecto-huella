@@ -4,6 +4,12 @@ import { CheckCircle2, Clock3, Leaf, Loader2, Plus, Search, Trash2, X } from "lu
 import EmptyState from "@/shared/components/EmptyState";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import {
+  getConstructoraEvidencias,
+  getConstructoraObras,
+  getConstructoraRegistrosEmision,
+  getLotesForestales,
+} from "@/shared/services/api";
+import {
   createTraceableAction,
   deleteTraceableAction,
   getTraceableActions,
@@ -44,6 +50,26 @@ function emptyDraft() {
   };
 }
 
+function editDraft(action) {
+  return {
+    editingId: action.id,
+    title: action.title || "Acción ambiental",
+    description: action.description || "",
+    responsible: action.responsible || "Equipo ambiental",
+    dueDate: action.dueDate || "",
+    status: action.status || "pendiente",
+    source: action.source || "Gestión ambiental",
+    evidence: action.evidence || "",
+    trackingKpi: action.trackingKpi || "",
+    sourceCardId: action.sourceCardId || "manual",
+    obraCodigo: action.obraCodigo || "",
+    loteId: action.loteId || "",
+    registroId: action.registroId || "",
+    evidenciaId: action.evidenciaId || "",
+    metadata: action.metadata || {},
+  };
+}
+
 function normalizeText(value) {
   return String(value || "")
     .normalize("NFD")
@@ -69,33 +95,95 @@ function linkTypeLabel(type) {
   }[type] || "Vínculo";
 }
 
+function rows(input) {
+  return Array.isArray(input) ? input : input?.results || input?.rows || input?.datos || input?.registros || input?.registros_emision || [];
+}
+
+function safeValue(value) {
+  return value === undefined || value === null ? "" : String(value);
+}
+
+function buildTraceabilityOptions({ evidencias, lotes, obras, registros }) {
+  return {
+    obras: rows(obras).map((obra) => ({
+      value: safeValue(obra.codigo_obra || obra.id),
+      label: `${obra.codigo_obra || obra.id} · ${obra.nombre || "Obra sin nombre"}`,
+    })).filter((item) => item.value),
+    lotes: rows(lotes).map((lote) => ({
+      value: safeValue(lote.lote_id || lote.id),
+      label: `${lote.lote_id || lote.id} · ${lote.especie || lote.tipo_producto || "Lote forestal"}`,
+    })).filter((item) => item.value),
+    registros: rows(registros).slice(0, 120).map((registro) => ({
+      value: safeValue(registro.id),
+      label: `${registro.id} · ${registro.fuente_emision || registro.actividad || "Registro"}`,
+    })).filter((item) => item.value),
+    evidencias: rows(evidencias).slice(0, 120).map((evidencia) => ({
+      value: safeValue(evidencia.id),
+      label: `${evidencia.id} · ${evidencia.nombre || evidencia.tipo_evidencia || "Evidencia"}`,
+    })).filter((item) => item.value),
+  };
+}
+
+function setTraceabilityLink(setDraft, field, value) {
+  setDraft((current) => ({
+    ...current,
+    obraCodigo: field === "obraCodigo" ? value : "",
+    loteId: field === "loteId" ? value : "",
+    registroId: field === "registroId" ? value : "",
+    evidenciaId: field === "evidenciaId" ? value : "",
+  }));
+}
+
 function AccionesAmbientalesPage() {
   const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
   const [actions, setActions] = useState([]);
+  const [traceabilityOptions, setTraceabilityOptions] = useState({ obras: [], lotes: [], registros: [], evidencias: [] });
   const [loading, setLoading] = useState(true);
+  const [loadingLinks, setLoadingLinks] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState(null);
 
-  async function loadActions() {
+  async function loadPageData() {
     if (!activeConstructoraId) return;
     try {
       setLoading(true);
+      setLoadingLinks(true);
       setError("");
-      const data = await getTraceableActions(activeConstructoraId);
-      setActions(Array.isArray(data) ? data : []);
+
+      const [actionsResult, obrasResult, lotesResult, registrosResult, evidenciasResult] = await Promise.allSettled([
+        getTraceableActions(activeConstructoraId),
+        getConstructoraObras(activeConstructoraId),
+        getLotesForestales(activeConstructoraId),
+        getConstructoraRegistrosEmision(activeConstructoraId),
+        getConstructoraEvidencias(activeConstructoraId),
+      ]);
+
+      if (actionsResult.status === "fulfilled") {
+        setActions(Array.isArray(actionsResult.value) ? actionsResult.value : []);
+      } else {
+        throw actionsResult.reason;
+      }
+
+      setTraceabilityOptions(buildTraceabilityOptions({
+        obras: obrasResult.status === "fulfilled" ? obrasResult.value : [],
+        lotes: lotesResult.status === "fulfilled" ? lotesResult.value : [],
+        registros: registrosResult.status === "fulfilled" ? registrosResult.value : [],
+        evidencias: evidenciasResult.status === "fulfilled" ? evidenciasResult.value : [],
+      }));
     } catch (requestError) {
       setError(requestError?.response?.data?.error || "No se pudieron cargar las acciones ambientales.");
     } finally {
       setLoading(false);
+      setLoadingLinks(false);
     }
   }
 
   useEffect(() => {
     setActions([]);
     setDraft(null);
-    loadActions();
+    loadPageData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConstructoraId]);
 
@@ -134,11 +222,16 @@ function AccionesAmbientalesPage() {
     try {
       setSaving(true);
       setError("");
-      const created = await createTraceableAction(activeConstructoraId, draft);
-      setActions((current) => [created, ...current]);
+      if (draft.editingId) {
+        const updated = await updateTraceableAction(activeConstructoraId, draft.editingId, draft);
+        setActions((current) => current.map((action) => (action.id === updated.id ? updated : action)));
+      } else {
+        const created = await createTraceableAction(activeConstructoraId, draft);
+        setActions((current) => [created, ...current]);
+      }
       setDraft(null);
     } catch (requestError) {
-      setError(requestError?.response?.data?.error || "No se pudo crear la acción ambiental.");
+      setError(requestError?.response?.data?.error || "No se pudo guardar la acción ambiental.");
     } finally {
       setSaving(false);
     }
@@ -251,6 +344,7 @@ function AccionesAmbientalesPage() {
                 column={column}
                 key={column.value}
                 onDelete={removeAction}
+                onEdit={(action) => setDraft(editDraft(action))}
                 onUpdateStatus={updateStatus}
               />
             ))}
@@ -266,10 +360,12 @@ function AccionesAmbientalesPage() {
       {draft ? (
         <ActionModal
           draft={draft}
+          loadingLinks={loadingLinks}
           onClose={() => setDraft(null)}
           onSave={saveDraft}
           saving={saving}
           setDraft={setDraft}
+          traceabilityOptions={traceabilityOptions}
         />
       ) : null}
     </main>
@@ -288,7 +384,7 @@ function SummaryCard({ icon, label, value }) {
   );
 }
 
-function ActionColumn({ actions, column, onDelete, onUpdateStatus }) {
+function ActionColumn({ actions, column, onDelete, onEdit, onUpdateStatus }) {
   return (
     <section className="min-h-[240px] rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
       <div className="mb-4">
@@ -333,6 +429,13 @@ function ActionColumn({ actions, column, onDelete, onUpdateStatus }) {
               </select>
               <button
                 type="button"
+                onClick={() => onEdit(action)}
+                className="inline-flex items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700"
+              >
+                Editar
+              </button>
+              <button
+                type="button"
                 onClick={() => onDelete(action.id)}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700"
               >
@@ -347,7 +450,8 @@ function ActionColumn({ actions, column, onDelete, onUpdateStatus }) {
   );
 }
 
-function ActionModal({ draft, onClose, onSave, saving, setDraft }) {
+function ActionModal({ draft, loadingLinks, onClose, onSave, saving, setDraft, traceabilityOptions }) {
+  const editing = Boolean(draft.editingId);
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/35 px-4 py-6 backdrop-blur-sm">
       <form onSubmit={onSave} className="relative max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[32px] border border-emerald-100 bg-white p-5 shadow-[0_30px_90px_rgba(15,23,42,0.22)] sm:p-6">
@@ -356,9 +460,9 @@ function ActionModal({ draft, onClose, onSave, saving, setDraft }) {
         </button>
 
         <div className="mb-5 pr-12">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Nueva acción ambiental</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">{editing ? "Editar acción ambiental" : "Nueva acción ambiental"}</p>
           <h3 className="mt-1 text-2xl font-black text-[var(--text-main)]">Seguimiento trazable</h3>
-          <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">Crea una acción con responsable, fecha, evidencia, KPI y vínculo operacional.</p>
+          <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">Crea o ajusta una acción con responsable, fecha, evidencia, KPI y vínculo operacional.</p>
         </div>
 
         <div className="grid grid-cols-1 gap-4">
@@ -378,15 +482,40 @@ function ActionModal({ draft, onClose, onSave, saving, setDraft }) {
           </div>
 
           <section className="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-4">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-700">Vínculo operacional</p>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-700">Vínculo operacional asistido</p>
             <p className="mt-1 text-xs leading-5 text-emerald-900">
-              Completa solo el vínculo que corresponda. El backend validará que pertenezca a la empresa activa.
+              Elige un solo vínculo. Al seleccionar uno, se limpian los demás para mantener la trazabilidad clara.
             </p>
+            {loadingLinks ? <p className="mt-3 text-xs font-bold text-emerald-800">Cargando opciones de vínculo...</p> : null}
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Código de obra"><input className={inputClass} value={draft.obraCodigo} onChange={(event) => setDraft({ ...draft, obraCodigo: event.target.value })} placeholder="Ej: OBRA-001" /></Field>
-              <Field label="ID de lote forestal"><input className={inputClass} value={draft.loteId} onChange={(event) => setDraft({ ...draft, loteId: event.target.value })} placeholder="Ej: LOTE-PINO-001" /></Field>
-              <Field label="ID registro crítico"><input className={inputClass} value={draft.registroId} onChange={(event) => setDraft({ ...draft, registroId: event.target.value })} placeholder="Ej: 123" /></Field>
-              <Field label="ID evidencia"><input className={inputClass} value={draft.evidenciaId} onChange={(event) => setDraft({ ...draft, evidenciaId: event.target.value })} placeholder="Ej: 45" /></Field>
+              <SelectField
+                label="Obra"
+                options={traceabilityOptions.obras}
+                placeholder="Sin obra vinculada"
+                value={draft.obraCodigo}
+                onChange={(value) => setTraceabilityLink(setDraft, "obraCodigo", value)}
+              />
+              <SelectField
+                label="Lote forestal"
+                options={traceabilityOptions.lotes}
+                placeholder="Sin lote vinculado"
+                value={draft.loteId}
+                onChange={(value) => setTraceabilityLink(setDraft, "loteId", value)}
+              />
+              <SelectField
+                label="Registro crítico"
+                options={traceabilityOptions.registros}
+                placeholder="Sin registro vinculado"
+                value={draft.registroId}
+                onChange={(value) => setTraceabilityLink(setDraft, "registroId", value)}
+              />
+              <SelectField
+                label="Evidencia"
+                options={traceabilityOptions.evidencias}
+                placeholder="Sin evidencia vinculada"
+                value={draft.evidenciaId}
+                onChange={(value) => setTraceabilityLink(setDraft, "evidenciaId", value)}
+              />
             </div>
           </section>
 
@@ -396,10 +525,22 @@ function ActionModal({ draft, onClose, onSave, saving, setDraft }) {
 
         <button type="submit" disabled={saving} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,124,109,0.18)] hover:bg-[var(--primary-dark)] disabled:opacity-60">
           {saving ? <Loader2 className="animate-spin" size={17} /> : <CheckCircle2 size={17} />}
-          {saving ? "Guardando..." : "Guardar acción"}
+          {saving ? "Guardando..." : editing ? "Guardar cambios" : "Guardar acción"}
         </button>
       </form>
     </div>
+  );
+}
+
+function SelectField({ label, onChange, options = [], placeholder, value }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-slate-500">{label}</span>
+      <select className={inputClass} value={value || ""} onChange={(event) => onChange(event.target.value)}>
+        <option value="">{placeholder}</option>
+        {options.map((option) => <option key={`${label}-${option.value}`} value={option.value}>{option.label}</option>)}
+      </select>
+    </label>
   );
 }
 
