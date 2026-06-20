@@ -69,6 +69,13 @@ function ReportExportActions({ executiveBriefText, exportPayload, report, report
     downloadBlob(blob, "informe-ejecutivo-carbono-zero.md");
   };
 
+  const downloadOperationalSummary = () => {
+    const text = buildOperationalSummary({ improvementCycle, priorityFollowUp });
+    if (!text) return;
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    downloadBlob(blob, "seguimiento-operativo-carbono-zero.txt");
+  };
+
   const copyExecutiveBrief = async () => {
     const text = executiveBriefText || "";
     if (!text) return;
@@ -130,10 +137,16 @@ function ReportExportActions({ executiveBriefText, exportPayload, report, report
         Descargar CSV
       </button>
       {hasOperationalSummary ? (
-        <button onClick={copyOperationalSummary} className="inline-flex items-center gap-2 rounded-2xl border border-cyan-200 bg-white px-4 py-3 text-sm font-black text-cyan-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
-          {copiedMode === "operational" ? <CheckCircle2 size={18} /> : <ClipboardCopy size={18} />}
-          {copiedMode === "operational" ? "Seguimiento copiado" : "Copiar seguimiento"}
-        </button>
+        <>
+          <button onClick={copyOperationalSummary} className="inline-flex items-center gap-2 rounded-2xl border border-cyan-200 bg-white px-4 py-3 text-sm font-black text-cyan-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
+            {copiedMode === "operational" ? <CheckCircle2 size={18} /> : <ClipboardCopy size={18} />}
+            {copiedMode === "operational" ? "Seguimiento copiado" : "Copiar seguimiento"}
+          </button>
+          <button onClick={downloadOperationalSummary} className="inline-flex items-center gap-2 rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-black text-cyan-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
+            <Download size={18} />
+            Seguimiento TXT
+          </button>
+        </>
       ) : null}
       {cycleActions.length ? (
         <button onClick={downloadCycleCsv} className="inline-flex items-center gap-2 rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-black text-cyan-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
