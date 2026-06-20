@@ -1,6 +1,9 @@
-import { Download, FileJson, FileText, Printer } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle2, ClipboardCopy, Download, FileJson, FileText, Printer } from "lucide-react";
 
 function ReportExportActions({ executiveBriefText, exportPayload, report, reportConfig }) {
+  const [copied, setCopied] = useState(false);
+
   const downloadJson = () => {
     const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: "application/json" });
     downloadBlob(blob, "reporte-carbono-zero.json");
@@ -25,6 +28,14 @@ function ReportExportActions({ executiveBriefText, exportPayload, report, report
     downloadBlob(blob, "informe-ejecutivo-carbono-zero.md");
   };
 
+  const copyExecutiveBrief = async () => {
+    const text = executiveBriefText || "";
+    if (!text) return;
+    await copyToClipboard(text);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  };
+
   return (
     <div className="flex flex-wrap gap-3">
       <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
@@ -33,6 +44,10 @@ function ReportExportActions({ executiveBriefText, exportPayload, report, report
       </button>
       {executiveBriefText ? (
         <>
+          <button onClick={copyExecutiveBrief} className="inline-flex items-center gap-2 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-black text-teal-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
+            {copied ? <CheckCircle2 size={18} /> : <ClipboardCopy size={18} />}
+            {copied ? "Informe copiado" : "Copiar informe"}
+          </button>
           <button onClick={downloadExecutiveBrief} className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-black text-emerald-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
             <Download size={18} />
             Descargar informe TXT
@@ -87,6 +102,23 @@ function buildExecutiveMarkdown(text = "") {
       return markdownLines;
     }, [`# ${title}`, ""])
     .join("\n");
+}
+
+async function copyToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
 }
 
 function escapeCsv(value) {
