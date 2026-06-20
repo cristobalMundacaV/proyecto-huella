@@ -1,4 +1,4 @@
-import { Download, FileJson, Printer } from "lucide-react";
+import { Download, FileJson, FileText, Printer } from "lucide-react";
 
 function ReportExportActions({ executiveBriefText, exportPayload, report, reportConfig }) {
   const downloadJson = () => {
@@ -19,6 +19,12 @@ function ReportExportActions({ executiveBriefText, exportPayload, report, report
     downloadBlob(blob, "informe-ejecutivo-carbono-zero.txt");
   };
 
+  const downloadExecutiveMarkdown = () => {
+    const markdown = buildExecutiveMarkdown(executiveBriefText);
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    downloadBlob(blob, "informe-ejecutivo-carbono-zero.md");
+  };
+
   return (
     <div className="flex flex-wrap gap-3">
       <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
@@ -26,10 +32,16 @@ function ReportExportActions({ executiveBriefText, exportPayload, report, report
         Imprimir reporte
       </button>
       {executiveBriefText ? (
-        <button onClick={downloadExecutiveBrief} className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-black text-emerald-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
-          <Download size={18} />
-          Descargar informe TXT
-        </button>
+        <>
+          <button onClick={downloadExecutiveBrief} className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-black text-emerald-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
+            <Download size={18} />
+            Descargar informe TXT
+          </button>
+          <button onClick={downloadExecutiveMarkdown} className="inline-flex items-center gap-2 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-black text-violet-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
+            <FileText size={18} />
+            Descargar informe MD
+          </button>
+        </>
       ) : null}
       <button onClick={downloadJson} className="inline-flex items-center gap-2 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-black text-sky-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
         <FileJson size={18} />
@@ -41,6 +53,40 @@ function ReportExportActions({ executiveBriefText, exportPayload, report, report
       </button>
     </div>
   );
+}
+
+function buildExecutiveMarkdown(text = "") {
+  const lines = String(text || "").split("\n");
+  const title = lines[0] || "INFORME EJECUTIVO AMBIENTAL";
+  const body = lines.slice(1);
+
+  return body
+    .reduce((markdownLines, line) => {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        markdownLines.push("");
+        return markdownLines;
+      }
+
+      if (trimmed.endsWith(":")) {
+        markdownLines.push(`## ${trimmed.replace(/:$/, "")}`);
+        return markdownLines;
+      }
+
+      if (trimmed.startsWith("- ")) {
+        markdownLines.push(trimmed);
+        return markdownLines;
+      }
+
+      if (/^\d+\./.test(trimmed)) {
+        markdownLines.push(trimmed);
+        return markdownLines;
+      }
+
+      markdownLines.push(trimmed);
+      return markdownLines;
+    }, [`# ${title}`, ""])
+    .join("\n");
 }
 
 function escapeCsv(value) {
