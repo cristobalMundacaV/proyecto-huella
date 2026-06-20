@@ -4,6 +4,10 @@ function constructoraPath(id, path = "") {
   return `/constructoras/${encodeURIComponent(id)}${path}`;
 }
 
+export async function getTraceableActionsSummary(constructoraId) {
+  return (await api.get(constructoraPath(constructoraId, "/acciones-ambientales/resumen/"))).data;
+}
+
 export async function getTraceableActions(constructoraId) {
   return (await api.get(constructoraPath(constructoraId, "/acciones-ambientales/"))).data;
 }
