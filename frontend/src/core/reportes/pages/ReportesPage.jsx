@@ -177,6 +177,29 @@ function buildReportReadiness({ actionsSummary, records, totalEmissions }) {
   return { checks, passed, score, status, total: checks.length };
 }
 
+function buildClientSummary({ empresa, criticalSource, readiness, records, totalEmissions }) {
+  const intro = records
+    ? `${empresa} ya cuenta con una lectura ambiental activa para el periodo analizado.`
+    : `${empresa} todavía requiere completar su base de datos ambiental para generar una lectura confiable.`;
+  const focus = records
+    ? `La huella disponible es ${totalEmissions} y el foco principal detectado es ${criticalSource}.`
+    : "El primer paso recomendado es cargar registros ambientales suficientes para activar diagnóstico, reportabilidad y seguimiento.";
+  const status = `El reporte está en estado: ${readiness.status} (${readiness.score}% de preparación).`;
+  const nextStep = readiness.score >= 85
+    ? "Se recomienda presentar el reporte y usar la agenda de decisión para acordar próximos responsables y fechas."
+    : readiness.score >= 60
+      ? "Se puede presentar con observaciones, priorizando el cierre de brechas antes de una entrega formal al cliente."
+      : "Se recomienda completar información, acciones y trazabilidad antes de presentarlo como reporte final.";
+
+  return {
+    intro,
+    focus,
+    status,
+    nextStep,
+    text: `${intro}\n${focus}\n${status}\n${nextStep}`,
+  };
+}
+
 function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary, filters, report }) {
   const empresa = activeConstructora?.nombre || "La empresa";
   const preset = activePreset?.name || "ambiental";
@@ -193,6 +216,7 @@ function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary,
   const actionPlan = Array.isArray(actionsSummary?.latestActions) ? actionsSummary.latestActions.slice(0, 5) : [];
   const decisionAgenda = buildDecisionAgenda({ actionsSummary, criticalSource, records });
   const readiness = buildReportReadiness({ actionsSummary, records, totalEmissions });
+  const clientSummary = buildClientSummary({ empresa, criticalSource, readiness, records, totalEmissions });
   const hasPeriod = filters?.fecha_inicio || filters?.fecha_fin;
   const period = hasPeriod ? `${filters.fecha_inicio || "inicio"} a ${filters.fecha_fin || "hoy"}` : "periodo disponible";
 
@@ -224,6 +248,9 @@ function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary,
     "",
     headline,
     "",
+    "Resumen para cliente:",
+    clientSummary.text,
+    "",
     "Estado de preparación del reporte:",
     `${readiness.status} · ${readiness.score}% (${readiness.passed}/${readiness.total} criterios cumplidos)`,
     ...readiness.checks.map((check) => `- ${check.passed ? "OK" : "Pendiente"}: ${check.label} · ${check.detail}`),
@@ -247,11 +274,27 @@ function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary,
     ...(actionPlan.length ? actionPlan.map(formatActionLine) : ["Sin acciones recientes para listar en el plan."]),
   ].join("\n");
 
-  return { actionPlan, bullets, decisionAgenda, diagnosis, headline, management, priority, readiness, text };
+  return { actionPlan, bullets, clientSummary, decisionAgenda, diagnosis, headline, management, priority, readiness, text };
 }
 
 function periodoClean(value) {
   return String(value || "periodo disponible").replace(/\s+/g, " ").trim();
+}
+
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
 }
 
 function ReportesPage({ activeConstructora: propActiveConstructora, activeConstructoraId: propActiveConstructoraId, onSetActiveView }) {
@@ -327,6 +370,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
     () => ({
       ...reportConfig.buildExportPayload(report, { activeConstructora, activePreset, filters }),
       informe_ejecutivo: executiveBrief,
+      resumen_cliente: executiveBrief.clientSummary,
       acciones_resumen: actionsSummary,
       agenda_decision: executiveBrief.decisionAgenda,
       estado_preparacion: executiveBrief.readiness,
@@ -383,6 +427,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
       {error && <div className="rounded-2xl border border-[#F1B8B8] bg-[var(--danger-bg)] p-6 text-[#B42318]">{error}</div>}
 
       <ReportHero activeConstructora={activeConstructora} filters={filters} onOpenFilters={openFiltersModal} preset={activePreset} report={report} reportConfig={reportConfig} />
+      <ClientSummaryCard summary={executiveBrief.clientSummary} />
       <ReportReadinessCard readiness={executiveBrief.readiness} />
       <ExecutiveBriefCard brief={executiveBrief} />
       <DecisionAgendaCard agenda={executiveBrief.decisionAgenda} />
@@ -399,6 +444,38 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
         </>
       )}
     </main>
+  );
+}
+
+function ClientSummaryCard({ summary }) {
+  const [copied, setCopied] = useState(false);
+  if (!summary) return null;
+
+  async function handleCopy() {
+    await copyText(summary.text);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  }
+
+  return (
+    <section className="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-[var(--shadow-card)]">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Resumen para cliente</p>
+          <h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">Versión corta para reunión o correo</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-900">Mensaje breve para explicar el estado ambiental sin entrar en todo el detalle técnico del reporte.</p>
+        </div>
+        <button type="button" onClick={handleCopy} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-black text-emerald-800 shadow-sm hover:bg-emerald-50">
+          <CheckCircle2 size={17} />
+          {copied ? "Resumen copiado" : "Copiar resumen"}
+        </button>
+      </div>
+      <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        {[summary.intro, summary.focus, summary.status, summary.nextStep].map((paragraph, index) => (
+          <div key={`${paragraph}-${index}`} className="rounded-2xl border border-emerald-100 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-700">{paragraph}</div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -421,9 +498,7 @@ function ReportReadinessCard({ readiness }) {
         {readiness.checks.map((check) => (
           <div key={check.key} className="rounded-2xl border border-sky-100 bg-white px-4 py-3">
             <div className="flex items-center gap-2">
-              <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-black ${check.passed ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                {check.passed ? "✓" : "!"}
-              </span>
+              <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-black ${check.passed ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{check.passed ? "✓" : "!"}</span>
               <p className="text-sm font-black text-slate-800">{check.label}</p>
             </div>
             <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">{check.detail}</p>
