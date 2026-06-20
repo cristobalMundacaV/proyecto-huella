@@ -64,6 +64,68 @@ function formatActionLine(action, index) {
   return `${index + 1}. ${action.title || "Acción ambiental"} · Estado: ${statusLabel(action.status)} · Responsable: ${action.responsible || "Equipo ambiental"} · Fecha: ${action.dueDate || "Sin fecha"} · ${actionLinkLabel(action)}`;
 }
 
+function buildDecisionAgenda({ actionsSummary, criticalSource, records }) {
+  const traceabilityPct = Number(actionsSummary?.traceabilityPct || 0);
+  const completionPct = Number(actionsSummary?.completionPct || 0);
+  const overdue = Number(actionsSummary?.overdue || 0);
+  const active = Number(actionsSummary?.active || 0);
+  const unlinked = Number(actionsSummary?.unlinked || 0);
+
+  const agenda = [];
+
+  if (records) {
+    agenda.push({
+      priority: "Alta",
+      decision: `Priorizar foco crítico: ${criticalSource}`,
+      reason: "Es el principal punto de concentración de huella del periodo analizado.",
+      expected: "Reducir impacto donde existe mayor potencial de mejora.",
+    });
+  } else {
+    agenda.push({
+      priority: "Alta",
+      decision: "Completar base de datos ambiental del periodo",
+      reason: "Sin registros suficientes no existe diagnóstico confiable para gerencia.",
+      expected: "Activar medición, comparación y trazabilidad ejecutiva.",
+    });
+  }
+
+  if (overdue > 0) {
+    agenda.push({
+      priority: "Alta",
+      decision: `Resolver ${overdue} acciones vencidas`,
+      reason: "Las acciones vencidas debilitan el seguimiento ambiental y la credibilidad del plan.",
+      expected: "Recuperar control operativo y fechas realistas de ejecución.",
+    });
+  } else if (active > 0) {
+    agenda.push({
+      priority: "Media",
+      decision: `Revisar avance de ${active} acciones activas`,
+      reason: "Hay compromisos abiertos que deben mantenerse visibles hasta su cierre.",
+      expected: "Evitar retrasos y convertir acciones abiertas en evidencia verificable.",
+    });
+  }
+
+  if (traceabilityPct < 80 && (actionsSummary?.total || 0) > 0) {
+    agenda.push({
+      priority: "Media",
+      decision: `Vincular ${unlinked} acciones sin trazabilidad directa`,
+      reason: "Una acción sin vínculo a obra, lote, registro o evidencia es más difícil de auditar.",
+      expected: "Elevar trazabilidad operacional y preparar mejores reportes para clientes o licitaciones.",
+    });
+  }
+
+  if (completionPct < 50 && (actionsSummary?.total || 0) > 0) {
+    agenda.push({
+      priority: "Media",
+      decision: "Definir meta de cierre de acciones para el próximo periodo",
+      reason: "El avance de cierre aún está bajo para demostrar gestión ambiental continua.",
+      expected: "Aumentar porcentaje de acciones completadas y respaldadas.",
+    });
+  }
+
+  return agenda.slice(0, 4);
+}
+
 function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary, filters, report }) {
   const empresa = activeConstructora?.nombre || "La empresa";
   const preset = activePreset?.name || "ambiental";
@@ -78,6 +140,7 @@ function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary,
   const traceabilityPct = actionsSummary?.traceabilityPct || 0;
   const completionPct = actionsSummary?.completionPct || 0;
   const actionPlan = Array.isArray(actionsSummary?.latestActions) ? actionsSummary.latestActions.slice(0, 5) : [];
+  const decisionAgenda = buildDecisionAgenda({ actionsSummary, criticalSource, records });
   const hasPeriod = filters?.fecha_inicio || filters?.fecha_fin;
   const period = hasPeriod
     ? `${filters.fecha_inicio || "inicio"} a ${filters.fecha_fin || "hoy"}`
@@ -120,6 +183,9 @@ function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary,
     "Prioridad sugerida:",
     priority,
     "",
+    "Agenda de decisión ejecutiva:",
+    ...(decisionAgenda.length ? decisionAgenda.map((item, index) => `${index + 1}. [${item.priority}] ${item.decision} · ${item.reason} Resultado esperado: ${item.expected}`) : ["Sin decisiones sugeridas para este periodo."]),
+    "",
     "Indicadores clave:",
     ...bullets.map((item) => `- ${item}`),
     "",
@@ -127,7 +193,7 @@ function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary,
     ...(actionPlan.length ? actionPlan.map(formatActionLine) : ["Sin acciones recientes para listar en el plan."]),
   ].join("\n");
 
-  return { actionPlan, bullets, diagnosis, headline, management, priority, text };
+  return { actionPlan, bullets, decisionAgenda, diagnosis, headline, management, priority, text };
 }
 
 function periodoClean(value) {
@@ -161,23 +227,14 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
         getTraceableActionsSummary(activeConstructoraId),
       ]);
 
-      if (recordsResult.status === "fulfilled") {
-        setAllRows(normalizeReportRows(recordsResult.value));
-      } else {
-        setAllRows([]);
-      }
+      if (recordsResult.status === "fulfilled") setAllRows(normalizeReportRows(recordsResult.value));
+      else setAllRows([]);
 
-      if (dashboardResult.status === "fulfilled") {
-        setDashboardData(dashboardResult.value);
-      } else {
-        setDashboardData(null);
-      }
+      if (dashboardResult.status === "fulfilled") setDashboardData(dashboardResult.value);
+      else setDashboardData(null);
 
-      if (actionsSummaryResult.status === "fulfilled") {
-        setActionsSummary(actionsSummaryResult.value);
-      } else {
-        setActionsSummary(null);
-      }
+      if (actionsSummaryResult.status === "fulfilled") setActionsSummary(actionsSummaryResult.value);
+      else setActionsSummary(null);
 
       if (recordsResult.status === "rejected" && dashboardResult.status === "rejected") {
         throw recordsResult.reason || dashboardResult.reason;
@@ -205,13 +262,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
   }, [activeConstructoraId, activePreset.key]);
 
   const report = useMemo(
-    () =>
-      reportConfig.buildReport(allRows, filters, {
-        activeConstructora,
-        activePreset,
-        dashboardData,
-        filters,
-      }),
+    () => reportConfig.buildReport(allRows, filters, { activeConstructora, activePreset, dashboardData, filters }),
     [activeConstructora, activePreset, allRows, dashboardData, filters, reportConfig]
   );
 
@@ -222,13 +273,10 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
 
   const exportPayload = useMemo(
     () => ({
-      ...reportConfig.buildExportPayload(report, {
-        activeConstructora,
-        activePreset,
-        filters,
-      }),
+      ...reportConfig.buildExportPayload(report, { activeConstructora, activePreset, filters }),
       informe_ejecutivo: executiveBrief,
       acciones_resumen: actionsSummary,
+      agenda_decision: executiveBrief.decisionAgenda,
       plan_accion: executiveBrief.actionPlan,
     }),
     [activeConstructora, activePreset, actionsSummary, executiveBrief, filters, report, reportConfig]
@@ -266,12 +314,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
   }
 
   if (loading && !hasLoaded) {
-    return (
-      <PlatformLoader
-        title="Cargando reportes"
-        description="Estamos preparando tendencias, KPIs del periodo y tablas ambientales del preset activo."
-      />
-    );
+    return <PlatformLoader title="Cargando reportes" description="Estamos preparando tendencias, KPIs del periodo y tablas ambientales del preset activo." />;
   }
 
   return (
@@ -280,61 +323,30 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-[var(--secondary)]">Reporte adaptativo</p>
           <h1 className="mt-2 text-3xl font-black sm:text-4xl">Reportes</h1>
-          <p className="mt-2 text-[var(--text-muted)]">
-            Analiza tendencias, fuentes criticas, acciones y trazabilidad con lenguaje del preset activo.
-          </p>
+          <p className="mt-2 text-[var(--text-muted)]">Analiza tendencias, fuentes criticas, acciones y trazabilidad con lenguaje del preset activo.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <ReportExportActions executiveBriefText={executiveBrief.text} exportPayload={exportPayload} report={report} reportConfig={reportConfig} />
-          <button
-            onClick={() => loadReport(true)}
-            className="inline-flex items-center gap-2 rounded-2xl border border-[#B8D6DE] bg-[var(--info-bg)] px-4 py-3 text-sm font-bold text-[#075985] shadow-[0_12px_24px_rgba(15,23,42,0.05)]"
-          >
+          <button onClick={() => loadReport(true)} className="inline-flex items-center gap-2 rounded-2xl border border-[#B8D6DE] bg-[var(--info-bg)] px-4 py-3 text-sm font-bold text-[#075985] shadow-[0_12px_24px_rgba(15,23,42,0.05)]">
             <RefreshCcw size={18} />
             Actualizar
           </button>
         </div>
       </div>
 
-      {isFiltersModalOpen && (
-        <ReportFiltersModal
-          draftFilters={draftFilters}
-          groupingOptions={reportConfig.groupingOptions}
-          onApply={applyFilters}
-          onChange={setDraftFilters}
-          onClear={clearFilters}
-          onClose={() => setIsFiltersModalOpen(false)}
-        />
-      )}
+      {isFiltersModalOpen && <ReportFiltersModal draftFilters={draftFilters} groupingOptions={reportConfig.groupingOptions} onApply={applyFilters} onChange={setDraftFilters} onClear={clearFilters} onClose={() => setIsFiltersModalOpen(false)} />}
 
-      {error && (
-        <div className="rounded-2xl border border-[#F1B8B8] bg-[var(--danger-bg)] p-6 text-[#B42318]">
-          {error}
-        </div>
-      )}
+      {error && <div className="rounded-2xl border border-[#F1B8B8] bg-[var(--danger-bg)] p-6 text-[#B42318]">{error}</div>}
 
-      <ReportHero
-        activeConstructora={activeConstructora}
-        filters={filters}
-        onOpenFilters={openFiltersModal}
-        preset={activePreset}
-        report={report}
-        reportConfig={reportConfig}
-      />
+      <ReportHero activeConstructora={activeConstructora} filters={filters} onOpenFilters={openFiltersModal} preset={activePreset} report={report} reportConfig={reportConfig} />
 
       <ExecutiveBriefCard brief={executiveBrief} />
-
+      <DecisionAgendaCard agenda={executiveBrief.decisionAgenda} />
       <ReportActionPlan onOpenActions={() => onSetActiveView?.("acciones")} actions={executiveBrief.actionPlan} />
-
       <ReportActionsSummary onOpenActions={() => onSetActiveView?.("acciones")} summary={actionsSummary} />
 
       {!loading && !report.rows.length ? (
-        <EmptyReportState
-          message={report.emptyMessage}
-          onImport={() => onSetActiveView?.("importaciones")}
-          onPrimary={() => onSetActiveView?.(report.primaryModuleView || "emisiones")}
-          preset={activePreset}
-        />
+        <EmptyReportState message={report.emptyMessage} onImport={() => onSetActiveView?.("importaciones")} onPrimary={() => onSetActiveView?.(report.primaryModuleView || "emisiones")} preset={activePreset} />
       ) : (
         <>
           <ReportKpiGrid kpis={report.kpis} />
@@ -371,11 +383,7 @@ function ExecutiveBriefCard({ brief }) {
         <div className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Indicadores clave</p>
           <div className="mt-3 space-y-2">
-            {brief.bullets.map((bullet) => (
-              <div key={bullet} className="rounded-2xl border border-slate-100 bg-white px-3 py-2 text-sm font-bold text-slate-700">
-                {bullet}
-              </div>
-            ))}
+            {brief.bullets.map((bullet) => <div key={bullet} className="rounded-2xl border border-slate-100 bg-white px-3 py-2 text-sm font-bold text-slate-700">{bullet}</div>)}
           </div>
         </div>
       </div>
@@ -392,6 +400,33 @@ function BriefBlock({ text, title }) {
   );
 }
 
+function DecisionAgendaCard({ agenda = [] }) {
+  return (
+    <section className="rounded-3xl border border-amber-200 bg-amber-50/70 p-5 shadow-[var(--shadow-card)]">
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-700">Agenda de decisión ejecutiva</p>
+        <h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">Decisiones sugeridas para gerencia</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-amber-900">Prioridades concretas para transformar la lectura ambiental en acuerdos, responsables y seguimiento.</p>
+      </div>
+      <div className="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-2">
+        {agenda.length ? agenda.map((item, index) => (
+          <article key={`${item.decision}-${index}`} className="rounded-3xl border border-amber-100 bg-white p-4 shadow-[0_10px_22px_rgba(15,23,42,0.04)]">
+            <div className="flex items-center justify-between gap-3">
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-800">{item.priority}</span>
+              <span className="text-xs font-black uppercase tracking-wide text-slate-400">Decisión {index + 1}</span>
+            </div>
+            <h3 className="mt-3 text-base font-black text-[var(--text-main)]">{item.decision}</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{item.reason}</p>
+            <p className="mt-3 rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600"><strong>Resultado esperado:</strong> {item.expected}</p>
+          </article>
+        )) : (
+          <div className="rounded-3xl border border-dashed border-amber-200 bg-white/70 p-6 text-center text-sm font-bold text-amber-900">Sin decisiones sugeridas para este periodo.</div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function ReportActionPlan({ actions = [], onOpenActions }) {
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[var(--shadow-card)]">
@@ -399,15 +434,9 @@ function ReportActionPlan({ actions = [], onOpenActions }) {
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Plan de acción ambiental</p>
           <h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">Acciones priorizadas para seguimiento</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
-            Lista de acciones recientes para revisar responsables, vencimientos y trazabilidad operacional desde el reporte.
-          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">Lista de acciones recientes para revisar responsables, vencimientos y trazabilidad operacional desde el reporte.</p>
         </div>
-        <button
-          type="button"
-          onClick={onOpenActions}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800 shadow-sm hover:bg-emerald-100"
-        >
+        <button type="button" onClick={onOpenActions} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800 shadow-sm hover:bg-emerald-100">
           <CheckCircle2 size={17} />
           Abrir tablero
         </button>
@@ -436,9 +465,7 @@ function ReportActionPlan({ actions = [], onOpenActions }) {
           ))}
         </div>
       ) : (
-        <div className="mt-5 rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm font-bold text-[var(--text-muted)]">
-          No hay acciones recientes para listar en este reporte.
-        </div>
+        <div className="mt-5 rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm font-bold text-[var(--text-muted)]">No hay acciones recientes para listar en este reporte.</div>
       )}
     </section>
   );
@@ -453,16 +480,10 @@ function ReportActionsSummary({ onOpenActions, summary }) {
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Gestión accionable</p>
           <h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">Acciones ambientales del periodo</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-900">
-            {summary.total
-              ? `${summary.active} acciones siguen activas, ${summary.completed} están cerradas y ${summary.traceabilityPct || 0}% tiene vínculo operacional.`
-              : "Aún no hay acciones ambientales trazables para incorporar al reporte."}
+            {summary.total ? `${summary.active} acciones siguen activas, ${summary.completed} están cerradas y ${summary.traceabilityPct || 0}% tiene vínculo operacional.` : "Aún no hay acciones ambientales trazables para incorporar al reporte."}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onOpenActions}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-black text-emerald-800 shadow-sm hover:bg-emerald-50"
-        >
+        <button type="button" onClick={onOpenActions} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-black text-emerald-800 shadow-sm hover:bg-emerald-50">
           <CheckCircle2 size={17} />
           Revisar acciones
         </button>
@@ -491,30 +512,16 @@ function ReportActionMetric({ icon, label, value }) {
 function EmptyReportState({ message, onImport, onPrimary, preset }) {
   return (
     <section className="rounded-3xl border border-[var(--border)] bg-[linear-gradient(135deg,#FFFFFF_0%,#F8FAFC_45%,#ECFDF5_100%)] p-8 text-center shadow-[var(--shadow-card)]">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl border border-[#A7F3D0] bg-[#ECFDF5] text-[#047857]">
-        <BarChart3 size={28} />
-      </div>
-      <p className="mt-5 text-xs font-black uppercase tracking-[0.16em] text-[var(--primary-dark)]">
-        Sin datos para {preset.name}
-      </p>
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl border border-[#A7F3D0] bg-[#ECFDF5] text-[#047857]"><BarChart3 size={28} /></div>
+      <p className="mt-5 text-xs font-black uppercase tracking-[0.16em] text-[var(--primary-dark)]">Sin datos para {preset.name}</p>
       <h2 className="mt-2 text-2xl font-black text-[var(--text-main)]">No hay registros en el periodo seleccionado</h2>
-      <p className="mx-auto mt-3 max-w-2xl text-sm font-medium leading-7 text-[var(--text-muted)]">
-        {message}
-      </p>
+      <p className="mx-auto mt-3 max-w-2xl text-sm font-medium leading-7 text-[var(--text-muted)]">{message}</p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
-        <button
-          onClick={onImport}
-          className="inline-flex items-center gap-2 rounded-2xl border border-[#A7F3D0] bg-[#ECFDF5] px-5 py-3 text-sm font-black text-[#047857] shadow-[0_12px_24px_rgba(15,23,42,0.06)]"
-        >
+        <button onClick={onImport} className="inline-flex items-center gap-2 rounded-2xl border border-[#A7F3D0] bg-[#ECFDF5] px-5 py-3 text-sm font-black text-[#047857] shadow-[0_12px_24px_rgba(15,23,42,0.06)]">
           <Database size={17} />
           Ir a Importacion de datos
         </button>
-        <button
-          onClick={onPrimary}
-          className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)] px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(14,124,102,0.18)]"
-        >
-          Activar modulo operativo
-        </button>
+        <button onClick={onPrimary} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)] px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(14,124,102,0.18)]">Activar modulo operativo</button>
       </div>
     </section>
   );
