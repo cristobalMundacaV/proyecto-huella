@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, Database, RefreshCcw } from "lucide-react";
+import { BarChart3, CheckCircle2, Clock3, Database, RefreshCcw } from "lucide-react";
 
 import PlatformLoader from "@/shared/components/PlatformLoader";
+import { getTraceableActionsSummary } from "@/features/intelligence/services/traceableActionsApi";
 import { getConstructoraDashboard, getEmpresaRegistrosAmbientales } from "@/shared/services/api";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import { DEFAULT_PRESET_KEY, getActivePreset } from "@/presets/registry";
@@ -39,6 +40,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
   const reportConfig = reportByPreset[activePreset.key] || construccionReport;
   const [allRows, setAllRows] = useState([]);
   const [dashboardData, setDashboardData] = useState(null);
+  const [actionsSummary, setActionsSummary] = useState(null);
   const [filters, setFilters] = useState(defaultFilters);
   const [draftFilters, setDraftFilters] = useState(defaultFilters);
   const [isFiltersModalOpen, setIsFiltersModalOpen] = useState(false);
@@ -51,9 +53,10 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
     try {
       if (showLoading) setLoading(true);
       setError("");
-      const [recordsResult, dashboardResult] = await Promise.allSettled([
+      const [recordsResult, dashboardResult, actionsSummaryResult] = await Promise.allSettled([
         getEmpresaRegistrosAmbientales(activeConstructoraId),
         getConstructoraDashboard(activeConstructoraId, { light: "1" }),
+        getTraceableActionsSummary(activeConstructoraId),
       ]);
 
       if (recordsResult.status === "fulfilled") {
@@ -66,6 +69,12 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
         setDashboardData(dashboardResult.value);
       } else {
         setDashboardData(null);
+      }
+
+      if (actionsSummaryResult.status === "fulfilled") {
+        setActionsSummary(actionsSummaryResult.value);
+      } else {
+        setActionsSummary(null);
       }
 
       if (recordsResult.status === "rejected" && dashboardResult.status === "rejected") {
@@ -82,6 +91,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
   useEffect(() => {
     setAllRows([]);
     setDashboardData(null);
+    setActionsSummary(null);
     setFilters(defaultFilters);
     setDraftFilters(defaultFilters);
     setHasLoaded(false);
@@ -160,7 +170,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
           <p className="text-xs font-bold uppercase tracking-wide text-[var(--secondary)]">Reporte adaptativo</p>
           <h1 className="mt-2 text-3xl font-black sm:text-4xl">Reportes</h1>
           <p className="mt-2 text-[var(--text-muted)]">
-            Analiza tendencias, fuentes criticas y registros con lenguaje del preset activo.
+            Analiza tendencias, fuentes criticas, acciones y trazabilidad con lenguaje del preset activo.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -201,6 +211,8 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
         reportConfig={reportConfig}
       />
 
+      <ReportActionsSummary onOpenActions={() => onSetActiveView?.("acciones")} summary={actionsSummary} />
+
       {!loading && !report.rows.length ? (
         <EmptyReportState
           message={report.emptyMessage}
@@ -216,6 +228,50 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
         </>
       )}
     </main>
+  );
+}
+
+function ReportActionsSummary({ onOpenActions, summary }) {
+  if (!summary) return null;
+  return (
+    <section className="rounded-3xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-[var(--shadow-card)]">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Gestión accionable</p>
+          <h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">Acciones ambientales del periodo</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-900">
+            {summary.total
+              ? `${summary.active} acciones siguen activas, ${summary.completed} están cerradas y ${summary.traceabilityPct || 0}% tiene vínculo operacional.`
+              : "Aún no hay acciones ambientales trazables para incorporar al reporte."}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenActions}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-black text-emerald-800 shadow-sm hover:bg-emerald-50"
+        >
+          <CheckCircle2 size={17} />
+          Revisar acciones
+        </button>
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-5">
+        <ReportActionMetric icon={<CheckCircle2 size={16} />} label="Total" value={summary.total || 0} />
+        <ReportActionMetric icon={<Clock3 size={16} />} label="Activas" value={summary.active || 0} />
+        <ReportActionMetric icon={<Clock3 size={16} />} label="Vencidas" value={summary.overdue || 0} />
+        <ReportActionMetric icon={<CheckCircle2 size={16} />} label="Cierre" value={`${summary.completionPct || 0}%`} />
+        <ReportActionMetric icon={<CheckCircle2 size={16} />} label="Trazabilidad" value={`${summary.traceabilityPct || 0}%`} />
+      </div>
+    </section>
+  );
+}
+
+function ReportActionMetric({ icon, label, value }) {
+  return (
+    <div className="rounded-2xl border border-emerald-200 bg-white/85 px-4 py-3 text-center">
+      <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">{icon}</div>
+      <p className="mt-2 text-[10px] font-black uppercase tracking-wide text-emerald-700">{label}</p>
+      <p className="mt-1 text-xl font-black text-emerald-950">{value}</p>
+    </div>
   );
 }
 
