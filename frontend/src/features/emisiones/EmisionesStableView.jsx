@@ -3,9 +3,11 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
+  CheckCircle2,
   Factory,
   Layers3,
   Leaf,
+  Loader2,
   PackageCheck,
   Route,
   Search,
@@ -15,6 +17,7 @@ import {
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { createTraceableAction } from "@/features/intelligence/services/traceableActionsApi";
 import EmptyState from "@/shared/components/EmptyState";
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import { getConstructoraEmisiones } from "@/shared/services/api";
@@ -33,6 +36,12 @@ function normalizeText(value) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+}
+
+function todayPlus(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 function normalizeRows(input) {
@@ -79,6 +88,16 @@ function categoryBucket(category) {
   return "otros";
 }
 
+function rowLoteId(row = {}) {
+  const metadata = row.metadata && typeof row.metadata === "object" ? row.metadata : {};
+  return metadata.lote || metadata.lote_id || metadata.lote_forestal || row.lote_id || row.lote_forestal_id || "";
+}
+
+function rowObraCodigo(row = {}) {
+  const metadata = row.metadata && typeof row.metadata === "object" ? row.metadata : {};
+  return row.codigo_obra || row.obra_codigo || metadata.codigo_obra || metadata.obra_codigo || metadata.obra || "";
+}
+
 function buildLifecycleUnits(rows, totalEmissions) {
   const grouped = rows.reduce((accumulator, row) => {
     const key = row.obra_visible || "Sin unidad";
@@ -95,6 +114,9 @@ function buildLifecycleUnits(rows, totalEmissions) {
       fuentes: {},
       etapas: {},
       rows: [],
+      loteId: "",
+      obraCodigo: "",
+      registroId: "",
     };
 
     const value = Number(row.emisiones || 0);
@@ -105,6 +127,9 @@ function buildLifecycleUnits(rows, totalEmissions) {
     current.fuentes[row.fuente_visible] = (current.fuentes[row.fuente_visible] || 0) + value;
     current.etapas[row.etapa_visible] = (current.etapas[row.etapa_visible] || 0) + value;
     current.rows.push(row);
+    if (!current.loteId) current.loteId = rowLoteId(row);
+    if (!current.obraCodigo) current.obraCodigo = rowObraCodigo(row);
+    if (!current.registroId && row.id) current.registroId = row.id;
     accumulator[key] = current;
     return accumulator;
   }, {});
@@ -269,7 +294,7 @@ function CycleMetric({ icon, label, value }) {
   );
 }
 
-function LifecycleDetailModal({ activePreset, onClose, totalEmissions, unit }) {
+function LifecycleDetailModal({ activePreset, actionStatus, onClose, onCreateAction, totalEmissions, unit }) {
   const label = activePreset === "aserradero" ? "lote/producto" : "obra/unidad";
   const rows = [...(unit.rows || [])].sort((left, right) => String(right.fecha || "").localeCompare(String(left.fecha || "")));
   const topSources = sortedEntries(unit.fuentes).slice(0, 5);
@@ -309,13 +334,29 @@ function LifecycleDetailModal({ activePreset, onClose, totalEmissions, unit }) {
         </section>
 
         <section className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-800">Acción sugerida</p>
               <h3 className="mt-1 text-xl font-black text-[var(--text-main)]">Prioriza el bloque dominante antes de optimizar detalles menores</h3>
               <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-700">{actionFocus}</p>
+              {actionStatus?.message ? (
+                <p className={`mt-3 rounded-2xl border px-3 py-2 text-xs font-black ${actionStatus.type === "success" ? "border-emerald-200 bg-white text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+                  {actionStatus.message}
+                </p>
+              ) : null}
             </div>
-            <AlertTriangle className="text-emerald-700" size={28} />
+            <div className="flex shrink-0 flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => onCreateAction(unit, actionFocus)}
+                disabled={actionStatus?.loading}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,124,109,0.18)] hover:bg-[var(--primary-dark)] disabled:opacity-60"
+              >
+                {actionStatus?.loading ? <Loader2 className="animate-spin" size={17} /> : <CheckCircle2 size={17} />}
+                Crear acción trazable
+              </button>
+              <AlertTriangle className="mx-auto text-emerald-700" size={28} />
+            </div>
           </div>
         </section>
 
@@ -398,13 +439,14 @@ function RankingList({ rows, title }) {
   );
 }
 
-function EmisionesStableView() {
+function EmisionesStableView({ onSetActiveView }) {
   const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [selectedLifecycleUnit, setSelectedLifecycleUnit] = useState(null);
+  const [actionStatus, setActionStatus] = useState({ loading: false, message: "", type: "" });
 
   useEffect(() => {
     let cancelled = false;
@@ -424,6 +466,7 @@ function EmisionesStableView() {
     }
 
     setSelectedLifecycleUnit(null);
+    setActionStatus({ loading: false, message: "", type: "" });
     load();
 
     return () => {
@@ -454,6 +497,44 @@ function EmisionesStableView() {
   const criticalStage = byStage[0]?.etapa || data?.kpis?.unidad_critica || data?.kpis?.etapa_critica || "Sin datos";
   const criticalSource = bySource[0]?.fuente || data?.kpis?.fuente_critica || "Sin datos";
   const sourceShare = totalEmissions > 0 && bySource[0]?.emisiones ? (bySource[0].emisiones / totalEmissions) * 100 : 0;
+
+  async function handleCreateLifecycleAction(unit, actionFocus) {
+    if (!activeConstructoraId || !unit) return;
+    try {
+      setActionStatus({ loading: true, message: "", type: "" });
+      const payload = {
+        title: `Reducir huella crítica en ${unit.unidad}`,
+        description: actionFocus,
+        responsible: "Equipo ambiental",
+        dueDate: todayPlus(14),
+        status: "pendiente",
+        source: "Gestión de huella · Ciclo completo",
+        evidence: "Registro operativo, respaldo documental y evidencia asociada al foco crítico.",
+        trackingKpi: `kg CO₂e en ${unit.fuenteCritica}`,
+        sourceCardId: "lifecycle_detail",
+        obraCodigo: unit.obraCodigo || "",
+        loteId: unit.loteId || "",
+        registroId: unit.registroId || "",
+        metadata: {
+          origin: "emisiones_lifecycle_detail",
+          unidad: unit.unidad,
+          fuente_critica: unit.fuenteCritica,
+          etapa_critica: unit.etapaCritica,
+          emisiones_kg_co2e: unit.emisiones,
+          participacion_pct: unit.participacion,
+          cobertura_ciclo: unit.coberturaCiclo,
+        },
+      };
+      await createTraceableAction(activeConstructoraId, payload);
+      setActionStatus({ loading: false, message: "Acción creada y enviada al tablero de Acciones.", type: "success" });
+    } catch (requestError) {
+      setActionStatus({
+        loading: false,
+        message: requestError?.response?.data?.error || "No se pudo crear la acción trazable.",
+        type: "error",
+      });
+    }
+  }
 
   if (!activeConstructoraId) {
     return (
@@ -486,95 +567,103 @@ function EmisionesStableView() {
             <p className="font-black text-emerald-900">Lectura de huella</p>
             <p className="mt-1 max-w-sm leading-6 text-slate-600">
               {criticalSource !== "Sin datos"
-                ? `La fuente ${criticalSource} concentra ${formatNumber(sourceShare, 1)}% del impacto medido. Revisa cantidad, factor y etapa antes de intervenir fuentes menores.`
-                : "Carga registros válidos para identificar una fuente crítica y priorizar acciones de reducción."}
+                ? `La fuente ${criticalSource} explica ${formatNumber(sourceShare, 1)}% de la huella registrada.`
+                : "Aún no hay suficientes datos para determinar una fuente crítica."}
             </p>
+            {onSetActiveView ? (
+              <button type="button" onClick={() => onSetActiveView("acciones")} className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-800 hover:bg-emerald-100">
+                Ver acciones trazables
+              </button>
+            ) : null}
           </div>
         </div>
       </section>
 
-      {error && <p className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800">{error}</p>}
+      {error && (
+        <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 text-sm font-bold text-rose-800">
+          {error}
+        </div>
+      )}
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard icon={<Activity />} label="Emisiones totales" value={`${formatNumber(totalEmissions, 1)} kg CO₂e`} />
-        <KpiCard icon={<Layers3 />} label="Categoría crítica" value={criticalCategory} />
-        <KpiCard icon={<Factory />} label="Etapa prioritaria" value={criticalStage} />
-        <KpiCard icon={<Target />} label="Fuente crítica" value={criticalSource} detail={`${formatNumber(sourceShare, 1)}% del total`} />
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <KpiCard icon={<Leaf size={22} />} label="Huella total" value={`${formatNumber(totalEmissions, 1)} kg`} detail="CO₂e registrado" />
+        <KpiCard icon={<Target size={22} />} label="Fuente crítica" value={criticalSource} detail={`${formatNumber(sourceShare, 1)}% del total`} />
+        <KpiCard icon={<Layers3 size={22} />} label="Etapa prioritaria" value={criticalStage} detail="unidad de mayor impacto" />
+        <KpiCard icon={<Activity size={22} />} label="Categoría crítica" value={criticalCategory} detail="bloque dominante" />
       </section>
 
       <LifecycleOverview
         activePreset={activeConstructora?.preset}
         lifecycleUnits={lifecycleUnits}
-        onSelectUnit={setSelectedLifecycleUnit}
+        onSelectUnit={(unit) => {
+          setActionStatus({ loading: false, message: "", type: "" });
+          setSelectedLifecycleUnit(unit);
+        }}
       />
 
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <HorizontalChart title="Emisiones por etapa" data={byStage} nameKey="etapa" dataKey="emisiones" />
-        <HorizontalChart title="Emisiones por fuente" data={bySource} nameKey="fuente" dataKey="emisiones" />
-      </section>
-
       <section className="rounded-[30px] border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-[var(--shadow-card)] ring-1 ring-white/70">
-        <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Trazabilidad ambiental</p>
-            <h2 className="text-2xl font-black text-[var(--text-main)]">Registros que explican la huella</h2>
-            <p className="mt-1 text-sm text-[var(--text-muted)]">{formatNumber(filteredRows.length, 0)} registros encontrados.</p>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Explorador</p>
+            <h2 className="text-2xl font-black text-[var(--text-main)]">Registros de huella</h2>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">Filtra por fuente, categoría, etapa o unidad para revisar el detalle operacional.</p>
           </div>
-
           <label className="relative block w-full max-w-md">
             <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar fuente, etapa, obra o categoría"
+              placeholder="Buscar fuente, etapa, categoría o unidad"
               className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-emerald-400/60"
             />
           </label>
         </div>
 
-        {!rows.length ? (
-          <EmptyState
-            title="Aún no hay registros de emisión."
-            description="Carga datos de materiales, transporte, maquinaria, energía, agua o residuos para activar el análisis ambiental."
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] table-fixed border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-emerald-100 bg-emerald-50/70 text-xs font-black uppercase tracking-[0.14em] text-emerald-900">
-                  <th className="px-3 py-3 text-left">Obra / lote</th>
-                  <th className="px-3 py-3 text-left">Etapa</th>
-                  <th className="px-3 py-3 text-left">Categoría</th>
-                  <th className="px-3 py-3 text-left">Fuente</th>
-                  <th className="px-3 py-3 text-right">Emisiones</th>
+        <div className="mt-5 overflow-hidden rounded-2xl border border-[var(--border)]">
+          <table className="min-w-full divide-y divide-slate-200 text-sm">
+            <thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-3">Fecha</th>
+                <th className="px-4 py-3">Unidad</th>
+                <th className="px-4 py-3">Fuente</th>
+                <th className="px-4 py-3">Categoría</th>
+                <th className="px-4 py-3 text-right">Emisiones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {filteredRows.slice(0, 12).map((row, index) => (
+                <tr key={`${row.id || row.fuente_visible}-${index}`} className="hover:bg-emerald-50/40">
+                  <td className="px-4 py-3 font-bold text-slate-700">{row.fecha || "Sin fecha"}</td>
+                  <td className="px-4 py-3 text-slate-600">{row.obra_visible}</td>
+                  <td className="px-4 py-3 font-bold text-[var(--text-main)]">{row.fuente_visible}</td>
+                  <td className="px-4 py-3 text-slate-600">{row.categoria_visible}</td>
+                  <td className="px-4 py-3 text-right font-black text-emerald-800">{formatNumber(row.emisiones, 1)} kg</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredRows.slice(0, 12).map((row, index) => (
-                  <tr key={`${row.id || row.fuente_visible}-${index}`} className="bg-white/70 transition hover:bg-emerald-50/50">
-                    <td className="px-3 py-3 font-bold text-slate-800">{row.obra_visible}</td>
-                    <td className="px-3 py-3 text-slate-600">{row.etapa_visible}</td>
-                    <td className="px-3 py-3 text-slate-600">{row.categoria_visible}</td>
-                    <td className="px-3 py-3 text-slate-600">{row.fuente_visible}</td>
-                    <td className="px-3 py-3 text-right font-black text-emerald-800">{formatNumber(row.emisiones, 1)} kg CO₂e</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {filteredRows.length > 12 && (
-          <p className="mt-4 rounded-2xl bg-[var(--bg-surface)] p-3 text-center text-sm font-semibold text-[var(--text-muted)]">
-            Mostrando los 12 registros más relevantes. La tabla completa se integrará en Gestión de Huella con filtros avanzados.
-          </p>
-        )}
+              ))}
+              {!filteredRows.length && (
+                <tr>
+                  <td colSpan="5" className="px-4 py-8 text-center text-sm font-semibold text-[var(--text-muted)]">
+                    No hay registros que coincidan con la búsqueda.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+        <HorizontalChart data={bySource} dataKey="emisiones" nameKey="fuente" title="Fuentes principales" />
+        <HorizontalChart data={byCategory} dataKey="emisiones" nameKey="categoria" title="Categorías" />
+        <HorizontalChart data={byStage} dataKey="emisiones" nameKey="etapa" title="Etapas / módulos" />
+      </div>
 
       {selectedLifecycleUnit ? (
         <LifecycleDetailModal
           activePreset={activeConstructora?.preset}
+          actionStatus={actionStatus}
           onClose={() => setSelectedLifecycleUnit(null)}
+          onCreateAction={handleCreateLifecycleAction}
           totalEmissions={totalEmissions}
           unit={selectedLifecycleUnit}
         />
