@@ -3,8 +3,11 @@ import { CheckCircle2, ClipboardCopy, Download, FileJson, FileText, Printer } fr
 
 function ReportExportActions({ executiveBriefText, exportPayload, report, reportConfig }) {
   const [copiedMode, setCopiedMode] = useState("");
-  const cycleActions = Array.isArray(exportPayload?.ciclo_mejora?.latestActions) ? exportPayload.ciclo_mejora.latestActions : [];
-  const priorityItems = Array.isArray(exportPayload?.seguimiento_prioritario?.items) ? exportPayload.seguimiento_prioritario.items : [];
+  const improvementCycle = exportPayload?.ciclo_mejora || null;
+  const priorityFollowUp = exportPayload?.seguimiento_prioritario || null;
+  const cycleActions = Array.isArray(improvementCycle?.latestActions) ? improvementCycle.latestActions : [];
+  const priorityItems = Array.isArray(priorityFollowUp?.items) ? priorityFollowUp.items : [];
+  const hasOperationalSummary = Boolean(improvementCycle || priorityFollowUp || cycleActions.length || priorityItems.length);
 
   const downloadJson = () => {
     const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: "application/json" });
@@ -80,6 +83,13 @@ function ReportExportActions({ executiveBriefText, exportPayload, report, report
     confirmCopy("markdown");
   };
 
+  const copyOperationalSummary = async () => {
+    const text = buildOperationalSummary({ improvementCycle, priorityFollowUp });
+    if (!text) return;
+    await copyToClipboard(text);
+    confirmCopy("operational");
+  };
+
   function confirmCopy(mode) {
     setCopiedMode(mode);
     window.setTimeout(() => setCopiedMode(""), 1800);
@@ -119,6 +129,12 @@ function ReportExportActions({ executiveBriefText, exportPayload, report, report
         <Download size={18} />
         Descargar CSV
       </button>
+      {hasOperationalSummary ? (
+        <button onClick={copyOperationalSummary} className="inline-flex items-center gap-2 rounded-2xl border border-cyan-200 bg-white px-4 py-3 text-sm font-black text-cyan-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
+          {copiedMode === "operational" ? <CheckCircle2 size={18} /> : <ClipboardCopy size={18} />}
+          {copiedMode === "operational" ? "Seguimiento copiado" : "Copiar seguimiento"}
+        </button>
+      ) : null}
       {cycleActions.length ? (
         <button onClick={downloadCycleCsv} className="inline-flex items-center gap-2 rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-black text-cyan-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
           <Download size={18} />
@@ -133,6 +149,31 @@ function ReportExportActions({ executiveBriefText, exportPayload, report, report
       ) : null}
     </div>
   );
+}
+
+function buildOperationalSummary({ improvementCycle, priorityFollowUp }) {
+  const cycle = improvementCycle || {};
+  const followUp = priorityFollowUp || {};
+  const priorityItems = Array.isArray(followUp.items) ? followUp.items : [];
+
+  return [
+    "SEGUIMIENTO OPERATIVO CARBONO ZERO",
+    "",
+    "Ciclo de mejora:",
+    `${cycle.status || "Sin ciclo registrado"} · ${cycle.total || 0} acciones desde reportes · ${cycle.completed || 0} cerradas · ${cycle.open || 0} abiertas · ${cycle.completionPct || 0}% de cierre.`,
+    `Próximo paso: ${cycle.nextStep || "Sin próximo paso definido."}`,
+    "",
+    "Seguimiento prioritario:",
+    `${followUp.status || "Sin prioridades abiertas"} · ${followUp.totalOpen || 0} abiertas · ${followUp.overdue || 0} vencidas · ${followUp.dueSoon || 0} próximas a vencer · ${followUp.validation || 0} en validación.`,
+    `Próximo paso: ${followUp.nextStep || "Sin próximo paso definido."}`,
+    "",
+    "Prioridades:",
+    ...(priorityItems.length ? priorityItems.map(formatPriorityLine) : ["Sin acciones prioritarias abiertas."]),
+  ].join("\n");
+}
+
+function formatPriorityLine(item, index) {
+  return `${index + 1}. [${item.level || "Sin prioridad"}] ${item.action?.title || "Acción ambiental"} · ${item.reason || "Sin motivo"} · Estado: ${statusLabel(item.action?.status)} · Fecha: ${item.action?.dueDate || "Sin fecha"}`;
 }
 
 function buildExecutiveMarkdown(text = "") {
