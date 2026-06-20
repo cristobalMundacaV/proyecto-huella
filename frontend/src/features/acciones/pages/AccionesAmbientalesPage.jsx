@@ -13,6 +13,7 @@ import {
   createTraceableAction,
   deleteTraceableAction,
   getTraceableActions,
+  getTraceableActionsSummary,
   updateTraceableAction,
 } from "@/features/intelligence/services/traceableActionsApi";
 
@@ -77,6 +78,14 @@ function normalizeText(value) {
     .toLowerCase();
 }
 
+function rows(input) {
+  return Array.isArray(input) ? input : input?.results || input?.rows || input?.datos || input?.registros || input?.registros_emision || [];
+}
+
+function safeValue(value) {
+  return value === undefined || value === null ? "" : String(value);
+}
+
 function statusTone(status) {
   return {
     pendiente: "border-amber-200 bg-amber-50 text-amber-800",
@@ -93,14 +102,6 @@ function linkTypeLabel(type) {
     registro_emision: "Registro crítico",
     evidencia: "Evidencia",
   }[type] || "Vínculo";
-}
-
-function rows(input) {
-  return Array.isArray(input) ? input : input?.results || input?.rows || input?.datos || input?.registros || input?.registros_emision || [];
-}
-
-function safeValue(value) {
-  return value === undefined || value === null ? "" : String(value);
 }
 
 function buildTraceabilityOptions({ evidencias, lotes, obras, registros }) {
@@ -134,9 +135,37 @@ function setTraceabilityLink(setDraft, field, value) {
   }));
 }
 
+function fallbackSummary(actions) {
+  const total = actions.length;
+  const completed = actions.filter((action) => action.status === "completada").length;
+  const active = actions.filter((action) => ["pendiente", "en_progreso", "validacion"].includes(action.status)).length;
+  const dueSoon = actions.filter((action) => action.dueDate && action.status !== "completada" && action.dueDate <= todayPlus(7)).length;
+  const overdue = actions.filter((action) => action.dueDate && action.status !== "completada" && action.dueDate < todayPlus(0)).length;
+  const linked = actions.filter((action) => action.linkedTo || action.obraCodigo || action.loteId || action.registroId || action.evidenciaId).length;
+  return {
+    total,
+    active,
+    completed,
+    dueSoon,
+    overdue,
+    linked,
+    unlinked: Math.max(total - linked, 0),
+    traceabilityPct: total ? Math.round((linked / total) * 1000) / 10 : 0,
+    completionPct: total ? Math.round((completed / total) * 1000) / 10 : 0,
+    byStatus: {
+      pendiente: actions.filter((action) => action.status === "pendiente").length,
+      en_progreso: actions.filter((action) => action.status === "en_progreso").length,
+      validacion: actions.filter((action) => action.status === "validacion").length,
+      completada: completed,
+    },
+    latestActions: actions.slice(0, 5),
+  };
+}
+
 function AccionesAmbientalesPage() {
   const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
   const [actions, setActions] = useState([]);
+  const [summary, setSummary] = useState(null);
   const [traceabilityOptions, setTraceabilityOptions] = useState({ obras: [], lotes: [], registros: [], evidencias: [] });
   const [loading, setLoading] = useState(true);
   const [loadingLinks, setLoadingLinks] = useState(false);
@@ -152,20 +181,19 @@ function AccionesAmbientalesPage() {
       setLoadingLinks(true);
       setError("");
 
-      const [actionsResult, obrasResult, lotesResult, registrosResult, evidenciasResult] = await Promise.allSettled([
+      const [actionsResult, summaryResult, obrasResult, lotesResult, registrosResult, evidenciasResult] = await Promise.allSettled([
         getTraceableActions(activeConstructoraId),
+        getTraceableActionsSummary(activeConstructoraId),
         getConstructoraObras(activeConstructoraId),
         getLotesForestales(activeConstructoraId),
         getConstructoraRegistrosEmision(activeConstructoraId),
         getConstructoraEvidencias(activeConstructoraId),
       ]);
 
-      if (actionsResult.status === "fulfilled") {
-        setActions(Array.isArray(actionsResult.value) ? actionsResult.value : []);
-      } else {
-        throw actionsResult.reason;
-      }
-
+      if (actionsResult.status !== "fulfilled") throw actionsResult.reason;
+      const loadedActions = Array.isArray(actionsResult.value) ? actionsResult.value : [];
+      setActions(loadedActions);
+      setSummary(summaryResult.status === "fulfilled" ? summaryResult.value : fallbackSummary(loadedActions));
       setTraceabilityOptions(buildTraceabilityOptions({
         obras: obrasResult.status === "fulfilled" ? obrasResult.value : [],
         lotes: lotesResult.status === "fulfilled" ? lotesResult.value : [],
@@ -182,6 +210,7 @@ function AccionesAmbientalesPage() {
 
   useEffect(() => {
     setActions([]);
+    setSummary(null);
     setDraft(null);
     loadPageData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -190,31 +219,33 @@ function AccionesAmbientalesPage() {
   const filteredActions = useMemo(() => {
     const query = normalizeText(search);
     if (!query) return actions;
-    return actions.filter((action) =>
-      normalizeText([
-        action.title,
-        action.description,
-        action.responsible,
-        action.source,
-        action.evidence,
-        action.trackingKpi,
-        action.linkedTo?.label,
-        action.linkedTo?.type,
-        action.obraCodigo,
-        action.loteId,
-        action.registroId,
-        action.evidenciaId,
-      ].join(" ")).includes(query)
-    );
+    return actions.filter((action) => normalizeText([
+      action.title,
+      action.description,
+      action.responsible,
+      action.source,
+      action.evidence,
+      action.trackingKpi,
+      action.linkedTo?.label,
+      action.linkedTo?.type,
+      action.obraCodigo,
+      action.loteId,
+      action.registroId,
+      action.evidenciaId,
+    ].join(" ")).includes(query));
   }, [actions, search]);
 
-  const stats = useMemo(() => {
-    const total = actions.length;
-    const completed = actions.filter((action) => action.status === "completada").length;
-    const active = actions.filter((action) => ["pendiente", "en_progreso", "validacion"].includes(action.status)).length;
-    const dueSoon = actions.filter((action) => action.dueDate && action.status !== "completada" && action.dueDate <= todayPlus(3)).length;
-    return { total, completed, active, dueSoon };
-  }, [actions]);
+  const stats = summary || fallbackSummary(actions);
+
+  async function refreshActionsOnly() {
+    if (!activeConstructoraId) return;
+    const [nextActions, nextSummary] = await Promise.allSettled([
+      getTraceableActions(activeConstructoraId),
+      getTraceableActionsSummary(activeConstructoraId),
+    ]);
+    if (nextActions.status === "fulfilled") setActions(Array.isArray(nextActions.value) ? nextActions.value : []);
+    if (nextSummary.status === "fulfilled") setSummary(nextSummary.value);
+  }
 
   async function saveDraft(event) {
     event.preventDefault();
@@ -223,12 +254,11 @@ function AccionesAmbientalesPage() {
       setSaving(true);
       setError("");
       if (draft.editingId) {
-        const updated = await updateTraceableAction(activeConstructoraId, draft.editingId, draft);
-        setActions((current) => current.map((action) => (action.id === updated.id ? updated : action)));
+        await updateTraceableAction(activeConstructoraId, draft.editingId, draft);
       } else {
-        const created = await createTraceableAction(activeConstructoraId, draft);
-        setActions((current) => [created, ...current]);
+        await createTraceableAction(activeConstructoraId, draft);
       }
+      await refreshActionsOnly();
       setDraft(null);
     } catch (requestError) {
       setError(requestError?.response?.data?.error || "No se pudo guardar la acción ambiental.");
@@ -241,8 +271,8 @@ function AccionesAmbientalesPage() {
     const previous = actions;
     setActions((current) => current.map((action) => (action.id === actionId ? { ...action, status: nextStatus } : action)));
     try {
-      const updated = await updateTraceableAction(activeConstructoraId, actionId, { status: nextStatus });
-      setActions((current) => current.map((action) => (action.id === actionId ? updated : action)));
+      await updateTraceableAction(activeConstructoraId, actionId, { status: nextStatus });
+      await refreshActionsOnly();
     } catch (requestError) {
       setActions(previous);
       setError(requestError?.response?.data?.error || "No se pudo actualizar la acción.");
@@ -254,6 +284,7 @@ function AccionesAmbientalesPage() {
     setActions((current) => current.filter((action) => action.id !== actionId));
     try {
       await deleteTraceableAction(activeConstructoraId, actionId);
+      await refreshActionsOnly();
     } catch (requestError) {
       setActions(previous);
       setError(requestError?.response?.data?.error || "No se pudo eliminar la acción.");
@@ -261,12 +292,7 @@ function AccionesAmbientalesPage() {
   }
 
   if (!activeConstructoraId) {
-    return (
-      <EmptyState
-        title="Acciones ambientales"
-        description="Selecciona una empresa activa para gestionar acciones ambientales trazables."
-      />
-    );
+    return <EmptyState title="Acciones ambientales" description="Selecciona una empresa activa para gestionar acciones ambientales trazables." />;
   }
 
   return (
@@ -274,41 +300,46 @@ function AccionesAmbientalesPage() {
       <section className="overflow-hidden rounded-[32px] border border-emerald-300/40 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.20),transparent_32%),linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98))] p-6 shadow-[0_28px_80px_rgba(15,118,110,0.14)] ring-1 ring-white/70">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4">
-            <div className="rounded-3xl border border-emerald-200 bg-white/80 p-4 text-emerald-800 shadow-sm">
-              <CheckCircle2 size={30} />
-            </div>
+            <div className="rounded-3xl border border-emerald-200 bg-white/80 p-4 text-emerald-800 shadow-sm"><CheckCircle2 size={30} /></div>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-700">Seguimiento ambiental</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight text-[var(--text-main)] sm:text-4xl">
-                Acciones ambientales de {activeConstructora?.nombre || "la empresa"}
-              </h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
-                Convierte recomendaciones, hallazgos y compromisos en acciones con responsable, fecha objetivo, evidencia, KPI y vínculo operacional.
-              </p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight text-[var(--text-main)] sm:text-4xl">Acciones ambientales de {activeConstructora?.nombre || "la empresa"}</h1>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">Convierte recomendaciones, hallazgos y compromisos en acciones con responsable, fecha objetivo, evidencia, KPI y vínculo operacional.</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setDraft(emptyDraft())}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,124,109,0.18)] hover:bg-[var(--primary-dark)]"
-          >
-            <Plus size={18} />
-            Nueva acción
+          <button type="button" onClick={() => setDraft(emptyDraft())} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,124,109,0.18)] hover:bg-[var(--primary-dark)]">
+            <Plus size={18} /> Nueva acción
           </button>
         </div>
       </section>
 
-      {error ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">
-          {error}
-        </div>
-      ) : null}
+      {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{error}</div> : null}
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard icon={<Leaf size={18} />} label="Total acciones" value={stats.total} />
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+        <SummaryCard icon={<Leaf size={18} />} label="Total" value={stats.total} />
         <SummaryCard icon={<Clock3 size={18} />} label="Activas" value={stats.active} />
         <SummaryCard icon={<CheckCircle2 size={18} />} label="Completadas" value={stats.completed} />
-        <SummaryCard icon={<Clock3 size={18} />} label="Próximas a vencer" value={stats.dueSoon} />
+        <SummaryCard icon={<Clock3 size={18} />} label="Próximas" value={stats.dueSoon} />
+        <SummaryCard icon={<Clock3 size={18} />} label="Vencidas" value={stats.overdue || 0} />
+        <SummaryCard icon={<CheckCircle2 size={18} />} label="Trazabilidad" value={`${stats.traceabilityPct || 0}%`} />
+      </section>
+
+      <section className="rounded-3xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-[var(--shadow-card)]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Resumen ejecutivo</p>
+            <h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">Avance y trazabilidad ambiental</h2>
+            <p className="mt-2 text-sm leading-6 text-emerald-900">
+              {stats.total
+                ? `${stats.completed} de ${stats.total} acciones están cerradas. ${stats.linked} acciones tienen vínculo operacional y ${stats.unlinked} siguen sin trazabilidad directa.`
+                : "Aún no hay acciones registradas para esta empresa."}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <MiniMetric label="Cierre" value={`${stats.completionPct || 0}%`} />
+            <MiniMetric label="Vínculo" value={`${stats.traceabilityPct || 0}%`} />
+          </div>
+        </div>
       </section>
 
       <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-[var(--shadow-card)]">
@@ -316,58 +347,28 @@ function AccionesAmbientalesPage() {
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Tablero de gestión</p>
             <h2 className="text-2xl font-black text-[var(--text-main)]">Seguimiento por estado</h2>
-            <p className="mt-1 text-sm text-[var(--text-muted)]">
-              {filteredActions.length} acciones visibles de {actions.length} registradas.
-            </p>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">{filteredActions.length} acciones visibles de {actions.length} registradas.</p>
           </div>
           <label className="relative block w-full max-w-md">
             <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar acción, responsable, evidencia, KPI o vínculo"
-              className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-emerald-400/60"
-            />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar acción, responsable, evidencia, KPI o vínculo" className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-emerald-400/60" />
           </label>
         </div>
 
         {loading ? (
           <div className="mt-5 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--bg-surface)] p-8 text-center text-sm font-bold text-[var(--text-muted)]">
-            <Loader2 className="mx-auto mb-2 animate-spin text-emerald-700" size={22} />
-            Cargando acciones ambientales...
+            <Loader2 className="mx-auto mb-2 animate-spin text-emerald-700" size={22} /> Cargando acciones ambientales...
           </div>
         ) : filteredActions.length ? (
           <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-4">
-            {statusColumns.map((column) => (
-              <ActionColumn
-                actions={filteredActions.filter((action) => action.status === column.value)}
-                column={column}
-                key={column.value}
-                onDelete={removeAction}
-                onEdit={(action) => setDraft(editDraft(action))}
-                onUpdateStatus={updateStatus}
-              />
-            ))}
+            {statusColumns.map((column) => <ActionColumn actions={filteredActions.filter((action) => action.status === column.value)} column={column} key={column.value} onDelete={removeAction} onEdit={(action) => setDraft(editDraft(action))} onUpdateStatus={updateStatus} />)}
           </div>
         ) : (
-          <EmptyState
-            title="Sin acciones ambientales"
-            description="Crea una acción desde Inteligencia o manualmente para comenzar seguimiento."
-          />
+          <EmptyState title="Sin acciones ambientales" description="Crea una acción desde Inteligencia o manualmente para comenzar seguimiento." />
         )}
       </section>
 
-      {draft ? (
-        <ActionModal
-          draft={draft}
-          loadingLinks={loadingLinks}
-          onClose={() => setDraft(null)}
-          onSave={saveDraft}
-          saving={saving}
-          setDraft={setDraft}
-          traceabilityOptions={traceabilityOptions}
-        />
-      ) : null}
+      {draft ? <ActionModal draft={draft} loadingLinks={loadingLinks} onClose={() => setDraft(null)} onSave={saveDraft} saving={saving} setDraft={setDraft} traceabilityOptions={traceabilityOptions} /> : null}
     </main>
   );
 }
@@ -375,12 +376,19 @@ function AccionesAmbientalesPage() {
 function SummaryCard({ icon, label, value }) {
   return (
     <article className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-5 text-center shadow-[var(--shadow-card)]">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-700">
-        {icon}
-      </div>
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-700">{icon}</div>
       <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">{label}</p>
       <p className="mt-2 text-3xl font-black text-[var(--text-main)]">{value}</p>
     </article>
+  );
+}
+
+function MiniMetric({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-emerald-200 bg-white/85 px-4 py-3 text-center">
+      <p className="text-[10px] font-black uppercase tracking-wide text-emerald-700">{label}</p>
+      <p className="mt-1 text-2xl font-black text-emerald-950">{value}</p>
+    </div>
   );
 }
 
@@ -394,23 +402,16 @@ function ActionColumn({ actions, column, onDelete, onEdit, onUpdateStatus }) {
         </div>
         <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{column.hint}</p>
       </div>
-
       <div className="space-y-3">
         {actions.map((action) => (
           <article key={action.id} className="rounded-2xl border border-white bg-white p-4 shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
-            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusTone(action.status)}`}>
-              {column.label.replace(/s$/, "")}
-            </span>
+            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusTone(action.status)}`}>{column.label.replace(/s$/, "")}</span>
             <h4 className="mt-3 text-sm font-black text-[var(--text-main)]">{action.title}</h4>
             <p className="mt-1 line-clamp-3 text-xs leading-5 text-[var(--text-muted)]">{action.description}</p>
             {action.linkedTo ? (
-              <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-900">
-                <strong>Vinculado a {linkTypeLabel(action.linkedTo.type)}:</strong> {action.linkedTo.label}
-              </div>
+              <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-900"><strong>Vinculado a {linkTypeLabel(action.linkedTo.type)}:</strong> {action.linkedTo.label}</div>
             ) : (
-              <div className="mt-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
-                Sin vínculo operacional
-              </div>
+              <div className="mt-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">Sin vínculo operacional</div>
             )}
             <div className="mt-3 space-y-2 text-xs text-slate-600">
               <p><strong>Responsable:</strong> {action.responsible || "Equipo ambiental"}</p>
@@ -418,30 +419,11 @@ function ActionColumn({ actions, column, onDelete, onEdit, onUpdateStatus }) {
               <p><strong>KPI:</strong> {action.trackingKpi || "Sin KPI"}</p>
             </div>
             <div className="mt-4 flex flex-col gap-2">
-              <select
-                value={action.status}
-                onChange={(event) => onUpdateStatus(action.id, event.target.value)}
-                className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 outline-none"
-              >
-                {statusColumns.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
+              <select value={action.status} onChange={(event) => onUpdateStatus(action.id, event.target.value)} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 outline-none">
+                {statusColumns.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
-              <button
-                type="button"
-                onClick={() => onEdit(action)}
-                className="inline-flex items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700"
-              >
-                Editar
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(action.id)}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700"
-              >
-                <Trash2 size={14} />
-                Quitar
-              </button>
+              <button type="button" onClick={() => onEdit(action)} className="inline-flex items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">Editar</button>
+              <button type="button" onClick={() => onDelete(action.id)} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700"><Trash2 size={14} /> Quitar</button>
             </div>
           </article>
         ))}
@@ -455,16 +437,12 @@ function ActionModal({ draft, loadingLinks, onClose, onSave, saving, setDraft, t
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/35 px-4 py-6 backdrop-blur-sm">
       <form onSubmit={onSave} className="relative max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[32px] border border-emerald-100 bg-white p-5 shadow-[0_30px_90px_rgba(15,23,42,0.22)] sm:p-6">
-        <button type="button" onClick={onClose} className="absolute right-4 top-4 rounded-2xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm hover:bg-slate-50" aria-label="Cerrar acción">
-          <X size={18} />
-        </button>
-
+        <button type="button" onClick={onClose} className="absolute right-4 top-4 rounded-2xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm hover:bg-slate-50" aria-label="Cerrar acción"><X size={18} /></button>
         <div className="mb-5 pr-12">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">{editing ? "Editar acción ambiental" : "Nueva acción ambiental"}</p>
           <h3 className="mt-1 text-2xl font-black text-[var(--text-main)]">Seguimiento trazable</h3>
           <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">Crea o ajusta una acción con responsable, fecha, evidencia, KPI y vínculo operacional.</p>
         </div>
-
         <div className="grid grid-cols-1 gap-4">
           <Field label="Título"><input className={inputClass} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} /></Field>
           <Field label="Descripción"><textarea className={`${inputClass} min-h-28 resize-y`} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></Field>
@@ -474,55 +452,22 @@ function ActionModal({ draft, loadingLinks, onClose, onSave, saving, setDraft, t
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Origen"><input className={inputClass} value={draft.source} onChange={(event) => setDraft({ ...draft, source: event.target.value })} /></Field>
-            <Field label="Estado">
-              <select className={inputClass} value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}>
-                {statusColumns.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-            </Field>
+            <Field label="Estado"><select className={inputClass} value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}>{statusColumns.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field>
           </div>
-
           <section className="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-4">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-700">Vínculo operacional asistido</p>
-            <p className="mt-1 text-xs leading-5 text-emerald-900">
-              Elige un solo vínculo. Al seleccionar uno, se limpian los demás para mantener la trazabilidad clara.
-            </p>
+            <p className="mt-1 text-xs leading-5 text-emerald-900">Elige un solo vínculo. Al seleccionar uno, se limpian los demás para mantener la trazabilidad clara.</p>
             {loadingLinks ? <p className="mt-3 text-xs font-bold text-emerald-800">Cargando opciones de vínculo...</p> : null}
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <SelectField
-                label="Obra"
-                options={traceabilityOptions.obras}
-                placeholder="Sin obra vinculada"
-                value={draft.obraCodigo}
-                onChange={(value) => setTraceabilityLink(setDraft, "obraCodigo", value)}
-              />
-              <SelectField
-                label="Lote forestal"
-                options={traceabilityOptions.lotes}
-                placeholder="Sin lote vinculado"
-                value={draft.loteId}
-                onChange={(value) => setTraceabilityLink(setDraft, "loteId", value)}
-              />
-              <SelectField
-                label="Registro crítico"
-                options={traceabilityOptions.registros}
-                placeholder="Sin registro vinculado"
-                value={draft.registroId}
-                onChange={(value) => setTraceabilityLink(setDraft, "registroId", value)}
-              />
-              <SelectField
-                label="Evidencia"
-                options={traceabilityOptions.evidencias}
-                placeholder="Sin evidencia vinculada"
-                value={draft.evidenciaId}
-                onChange={(value) => setTraceabilityLink(setDraft, "evidenciaId", value)}
-              />
+              <SelectField label="Obra" options={traceabilityOptions.obras} placeholder="Sin obra vinculada" value={draft.obraCodigo} onChange={(value) => setTraceabilityLink(setDraft, "obraCodigo", value)} />
+              <SelectField label="Lote forestal" options={traceabilityOptions.lotes} placeholder="Sin lote vinculado" value={draft.loteId} onChange={(value) => setTraceabilityLink(setDraft, "loteId", value)} />
+              <SelectField label="Registro crítico" options={traceabilityOptions.registros} placeholder="Sin registro vinculado" value={draft.registroId} onChange={(value) => setTraceabilityLink(setDraft, "registroId", value)} />
+              <SelectField label="Evidencia" options={traceabilityOptions.evidencias} placeholder="Sin evidencia vinculada" value={draft.evidenciaId} onChange={(value) => setTraceabilityLink(setDraft, "evidenciaId", value)} />
             </div>
           </section>
-
           <Field label="Evidencia esperada"><input className={inputClass} value={draft.evidence} onChange={(event) => setDraft({ ...draft, evidence: event.target.value })} /></Field>
           <Field label="KPI de seguimiento"><input className={inputClass} value={draft.trackingKpi} onChange={(event) => setDraft({ ...draft, trackingKpi: event.target.value })} /></Field>
         </div>
-
         <button type="submit" disabled={saving} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,124,109,0.18)] hover:bg-[var(--primary-dark)] disabled:opacity-60">
           {saving ? <Loader2 className="animate-spin" size={17} /> : <CheckCircle2 size={17} />}
           {saving ? "Guardando..." : editing ? "Guardar cambios" : "Guardar acción"}
