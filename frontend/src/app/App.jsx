@@ -127,7 +127,7 @@ function App() {
 }
 
 function ActiveView({ activeConstructora, activeConstructoraId, activePreset, activeView, constructoraCreateSignal, onSetActiveView, onStatusChange }) {
-  if (activeView === "dashboard") return <DashboardPage onStatusChange={onStatusChange} />;
+  if (activeView === "dashboard") return <DashboardPage onSetActiveView={onSetActiveView} onStatusChange={onStatusChange} />;
   if (activeView === "inteligencia") return <IntelligencePage />;
   if (activeView === "emisiones") return <EmisionesView onSetActiveView={onSetActiveView} />;
   if (activeView === "acciones") return <AccionesAmbientalesPage />;
@@ -156,7 +156,7 @@ function ActiveView({ activeConstructora, activeConstructoraId, activePreset, ac
     return <PresetComingSoon title={title} description={description} presetName={activePreset.name} items={["Datos operacionales", "Indicadores ambientales", "Recomendaciones por proceso"]} />;
   }
 
-  return <DashboardPage onStatusChange={onStatusChange} />;
+  return <DashboardPage onSetActiveView={onSetActiveView} onStatusChange={onStatusChange} />;
 }
 
 export default App;
