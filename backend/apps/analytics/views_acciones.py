@@ -1,4 +1,6 @@
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -7,6 +9,7 @@ from .models import Constructora, EvidenciaObra, LoteForestal, Obra, RegistroEmi
 from .models_acciones import AccionAmbiental
 
 VALID_STATUSES = {"pendiente", "en_progreso", "validacion", "completada"}
+ACTIVE_STATUSES = {"pendiente", "en_progreso", "validacion"}
 
 
 def serialize_link(action):
@@ -126,22 +129,80 @@ def normalize_payload(data, constructora, current=None):
     }
 
 
+def action_queryset(constructora):
+    return (
+        AccionAmbiental.objects
+        .filter(constructora=constructora)
+        .select_related("obra", "lote_forestal", "registro_emision", "evidencia")
+    )
+
+
+@api_view(["GET"])
+def constructora_acciones_ambientales_resumen(request, constructora_id):
+    constructora = get_object_or_404(Constructora, constructora_id=constructora_id)
+    today = timezone.localdate()
+    soon_limit = today + timezone.timedelta(days=7)
+    actions = AccionAmbiental.objects.filter(constructora=constructora)
+
+    by_status = {
+        row["status"]: row["total"]
+        for row in actions.values("status").annotate(total=Count("id"))
+    }
+    total = actions.count()
+    completed = by_status.get("completada", 0)
+    active = sum(by_status.get(status_value, 0) for status_value in ACTIVE_STATUSES)
+    linked = actions.filter(
+        Q(obra__isnull=False)
+        | Q(lote_forestal__isnull=False)
+        | Q(registro_emision__isnull=False)
+        | Q(evidencia__isnull=False)
+    ).count()
+    due_soon = actions.filter(
+        status__in=ACTIVE_STATUSES,
+        due_date__isnull=False,
+        due_date__lte=soon_limit,
+    ).count()
+    overdue = actions.filter(
+        status__in=ACTIVE_STATUSES,
+        due_date__isnull=False,
+        due_date__lt=today,
+    ).count()
+    traceability_pct = round((linked / total) * 100, 1) if total else 0
+    completion_pct = round((completed / total) * 100, 1) if total else 0
+
+    latest_actions = action_queryset(constructora).order_by("-updated_at", "-id")[:5]
+
+    return Response({
+        "total": total,
+        "active": active,
+        "completed": completed,
+        "dueSoon": due_soon,
+        "overdue": overdue,
+        "linked": linked,
+        "unlinked": max(total - linked, 0),
+        "traceabilityPct": traceability_pct,
+        "completionPct": completion_pct,
+        "byStatus": {
+            "pendiente": by_status.get("pendiente", 0),
+            "en_progreso": by_status.get("en_progreso", 0),
+            "validacion": by_status.get("validacion", 0),
+            "completada": completed,
+        },
+        "latestActions": [serialize_action(action) for action in latest_actions],
+    })
+
+
 @api_view(["GET", "POST"])
 def constructora_acciones_ambientales(request, constructora_id):
     constructora = get_object_or_404(Constructora, constructora_id=constructora_id)
 
     if request.method == "GET":
-        actions = (
-            AccionAmbiental.objects
-            .filter(constructora=constructora)
-            .select_related("obra", "lote_forestal", "registro_emision", "evidencia")
-            .order_by("-created_at", "-id")
-        )
+        actions = action_queryset(constructora).order_by("-created_at", "-id")
         return Response([serialize_action(action) for action in actions])
 
     payload = normalize_payload(request.data, constructora=constructora)
     action = AccionAmbiental.objects.create(constructora=constructora, **payload)
-    action = AccionAmbiental.objects.select_related("obra", "lote_forestal", "registro_emision", "evidencia").get(pk=action.pk)
+    action = action_queryset(constructora).get(pk=action.pk)
     return Response(serialize_action(action), status=status.HTTP_201_CREATED)
 
 
@@ -149,7 +210,7 @@ def constructora_acciones_ambientales(request, constructora_id):
 def constructora_accion_ambiental_detail(request, constructora_id, action_id):
     constructora = get_object_or_404(Constructora, constructora_id=constructora_id)
     action = get_object_or_404(
-        AccionAmbiental.objects.select_related("obra", "lote_forestal", "registro_emision", "evidencia"),
+        action_queryset(constructora),
         id=action_id,
         constructora=constructora,
     )
@@ -164,5 +225,5 @@ def constructora_accion_ambiental_detail(request, constructora_id, action_id):
         setattr(action, field, value)
     action.save()
 
-    action = AccionAmbiental.objects.select_related("obra", "lote_forestal", "registro_emision", "evidencia").get(pk=action.pk)
+    action = action_queryset(constructora).get(pk=action.pk)
     return Response(serialize_action(action))
