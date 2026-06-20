@@ -77,18 +77,9 @@ function actionOrigin(action) {
   const origin = action?.metadata?.origin || "";
   const source = normalizeText(action?.source || "");
 
-  if (origin === "report_risk_gap") {
-    return { key: "risk", fromReport: true, label: "Brecha de reporte", tone: "border-rose-200 bg-rose-50 text-rose-800" };
-  }
-
-  if (origin === "report_decision_agenda") {
-    return { key: "decision", fromReport: true, label: "Decisión ejecutiva", tone: "border-amber-200 bg-amber-50 text-amber-800" };
-  }
-
-  if (source.includes("reporte ejecutivo")) {
-    return { key: "report", fromReport: true, label: "Reporte ejecutivo", tone: "border-sky-200 bg-sky-50 text-sky-800" };
-  }
-
+  if (origin === "report_risk_gap") return { key: "risk", fromReport: true, label: "Brecha de reporte", tone: "border-rose-200 bg-rose-50 text-rose-800" };
+  if (origin === "report_decision_agenda") return { key: "decision", fromReport: true, label: "Decisión ejecutiva", tone: "border-amber-200 bg-amber-50 text-amber-800" };
+  if (source.includes("reporte ejecutivo")) return { key: "report", fromReport: true, label: "Reporte ejecutivo", tone: "border-sky-200 bg-sky-50 text-sky-800" };
   return { key: "manual", fromReport: false, label: action?.source || "Manual / operacional", tone: "border-slate-200 bg-slate-50 text-slate-700" };
 }
 
@@ -99,6 +90,10 @@ function formatActionLine(action, index) {
 function formatCycleActionLine(action, index) {
   const origin = actionOrigin(action);
   return `${index + 1}. [${origin.label}] ${action.title || "Acción ambiental"} · Estado: ${statusLabel(action.status)} · Fecha: ${action.dueDate || "Sin fecha"}`;
+}
+
+function formatPriorityActionLine(item, index) {
+  return `${index + 1}. [${item.level}] ${item.action.title || "Acción ambiental"} · ${item.reason} · Estado: ${statusLabel(item.action.status)} · Fecha: ${item.action.dueDate || "Sin fecha"}`;
 }
 
 function buildRiskActionPayload(risk) {
@@ -113,13 +108,7 @@ function buildRiskActionPayload(risk) {
     evidence: "Evidencia requerida para cerrar brecha detectada en reporte.",
     trackingKpi: risk.title,
     sourceCardId: `report_risk_${risk.key}`,
-    metadata: {
-      origin: "report_risk_gap",
-      riskKey: risk.key,
-      riskLevel: risk.level,
-      riskTitle: risk.title,
-      suggestedAction: risk.action,
-    },
+    metadata: { origin: "report_risk_gap", riskKey: risk.key, riskLevel: risk.level, riskTitle: risk.title, suggestedAction: risk.action },
   };
 }
 
@@ -135,13 +124,7 @@ function buildDecisionActionPayload(item, index) {
     evidence: "Acuerdo, evidencia o avance requerido para respaldar la decisión ejecutiva.",
     trackingKpi: item.decision,
     sourceCardId: `report_decision_${index + 1}`,
-    metadata: {
-      origin: "report_decision_agenda",
-      decisionIndex: index + 1,
-      decisionPriority: item.priority,
-      decision: item.decision,
-      expectedResult: item.expected,
-    },
+    metadata: { origin: "report_decision_agenda", decisionIndex: index + 1, decisionPriority: item.priority, decision: item.decision, expectedResult: item.expected },
   };
 }
 
@@ -159,19 +142,11 @@ function buildDecisionAgenda({ actionsSummary, criticalSource, records }) {
     agenda.push({ priority: "Alta", decision: "Completar base de datos ambiental del periodo", reason: "Sin registros suficientes no existe diagnóstico confiable para gerencia.", expected: "Activar medición, comparación y trazabilidad ejecutiva." });
   }
 
-  if (overdue > 0) {
-    agenda.push({ priority: "Alta", decision: `Resolver ${overdue} acciones vencidas`, reason: "Las acciones vencidas debilitan el seguimiento ambiental y la credibilidad del plan.", expected: "Recuperar control operativo y fechas realistas de ejecución." });
-  } else if (active > 0) {
-    agenda.push({ priority: "Media", decision: `Revisar avance de ${active} acciones activas`, reason: "Hay compromisos abiertos que deben mantenerse visibles hasta su cierre.", expected: "Evitar retrasos y convertir acciones abiertas en evidencia verificable." });
-  }
+  if (overdue > 0) agenda.push({ priority: "Alta", decision: `Resolver ${overdue} acciones vencidas`, reason: "Las acciones vencidas debilitan el seguimiento ambiental y la credibilidad del plan.", expected: "Recuperar control operativo y fechas realistas de ejecución." });
+  else if (active > 0) agenda.push({ priority: "Media", decision: `Revisar avance de ${active} acciones activas`, reason: "Hay compromisos abiertos que deben mantenerse visibles hasta su cierre.", expected: "Evitar retrasos y convertir acciones abiertas en evidencia verificable." });
 
-  if (traceabilityPct < 80 && (actionsSummary?.total || 0) > 0) {
-    agenda.push({ priority: "Media", decision: `Vincular ${unlinked} acciones sin trazabilidad directa`, reason: "Una acción sin vínculo a obra, lote, registro o evidencia es más difícil de auditar.", expected: "Elevar trazabilidad operacional y preparar mejores reportes para clientes o licitaciones." });
-  }
-
-  if (completionPct < 50 && (actionsSummary?.total || 0) > 0) {
-    agenda.push({ priority: "Media", decision: "Definir meta de cierre de acciones para el próximo periodo", reason: "El avance de cierre aún está bajo para demostrar gestión ambiental continua.", expected: "Aumentar porcentaje de acciones completadas y respaldadas." });
-  }
+  if (traceabilityPct < 80 && (actionsSummary?.total || 0) > 0) agenda.push({ priority: "Media", decision: `Vincular ${unlinked} acciones sin trazabilidad directa`, reason: "Una acción sin vínculo a obra, lote, registro o evidencia es más difícil de auditar.", expected: "Elevar trazabilidad operacional y preparar mejores reportes para clientes o licitaciones." });
+  if (completionPct < 50 && (actionsSummary?.total || 0) > 0) agenda.push({ priority: "Media", decision: "Definir meta de cierre de acciones para el próximo periodo", reason: "El avance de cierre aún está bajo para demostrar gestión ambiental continua.", expected: "Aumentar porcentaje de acciones completadas y respaldadas." });
 
   return agenda.slice(0, 4);
 }
@@ -181,7 +156,6 @@ function buildReportReadiness({ actionsSummary, records, totalEmissions }) {
   const traceabilityPct = Number(actionsSummary?.traceabilityPct || 0);
   const overdue = Number(actionsSummary?.overdue || 0);
   const completionPct = Number(actionsSummary?.completionPct || 0);
-
   const checks = [
     { key: "records", label: "Datos ambientales cargados", passed: records > 0, detail: records > 0 ? `${records} registros analizados` : "Faltan registros ambientales para sustentar el reporte." },
     { key: "footprint", label: "Huella calculada", passed: totalEmissions !== "Sin datos", detail: totalEmissions !== "Sin datos" ? `Huella disponible: ${totalEmissions}` : "No hay huella total calculada para el periodo." },
@@ -190,11 +164,9 @@ function buildReportReadiness({ actionsSummary, records, totalEmissions }) {
     { key: "overdue", label: "Sin acciones vencidas críticas", passed: overdue === 0, detail: overdue === 0 ? "No hay acciones vencidas" : `${overdue} acciones vencidas requieren revisión` },
     { key: "closure", label: "Avance de cierre visible", passed: actionsTotal === 0 ? false : completionPct >= 30, detail: actionsTotal > 0 ? `${completionPct}% de cierre` : "Sin acciones cerradas para demostrar avance." },
   ];
-
   const passed = checks.filter((check) => check.passed).length;
   const score = Math.round((passed / checks.length) * 100);
   const status = score >= 85 ? "Listo para presentar" : score >= 60 ? "Presentable con observaciones" : "Requiere completar información";
-
   return { checks, passed, score, status, total: checks.length };
 }
 
@@ -202,11 +174,7 @@ function buildReportRisks({ actionsSummary, readiness }) {
   const risks = readiness.checks
     .filter((check) => !check.passed)
     .map((check) => ({ key: check.key, level: ["records", "footprint", "overdue"].includes(check.key) ? "Alta" : "Media", title: check.label, description: check.detail, action: riskAction(check.key) }));
-
-  if ((actionsSummary?.overdue || 0) > 0 && !risks.some((risk) => risk.key === "overdue")) {
-    risks.push({ key: "overdue_extra", level: "Alta", title: "Acciones vencidas detectadas", description: `${actionsSummary.overdue} acciones están fuera de plazo.`, action: "Reasignar responsable, nueva fecha objetivo y evidencia esperada." });
-  }
-
+  if ((actionsSummary?.overdue || 0) > 0 && !risks.some((risk) => risk.key === "overdue")) risks.push({ key: "overdue_extra", level: "Alta", title: "Acciones vencidas detectadas", description: `${actionsSummary.overdue} acciones están fuera de plazo.`, action: "Reasignar responsable, nueva fecha objetivo y evidencia esperada." });
   return risks.length ? risks.slice(0, 6) : [{ key: "sin_brechas", level: "Baja", title: "Sin brechas críticas", description: "El reporte no muestra brechas relevantes para presentación ejecutiva.", action: "Mantener seguimiento y actualizar datos del próximo periodo." }];
 }
 
@@ -226,7 +194,6 @@ function buildClientSummary({ empresa, criticalSource, readiness, records, total
   const focus = records ? `La huella disponible es ${totalEmissions} y el foco principal detectado es ${criticalSource}.` : "El primer paso recomendado es cargar registros ambientales suficientes para activar diagnóstico, reportabilidad y seguimiento.";
   const status = `El reporte está en estado: ${readiness.status} (${readiness.score}% de preparación).`;
   const nextStep = readiness.score >= 85 ? "Se recomienda presentar el reporte y usar la agenda de decisión para acordar próximos responsables y fechas." : readiness.score >= 60 ? "Se puede presentar con observaciones, priorizando el cierre de brechas antes de una entrega formal al cliente." : "Se recomienda completar información, acciones y trazabilidad antes de presentarlo como reporte final.";
-
   return { intro, focus, status, nextStep, text: `${intro}\n${focus}\n${status}\n${nextStep}` };
 }
 
@@ -239,26 +206,34 @@ function buildImprovementCycle(actions = []) {
   const overdue = open.filter((action) => action.dueDate && action.dueDate < todayPlus(0));
   const completionPct = reportActions.length ? Math.round((completed.length / reportActions.length) * 1000) / 10 : 0;
   const status = reportActions.length ? (open.length ? "Ciclo en seguimiento" : "Ciclo cerrado") : "Sin acciones creadas desde reportes";
-  const nextStep = !reportActions.length
-    ? "Convierte una brecha o decisión en acción para iniciar el ciclo de mejora."
-    : overdue.length
-      ? "Priorizar regularización de acciones vencidas creadas desde el reporte."
-      : open.length
-        ? "Dar seguimiento a acciones abiertas hasta generar evidencia de cierre."
-        : "Mantener evidencia y comparar con el próximo reporte.";
+  const nextStep = !reportActions.length ? "Convierte una brecha o decisión en acción para iniciar el ciclo de mejora." : overdue.length ? "Priorizar regularización de acciones vencidas creadas desde el reporte." : open.length ? "Dar seguimiento a acciones abiertas hasta generar evidencia de cierre." : "Mantener evidencia y comparar con el próximo reporte.";
+  return { total: reportActions.length, risks: riskActions.length, decisions: decisionActions.length, open: open.length, completed: completed.length, overdue: overdue.length, completionPct, status, nextStep, latestActions: reportActions.slice(0, 6) };
+}
 
-  return {
-    total: reportActions.length,
-    risks: riskActions.length,
-    decisions: decisionActions.length,
-    open: open.length,
-    completed: completed.length,
-    overdue: overdue.length,
-    completionPct,
-    status,
-    nextStep,
-    latestActions: reportActions.slice(0, 6),
-  };
+function priorityForAction(action) {
+  if (action.status === "completada") return null;
+  const today = todayPlus(0);
+  const soon = todayPlus(7);
+  if (action.dueDate && action.dueDate < today) return { level: "Alta", reason: "Acción vencida", order: 1, tone: "border-rose-200 bg-rose-50 text-rose-800" };
+  if (action.dueDate && action.dueDate <= soon) return { level: "Media", reason: "Vence dentro de 7 días", order: 2, tone: "border-amber-200 bg-amber-50 text-amber-800" };
+  if (action.status === "validacion") return { level: "Media", reason: "En validación de evidencia", order: 3, tone: "border-violet-200 bg-violet-50 text-violet-800" };
+  if (action.status === "en_progreso") return { level: "Baja", reason: "En ejecución", order: 4, tone: "border-sky-200 bg-sky-50 text-sky-800" };
+  return { level: "Baja", reason: "Pendiente de inicio", order: 5, tone: "border-slate-200 bg-slate-50 text-slate-700" };
+}
+
+function buildPriorityFollowUp(actions = []) {
+  const reportActions = actions.filter((action) => actionOrigin(action).fromReport && action.status !== "completada");
+  const items = reportActions
+    .map((action) => ({ action, origin: actionOrigin(action), ...priorityForAction(action) }))
+    .filter((item) => item.level)
+    .sort((a, b) => a.order - b.order || String(a.action.dueDate || "9999-12-31").localeCompare(String(b.action.dueDate || "9999-12-31")))
+    .slice(0, 6);
+  const overdue = reportActions.filter((action) => action.dueDate && action.dueDate < todayPlus(0)).length;
+  const dueSoon = reportActions.filter((action) => action.dueDate && action.dueDate >= todayPlus(0) && action.dueDate <= todayPlus(7)).length;
+  const validation = reportActions.filter((action) => action.status === "validacion").length;
+  const status = items.length ? "Hay acciones prioritarias por revisar" : "Sin acciones prioritarias abiertas";
+  const nextStep = overdue ? "Regularizar vencidas antes de presentar avances." : dueSoon ? "Revisar acciones próximas a vencer esta semana." : validation ? "Validar evidencia pendiente de cierre." : items.length ? "Mantener seguimiento hasta cierre verificable." : "No hay acciones urgentes creadas desde reportes.";
+  return { totalOpen: reportActions.length, overdue, dueSoon, validation, status, nextStep, items };
 }
 
 function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary, filters, report, traceableActions }) {
@@ -279,17 +254,15 @@ function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary,
   const readiness = buildReportReadiness({ actionsSummary, records, totalEmissions });
   const risks = buildReportRisks({ actionsSummary, readiness });
   const improvementCycle = buildImprovementCycle(traceableActions);
+  const priorityFollowUp = buildPriorityFollowUp(traceableActions);
   const clientSummary = buildClientSummary({ empresa, criticalSource, readiness, records, totalEmissions });
   const hasPeriod = filters?.fecha_inicio || filters?.fecha_fin;
   const period = hasPeriod ? `${filters.fecha_inicio || "inicio"} a ${filters.fecha_fin || "hoy"}` : "periodo disponible";
-
   const headline = `${empresa} presenta una lectura ambiental ${records ? "activa" : "pendiente de datos"} para el preset ${preset}.`;
   const diagnosis = records ? `En el ${periodoClean(period)}, se analizaron ${records} registros y se observó una huella total de ${totalEmissions}. El foco principal se concentra en ${criticalSource}, asociado a ${criticalStage} y a la categoría ${criticalCategory}.` : `En el ${periodoClean(period)}, todavía no existen registros suficientes para construir una lectura ambiental completa.`;
   const management = actionsSummary?.total ? `La gestión accionable registra ${actionsSummary.total} acciones: ${activeActions} activas, ${completedActions} completadas y ${overdueActions} vencidas. El avance de cierre es ${completionPct}% y la trazabilidad operacional alcanza ${traceabilityPct}%.` : "Todavía no existen acciones ambientales registradas para cerrar el ciclo entre medición, gestión y seguimiento.";
   const priority = records ? `Priorizar acciones sobre ${criticalSource}, reforzar evidencia operacional y revisar el avance de acciones activas. Un nivel de trazabilidad bajo debe corregirse vinculando acciones a obras, lotes, registros o evidencias.` : "Priorizar carga o importación de registros ambientales para activar diagnóstico, acciones y reportabilidad ejecutiva.";
-
   const bullets = [`Huella total: ${totalEmissions}`, `Fuente crítica: ${criticalSource}`, `Etapa/proceso crítico: ${criticalStage}`, `Categoría dominante: ${criticalCategory}`, `Acciones activas: ${activeActions}`, `Trazabilidad de acciones: ${traceabilityPct}%`];
-
   const text = [
     "INFORME EJECUTIVO AMBIENTAL",
     `Empresa: ${empresa}`,
@@ -304,7 +277,12 @@ function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary,
     "Ciclo de mejora continua:",
     `${improvementCycle.status} · ${improvementCycle.total} acciones creadas desde reportes · ${improvementCycle.completed} cerradas · ${improvementCycle.open} abiertas · ${improvementCycle.completionPct}% de cierre.`,
     `Próximo paso: ${improvementCycle.nextStep}`,
-    ...(improvementCycle.latestActions.length ? improvementCycle.latestActions.map(formatCycleActionLine) : ["Sin acciones creadas desde reportes para listar." ]),
+    ...(improvementCycle.latestActions.length ? improvementCycle.latestActions.map(formatCycleActionLine) : ["Sin acciones creadas desde reportes para listar."]),
+    "",
+    "Seguimiento prioritario:",
+    `${priorityFollowUp.status} · ${priorityFollowUp.totalOpen} abiertas · ${priorityFollowUp.overdue} vencidas · ${priorityFollowUp.dueSoon} próximas a vencer · ${priorityFollowUp.validation} en validación.`,
+    `Próximo paso: ${priorityFollowUp.nextStep}`,
+    ...(priorityFollowUp.items.length ? priorityFollowUp.items.map(formatPriorityActionLine) : ["Sin acciones prioritarias abiertas para listar."]),
     "",
     "Riesgos y brechas:",
     ...risks.map((risk, index) => `${index + 1}. [${risk.level}] ${risk.title} · ${risk.description} Acción sugerida: ${risk.action}`),
@@ -331,8 +309,7 @@ function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary,
     "Plan de acción ambiental:",
     ...(actionPlan.length ? actionPlan.map(formatActionLine) : ["Sin acciones recientes para listar en el plan."]),
   ].join("\n");
-
-  return { actionPlan, bullets, clientSummary, decisionAgenda, diagnosis, headline, improvementCycle, management, priority, readiness, risks, text };
+  return { actionPlan, bullets, clientSummary, decisionAgenda, diagnosis, headline, improvementCycle, management, priority, priorityFollowUp, readiness, risks, text };
 }
 
 function periodoClean(value) {
@@ -370,19 +347,14 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
         getTraceableActionsSummary(activeConstructoraId),
         getTraceableActions(activeConstructoraId),
       ]);
-
       if (recordsResult.status === "fulfilled") setAllRows(normalizeReportRows(recordsResult.value));
       else setAllRows([]);
-
       if (dashboardResult.status === "fulfilled") setDashboardData(dashboardResult.value);
       else setDashboardData(null);
-
       if (actionsSummaryResult.status === "fulfilled") setActionsSummary(actionsSummaryResult.value);
       else setActionsSummary(null);
-
       if (actionsResult.status === "fulfilled") setTraceableActions(Array.isArray(actionsResult.value) ? actionsResult.value : []);
       else setTraceableActions([]);
-
       if (recordsResult.status === "rejected" && dashboardResult.status === "rejected") throw recordsResult.reason || dashboardResult.reason;
     } catch (requestError) {
       setError(requestError.response?.data?.error || "No se pudieron cargar los registros para construir el reporte.");
@@ -408,15 +380,14 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
   }, [activeConstructoraId, activePreset.key]);
 
   const report = useMemo(() => reportConfig.buildReport(allRows, filters, { activeConstructora, activePreset, dashboardData, filters }), [activeConstructora, activePreset, allRows, dashboardData, filters, reportConfig]);
-
   const executiveBrief = useMemo(() => buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary, filters, report, traceableActions }), [activeConstructora, activePreset, actionsSummary, filters, report, traceableActions]);
-
   const exportPayload = useMemo(
     () => ({
       ...reportConfig.buildExportPayload(report, { activeConstructora, activePreset, filters }),
       informe_ejecutivo: executiveBrief,
       resumen_cliente: executiveBrief.clientSummary,
       ciclo_mejora: executiveBrief.improvementCycle,
+      seguimiento_prioritario: executiveBrief.priorityFollowUp,
       riesgos_brechas: executiveBrief.risks,
       acciones_resumen: actionsSummary,
       agenda_decision: executiveBrief.decisionAgenda,
@@ -475,24 +446,14 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
     setIsFiltersModalOpen(false);
   }
 
-  if (!activeConstructoraId) {
-    return <main className="mx-auto max-w-7xl text-[var(--text-main)]"><h1 className="text-4xl font-black">Reportes</h1><div className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center text-[var(--text-muted)]">Selecciona o crea una empresa para revisar reportes temporales.</div></main>;
-  }
-
+  if (!activeConstructoraId) return <main className="mx-auto max-w-7xl text-[var(--text-main)]"><h1 className="text-4xl font-black">Reportes</h1><div className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center text-[var(--text-muted)]">Selecciona o crea una empresa para revisar reportes temporales.</div></main>;
   if (loading && !hasLoaded) return <PlatformLoader title="Cargando reportes" description="Estamos preparando tendencias, KPIs del periodo y tablas ambientales del preset activo." />;
 
   return (
     <main className="mx-auto max-w-7xl space-y-8 text-[var(--text-main)]">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-[var(--secondary)]">Reporte adaptativo</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Reportes</h1>
-          <p className="mt-2 text-[var(--text-muted)]">Analiza tendencias, fuentes críticas, acciones y trazabilidad con lenguaje del preset activo.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <ReportExportActions executiveBriefText={executiveBrief.text} exportPayload={exportPayload} report={report} reportConfig={reportConfig} />
-          <button onClick={() => loadReport(true)} className="inline-flex items-center gap-2 rounded-2xl border border-[#B8D6DE] bg-[var(--info-bg)] px-4 py-3 text-sm font-bold text-[#075985] shadow-[0_12px_24px_rgba(15,23,42,0.05)]"><RefreshCcw size={18} />Actualizar</button>
-        </div>
+        <div><p className="text-xs font-bold uppercase tracking-wide text-[var(--secondary)]">Reporte adaptativo</p><h1 className="mt-2 text-3xl font-black sm:text-4xl">Reportes</h1><p className="mt-2 text-[var(--text-muted)]">Analiza tendencias, fuentes críticas, acciones y trazabilidad con lenguaje del preset activo.</p></div>
+        <div className="flex flex-wrap items-center gap-3"><ReportExportActions executiveBriefText={executiveBrief.text} exportPayload={exportPayload} report={report} reportConfig={reportConfig} /><button onClick={() => loadReport(true)} className="inline-flex items-center gap-2 rounded-2xl border border-[#B8D6DE] bg-[var(--info-bg)] px-4 py-3 text-sm font-bold text-[#075985] shadow-[0_12px_24px_rgba(15,23,42,0.05)]"><RefreshCcw size={18} />Actualizar</button></div>
       </div>
 
       {isFiltersModalOpen && <ReportFiltersModal draftFilters={draftFilters} groupingOptions={reportConfig.groupingOptions} onApply={applyFilters} onChange={setDraftFilters} onClear={clearFilters} onClose={() => setIsFiltersModalOpen(false)} />}
@@ -502,6 +463,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
       <ReportHero activeConstructora={activeConstructora} filters={filters} onOpenFilters={openFiltersModal} preset={activePreset} report={report} reportConfig={reportConfig} />
       <ClientSummaryCard summary={executiveBrief.clientSummary} />
       <ReportCycleCard cycle={executiveBrief.improvementCycle} onOpenActions={() => onSetActiveView?.("acciones")} />
+      <ReportPriorityFollowUpCard followUp={executiveBrief.priorityFollowUp} onOpenActions={() => onSetActiveView?.("acciones")} />
       <ReportReadinessCard readiness={executiveBrief.readiness} />
       <ReportRisksCard creatingRiskKey={creatingRiskKey} onCreateAction={handleCreateRiskAction} risks={executiveBrief.risks} />
       <ExecutiveBriefCard brief={executiveBrief} />
@@ -527,32 +489,12 @@ function ClientSummaryCard({ summary }) {
 
 function ReportCycleCard({ cycle, onOpenActions }) {
   if (!cycle) return null;
-  return (
-    <section className="rounded-3xl border border-cyan-200 bg-cyan-50/70 p-5 shadow-[var(--shadow-card)]">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-700">Ciclo de mejora continua</p>
-          <h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">{cycle.status}</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-900">Reporte, brechas y decisiones conectadas con acciones reales. Próximo paso: {cycle.nextStep}</p>
-        </div>
-        <button type="button" onClick={onOpenActions} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-200 bg-white px-4 py-3 text-sm font-black text-cyan-800 shadow-sm hover:bg-cyan-50"><CheckCircle2 size={17} />Ver acciones</button>
-      </div>
-      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-6">
-        <CycleMetric label="Total" value={cycle.total} />
-        <CycleMetric label="Brechas" value={cycle.risks} />
-        <CycleMetric label="Decisiones" value={cycle.decisions} />
-        <CycleMetric label="Abiertas" value={cycle.open} />
-        <CycleMetric label="Vencidas" value={cycle.overdue} />
-        <CycleMetric label="Cierre" value={`${cycle.completionPct}%`} />
-      </div>
-      <div className="mt-5 space-y-3">
-        {cycle.latestActions.length ? cycle.latestActions.map((action, index) => {
-          const origin = actionOrigin(action);
-          return <article key={action.id || `${action.title}-${index}`} className="rounded-2xl border border-cyan-100 bg-white p-4"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full border px-3 py-1 text-xs font-black ${origin.tone}`}>{origin.label}</span><span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-600">{statusLabel(action.status)}</span></div><h3 className="mt-3 text-sm font-black text-[var(--text-main)]">{action.title || "Acción ambiental"}</h3><p className="mt-1 text-xs font-semibold text-slate-500">Fecha objetivo: {action.dueDate || "Sin fecha"} · Responsable: {action.responsible || "Equipo ambiental"}</p></article>;
-        }) : <div className="rounded-2xl border border-dashed border-cyan-200 bg-white/70 p-5 text-center text-sm font-bold text-cyan-900">Aún no hay acciones creadas desde este reporte. Convierte una brecha o decisión en acción para iniciar el ciclo.</div>}
-      </div>
-    </section>
-  );
+  return <section className="rounded-3xl border border-cyan-200 bg-cyan-50/70 p-5 shadow-[var(--shadow-card)]"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-700">Ciclo de mejora continua</p><h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">{cycle.status}</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-900">Reporte, brechas y decisiones conectadas con acciones reales. Próximo paso: {cycle.nextStep}</p></div><button type="button" onClick={onOpenActions} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-200 bg-white px-4 py-3 text-sm font-black text-cyan-800 shadow-sm hover:bg-cyan-50"><CheckCircle2 size={17} />Ver acciones</button></div><div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-6"><CycleMetric label="Total" value={cycle.total} /><CycleMetric label="Brechas" value={cycle.risks} /><CycleMetric label="Decisiones" value={cycle.decisions} /><CycleMetric label="Abiertas" value={cycle.open} /><CycleMetric label="Vencidas" value={cycle.overdue} /><CycleMetric label="Cierre" value={`${cycle.completionPct}%`} /></div><div className="mt-5 space-y-3">{cycle.latestActions.length ? cycle.latestActions.map((action, index) => { const origin = actionOrigin(action); return <article key={action.id || `${action.title}-${index}`} className="rounded-2xl border border-cyan-100 bg-white p-4"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full border px-3 py-1 text-xs font-black ${origin.tone}`}>{origin.label}</span><span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-600">{statusLabel(action.status)}</span></div><h3 className="mt-3 text-sm font-black text-[var(--text-main)]">{action.title || "Acción ambiental"}</h3><p className="mt-1 text-xs font-semibold text-slate-500">Fecha objetivo: {action.dueDate || "Sin fecha"} · Responsable: {action.responsible || "Equipo ambiental"}</p></article>; }) : <div className="rounded-2xl border border-dashed border-cyan-200 bg-white/70 p-5 text-center text-sm font-bold text-cyan-900">Aún no hay acciones creadas desde este reporte. Convierte una brecha o decisión en acción para iniciar el ciclo.</div>}</div></section>;
+}
+
+function ReportPriorityFollowUpCard({ followUp, onOpenActions }) {
+  if (!followUp) return null;
+  return <section className="rounded-3xl border border-orange-200 bg-orange-50/70 p-5 shadow-[var(--shadow-card)]"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-orange-700">Seguimiento prioritario</p><h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">{followUp.status}</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-orange-900">Ordena las acciones nacidas desde reportes según urgencia. Próximo paso: {followUp.nextStep}</p></div><button type="button" onClick={onOpenActions} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-orange-200 bg-white px-4 py-3 text-sm font-black text-orange-800 shadow-sm hover:bg-orange-50"><Clock3 size={17} />Abrir seguimiento</button></div><div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4"><CycleMetric label="Abiertas" value={followUp.totalOpen} /><CycleMetric label="Vencidas" value={followUp.overdue} /><CycleMetric label="7 días" value={followUp.dueSoon} /><CycleMetric label="Validación" value={followUp.validation} /></div><div className="mt-5 space-y-3">{followUp.items.length ? followUp.items.map((item, index) => <article key={item.action.id || `${item.action.title}-${index}`} className="rounded-2xl border border-orange-100 bg-white p-4"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full border px-3 py-1 text-xs font-black ${item.tone}`}>{item.level}</span><span className={`rounded-full border px-3 py-1 text-xs font-black ${item.origin.tone}`}>{item.origin.label}</span><span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-600">{item.reason}</span></div><h3 className="mt-3 text-sm font-black text-[var(--text-main)]">{item.action.title || "Acción ambiental"}</h3><p className="mt-1 text-xs font-semibold text-slate-500">Fecha objetivo: {item.action.dueDate || "Sin fecha"} · Responsable: {item.action.responsible || "Equipo ambiental"}</p></article>) : <div className="rounded-2xl border border-dashed border-orange-200 bg-white/70 p-5 text-center text-sm font-bold text-orange-900">No hay acciones urgentes creadas desde reportes.</div>}</div></section>;
 }
 
 function CycleMetric({ label, value }) {
