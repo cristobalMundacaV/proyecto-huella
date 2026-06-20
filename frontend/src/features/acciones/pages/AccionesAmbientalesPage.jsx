@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Clock3, KanbanSquare, Leaf, Loader2, Plus, Search, Trash2, X } from "lucide-react";
+import { CheckCircle2, Clock3, Leaf, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 
 import EmptyState from "@/shared/components/EmptyState";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
@@ -163,7 +163,7 @@ function AccionesAmbientalesPage() {
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4">
             <div className="rounded-3xl border border-emerald-200 bg-white/80 p-4 text-emerald-800 shadow-sm">
-              <KanbanSquare size={30} />
+              <CheckCircle2 size={30} />
             </div>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-700">Seguimiento ambiental</p>
