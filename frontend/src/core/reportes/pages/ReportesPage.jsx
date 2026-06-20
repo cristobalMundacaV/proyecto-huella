@@ -37,6 +37,33 @@ function findKpi(report, includes) {
   return report?.kpis?.find((kpi) => String(kpi.label || "").toLowerCase().includes(needle));
 }
 
+function statusLabel(status) {
+  return {
+    pendiente: "Pendiente",
+    en_progreso: "En progreso",
+    validacion: "En validación",
+    completada: "Completada",
+  }[status] || "Sin estado";
+}
+
+function linkTypeLabel(type) {
+  return {
+    obra: "Obra",
+    lote_forestal: "Lote forestal",
+    registro_emision: "Registro crítico",
+    evidencia: "Evidencia",
+  }[type] || "Vínculo";
+}
+
+function actionLinkLabel(action) {
+  if (!action?.linkedTo) return "Sin vínculo operacional";
+  return `${linkTypeLabel(action.linkedTo.type)}: ${action.linkedTo.label || action.linkedTo.id || "sin detalle"}`;
+}
+
+function formatActionLine(action, index) {
+  return `${index + 1}. ${action.title || "Acción ambiental"} · Estado: ${statusLabel(action.status)} · Responsable: ${action.responsible || "Equipo ambiental"} · Fecha: ${action.dueDate || "Sin fecha"} · ${actionLinkLabel(action)}`;
+}
+
 function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary, filters, report }) {
   const empresa = activeConstructora?.nombre || "La empresa";
   const preset = activePreset?.name || "ambiental";
@@ -50,6 +77,7 @@ function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary,
   const overdueActions = actionsSummary?.overdue || 0;
   const traceabilityPct = actionsSummary?.traceabilityPct || 0;
   const completionPct = actionsSummary?.completionPct || 0;
+  const actionPlan = Array.isArray(actionsSummary?.latestActions) ? actionsSummary.latestActions.slice(0, 5) : [];
   const hasPeriod = filters?.fecha_inicio || filters?.fecha_fin;
   const period = hasPeriod
     ? `${filters.fecha_inicio || "inicio"} a ${filters.fecha_fin || "hoy"}`
@@ -94,9 +122,12 @@ function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary,
     "",
     "Indicadores clave:",
     ...bullets.map((item) => `- ${item}`),
+    "",
+    "Plan de acción ambiental:",
+    ...(actionPlan.length ? actionPlan.map(formatActionLine) : ["Sin acciones recientes para listar en el plan."]),
   ].join("\n");
 
-  return { bullets, diagnosis, headline, management, priority, text };
+  return { actionPlan, bullets, diagnosis, headline, management, priority, text };
 }
 
 function periodoClean(value) {
@@ -198,6 +229,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
       }),
       informe_ejecutivo: executiveBrief,
       acciones_resumen: actionsSummary,
+      plan_accion: executiveBrief.actionPlan,
     }),
     [activeConstructora, activePreset, actionsSummary, executiveBrief, filters, report, reportConfig]
   );
@@ -292,6 +324,8 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
 
       <ExecutiveBriefCard brief={executiveBrief} />
 
+      <ReportActionPlan onOpenActions={() => onSetActiveView?.("acciones")} actions={executiveBrief.actionPlan} />
+
       <ReportActionsSummary onOpenActions={() => onSetActiveView?.("acciones")} summary={actionsSummary} />
 
       {!loading && !report.rows.length ? (
@@ -355,6 +389,58 @@ function BriefBlock({ text, title }) {
       <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{title}</p>
       <p className="mt-2 text-sm leading-6 text-slate-700">{text}</p>
     </div>
+  );
+}
+
+function ReportActionPlan({ actions = [], onOpenActions }) {
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[var(--shadow-card)]">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Plan de acción ambiental</p>
+          <h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">Acciones priorizadas para seguimiento</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
+            Lista de acciones recientes para revisar responsables, vencimientos y trazabilidad operacional desde el reporte.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenActions}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800 shadow-sm hover:bg-emerald-100"
+        >
+          <CheckCircle2 size={17} />
+          Abrir tablero
+        </button>
+      </div>
+
+      {actions.length ? (
+        <div className="mt-5 space-y-3">
+          {actions.map((action, index) => (
+            <article key={action.id || `${action.title}-${index}`} className="grid gap-3 rounded-3xl border border-slate-100 bg-slate-50 p-4 lg:grid-cols-[1fr_170px_170px] lg:items-center">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Acción {index + 1}</p>
+                <h3 className="mt-1 text-base font-black text-[var(--text-main)]">{action.title || "Acción ambiental"}</h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600">{action.description || "Sin descripción registrada."}</p>
+                <p className="mt-2 text-xs font-bold text-slate-500">{actionLinkLabel(action)}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-white px-3 py-2 text-sm">
+                <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Responsable</p>
+                <p className="mt-1 font-black text-slate-800">{action.responsible || "Equipo ambiental"}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-white px-3 py-2 text-sm">
+                <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Estado / fecha</p>
+                <p className="mt-1 font-black text-slate-800">{statusLabel(action.status)}</p>
+                <p className="text-xs font-bold text-slate-500">{action.dueDate || "Sin fecha"}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-5 rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm font-bold text-[var(--text-muted)]">
+          No hay acciones recientes para listar en este reporte.
+        </div>
+      )}
+    </section>
   );
 }
 
