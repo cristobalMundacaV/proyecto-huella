@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Clock3, Lightbulb, Plus, Sparkles, X } from "lucide-react";
+import { CheckCircle2, Clock3, Lightbulb, Loader2, Plus, Sparkles, X } from "lucide-react";
+
+import {
+  createTraceableAction,
+  deleteTraceableAction,
+  getTraceableActions,
+  updateTraceableAction,
+} from "../services/traceableActionsApi";
 
 const inputClass = "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100";
 
@@ -10,31 +17,14 @@ const statusOptions = [
   { value: "completada", label: "Completada" },
 ];
 
-function storageKey(constructoraId) {
-  return `carbono_zero.traceable_actions.${constructoraId}`;
-}
-
 function todayPlus(days) {
   const date = new Date();
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
 }
 
-function readActions(constructoraId) {
-  try {
-    return JSON.parse(window.localStorage.getItem(storageKey(constructoraId)) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function saveActions(constructoraId, actions) {
-  window.localStorage.setItem(storageKey(constructoraId), JSON.stringify(actions));
-}
-
 function buildInitialAction(card) {
   return {
-    id: `accion_${Date.now()}_${Math.random().toString(16).slice(2)}`,
     title: card?.title || "Acción ambiental",
     description: card?.recommended_action || card?.diagnosis || "Definir acción ambiental medible.",
     responsible: "Equipo ambiental",
@@ -44,7 +34,10 @@ function buildInitialAction(card) {
     evidence: card?.id === "trazabilidad_soporte" ? "Evidencia documental vinculada" : "Registro operativo y respaldo documental",
     trackingKpi: card?.tracking_kpi || "avance semanal de acción ambiental",
     sourceCardId: card?.id || "manual",
-    createdAt: new Date().toISOString(),
+    metadata: {
+      source_card: card?.id || "manual",
+      priority: card?.priority || "media",
+    },
   };
 }
 
@@ -64,11 +57,33 @@ function statusLabel(status) {
 function TraceableActionsPanel({ cards = [], constructoraId }) {
   const [actions, setActions] = useState([]);
   const [draft, setDraft] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!constructoraId) return;
-    setActions(readActions(constructoraId));
+    let cancelled = false;
+
+    async function loadActions() {
+      if (!constructoraId) return;
+      try {
+        setLoading(true);
+        setError("");
+        const data = await getTraceableActions(constructoraId);
+        if (!cancelled) setActions(Array.isArray(data) ? data : []);
+      } catch (requestError) {
+        if (!cancelled) setError(requestError?.response?.data?.error || "No se pudieron cargar las acciones ambientales.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
     setDraft(null);
+    loadActions();
+
+    return () => {
+      cancelled = true;
+    };
   }, [constructoraId]);
 
   const stats = useMemo(() => {
@@ -78,28 +93,47 @@ function TraceableActionsPanel({ cards = [], constructoraId }) {
     return { total, completed, inProgress };
   }, [actions]);
 
-  function persist(nextActions) {
-    setActions(nextActions);
-    saveActions(constructoraId, nextActions);
-  }
-
   function openDraft(card) {
     setDraft(buildInitialAction(card));
   }
 
-  function saveDraft(event) {
+  async function saveDraft(event) {
     event.preventDefault();
-    if (!draft) return;
-    persist([draft, ...actions]);
-    setDraft(null);
+    if (!draft || !constructoraId) return;
+    try {
+      setSaving(true);
+      setError("");
+      const created = await createTraceableAction(constructoraId, draft);
+      setActions((current) => [created, ...current]);
+      setDraft(null);
+    } catch (requestError) {
+      setError(requestError?.response?.data?.error || "No se pudo crear la acción ambiental.");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function updateActionStatus(actionId, status) {
-    persist(actions.map((action) => (action.id === actionId ? { ...action, status } : action)));
+  async function updateActionStatus(actionId, nextStatus) {
+    const previous = actions;
+    setActions((current) => current.map((action) => (action.id === actionId ? { ...action, status: nextStatus } : action)));
+    try {
+      const updated = await updateTraceableAction(constructoraId, actionId, { status: nextStatus });
+      setActions((current) => current.map((action) => (action.id === actionId ? updated : action)));
+    } catch (requestError) {
+      setActions(previous);
+      setError(requestError?.response?.data?.error || "No se pudo actualizar la acción.");
+    }
   }
 
-  function deleteAction(actionId) {
-    persist(actions.filter((action) => action.id !== actionId));
+  async function removeAction(actionId) {
+    const previous = actions;
+    setActions((current) => current.filter((action) => action.id !== actionId));
+    try {
+      await deleteTraceableAction(constructoraId, actionId);
+    } catch (requestError) {
+      setActions(previous);
+      setError(requestError?.response?.data?.error || "No se pudo eliminar la acción.");
+    }
   }
 
   return (
@@ -113,7 +147,7 @@ function TraceableActionsPanel({ cards = [], constructoraId }) {
             <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">Acciones ambientales trazables</p>
             <h3 className="text-xl font-black text-[var(--text-main)]">Convierte recomendaciones en gestión real</h3>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
-              Cada acción puede tener responsable, fecha objetivo, estado, evidencia esperada y KPI de seguimiento.
+              Cada acción queda guardada en la empresa con responsable, fecha objetivo, estado, evidencia esperada y KPI de seguimiento.
             </p>
           </div>
         </div>
@@ -124,6 +158,12 @@ function TraceableActionsPanel({ cards = [], constructoraId }) {
           <MetricBox label="Cerradas" value={stats.completed} />
         </div>
       </div>
+
+      {error ? (
+        <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-700">
+          {error}
+        </div>
+      ) : null}
 
       <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-3">
         {cards.slice(0, 3).map((card) => (
@@ -146,7 +186,12 @@ function TraceableActionsPanel({ cards = [], constructoraId }) {
         ))}
       </div>
 
-      {actions.length ? (
+      {loading ? (
+        <div className="mt-5 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--bg-surface)] p-6 text-center text-sm font-bold text-[var(--text-muted)]">
+          <Loader2 className="mx-auto mb-2 animate-spin text-emerald-700" size={20} />
+          Cargando acciones ambientales...
+        </div>
+      ) : actions.length ? (
         <div className="mt-5 space-y-3">
           {actions.slice(0, 6).map((action) => (
             <article key={action.id} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
@@ -176,7 +221,7 @@ function TraceableActionsPanel({ cards = [], constructoraId }) {
                   </select>
                   <button
                     type="button"
-                    onClick={() => deleteAction(action.id)}
+                    onClick={() => removeAction(action.id)}
                     className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700"
                   >
                     Quitar
@@ -186,7 +231,7 @@ function TraceableActionsPanel({ cards = [], constructoraId }) {
 
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <DetailBox icon={<CheckCircle2 size={15} />} label="Responsable" value={action.responsible} />
-                <DetailBox icon={<Clock3 size={15} />} label="Fecha objetivo" value={action.dueDate} />
+                <DetailBox icon={<Clock3 size={15} />} label="Fecha objetivo" value={action.dueDate || "Sin fecha"} />
                 <DetailBox icon={<Lightbulb size={15} />} label="KPI" value={action.trackingKpi} />
               </div>
 
@@ -245,9 +290,13 @@ function TraceableActionsPanel({ cards = [], constructoraId }) {
               </Field>
             </div>
 
-            <button type="submit" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,124,109,0.18)] hover:bg-[var(--primary-dark)]">
-              <CheckCircle2 size={17} />
-              Guardar acción trazable
+            <button
+              type="submit"
+              disabled={saving}
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,124,109,0.18)] hover:bg-[var(--primary-dark)] disabled:opacity-60"
+            >
+              {saving ? <Loader2 className="animate-spin" size={17} /> : <CheckCircle2 size={17} />}
+              {saving ? "Guardando..." : "Guardar acción trazable"}
             </button>
           </form>
         </div>
