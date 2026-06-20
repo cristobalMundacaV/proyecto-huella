@@ -3,6 +3,7 @@ import { CheckCircle2, ClipboardCopy, Download, FileJson, FileText, Printer } fr
 
 function ReportExportActions({ executiveBriefText, exportPayload, report, reportConfig }) {
   const [copiedMode, setCopiedMode] = useState("");
+  const cycleActions = Array.isArray(exportPayload?.ciclo_mejora?.latestActions) ? exportPayload.ciclo_mejora.latestActions : [];
   const priorityItems = Array.isArray(exportPayload?.seguimiento_prioritario?.items) ? exportPayload.seguimiento_prioritario.items : [];
 
   const downloadJson = () => {
@@ -16,6 +17,23 @@ function ReportExportActions({ executiveBriefText, exportPayload, report, report
     const rows = report.rows.map((row) => columns.map((column) => escapeCsv(column.resolver(row))).join(","));
     const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv;charset=utf-8" });
     downloadBlob(blob, "reporte-carbono-zero.csv");
+  };
+
+  const downloadCycleCsv = () => {
+    const headers = ["Origen", "Acción", "Estado", "Responsable", "Fecha objetivo", "Fuente", "KPI seguimiento"];
+    const rows = cycleActions.map((action) => [
+      originLabel(action),
+      action.title || "Acción ambiental",
+      statusLabel(action.status),
+      action.responsible || "Equipo ambiental",
+      action.dueDate || "Sin fecha",
+      action.source || "Reporte ejecutivo",
+      action.trackingKpi || "Sin KPI",
+    ]);
+    const header = headers.map(escapeCsv).join(",");
+    const body = rows.map((row) => row.map(escapeCsv).join(","));
+    const blob = new Blob([[header, ...body].join("\n")], { type: "text/csv;charset=utf-8" });
+    downloadBlob(blob, "ciclo-mejora-carbono-zero.csv");
   };
 
   const downloadPriorityFollowUpCsv = () => {
@@ -101,6 +119,12 @@ function ReportExportActions({ executiveBriefText, exportPayload, report, report
         <Download size={18} />
         Descargar CSV
       </button>
+      {cycleActions.length ? (
+        <button onClick={downloadCycleCsv} className="inline-flex items-center gap-2 rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-black text-cyan-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
+          <Download size={18} />
+          Ciclo CSV
+        </button>
+      ) : null}
       {priorityItems.length ? (
         <button onClick={downloadPriorityFollowUpCsv} className="inline-flex items-center gap-2 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-black text-orange-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
           <Download size={18} />
