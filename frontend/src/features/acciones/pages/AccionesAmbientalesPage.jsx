@@ -36,6 +36,10 @@ function emptyDraft() {
     evidence: "Registro operativo y respaldo documental",
     trackingKpi: "avance semanal de acción ambiental",
     sourceCardId: "manual",
+    obraCodigo: "",
+    loteId: "",
+    registroId: "",
+    evidenciaId: "",
     metadata: { origin: "manual_actions_board" },
   };
 }
@@ -54,6 +58,15 @@ function statusTone(status) {
     validacion: "border-violet-200 bg-violet-50 text-violet-800",
     completada: "border-emerald-200 bg-emerald-50 text-emerald-800",
   }[status] || "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function linkTypeLabel(type) {
+  return {
+    obra: "Obra",
+    lote_forestal: "Lote forestal",
+    registro_emision: "Registro crítico",
+    evidencia: "Evidencia",
+  }[type] || "Vínculo";
 }
 
 function AccionesAmbientalesPage() {
@@ -97,6 +110,12 @@ function AccionesAmbientalesPage() {
         action.source,
         action.evidence,
         action.trackingKpi,
+        action.linkedTo?.label,
+        action.linkedTo?.type,
+        action.obraCodigo,
+        action.loteId,
+        action.registroId,
+        action.evidenciaId,
       ].join(" ")).includes(query)
     );
   }, [actions, search]);
@@ -171,7 +190,7 @@ function AccionesAmbientalesPage() {
                 Acciones ambientales de {activeConstructora?.nombre || "la empresa"}
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
-                Convierte recomendaciones, hallazgos y compromisos en acciones con responsable, fecha objetivo, evidencia y KPI.
+                Convierte recomendaciones, hallazgos y compromisos en acciones con responsable, fecha objetivo, evidencia, KPI y vínculo operacional.
               </p>
             </div>
           </div>
@@ -213,7 +232,7 @@ function AccionesAmbientalesPage() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar acción, responsable, evidencia o KPI"
+              placeholder="Buscar acción, responsable, evidencia, KPI o vínculo"
               className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-emerald-400/60"
             />
           </label>
@@ -288,6 +307,15 @@ function ActionColumn({ actions, column, onDelete, onUpdateStatus }) {
             </span>
             <h4 className="mt-3 text-sm font-black text-[var(--text-main)]">{action.title}</h4>
             <p className="mt-1 line-clamp-3 text-xs leading-5 text-[var(--text-muted)]">{action.description}</p>
+            {action.linkedTo ? (
+              <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-900">
+                <strong>Vinculado a {linkTypeLabel(action.linkedTo.type)}:</strong> {action.linkedTo.label}
+              </div>
+            ) : (
+              <div className="mt-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
+                Sin vínculo operacional
+              </div>
+            )}
             <div className="mt-3 space-y-2 text-xs text-slate-600">
               <p><strong>Responsable:</strong> {action.responsible || "Equipo ambiental"}</p>
               <p><strong>Fecha:</strong> {action.dueDate || "Sin fecha"}</p>
@@ -330,7 +358,7 @@ function ActionModal({ draft, onClose, onSave, saving, setDraft }) {
         <div className="mb-5 pr-12">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Nueva acción ambiental</p>
           <h3 className="mt-1 text-2xl font-black text-[var(--text-main)]">Seguimiento trazable</h3>
-          <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">Crea una acción con responsable, fecha, evidencia y KPI.</p>
+          <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">Crea una acción con responsable, fecha, evidencia, KPI y vínculo operacional.</p>
         </div>
 
         <div className="grid grid-cols-1 gap-4">
@@ -348,6 +376,20 @@ function ActionModal({ draft, onClose, onSave, saving, setDraft }) {
               </select>
             </Field>
           </div>
+
+          <section className="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-700">Vínculo operacional</p>
+            <p className="mt-1 text-xs leading-5 text-emerald-900">
+              Completa solo el vínculo que corresponda. El backend validará que pertenezca a la empresa activa.
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Código de obra"><input className={inputClass} value={draft.obraCodigo} onChange={(event) => setDraft({ ...draft, obraCodigo: event.target.value })} placeholder="Ej: OBRA-001" /></Field>
+              <Field label="ID de lote forestal"><input className={inputClass} value={draft.loteId} onChange={(event) => setDraft({ ...draft, loteId: event.target.value })} placeholder="Ej: LOTE-PINO-001" /></Field>
+              <Field label="ID registro crítico"><input className={inputClass} value={draft.registroId} onChange={(event) => setDraft({ ...draft, registroId: event.target.value })} placeholder="Ej: 123" /></Field>
+              <Field label="ID evidencia"><input className={inputClass} value={draft.evidenciaId} onChange={(event) => setDraft({ ...draft, evidenciaId: event.target.value })} placeholder="Ej: 45" /></Field>
+            </div>
+          </section>
+
           <Field label="Evidencia esperada"><input className={inputClass} value={draft.evidence} onChange={(event) => setDraft({ ...draft, evidence: event.target.value })} /></Field>
           <Field label="KPI de seguimiento"><input className={inputClass} value={draft.trackingKpi} onChange={(event) => setDraft({ ...draft, trackingKpi: event.target.value })} /></Field>
         </div>
