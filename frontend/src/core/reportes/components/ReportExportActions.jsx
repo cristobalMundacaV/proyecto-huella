@@ -76,6 +76,13 @@ function ReportExportActions({ executiveBriefText, exportPayload, report, report
     downloadBlob(blob, "seguimiento-operativo-carbono-zero.txt");
   };
 
+  const downloadOperationalMarkdown = () => {
+    const markdown = buildOperationalMarkdown({ improvementCycle, priorityFollowUp });
+    if (!markdown) return;
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    downloadBlob(blob, "seguimiento-operativo-carbono-zero.md");
+  };
+
   const copyExecutiveBrief = async () => {
     const text = executiveBriefText || "";
     if (!text) return;
@@ -146,6 +153,10 @@ function ReportExportActions({ executiveBriefText, exportPayload, report, report
             <Download size={18} />
             Seguimiento TXT
           </button>
+          <button onClick={downloadOperationalMarkdown} className="inline-flex items-center gap-2 rounded-2xl border border-cyan-200 bg-white px-4 py-3 text-sm font-black text-cyan-700 shadow-[0_10px_20px_rgba(15,23,42,0.05)]">
+            <FileText size={18} />
+            Seguimiento MD
+          </button>
         </>
       ) : null}
       {cycleActions.length ? (
@@ -185,8 +196,41 @@ function buildOperationalSummary({ improvementCycle, priorityFollowUp }) {
   ].join("\n");
 }
 
+function buildOperationalMarkdown({ improvementCycle, priorityFollowUp }) {
+  const cycle = improvementCycle || {};
+  const followUp = priorityFollowUp || {};
+  const priorityItems = Array.isArray(followUp.items) ? followUp.items : [];
+
+  return [
+    "# Seguimiento operativo Carbono Zero",
+    "",
+    "## Ciclo de mejora",
+    `**Estado:** ${cycle.status || "Sin ciclo registrado"}`,
+    `**Acciones desde reportes:** ${cycle.total || 0}`,
+    `**Cerradas:** ${cycle.completed || 0}`,
+    `**Abiertas:** ${cycle.open || 0}`,
+    `**Cierre:** ${cycle.completionPct || 0}%`,
+    `**Próximo paso:** ${cycle.nextStep || "Sin próximo paso definido."}`,
+    "",
+    "## Seguimiento prioritario",
+    `**Estado:** ${followUp.status || "Sin prioridades abiertas"}`,
+    `**Abiertas:** ${followUp.totalOpen || 0}`,
+    `**Vencidas:** ${followUp.overdue || 0}`,
+    `**Próximas a vencer:** ${followUp.dueSoon || 0}`,
+    `**En validación:** ${followUp.validation || 0}`,
+    `**Próximo paso:** ${followUp.nextStep || "Sin próximo paso definido."}`,
+    "",
+    "## Prioridades",
+    ...(priorityItems.length ? priorityItems.map(formatPriorityMarkdownLine) : ["- Sin acciones prioritarias abiertas."]),
+  ].join("\n");
+}
+
 function formatPriorityLine(item, index) {
   return `${index + 1}. [${item.level || "Sin prioridad"}] ${item.action?.title || "Acción ambiental"} · ${item.reason || "Sin motivo"} · Estado: ${statusLabel(item.action?.status)} · Fecha: ${item.action?.dueDate || "Sin fecha"}`;
+}
+
+function formatPriorityMarkdownLine(item) {
+  return `- **[${item.level || "Sin prioridad"}]** ${item.action?.title || "Acción ambiental"} · ${item.reason || "Sin motivo"} · Estado: ${statusLabel(item.action?.status)} · Fecha: ${item.action?.dueDate || "Sin fecha"}`;
 }
 
 function buildExecutiveMarkdown(text = "") {
