@@ -24,6 +24,14 @@ const statusColumns = [
   { value: "completada", label: "Completadas", hint: "Acciones cerradas y trazadas." },
 ];
 
+const sourceFilters = [
+  { value: "all", label: "Todas" },
+  { value: "report", label: "Desde reportes" },
+  { value: "risk", label: "Brechas" },
+  { value: "decision", label: "Decisiones" },
+  { value: "manual", label: "Manual / otras" },
+];
+
 const inputClass = "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100";
 
 function todayPlus(days) {
@@ -104,6 +112,61 @@ function linkTypeLabel(type) {
   }[type] || "Vínculo";
 }
 
+function actionOrigin(action) {
+  const origin = action?.metadata?.origin || "";
+  const source = normalizeText(action?.source || "");
+
+  if (origin === "report_risk_gap") {
+    return {
+      key: "risk",
+      fromReport: true,
+      label: "Brecha de reporte",
+      tone: "border-rose-200 bg-rose-50 text-rose-800",
+    };
+  }
+
+  if (origin === "report_decision_agenda") {
+    return {
+      key: "decision",
+      fromReport: true,
+      label: "Decisión ejecutiva",
+      tone: "border-amber-200 bg-amber-50 text-amber-800",
+    };
+  }
+
+  if (source.includes("reporte ejecutivo")) {
+    return {
+      key: "report",
+      fromReport: true,
+      label: "Reporte ejecutivo",
+      tone: "border-sky-200 bg-sky-50 text-sky-800",
+    };
+  }
+
+  return {
+    key: "manual",
+    fromReport: false,
+    label: action?.source || "Manual / operacional",
+    tone: "border-slate-200 bg-slate-50 text-slate-700",
+  };
+}
+
+function reportActionStats(actions) {
+  const fromReport = actions.filter((action) => actionOrigin(action).fromReport);
+  const fromRisks = fromReport.filter((action) => actionOrigin(action).key === "risk");
+  const fromDecisions = fromReport.filter((action) => actionOrigin(action).key === "decision");
+  const open = fromReport.filter((action) => action.status !== "completada");
+  const completed = fromReport.filter((action) => action.status === "completada");
+  return {
+    total: fromReport.length,
+    risks: fromRisks.length,
+    decisions: fromDecisions.length,
+    open: open.length,
+    completed: completed.length,
+    completionPct: fromReport.length ? Math.round((completed.length / fromReport.length) * 1000) / 10 : 0,
+  };
+}
+
 function buildTraceabilityOptions({ evidencias, lotes, obras, registros }) {
   return {
     obras: rows(obras).map((obra) => ({
@@ -172,6 +235,7 @@ function AccionesAmbientalesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [draft, setDraft] = useState(null);
 
   async function loadPageData() {
@@ -212,30 +276,41 @@ function AccionesAmbientalesPage() {
     setActions([]);
     setSummary(null);
     setDraft(null);
+    setSourceFilter("all");
     loadPageData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConstructoraId]);
 
   const filteredActions = useMemo(() => {
     const query = normalizeText(search);
-    if (!query) return actions;
-    return actions.filter((action) => normalizeText([
-      action.title,
-      action.description,
-      action.responsible,
-      action.source,
-      action.evidence,
-      action.trackingKpi,
-      action.linkedTo?.label,
-      action.linkedTo?.type,
-      action.obraCodigo,
-      action.loteId,
-      action.registroId,
-      action.evidenciaId,
-    ].join(" ")).includes(query));
-  }, [actions, search]);
+    return actions.filter((action) => {
+      const origin = actionOrigin(action);
+      const matchesSource = sourceFilter === "all" || origin.key === sourceFilter || (sourceFilter === "report" && origin.fromReport);
+      if (!matchesSource) return false;
+      if (!query) return true;
+      return normalizeText([
+        action.title,
+        action.description,
+        action.responsible,
+        action.source,
+        action.evidence,
+        action.trackingKpi,
+        action.metadata?.origin,
+        action.metadata?.riskTitle,
+        action.metadata?.decision,
+        origin.label,
+        action.linkedTo?.label,
+        action.linkedTo?.type,
+        action.obraCodigo,
+        action.loteId,
+        action.registroId,
+        action.evidenciaId,
+      ].join(" ")).includes(query);
+    });
+  }, [actions, search, sourceFilter]);
 
   const stats = summary || fallbackSummary(actions);
+  const reportStats = useMemo(() => reportActionStats(actions), [actions]);
 
   async function refreshActionsOnly() {
     if (!activeConstructoraId) return;
@@ -342,6 +417,26 @@ function AccionesAmbientalesPage() {
         </div>
       </section>
 
+      <section className="rounded-3xl border border-amber-200 bg-amber-50/60 p-5 shadow-[var(--shadow-card)]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-700">Seguimiento desde reportes</p>
+            <h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">Acciones nacidas del reporte ejecutivo</h2>
+            <p className="mt-2 text-sm leading-6 text-amber-900">
+              {reportStats.total
+                ? `${reportStats.total} acciones fueron creadas desde reportes: ${reportStats.risks} desde brechas y ${reportStats.decisions} desde decisiones ejecutivas.`
+                : "Aún no hay acciones creadas desde Reportes. Cuando conviertas una brecha o decisión en acción, aparecerá aquí."}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <MiniMetric label="Desde reportes" value={reportStats.total} />
+            <MiniMetric label="Brechas" value={reportStats.risks} />
+            <MiniMetric label="Decisiones" value={reportStats.decisions} />
+            <MiniMetric label="Cierre" value={`${reportStats.completionPct}%`} />
+          </div>
+        </div>
+      </section>
+
       <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-[var(--shadow-card)]">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -351,8 +446,21 @@ function AccionesAmbientalesPage() {
           </div>
           <label className="relative block w-full max-w-md">
             <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar acción, responsable, evidencia, KPI o vínculo" className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-emerald-400/60" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar acción, origen, responsable, evidencia, KPI o vínculo" className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-emerald-400/60" />
           </label>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {sourceFilters.map((filter) => (
+            <button
+              key={filter.value}
+              type="button"
+              onClick={() => setSourceFilter(filter.value)}
+              className={`rounded-2xl border px-4 py-2 text-xs font-black transition ${sourceFilter === filter.value ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+            >
+              {filter.label}
+            </button>
+          ))}
         </div>
 
         {loading ? (
@@ -364,7 +472,7 @@ function AccionesAmbientalesPage() {
             {statusColumns.map((column) => <ActionColumn actions={filteredActions.filter((action) => action.status === column.value)} column={column} key={column.value} onDelete={removeAction} onEdit={(action) => setDraft(editDraft(action))} onUpdateStatus={updateStatus} />)}
           </div>
         ) : (
-          <EmptyState title="Sin acciones ambientales" description="Crea una acción desde Inteligencia o manualmente para comenzar seguimiento." />
+          <EmptyState title="Sin acciones ambientales" description="Crea una acción desde Reportes, Inteligencia o manualmente para comenzar seguimiento." />
         )}
       </section>
 
@@ -403,30 +511,37 @@ function ActionColumn({ actions, column, onDelete, onEdit, onUpdateStatus }) {
         <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{column.hint}</p>
       </div>
       <div className="space-y-3">
-        {actions.map((action) => (
-          <article key={action.id} className="rounded-2xl border border-white bg-white p-4 shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
-            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusTone(action.status)}`}>{column.label.replace(/s$/, "")}</span>
-            <h4 className="mt-3 text-sm font-black text-[var(--text-main)]">{action.title}</h4>
-            <p className="mt-1 line-clamp-3 text-xs leading-5 text-[var(--text-muted)]">{action.description}</p>
-            {action.linkedTo ? (
-              <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-900"><strong>Vinculado a {linkTypeLabel(action.linkedTo.type)}:</strong> {action.linkedTo.label}</div>
-            ) : (
-              <div className="mt-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">Sin vínculo operacional</div>
-            )}
-            <div className="mt-3 space-y-2 text-xs text-slate-600">
-              <p><strong>Responsable:</strong> {action.responsible || "Equipo ambiental"}</p>
-              <p><strong>Fecha:</strong> {action.dueDate || "Sin fecha"}</p>
-              <p><strong>KPI:</strong> {action.trackingKpi || "Sin KPI"}</p>
-            </div>
-            <div className="mt-4 flex flex-col gap-2">
-              <select value={action.status} onChange={(event) => onUpdateStatus(action.id, event.target.value)} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 outline-none">
-                {statusColumns.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-              <button type="button" onClick={() => onEdit(action)} className="inline-flex items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">Editar</button>
-              <button type="button" onClick={() => onDelete(action.id)} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700"><Trash2 size={14} /> Quitar</button>
-            </div>
-          </article>
-        ))}
+        {actions.map((action) => {
+          const origin = actionOrigin(action);
+          return (
+            <article key={action.id} className="rounded-2xl border border-white bg-white p-4 shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
+              <div className="flex flex-wrap gap-2">
+                <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusTone(action.status)}`}>{column.label.replace(/s$/, "")}</span>
+                <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${origin.tone}`}>{origin.label}</span>
+              </div>
+              <h4 className="mt-3 text-sm font-black text-[var(--text-main)]">{action.title}</h4>
+              <p className="mt-1 line-clamp-3 text-xs leading-5 text-[var(--text-muted)]">{action.description}</p>
+              {action.linkedTo ? (
+                <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-900"><strong>Vinculado a {linkTypeLabel(action.linkedTo.type)}:</strong> {action.linkedTo.label}</div>
+              ) : (
+                <div className="mt-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">Sin vínculo operacional</div>
+              )}
+              <div className="mt-3 space-y-2 text-xs text-slate-600">
+                <p><strong>Origen:</strong> {action.source || origin.label}</p>
+                <p><strong>Responsable:</strong> {action.responsible || "Equipo ambiental"}</p>
+                <p><strong>Fecha:</strong> {action.dueDate || "Sin fecha"}</p>
+                <p><strong>KPI:</strong> {action.trackingKpi || "Sin KPI"}</p>
+              </div>
+              <div className="mt-4 flex flex-col gap-2">
+                <select value={action.status} onChange={(event) => onUpdateStatus(action.id, event.target.value)} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 outline-none">
+                  {statusColumns.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+                <button type="button" onClick={() => onEdit(action)} className="inline-flex items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">Editar</button>
+                <button type="button" onClick={() => onDelete(action.id)} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700"><Trash2 size={14} /> Quitar</button>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );
