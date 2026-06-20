@@ -177,6 +177,43 @@ function buildReportReadiness({ actionsSummary, records, totalEmissions }) {
   return { checks, passed, score, status, total: checks.length };
 }
 
+function buildReportRisks({ actionsSummary, readiness }) {
+  const risks = readiness.checks
+    .filter((check) => !check.passed)
+    .map((check) => ({
+      key: check.key,
+      level: ["records", "footprint", "overdue"].includes(check.key) ? "Alta" : "Media",
+      title: check.label,
+      description: check.detail,
+      action: riskAction(check.key),
+    }));
+
+  if ((actionsSummary?.overdue || 0) > 0 && !risks.some((risk) => risk.key === "overdue")) {
+    risks.push({
+      key: "overdue_extra",
+      level: "Alta",
+      title: "Acciones vencidas detectadas",
+      description: `${actionsSummary.overdue} acciones están fuera de plazo.`,
+      action: "Reasignar responsable, nueva fecha objetivo y evidencia esperada.",
+    });
+  }
+
+  return risks.length
+    ? risks.slice(0, 6)
+    : [{ key: "sin_brechas", level: "Baja", title: "Sin brechas críticas", description: "El reporte no muestra brechas relevantes para presentación ejecutiva.", action: "Mantener seguimiento y actualizar datos del próximo periodo." }];
+}
+
+function riskAction(key) {
+  return {
+    records: "Cargar o importar registros ambientales del periodo.",
+    footprint: "Revisar factores de emisión y registros faltantes.",
+    actions: "Crear acciones ambientales asociadas a los focos críticos.",
+    traceability: "Vincular acciones a obra, lote, registro o evidencia.",
+    overdue: "Regularizar plazos y responsables antes de presentar.",
+    closure: "Cerrar acciones completadas con respaldo verificable.",
+  }[key] || "Revisar esta brecha antes de compartir el reporte.";
+}
+
 function buildClientSummary({ empresa, criticalSource, readiness, records, totalEmissions }) {
   const intro = records
     ? `${empresa} ya cuenta con una lectura ambiental activa para el periodo analizado.`
@@ -216,6 +253,7 @@ function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary,
   const actionPlan = Array.isArray(actionsSummary?.latestActions) ? actionsSummary.latestActions.slice(0, 5) : [];
   const decisionAgenda = buildDecisionAgenda({ actionsSummary, criticalSource, records });
   const readiness = buildReportReadiness({ actionsSummary, records, totalEmissions });
+  const risks = buildReportRisks({ actionsSummary, readiness });
   const clientSummary = buildClientSummary({ empresa, criticalSource, readiness, records, totalEmissions });
   const hasPeriod = filters?.fecha_inicio || filters?.fecha_fin;
   const period = hasPeriod ? `${filters.fecha_inicio || "inicio"} a ${filters.fecha_fin || "hoy"}` : "periodo disponible";
@@ -251,6 +289,9 @@ function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary,
     "Resumen para cliente:",
     clientSummary.text,
     "",
+    "Riesgos y brechas:",
+    ...risks.map((risk, index) => `${index + 1}. [${risk.level}] ${risk.title} · ${risk.description} Acción sugerida: ${risk.action}`),
+    "",
     "Estado de preparación del reporte:",
     `${readiness.status} · ${readiness.score}% (${readiness.passed}/${readiness.total} criterios cumplidos)`,
     ...readiness.checks.map((check) => `- ${check.passed ? "OK" : "Pendiente"}: ${check.label} · ${check.detail}`),
@@ -274,7 +315,7 @@ function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary,
     ...(actionPlan.length ? actionPlan.map(formatActionLine) : ["Sin acciones recientes para listar en el plan."]),
   ].join("\n");
 
-  return { actionPlan, bullets, clientSummary, decisionAgenda, diagnosis, headline, management, priority, readiness, text };
+  return { actionPlan, bullets, clientSummary, decisionAgenda, diagnosis, headline, management, priority, readiness, risks, text };
 }
 
 function periodoClean(value) {
@@ -371,6 +412,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
       ...reportConfig.buildExportPayload(report, { activeConstructora, activePreset, filters }),
       informe_ejecutivo: executiveBrief,
       resumen_cliente: executiveBrief.clientSummary,
+      riesgos_brechas: executiveBrief.risks,
       acciones_resumen: actionsSummary,
       agenda_decision: executiveBrief.decisionAgenda,
       estado_preparacion: executiveBrief.readiness,
@@ -429,6 +471,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
       <ReportHero activeConstructora={activeConstructora} filters={filters} onOpenFilters={openFiltersModal} preset={activePreset} report={report} reportConfig={reportConfig} />
       <ClientSummaryCard summary={executiveBrief.clientSummary} />
       <ReportReadinessCard readiness={executiveBrief.readiness} />
+      <ReportRisksCard risks={executiveBrief.risks} />
       <ExecutiveBriefCard brief={executiveBrief} />
       <DecisionAgendaCard agenda={executiveBrief.decisionAgenda} />
       <ReportActionPlan onOpenActions={() => onSetActiveView?.("acciones")} actions={executiveBrief.actionPlan} />
@@ -503,6 +546,31 @@ function ReportReadinessCard({ readiness }) {
             </div>
             <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">{check.detail}</p>
           </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ReportRisksCard({ risks = [] }) {
+  return (
+    <section className="rounded-3xl border border-rose-200 bg-rose-50/60 p-5 shadow-[var(--shadow-card)]">
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-rose-700">Riesgos y brechas</p>
+        <h2 className="mt-1 text-2xl font-black text-[var(--text-main)]">Puntos que pueden debilitar el reporte</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-rose-900">Brechas detectadas antes de presentar el informe a cliente, gerencia o licitación.</p>
+      </div>
+      <div className="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-2">
+        {risks.map((risk, index) => (
+          <article key={`${risk.key}-${index}`} className="rounded-3xl border border-rose-100 bg-white p-4 shadow-[0_10px_22px_rgba(15,23,42,0.04)]">
+            <div className="flex items-center justify-between gap-3">
+              <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-black text-rose-800">{risk.level}</span>
+              <span className="text-xs font-black uppercase tracking-wide text-slate-400">Brecha {index + 1}</span>
+            </div>
+            <h3 className="mt-3 text-base font-black text-[var(--text-main)]">{risk.title}</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{risk.description}</p>
+            <p className="mt-3 rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600"><strong>Acción sugerida:</strong> {risk.action}</p>
+          </article>
         ))}
       </div>
     </section>
