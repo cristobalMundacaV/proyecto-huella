@@ -1,6 +1,6 @@
 from django.db import models
 
-from .models import Constructora
+from .models import Constructora, EvidenciaObra, LoteForestal, Obra, RegistroEmision
 
 
 class AccionAmbiental(models.Model):
@@ -13,6 +13,34 @@ class AccionAmbiental(models.Model):
     constructora = models.ForeignKey(
         Constructora,
         on_delete=models.CASCADE,
+        related_name="acciones_ambientales_orm",
+    )
+    obra = models.ForeignKey(
+        Obra,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="acciones_ambientales_orm",
+    )
+    lote_forestal = models.ForeignKey(
+        LoteForestal,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="acciones_ambientales_orm",
+    )
+    registro_emision = models.ForeignKey(
+        RegistroEmision,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="acciones_ambientales_orm",
+    )
+    evidencia = models.ForeignKey(
+        EvidenciaObra,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="acciones_ambientales_orm",
     )
     title = models.CharField(max_length=180)
@@ -41,6 +69,10 @@ class AccionAmbiental(models.Model):
         indexes = [
             models.Index(fields=["constructora", "status"]),
             models.Index(fields=["constructora", "due_date"]),
+            models.Index(fields=["constructora", "obra"]),
+            models.Index(fields=["constructora", "lote_forestal"]),
+            models.Index(fields=["constructora", "registro_emision"]),
+            models.Index(fields=["constructora", "evidencia"]),
         ]
 
     def __str__(self):
