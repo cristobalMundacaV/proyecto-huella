@@ -1,93 +1,3 @@
-<<<<<<< HEAD
-export const environmentalPresetMatrix = {
-  construccion: {
-    key: "construccion",
-    label: "Construccion",
-    purpose: "Controlar trazabilidad de obras, consumos, residuos y documentos que sostienen la huella y la ficha ambiental.",
-    criticalDocuments: ["Facturas de materiales criticos", "Guias de despacho", "Tickets de pesaje de residuos", "Certificados de gestor autorizado", "Declaraciones ambientales de producto", "RCA o permisos aplicables"],
-    criticalVariables: ["m3 de hormigon", "ton de acero", "litros de diesel", "kWh consumidos", "ton de residuos", "km de transporte"],
-    regulations: ["RETC", "RCA si aplica", "DS 1/2013 MMA", "Ley REP para residuos aplicables"],
-    riskSignals: ["Materiales sin respaldo documental", "Residuos sin destino trazable", "Consumos de combustible sin etapa asociada", "Obras con ficha ambiental incompleta"],
-    recommendedActions: ["Vincular facturas y guias a cada registro critico.", "Cerrar trazabilidad de residuos con gestor y ticket de pesaje.", "Priorizar calculo de emisiones en materiales de mayor impacto."],
-    regulatoryOutputs: ["Resumen de emisiones por obra y etapa", "Ficha ambiental verificable", "Matriz de evidencias por fuente", "Preparacion de antecedentes RETC/RCA cuando corresponda"],
-    copilotQuestions: ["Que obras tienen mayor riesgo documental?", "Que materiales explican la mayor parte de la huella?", "Que evidencias faltan para cerrar la ficha ambiental?", "Que acciones reducen riesgo regulatorio este mes?"],
-  },
-  forestal_aserradero: {
-    key: "forestal_aserradero",
-    label: "Forestal y aserradero",
-    purpose: "Conectar origen forestal, produccion, secado, energia, transporte y residuos para trazabilidad operacional y ambiental.",
-    criticalDocuments: ["Guias de recepcion de trozas", "Documentos de lote forestal", "Bitacoras de secado", "Facturas de energia y combustible", "Bitacoras de transporte forestal", "Certificados de valorizacion o disposicion de residuos"],
-    criticalVariables: ["m3 de trozas", "humedad inicial y final", "kWh consumidos", "litros de combustible", "km de transporte forestal", "ton de residuos o subproductos"],
-    regulations: ["RETC", "RCA si aplica", "Ley REP si aplica", "Normativa forestal y sanitaria aplicable"],
-    riskSignals: ["Lotes sin origen documentado", "Secado sin energia asociada", "Viajes forestales sin ruta o patente", "Residuos sin valorizacion o destino registrado"],
-    recommendedActions: ["Completar origen, especie, volumen y humedad por lote.", "Asociar energia y combustible a produccion y secado.", "Documentar destino de subproductos y residuos."],
-    regulatoryOutputs: ["Resumen ambiental por lote y proceso", "Trazabilidad de transporte forestal", "Indicadores de energia por produccion", "Matriz de residuos y destino"],
-    copilotQuestions: ["Que lotes tienen trazabilidad incompleta?", "Que proceso concentra mayor consumo energetico?", "Que viajes forestales requieren respaldo documental?", "Que residuos deberian priorizar valorizacion?"],
-  },
-  industrial_agroindustria: {
-    key: "industrial_agroindustria",
-    label: "Industrial y agroindustria",
-    purpose: "Ordenar consumos, procesos, insumos, residuos y permisos para controlar indicadores ambientales y preparacion regulatoria.",
-    criticalDocuments: ["Facturas de energia", "Facturas de combustibles", "Registros de produccion", "Analisis de efluentes o emisiones", "Certificados de residuos", "RCA, permisos sectoriales o planes de monitoreo"],
-    criticalVariables: ["kWh por proceso", "litros o m3 de combustible", "unidades producidas", "consumo de agua", "ton de residuos", "parametros de efluentes o emisiones"],
-    regulations: ["RETC", "RCA si aplica", "Normas de emision aplicables", "Ley REP si aplica"],
-    riskSignals: ["Procesos sin produccion asociada", "Consumos energeticos fuera de patron", "Monitoreos incompletos", "Residuos sin certificado de destino"],
-    recommendedActions: ["Cruzar energia y combustible contra produccion del periodo.", "Completar monitoreos exigidos por RCA o permisos.", "Priorizar residuos con trazabilidad incompleta."],
-    regulatoryOutputs: ["Indicadores por proceso productivo", "Resumen de emisiones y residuos", "Estado de obligaciones RETC/RCA", "Bitacora de evidencias regulatorias"],
-    copilotQuestions: ["Que procesos muestran desviaciones de consumo?", "Que obligaciones RCA tienen evidencia pendiente?", "Que residuos tienen brechas de destino?", "Que variables faltan para calcular indicadores regulatorios?"],
-  },
-  mineria: {
-    key: "mineria",
-    label: "Mineria",
-    purpose: "Controlar combustible, energia, agua, residuos, transporte y obligaciones RCA para operaciones con alto riesgo ambiental.",
-    criticalDocuments: ["Facturas de combustible", "Facturas de energia", "Registros de extraccion o procesamiento", "Monitoreos ambientales", "Manifiestos y certificados de residuos", "RCA y reportes de cumplimiento"],
-    criticalVariables: ["litros de diesel", "kWh consumidos", "ton procesadas", "m3 de agua", "ton de residuos peligrosos", "horas de maquinaria"],
-    regulations: ["RETC", "RCA", "Normas de emision aplicables", "Ley REP si aplica"],
-    riskSignals: ["Alto consumo de diesel sin frente operativo", "Monitoreos RCA atrasados", "Residuos peligrosos sin destino", "Agua sin balance operacional"],
-    recommendedActions: ["Asociar combustible y maquinaria a frente o proceso.", "Revisar calendario de monitoreos RCA.", "Cerrar trazabilidad de residuos peligrosos con certificados."],
-    regulatoryOutputs: ["Tablero de obligaciones RCA", "Resumen de combustible y energia", "Matriz de residuos peligrosos", "Indicadores de agua y proceso"],
-    copilotQuestions: ["Que obligaciones RCA estan en riesgo?", "Donde se concentra el consumo de diesel?", "Que residuos peligrosos no tienen respaldo?", "Que datos faltan para preparar el reporte mensual?"],
-  },
-  energia: {
-    key: "energia",
-    label: "Energia",
-    purpose: "Dar trazabilidad a generacion, consumo, combustibles, mantencion y obligaciones ambientales de activos energeticos.",
-    criticalDocuments: ["Facturas de combustible", "Mediciones de generacion o consumo", "Bitacoras de mantencion", "Monitoreos de emisiones", "Certificados de residuos", "RCA o permisos aplicables"],
-    criticalVariables: ["MWh generados", "kWh consumidos", "litros o m3 de combustible", "horas de operacion", "eventos de mantencion", "residuos por activo"],
-    regulations: ["RETC", "RCA si aplica", "Normas de emision aplicables", "Ley REP si aplica"],
-    riskSignals: ["Generacion sin medicion respaldada", "Combustible sin conciliacion operacional", "Mantencion critica pendiente", "Monitoreo de emisiones incompleto"],
-    recommendedActions: ["Conciliar combustible contra generacion y horas de operacion.", "Actualizar bitacoras de mantencion critica.", "Vincular monitoreos a obligaciones ambientales."],
-    regulatoryOutputs: ["Indicadores de emisiones por MWh", "Estado de monitoreos", "Matriz de mantenciones ambientales", "Resumen de cumplimiento RCA/RETC"],
-    copilotQuestions: ["Que activos tienen monitoreo ambiental pendiente?", "Como varia la emision por MWh?", "Que mantenciones reducen riesgo operativo?", "Que evidencias faltan para RETC?"],
-  },
-  acuicultura: {
-    key: "acuicultura",
-    label: "Acuicultura",
-    purpose: "Ordenar alimento, energia, combustible, biomasa, residuos y monitoreos para controlar impactos y obligaciones ambientales.",
-    criticalDocuments: ["Registros de alimento", "Facturas de energia y combustible", "Registros de biomasa", "Monitoreos ambientales", "Certificados de residuos", "RCA o permisos sectoriales"],
-    criticalVariables: ["ton de alimento", "biomasa producida", "kWh consumidos", "litros de combustible", "mortalidad", "residuos generados"],
-    regulations: ["RETC", "RCA si aplica", "Normativa sectorial acuicola", "Ley REP si aplica"],
-    riskSignals: ["Alimento sin centro o lote asociado", "Monitoreos ambientales incompletos", "Residuos sin destino", "Combustible sin operacion vinculada"],
-    recommendedActions: ["Vincular alimento, biomasa y centro operativo.", "Revisar monitoreos exigidos por permiso o RCA.", "Cerrar destino documental de residuos."],
-    regulatoryOutputs: ["Indicadores por centro", "Estado de monitoreos", "Matriz de residuos y mortalidad", "Resumen de obligaciones ambientales"],
-    copilotQuestions: ["Que centros tienen evidencia incompleta?", "Que variable explica mayor presion ambiental?", "Que monitoreos requieren seguimiento?", "Que residuos tienen brecha de destino?"],
-  },
-  transporte: {
-    key: "transporte",
-    label: "Transporte",
-    purpose: "Trazar combustible, rutas, flota, mantencion y residuos REP para controlar emisiones logisticas y riesgos documentales.",
-    criticalDocuments: ["Facturas de combustible", "Documentos de ruta", "Bitacoras de mantencion", "Registros de neumaticos y residuos", "Certificados de destino de aceites o neumaticos", "RCA si aplica"],
-    criticalVariables: ["litros de diesel", "km recorridos", "rendimiento por vehiculo", "mantencion de flota", "carga transportada", "residuos REP como neumaticos o aceites"],
-    regulations: ["RETC", "Ley REP", "RCA si aplica"],
-    riskSignals: ["Alto consumo de combustible", "Trazabilidad de rutas faltante", "Brechas de mantencion", "Destino de residuos no documentado"],
-    recommendedActions: ["Conciliar litros de diesel contra km y rutas.", "Actualizar bitacoras de mantencion por vehiculo.", "Vincular neumaticos, aceites y otros residuos a gestor autorizado."],
-    regulatoryOutputs: ["Indicadores de emisiones por km", "Matriz de trazabilidad de rutas", "Estado de mantenciones ambientales", "Resumen REP de residuos aplicables"],
-    copilotQuestions: ["Que rutas tienen peor rendimiento por litro?", "Que vehiculos tienen mantencion pendiente?", "Que residuos REP no tienen destino respaldado?", "Que datos faltan para reportar emisiones logisticas?"],
-  },
-};
-
-export const DEFAULT_ENVIRONMENTAL_MATRIX_KEY = "industrial_agroindustria";
-=======
 export const DEFAULT_ENVIRONMENTAL_MATRIX_KEY = "industrial_agroindustria";
 
 export const environmentalPresetMatrix = {
@@ -103,7 +13,7 @@ export const environmentalPresetMatrix = {
       mainPain:
         "La obra genera datos dispersos en materiales, maquinaria, transporte, residuos, combustible, agua, energía y documentos sueltos.",
       dashboardTitle: "Estado ambiental de obra",
-      dashboardSubtitle: "Huella, residuos, documentos y trazabilidad ambiental de la obra.",
+      dashboardSubtitle: "Huella, residuos, documentos y trazabilidad ambiental de obra.",
       operationalFocus: "Obra + materiales + maquinaria + residuos",
       starKpi: "kgCO₂e/m²",
       sellableReportName: "Reporte mensual de huella y trazabilidad ambiental de obra",
@@ -492,4 +402,3 @@ function kpi(id, label, unit, description) {
 }
 
 export default environmentalPresetMatrix;
->>>>>>> 5970f50377041bafdb1683dd81766dd712cf418f
