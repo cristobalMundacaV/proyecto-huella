@@ -15,7 +15,6 @@ from apps.analytics.models import (
     EvidenciaObra,
     FactorEmision,
     LoteForestal,
-    Obra,
     RegistroEmision,
     TransporteLoteForestal,
     TransporteObra,
@@ -24,6 +23,21 @@ from apps.analytics.models import (
 ACTIVE_PREFIX = "CZP_"
 LEGACY_PREFIX = "CZ_SEED"
 YEAR = timezone.localdate().year
+
+
+def source(categoria, fuente, unidad, factor, min_value, max_value, module, evidence, weight):
+    return {
+        "categoria": categoria,
+        "fuente": fuente,
+        "unidad": unidad,
+        "factor": Decimal(factor),
+        "min": Decimal(str(min_value)),
+        "max": Decimal(str(max_value)),
+        "module": module,
+        "evidence": evidence,
+        "weight": int(weight),
+    }
+
 
 PILOT_COMPANIES = {
     "constructora": {
@@ -195,20 +209,6 @@ PILOT_COMPANIES = {
 }
 
 
-def source(categoria, fuente, unidad, factor, min_value, max_value, module, evidence, weight):
-    return {
-        "categoria": categoria,
-        "fuente": fuente,
-        "unidad": unidad,
-        "factor": Decimal(factor),
-        "min": Decimal(str(min_value)),
-        "max": Decimal(str(max_value)),
-        "module": module,
-        "evidence": evidence,
-        "weight": int(weight),
-    }
-
-
 class Command(BaseCommand):
     help = "Crea empresas piloto realistas de Carbono Zero con registros ambientales históricos."
 
@@ -279,7 +279,7 @@ class Command(BaseCommand):
 
     def configure_company(self, empresa, cfg):
         maturity = cfg["quality"]
-        strict = maturity["link"] >= Decimal("0.85") if isinstance(maturity["link"], Decimal) else maturity["link"] >= 0.85
+        strict = maturity["link"] >= 0.85
         ConfiguracionConstructora.objects.update_or_create(
             constructora=empresa,
             defaults={
@@ -439,7 +439,7 @@ class Command(BaseCommand):
                 origen_transporte=self.origin(empresa, lote) if is_transport else "",
                 destino_transporte=self.destination(empresa, lote) if is_transport else "",
                 distancia_km=Decimal(str(round(rng.uniform(8, 420), 3))) if is_transport else None,
-                observaciones=self.record_observation(cfg, metadata),
+                observaciones=self.record_observation(metadata),
                 metadata=metadata,
             )
             if obra and rng.random() > cfg["quality"]["stage"]:
@@ -512,7 +512,7 @@ class Command(BaseCommand):
             flags.append("cantidad_invalida")
         return flags or ["completo"]
 
-    def record_observation(self, cfg, metadata):
+    def record_observation(self, metadata):
         if metadata["quality_flags"] == ["completo"]:
             return "Registro consistente para análisis ambiental."
         return "Registro operativo pendiente de completar para fortalecer trazabilidad."
