@@ -4,22 +4,28 @@ import { Activity, AlertTriangle, DatabaseZap, FileClock, ShieldCheck } from "lu
 import { useEnvironmentalContext } from "@/domain/environmental";
 import CriticalDocumentsPanel from "@/core/environmental/components/CriticalDocumentsPanel";
 import EnvironmentalContextCard from "@/core/environmental/components/EnvironmentalContextCard";
+import EnvironmentalDecisionPriorityList from "@/core/environmental/components/EnvironmentalDecisionPriorityList";
 import EnvironmentalItemGrid from "@/core/environmental/components/EnvironmentalItemGrid";
 import EnvironmentalKpiGrid from "@/core/environmental/components/EnvironmentalKpiGrid";
 import EnvironmentalRecommendationList from "@/core/environmental/components/EnvironmentalRecommendationList";
+import EnvironmentalScenarioList from "@/core/environmental/components/EnvironmentalScenarioList";
 import EnvironmentalShell from "@/core/environmental/components/EnvironmentalShell";
 import RecommendedActionsPanel from "@/core/environmental/components/RecommendedActionsPanel";
 import RegulatoryReadinessPanel from "@/core/environmental/components/RegulatoryReadinessPanel";
 import RiskSignalsPanel from "@/core/environmental/components/RiskSignalsPanel";
 import { getEnvironmentalComplianceSummary } from "@/features/environmental/services/environmentalComplianceApi";
+import { getEnvironmentalDecisionPriorities } from "@/features/environmental/services/environmentalDecisionPriorityApi";
 import { getEnvironmentalKpis } from "@/features/environmental/services/environmentalKpiApi";
 import { getEnvironmentalRecommendations } from "@/features/environmental/services/environmentalRecommendationApi";
+import { getEnvironmentalScenarios } from "@/features/environmental/services/environmentalScenarioApi";
 
 function CentralOperativaPage() {
   const { activeCompany, matrix } = useEnvironmentalContext();
   const [summary, setSummary] = useState(null);
   const [kpis, setKpis] = useState(null);
   const [recommendations, setRecommendations] = useState(null);
+  const [scenarios, setScenarios] = useState(null);
+  const [decisionPriorities, setDecisionPriorities] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -30,12 +36,16 @@ function CentralOperativaPage() {
       getEnvironmentalKpis(activeCompany.constructora_id),
       getEnvironmentalComplianceSummary(activeCompany.constructora_id),
       getEnvironmentalRecommendations(activeCompany.constructora_id),
+      getEnvironmentalScenarios(activeCompany.constructora_id),
+      getEnvironmentalDecisionPriorities(activeCompany.constructora_id),
     ])
-      .then(([kpiData, summaryData, recommendationData]) => {
+      .then(([kpiData, summaryData, recommendationData, scenarioData, decisionPriorityData]) => {
         if (!cancelled) {
           setKpis(kpiData);
           setSummary(summaryData);
           setRecommendations(recommendationData);
+          setScenarios(scenarioData);
+          setDecisionPriorities(decisionPriorityData);
         }
       })
       .catch(() => {
@@ -43,6 +53,8 @@ function CentralOperativaPage() {
           setKpis(null);
           setSummary(null);
           setRecommendations(null);
+          setScenarios(null);
+          setDecisionPriorities(null);
         }
       })
       .finally(() => {
@@ -64,6 +76,10 @@ function CentralOperativaPage() {
       <EnvironmentalKpiGrid kpis={kpis?.cards || []} />
 
       <EnvironmentalRecommendationList recommendations={recommendations?.recommendations || []} />
+
+      <EnvironmentalScenarioList scenarios={scenarios?.scenarios || []} />
+
+      <EnvironmentalDecisionPriorityList priorities={decisionPriorities?.priorities || []} />
 
       <section className="grid gap-4 md:grid-cols-4">
         <SummaryCard icon={ShieldCheck} label="Cumplimiento" value={formatSummaryValue(summary?.compliance_pct, "%")} detail={loading ? "Cargando" : "Variables dentro de limite"} tone="emerald" />

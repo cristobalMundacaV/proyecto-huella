@@ -51,8 +51,10 @@ from .views_environmental_compliance import (
     variable_ambiental_detail,
     variables_ambientales,
 )
+from .views_environmental_decisions import environmental_decision_priorities
 from .views_environmental_kpis import environmental_kpis
 from .views_environmental_recommendations import environmental_recommendations
+from .views_environmental_scenarios import environmental_scenarios
 from .views_forestal import (
     constructora_lote_forestal_detail,
     constructora_lote_forestal_transportes,
@@ -109,6 +111,8 @@ urlpatterns = [
     path("constructoras/<str:constructora_id>/cumplimiento-ambiental/resumen/", cumplimiento_ambiental_resumen),
     path("environmental/kpis/<str:constructora_id>/", environmental_kpis),
     path("environmental/recommendations/<str:constructora_id>/", environmental_recommendations),
+    path("environmental/scenarios/<str:constructora_id>/", environmental_scenarios),
+    path("environmental/decisions/priorities/<str:constructora_id>/", environmental_decision_priorities),
     path("importaciones/completa/preview/", importacion_completa_preview),
     path("importaciones/completa/confirm/", importacion_completa_confirm),
     path("importaciones/plantilla-construccion/", plantilla_importacion_construccion),
