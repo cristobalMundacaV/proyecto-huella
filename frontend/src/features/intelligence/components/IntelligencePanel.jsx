@@ -4,6 +4,7 @@ import { BrainCircuit, CheckCircle2, Clock3, Lightbulb, Radar, Route, Sparkles }
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import { getIntelligenceRecommendations } from "@/shared/services/intelligenceApi";
 import { formatNumber } from "@/shared/utils/formatters";
+import TraceableActionsPanel from "./TraceableActionsPanel";
 
 const scopeOptions = [
   { value: "dashboard", label: "Dashboard" },
@@ -34,6 +35,84 @@ function cardIcon(cardId) {
 
 function normalizeCards(data) {
   return Array.isArray(data?.cards) ? data.cards : data?.structured?.active_cards || [];
+}
+
+function fallbackCards(context = {}, scope = "dashboard") {
+  const categoria = context.categoria_critica || context.foco_principal || "la fuente principal";
+  const etapa = context.etapa_critica || context.etapa_prioritaria || "la etapa prioritaria";
+  const fuente = context.fuente_critica || context.source || "el registro de mayor impacto";
+  const isEvidenceScope = scope === "evidencias";
+  const isIotScope = scope === "iot";
+
+  return [
+    {
+      id: "etapa_prioritaria",
+      priority: "alta",
+      title: "Etapa prioritaria",
+      area: etapa,
+      diagnosis: `La etapa ${etapa} concentra un foco ambiental que debe revisarse antes de intervenir procesos menores.`,
+      stage: etapa,
+      source: fuente,
+      recommended_action: "Revisar fuentes críticas de esta etapa, validar responsables operacionales y definir una acción de reducción medible antes del siguiente ciclo de control.",
+      tracking_kpi: "kg CO2e por etapa y fuente",
+    },
+    {
+      id: "foco_reduccion",
+      priority: "alta",
+      title: isIotScope ? "Alerta operacional" : "Foco principal de reducción",
+      area: categoria,
+      diagnosis: isIotScope
+        ? "Los sensores deben usarse para detectar desviaciones operacionales antes de que se transformen en consumo o emisión acumulada."
+        : `El foco principal está en ${categoria}. Debe convertirse en una acción operacional concreta, no solo en una observación del dashboard.`,
+      source: fuente,
+      why_it_matters: isIotScope
+        ? "Una desviación temprana permite corregir consumo, operación o mantenimiento antes de cerrar el periodo."
+        : "Este bloque explica una parte relevante de la huella y puede generar reducciones visibles si se controla por etapa, turno o responsable.",
+      recommended_action: isIotScope
+        ? "Revisar dispositivos activos, comparar lecturas recientes y definir umbrales de alerta por consumo o actividad."
+        : "Separar registros por responsable, validar evidencia y atacar primero la fuente que concentra más kg CO2e.",
+      tracking_kpi: isIotScope ? "alertas por dispositivo y consumo anómalo" : "kg CO2e por fuente crítica",
+    },
+    {
+      id: isEvidenceScope ? "trazabilidad_soporte" : "escenario_recomendado",
+      priority: "estrategica",
+      title: isEvidenceScope ? "Trazabilidad documental" : "Escenario recomendado",
+      area: isEvidenceScope ? "Evidencias" : "Gestión",
+      diagnosis: isEvidenceScope
+        ? "La reducción ambiental necesita respaldo documental suficiente para sostener auditoría, reportes y decisiones internas."
+        : "El siguiente paso es convertir el diagnóstico en un escenario de gestión con responsables, evidencia y seguimiento.",
+      why_it_matters: isEvidenceScope
+        ? "Sin evidencias, la medición pierde fuerza para auditorías, clientes, licitaciones o gestión interna."
+        : "Una recomendación sin seguimiento se queda en diagnóstico; el valor está en medir si la acción redujo el impacto real.",
+      recommended_action: isEvidenceScope
+        ? "Priorizar evidencias faltantes de fuentes críticas y vincular cada respaldo al registro ambiental correspondiente."
+        : "Definir una acción semanal, asignar responsable y revisar el KPI de seguimiento en el próximo periodo.",
+      tracking_kpi: isEvidenceScope ? "% registros críticos con evidencia" : "avance semanal de acción ambiental",
+    },
+  ];
+}
+
+function ensureThreeCards(rawCards, context, scope) {
+  const normalized = Array.isArray(rawCards) ? rawCards.filter(Boolean) : [];
+  const selected = [];
+  const usedIds = new Set();
+
+  normalized.forEach((card, index) => {
+    if (selected.length >= 3) return;
+    const safeId = card.id || `motor_card_${index + 1}`;
+    if (usedIds.has(safeId)) return;
+    selected.push({ ...card, id: safeId });
+    usedIds.add(safeId);
+  });
+
+  fallbackCards(context, scope).forEach((card) => {
+    if (selected.length >= 3) return;
+    if (usedIds.has(card.id)) return;
+    selected.push(card);
+    usedIds.add(card.id);
+  });
+
+  return selected.slice(0, 3);
 }
 
 function RecommendationCard({ card }) {
@@ -173,9 +252,9 @@ function IntelligencePanel({ initialScope = "dashboard", compact = false }) {
     };
   }, [activeConstructoraId, scope]);
 
-  const cards = useMemo(() => normalizeCards(data), [data]);
-  const actions = data?.actions || data?.structured?.actions || [];
   const context = data?.context || {};
+  const cards = useMemo(() => ensureThreeCards(normalizeCards(data), context, scope), [data, context, scope]);
+  const actions = data?.actions || data?.structured?.actions || [];
 
   if (!activeConstructoraId) {
     return (
@@ -236,11 +315,13 @@ function IntelligencePanel({ initialScope = "dashboard", compact = false }) {
         </div>
       )}
 
-      {!loading && !error && cards.length > 0 && (
+      {!loading && !error && (
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
           {cards.map((card) => <RecommendationCard key={card.id} card={card} />)}
         </div>
       )}
+
+      {!loading && !error && <TraceableActionsPanel cards={cards} constructoraId={activeConstructoraId} />}
 
       {!loading && !error && <ActionPlan actions={actions} />}
     </section>

@@ -14,6 +14,7 @@ import { DEFAULT_PRESET_KEY, getActivePreset } from "@/presets/registry";
 import DashboardPage from "@/core/dashboard/DashboardPage";
 import IntelligencePage from "@/features/intelligence/pages/IntelligencePage";
 import EmisionesView from "@/features/emisiones/EmisionesStableView";
+import AccionesAmbientalesPage from "@/features/acciones/pages/AccionesAmbientalesPage";
 import OperacionPage from "@/features/operacion/pages/OperacionPage";
 import AdministracionPage from "@/features/administracion/pages/AdministracionPage";
 import EvidenciasPage from "@/features/evidencias/pages/EvidenciasPage";
@@ -130,13 +131,18 @@ function App() {
 }
 
 function ActiveView({ activeConstructora, activeConstructoraId, activePreset, activeView, constructoraCreateSignal, onSetActiveView, onStatusChange }) {
+<<<<<<< HEAD
   if (activeView === "central_operativa") return <CentralOperativaPage />;
   if (activeView === "ingesta_inteligente") return <IngestaInteligentePage />;
   if (activeView === "reportes_regulatorios") return <ReportesRegulatoriosPage />;
   if (activeView === "copiloto_ambiental") return <CopilotoAmbientalPage />;
   if (activeView === "dashboard") return <DashboardPage onStatusChange={onStatusChange} />;
+=======
+  if (activeView === "dashboard") return <DashboardPage onSetActiveView={onSetActiveView} onStatusChange={onStatusChange} />;
+>>>>>>> fc02cb0adba619f920c2b4f1029b5987f1fdba74
   if (activeView === "inteligencia") return <IntelligencePage />;
   if (activeView === "emisiones") return <EmisionesView onSetActiveView={onSetActiveView} />;
+  if (activeView === "acciones") return <AccionesAmbientalesPage />;
   if (activeView === "operacion") return <OperacionPage />;
   if (activeView === "evidencias") return <EvidenciasPage />;
   if (activeView === "reportes") return <ReportesView activeConstructoraId={activeConstructoraId} activeConstructora={activeConstructora} onSetActiveView={onSetActiveView} />;
@@ -162,7 +168,7 @@ function ActiveView({ activeConstructora, activeConstructoraId, activePreset, ac
     return <PresetComingSoon title={title} description={description} presetName={activePreset.name} items={["Datos operacionales", "Indicadores ambientales", "Recomendaciones por proceso"]} />;
   }
 
-  return <DashboardPage onStatusChange={onStatusChange} />;
+  return <DashboardPage onSetActiveView={onSetActiveView} onStatusChange={onStatusChange} />;
 }
 
 export default App;

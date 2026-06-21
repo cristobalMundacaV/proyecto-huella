@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, BarChart3, Database, Factory, Leaf, Radar } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, CheckCircle2, Database, Factory, Leaf, Radar } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import RealtimeIotMonitoring from "@/features/dashboard/components/RealtimeIotMonitoring";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { getTraceableActionsSummary } from "@/features/intelligence/services/traceableActionsApi";
 import KpiCard from "@/shared/components/KpiCard";
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import {
@@ -97,12 +98,58 @@ function DashboardChart({ data, nameKey, title }) {
   );
 }
 
-function DashboardPage({ onStatusChange }) {
+function ActionsExecutiveSummary({ onOpenActions, summary }) {
+  if (!summary) return null;
+
+  return (
+    <section className="rounded-[30px] border border-emerald-200 bg-emerald-50/65 p-5 shadow-[var(--shadow-card)] ring-1 ring-white/70">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Gestión ambiental activa</p>
+          <h3 className="mt-1 text-2xl font-black text-[var(--text-main)]">Acciones y trazabilidad</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-900">
+            {summary.total
+              ? `${summary.active} acciones activas, ${summary.completed} cerradas y ${summary.linked} con vínculo operacional.`
+              : "Aún no hay acciones ambientales creadas para esta empresa."}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenActions}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-black text-emerald-800 shadow-sm hover:bg-emerald-50"
+        >
+          <CheckCircle2 size={17} />
+          Ver acciones
+        </button>
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <MiniActionMetric label="Total" value={summary.total || 0} />
+        <MiniActionMetric label="Activas" value={summary.active || 0} />
+        <MiniActionMetric label="Vencidas" value={summary.overdue || 0} />
+        <MiniActionMetric label="Cierre" value={`${summary.completionPct || 0}%`} />
+        <MiniActionMetric label="Trazabilidad" value={`${summary.traceabilityPct || 0}%`} />
+      </div>
+    </section>
+  );
+}
+
+function MiniActionMetric({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-emerald-200 bg-white/85 px-4 py-3 text-center">
+      <p className="text-[10px] font-black uppercase tracking-wide text-emerald-700">{label}</p>
+      <p className="mt-1 text-xl font-black text-emerald-950">{value}</p>
+    </div>
+  );
+}
+
+function DashboardPage({ onStatusChange, onSetActiveView }) {
   const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
   const activePreset = getActivePreset(activeConstructora?.preset || DEFAULT_PRESET_KEY);
   const [data, setData] = useState(null);
   const [ambientRecords, setAmbientRecords] = useState([]);
   const [emissionKpis, setEmissionKpis] = useState(null);
+  const [actionsSummary, setActionsSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -111,6 +158,7 @@ function DashboardPage({ onStatusChange }) {
       setData(null);
       setAmbientRecords([]);
       setEmissionKpis(null);
+      setActionsSummary(null);
       onStatusChange?.(null);
       setLoading(false);
       return;
@@ -119,11 +167,12 @@ function DashboardPage({ onStatusChange }) {
     if (showLoading) setLoading(true);
     setError("");
 
-    const [dashboardResult, estadoResult, emissionsResult, recordsResult] = await Promise.allSettled([
+    const [dashboardResult, estadoResult, emissionsResult, recordsResult, actionsSummaryResult] = await Promise.allSettled([
       getConstructoraDashboard(activeConstructoraId, { light: "1" }),
       getConstructoraEstado(activeConstructoraId),
       getConstructoraEmisiones(activeConstructoraId, { page: 1, page_size: 1 }),
       getEmpresaRegistrosAmbientales(activeConstructoraId),
+      getTraceableActionsSummary(activeConstructoraId),
     ]);
 
     const normalizedRecords = recordsResult.status === "fulfilled" ? normalizeRows(recordsResult.value) : [];
@@ -131,6 +180,7 @@ function DashboardPage({ onStatusChange }) {
     if (dashboardResult.status === "fulfilled") setData(dashboardResult.value);
     if (emissionsResult.status === "fulfilled") setEmissionKpis(emissionsResult.value?.kpis || null);
     if (recordsResult.status === "fulfilled") setAmbientRecords(normalizedRecords);
+    if (actionsSummaryResult.status === "fulfilled") setActionsSummary(actionsSummaryResult.value);
 
     if (estadoResult.status === "fulfilled") {
       onStatusChange?.({
@@ -244,6 +294,8 @@ function DashboardPage({ onStatusChange }) {
         <KpiCard icon={<Radar />} title="Concentración principal" value={`${formatNumber(topShare, 1)}%`} />
         <KpiCard icon={<BarChart3 />} title="Registros analizados" value={formatNumber(rows.length, 0)} />
       </section>
+
+      <ActionsExecutiveSummary summary={actionsSummary} onOpenActions={() => onSetActiveView?.("acciones")} />
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <DashboardChart title="Emisiones por etapa" data={byStage} nameKey="etapa" />
