@@ -18,6 +18,7 @@ from apps.analytics.models import (
     FactorEmision,
     LimiteNormativoAmbiental,
     LoteForestal,
+    Obra,
     RegistroEmision,
     TransporteLoteForestal,
     TransporteObra,
@@ -28,70 +29,6 @@ ACTIVE_PREFIX = "CZP_"
 LEGACY_PREFIX = "CZ_SEED"
 YEAR = timezone.localdate().year
 
-<<<<<<< HEAD
-PRESETS = {
-    "construccion": {
-        "id": "CZ_SEED_CONSTRUCCION",
-        "name": "Constructora Carbono Zero",
-        "rubro": "Construccion",
-        "region": "Biobio",
-        "comuna": "Los Angeles",
-        "units": ["Edificio Habitacional Norte", "Condominio Sustentable Sur", "Centro Comercial Piloto"],
-        "stages": ["Excavacion", "Fundaciones", "Obra gruesa", "Terminaciones", "Retiro de residuos"],
-        "sources": [
-            ("Materiales", "Hormigon H30", "m3", "310.000000", 4, 18, "materiales", "factura_material", 42),
-            ("Materiales", "Acero de refuerzo", "ton", "1850.000000", 0.05, 0.42, "materiales", "factura_material", 28),
-            ("Maquinaria", "Excavadora diesel", "litros diesel", "2.680000", 18, 96, "maquinaria", "registro_maquinaria", 17),
-            ("Transporte", "Diesel camion obra", "litros diesel", "2.680000", 25, 145, "transporte", "factura_combustible", 22),
-            ("Residuos", "Retiro de escombros", "kg", "0.080000", 260, 1600, "residuos", "registro_retiro_residuos", 11),
-        ],
-        "environmental": [
-            ("registro_rcd", "Registro mensual RCD", "rcd_ton", "RCD generados", "Residuos", "ton", "12.5", "10.0", "<=", "SINADER"),
-            ("medicion_ruido", "Medicion de ruido obra", "ruido_db", "Ruido diurno", "Ruido", "dB", "61.0", "60.0", "<=", "DS38"),
-            ("factura_combustible", "Factura combustible maquinaria", "diesel_l", "Diesel maquinaria", "Combustible", "L", "820.0", "900.0", "<=", "RETC"),
-        ],
-    },
-    "aserradero": {
-        "id": "CZ_SEED_ASERRADERO",
-        "name": "Aserradero Carbono Zero",
-        "rubro": "Forestal / Aserradero",
-        "region": "Biobio",
-        "comuna": "Los Angeles",
-        "units": ["Lote Pino Radiata A", "Lote Pino Radiata B", "Lote Eucalipto C"],
-        "stages": ["Recepcion de trozas", "Produccion", "Secado", "Energia", "Transporte forestal", "Residuos y subproductos"],
-        "lotes": [
-            ("LOTE-PINO-A", "Pino radiata", "84.500", "Predio Santa Clara", "Planta Los Angeles", "Troza aserrable", "420.000", "0.5000"),
-            ("LOTE-PINO-B", "Pino radiata", "66.200", "Predio El Roble", "Planta Los Angeles", "Madera estructural", "420.000", "0.5000"),
-            ("LOTE-EUCA-C", "Eucalipto", "52.700", "Predio Las Vertientes", "Planta Los Angeles", "Madera seca", "560.000", "0.4800"),
-        ],
-        "sources": [
-            ("Materiales", "Recepcion de trozas", "m3", "18.000000", 8, 38, "recepcion_trozas", "guia_despacho", 22),
-            ("Procesos externos", "Proceso de aserrio", "m3", "22.000000", 7, 34, "produccion", "registro_produccion", 18),
-            ("Energia", "Electricidad secado", "kWh", "0.390000", 320, 1800, "secado", "boleta_electrica", 34),
-            ("Transporte", "Diesel transporte forestal", "litros diesel", "2.680000", 35, 170, "transporte_forestal", "factura_combustible", 25),
-            ("Residuos", "Subproductos de madera", "kg", "0.030000", 220, 1400, "residuos_subproductos", "registro_retiro_residuos", 10),
-        ],
-        "environmental": [
-            ("registro_subproductos", "Registro de aserrin", "sawdust_ton", "Aserrin generado", "Residuos", "ton", "8.2", "9.0", "<=", "SINADER"),
-            ("bitacora_caldera", "Bitacora caldera biomasa", "biomass_boiler_ton", "Biomasa caldera", "Energia", "ton", "18.5", "17.0", "<=", "RCA"),
-            ("medicion_ruido", "Medicion ruido planta", "ruido_db", "Ruido perimetral", "Ruido", "dB", "58.0", "60.0", "<=", "DS38"),
-            ("guia_trozas", "Volumen madera recepcionada", "wood_volume_m3", "Volumen madera", "Produccion", "m3", "84.5", "70.0", ">=", "RCA"),
-        ],
-    },
-    "transporte": {
-        "id": "CZ_SEED_TRANSPORTE",
-        "name": "Transporte Carbono Zero",
-        "rubro": "Transporte y logistica",
-        "region": "Metropolitana",
-        "comuna": "Santiago",
-        "units": ["Camion FL-01", "Camion FL-02", "Camion FL-03", "Ruta Centro Sur"],
-        "stages": ["Planificacion de rutas", "Operacion de flota", "Combustible", "Mantenciones", "Carga y distribucion"],
-        "sources": [
-            ("Transporte", "Diesel camion ruta", "litros diesel", "2.680000", 45, 250, "combustible", "factura_combustible", 50),
-            ("Transporte", "Ruta larga distancia", "km", "0.850000", 60, 520, "rutas", "documento_transporte", 31),
-            ("Maquinaria", "Mantencion flota", "unidad", "35.000000", 1, 4, "mantenciones", "otro", 9),
-            ("Energia", "Electricidad oficina logistica", "kWh", "0.390000", 90, 420, "flota", "boleta_electrica", 7),
-=======
 
 def source(categoria, fuente, unidad, factor, min_value, max_value, module, evidence, weight):
     return {
@@ -108,31 +45,70 @@ def source(categoria, fuente, unidad, factor, min_value, max_value, module, evid
 
 
 PILOT_COMPANIES = {
-    "constructora": {
+    "construccion": {
         "id": "CZP_CONSTRUCTORA_BIOBIO",
-        "name": "Constructora Bío Bío Infraestructura",
-        "rubro": "Construcción",
+        "name": "Constructora Bio Bio Infraestructura",
+        "rubro": "Construccion",
         "preset": "construccion",
-        "sector_label": "construccion",
-        "region": "Biobío",
-        "comuna": "Los Ángeles",
-        "email": "ambiental@constructorabiobio.cl",
-        "telefono": "+56 43 232 4100",
-        "contacto": "Coordinación de obra",
-        "observaciones": "Seguimiento ambiental en obras urbanas y viales.",
-        "data_maturity": "Inicial",
-        "quality": {"link": 0.48, "stage": 0.42, "source": 0.78, "factor": 0.70, "quantity": 0.86, "evidence": 0.18},
-        "units": ["Edificio Norte Los Ángeles", "Conjunto Habitacional Paillihue", "Urbanización Avenida Oriente"],
-        "stages": ["Movimiento de tierra", "Fundaciones", "Obra gruesa", "Terminaciones", "Retiro de residuos"],
-        "unit_type": "Edificio habitacional",
-        "mandante": "Inmobiliaria del Sur",
+        "region": "Biobio",
+        "comuna": "Los Angeles",
+        "units": ["Edificio Norte", "Condominio Sur", "Centro Comercial"],
+        "stages": ["Excavacion", "Fundaciones", "Obra gruesa", "Terminaciones", "Retiro de residuos"],
         "sources": [
-            source("Materiales", "Hormigón H30", "m3", "310.000000", 5, 28, "materiales", "factura_material", 34),
-            source("Materiales", "Acero de refuerzo", "ton", "1850.000000", 0.08, 0.62, "materiales", "factura_material", 20),
-            source("Maquinaria", "Excavadora diesel", "litros diesel", "2.680000", 16, 92, "maquinaria", "registro_maquinaria", 18),
-            source("Transporte", "Camión tolva obra", "litros diesel", "2.680000", 22, 150, "transporte", "factura_combustible", 19),
-            source("Residuos", "Retiro de escombros", "kg", "0.080000", 220, 1800, "residuos", "registro_retiro_residuos", 9),
->>>>>>> fc02cb0adba619f920c2b4f1029b5987f1fdba74
+            source("Materiales", "Hormigon H30", "m3", "310.000000", 4, 18, "materiales", "factura_material", 42),
+            source("Materiales", "Acero de refuerzo", "ton", "1850.000000", 0.05, 0.42, "materiales", "factura_material", 28),
+            source("Maquinaria", "Excavadora diesel", "litros diesel", "2.680000", 18, 96, "maquinaria", "registro_maquinaria", 17),
+            source("Transporte", "Diesel camion obra", "litros diesel", "2.680000", 25, 145, "transporte", "factura_combustible", 22),
+            source("Residuos", "Retiro de escombros", "kg", "0.080000", 260, 1600, "residuos", "registro_retiro_residuos", 11),
+        ],
+        "environmental": [
+            ("registro_rcd", "Registro mensual RCD", "rcd_ton", "RCD generados", "Residuos", "ton", "12.5", "10.0", "<=", "SINADER"),
+            ("medicion_ruido", "Medicion de ruido obra", "noise_db", "Ruido diurno", "Ruido", "dB", "61.0", "60.0", "<=", "DS38"),
+            ("factura_combustible", "Factura combustible maquinaria", "diesel_l", "Diesel maquinaria", "Combustible", "L", "820.0", "900.0", "<=", "RETC"),
+        ],
+    },
+    "aserradero": {
+        "id": "CZP_ASERRADERO_LAJA",
+        "name": "Aserradero Laja",
+        "rubro": "Forestal / Aserradero",
+        "preset": "aserradero",
+        "region": "Biobio",
+        "comuna": "Los Angeles",
+        "units": ["Planta Aserrio", "Secado Norte", "Patio Trozas"],
+        "stages": ["Recepcion de trozas", "Produccion", "Secado", "Energia", "Transporte forestal", "Residuos"],
+        "lotes": [
+            ("LOTE-PINO-A", "Pino radiata", "84.500", "Predio Santa Clara", "Planta Los Angeles", "Troza aserrable", "420.000", "0.5000"),
+            ("LOTE-PINO-B", "Pino radiata", "66.200", "Predio El Roble", "Planta Los Angeles", "Madera estructural", "420.000", "0.5000"),
+            ("LOTE-EUCA-C", "Eucalipto", "52.700", "Predio Las Vertientes", "Planta Los Angeles", "Madera seca", "560.000", "0.4800"),
+        ],
+        "sources": [
+            source("Materiales", "Recepcion de trozas", "m3", "18.000000", 8, 38, "recepcion_trozas", "guia_despacho", 22),
+            source("Procesos externos", "Proceso de aserrio", "m3", "22.000000", 7, 34, "produccion", "registro_produccion", 18),
+            source("Energia", "Electricidad secado", "kWh", "0.390000", 320, 1800, "secado", "boleta_electrica", 34),
+            source("Transporte", "Diesel transporte forestal", "litros diesel", "2.680000", 35, 170, "transporte_forestal", "factura_combustible", 25),
+            source("Residuos", "Subproductos de madera", "kg", "0.030000", 220, 1400, "residuos", "registro_retiro_residuos", 10),
+        ],
+        "environmental": [
+            ("registro_subproductos", "Registro de aserrin", "sawdust_ton", "Aserrin generado", "Residuos", "ton", "8.2", "9.0", "<=", "SINADER"),
+            ("bitacora_caldera", "Bitacora caldera biomasa", "biomass_boiler_ton", "Biomasa caldera", "Energia", "ton", "18.5", "17.0", "<=", "RCA"),
+            ("medicion_ruido", "Medicion ruido planta", "noise_db", "Ruido perimetral", "Ruido", "dB", "58.0", "60.0", "<=", "DS38"),
+            ("guia_trozas", "Volumen madera recepcionada", "wood_volume_m3", "Volumen madera", "Produccion", "m3", "84.5", "70.0", ">=", "RCA"),
+        ],
+    },
+    "transporte": {
+        "id": "CZP_TRANSPORTE_ANDES",
+        "name": "Transporte Andes",
+        "rubro": "Transporte y logistica",
+        "preset": "transporte",
+        "region": "Metropolitana",
+        "comuna": "Santiago",
+        "units": ["Camion FL-01", "Camion FL-02", "Ruta Centro Sur"],
+        "stages": ["Planificacion de rutas", "Operacion de flota", "Combustible", "Mantenciones"],
+        "sources": [
+            source("Transporte", "Diesel camion ruta", "litros diesel", "2.680000", 45, 250, "combustible", "factura_combustible", 50),
+            source("Transporte", "Ruta larga distancia", "km", "0.850000", 60, 520, "rutas", "documento_transporte", 31),
+            source("Maquinaria", "Mantencion flota", "unidad", "35.000000", 1, 4, "mantenciones", "otro", 9),
+            source("Energia", "Electricidad oficina logistica", "kWh", "0.390000", 90, 420, "flota", "boleta_electrica", 7),
         ],
         "environmental": [
             ("factura_combustible", "Factura diesel flota", "diesel_l", "Diesel flota", "Combustible", "L", "2450.0", "2200.0", "<=", "RETC"),
@@ -141,153 +117,19 @@ PILOT_COMPANIES = {
         ],
     },
     "industrial": {
-<<<<<<< HEAD
-        "id": "CZ_SEED_INDUSTRIAL",
-        "name": "Industria Carbono Zero",
-        "rubro": "Industrial",
+        "id": "CZP_INDUSTRIAS_NAHUELBUTA",
+        "name": "Industrias Nahuelbuta",
+        "rubro": "Industrial agroindustria",
+        "preset": "industrial",
         "region": "Biobio",
         "comuna": "Concepcion",
-        "units": ["Linea Produccion A", "Linea Produccion B", "Caldera Principal", "Bodega Despacho"],
+        "units": ["Linea Produccion A", "Caldera Principal", "Bodega Despacho"],
         "stages": ["Produccion", "Energia", "Caldera", "Residuos industriales", "Transporte interno"],
-=======
-        "id": "CZP_INDUSTRIAS_NAHUELBUTA",
-        "name": "Industrias Nahuelbuta SpA",
-        "rubro": "Industrial manufactura",
-        "preset": "industrial",
-        "sector_label": "industrial",
-        "region": "Biobío",
-        "comuna": "Concepción",
-        "email": "medioambiente@industriasnahuelbuta.cl",
-        "telefono": "+56 41 236 1180",
-        "contacto": "Encargada de medio ambiente",
-        "observaciones": "Control de consumos, caldera, residuos y despacho.",
-        "data_maturity": "Intermedia",
-        "quality": {"link": 0.72, "stage": 0.76, "source": 0.88, "factor": 0.82, "quantity": 0.92, "evidence": 0.46},
-        "units": ["Línea Producción A", "Línea Producción B", "Caldera Principal", "Bodega Despacho"],
-        "stages": ["Producción", "Energía", "Caldera", "Residuos industriales", "Transporte interno"],
-        "unit_type": "Industrial",
-        "mandante": "Operación interna",
->>>>>>> fc02cb0adba619f920c2b4f1029b5987f1fdba74
         "sources": [
-            source("Energia", "Electricidad planta", "kWh", "0.390000", 720, 4300, "energia", "boleta_electrica", 34),
-            source("Energia", "Diésel caldera", "litros diesel", "2.680000", 55, 360, "caldera", "factura_combustible", 25),
-            source("Residuos", "Residuo industrial no peligroso", "kg", "0.120000", 420, 2800, "residuos", "ticket_pesaje", 18),
-            source("Agua", "Agua de proceso", "m3", "0.450000", 24, 170, "agua", "otro", 10),
-            source("Transporte", "Grúa horquilla diésel", "litros diesel", "2.680000", 10, 82, "transporte_interno", "factura_combustible", 13),
-        ],
-    },
-    "forestal": {
-        "id": "CZP_FORESTAL_SANTA_LAURA",
-        "name": "Forestal Santa Laura Ltda",
-        "rubro": "Forestal",
-        "preset": "aserradero",
-        "sector_label": "forestal",
-        "region": "Biobío",
-        "comuna": "Mulchén",
-        "email": "gestionambiental@forestalsantalaura.cl",
-        "telefono": "+56 43 245 7700",
-        "contacto": "Jefatura de patrimonio",
-        "observaciones": "Trazabilidad de lotes, cosecha y transporte forestal.",
-        "data_maturity": "Trazabilidad parcial",
-        "quality": {"link": 0.82, "stage": 0.74, "source": 0.86, "factor": 0.78, "quantity": 0.94, "evidence": 0.58},
-        "units": ["Predio Santa Laura", "Predio El Roble", "Patio Acopio Mulchén"],
-        "stages": ["Cosecha", "Clasificación", "Acopio", "Transporte forestal", "Recepción destino"],
-        "unit_type": "Infraestructura",
-        "mandante": "Patrimonio forestal",
-        "lotes": [
-            ("SL-PINO-2401", "Pino radiata", "96.400", "Predio Santa Laura", "Patio Acopio Mulchén", "Troza aserrable", "420.000", "0.5000"),
-            ("SL-PINO-2402", "Pino radiata", "78.800", "Predio El Roble", "Planta destino", "Madera pulpable", "420.000", "0.5000"),
-            ("SL-EUCA-2403", "Eucalipto", "64.200", "Predio Los Aromos", "Patio Acopio Mulchén", "Troza industrial", "560.000", "0.4800"),
-        ],
-        "sources": [
-            source("Maquinaria", "Harvester diésel", "litros diesel", "2.680000", 32, 150, "cosecha", "registro_maquinaria", 23),
-            source("Maquinaria", "Forwarder diésel", "litros diesel", "2.680000", 24, 130, "cosecha", "registro_maquinaria", 18),
-            source("Transporte", "Camión forestal", "litros diesel", "2.680000", 42, 210, "transporte_forestal", "factura_combustible", 28),
-            source("Materiales", "Volumen cosechado", "m3", "18.000000", 8, 42, "lotes_forestales", "guia_despacho", 24),
-            source("Residuos", "Residuos de faena", "kg", "0.030000", 120, 860, "residuos", "registro_retiro_residuos", 7),
-        ],
-    },
-    "transporte": {
-        "id": "CZP_TRANSPORTES_RUTA_SUR",
-        "name": "Transportes Ruta Sur SpA",
-        "rubro": "Transporte y logística",
-        "preset": "transporte",
-        "sector_label": "transporte",
-        "region": "Metropolitana",
-        "comuna": "Santiago",
-        "email": "operaciones@rutasur.cl",
-        "telefono": "+56 2 2840 3100",
-        "contacto": "Control de flota",
-        "observaciones": "Seguimiento de combustible, rutas y operación de flota.",
-        "data_maturity": "Operacional",
-        "quality": {"link": 0.86, "stage": 0.88, "source": 0.94, "factor": 0.90, "quantity": 0.96, "evidence": 0.66},
-        "units": ["Camión RS-01", "Camión RS-02", "Camión RS-03", "Ruta Centro Sur"],
-        "stages": ["Planificación de rutas", "Operación de flota", "Combustible", "Mantenciones", "Carga y distribución"],
-        "unit_type": "Infraestructura",
-        "mandante": "Clientes de distribución nacional",
-        "sources": [
-            source("Transporte", "Diésel camión ruta", "litros diesel", "2.680000", 48, 265, "combustible", "factura_combustible", 45),
-            source("Transporte", "Kilómetros ruta larga", "km", "0.850000", 80, 560, "rutas", "documento_transporte", 28),
-            source("Maquinaria", "Mantención flota", "unidad", "35.000000", 1, 4, "mantenciones", "otro", 10),
-            source("Energia", "Electricidad centro logístico", "kWh", "0.390000", 90, 460, "centro_logistico", "boleta_electrica", 8),
-            source("Residuos", "Neumáticos y residuos taller", "kg", "0.180000", 20, 180, "residuos", "ticket_pesaje", 9),
-        ],
-    },
-    "aserradero": {
-        "id": "CZP_ASERRADERO_LOS_RAULIES",
-        "name": "Aserradero Los Raulíes Ltda",
-        "rubro": "Aserradero",
-        "preset": "aserradero",
-        "sector_label": "aserradero",
-        "region": "Biobío",
-        "comuna": "Los Ángeles",
-        "email": "controlambiental@losraulies.cl",
-        "telefono": "+56 43 251 6800",
-        "contacto": "Encargado de producción",
-        "observaciones": "Control de recepción, aserrío, secado y despacho de madera.",
-        "data_maturity": "Avanzada",
-        "quality": {"link": 0.94, "stage": 0.93, "source": 0.97, "factor": 0.95, "quantity": 0.98, "evidence": 0.82},
-        "units": ["Línea Aserrío 1", "Cámara Secado 2", "Patio Trozas", "Despacho Madera Seca"],
-        "stages": ["Recepción de trozas", "Aserrío", "Secado", "Clasificación", "Despacho"],
-        "unit_type": "Industrial",
-        "mandante": "Clientes industriales y construcción",
-        "lotes": [
-            ("LR-PINO-2501", "Pino radiata", "88.500", "Predio Los Raulíes", "Planta Los Ángeles", "Madera estructural", "420.000", "0.5000"),
-            ("LR-PINO-2502", "Pino radiata", "72.300", "Predio Las Palmas", "Planta Los Ángeles", "Madera seca", "420.000", "0.5000"),
-            ("LR-ROBLE-2503", "Roble", "38.600", "Predio Cordillera", "Planta Los Ángeles", "Tabla dimensionada", "650.000", "0.5000"),
-        ],
-        "sources": [
-            source("Materiales", "Recepción de trozas", "m3", "18.000000", 8, 44, "recepcion_trozas", "guia_despacho", 22),
-            source("Procesos externos", "Proceso de aserrío", "m3", "22.000000", 7, 38, "produccion", "registro_produccion", 18),
-            source("Energia", "Electricidad secado", "kWh", "0.390000", 360, 1900, "secado", "boleta_electrica", 28),
-            source("Transporte", "Diésel despacho madera", "litros diesel", "2.680000", 34, 175, "transporte", "factura_combustible", 20),
-            source("Residuos", "Subproductos de madera", "kg", "0.030000", 240, 1500, "subproductos", "registro_produccion", 12),
-        ],
-    },
-    "mineria": {
-        "id": "CZP_MINERA_CORDILLERA_SUR",
-        "name": "Minera Cordillera Sur SpA",
-        "rubro": "Minería",
-        "preset": "industrial",
-        "sector_label": "mineria",
-        "region": "Antofagasta",
-        "comuna": "Calama",
-        "email": "sustentabilidad@cordillerasur.cl",
-        "telefono": "+56 55 241 9000",
-        "contacto": "Superintendencia ambiental",
-        "observaciones": "Control ambiental de operación minera, energía, agua y flota interna.",
-        "data_maturity": "Consolidada",
-        "quality": {"link": 0.98, "stage": 0.98, "source": 0.99, "factor": 0.98, "quantity": 0.99, "evidence": 0.92},
-        "units": ["Rajo Norte", "Planta Chancado", "Campamento Operación", "Botadero Controlado"],
-        "stages": ["Extracción", "Chancado", "Transporte interno", "Energía y agua", "Residuos operacionales"],
-        "unit_type": "Industrial",
-        "mandante": "Operación minera",
-        "sources": [
-            source("Maquinaria", "Camión extracción diésel", "litros diesel", "2.680000", 140, 780, "flota_mina", "factura_combustible", 31),
-            source("Energia", "Electricidad chancado", "kWh", "0.390000", 1800, 9200, "energia", "boleta_electrica", 26),
-            source("Agua", "Agua proceso", "m3", "0.450000", 180, 960, "agua", "otro", 15),
-            source("Transporte", "Transporte interno mineral", "litros diesel", "2.680000", 90, 420, "transporte_interno", "registro_maquinaria", 16),
-            source("Residuos", "Residuo operacional controlado", "kg", "0.120000", 600, 4200, "residuos", "ticket_pesaje", 12),
+            source("Energia", "Electricidad planta", "kWh", "0.390000", 700, 4200, "energia", "boleta_electrica", 43),
+            source("Energia", "Diesel caldera", "litros diesel", "2.680000", 55, 340, "produccion", "factura_combustible", 34),
+            source("Residuos", "Residuo industrial no peligroso", "kg", "0.120000", 400, 2600, "residuos", "ticket_pesaje", 17),
+            source("Agua", "Consumo agua proceso", "m3", "0.450000", 20, 160, "agua", "otro", 11),
         ],
         "environmental": [
             ("informe_laboratorio", "Informe laboratorio RILES", "ph", "pH descarga", "RILES", "pH", "6.8", "6.0", ">=", "DS90"),
@@ -298,18 +140,18 @@ PILOT_COMPANIES = {
         ],
     },
     "mineria": {
-        "id": "CZ_SEED_MINERIA",
-        "name": "Operacion Minera Carbono Zero",
+        "id": "CZP_MINERA_CORDILLERA_SUR",
+        "name": "Minera Cordillera Sur",
         "rubro": "Mineria",
+        "preset": "industrial",
         "region": "Antofagasta",
         "comuna": "Calama",
-        "preset_db": "industrial",
         "units": ["Rajo Norte", "Planta Chancado", "Deposito Relaves"],
         "stages": ["Extraccion", "Chancado", "Agua industrial", "Relaves", "Monitoreo aire"],
         "sources": [
-            ("Combustible", "Diesel maquinaria minera", "litros diesel", "2.680000", 80, 420, "produccion", "factura_combustible", 40),
-            ("Energia", "Electricidad planta minera", "kWh", "0.390000", 1200, 6200, "energia", "boleta_electrica", 35),
-            ("Agua", "Agua industrial", "m3", "0.450000", 90, 360, "agua", "otro", 15),
+            source("Maquinaria", "Diesel maquinaria minera", "litros diesel", "2.680000", 80, 420, "produccion", "factura_combustible", 40),
+            source("Energia", "Electricidad planta minera", "kWh", "0.390000", 1200, 6200, "energia", "boleta_electrica", 35),
+            source("Agua", "Agua industrial", "m3", "0.450000", 90, 360, "agua", "otro", 15),
         ],
         "environmental": [
             ("balance_agua", "Balance agua industrial", "water_extracted_m3", "Agua extraida", "Agua", "m3", "1280.0", "1200.0", "<=", "RCA"),
@@ -319,18 +161,18 @@ PILOT_COMPANIES = {
         ],
     },
     "energia": {
-        "id": "CZ_SEED_ENERGIA",
-        "name": "Central Energia Carbono Zero",
-        "rubro": "Energia",
+        "id": "CZP_ENERGIA_BIOBIO",
+        "name": "Energia Bio Bio",
+        "rubro": "Energia generacion",
+        "preset": "industrial",
         "region": "Valparaiso",
         "comuna": "Quintero",
-        "preset_db": "industrial",
         "units": ["Unidad Generacion 1", "Unidad Generacion 2", "Patio Combustible"],
         "stages": ["Generacion", "Combustion", "Monitoreo CEMS", "Mantencion", "Residuos"],
         "sources": [
-            ("Energia", "Generacion termica", "MWh", "0.420000", 200, 900, "energia", "otro", 40),
-            ("Combustible", "Combustible central", "m3", "2.200000", 30, 160, "produccion", "factura_combustible", 34),
-            ("Residuos", "Residuo mantencion central", "kg", "0.120000", 80, 360, "residuos", "registro_retiro_residuos", 12),
+            source("Energia", "Generacion termica", "MWh", "0.420000", 200, 900, "energia", "otro", 40),
+            source("Energia", "Combustible central", "m3", "2.200000", 30, 160, "produccion", "factura_combustible", 34),
+            source("Residuos", "Residuo mantencion central", "kg", "0.120000", 80, 360, "residuos", "registro_retiro_residuos", 12),
         ],
         "environmental": [
             ("cems", "Registro CEMS SO2", "so2", "SO2", "Emisiones atmosfericas", "mg/Nm3", "395.0", "400.0", "<=", "CEMS"),
@@ -343,48 +185,35 @@ PILOT_COMPANIES = {
 
 
 class Command(BaseCommand):
-    help = "Crea empresas piloto realistas de Carbono Zero con registros ambientales históricos."
+    help = "Crea empresas piloto realistas de Carbono Zero con registros ambientales historicos."
 
     def add_arguments(self, parser):
         parser.add_argument("--records", type=int, default=180, help="Cantidad de registros por empresa.")
-        parser.add_argument("--days", type=int, default=180, help="Ventana histórica en días.")
+        parser.add_argument("--days", type=int, default=180, help="Ventana historica en dias.")
         parser.add_argument("--reset", action="store_true", help="Elimina empresas piloto anteriores antes de crear datos.")
-        parser.add_argument("--seed", type=int, default=20260621, help="Semilla determinística para reproducir los datos.")
+        parser.add_argument("--seed", type=int, default=20260621, help="Semilla deterministica para reproducir los datos.")
 
     @transaction.atomic
     def handle(self, *args, **options):
         rng = random.Random(options["seed"])
         records_per_company = max(1, int(options["records"]))
         days = max(30, int(options["days"]))
-
         if options["reset"]:
-<<<<<<< HEAD
-            self.reset_demo()
-        distribution = self.distribution(total_records)
-        totals = {"empresas": 0, "etapas": 0, "unidades": 0, "lotes": 0, "factores": 0, "registros": 0, "evidencias": 0, "documentos_ambientales": 0, "variables_ambientales": 0, "limites_ambientales": 0, "alertas_cumplimiento": 0}
-        for preset, count in distribution.items():
-            result = self.seed_preset(preset, PRESETS[preset], count, rng)
-            for key, value in result.items():
-                totals[key] += value
-        self.stdout.write(self.style.SUCCESS("Demo Carbono Zero creado correctamente."))
-        self.stdout.write(self.style.SUCCESS(str(totals)))
-
-    def distribution(self, total):
-        keys = list(PRESETS.keys())
-        base = total // len(keys)
-        rem = total % len(keys)
-        return {key: base + (1 if index < rem else 0) for index, key in enumerate(keys)}
-
-    def reset_demo(self):
-        empresas = Constructora.objects.filter(constructora_id__startswith=SEED_PREFIX)
-        AlertaCumplimientoAmbiental.objects.filter(constructora__in=empresas).delete()
-        VariableAmbientalExtraida.objects.filter(constructora__in=empresas).delete()
-        DocumentoAmbiental.objects.filter(constructora__in=empresas).delete()
-        LimiteNormativoAmbiental.objects.filter(constructora__in=empresas).delete()
-=======
             self.reset_pilots()
 
-        totals = {"empresas": 0, "etapas": 0, "unidades": 0, "lotes": 0, "factores": 0, "registros": 0, "evidencias": 0}
+        totals = {
+            "empresas": 0,
+            "etapas": 0,
+            "unidades": 0,
+            "lotes": 0,
+            "factores": 0,
+            "registros": 0,
+            "evidencias": 0,
+            "documentos_ambientales": 0,
+            "variables_ambientales": 0,
+            "limites_ambientales": 0,
+            "alertas_cumplimiento": 0,
+        }
         for key, cfg in PILOT_COMPANIES.items():
             result = self.seed_company(key, cfg, records_per_company, days, rng)
             for total_key, value in result.items():
@@ -396,7 +225,10 @@ class Command(BaseCommand):
     def reset_pilots(self):
         query = Q(constructora_id__startswith=ACTIVE_PREFIX) | Q(constructora_id__startswith=LEGACY_PREFIX)
         empresas = Constructora.objects.filter(query)
->>>>>>> fc02cb0adba619f920c2b4f1029b5987f1fdba74
+        AlertaCumplimientoAmbiental.objects.filter(constructora__in=empresas).delete()
+        VariableAmbientalExtraida.objects.filter(constructora__in=empresas).delete()
+        DocumentoAmbiental.objects.filter(constructora__in=empresas).delete()
+        LimiteNormativoAmbiental.objects.filter(constructora__in=empresas).delete()
         TransporteObra.objects.filter(obra__constructora__in=empresas).delete()
         TransporteLoteForestal.objects.filter(lote_forestal__constructora__in=empresas).delete()
         EvidenciaObra.objects.filter(constructora__in=empresas).delete()
@@ -415,63 +247,35 @@ class Command(BaseCommand):
             defaults={
                 "nombre": cfg["name"],
                 "rubro": cfg["rubro"],
-<<<<<<< HEAD
-                "preset": cfg.get("preset_db", preset),
-                "region": cfg["region"],
-                "comuna": cfg["comuna"],
-                "direccion": f"{cfg['comuna']}, {cfg['region']}",
-                "email": f"{preset}@carbonozero.cl",
-                "telefono": "+56 9 4321 0000",
-                "contacto": "Equipo ambiental",
-                "observaciones": "Empresa piloto para validar gestion ambiental por industria.",
-=======
                 "preset": cfg["preset"],
                 "region": cfg["region"],
                 "comuna": cfg["comuna"],
                 "direccion": f"{cfg['comuna']}, {cfg['region']}",
-                "email": cfg["email"],
-                "telefono": cfg["telefono"],
-                "contacto": cfg["contacto"],
-                "observaciones": cfg["observaciones"],
->>>>>>> fc02cb0adba619f920c2b4f1029b5987f1fdba74
+                "email": f"ambiental+{key}@carbonozero.cl",
+                "telefono": "+56 9 4321 0000",
+                "contacto": "Equipo ambiental",
+                "observaciones": "Empresa piloto para validar gestion ambiental por industria.",
                 "activa": True,
             },
         )
-        self.configure_company(empresa, cfg)
+        ConfiguracionConstructora.objects.get_or_create(constructora=empresa)
         etapas = self.create_stages(empresa, cfg)
-<<<<<<< HEAD
-        unidades = self.create_units(empresa, etapas, cfg, preset)
-        lotes = self.create_lotes(empresa, cfg) if preset == "aserradero" else []
-        factores = self.create_factors(cfg.get("preset_db", preset), cfg)
-        registros = self.create_records(empresa, unidades, lotes, factores, cfg, count, rng)
-        evidencias = self.create_evidences(empresa, registros)
-        environmental = self.create_environmental_compliance(empresa, preset, cfg)
-        return {"empresas": int(created), "etapas": len(etapas), "unidades": len(unidades), "lotes": len(lotes), "factores": len(factores), "registros": len(registros), "evidencias": evidencias, **environmental}
-=======
         unidades = self.create_units(empresa, etapas, cfg)
         lotes = self.create_lotes(empresa, cfg)
         factores = self.create_factors(cfg)
         registros = self.create_records(empresa, unidades, etapas, lotes, factores, cfg, records_per_company, days, rng)
-        evidencias = self.create_evidences(empresa, registros, rng)
-        return {"empresas": int(created), "etapas": len(etapas), "unidades": len(unidades), "lotes": len(lotes), "factores": len(factores), "registros": len(registros), "evidencias": evidencias}
->>>>>>> fc02cb0adba619f920c2b4f1029b5987f1fdba74
-
-    def configure_company(self, empresa, cfg):
-        maturity = cfg["quality"]
-        strict = maturity["link"] >= 0.85
-        ConfiguracionConstructora.objects.update_or_create(
-            constructora=empresa,
-            defaults={
-                "modo_importacion": "estricto" if strict else "flexible",
-                "permitir_registros_sin_factor": not strict,
-                "requerir_etapa_obra": strict,
-                "requerir_obra_registro": strict,
-                "permitir_evidencias_sin_vinculo": not strict,
-                "evidencia_obligatoria": cfg["quality"]["evidence"] >= 0.80,
-                "factor_electrico_default": "Factor eléctrico operativo vigente",
-                "region_electrica_default": cfg["region"],
-            },
-        )
+        evidencias = self.create_evidences(empresa, registros)
+        environmental = self.create_environmental_compliance(empresa, key, cfg)
+        return {
+            "empresas": int(created),
+            "etapas": len(etapas),
+            "unidades": len(unidades),
+            "lotes": len(lotes),
+            "factores": len(factores),
+            "registros": len(registros),
+            "evidencias": evidencias,
+            **environmental,
+        }
 
     def create_stages(self, empresa, cfg):
         etapas = []
@@ -495,7 +299,7 @@ class Command(BaseCommand):
 
     def create_units(self, empresa, etapas, cfg):
         unidades = []
-        start = timezone.localdate() - timedelta(days=210)
+        start = timezone.localdate() - timedelta(days=180)
         for index, name in enumerate(cfg["units"], 1):
             etapa = etapas[(index - 1) % len(etapas)]
             unidad, _ = Obra.objects.update_or_create(
@@ -504,16 +308,16 @@ class Command(BaseCommand):
                     "constructora": empresa,
                     "etapa_principal": etapa,
                     "nombre": name,
-                    "tipo_proyecto": cfg["unit_type"],
-                    "fecha_inicio": start + timedelta(days=index * 11),
-                    "fecha_termino_estimada": timezone.localdate() + timedelta(days=90 + index * 15),
-                    "superficie_m2": Decimal(str(950 + index * 640)),
+                    "tipo_proyecto": self.unit_type(empresa.preset),
+                    "fecha_inicio": start + timedelta(days=index * 8),
+                    "fecha_termino_estimada": timezone.localdate() + timedelta(days=90),
+                    "superficie_m2": Decimal(str(1200 + index * 740)),
                     "ubicacion": f"{empresa.comuna}, {empresa.region}",
                     "region": empresa.region,
                     "comuna": empresa.comuna,
-                    "mandante": cfg["mandante"],
+                    "mandante": "Mandante de referencia",
                     "estado": "en_ejecucion",
-                    "descripcion": "Unidad operacional incluida en el seguimiento ambiental.",
+                    "descripcion": f"Unidad operativa para medicion ambiental de {empresa.rubro}.",
                 },
             )
             unidades.append(unidad)
@@ -521,14 +325,14 @@ class Command(BaseCommand):
 
     def create_lotes(self, empresa, cfg):
         lotes = []
-        start = timezone.localdate() - timedelta(days=175)
+        start = timezone.localdate() - timedelta(days=90)
         for index, item in enumerate(cfg.get("lotes", []), 1):
             lote_id, especie, volumen, origen, destino, producto, densidad, carbono = item
             lote, _ = LoteForestal.objects.update_or_create(
                 lote_id=f"{empresa.constructora_id}_{lote_id}",
                 defaults={
                     "constructora": empresa,
-                    "fecha": start + timedelta(days=index * 18),
+                    "fecha": start + timedelta(days=index * 14),
                     "especie": especie,
                     "volumen_m3": Decimal(volumen),
                     "origen": origen,
@@ -537,8 +341,8 @@ class Command(BaseCommand):
                     "densidad_kg_m3": Decimal(densidad),
                     "porcentaje_carbono": Decimal(carbono),
                     "estado": "activo",
-                    "observaciones": "Lote trazable para balance neto, transporte y evidencia operacional.",
-                    "metadata": {"sector": cfg["sector_label"], "module": "lotes_forestales", "data_maturity": cfg["data_maturity"]},
+                    "observaciones": "Lote trazable para balance neto, transporte y evidencias.",
+                    "metadata": {"preset": "aserradero", "module": "lotes_forestales", "quality_status": "validado"},
                 },
             )
             lotes.append(lote)
@@ -546,21 +350,20 @@ class Command(BaseCommand):
 
     def create_factors(self, cfg):
         factors = {}
-        factor_source = f"Referencia operativa {cfg['sector_label']} {YEAR}"
         for item in cfg["sources"]:
             factor, _ = FactorEmision.objects.update_or_create(
                 actividad=item["fuente"],
                 unidad=item["unidad"],
-                fuente=factor_source,
+                fuente=f"Factor de referencia Carbono Zero {YEAR}",
                 anio=YEAR,
                 defaults={
                     "preset": cfg["preset"],
                     "module": item["module"],
-                    "categoria": item["categoria"] or "Otros",
+                    "categoria": item["categoria"],
                     "factor_emision": item["factor"],
                     "alcance": "Referencia operativa",
-                    "descripcion": f"Factor aplicado a {item['fuente']}.",
-                    "metadata": {"sector": cfg["sector_label"], "module": item["module"]},
+                    "descripcion": f"Factor usado para calcular emisiones de {item['fuente']}.",
+                    "metadata": {"preset": cfg["preset"], "module": item["module"], "quality_status": "validado"},
                     "activo": True,
                 },
             )
@@ -570,76 +373,56 @@ class Command(BaseCommand):
     def create_records(self, empresa, unidades, etapas, lotes, factors, cfg, count, days, rng):
         registros = []
         today = timezone.localdate()
-        start = today - timedelta(days=days - 1)
-        weighted_sources = []
+        weighted = []
         for item in cfg["sources"]:
-            weighted_sources.extend([item] * max(1, int(item["weight"])))
-
+            weighted.extend([item] * max(1, item["weight"]))
         for index in range(count):
-            item = rng.choice(weighted_sources)
+            item = rng.choice(weighted)
             factor = factors[item["fuente"]]
-            fecha = start + timedelta(days=index % days)
-            obra = unidades[index % len(unidades)] if rng.random() <= cfg["quality"]["link"] else None
-            etapa = obra.etapa_principal if obra else (etapas[index % len(etapas)] if rng.random() <= cfg["quality"]["stage"] else None)
-            lote = rng.choice(lotes) if lotes and rng.random() <= cfg["quality"]["link"] else None
-            has_source = rng.random() <= cfg["quality"]["source"]
-            has_factor = rng.random() <= cfg["quality"]["factor"]
-            valid_quantity = rng.random() <= cfg["quality"]["quantity"]
-            amount = self.amount_for(item, fecha, rng) if valid_quantity else Decimal("0.000")
-            factor_value = factor.factor_emision if has_factor else Decimal("0.000000")
-            fuente = item["fuente"] if has_source else ""
-            categoria = item["categoria"] if has_source else ""
+            obra = unidades[index % len(unidades)]
+            etapa = etapas[index % len(etapas)]
+            lote = rng.choice(lotes) if lotes else None
+            cantidad = Decimal(str(round(rng.uniform(float(item["min"]), float(item["max"])), 3)))
             is_transport = item["categoria"] == "Transporte"
             metadata = {
-                "sector": cfg["sector_label"],
                 "preset": empresa.preset,
                 "module": item["module"],
                 "source_profile": item["fuente"],
-                "data_maturity": cfg["data_maturity"],
+                "quality_status": "validado",
                 "evidence_expected": item["evidence"],
-                "quality_flags": self.quality_flags(obra, etapa, fuente, categoria, factor_value, amount),
-                "should_create_evidence": rng.random() <= cfg["quality"]["evidence"],
             }
             if lote:
                 metadata["lote"] = lote.lote_id
-
             registro = RegistroEmision.objects.create(
                 constructora=empresa,
                 obra=obra,
                 etapa=etapa,
                 lote_forestal=lote,
-                categoria=categoria or "Otros",
-                fuente_emision=fuente,
-                cantidad=amount,
+                categoria=item["categoria"],
+                fuente_emision=item["fuente"],
+                cantidad=cantidad,
                 unidad=item["unidad"],
-                factor_emision=factor_value,
-                fecha=fecha,
-                proveedor=self.provider(item["fuente"], cfg),
+                factor_emision=factor.factor_emision,
+                fecha=today - timedelta(days=max(0, days - int((index / max(count, 1)) * days))),
+                proveedor=self.provider(item["fuente"], empresa.preset),
                 origen_transporte=self.origin(empresa, lote) if is_transport else "",
                 destino_transporte=self.destination(empresa, lote) if is_transport else "",
-                distancia_km=Decimal(str(round(rng.uniform(8, 420), 3))) if is_transport else None,
-                observaciones=self.record_observation(metadata),
+                distancia_km=Decimal(str(round(rng.uniform(8, 280), 3))) if is_transport else None,
+                observaciones="Registro validado para seguimiento ambiental y analisis de puntos criticos.",
                 metadata=metadata,
             )
-            if obra and rng.random() > cfg["quality"]["stage"]:
-                RegistroEmision.objects.filter(pk=registro.pk).update(etapa=None)
-                registro.etapa = None
             registros.append(registro)
         return registros
 
-    def create_evidences(self, empresa, registros, rng):
+    def create_evidences(self, empresa, registros):
         total = 0
-        for registro in registros:
-            if not registro.metadata.get("should_create_evidence"):
+        for index, registro in enumerate(registros):
+            if index % 3 != 0:
                 continue
-            evidence_type = registro.metadata.get("evidence_expected") or "otro"
-            status = self.evidence_status(rng)
+            evidence = registro.metadata.get("evidence_expected") or "otro"
             content = (
-                f"Respaldo ambiental\n"
-                f"Empresa: {empresa.nombre}\n"
-                f"Fuente: {registro.fuente_emision or registro.metadata.get('source_profile', 'Sin fuente')}\n"
-                f"Cantidad: {registro.cantidad} {registro.unidad}\n"
-                f"Fecha: {registro.fecha}\n"
+                f"Evidencia Carbono Zero\nEmpresa: {empresa.nombre}\nFuente: {registro.fuente_emision}\n"
+                f"Cantidad: {registro.cantidad} {registro.unidad}\nFecha: {registro.fecha}\n"
                 f"Emisiones: {registro.emisiones_kg_co2e} kg CO2e\n"
             )
             evidencia = EvidenciaObra(
@@ -648,28 +431,27 @@ class Command(BaseCommand):
                 etapa=registro.etapa,
                 registro_emision=registro,
                 lote_forestal=registro.lote_forestal,
-                tipo_evidencia=evidence_type,
-                estado_documental=status,
+                tipo_evidencia=evidence,
+                estado_documental=EvidenciaObra.EstadoDocumental.VINCULADA,
                 fecha_documento=registro.fecha,
-                nombre=f"Respaldo {registro.fecha} - {registro.fuente_emision or registro.metadata.get('source_profile', 'registro ambiental')}",
-                observaciones="Documento operacional vinculado al registro ambiental.",
+                nombre=f"Respaldo - {registro.fuente_emision}",
+                observaciones="Documento vinculado al registro ambiental para trazabilidad.",
                 texto_extraido=content,
                 metadata_extraccion={
-                    "sector": empresa.rubro,
+                    "preset": empresa.preset,
                     "module": registro.metadata.get("module"),
-                    "fuente_emision_sugerida": registro.fuente_emision or registro.metadata.get("source_profile"),
+                    "fuente_emision_sugerida": registro.fuente_emision,
                     "categoria_sugerida": registro.categoria,
                     "cantidad_sugerida": str(registro.cantidad),
                     "unidad_sugerida": registro.unidad,
-                    "confianza_extraccion": round(rng.uniform(0.74, 0.97), 2),
+                    "confianza_extraccion": 0.92,
+                    "quality_status": "validado",
                 },
             )
-            filename = f"{empresa.constructora_id}_{registro.id}_{evidence_type}.txt"
-            evidencia.archivo.save(filename, ContentFile(content), save=True)
+            evidencia.archivo.save(f"{empresa.constructora_id}_{registro.id}_{evidence}.txt", ContentFile(content), save=True)
             total += 1
         return total
 
-<<<<<<< HEAD
     def create_environmental_compliance(self, empresa, industry_key, cfg):
         created_docs = 0
         created_variables = 0
@@ -708,7 +490,12 @@ class Command(BaseCommand):
                     "metadata": {"seed": True, "normativa": normativa},
                 },
             )
-            metadata = {"normativa": normativa, "comparador_limite": limite_obj.comparador, "limite_id": limite_obj.id, "seed": True}
+            metadata = {
+                "normativa": normativa,
+                "comparador_limite": limite_obj.comparador,
+                "limite_id": limite_obj.id,
+                "seed": True,
+            }
             _, variable_created = VariableAmbientalExtraida.objects.update_or_create(
                 documento=documento,
                 constructora=empresa,
@@ -735,79 +522,40 @@ class Command(BaseCommand):
             "limites_ambientales": created_limits,
             "alertas_cumplimiento": AlertaCumplimientoAmbiental.objects.filter(constructora=empresa).count(),
         }
-=======
-    def amount_for(self, item, fecha, rng):
-        min_value = float(item["min"])
-        max_value = float(item["max"])
-        base = rng.uniform(min_value, max_value)
-        month_factor = 1 + (0.12 if fecha.month in {3, 4, 5, 10, 11} else 0) - (0.10 if fecha.month in {1, 2} else 0)
-        weekday_factor = 0.82 if fecha.weekday() >= 5 else 1
-        return Decimal(str(round(max(0, base * month_factor * weekday_factor), 3)))
-
-    def quality_flags(self, obra, etapa, fuente, categoria, factor_value, amount):
-        flags = []
-        if not obra:
-            flags.append("sin_vinculo_operacional")
-        if not etapa:
-            flags.append("sin_etapa")
-        if not fuente or not categoria:
-            flags.append("sin_fuente_o_categoria")
-        if not factor_value:
-            flags.append("sin_factor")
-        if not amount:
-            flags.append("cantidad_invalida")
-        return flags or ["completo"]
-
-    def record_observation(self, metadata):
-        if metadata["quality_flags"] == ["completo"]:
-            return "Registro consistente para análisis ambiental."
-        return "Registro operativo pendiente de completar para fortalecer trazabilidad."
-
-    def evidence_status(self, rng):
-        value = rng.random()
-        if value < 0.70:
-            return EvidenciaObra.EstadoDocumental.VINCULADA
-        if value < 0.88:
-            return EvidenciaObra.EstadoDocumental.VALIDADA
-        if value < 0.96:
-            return EvidenciaObra.EstadoDocumental.PENDIENTE
-        return EvidenciaObra.EstadoDocumental.OBSERVADA
->>>>>>> fc02cb0adba619f920c2b4f1029b5987f1fdba74
 
     def stage_type(self, name):
-        normalized = name.lower()
-        if "fund" in normalized:
+        name = name.lower()
+        if "fund" in name:
             return "Fundaciones"
-        if "obra gruesa" in normalized:
+        if "obra gruesa" in name:
             return "Obra gruesa"
-        if "termin" in normalized:
+        if "termin" in name:
             return "Terminaciones"
-        if "resid" in normalized:
+        if "resid" in name:
             return "Retiro de residuos"
-        if "extrac" in normalized or "movimiento" in normalized:
+        if "excav" in name:
             return "Excavacion"
-        if "ruta" in normalized or "transporte" in normalized or "log" in normalized:
+        if "ruta" in name or "transporte" in name:
             return "Logistica"
-        if "energ" in normalized or "caldera" in normalized:
-            return "Instalaciones"
         return "Otro"
 
-    def provider(self, fuente, cfg):
-        normalized = fuente.lower()
-        if "hormig" in normalized:
-            return "Hormigones Bío Bío"
-        if "acero" in normalized:
+    def unit_type(self, preset):
+        return {"construccion": "Edificio habitacional", "industrial": "Industrial", "transporte": "Infraestructura"}.get(preset, "Otro")
+
+    def provider(self, source_name, preset):
+        source_name = source_name.lower()
+        if "hormigon" in source_name:
+            return "Hormigones Biobio"
+        if "acero" in source_name:
             return "Aceros del Sur"
-        if "diesel" in normalized or "diésel" in normalized or "combustible" in normalized:
+        if "diesel" in source_name or "combustible" in source_name:
             return "Distribuidora Combustibles Sur"
-        if "electricidad" in normalized:
-            return "Empresa eléctrica regional"
-        if "residuo" in normalized or "escombro" in normalized:
-            return "Gestor ambiental autorizado"
-        if cfg["sector_label"] in {"forestal", "aserradero"}:
-            return "Operación forestal integrada"
-        if cfg["sector_label"] == "mineria":
-            return "Proveedor operacional minero"
+        if "electricidad" in source_name:
+            return "Distribuidora Electrica Regional"
+        if "residuo" in source_name or "escombro" in source_name:
+            return "Gestor Ambiental Certificado"
+        if preset == "aserradero":
+            return "Operacion Forestal Integrada"
         return "Proveedor operacional"
 
     def origin(self, empresa, lote=None):
@@ -817,7 +565,5 @@ class Command(BaseCommand):
         if lote:
             return lote.destino
         if empresa.preset == "transporte":
-            return "Centro de distribución cliente"
-        if empresa.rubro == "Minería":
-            return "Área operacional mina"
-        return f"Unidad operacional {empresa.comuna}"
+            return "Centro de distribucion cliente"
+        return f"Faena {empresa.comuna}"

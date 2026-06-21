@@ -131,15 +131,11 @@ function App() {
 }
 
 function ActiveView({ activeConstructora, activeConstructoraId, activePreset, activeView, constructoraCreateSignal, onSetActiveView, onStatusChange }) {
-<<<<<<< HEAD
   if (activeView === "central_operativa") return <CentralOperativaPage />;
   if (activeView === "ingesta_inteligente") return <IngestaInteligentePage />;
   if (activeView === "reportes_regulatorios") return <ReportesRegulatoriosPage />;
   if (activeView === "copiloto_ambiental") return <CopilotoAmbientalPage />;
-  if (activeView === "dashboard") return <DashboardPage onStatusChange={onStatusChange} />;
-=======
   if (activeView === "dashboard") return <DashboardPage onSetActiveView={onSetActiveView} onStatusChange={onStatusChange} />;
->>>>>>> fc02cb0adba619f920c2b4f1029b5987f1fdba74
   if (activeView === "inteligencia") return <IntelligencePage />;
   if (activeView === "emisiones") return <EmisionesView onSetActiveView={onSetActiveView} />;
   if (activeView === "acciones") return <AccionesAmbientalesPage />;

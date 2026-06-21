@@ -5,27 +5,45 @@ import { useEnvironmentalContext } from "@/domain/environmental";
 import CriticalDocumentsPanel from "@/core/environmental/components/CriticalDocumentsPanel";
 import EnvironmentalContextCard from "@/core/environmental/components/EnvironmentalContextCard";
 import EnvironmentalItemGrid from "@/core/environmental/components/EnvironmentalItemGrid";
+import EnvironmentalKpiGrid from "@/core/environmental/components/EnvironmentalKpiGrid";
+import EnvironmentalRecommendationList from "@/core/environmental/components/EnvironmentalRecommendationList";
 import EnvironmentalShell from "@/core/environmental/components/EnvironmentalShell";
 import RecommendedActionsPanel from "@/core/environmental/components/RecommendedActionsPanel";
 import RegulatoryReadinessPanel from "@/core/environmental/components/RegulatoryReadinessPanel";
 import RiskSignalsPanel from "@/core/environmental/components/RiskSignalsPanel";
 import { getEnvironmentalComplianceSummary } from "@/features/environmental/services/environmentalComplianceApi";
+import { getEnvironmentalKpis } from "@/features/environmental/services/environmentalKpiApi";
+import { getEnvironmentalRecommendations } from "@/features/environmental/services/environmentalRecommendationApi";
 
 function CentralOperativaPage() {
   const { activeCompany, matrix } = useEnvironmentalContext();
   const [summary, setSummary] = useState(null);
+  const [kpis, setKpis] = useState(null);
+  const [recommendations, setRecommendations] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!activeCompany?.constructora_id) return;
     let cancelled = false;
     setLoading(true);
-    getEnvironmentalComplianceSummary(activeCompany.constructora_id)
-      .then((data) => {
-        if (!cancelled) setSummary(data);
+    Promise.all([
+      getEnvironmentalKpis(activeCompany.constructora_id),
+      getEnvironmentalComplianceSummary(activeCompany.constructora_id),
+      getEnvironmentalRecommendations(activeCompany.constructora_id),
+    ])
+      .then(([kpiData, summaryData, recommendationData]) => {
+        if (!cancelled) {
+          setKpis(kpiData);
+          setSummary(summaryData);
+          setRecommendations(recommendationData);
+        }
       })
       .catch(() => {
-        if (!cancelled) setSummary(null);
+        if (!cancelled) {
+          setKpis(null);
+          setSummary(null);
+          setRecommendations(null);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -43,12 +61,42 @@ function CentralOperativaPage() {
     >
       <EnvironmentalContextCard company={activeCompany} matrix={matrix} />
 
+      <EnvironmentalKpiGrid kpis={kpis?.cards || []} />
+
+      <EnvironmentalRecommendationList recommendations={recommendations?.recommendations || []} />
+
       <section className="grid gap-4 md:grid-cols-4">
-        <SummaryCard icon={ShieldCheck} label="Cumplimiento" value={`${Number(summary?.compliance_pct || 0).toFixed(0)}%`} detail={loading ? "Cargando" : "Variables dentro de limite"} tone="emerald" />
-        <SummaryCard icon={AlertTriangle} label="Alertas rojas" value={summary?.alertas_rojas ?? 0} detail="Incumplimientos abiertos" tone="red" />
-        <SummaryCard icon={AlertTriangle} label="Alertas amarillas" value={summary?.alertas_amarillas ?? 0} detail="Variables cerca del limite" tone="amber" />
-        <SummaryCard icon={FileClock} label="Docs pendientes" value={summary?.documentos_pendientes ?? 0} detail="Validacion documental" tone="blue" />
+        <SummaryCard icon={ShieldCheck} label="Cumplimiento" value={formatSummaryValue(summary?.compliance_pct, "%")} detail={loading ? "Cargando" : "Variables dentro de limite"} tone="emerald" />
+        <SummaryCard icon={AlertTriangle} label="Alertas rojas" value={formatSummaryValue(summary?.alertas_rojas)} detail="Incumplimientos abiertos" tone="red" />
+        <SummaryCard icon={AlertTriangle} label="Alertas amarillas" value={formatSummaryValue(summary?.alertas_amarillas)} detail="Variables cerca del limite" tone="amber" />
+        <SummaryCard icon={FileClock} label="Docs pendientes" value={formatSummaryValue(summary?.documentos_pendientes)} detail="Validacion documental" tone="blue" />
       </section>
+
+      {!!kpis?.data_gaps?.length && (
+        <section className="rounded-2xl border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-card)]">
+          <h2 className="text-lg font-black text-[var(--text-main)]">Brechas de datos</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {kpis.data_gaps.map((gap) => (
+              <p key={gap} className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-700">
+                {gap}
+              </p>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!!kpis?.next_actions?.length && (
+        <section className="rounded-2xl border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-card)]">
+          <h2 className="text-lg font-black text-[var(--text-main)]">Siguientes acciones</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {kpis.next_actions.map((action) => (
+              <p key={action} className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4 text-sm font-bold text-emerald-800">
+                {action}
+              </p>
+            ))}
+          </div>
+        </section>
+      )}
 
       {!!summary?.critical_alerts?.length && (
         <section className="rounded-2xl border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-card)]">
@@ -104,6 +152,13 @@ function CentralOperativaPage() {
       </section>
     </EnvironmentalShell>
   );
+}
+
+function formatSummaryValue(value, suffix = "") {
+  if (value === null || value === undefined) return "Requiere datos";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return value;
+  return `${new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 }).format(number)}${suffix}`;
 }
 
 function SummaryCard({ icon: Icon, label, value, detail, tone }) {
