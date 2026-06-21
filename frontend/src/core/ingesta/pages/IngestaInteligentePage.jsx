@@ -31,7 +31,7 @@ function IngestaInteligentePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const suggestedTypes = useMemo(() => matrix.criticalDocuments || [], [matrix]);
-  const readiness = useMemo(() => buildIngestionReadiness({ documents, matrix, suggestedTypes }), [documents, matrix, suggestedTypes]);
+  const heroReadiness = useMemo(() => buildIngestionHeroReadiness({ readiness, matrix, suggestedTypes }), [readiness, matrix, suggestedTypes]);
 
   const refreshDocuments = useCallback(() => {
     if (!activeCompany?.constructora_id) return;
@@ -90,16 +90,16 @@ function IngestaInteligentePage() {
 
       <IngestionHero
         onRegister={() => {
-          setForm({ ...initialForm, tipo_documento: readiness.nextDocument || suggestedTypes[0] || "" });
+          setForm({ ...initialForm, tipo_documento: heroReadiness.nextDocument || suggestedTypes[0] || "" });
           setIsModalOpen(true);
         }}
-        readiness={readiness}
+        readiness={heroReadiness}
       />
 
       <section className="grid gap-4 md:grid-cols-3">
-        <ReadinessMetric icon={BarChart3} label="Cobertura documental" value={`${readiness.score}%`} detail={`${readiness.matchedCount} de ${readiness.totalExpected} respaldos esperados`} tone="cyan" />
-        <ReadinessMetric icon={FileSearch} label="Siguiente carga" value={readiness.nextDocument || "Sin brecha critica"} detail={readiness.whyItMatters} tone="amber" />
-        <ReadinessMetric icon={CheckCircle2} label="Desbloquea" value={readiness.unlocks} detail="Impacta informe, decisiones y cierre de evidencia." tone="emerald" />
+        <ReadinessMetric icon={BarChart3} label="Cobertura documental" value={`${heroReadiness.score}%`} detail={`${heroReadiness.matchedCount} de ${heroReadiness.totalExpected} respaldos esperados`} tone="cyan" />
+        <ReadinessMetric icon={FileSearch} label="Siguiente carga" value={heroReadiness.nextDocument || "Sin brecha critica"} detail={heroReadiness.whyItMatters} tone="amber" />
+        <ReadinessMetric icon={CheckCircle2} label="Desbloquea" value={heroReadiness.unlocks} detail="Impacta informe, decisiones y cierre de evidencia." tone="emerald" />
       </section>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -309,34 +309,26 @@ function StatusPill({ value }) {
   return <span className={`w-fit rounded-full px-3 py-1 text-xs font-black uppercase ${tone}`}>{value || "pendiente"}</span>;
 }
 
-function buildIngestionReadiness({ documents, matrix, suggestedTypes }) {
-  const normalizedDocs = documents.map((document) => normalizeText(`${document.nombre} ${document.tipo_documento}`));
-  const matched = suggestedTypes.filter((type) => normalizedDocs.some((documentText) => documentText.includes(normalizeText(type).slice(0, 18)) || normalizeText(type).split(" ").some((part) => part.length > 4 && documentText.includes(part))));
-  const totalExpected = suggestedTypes.length || matrix.criticalDocuments?.length || 1;
-  const matchedCount = new Set(matched).size;
-  const score = Math.min(100, Math.round((matchedCount / totalExpected) * 100));
-  const missing = suggestedTypes.find((type) => !matched.includes(type));
-  const status = score >= 75 ? "Ingesta lista para sostener decisiones" : score >= 35 ? "Ingesta util con brechas" : "Ingesta incompleta";
-  const isConstruction = matrix?.key === "construccion";
-  const nextDocument = missing || (isConstruction ? "Vale de pesaje RCD / certificado de disposicion final" : suggestedTypes[0]);
+function buildIngestionHeroReadiness({ readiness, matrix, suggestedTypes }) {
+  const summary = readiness?.summary || {};
+  const documentCoverage = readiness?.document_coverage || [];
+  const nextUpload = readiness?.next_uploads?.[0];
+  const matchedCount = documentCoverage.filter((item) => item.status === "covered").length;
+  const totalExpected = documentCoverage.length || suggestedTypes.length || 1;
+  const missingDocument = documentCoverage.find((item) => item.status === "missing");
+  const isConstruction = matrix?.key === "construccion" || readiness?.preset === "construccion";
+
   return {
-    score,
-    status,
-    nextDocument,
+    score: summary.score ?? 0,
+    status: summary.status || "Ingesta en evaluacion",
+    nextDocument: nextUpload?.title || missingDocument?.label || (isConstruction ? "Vale de pesaje RCD / certificado de disposicion final" : suggestedTypes[0]),
     matchedCount,
     totalExpected,
-    whyItMatters: isConstruction
+    whyItMatters: nextUpload?.reason || (readiness?.blockers || [])[0] || (isConstruction
       ? "Falta respaldo para materiales, RCD, combustible o consumos que sostienen el reporte ambiental de obra."
-      : "Falta respaldo documental para cerrar trazabilidad, variables ambientales e informe ejecutivo.",
+      : "Falta respaldo documental para cerrar trazabilidad, variables ambientales e informe ejecutivo."),
     unlocks: isConstruction ? "Informe mensual de obra, decisiones priorizadas y cierre de brecha documental." : "Informe ejecutivo, KPIs ambientales y cierre de acciones con evidencia.",
   };
-}
-
-function normalizeText(value) {
-  return String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
 }
 
 export default IngestaInteligentePage;
