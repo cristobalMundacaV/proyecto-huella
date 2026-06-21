@@ -8,16 +8,20 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.analytics.models import (
+    AlertaCumplimientoAmbiental,
     ConfiguracionConstructora,
     Constructora,
+    DocumentoAmbiental,
     EtapaObra,
     EvidenciaObra,
     FactorEmision,
+    LimiteNormativoAmbiental,
     LoteForestal,
     Obra,
     RegistroEmision,
     TransporteLoteForestal,
     TransporteObra,
+    VariableAmbientalExtraida,
 )
 
 SEED_PREFIX = "CZ_SEED"
@@ -26,7 +30,7 @@ YEAR = timezone.localdate().year
 PRESETS = {
     "construccion": {
         "id": "CZ_SEED_CONSTRUCCION",
-        "name": "Constructora Demo Carbono Zero",
+        "name": "Constructora Carbono Zero",
         "rubro": "Construccion",
         "region": "Biobio",
         "comuna": "Los Angeles",
@@ -39,10 +43,15 @@ PRESETS = {
             ("Transporte", "Diesel camion obra", "litros diesel", "2.680000", 25, 145, "transporte", "factura_combustible", 22),
             ("Residuos", "Retiro de escombros", "kg", "0.080000", 260, 1600, "residuos", "registro_retiro_residuos", 11),
         ],
+        "environmental": [
+            ("registro_rcd", "Registro mensual RCD", "rcd_ton", "RCD generados", "Residuos", "ton", "12.5", "10.0", "<=", "SINADER"),
+            ("medicion_ruido", "Medicion de ruido obra", "ruido_db", "Ruido diurno", "Ruido", "dB", "61.0", "60.0", "<=", "DS38"),
+            ("factura_combustible", "Factura combustible maquinaria", "diesel_l", "Diesel maquinaria", "Combustible", "L", "820.0", "900.0", "<=", "RETC"),
+        ],
     },
     "aserradero": {
         "id": "CZ_SEED_ASERRADERO",
-        "name": "Aserradero Demo Carbono Zero",
+        "name": "Aserradero Carbono Zero",
         "rubro": "Forestal / Aserradero",
         "region": "Biobio",
         "comuna": "Los Angeles",
@@ -60,10 +69,16 @@ PRESETS = {
             ("Transporte", "Diesel transporte forestal", "litros diesel", "2.680000", 35, 170, "transporte_forestal", "factura_combustible", 25),
             ("Residuos", "Subproductos de madera", "kg", "0.030000", 220, 1400, "residuos_subproductos", "registro_retiro_residuos", 10),
         ],
+        "environmental": [
+            ("registro_subproductos", "Registro de aserrin", "sawdust_ton", "Aserrin generado", "Residuos", "ton", "8.2", "9.0", "<=", "SINADER"),
+            ("bitacora_caldera", "Bitacora caldera biomasa", "biomass_boiler_ton", "Biomasa caldera", "Energia", "ton", "18.5", "17.0", "<=", "RCA"),
+            ("medicion_ruido", "Medicion ruido planta", "ruido_db", "Ruido perimetral", "Ruido", "dB", "58.0", "60.0", "<=", "DS38"),
+            ("guia_trozas", "Volumen madera recepcionada", "wood_volume_m3", "Volumen madera", "Produccion", "m3", "84.5", "70.0", ">=", "RCA"),
+        ],
     },
     "transporte": {
         "id": "CZ_SEED_TRANSPORTE",
-        "name": "Transporte Demo Carbono Zero",
+        "name": "Transporte Carbono Zero",
         "rubro": "Transporte y logistica",
         "region": "Metropolitana",
         "comuna": "Santiago",
@@ -75,10 +90,15 @@ PRESETS = {
             ("Maquinaria", "Mantencion flota", "unidad", "35.000000", 1, 4, "mantenciones", "otro", 9),
             ("Energia", "Electricidad oficina logistica", "kWh", "0.390000", 90, 420, "flota", "boleta_electrica", 7),
         ],
+        "environmental": [
+            ("factura_combustible", "Factura diesel flota", "diesel_l", "Diesel flota", "Combustible", "L", "2450.0", "2200.0", "<=", "RETC"),
+            ("documento_ruta", "Resumen kilometros ruta", "km_traveled", "Kilometros recorridos", "Rutas", "km", "12800.0", "14000.0", "<=", "RETC"),
+            ("registro_residuos", "Registro residuos neumaticos", "tire_waste_kg", "Neumaticos fuera de uso", "Residuos REP", "kg", "460.0", "420.0", "<=", "REP"),
+        ],
     },
     "industrial": {
         "id": "CZ_SEED_INDUSTRIAL",
-        "name": "Industria Demo Carbono Zero",
+        "name": "Industria Carbono Zero",
         "rubro": "Industrial",
         "region": "Biobio",
         "comuna": "Concepcion",
@@ -90,6 +110,55 @@ PRESETS = {
             ("Residuos", "Residuo industrial no peligroso", "kg", "0.120000", 400, 2600, "residuos", "ticket_pesaje", 17),
             ("Agua", "Consumo agua proceso", "m3", "0.450000", 20, 160, "agua", "otro", 11),
             ("Transporte", "Diesel grua interna", "litros diesel", "2.680000", 12, 75, "transporte", "factura_combustible", 9),
+        ],
+        "environmental": [
+            ("informe_laboratorio", "Informe laboratorio RILES", "ph", "pH descarga", "RILES", "pH", "6.8", "6.0", ">=", "DS90"),
+            ("informe_laboratorio", "Informe laboratorio RILES", "dbo5", "DBO5", "RILES", "mg/L", "38.0", "35.0", "<=", "DS90"),
+            ("informe_laboratorio", "Informe laboratorio RILES", "dqo", "DQO", "RILES", "mg/L", "82.0", "90.0", "<=", "DS90"),
+            ("informe_laboratorio", "Informe laboratorio RILES", "sst", "SST", "RILES", "mg/L", "52.0", "50.0", "<=", "DS90"),
+            ("manifiesto_respel", "Manifiesto RESPEL", "respel_kg", "Residuos peligrosos", "RESPEL", "kg", "140.0", "150.0", "<=", "SIDREP"),
+        ],
+    },
+    "mineria": {
+        "id": "CZ_SEED_MINERIA",
+        "name": "Operacion Minera Carbono Zero",
+        "rubro": "Mineria",
+        "region": "Antofagasta",
+        "comuna": "Calama",
+        "preset_db": "industrial",
+        "units": ["Rajo Norte", "Planta Chancado", "Deposito Relaves"],
+        "stages": ["Extraccion", "Chancado", "Agua industrial", "Relaves", "Monitoreo aire"],
+        "sources": [
+            ("Combustible", "Diesel maquinaria minera", "litros diesel", "2.680000", 80, 420, "produccion", "factura_combustible", 40),
+            ("Energia", "Electricidad planta minera", "kWh", "0.390000", 1200, 6200, "energia", "boleta_electrica", 35),
+            ("Agua", "Agua industrial", "m3", "0.450000", 90, 360, "agua", "otro", 15),
+        ],
+        "environmental": [
+            ("balance_agua", "Balance agua industrial", "water_extracted_m3", "Agua extraida", "Agua", "m3", "1280.0", "1200.0", "<=", "RCA"),
+            ("balance_agua", "Balance recirculacion", "recirculation_pct", "Recirculacion", "Agua", "%", "82.0", "80.0", ">=", "RCA"),
+            ("monitoreo_aire", "Monitoreo MP10", "mp10", "MP10", "Aire", "ug/m3", "152.0", "150.0", "<=", "RCA"),
+            ("registro_relaves", "Registro relaves", "tailings_m3", "Relaves", "Residuos mineros", "m3", "840.0", "900.0", "<=", "Sernageomin"),
+        ],
+    },
+    "energia": {
+        "id": "CZ_SEED_ENERGIA",
+        "name": "Central Energia Carbono Zero",
+        "rubro": "Energia",
+        "region": "Valparaiso",
+        "comuna": "Quintero",
+        "preset_db": "industrial",
+        "units": ["Unidad Generacion 1", "Unidad Generacion 2", "Patio Combustible"],
+        "stages": ["Generacion", "Combustion", "Monitoreo CEMS", "Mantencion", "Residuos"],
+        "sources": [
+            ("Energia", "Generacion termica", "MWh", "0.420000", 200, 900, "energia", "otro", 40),
+            ("Combustible", "Combustible central", "m3", "2.200000", 30, 160, "produccion", "factura_combustible", 34),
+            ("Residuos", "Residuo mantencion central", "kg", "0.120000", 80, 360, "residuos", "registro_retiro_residuos", 12),
+        ],
+        "environmental": [
+            ("cems", "Registro CEMS SO2", "so2", "SO2", "Emisiones atmosfericas", "mg/Nm3", "395.0", "400.0", "<=", "CEMS"),
+            ("cems", "Registro CEMS NOx", "nox", "NOx", "Emisiones atmosfericas", "mg/Nm3", "214.0", "200.0", "<=", "CEMS"),
+            ("cems", "Registro opacidad", "opacity", "Opacidad", "Emisiones atmosfericas", "%", "18.0", "20.0", "<=", "CEMS"),
+            ("reporte_co2", "Reporte CO2 generacion", "co2", "CO2", "GEI", "ton", "980.0", "950.0", "<=", "RETC"),
         ],
     },
 }
@@ -110,7 +179,7 @@ class Command(BaseCommand):
         if options["reset"]:
             self.reset_demo()
         distribution = self.distribution(total_records)
-        totals = {"empresas": 0, "etapas": 0, "unidades": 0, "lotes": 0, "factores": 0, "registros": 0, "evidencias": 0}
+        totals = {"empresas": 0, "etapas": 0, "unidades": 0, "lotes": 0, "factores": 0, "registros": 0, "evidencias": 0, "documentos_ambientales": 0, "variables_ambientales": 0, "limites_ambientales": 0, "alertas_cumplimiento": 0}
         for preset, count in distribution.items():
             result = self.seed_preset(preset, PRESETS[preset], count, rng)
             for key, value in result.items():
@@ -126,6 +195,10 @@ class Command(BaseCommand):
 
     def reset_demo(self):
         empresas = Constructora.objects.filter(constructora_id__startswith=SEED_PREFIX)
+        AlertaCumplimientoAmbiental.objects.filter(constructora__in=empresas).delete()
+        VariableAmbientalExtraida.objects.filter(constructora__in=empresas).delete()
+        DocumentoAmbiental.objects.filter(constructora__in=empresas).delete()
+        LimiteNormativoAmbiental.objects.filter(constructora__in=empresas).delete()
         TransporteObra.objects.filter(obra__constructora__in=empresas).delete()
         TransporteLoteForestal.objects.filter(lote_forestal__constructora__in=empresas).delete()
         EvidenciaObra.objects.filter(constructora__in=empresas).delete()
@@ -144,14 +217,14 @@ class Command(BaseCommand):
             defaults={
                 "nombre": cfg["name"],
                 "rubro": cfg["rubro"],
-                "preset": preset,
+                "preset": cfg.get("preset_db", preset),
                 "region": cfg["region"],
                 "comuna": cfg["comuna"],
                 "direccion": f"{cfg['comuna']}, {cfg['region']}",
                 "email": f"{preset}@carbonozero.cl",
                 "telefono": "+56 9 4321 0000",
                 "contacto": "Equipo ambiental",
-                "observaciones": "Empresa de demostracion para validar gestion ambiental por preset.",
+                "observaciones": "Empresa piloto para validar gestion ambiental por industria.",
                 "activa": True,
             },
         )
@@ -159,10 +232,11 @@ class Command(BaseCommand):
         etapas = self.create_stages(empresa, cfg)
         unidades = self.create_units(empresa, etapas, cfg, preset)
         lotes = self.create_lotes(empresa, cfg) if preset == "aserradero" else []
-        factores = self.create_factors(preset, cfg)
+        factores = self.create_factors(cfg.get("preset_db", preset), cfg)
         registros = self.create_records(empresa, unidades, lotes, factores, cfg, count, rng)
         evidencias = self.create_evidences(empresa, registros)
-        return {"empresas": int(created), "etapas": len(etapas), "unidades": len(unidades), "lotes": len(lotes), "factores": len(factores), "registros": len(registros), "evidencias": evidencias}
+        environmental = self.create_environmental_compliance(empresa, preset, cfg)
+        return {"empresas": int(created), "etapas": len(etapas), "unidades": len(unidades), "lotes": len(lotes), "factores": len(factores), "registros": len(registros), "evidencias": evidencias, **environmental}
 
     def create_stages(self, empresa, cfg):
         etapas = []
@@ -260,6 +334,72 @@ class Command(BaseCommand):
             evidencia.archivo.save(f"{empresa.constructora_id}_{registro.id}_{evidence}.txt", ContentFile(content), save=True)
             total += 1
         return total
+
+    def create_environmental_compliance(self, empresa, industry_key, cfg):
+        created_docs = 0
+        created_variables = 0
+        created_limits = 0
+        today = timezone.localdate()
+        for index, item in enumerate(cfg.get("environmental", []), 1):
+            tipo, doc_name, variable_id, variable_name, categoria, unidad, valor, limite, comparador, normativa = item
+            limite_obj, limite_created = LimiteNormativoAmbiental.objects.update_or_create(
+                constructora=empresa,
+                variable_id=variable_id,
+                normativa=normativa,
+                defaults={
+                    "industria": industry_key,
+                    "nombre": variable_name,
+                    "limite": Decimal(limite),
+                    "unidad": unidad,
+                    "comparador": comparador,
+                    "activo": True,
+                    "descripcion": f"Limite operativo para {variable_name}.",
+                    "metadata": {"seed": True, "industria": industry_key},
+                },
+            )
+            documento, doc_created = DocumentoAmbiental.objects.update_or_create(
+                constructora=empresa,
+                tipo_documento=tipo,
+                nombre=doc_name,
+                defaults={
+                    "industria": industry_key,
+                    "fecha_documento": today - timedelta(days=index * 7),
+                    "periodo_inicio": today - timedelta(days=index * 7 + 30),
+                    "periodo_fin": today - timedelta(days=index * 7),
+                    "fuente_origen": "manual",
+                    "estado_procesamiento": "extraido",
+                    "estado_validacion": "valido",
+                    "resumen": f"Registro ambiental estructurado para {variable_name}.",
+                    "metadata": {"seed": True, "normativa": normativa},
+                },
+            )
+            metadata = {"normativa": normativa, "comparador_limite": limite_obj.comparador, "limite_id": limite_obj.id, "seed": True}
+            _, variable_created = VariableAmbientalExtraida.objects.update_or_create(
+                documento=documento,
+                constructora=empresa,
+                variable_id=variable_id,
+                defaults={
+                    "nombre": variable_name,
+                    "categoria": categoria,
+                    "valor": Decimal(valor),
+                    "unidad": unidad,
+                    "fecha_medicion": documento.fecha_documento,
+                    "punto_medicion": "Punto principal",
+                    "limite_aplicable": limite_obj.limite,
+                    "unidad_limite": limite_obj.unidad,
+                    "confianza_extraccion": Decimal("0.92"),
+                    "metadata": metadata,
+                },
+            )
+            created_docs += int(doc_created)
+            created_variables += int(variable_created)
+            created_limits += int(limite_created)
+        return {
+            "documentos_ambientales": created_docs,
+            "variables_ambientales": created_variables,
+            "limites_ambientales": created_limits,
+            "alertas_cumplimiento": AlertaCumplimientoAmbiental.objects.filter(constructora=empresa).count(),
+        }
 
     def stage_type(self, name):
         name = name.lower()

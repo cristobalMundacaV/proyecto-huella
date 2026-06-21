@@ -38,6 +38,11 @@ def evidencia_obra_upload_path(instance, filename):
     return f"evidencias/{constructora}/{obra}/{filename}"
 
 
+def documento_ambiental_upload_path(instance, filename):
+    constructora = instance.constructora.constructora_id if instance.constructora_id else "SIN_CONSTRUCTORA"
+    return f"documentos_ambientales/{constructora}/{filename}"
+
+
 def evidencia_formatos_default():
     return ["PDF", "JPG", "PNG", "XLSX", "CSV", "DOCX"]
 
@@ -516,6 +521,285 @@ class EvidenciaObra(models.Model):
 
     def __str__(self):
         return f"{self.constructora.constructora_id} - {self.nombre}"
+
+
+class DocumentoAmbiental(models.Model):
+    class FuenteOrigen(models.TextChoices):
+        MANUAL = "manual", "Manual"
+        EXCEL = "excel", "Excel"
+        CSV = "csv", "CSV"
+        PDF = "pdf", "PDF"
+        FOTO = "foto", "Foto"
+        CEMS = "cems", "CEMS"
+        LABORATORIO = "laboratorio", "Laboratorio"
+        OTRO = "otro", "Otro"
+
+    class EstadoProcesamiento(models.TextChoices):
+        PENDIENTE = "pendiente", "Pendiente"
+        PROCESANDO = "procesando", "Procesando"
+        EXTRAIDO = "extraido", "Extraido"
+        OBSERVADO = "observado", "Observado"
+        VALIDADO = "validado", "Validado"
+        ERROR = "error", "Error"
+
+    class EstadoValidacion(models.TextChoices):
+        PENDIENTE = "pendiente", "Pendiente"
+        VALIDO = "valido", "Valido"
+        OBSERVADO = "observado", "Observado"
+        RECHAZADO = "rechazado", "Rechazado"
+
+    constructora = models.ForeignKey(Constructora, on_delete=models.CASCADE, related_name="documentos_ambientales")
+    obra = models.ForeignKey(Obra, on_delete=models.SET_NULL, null=True, blank=True, related_name="documentos_ambientales")
+    etapa = models.ForeignKey(EtapaObra, on_delete=models.SET_NULL, null=True, blank=True, related_name="documentos_ambientales")
+    registro_emision = models.ForeignKey(RegistroEmision, on_delete=models.SET_NULL, null=True, blank=True, related_name="documentos_ambientales")
+    tipo_documento = models.CharField(max_length=80)
+    industria = models.CharField(max_length=80, db_index=True)
+    nombre = models.CharField(max_length=240)
+    fecha_documento = models.DateField()
+    periodo_inicio = models.DateField(null=True, blank=True)
+    periodo_fin = models.DateField(null=True, blank=True)
+    fuente_origen = models.CharField(max_length=20, choices=FuenteOrigen.choices, default=FuenteOrigen.MANUAL)
+    archivo = models.FileField(upload_to=documento_ambiental_upload_path, null=True, blank=True)
+    estado_procesamiento = models.CharField(max_length=20, choices=EstadoProcesamiento.choices, default=EstadoProcesamiento.PENDIENTE)
+    estado_validacion = models.CharField(max_length=20, choices=EstadoValidacion.choices, default=EstadoValidacion.PENDIENTE)
+    resumen = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-fecha_documento", "-created_at"]
+        indexes = [
+            models.Index(fields=["constructora_id", "industria"]),
+            models.Index(fields=["constructora_id", "estado_validacion"]),
+            models.Index(fields=["constructora_id", "tipo_documento"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.industria and self.constructora_id:
+            self.industria = self.constructora.preset
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.constructora.constructora_id} - {self.nombre}"
+
+
+class LimiteNormativoAmbiental(models.Model):
+    class Normativa(models.TextChoices):
+        RCA = "RCA", "RCA"
+        DS90 = "DS90", "DS90"
+        DS38 = "DS38", "DS38"
+        DS148 = "DS148", "DS148"
+        RETC = "RETC", "RETC"
+        SIDREP = "SIDREP", "SIDREP"
+        SINADER = "SINADER", "SINADER"
+        REP = "REP", "REP"
+        CEMS = "CEMS", "CEMS"
+        SERNAGEOMIN = "Sernageomin", "Sernageomin"
+        SERNAPESCA = "Sernapesca", "Sernapesca"
+        OTRO = "otro", "Otro"
+
+    class Comparador(models.TextChoices):
+        MENOR_IGUAL = "<=", "<="
+        MAYOR_IGUAL = ">=", ">="
+        RANGO = "rango", "Rango"
+        PRESENCIA = "presencia", "Presencia"
+        OBLIGATORIO = "obligatorio", "Obligatorio"
+
+    constructora = models.ForeignKey(Constructora, on_delete=models.CASCADE, related_name="limites_ambientales")
+    industria = models.CharField(max_length=80, db_index=True)
+    variable_id = models.CharField(max_length=80, db_index=True)
+    nombre = models.CharField(max_length=180)
+    normativa = models.CharField(max_length=40, choices=Normativa.choices)
+    limite = models.DecimalField(max_digits=14, decimal_places=4)
+    unidad = models.CharField(max_length=40)
+    comparador = models.CharField(max_length=20, choices=Comparador.choices, default=Comparador.MENOR_IGUAL)
+    activo = models.BooleanField(default=True)
+    descripcion = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["variable_id", "normativa", "-created_at"]
+        indexes = [
+            models.Index(fields=["constructora_id", "industria"]),
+            models.Index(fields=["constructora_id", "variable_id", "activo"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.industria and self.constructora_id:
+            self.industria = self.constructora.preset
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.constructora.constructora_id} - {self.variable_id} {self.comparador} {self.limite}"
+
+
+class VariableAmbientalExtraida(models.Model):
+    class EstadoCumplimiento(models.TextChoices):
+        SIN_LIMITE = "sin_limite", "Sin limite"
+        CUMPLE = "cumple", "Cumple"
+        ALERTA = "alerta", "Alerta"
+        INCUMPLE = "incumple", "Incumple"
+        SIN_DATO = "sin_dato", "Sin dato"
+
+    documento = models.ForeignKey(DocumentoAmbiental, on_delete=models.CASCADE, related_name="variables_extraidas")
+    constructora = models.ForeignKey(Constructora, on_delete=models.CASCADE, related_name="variables_ambientales")
+    variable_id = models.CharField(max_length=80, db_index=True)
+    nombre = models.CharField(max_length=180)
+    categoria = models.CharField(max_length=80, blank=True)
+    valor = models.DecimalField(max_digits=16, decimal_places=4, null=True, blank=True)
+    unidad = models.CharField(max_length=40, blank=True)
+    fecha_medicion = models.DateField(null=True, blank=True)
+    punto_medicion = models.CharField(max_length=160, blank=True)
+    limite_aplicable = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    unidad_limite = models.CharField(max_length=40, blank=True)
+    estado_cumplimiento = models.CharField(max_length=20, choices=EstadoCumplimiento.choices, default=EstadoCumplimiento.SIN_DATO)
+    porcentaje_sobre_limite = models.DecimalField(max_digits=9, decimal_places=2, null=True, blank=True)
+    confianza_extraccion = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-fecha_medicion", "-created_at"]
+        indexes = [
+            models.Index(fields=["constructora_id", "variable_id"]),
+            models.Index(fields=["constructora_id", "estado_cumplimiento"]),
+            models.Index(fields=["documento_id"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.documento_id and not self.constructora_id:
+            self.constructora = self.documento.constructora
+        self.apply_applicable_limit()
+        previous_status = None
+        if self.pk:
+            previous_status = VariableAmbientalExtraida.objects.filter(pk=self.pk).values_list("estado_cumplimiento", flat=True).first()
+        self.calculate_compliance()
+        super().save(*args, **kwargs)
+        if self.estado_cumplimiento in {self.EstadoCumplimiento.ALERTA, self.EstadoCumplimiento.INCUMPLE}:
+            self.sync_compliance_alert(previous_status)
+
+    def apply_applicable_limit(self):
+        if self.limite_aplicable is not None or not self.constructora_id or not self.variable_id:
+            return
+        limite = LimiteNormativoAmbiental.objects.filter(
+            constructora_id=self.constructora_id,
+            variable_id=self.variable_id,
+            activo=True,
+        ).order_by("-created_at").first()
+        if not limite:
+            return
+        metadata = dict(self.metadata or {})
+        metadata.setdefault("normativa", limite.normativa)
+        metadata.setdefault("comparador_limite", limite.comparador)
+        metadata.setdefault("limite_id", limite.id)
+        self.limite_aplicable = limite.limite
+        self.unidad_limite = limite.unidad
+        self.metadata = metadata
+
+    def calculate_compliance(self):
+        if self.valor is None:
+            self.estado_cumplimiento = self.EstadoCumplimiento.SIN_DATO
+            self.porcentaje_sobre_limite = None
+            return
+        if self.limite_aplicable is None:
+            self.estado_cumplimiento = self.EstadoCumplimiento.SIN_LIMITE
+            self.porcentaje_sobre_limite = None
+            return
+        limit = Decimal(self.limite_aplicable)
+        value = Decimal(self.valor)
+        if limit == 0:
+            self.porcentaje_sobre_limite = None
+        else:
+            self.porcentaje_sobre_limite = ((value / limit) * Decimal("100")).quantize(Decimal("0.01"))
+        comparator = (self.metadata or {}).get("comparador_limite", "<=")
+        if comparator == ">=":
+            if value >= limit:
+                self.estado_cumplimiento = self.EstadoCumplimiento.CUMPLE
+            elif value >= limit * Decimal("0.9"):
+                self.estado_cumplimiento = self.EstadoCumplimiento.ALERTA
+            else:
+                self.estado_cumplimiento = self.EstadoCumplimiento.INCUMPLE
+            return
+        if value <= limit:
+            self.estado_cumplimiento = self.EstadoCumplimiento.CUMPLE
+        elif value <= limit * Decimal("1.1"):
+            self.estado_cumplimiento = self.EstadoCumplimiento.ALERTA
+        else:
+            self.estado_cumplimiento = self.EstadoCumplimiento.INCUMPLE
+
+    def sync_compliance_alert(self, previous_status=None):
+        tipo_alerta = self.estado_cumplimiento
+        severidad = "amarillo" if tipo_alerta == self.EstadoCumplimiento.ALERTA else "rojo"
+        normativa = (self.metadata or {}).get("normativa", "")
+        base = {
+            "constructora": self.constructora,
+            "documento": self.documento,
+            "variable": self,
+            "severidad": severidad,
+            "tipo_alerta": tipo_alerta,
+            "titulo": f"{self.nombre} en {self.get_estado_cumplimiento_display().lower()}",
+            "descripcion": f"Valor registrado: {self.valor} {self.unidad}. Limite aplicable: {self.limite_aplicable} {self.unidad_limite}.",
+            "accion_sugerida": "Revisar evidencia, validar dato y ejecutar accion correctiva si corresponde.",
+            "normativa": normativa,
+            "fecha_evento": self.fecha_medicion or self.documento.fecha_documento,
+            "metadata": {"variable_id": self.variable_id, "estado_cumplimiento": self.estado_cumplimiento},
+        }
+        latest = AlertaCumplimientoAmbiental.objects.filter(variable=self).order_by("-created_at").first()
+        if latest and latest.tipo_alerta == tipo_alerta:
+            for field, value in base.items():
+                setattr(latest, field, value)
+            latest.save()
+            return
+        if latest and previous_status == self.estado_cumplimiento:
+            return
+        AlertaCumplimientoAmbiental.objects.create(**base)
+
+    def __str__(self):
+        return f"{self.constructora.constructora_id} - {self.variable_id}: {self.valor}"
+
+
+class AlertaCumplimientoAmbiental(models.Model):
+    class Severidad(models.TextChoices):
+        VERDE = "verde", "Verde"
+        AMARILLO = "amarillo", "Amarillo"
+        ROJO = "rojo", "Rojo"
+        GRIS = "gris", "Gris"
+
+    class Estado(models.TextChoices):
+        ABIERTA = "abierta", "Abierta"
+        EN_REVISION = "en_revision", "En revision"
+        RESUELTA = "resuelta", "Resuelta"
+        DESCARTADA = "descartada", "Descartada"
+
+    constructora = models.ForeignKey(Constructora, on_delete=models.CASCADE, related_name="alertas_cumplimiento")
+    documento = models.ForeignKey(DocumentoAmbiental, on_delete=models.SET_NULL, null=True, blank=True, related_name="alertas_cumplimiento")
+    variable = models.ForeignKey(VariableAmbientalExtraida, on_delete=models.SET_NULL, null=True, blank=True, related_name="alertas_cumplimiento")
+    severidad = models.CharField(max_length=20, choices=Severidad.choices, default=Severidad.GRIS)
+    tipo_alerta = models.CharField(max_length=80)
+    titulo = models.CharField(max_length=180)
+    descripcion = models.TextField(blank=True)
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.ABIERTA)
+    accion_sugerida = models.TextField(blank=True)
+    normativa = models.CharField(max_length=80, blank=True)
+    fecha_evento = models.DateField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-fecha_evento", "-created_at"]
+        indexes = [
+            models.Index(fields=["constructora_id", "estado"]),
+            models.Index(fields=["constructora_id", "severidad"]),
+            models.Index(fields=["variable_id", "tipo_alerta"]),
+        ]
+
+    def __str__(self):
+        return f"{self.constructora.constructora_id} - {self.titulo}"
 
 
 class TransporteObra(models.Model):

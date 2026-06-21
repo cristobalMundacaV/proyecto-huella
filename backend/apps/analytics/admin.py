@@ -1,17 +1,21 @@
 from django.contrib import admin
 
 from .models import (
+    AlertaCumplimientoAmbiental,
     ConfiguracionConstructora,
     Constructora,
+    DocumentoAmbiental,
     EtapaObra,
     EvidenciaObra,
     FactorEmision,
     HistorialCambioObra,
+    LimiteNormativoAmbiental,
     MaterialConstruccion,
     Obra,
     RegistroEmision,
     TransporteObra,
     UsuarioConstructora,
+    VariableAmbientalExtraida,
 )
 
 
@@ -61,6 +65,34 @@ class EvidenciaObraAdmin(admin.ModelAdmin):
     list_display = ("nombre", "obra", "tipo_evidencia", "estado_documental", "fecha_documento")
     search_fields = ("nombre", "obra__codigo_obra", "obra__nombre", "tipo_evidencia")
     list_filter = ("tipo_evidencia", "estado_documental", "fecha_documento")
+
+
+@admin.register(DocumentoAmbiental)
+class DocumentoAmbientalAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "constructora", "tipo_documento", "industria", "estado_validacion", "fecha_documento")
+    search_fields = ("nombre", "constructora__nombre", "tipo_documento", "resumen")
+    list_filter = ("industria", "tipo_documento", "estado_procesamiento", "estado_validacion")
+
+
+@admin.register(VariableAmbientalExtraida)
+class VariableAmbientalExtraidaAdmin(admin.ModelAdmin):
+    list_display = ("variable_id", "nombre", "constructora", "valor", "unidad", "estado_cumplimiento")
+    search_fields = ("variable_id", "nombre", "constructora__nombre", "punto_medicion")
+    list_filter = ("categoria", "estado_cumplimiento", "unidad")
+
+
+@admin.register(LimiteNormativoAmbiental)
+class LimiteNormativoAmbientalAdmin(admin.ModelAdmin):
+    list_display = ("variable_id", "nombre", "constructora", "normativa", "comparador", "limite", "unidad", "activo")
+    search_fields = ("variable_id", "nombre", "constructora__nombre", "normativa")
+    list_filter = ("industria", "normativa", "comparador", "activo")
+
+
+@admin.register(AlertaCumplimientoAmbiental)
+class AlertaCumplimientoAmbientalAdmin(admin.ModelAdmin):
+    list_display = ("titulo", "constructora", "severidad", "estado", "normativa", "fecha_evento")
+    search_fields = ("titulo", "constructora__nombre", "descripcion", "normativa")
+    list_filter = ("severidad", "estado", "normativa")
 
 
 @admin.register(TransporteObra)

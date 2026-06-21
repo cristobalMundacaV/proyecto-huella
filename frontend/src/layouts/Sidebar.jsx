@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Bot,
   Boxes,
   Building2,
   Database,
@@ -8,7 +9,9 @@ import {
   FileCheck2,
   Flame,
   LayoutDashboard,
+  ScanSearch,
   Settings,
+  ShieldCheck,
   UsersRound,
 } from "lucide-react";
 
@@ -17,6 +20,10 @@ import { getActivePreset, getPresetLabel } from "@/presets/registry";
 
 const navigationIconMap = {
   dashboard: LayoutDashboard,
+  central_operativa: ShieldCheck,
+  ingesta_inteligente: ScanSearch,
+  reportes_regulatorios: FileCheck2,
+  copiloto_ambiental: Bot,
   inteligencia: DatabaseZap,
   emisiones: Flame,
   operacion: Factory,

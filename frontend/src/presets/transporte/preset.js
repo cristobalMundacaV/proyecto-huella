@@ -14,6 +14,10 @@ const transportePreset = {
   categories: ["Combustible", "Flota", "Rutas", "Carga", "Mantencion", "Energia", "Otros"],
   intelligence: transportIntelligence,
   navigation: [
+    { view: "central_operativa", label: "Central Operativa" },
+    { view: "ingesta_inteligente", label: "Ingesta Inteligente" },
+    { view: "reportes_regulatorios", label: "Reportes Regulatorios" },
+    { view: "copiloto_ambiental", label: "Copiloto Ambiental" },
     { view: "dashboard", label: "Panel" },
     { view: "inteligencia", label: "Inteligencia" },
     { view: "emisiones", label: "Gestion de Huella" },

@@ -35,6 +35,17 @@ from .views import (
 from .views_constructoras import constructora_detail_safe
 from .views_emisiones import constructora_emisiones
 from .views_etapas import constructora_etapas
+from .views_environmental_compliance import (
+    alerta_cumplimiento_detail,
+    alertas_cumplimiento,
+    cumplimiento_ambiental_resumen,
+    documento_ambiental_detail,
+    documentos_ambientales,
+    limite_ambiental_detail,
+    limites_ambientales,
+    variable_ambiental_detail,
+    variables_ambientales,
+)
 from .views_forestal import (
     constructora_lote_forestal_detail,
     constructora_lote_forestal_transportes,
@@ -77,6 +88,15 @@ urlpatterns = [
     path("constructoras/<str:constructora_id>/evidencias/", constructora_evidencias),
     path("constructoras/<str:constructora_id>/evidencias/extraer/", constructora_evidencia_extraer),
     path("constructoras/<str:constructora_id>/reportes/", constructora_reportes),
+    path("constructoras/<str:constructora_id>/documentos-ambientales/", documentos_ambientales),
+    path("constructoras/<str:constructora_id>/documentos-ambientales/<int:documento_id>/", documento_ambiental_detail),
+    path("constructoras/<str:constructora_id>/variables-ambientales/", variables_ambientales),
+    path("constructoras/<str:constructora_id>/variables-ambientales/<int:variable_id>/", variable_ambiental_detail),
+    path("constructoras/<str:constructora_id>/limites-ambientales/", limites_ambientales),
+    path("constructoras/<str:constructora_id>/limites-ambientales/<int:limite_id>/", limite_ambiental_detail),
+    path("constructoras/<str:constructora_id>/alertas-cumplimiento/", alertas_cumplimiento),
+    path("constructoras/<str:constructora_id>/alertas-cumplimiento/<int:alerta_id>/", alerta_cumplimiento_detail),
+    path("constructoras/<str:constructora_id>/cumplimiento-ambiental/resumen/", cumplimiento_ambiental_resumen),
     path("importaciones/completa/preview/", importacion_completa_preview),
     path("importaciones/completa/confirm/", importacion_completa_confirm),
     path("importaciones/plantilla-construccion/", plantilla_importacion_construccion),

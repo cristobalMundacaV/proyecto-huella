@@ -14,6 +14,10 @@ const construccionPreset = {
   categories: ["Materiales", "Residuos", "Maquinaria", "Energia", "Transporte", "Agua", "Otros"],
   intelligence: constructionIntelligence,
   navigation: [
+    { view: "central_operativa", label: "Central Operativa" },
+    { view: "ingesta_inteligente", label: "Ingesta Inteligente" },
+    { view: "reportes_regulatorios", label: "Reportes Regulatorios" },
+    { view: "copiloto_ambiental", label: "Copiloto Ambiental" },
     { view: "dashboard", label: "Panel" },
     { view: "inteligencia", label: "Inteligencia" },
     { view: "emisiones", label: "Gestion de Huella" },

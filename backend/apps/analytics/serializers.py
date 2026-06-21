@@ -2,12 +2,15 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 
 from .models import (
+    AlertaCumplimientoAmbiental,
     ConfiguracionConstructora,
     Constructora,
+    DocumentoAmbiental,
     EspecieMadera,
     EtapaObra,
     EvidenciaObra,
     FactorEmision,
+    LimiteNormativoAmbiental,
     LoteForestal,
     MaterialConstruccion,
     Obra,
@@ -15,6 +18,7 @@ from .models import (
     TransporteLoteForestal,
     TransporteObra,
     UsuarioConstructora,
+    VariableAmbientalExtraida,
 )
 from .services.forestal_carbono import calcular_balance_neto_lote
 
@@ -632,3 +636,195 @@ class LoteForestalDetailSerializer(LoteForestalSerializer):
 
     def get_evidencias(self, lote):
         return EvidenciaObraSerializer(lote.evidencias.order_by("-created_at"), many=True, context=self.context).data
+
+
+class DocumentoAmbientalSerializer(serializers.ModelSerializer):
+    constructora_id = serializers.CharField(source="constructora.constructora_id", read_only=True)
+    constructora_nombre = serializers.CharField(source="constructora.nombre", read_only=True)
+    obra_nombre = serializers.CharField(source="obra.nombre", read_only=True)
+    etapa_nombre = serializers.CharField(source="etapa.nombre", read_only=True)
+    archivo_url = serializers.SerializerMethodField()
+    variables_count = serializers.IntegerField(source="variables_extraidas.count", read_only=True)
+
+    class Meta:
+        model = DocumentoAmbiental
+        fields = [
+            "id",
+            "constructora",
+            "constructora_id",
+            "constructora_nombre",
+            "obra",
+            "obra_nombre",
+            "etapa",
+            "etapa_nombre",
+            "registro_emision",
+            "tipo_documento",
+            "industria",
+            "nombre",
+            "fecha_documento",
+            "periodo_inicio",
+            "periodo_fin",
+            "fuente_origen",
+            "archivo",
+            "archivo_url",
+            "estado_procesamiento",
+            "estado_validacion",
+            "resumen",
+            "metadata",
+            "variables_count",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "constructora_id",
+            "constructora_nombre",
+            "obra_nombre",
+            "etapa_nombre",
+            "archivo_url",
+            "variables_count",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate(self, attrs):
+        constructora = attrs.get("constructora") or getattr(self.instance, "constructora", None) or self.context.get("constructora")
+        if constructora:
+            for field in ["obra", "etapa", "registro_emision"]:
+                value = attrs.get(field)
+                if value and value.constructora_id != constructora.id:
+                    raise serializers.ValidationError({field: "Debe pertenecer a la empresa activa."})
+        return attrs
+
+    def get_archivo_url(self, documento):
+        if not documento.archivo:
+            return ""
+        request = self.context.get("request")
+        if request:
+            return request.build_absolute_uri(documento.archivo.url)
+        return documento.archivo.url
+
+
+class LimiteNormativoAmbientalSerializer(serializers.ModelSerializer):
+    constructora_id = serializers.CharField(source="constructora.constructora_id", read_only=True)
+
+    class Meta:
+        model = LimiteNormativoAmbiental
+        fields = [
+            "id",
+            "constructora",
+            "constructora_id",
+            "industria",
+            "variable_id",
+            "nombre",
+            "normativa",
+            "limite",
+            "unidad",
+            "comparador",
+            "activo",
+            "descripcion",
+            "metadata",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "constructora_id", "created_at", "updated_at"]
+
+
+class VariableAmbientalExtraidaSerializer(serializers.ModelSerializer):
+    constructora_id = serializers.CharField(source="constructora.constructora_id", read_only=True)
+    documento_nombre = serializers.CharField(source="documento.nombre", read_only=True)
+    documento_tipo = serializers.CharField(source="documento.tipo_documento", read_only=True)
+
+    class Meta:
+        model = VariableAmbientalExtraida
+        fields = [
+            "id",
+            "documento",
+            "documento_nombre",
+            "documento_tipo",
+            "constructora",
+            "constructora_id",
+            "variable_id",
+            "nombre",
+            "categoria",
+            "valor",
+            "unidad",
+            "fecha_medicion",
+            "punto_medicion",
+            "limite_aplicable",
+            "unidad_limite",
+            "estado_cumplimiento",
+            "porcentaje_sobre_limite",
+            "confianza_extraccion",
+            "metadata",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "documento_nombre",
+            "documento_tipo",
+            "constructora_id",
+            "estado_cumplimiento",
+            "porcentaje_sobre_limite",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate(self, attrs):
+        constructora = attrs.get("constructora") or getattr(self.instance, "constructora", None) or self.context.get("constructora")
+        documento = attrs.get("documento") or getattr(self.instance, "documento", None)
+        if constructora and documento and documento.constructora_id != constructora.id:
+            raise serializers.ValidationError({"documento": "Debe pertenecer a la empresa activa."})
+        return attrs
+
+
+class AlertaCumplimientoAmbientalSerializer(serializers.ModelSerializer):
+    constructora_id = serializers.CharField(source="constructora.constructora_id", read_only=True)
+    documento_nombre = serializers.CharField(source="documento.nombre", read_only=True)
+    variable_nombre = serializers.CharField(source="variable.nombre", read_only=True)
+    variable_id_codigo = serializers.CharField(source="variable.variable_id", read_only=True)
+
+    class Meta:
+        model = AlertaCumplimientoAmbiental
+        fields = [
+            "id",
+            "constructora",
+            "constructora_id",
+            "documento",
+            "documento_nombre",
+            "variable",
+            "variable_nombre",
+            "variable_id_codigo",
+            "severidad",
+            "tipo_alerta",
+            "titulo",
+            "descripcion",
+            "estado",
+            "accion_sugerida",
+            "normativa",
+            "fecha_evento",
+            "metadata",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "constructora",
+            "constructora_id",
+            "documento",
+            "documento_nombre",
+            "variable",
+            "variable_nombre",
+            "variable_id_codigo",
+            "severidad",
+            "tipo_alerta",
+            "titulo",
+            "descripcion",
+            "accion_sugerida",
+            "normativa",
+            "fecha_evento",
+            "metadata",
+            "created_at",
+            "updated_at",
+        ]
