@@ -224,7 +224,7 @@ class Command(BaseCommand):
         EvidenciaObra.objects.filter(constructora__in=qs).delete()
         RegistroEmision.objects.filter(constructora__in=qs).delete()
         TransporteObra.objects.filter(obra__constructora__in=qs).delete()
-        TransporteLoteForestal.objects.filter(lote__constructora__in=qs).delete()
+        TransporteLoteForestal.objects.filter(lote_forestal__constructora__in=qs).delete()
         LoteForestal.objects.filter(constructora__in=qs).delete()
         Obra.objects.filter(constructora__in=qs).delete()
         EtapaObra.objects.filter(constructora__in=qs).delete()
