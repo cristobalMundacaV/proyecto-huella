@@ -3,6 +3,7 @@ import { AlertTriangle, ClipboardCheck, FileCheck2, FileText, ShieldCheck } from
 
 import { useEnvironmentalContext } from "@/domain/environmental";
 import EnvironmentalContextCard from "@/core/environmental/components/EnvironmentalContextCard";
+import EnvironmentalExecutiveReportCard from "@/core/environmental/components/EnvironmentalExecutiveReportCard";
 import EnvironmentalShell from "@/core/environmental/components/EnvironmentalShell";
 import RegulatoryReadinessPanel from "@/core/environmental/components/RegulatoryReadinessPanel";
 import RiskSignalsPanel from "@/core/environmental/components/RiskSignalsPanel";
@@ -13,6 +14,7 @@ import {
   getEnvironmentalDocuments,
   getEnvironmentalVariables,
 } from "@/features/environmental/services/environmentalComplianceApi";
+import { getEnvironmentalExecutiveReport } from "@/features/environmental/services/environmentalExecutiveReportApi";
 
 function ReportesRegulatoriosPage() {
   const { activeCompany, matrix } = useEnvironmentalContext();
@@ -20,7 +22,11 @@ function ReportesRegulatoriosPage() {
   const [documents, setDocuments] = useState([]);
   const [variables, setVariables] = useState([]);
   const [alerts, setAlerts] = useState([]);
+<<<<<<< HEAD
   const [actionsSummary, setActionsSummary] = useState(null);
+=======
+  const [executiveReport, setExecutiveReport] = useState(null);
+>>>>>>> a8ece32d88d69ca164574ee69c83f9b55f8b5b14
 
   useEffect(() => {
     if (!activeCompany?.constructora_id) return;
@@ -29,21 +35,35 @@ function ReportesRegulatoriosPage() {
       getEnvironmentalDocuments(activeCompany.constructora_id),
       getEnvironmentalVariables(activeCompany.constructora_id),
       getComplianceAlerts(activeCompany.constructora_id),
+<<<<<<< HEAD
       getTraceableActionsSummary(activeCompany.constructora_id),
     ])
       .then(([summaryData, documentData, variableData, alertData, actionsData]) => {
+=======
+      getEnvironmentalExecutiveReport(activeCompany.constructora_id),
+    ])
+      .then(([summaryData, documentData, variableData, alertData, executiveReportData]) => {
+>>>>>>> a8ece32d88d69ca164574ee69c83f9b55f8b5b14
         setSummary(summaryData);
         setDocuments(documentData);
         setVariables(variableData);
         setAlerts(alertData);
+<<<<<<< HEAD
         setActionsSummary(actionsData);
+=======
+        setExecutiveReport(executiveReportData);
+>>>>>>> a8ece32d88d69ca164574ee69c83f9b55f8b5b14
       })
       .catch(() => {
         setSummary(null);
         setDocuments([]);
         setVariables([]);
         setAlerts([]);
+<<<<<<< HEAD
         setActionsSummary(null);
+=======
+        setExecutiveReport(null);
+>>>>>>> a8ece32d88d69ca164574ee69c83f9b55f8b5b14
       });
   }, [activeCompany?.constructora_id]);
 
@@ -58,6 +78,7 @@ function ReportesRegulatoriosPage() {
       description="Vista de preparacion para reportes ambientales. Muestra salidas esperadas y brechas, sin generar exportaciones."
     >
       <EnvironmentalContextCard company={activeCompany} matrix={matrix} />
+      <EnvironmentalExecutiveReportCard report={executiveReport} />
 
       <ReportReadinessHero activeCompany={activeCompany} readiness={readiness} />
 
