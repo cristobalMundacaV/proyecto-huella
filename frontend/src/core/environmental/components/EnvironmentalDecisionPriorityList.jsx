@@ -1,6 +1,8 @@
 import EnvironmentalDecisionPriorityCard from "./EnvironmentalDecisionPriorityCard";
 
-function EnvironmentalDecisionPriorityList({ priorities = [] }) {
+function EnvironmentalDecisionPriorityList({ createdActionIds = [], onConvertToAction, priorities = [], workingPriorityId = "" }) {
+  const createdSet = new Set(createdActionIds);
+
   return (
     <section className="space-y-4">
       <div>
@@ -18,7 +20,13 @@ function EnvironmentalDecisionPriorityList({ priorities = [] }) {
 
       <div className="grid gap-4 xl:grid-cols-2">
         {priorities.map((priority) => (
-          <EnvironmentalDecisionPriorityCard key={priority.id} priority={priority} />
+          <EnvironmentalDecisionPriorityCard
+            key={priority.id}
+            created={createdSet.has(priority.id)}
+            onConvertToAction={() => onConvertToAction?.(priority)}
+            priority={priority}
+            working={workingPriorityId === priority.id}
+          />
         ))}
       </div>
     </section>

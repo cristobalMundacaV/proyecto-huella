@@ -1,6 +1,7 @@
 from django.utils import timezone
 
 from apps.analytics.models import AlertaCumplimientoAmbiental, DocumentoAmbiental
+from apps.analytics.models_acciones import AccionAmbiental
 from apps.analytics.services.environmental_kpi_service import build_environmental_kpis, detect_industry_key, normalize
 from apps.analytics.services.environmental_recommendation_engine import build_environmental_recommendations
 from apps.analytics.services.environmental_scenario_service import build_environmental_scenarios
@@ -10,6 +11,7 @@ PRIORITY_ORDER = {"critica": 0, "alta": 1, "media": 2, "baja": 3}
 SEVERITY_POINTS = {"critica": 35, "alta": 25, "media": 15, "baja": 5}
 CONFIDENCE_POINTS = {"alta": 15, "media": 8, "baja": 3}
 EFFORT_POINTS = {"bajo": 10, "medio": 5, "alto": 0}
+ACTIVE_ACTION_STATUSES = {"pendiente", "en_progreso", "validacion"}
 
 
 def build_environmental_decision_priorities(constructora):
@@ -81,6 +83,7 @@ def build_environmental_decision_priorities(constructora):
     priorities = sorted(priorities, key=lambda item: (-item["score"], PRIORITY_ORDER.get(item["priority"], 9), item["id"]))[:12]
     for index, item in enumerate(priorities, start=1):
         item["rank"] = index
+    mark_existing_actions(constructora, priorities)
 
     return {
         "constructora_id": constructora.constructora_id,
@@ -336,6 +339,25 @@ def build_data_gaps(kpis, scenarios, priorities):
         if gap and gap not in unique:
             unique.append(gap)
     return unique[:10]
+
+
+def mark_existing_actions(constructora, priorities):
+    priority_ids = [item["id"] for item in priorities]
+    if not priority_ids:
+        return
+    actions = AccionAmbiental.objects.filter(
+        constructora=constructora,
+        status__in=ACTIVE_ACTION_STATUSES,
+        metadata__priority_id__in=priority_ids,
+    ).order_by("-created_at")
+    by_priority = {}
+    for action in actions:
+        priority_id = (action.metadata or {}).get("priority_id")
+        by_priority.setdefault(priority_id, action)
+    for item in priorities:
+        action = by_priority.get(item["id"])
+        item["action_created"] = bool(action)
+        item["action_id"] = action.id if action else None
 
 
 def expected_impact_from_scenario(scenario, priority, risk_reduction=None):

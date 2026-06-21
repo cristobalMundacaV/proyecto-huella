@@ -3,6 +3,7 @@ import { Activity, AlertTriangle, DatabaseZap, FileClock, ShieldCheck } from "lu
 
 import { useEnvironmentalContext } from "@/domain/environmental";
 import CriticalDocumentsPanel from "@/core/environmental/components/CriticalDocumentsPanel";
+import DecisionToActionModal from "@/core/environmental/components/DecisionToActionModal";
 import EnvironmentalContextCard from "@/core/environmental/components/EnvironmentalContextCard";
 import EnvironmentalDecisionPriorityList from "@/core/environmental/components/EnvironmentalDecisionPriorityList";
 import EnvironmentalItemGrid from "@/core/environmental/components/EnvironmentalItemGrid";
@@ -14,6 +15,7 @@ import RecommendedActionsPanel from "@/core/environmental/components/Recommended
 import RegulatoryReadinessPanel from "@/core/environmental/components/RegulatoryReadinessPanel";
 import RiskSignalsPanel from "@/core/environmental/components/RiskSignalsPanel";
 import { getEnvironmentalComplianceSummary } from "@/features/environmental/services/environmentalComplianceApi";
+import { createActionFromDecision, getDecisionActionPreview } from "@/features/environmental/services/environmentalDecisionActionApi";
 import { getEnvironmentalDecisionPriorities } from "@/features/environmental/services/environmentalDecisionPriorityApi";
 import { getEnvironmentalKpis } from "@/features/environmental/services/environmentalKpiApi";
 import { getEnvironmentalRecommendations } from "@/features/environmental/services/environmentalRecommendationApi";
@@ -26,12 +28,22 @@ function CentralOperativaPage() {
   const [recommendations, setRecommendations] = useState(null);
   const [scenarios, setScenarios] = useState(null);
   const [decisionPriorities, setDecisionPriorities] = useState(null);
+  const [createdDecisionActionIds, setCreatedDecisionActionIds] = useState([]);
+  const [actionModalDraft, setActionModalDraft] = useState(null);
+  const [actionModalLoading, setActionModalLoading] = useState(false);
+  const [actionSaving, setActionSaving] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [workingPriorityId, setWorkingPriorityId] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!activeCompany?.constructora_id) return;
     let cancelled = false;
     setLoading(true);
+    setCreatedDecisionActionIds([]);
+    setActionFeedback("");
+    setActionError("");
     Promise.all([
       getEnvironmentalKpis(activeCompany.constructora_id),
       getEnvironmentalComplianceSummary(activeCompany.constructora_id),
@@ -46,6 +58,11 @@ function CentralOperativaPage() {
           setRecommendations(recommendationData);
           setScenarios(scenarioData);
           setDecisionPriorities(decisionPriorityData);
+          setCreatedDecisionActionIds(
+            (decisionPriorityData?.priorities || [])
+              .filter((priority) => priority.action_created)
+              .map((priority) => priority.id),
+          );
         }
       })
       .catch(() => {
@@ -55,6 +72,7 @@ function CentralOperativaPage() {
           setRecommendations(null);
           setScenarios(null);
           setDecisionPriorities(null);
+          setCreatedDecisionActionIds([]);
         }
       })
       .finally(() => {
@@ -64,6 +82,64 @@ function CentralOperativaPage() {
       cancelled = true;
     };
   }, [activeCompany?.constructora_id]);
+
+  async function openDecisionActionModal(priority) {
+    if (!activeCompany?.constructora_id || !priority?.id) return;
+    setWorkingPriorityId(priority.id);
+    setActionModalLoading(true);
+    setActionError("");
+    setActionFeedback("");
+    setActionModalDraft({
+      priorityId: priority.id,
+      sourcePriority: priority,
+      payload: {},
+      responsible: "Equipo ambiental",
+      dueDate: "",
+      requiredEvidence: "",
+      notes: "",
+    });
+    try {
+      const preview = await getDecisionActionPreview(activeCompany.constructora_id, priority.id);
+      const payload = preview.payload || {};
+      setActionModalDraft({
+        priorityId: priority.id,
+        sourcePriority: preview.source_priority || priority,
+        payload,
+        responsible: payload.responsible || "Equipo ambiental",
+        dueDate: payload.due_date || payload.dueDate || "",
+        requiredEvidence: payload.evidence || "",
+        notes: "",
+      });
+    } catch (requestError) {
+      setActionError(requestError.response?.data?.error || "No se pudo preparar la accion ambiental.");
+    } finally {
+      setActionModalLoading(false);
+      setWorkingPriorityId("");
+    }
+  }
+
+  async function confirmDecisionAction(event) {
+    event.preventDefault();
+    if (!activeCompany?.constructora_id || !actionModalDraft?.priorityId) return;
+    setActionSaving(true);
+    setActionError("");
+    try {
+      const result = await createActionFromDecision(activeCompany.constructora_id, actionModalDraft.priorityId, {
+        responsible: actionModalDraft.responsible,
+        due_date: actionModalDraft.dueDate,
+        required_evidence: actionModalDraft.requiredEvidence,
+        notes: actionModalDraft.notes,
+      });
+      setCreatedDecisionActionIds((current) => Array.from(new Set([...current, actionModalDraft.priorityId])));
+      setActionFeedback(result.duplicate ? result.message || "Ya existe una accion abierta asociada a esta decision." : "Accion ambiental creada y enviada a seguimiento.");
+      setActionModalDraft(null);
+      window.setTimeout(() => setActionFeedback(""), 3200);
+    } catch (requestError) {
+      setActionError(requestError.response?.data?.error || "No se pudo crear la accion ambiental.");
+    } finally {
+      setActionSaving(false);
+    }
+  }
 
   return (
     <EnvironmentalShell
@@ -79,7 +155,16 @@ function CentralOperativaPage() {
 
       <EnvironmentalScenarioList scenarios={scenarios?.scenarios || []} />
 
-      <EnvironmentalDecisionPriorityList priorities={decisionPriorities?.priorities || []} />
+      {actionFeedback ? (
+        <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800">{actionFeedback}</p>
+      ) : null}
+
+      <EnvironmentalDecisionPriorityList
+        createdActionIds={createdDecisionActionIds}
+        onConvertToAction={openDecisionActionModal}
+        priorities={decisionPriorities?.priorities || []}
+        workingPriorityId={workingPriorityId}
+      />
 
       <section className="grid gap-4 md:grid-cols-4">
         <SummaryCard icon={ShieldCheck} label="Cumplimiento" value={formatSummaryValue(summary?.compliance_pct, "%")} detail={loading ? "Cargando" : "Variables dentro de limite"} tone="emerald" />
@@ -166,6 +251,21 @@ function CentralOperativaPage() {
           </div>
         </div>
       </section>
+
+      {actionModalDraft ? (
+        <DecisionToActionModal
+          draft={actionModalDraft}
+          error={actionError}
+          loading={actionModalLoading}
+          onClose={() => {
+            setActionModalDraft(null);
+            setActionError("");
+          }}
+          onConfirm={confirmDecisionAction}
+          saving={actionSaving}
+          setDraft={setActionModalDraft}
+        />
+      ) : null}
     </EnvironmentalShell>
   );
 }

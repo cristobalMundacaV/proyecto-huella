@@ -1,4 +1,6 @@
-function EnvironmentalDecisionPriorityCard({ priority }) {
+import { CheckCircle2, Loader2, PlusCircle } from "lucide-react";
+
+function EnvironmentalDecisionPriorityCard({ created, onConvertToAction, priority, working }) {
   const priorityTone =
     {
       critica: "border-red-200 bg-red-50 text-red-800",
@@ -63,7 +65,44 @@ function EnvironmentalDecisionPriorityCard({ priority }) {
         <TextBlock label="Decision recomendada" value={priority.recommended_decision} />
         <TextBlock label="Siguiente paso" value={priority.next_step} />
       </div>
+
+      <div className="mt-5 border-t border-slate-100 pt-4">
+        <DecisionActionControl
+          created={created || priority.action_created}
+          onConvertToAction={onConvertToAction}
+          status={priority.status}
+          working={working}
+        />
+      </div>
     </article>
+  );
+}
+
+function DecisionActionControl({ created, onConvertToAction, status, working }) {
+  if (created) {
+    return (
+      <p className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800">
+        <CheckCircle2 size={17} />
+        Accion creada y en seguimiento
+      </p>
+    );
+  }
+  if (status === "requires_data") {
+    return <p className="text-sm font-bold text-blue-800">Requiere datos antes de crear accion</p>;
+  }
+  if (status === "monitor") {
+    return <p className="text-sm font-bold text-slate-700">Monitorear antes de accionar</p>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={onConvertToAction}
+      disabled={working}
+      className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)] px-4 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,124,109,0.18)] hover:bg-[var(--primary-dark)] disabled:opacity-60"
+    >
+      {working ? <Loader2 className="animate-spin" size={17} /> : <PlusCircle size={17} />}
+      {working ? "Preparando..." : "Convertir en accion"}
+    </button>
   );
 }
 
