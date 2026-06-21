@@ -4,12 +4,14 @@ import { Activity, FileSearch, Link2, Plus, X } from "lucide-react";
 import { useEnvironmentalContext } from "@/domain/environmental";
 import CriticalDocumentsPanel from "@/core/environmental/components/CriticalDocumentsPanel";
 import EnvironmentalContextCard from "@/core/environmental/components/EnvironmentalContextCard";
+import EnvironmentalIngestionReadinessPanel from "@/core/environmental/components/EnvironmentalIngestionReadinessPanel";
 import EnvironmentalItemGrid from "@/core/environmental/components/EnvironmentalItemGrid";
 import EnvironmentalShell from "@/core/environmental/components/EnvironmentalShell";
 import {
   createEnvironmentalDocument,
   getEnvironmentalDocuments,
 } from "@/features/environmental/services/environmentalComplianceApi";
+import { getEnvironmentalIngestionReadiness } from "@/features/environmental/services/environmentalIngestionReadinessApi";
 
 const initialForm = {
   tipo_documento: "",
@@ -22,6 +24,7 @@ const initialForm = {
 function IngestaInteligentePage() {
   const { activeCompany, matrix } = useEnvironmentalContext();
   const [documents, setDocuments] = useState([]);
+  const [readiness, setReadiness] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -33,9 +36,19 @@ function IngestaInteligentePage() {
     if (!activeCompany?.constructora_id) return;
     setLoading(true);
     setError("");
-    getEnvironmentalDocuments(activeCompany.constructora_id)
-      .then(setDocuments)
-      .catch(() => setError("No se pudieron cargar los documentos ambientales."))
+    Promise.allSettled([
+      getEnvironmentalDocuments(activeCompany.constructora_id),
+      getEnvironmentalIngestionReadiness(activeCompany.constructora_id),
+    ])
+      .then(([documentsResult, readinessResult]) => {
+        if (documentsResult.status === "fulfilled") setDocuments(documentsResult.value);
+        else setDocuments([]);
+        if (readinessResult.status === "fulfilled") setReadiness(readinessResult.value);
+        else setReadiness(null);
+        if (documentsResult.status === "rejected" && readinessResult.status === "rejected") {
+          setError("No se pudieron cargar los documentos ambientales.");
+        }
+      })
       .finally(() => setLoading(false));
   }, [activeCompany?.constructora_id]);
 
@@ -72,6 +85,7 @@ function IngestaInteligentePage() {
       description="Vista base para preparar carga documental y variables esperadas por industria. No ejecuta OCR ni procesamiento automatico."
     >
       <EnvironmentalContextCard company={activeCompany} matrix={matrix} />
+      <EnvironmentalIngestionReadinessPanel readiness={readiness} />
 
       <section className="rounded-2xl border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-card)]">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
