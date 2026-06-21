@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("analytics", "0006_alter_evidenciaobra_tipo_evidencia"),
+        ("analytics", "0009_alter_accionambiental_options"),
     ]
 
     operations = [
