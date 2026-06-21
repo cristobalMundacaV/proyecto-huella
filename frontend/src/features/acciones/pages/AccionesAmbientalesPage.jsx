@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Clock3, Leaf, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 
+import ActionClosurePanel from "@/core/environmental/components/ActionClosurePanel";
 import EmptyState from "@/shared/components/EmptyState";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import {
@@ -9,6 +10,7 @@ import {
   getConstructoraRegistrosEmision,
   getLotesForestales,
 } from "@/shared/services/api";
+import { getEnvironmentalDocuments } from "@/features/environmental/services/environmentalComplianceApi";
 import {
   createTraceableAction,
   deleteTraceableAction,
@@ -125,11 +127,11 @@ function actionOrigin(action) {
     };
   }
 
-  if (origin === "report_decision_agenda") {
+  if (origin === "report_decision_agenda" || origin === "environmental_decision_priority") {
     return {
       key: "decision",
       fromReport: true,
-      label: "Decisión ejecutiva",
+      label: origin === "environmental_decision_priority" ? "Decision ambiental" : "Decisión ejecutiva",
       tone: "border-amber-200 bg-amber-50 text-amber-800",
     };
   }
@@ -230,6 +232,7 @@ function AccionesAmbientalesPage() {
   const [actions, setActions] = useState([]);
   const [summary, setSummary] = useState(null);
   const [traceabilityOptions, setTraceabilityOptions] = useState({ obras: [], lotes: [], registros: [], evidencias: [] });
+  const [documentOptions, setDocumentOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingLinks, setLoadingLinks] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -245,13 +248,14 @@ function AccionesAmbientalesPage() {
       setLoadingLinks(true);
       setError("");
 
-      const [actionsResult, summaryResult, obrasResult, lotesResult, registrosResult, evidenciasResult] = await Promise.allSettled([
+      const [actionsResult, summaryResult, obrasResult, lotesResult, registrosResult, evidenciasResult, documentosResult] = await Promise.allSettled([
         getTraceableActions(activeConstructoraId),
         getTraceableActionsSummary(activeConstructoraId),
         getConstructoraObras(activeConstructoraId),
         getLotesForestales(activeConstructoraId),
         getConstructoraRegistrosEmision(activeConstructoraId),
         getConstructoraEvidencias(activeConstructoraId),
+        getEnvironmentalDocuments(activeConstructoraId),
       ]);
 
       if (actionsResult.status !== "fulfilled") throw actionsResult.reason;
@@ -264,6 +268,10 @@ function AccionesAmbientalesPage() {
         registros: registrosResult.status === "fulfilled" ? registrosResult.value : [],
         evidencias: evidenciasResult.status === "fulfilled" ? evidenciasResult.value : [],
       }));
+      setDocumentOptions(rows(documentosResult.status === "fulfilled" ? documentosResult.value : []).slice(0, 120).map((documento) => ({
+        value: safeValue(documento.id),
+        label: `${documento.id} · ${documento.nombre || documento.tipo_documento || "Documento ambiental"}`,
+      })).filter((item) => item.value));
     } catch (requestError) {
       setError(requestError?.response?.data?.error || "No se pudieron cargar las acciones ambientales.");
     } finally {
@@ -275,6 +283,7 @@ function AccionesAmbientalesPage() {
   useEffect(() => {
     setActions([]);
     setSummary(null);
+    setDocumentOptions([]);
     setDraft(null);
     setSourceFilter("all");
     loadPageData();
@@ -469,7 +478,22 @@ function AccionesAmbientalesPage() {
           </div>
         ) : filteredActions.length ? (
           <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-4">
-            {statusColumns.map((column) => <ActionColumn actions={filteredActions.filter((action) => action.status === column.value)} column={column} key={column.value} onDelete={removeAction} onEdit={(action) => setDraft(editDraft(action))} onUpdateStatus={updateStatus} />)}
+            {statusColumns.map((column) => (
+              <ActionColumn
+                actions={filteredActions.filter((action) => action.status === column.value)}
+                column={column}
+                documentOptions={documentOptions}
+                evidenceOptions={traceabilityOptions.evidencias}
+                key={column.value}
+                onActionUpdated={(updatedAction) => {
+                  setActions((current) => current.map((action) => (action.id === updatedAction.id ? updatedAction : action)));
+                  refreshActionsOnly();
+                }}
+                onDelete={removeAction}
+                onEdit={(action) => setDraft(editDraft(action))}
+                onUpdateStatus={updateStatus}
+              />
+            ))}
           </div>
         ) : (
           <EmptyState title="Sin acciones ambientales" description="Crea una acción desde Reportes, Inteligencia o manualmente para comenzar seguimiento." />
@@ -500,7 +524,7 @@ function MiniMetric({ label, value }) {
   );
 }
 
-function ActionColumn({ actions, column, onDelete, onEdit, onUpdateStatus }) {
+function ActionColumn({ actions, column, documentOptions, evidenceOptions, onActionUpdated, onDelete, onEdit, onUpdateStatus }) {
   return (
     <section className="min-h-[240px] rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
       <div className="mb-4">
@@ -536,6 +560,7 @@ function ActionColumn({ actions, column, onDelete, onEdit, onUpdateStatus }) {
                 <select value={action.status} onChange={(event) => onUpdateStatus(action.id, event.target.value)} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 outline-none">
                   {statusColumns.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
+                <ActionClosurePanel action={action} documentOptions={documentOptions} evidenceOptions={evidenceOptions} onUpdated={onActionUpdated} />
                 <button type="button" onClick={() => onEdit(action)} className="inline-flex items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">Editar</button>
                 <button type="button" onClick={() => onDelete(action.id)} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700"><Trash2 size={14} /> Quitar</button>
               </div>

@@ -51,6 +51,11 @@ from .views_environmental_compliance import (
     variable_ambiental_detail,
     variables_ambientales,
 )
+from .views_environmental_action_closure import (
+    environmental_action_attach_evidence,
+    environmental_action_close,
+    environmental_action_closure_status,
+)
 from .views_environmental_decision_actions import (
     environmental_decision_action_preview,
     environmental_decision_create_action,
@@ -119,6 +124,9 @@ urlpatterns = [
     path("environmental/decisions/priorities/<str:constructora_id>/", environmental_decision_priorities),
     path("environmental/decisions/priorities/<str:constructora_id>/<str:priority_id>/action-preview/", environmental_decision_action_preview),
     path("environmental/decisions/priorities/<str:constructora_id>/<str:priority_id>/create-action/", environmental_decision_create_action),
+    path("environmental/actions/<int:action_id>/closure-status/", environmental_action_closure_status),
+    path("environmental/actions/<int:action_id>/attach-evidence/", environmental_action_attach_evidence),
+    path("environmental/actions/<int:action_id>/close/", environmental_action_close),
     path("importaciones/completa/preview/", importacion_completa_preview),
     path("importaciones/completa/confirm/", importacion_completa_confirm),
     path("importaciones/plantilla-construccion/", plantilla_importacion_construccion),
