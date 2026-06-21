@@ -3,6 +3,7 @@ import { ClipboardCheck, FileCheck2 } from "lucide-react";
 
 import { useEnvironmentalContext } from "@/domain/environmental";
 import EnvironmentalContextCard from "@/core/environmental/components/EnvironmentalContextCard";
+import EnvironmentalExecutiveReportCard from "@/core/environmental/components/EnvironmentalExecutiveReportCard";
 import EnvironmentalShell from "@/core/environmental/components/EnvironmentalShell";
 import RegulatoryReadinessPanel from "@/core/environmental/components/RegulatoryReadinessPanel";
 import RiskSignalsPanel from "@/core/environmental/components/RiskSignalsPanel";
@@ -12,6 +13,7 @@ import {
   getEnvironmentalDocuments,
   getEnvironmentalVariables,
 } from "@/features/environmental/services/environmentalComplianceApi";
+import { getEnvironmentalExecutiveReport } from "@/features/environmental/services/environmentalExecutiveReportApi";
 
 function ReportesRegulatoriosPage() {
   const { activeCompany, matrix } = useEnvironmentalContext();
@@ -19,6 +21,7 @@ function ReportesRegulatoriosPage() {
   const [documents, setDocuments] = useState([]);
   const [variables, setVariables] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [executiveReport, setExecutiveReport] = useState(null);
 
   useEffect(() => {
     if (!activeCompany?.constructora_id) return;
@@ -27,18 +30,21 @@ function ReportesRegulatoriosPage() {
       getEnvironmentalDocuments(activeCompany.constructora_id),
       getEnvironmentalVariables(activeCompany.constructora_id),
       getComplianceAlerts(activeCompany.constructora_id),
+      getEnvironmentalExecutiveReport(activeCompany.constructora_id),
     ])
-      .then(([summaryData, documentData, variableData, alertData]) => {
+      .then(([summaryData, documentData, variableData, alertData, executiveReportData]) => {
         setSummary(summaryData);
         setDocuments(documentData);
         setVariables(variableData);
         setAlerts(alertData);
+        setExecutiveReport(executiveReportData);
       })
       .catch(() => {
         setSummary(null);
         setDocuments([]);
         setVariables([]);
         setAlerts([]);
+        setExecutiveReport(null);
       });
   }, [activeCompany?.constructora_id]);
 
@@ -49,6 +55,7 @@ function ReportesRegulatoriosPage() {
       description="Vista de preparacion para reportes ambientales. Muestra salidas esperadas y brechas, sin generar exportaciones."
     >
       <EnvironmentalContextCard company={activeCompany} matrix={matrix} />
+      <EnvironmentalExecutiveReportCard report={executiveReport} />
 
       <section className="grid gap-4 md:grid-cols-4">
         <ReadinessCard title="RETC" documents={documents.length} variables={variables.length} alerts={alerts.filter((item) => item.estado === "abierta").length} />
