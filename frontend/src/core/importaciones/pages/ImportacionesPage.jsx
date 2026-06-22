@@ -25,9 +25,7 @@ import {
   mapPresetImportPayload,
   normalizeImportRows,
 } from "@/presets/shared/importConfig";
-import SystemClosureChecklist from "@/core/system/SystemClosureChecklist";
 
-import ImportCloseChecklist from "../components/ImportCloseChecklist";
 import ImportConfirmPanel from "../components/ImportConfirmPanel";
 import ImportEmptyState from "../components/ImportEmptyState";
 import ImportHero from "../components/ImportHero";
@@ -243,16 +241,6 @@ function ImportacionesPage({ onImportConfirmed }) {
         onConfirm={handleConfirm}
         saving={saving}
       />
-
-      <ImportCloseChecklist
-        items={[
-          "Construccion conserva importaciones actuales",
-          "Aserradero importa registros operativos desde CSV",
-          "Transporte e industrial tienen plantillas preparadas",
-          "Metadata preserva preset, modulo y fila original",
-        ]}
-      />
-      <SystemClosureChecklist />
     </main>
   );
 }

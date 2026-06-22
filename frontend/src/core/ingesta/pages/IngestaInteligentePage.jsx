@@ -24,14 +24,14 @@ const initialForm = {
 function IngestaInteligentePage() {
   const { activeCompany, matrix } = useEnvironmentalContext();
   const [documents, setDocuments] = useState([]);
-  const [readiness, setReadiness] = useState(null);
+  const [backendReadiness, setBackendReadiness] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const suggestedTypes = useMemo(() => matrix.criticalDocuments || [], [matrix]);
-  const readiness = useMemo(() => buildIngestionReadiness({ documents, matrix, suggestedTypes }), [documents, matrix, suggestedTypes]);
+  const narrativeReadiness = useMemo(() => buildIngestionReadiness({ documents, matrix, suggestedTypes }), [documents, matrix, suggestedTypes]);
 
   const refreshDocuments = useCallback(() => {
     if (!activeCompany?.constructora_id) return;
@@ -44,8 +44,8 @@ function IngestaInteligentePage() {
       .then(([documentsResult, readinessResult]) => {
         if (documentsResult.status === "fulfilled") setDocuments(documentsResult.value);
         else setDocuments([]);
-        if (readinessResult.status === "fulfilled") setReadiness(readinessResult.value);
-        else setReadiness(null);
+        if (readinessResult.status === "fulfilled") setBackendReadiness(readinessResult.value);
+        else setBackendReadiness(null);
         if (documentsResult.status === "rejected" && readinessResult.status === "rejected") {
           setError("No se pudieron cargar los documentos ambientales.");
         }
@@ -86,20 +86,20 @@ function IngestaInteligentePage() {
       description="Vista base para preparar carga documental y variables esperadas por industria. No ejecuta OCR ni procesamiento automatico."
     >
       <EnvironmentalContextCard company={activeCompany} matrix={matrix} />
-      <EnvironmentalIngestionReadinessPanel readiness={readiness} />
+      <EnvironmentalIngestionReadinessPanel readiness={backendReadiness} />
 
       <IngestionHero
         onRegister={() => {
-          setForm({ ...initialForm, tipo_documento: readiness.nextDocument || suggestedTypes[0] || "" });
+          setForm({ ...initialForm, tipo_documento: narrativeReadiness.nextDocument || suggestedTypes[0] || "" });
           setIsModalOpen(true);
         }}
-        readiness={readiness}
+        readiness={narrativeReadiness}
       />
 
       <section className="grid gap-4 md:grid-cols-3">
-        <ReadinessMetric icon={BarChart3} label="Cobertura documental" value={`${readiness.score}%`} detail={`${readiness.matchedCount} de ${readiness.totalExpected} respaldos esperados`} tone="cyan" />
-        <ReadinessMetric icon={FileSearch} label="Siguiente carga" value={readiness.nextDocument || "Sin brecha critica"} detail={readiness.whyItMatters} tone="amber" />
-        <ReadinessMetric icon={CheckCircle2} label="Desbloquea" value={readiness.unlocks} detail="Impacta informe, decisiones y cierre de evidencia." tone="emerald" />
+        <ReadinessMetric icon={BarChart3} label="Cobertura documental" value={`${narrativeReadiness.score}%`} detail={`${narrativeReadiness.matchedCount} de ${narrativeReadiness.totalExpected} respaldos esperados`} tone="cyan" />
+        <ReadinessMetric icon={FileSearch} label="Siguiente carga" value={narrativeReadiness.nextDocument || "Sin brecha critica"} detail={narrativeReadiness.whyItMatters} tone="amber" />
+        <ReadinessMetric icon={CheckCircle2} label="Desbloquea" value={narrativeReadiness.unlocks} detail="Impacta informe, decisiones y cierre de evidencia." tone="emerald" />
       </section>
 
       <div className="grid gap-6 xl:grid-cols-2">

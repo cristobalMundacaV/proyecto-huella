@@ -13,7 +13,7 @@ export const environmentalPresetMatrix = {
       mainPain:
         "La obra genera datos dispersos en materiales, maquinaria, transporte, residuos, combustible, agua, energía y documentos sueltos.",
       dashboardTitle: "Estado ambiental de obra",
-      dashboardSubtitle: "Huella, residuos, documentos y trazabilidad ambiental de obra.",
+      dashboardSubtitle: "Huella, residuos, documentos y trazabilidad ambiental de la obra.",
       operationalFocus: "Obra + materiales + maquinaria + residuos",
       starKpi: "kgCO₂e/m²",
       sellableReportName: "Reporte mensual de huella y trazabilidad ambiental de obra",
