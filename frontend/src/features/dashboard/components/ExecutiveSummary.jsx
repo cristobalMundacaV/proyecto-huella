@@ -4,7 +4,6 @@ import {
   Building2,
   Cloud,
   FileText,
-  FlaskConical,
   Fuel,
   Landmark,
   Leaf,
@@ -13,7 +12,6 @@ import {
   ShieldCheck,
   Sparkles,
   Target,
-  Zap,
 } from "lucide-react";
 
 const formatNumber = (value, maximumFractionDigits = 2) =>
@@ -57,8 +55,6 @@ const isValidExecutiveLabel = (value) => {
 const getExecutiveLabel = (value, fallback) => (isValidExecutiveLabel(value) ? String(value).trim() : fallback);
 
 const hasValidScenario = (scenario) => Boolean(scenario && Number(scenario.currentTotal) > 0 && Number(scenario.simulatedTotal) > 0 && Number(scenario.reductionPct) > 0);
-
-const formatPercentRange = ({ min, max }) => (min === max ? `${min}%` : `${min}%-${max}%`);
 
 function KpiIcon({ icon: Icon, tone = "teal" }) {
   const tones = {
@@ -105,28 +101,16 @@ function ExecutiveKpiCard({ label, value, icon, tone = "slate", description, cla
 function buildProgressiveActionRanges(potentialReduction) {
   const potential = Number(potentialReduction || 0);
   if (!potential || potential <= 0) {
-    return {
-      quickRange: { min: 3, max: 6 },
-      pilotRange: { min: 7, max: 10 },
-      structuralRangeLabel: "Pendiente",
-    };
+    return { min: 4, max: 6 };
   }
 
   const structuralFloor = Math.max(1, Math.floor(potential));
-  let quickMin = clamp(Math.round(potential * 0.25), 1, structuralFloor);
-  let quickMax = clamp(Math.round(potential * 0.45), quickMin, structuralFloor);
-  if (quickMax <= quickMin && structuralFloor > quickMin) quickMax = quickMin + 1;
-
-  let pilotMin = clamp(Math.round(potential * 0.55), quickMax + 1, structuralFloor);
+  let pilotMin = clamp(Math.round(potential * 0.55), 1, structuralFloor);
   let pilotMax = clamp(Math.round(potential * 0.75), pilotMin, structuralFloor);
   if (pilotMin > structuralFloor) pilotMin = structuralFloor;
   if (pilotMax < pilotMin) pilotMax = pilotMin;
 
-  return {
-    quickRange: { min: quickMin, max: quickMax },
-    pilotRange: { min: pilotMin, max: pilotMax },
-    structuralRangeLabel: `${formatNumber(potential, 1)}% proyectado`,
-  };
+  return { min: pilotMin, max: pilotMax };
 }
 
 function buildTopEmissionRecommendations({ activityLabel, categoryLabel, dieselLiters, stageLabel }) {
@@ -195,8 +179,7 @@ function buildStrategicPlan(fuenteCritica, optimizedScenario, context = {}) {
   if (sourceKey.includes("diesel") || sourceKey.includes("hormigon") || sourceKey.includes("acero") || potentialReduction > 18) viability = "Media";
   if (potentialReduction > 32 || optimalActivityReduction >= 38) viability = "Baja";
 
-  const actionRanges = buildProgressiveActionRanges(potentialReduction);
-  const recommendedRange = actionRanges.pilotRange;
+  const recommendedRange = buildProgressiveActionRanges(potentialReduction);
   const recommendedActions = buildTopEmissionRecommendations({ activityLabel, categoryLabel, dieselLiters: context.dieselLiters, stageLabel });
   const evidenceGroups = buildEvidenceGroups({ activityLabel, categoryLabel, stageLabel });
   const operationalNextStep = optimizedScenario?.operationalNextStep || `Validar datos y evidencia de ${activityLabel} antes de ejecutar una intervención.`;
@@ -207,45 +190,16 @@ function buildStrategicPlan(fuenteCritica, optimizedScenario, context = {}) {
     ? `El ${formatNumber(potentialReduction, 1)}% proyectado no debe leerse como una meta automática, sino como una señal de sensibilidad: si este material cambia de factor, volumen o proveedor, la huella total se mueve. Para convertirlo en una decisión defendible, cruza guía de despacho, factura, ficha técnica/EPD y cantidad instalada; así la mejora queda respaldada frente a gerencia, mandante o licitación.`
     : "Cuando el sistema tenga respaldo documental suficiente, podrá separar si la brecha es técnica, operacional o documental. Esa diferencia importa: no es lo mismo cambiar un material que corregir una carga mal clasificada o exigir evidencia al proveedor.";
 
-  const actionLevels = [
-    {
-      label: "Acciones rápidas",
-      range: formatPercentRange(actionRanges.quickRange),
-      tone: "border-[var(--border)] bg-[var(--success-bg)] text-[var(--secondary)]",
-      icon: Zap,
-      iconTone: "green",
-      detail: "Ajustes de bajo esfuerzo: depurar datos, separar fuentes, validar cantidades, asociar evidencia y corregir registros incompletos.",
-    },
-    {
-      label: "Validación técnica",
-      range: formatPercentRange(actionRanges.pilotRange),
-      tone: "border-[#F6D98B] bg-[var(--warning-bg)] text-[#8A5A00]",
-      icon: FlaskConical,
-      iconTone: "amber",
-      detail: "Revisión controlada sobre la fuente crítica: comparar proveedor, factor, ficha técnica/EPD, cantidad y especificación antes de comprometer cambios de compra o diseño.",
-    },
-    {
-      label: "Cambio estructural",
-      range: actionRanges.structuralRangeLabel,
-      tone: "border-[#F1C7C7] bg-[var(--danger-bg)] text-[#9A3412]",
-      icon: Building2,
-      iconTone: "red",
-      detail: "Requiere decisiones de mayor alcance: cambio de proveedor, tecnología, diseño, especificación, logística o modelo operacional.",
-    },
-  ];
-
-  return { viability, recommendedRange, principalRecommendation, optimalReference, actionLevels, recommendedActions, evidenceGroups, operationalNextStep, categoryLabel, stageLabel };
+  return { viability, recommendedRange, principalRecommendation, optimalReference, recommendedActions, evidenceGroups, operationalNextStep, categoryLabel, stageLabel };
 }
 
-function ExecutiveSummary({ fuenteCritica, unidadCritica, optimizedScenario, reductionEquivalentKm, riskProfile }) {
+function ExecutiveSummary({ fuenteCritica, unidadCritica, optimizedScenario, riskProfile }) {
   const fuenteCriticaLabel = getExecutiveLabel(fuenteCritica, "Fuente crítica sin datos suficientes");
   const unidadCriticaLabel = getExecutiveLabel(unidadCritica, "Sin etapa suficiente");
   const hasValidOptimizedScenario = hasValidScenario(optimizedScenario);
   const scenarioForPlan = hasValidOptimizedScenario ? optimizedScenario : null;
   const currentTotal = Number(optimizedScenario?.currentTotal || 0);
   const simulatedTotal = hasValidOptimizedScenario ? Number(optimizedScenario?.simulatedTotal || 0) : 0;
-  const avoidedEmissions = Math.max(currentTotal - simulatedTotal, 0);
-  const equivalentCarKm = reductionEquivalentKm != null ? reductionEquivalentKm : avoidedEmissions * 4;
   const dieselLiters = Number(riskProfile.factors.dieselLiters || 0);
   const strategicPlan = buildStrategicPlan(fuenteCriticaLabel, scenarioForPlan, { dieselLiters });
   const recommendedDecision = hasValidOptimizedScenario
@@ -258,9 +212,6 @@ function ExecutiveSummary({ fuenteCritica, unidadCritica, optimizedScenario, red
     : "Aún no existe un escenario de reducción calculado con datos suficientes.";
   const riskKpiTone = riskProfile.score > 70 ? "red" : riskProfile.score > 30 ? "amber" : "green";
   const viabilityTone = strategicPlan.viability === "Alta" ? "green" : strategicPlan.viability === "Media" ? "amber" : "red";
-  const stageConcentrationLabel = getExecutiveLabel(riskProfile.factors.dominantStageLabel, unidadCriticaLabel);
-  const stageConcentrationValue = Number(riskProfile.factors.stageConcentration || 0);
-  const stageConcentrationDisplay = stageConcentrationValue > 0 ? `${stageConcentrationLabel} · ${formatNumber(stageConcentrationValue, 1)}%` : "Sin datos suficientes";
   const dieselDisplay = dieselLiters > 0 ? `${formatNumber(dieselLiters, 1)} litros` : "Sin consumo";
   const footprintPerM2 = Number(riskProfile.factors.footprintPerM2 || 0);
   const footprintPerM2Display = footprintPerM2 > 0 ? `${formatNumber(footprintPerM2, 2)} kgCO₂e/m²` : "Requiere m²";
@@ -317,40 +268,6 @@ function ExecutiveSummary({ fuenteCritica, unidadCritica, optimizedScenario, red
       </div>
 
       <SpecificRecommendationPanel strategicPlan={strategicPlan} />
-
-      <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-3">
-        {strategicPlan.actionLevels.map((level) => (
-          <div key={level.label} className={`rounded-[20px] border p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition duration-300 ease-out hover:shadow-[0_10px_28px_rgba(15,23,42,0.05)] ${level.tone}`}>
-            <div className="flex items-start gap-4">
-              <KpiIcon icon={level.icon} tone={level.iconTone} />
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#64748B]">{level.label}</p>
-                <p className="mt-1 text-2xl font-black tracking-tight text-current">{level.range}</p>
-                <p className="mt-2 text-sm leading-6 text-current/85 hyphens-auto">{level.detail}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-5 rounded-[20px] border border-[#E2E8F0] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition-[border-color,box-shadow] duration-300 ease-out hover:border-[#99F6E4]">
-        <div className="flex items-center gap-3">
-          <div className="rounded-full border border-[#E2E8F0] bg-[#F8FAFC] p-2 text-[#334155]"><FileText size={18} strokeWidth={2.1} /></div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#334155]">Factores del score</p>
-        </div>
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
-          <ScoreFactor label="Emisiones totales" value={riskProfile.factors.totalEmissions.label} tone="danger" />
-          <ScoreFactor label="Fuente dominante" value={`${riskProfile.factors.dominantSourceLabel || "Sin datos"} · ${formatNumber(riskProfile.factors.dominantSourcePercentage ?? riskProfile.factors.sourceConcentration, 1)}%`} tone="warning" />
-          <ScoreFactor label="Etapa dominante" value={stageConcentrationDisplay} tone="info" />
-          <ScoreFactor label="Diésel consumido" value={dieselDisplay} tone={dieselLiters > 0 ? "warning" : "neutral"} />
-          <ScoreFactor label="Huella por m²" value={footprintPerM2Display} tone={footprintPerM2 > 0 ? "success" : "neutral"} />
-        </div>
-      </div>
-
-      <p className="mt-5 rounded-2xl border border-[#99F6E4] bg-[#F0FDFA] px-4 py-3 text-sm leading-6 text-[#334155] shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition">
-        Orden sugerido: confirmar la huella total, aislar el material o fuente que más pesa, validar evidencia de {formatTitleCase(fuenteCriticaLabel)} y decidir si corresponde optimizar cantidad, proveedor, factor de emisión o especificación técnica en {unidadCriticaLabel}.
-        {(optimizedScenario || reductionEquivalentKm != null) && ` Si esa decisión se documenta bien, la reducción operativa estimada equivale aproximadamente a ${formatNumber(equivalentCarKm, 0)} km recorridos en auto.`}
-      </p>
     </section>
   );
 }
@@ -410,27 +327,6 @@ function SpecificRecommendationPanel({ strategicPlan }) {
           {strategicPlan.operationalNextStep}
         </div>
       </section>
-    </div>
-  );
-}
-
-function ScoreFactor({ label, value, tone = "neutral", description }) {
-  const toneDot = {
-    neutral: "bg-[#64748B]",
-    warning: "bg-[#B45309]",
-    info: "bg-[#1D4ED8]",
-    success: "bg-[#047857]",
-    danger: "bg-[#B42318]",
-  }[tone];
-
-  return (
-    <div className="rounded-[18px] border border-[#E2E8F0] bg-white px-4 py-3 text-center shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition hover:border-[#CBD5E1]">
-      <div className="flex items-center justify-center gap-2">
-        <span className={`h-2.5 w-2.5 rounded-full ${toneDot}`} />
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#64748B]">{label}</p>
-      </div>
-      <p className="mt-1 break-words text-sm font-extrabold text-current">{value}</p>
-      {description ? <p className="mt-1 text-[11px] font-medium leading-4 text-[#64748B]">{description}</p> : null}
     </div>
   );
 }
