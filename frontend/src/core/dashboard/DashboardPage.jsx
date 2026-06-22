@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, BarChart3, Database, Factory, Leaf, Radar } from "lucide-react";
+import { Leaf } from "lucide-react";
 
 import RealtimeIotMonitoring from "@/features/dashboard/components/RealtimeIotMonitoring";
 import ExecutiveSummary from "@/features/dashboard/components/ExecutiveSummary";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import { getEnvironmentalKpis } from "@/features/environmental/services/environmentalKpiApi";
-import KpiCard from "@/shared/components/KpiCard";
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import {
   getConstructoraDashboard,
@@ -17,6 +16,10 @@ import { formatNumber } from "@/shared/utils/formatters";
 import { DEFAULT_PRESET_KEY, getActivePreset } from "@/presets/registry";
 
 const DASHBOARD_REFRESH_INTERVAL_MS = 12000;
+const DONUT_SIZE = 220;
+const DONUT_CENTER = DONUT_SIZE / 2;
+const DONUT_RADIUS = 78;
+const DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS;
 
 const PARTICIPATION_COLORS = ["#E11D48", "#EA580C", "#2563EB", "#7C3AED", "#059669", "#0891B2", "#84CC16", "#64748B"];
 
@@ -164,18 +167,68 @@ function buildExecutiveScenario({ activePresetKey, byCategory, bySource, byStage
   return { optimizedScenario, riskProfile };
 }
 
-function getConicGradient(items) {
-  let current = 0;
-  const parts = items.map((item) => {
-    const start = current;
-    const end = current + Number(item.share || 0);
-    current = end;
-    return `${item.color} ${start}% ${end}%`;
-  });
-  return parts.length ? `conic-gradient(${parts.join(", ")})` : "conic-gradient(#CBD5E1 0% 100%)";
+function truncateLabel(value, max = 24) {
+  const text = String(value || "Sin datos");
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+function InteractiveDonut({ activeItem, items, onHover, onLeave, total, totalLabel }) {
+  let accumulated = 0;
+  const currentItem = activeItem;
+
+  return (
+    <div className="relative h-[240px] w-[240px]">
+      <svg viewBox={`0 0 ${DONUT_SIZE} ${DONUT_SIZE}`} className="h-full w-full overflow-visible" role="img" aria-label="Dona interactiva de participación de emisiones">
+        <circle cx={DONUT_CENTER} cy={DONUT_CENTER} r={DONUT_RADIUS} fill="none" stroke="#E2E8F0" strokeWidth="28" />
+        <g transform={`rotate(-90 ${DONUT_CENTER} ${DONUT_CENTER})`}>
+          {items.map((item) => {
+            const dash = Math.max((item.share / 100) * DONUT_CIRCUMFERENCE, 0.2);
+            const offset = accumulated;
+            accumulated += dash;
+            const isActive = currentItem?.label === item.label;
+            return (
+              <circle
+                key={`donut-${item.label}`}
+                cx={DONUT_CENTER}
+                cy={DONUT_CENTER}
+                r={DONUT_RADIUS}
+                fill="none"
+                stroke={item.color}
+                strokeDasharray={`${dash} ${DONUT_CIRCUMFERENCE - dash}`}
+                strokeDashoffset={-offset}
+                strokeWidth={isActive ? 34 : 28}
+                className="cursor-pointer transition-all duration-200"
+                onMouseEnter={() => onHover(item)}
+                onMouseLeave={onLeave}
+              >
+                <title>{`${item.label}: ${formatNumber(item.emisiones, 1)} kg CO₂e · ${formatNumber(item.share, 1)}%`}</title>
+              </circle>
+            );
+          })}
+        </g>
+      </svg>
+
+      <div className="pointer-events-none absolute inset-10 flex flex-col items-center justify-center rounded-full bg-white text-center shadow-[0_14px_35px_rgba(15,23,42,0.10)]">
+        {currentItem ? (
+          <>
+            <p className="max-w-[130px] text-[10px] font-black uppercase leading-4 tracking-[0.16em] text-slate-500">{truncateLabel(currentItem.label, 22)}</p>
+            <p className="mt-1 text-xl font-black leading-tight text-[var(--text-main)]">{formatNumber(currentItem.emisiones, 1)}</p>
+            <p className="text-xs font-black text-slate-500">kg CO₂e · {formatNumber(currentItem.share, 1)}%</p>
+          </>
+        ) : (
+          <>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">{totalLabel}</p>
+            <p className="mt-1 text-2xl font-black text-[var(--text-main)]">{formatNumber(total, 1)}</p>
+            <p className="text-xs font-black text-slate-500">kg CO₂e</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function EmissionParticipationPanel({ data, description, nameKey, title, totalLabel = "Total obra" }) {
+  const [activeItem, setActiveItem] = useState(null);
   const total = data.reduce((sum, item) => sum + Number(item.emisiones || 0), 0);
   const items = data.map((item, index) => {
     const share = total > 0 ? (Number(item.emisiones || 0) / total) * 100 : 0;
@@ -206,36 +259,45 @@ function EmissionParticipationPanel({ data, description, nameKey, title, totalLa
       {items.length ? (
         <div className="mt-6 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-center">
           <div className="flex justify-center">
-            <div className="relative h-52 w-52 rounded-full shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]" style={{ background: getConicGradient(items) }}>
-              <div className="absolute inset-10 flex flex-col items-center justify-center rounded-full bg-white text-center shadow-[0_14px_35px_rgba(15,23,42,0.10)]">
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">{totalLabel}</p>
-                <p className="mt-1 text-2xl font-black text-[var(--text-main)]">{formatNumber(total, 1)}</p>
-                <p className="text-xs font-black text-slate-500">kg CO₂e</p>
-              </div>
-            </div>
+            <InteractiveDonut
+              activeItem={activeItem}
+              items={items}
+              onHover={setActiveItem}
+              onLeave={() => setActiveItem(null)}
+              total={total}
+              totalLabel={totalLabel}
+            />
           </div>
 
           <div className="max-h-[390px] space-y-3 overflow-y-auto pr-2 scroll-smooth">
-            {items.map((item) => (
-              <article key={`${title}-${item.label}`} className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex items-start gap-3">
-                    <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
-                    <div>
-                      <p className="text-base font-black text-[var(--text-main)]">{item.label}</p>
-                      <p className="text-xs font-bold text-slate-500">{item.registros} registros asociados</p>
+            {items.map((item) => {
+              const isActive = activeItem?.label === item.label;
+              return (
+                <article
+                  key={`${title}-${item.label}`}
+                  className={`rounded-2xl border bg-white/90 p-4 shadow-sm transition ${isActive ? "border-emerald-300 ring-4 ring-emerald-100" : "border-slate-200"}`}
+                  onMouseEnter={() => setActiveItem(item)}
+                  onMouseLeave={() => setActiveItem(null)}
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+                      <div>
+                        <p className="text-base font-black text-[var(--text-main)]">{item.label}</p>
+                        <p className="text-xs font-bold text-slate-500">{item.registros} registros asociados</p>
+                      </div>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <p className="text-base font-black text-sky-950">{formatNumber(item.emisiones, 1)} kg CO₂e</p>
+                      <p className="text-xs font-black text-slate-500">{formatNumber(item.share, 1)}%</p>
                     </div>
                   </div>
-                  <div className="text-left sm:text-right">
-                    <p className="text-base font-black text-sky-950">{formatNumber(item.emisiones, 1)} kg CO₂e</p>
-                    <p className="text-xs font-black text-slate-500">{formatNumber(item.share, 1)}%</p>
+                  <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200">
+                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(1, item.share))}%`, backgroundColor: item.color }} />
                   </div>
-                </div>
-                <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200">
-                  <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(1, item.share))}%`, backgroundColor: item.color }} />
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         </div>
       ) : (
@@ -343,11 +405,8 @@ function DashboardPage({ onStatusChange }) {
   const bySource = useMemo(() => groupBy(rows, "fuente_visible", "fuente"), [rows]);
   const byUnit = useMemo(() => groupBy(rows, "obra_visible", "unidad"), [rows]);
 
-  const criticalCategory = byCategory[0]?.categoria || data?.categoria_critica || "Sin datos";
   const criticalStage = byStage[0]?.etapa || data?.etapa_critica || data?.unidad_critica || "Sin datos";
   const criticalSource = bySource[0]?.fuente || data?.fuente_critica || "Sin datos";
-  const criticalUnit = byUnit[0]?.unidad || data?.obra_critica || "Sin datos";
-  const topShare = totalEmissions > 0 && bySource[0]?.emisiones ? (bySource[0].emisiones / totalEmissions) * 100 : 0;
   const footprintPerM2 = getKpiCardValue(environmentalKpis, "huella_m2");
   const { optimizedScenario, riskProfile } = useMemo(
     () => buildExecutiveScenario({ activePresetKey: activePreset.key, byCategory, bySource, byStage, footprintPerM2, rows, totalEmissions }),
@@ -383,15 +442,6 @@ function DashboardPage({ onStatusChange }) {
       </section>
 
       <ExecutiveSummary fuenteCritica={criticalSource} unidadCritica={criticalStage} optimizedScenario={optimizedScenario} riskProfile={riskProfile} />
-
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <KpiCard icon={<Activity />} title="Emisiones totales" value={`${formatNumber(totalEmissions, 1)} kg CO₂e`} />
-        <KpiCard icon={<Factory />} title={`${activePreset.unitLabel} crítica`} value={criticalUnit} />
-        <KpiCard icon={<AlertTriangle />} title="Categoría crítica" value={criticalCategory} />
-        <KpiCard icon={<Database />} title="Fuente crítica" value={criticalSource} />
-        <KpiCard icon={<Radar />} title="Concentración principal" value={`${formatNumber(topShare, 1)}%`} />
-        <KpiCard icon={<BarChart3 />} title="Registros analizados" value={formatNumber(rows.length, 0)} />
-      </section>
 
       <section className="space-y-6">
         <EmissionParticipationPanel
