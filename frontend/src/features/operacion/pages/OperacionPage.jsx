@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Factory, Layers3, Route, Settings2, Truck, Zap } from "lucide-react";
+import { Factory, Layers3, Plus, Route, Settings2, Truck, Zap } from "lucide-react";
 
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import ObrasView from "@/features/obras/pages/ObrasPage";
@@ -69,12 +69,18 @@ function OperationPlaceholder({ tab }) {
   );
 }
 
+function triggerHiddenCreateObraButton() {
+  const button = document.querySelector('[data-create-obra-button="true"]');
+  if (button) button.click();
+}
+
 function OperacionPage() {
   const { activeConstructora } = useConstructoraActiva();
   const presetKey = activeConstructora?.preset || "construccion";
   const tabs = useMemo(() => getTabsForPreset(presetKey), [presetKey]);
   const [activeTab, setActiveTab] = useState(tabs[0]?.id || "unidades");
   const selectedTab = tabs.find((tab) => tab.id === activeTab) || tabs[0];
+  const showNewObraButton = selectedTab?.id === "unidades" && presetKey !== "industrial";
 
   return (
     <main className="mx-auto max-w-7xl space-y-6">
@@ -86,13 +92,25 @@ function OperacionPage() {
               Procesos de {activeConstructora?.nombre || "la empresa"}
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
-              Centraliza obras, etapas y procesos operacionales en una sola vista. Cada pestaña debe explicar qué está pasando, qué foco ambiental importa y qué acción tomar.
+              Centraliza obras, etapas y procesos operacionales en una sola vista.
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-2 rounded-3xl border border-white/70 bg-white/70 p-3 text-center shadow-sm">
-            <Factory className="mx-auto text-emerald-700" />
-            <Truck className="mx-auto text-emerald-700" />
-            <Zap className="mx-auto text-emerald-700" />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {showNewObraButton ? (
+              <button
+                type="button"
+                onClick={triggerHiddenCreateObraButton}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white px-5 py-3 text-sm font-black text-emerald-800 shadow-sm transition hover:bg-emerald-50"
+              >
+                <Plus size={17} />
+                Nueva obra
+              </button>
+            ) : null}
+            <div className="grid grid-cols-3 gap-2 rounded-3xl border border-white/70 bg-white/70 p-3 text-center shadow-sm">
+              <Factory className="mx-auto text-emerald-700" />
+              <Truck className="mx-auto text-emerald-700" />
+              <Zap className="mx-auto text-emerald-700" />
+            </div>
           </div>
         </div>
       </section>
@@ -115,15 +133,13 @@ function OperacionPage() {
         </div>
       </div>
 
-      <section className="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-[var(--shadow-card)]">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-800">Lectura del proceso</p>
-        <h2 className="mt-2 text-xl font-black text-[var(--text-main)]">{selectedTab.label}</h2>
-        <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-700">
-          {selectedTab.insight || "Este proceso debe mostrar datos, acciones y trazabilidad ambiental sin repetir la vista completa de inteligencia."}
-        </p>
-      </section>
-
-      {selectedTab.component || <OperationPlaceholder tab={selectedTab} />}
+      {selectedTab.component ? (
+        <div className={selectedTab.id === "unidades" ? "[&>div>header]:hidden [&>div>section:first-of-type]:hidden" : ""}>
+          {selectedTab.component}
+        </div>
+      ) : (
+        <OperationPlaceholder tab={selectedTab} />
+      )}
     </main>
   );
 }
