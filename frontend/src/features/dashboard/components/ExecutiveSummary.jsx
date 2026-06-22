@@ -13,7 +13,6 @@ import {
   ShieldCheck,
   Sparkles,
   Target,
-  TrendingDown,
   Zap,
 } from "lucide-react";
 
@@ -209,6 +208,8 @@ function ExecutiveSummary({ fuenteCritica, unidadCritica, optimizedScenario, red
   const stageConcentrationDisplay = stageConcentrationValue > 0 ? `${stageConcentrationLabel} · ${formatNumber(stageConcentrationValue, 1)}%` : "Sin datos suficientes";
   const dieselLiters = Number(riskProfile.factors.dieselLiters || 0);
   const dieselDisplay = dieselLiters > 0 ? `${formatNumber(dieselLiters, 1)} litros` : "Sin consumo";
+  const footprintPerM2 = Number(riskProfile.factors.footprintPerM2 || 0);
+  const footprintPerM2Display = footprintPerM2 > 0 ? `${formatNumber(footprintPerM2, 2)} kgCO₂e/m²` : "Requiere m²";
 
   return (
     <section className="premium-card slide-up rounded-[20px] border border-[#E2E8F0] bg-[#F8FAFC] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition-colors duration-300 ease-out sm:p-6">
@@ -247,7 +248,7 @@ function ExecutiveSummary({ fuenteCritica, unidadCritica, optimizedScenario, red
         <ExecutiveKpiCard label="Foco principal" value={fuenteCriticaLabel} tone="slate" icon={Target} />
         <ExecutiveKpiCard label="Etapa prioritaria" value={unidadCriticaLabel} tone="blue" icon={Landmark} />
         <ExecutiveKpiCard label="Diésel consumido" value={dieselDisplay} tone={dieselLiters > 0 ? "amber" : "slate"} icon={Fuel} />
-        <ExecutiveKpiCard label="Reducción estimada" value={hasValidOptimizedScenario ? `${formatNumber(optimizedScenario.reductionPct, 1)}%` : "Pendiente"} tone="green" icon={TrendingDown} />
+        <ExecutiveKpiCard label="Huella por m²" value={footprintPerM2Display} tone={footprintPerM2 > 0 ? "green" : "slate"} icon={Building2} />
       </div>
 
       <div className="mt-5 rounded-[20px] border border-[#99F6E4] border-l-4 border-l-[#2DD4BF] bg-[#F0FDFA]/70 p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition-colors duration-300 ease-out hover:border-[#5EEAD4] hover:border-l-[#14B8A6]">
@@ -288,7 +289,7 @@ function ExecutiveSummary({ fuenteCritica, unidadCritica, optimizedScenario, red
           <ScoreFactor label="Fuente dominante" value={`${riskProfile.factors.dominantSourceLabel || "Sin datos"} · ${formatNumber(riskProfile.factors.dominantSourcePercentage ?? riskProfile.factors.sourceConcentration, 1)}%`} tone="warning" />
           <ScoreFactor label="Etapa dominante" value={stageConcentrationDisplay} tone="info" />
           <ScoreFactor label="Diésel consumido" value={dieselDisplay} tone={dieselLiters > 0 ? "warning" : "neutral"} />
-          <ScoreFactor label="% Reducción" value={hasValidOptimizedScenario ? `${formatNumber(riskProfile.factors.potentialReduction, 1)}%` : "Pendiente"} tone="success" />
+          <ScoreFactor label="Huella por m²" value={footprintPerM2Display} tone={footprintPerM2 > 0 ? "success" : "neutral"} />
         </div>
       </div>
 
