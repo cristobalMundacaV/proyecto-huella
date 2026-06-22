@@ -129,7 +129,61 @@ function buildProgressiveActionRanges(potentialReduction) {
   };
 }
 
-function buildStrategicPlan(fuenteCritica, optimizedScenario) {
+function buildTopEmissionRecommendations({ activityLabel, categoryLabel, dieselLiters, stageLabel }) {
+  const hasDiesel = Number(dieselLiters || 0) > 0;
+  return [
+    {
+      title: `Optimizar ${formatTitleCase(activityLabel)}`,
+      detail: `Comparar proveedor, factor de emisión, ficha técnica/EPD y especificación del material crítico antes de repetir compras en ${stageLabel}. Esta es la palanca principal porque ${categoryLabel} concentra la huella medida.`,
+    },
+    {
+      title: "Reducir sobrecompra, merma y desvíos de cantidad",
+      detail: `Cruzar cubicación, cantidad instalada, guías de despacho y facturas para detectar si el impacto viene de volumen comprado, desperdicio, doble registro o mala clasificación en ${stageLabel}.`,
+    },
+    hasDiesel
+      ? {
+          title: "Bajar diésel en maquinaria y movimientos internos",
+          detail: `Revisar horas máquina, ralentí, rendimiento por litro y traslados internos asociados a ${stageLabel}. El consumo de diésel debe controlarse porque se acumula rápido aunque no sea la fuente principal.`,
+        }
+      : {
+          title: "Optimizar logística y abastecimiento del material crítico",
+          detail: `Consolidar entregas, revisar distancia de proveedor, origen del material y frecuencia de despacho. Una misma especificación puede tener distinta huella si cambia proveedor, ruta o respaldo técnico.`,
+        },
+  ];
+}
+
+function buildEvidenceGroups({ activityLabel }) {
+  const materialLabel = formatTitleCase(activityLabel || "Material crítico");
+  return [
+    {
+      area: "Materiales críticos",
+      focus: materialLabel,
+      documents: ["Factura", "Guía de despacho", "Ficha técnica", "EPD/DAP", "Cubicación o cantidad instalada"],
+    },
+    {
+      area: "Maquinaria y combustible",
+      focus: "Diésel / horas de uso",
+      documents: ["Factura o vale de combustible", "Litros cargados", "Horómetro", "Equipo o frente de trabajo"],
+    },
+    {
+      area: "Transporte y logística",
+      focus: "Traslado de materiales",
+      documents: ["Guía de transporte", "Origen-destino", "Kilómetros", "Patente o proveedor"],
+    },
+    {
+      area: "Residuos de obra",
+      focus: "Trazabilidad de salida",
+      documents: ["Vale de pesaje", "Certificado de disposición", "Gestor autorizado", "Fecha de retiro"],
+    },
+    {
+      area: "Energía y agua",
+      focus: "Consumos de faena",
+      documents: ["Boleta o factura", "Medidor", "Periodo", "kWh o m³ consumidos"],
+    },
+  ];
+}
+
+function buildStrategicPlan(fuenteCritica, optimizedScenario, context = {}) {
   const activityLabel = fuenteCritica || optimizedScenario?.targetSource || "la fuente prioritaria";
   const categoryLabel = optimizedScenario?.targetCategory || "la categoría crítica";
   const stageLabel = optimizedScenario?.targetStage || "la etapa prioritaria";
@@ -143,8 +197,8 @@ function buildStrategicPlan(fuenteCritica, optimizedScenario) {
 
   const actionRanges = buildProgressiveActionRanges(potentialReduction);
   const recommendedRange = actionRanges.pilotRange;
-  const recommendedActions = Array.isArray(optimizedScenario?.recommendedActions) ? optimizedScenario.recommendedActions : [];
-  const evidenceNeeded = Array.isArray(optimizedScenario?.evidenceNeeded) ? optimizedScenario.evidenceNeeded : [];
+  const recommendedActions = buildTopEmissionRecommendations({ activityLabel, categoryLabel, dieselLiters: context.dieselLiters, stageLabel });
+  const evidenceGroups = buildEvidenceGroups({ activityLabel, categoryLabel, stageLabel });
   const operationalNextStep = optimizedScenario?.operationalNextStep || `Validar datos y evidencia de ${activityLabel} antes de ejecutar una intervención.`;
   const principalRecommendation = potentialReduction > 0
     ? `${categoryLabel} aparece como la categoría que más empuja la huella y ${activityLabel} es el elemento que conviene revisar primero dentro de ${stageLabel}. La decisión útil no es “reducir en general”, sino descubrir si el impacto viene por cantidad comprada, factor de emisión aplicado, proveedor, ficha técnica/EPD o especificación usada en obra. Antes de nuevas compras o cubicaciones similares, conviene comparar el respaldo técnico del material y confirmar si existe una alternativa equivalente con menor huella.`
@@ -180,7 +234,7 @@ function buildStrategicPlan(fuenteCritica, optimizedScenario) {
     },
   ];
 
-  return { viability, recommendedRange, principalRecommendation, optimalReference, actionLevels, recommendedActions, evidenceNeeded, operationalNextStep, categoryLabel, stageLabel };
+  return { viability, recommendedRange, principalRecommendation, optimalReference, actionLevels, recommendedActions, evidenceGroups, operationalNextStep, categoryLabel, stageLabel };
 }
 
 function ExecutiveSummary({ fuenteCritica, unidadCritica, optimizedScenario, reductionEquivalentKm, riskProfile }) {
@@ -188,14 +242,15 @@ function ExecutiveSummary({ fuenteCritica, unidadCritica, optimizedScenario, red
   const unidadCriticaLabel = getExecutiveLabel(unidadCritica, "Sin etapa suficiente");
   const hasValidOptimizedScenario = hasValidScenario(optimizedScenario);
   const scenarioForPlan = hasValidOptimizedScenario ? optimizedScenario : null;
-  const strategicPlan = buildStrategicPlan(fuenteCriticaLabel, scenarioForPlan);
-  const recommendedDecision = hasValidOptimizedScenario
-    ? strategicPlan.principalRecommendation
-    : "Primero hay que cerrar la trazabilidad del dato: cantidad, unidad, proveedor, factor de emisión y evidencia. Recién con esa base el sistema puede distinguir si la presión viene de consumo real, especificación técnica, proveedor o registro incompleto.";
   const currentTotal = Number(optimizedScenario?.currentTotal || 0);
   const simulatedTotal = hasValidOptimizedScenario ? Number(optimizedScenario?.simulatedTotal || 0) : 0;
   const avoidedEmissions = Math.max(currentTotal - simulatedTotal, 0);
   const equivalentCarKm = reductionEquivalentKm != null ? reductionEquivalentKm : avoidedEmissions * 4;
+  const dieselLiters = Number(riskProfile.factors.dieselLiters || 0);
+  const strategicPlan = buildStrategicPlan(fuenteCriticaLabel, scenarioForPlan, { dieselLiters });
+  const recommendedDecision = hasValidOptimizedScenario
+    ? strategicPlan.principalRecommendation
+    : "Primero hay que cerrar la trazabilidad del dato: cantidad, unidad, proveedor, factor de emisión y evidencia. Recién con esa base el sistema puede distinguir si la presión viene de consumo real, especificación técnica, proveedor o registro incompleto.";
   const mediumImpactReductionPct = (strategicPlan.recommendedRange.min + strategicPlan.recommendedRange.max) / 2;
   const mediumImpactEstimatedTotal = Math.max(currentTotal * (1 - mediumImpactReductionPct / 100), 0);
   const estimatedImpact = hasValidOptimizedScenario
@@ -206,7 +261,6 @@ function ExecutiveSummary({ fuenteCritica, unidadCritica, optimizedScenario, red
   const stageConcentrationLabel = getExecutiveLabel(riskProfile.factors.dominantStageLabel, unidadCriticaLabel);
   const stageConcentrationValue = Number(riskProfile.factors.stageConcentration || 0);
   const stageConcentrationDisplay = stageConcentrationValue > 0 ? `${stageConcentrationLabel} · ${formatNumber(stageConcentrationValue, 1)}%` : "Sin datos suficientes";
-  const dieselLiters = Number(riskProfile.factors.dieselLiters || 0);
   const dieselDisplay = dieselLiters > 0 ? `${formatNumber(dieselLiters, 1)} litros` : "Sin consumo";
   const footprintPerM2 = Number(riskProfile.factors.footprintPerM2 || 0);
   const footprintPerM2Display = footprintPerM2 > 0 ? `${formatNumber(footprintPerM2, 2)} kgCO₂e/m²` : "Requiere m²";
@@ -302,37 +356,59 @@ function ExecutiveSummary({ fuenteCritica, unidadCritica, optimizedScenario, red
 }
 
 function SpecificRecommendationPanel({ strategicPlan }) {
-  const actions = strategicPlan.recommendedActions || [];
-  const evidence = strategicPlan.evidenceNeeded || [];
-  if (!actions.length && !evidence.length) return null;
+  const actions = (strategicPlan.recommendedActions || []).slice(0, 3);
+  const evidenceGroups = strategicPlan.evidenceGroups || [];
+  if (!actions.length && !evidenceGroups.length) return null;
 
   return (
-    <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-      <section className="rounded-[22px] border border-emerald-200 bg-[linear-gradient(135deg,rgba(236,253,245,0.96),rgba(255,255,255,0.98))] p-5 shadow-[0_12px_30px_rgba(15,118,110,0.08)]">
+    <div className="mt-5 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[1fr_1.08fr]">
+      <section className="flex h-full flex-col rounded-[22px] border border-emerald-200 bg-[linear-gradient(135deg,rgba(236,253,245,0.96),rgba(255,255,255,0.98))] p-5 shadow-[0_12px_30px_rgba(15,118,110,0.08)]">
         <div className="flex items-start gap-3">
           <div className="rounded-full border border-emerald-200 bg-white p-3 text-emerald-700"><Sparkles size={20} /></div>
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-700">Recomendaciones específicas</p>
-            <h3 className="mt-1 text-lg font-black text-[#0F172A]">Qué debería hacer la empresa ahora</h3>
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-700">3 recomendaciones de mayor reducción</p>
+            <h3 className="mt-1 text-lg font-black text-[#0F172A]">Qué bajaría más emisiones dentro de la obra</h3>
           </div>
         </div>
-        <div className="mt-4 space-y-2">
-          {actions.map((action) => <div key={action} className="rounded-2xl border border-emerald-100 bg-white/80 p-3 text-sm font-semibold leading-6 text-[#334155]">{action}</div>)}
+        <div className="mt-4 grid flex-1 gap-3">
+          {actions.map((action, index) => (
+            <article key={action.title || action.detail} className="rounded-2xl border border-emerald-100 bg-white/85 p-4 text-sm leading-6 text-[#334155] shadow-sm">
+              <div className="flex items-start gap-3">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-black text-white">{index + 1}</span>
+                <div>
+                  <p className="font-black text-[#0F172A]">{action.title}</p>
+                  <p className="mt-1 font-semibold text-[#334155]">{action.detail}</p>
+                </div>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
 
-      <section className="rounded-[22px] border border-sky-200 bg-[linear-gradient(135deg,rgba(239,246,255,0.96),rgba(255,255,255,0.98))] p-5 shadow-[0_12px_30px_rgba(37,99,235,0.06)]">
+      <section className="flex h-full flex-col rounded-[22px] border border-sky-200 bg-[linear-gradient(135deg,rgba(239,246,255,0.96),rgba(255,255,255,0.98))] p-5 shadow-[0_12px_30px_rgba(37,99,235,0.06)]">
         <div className="flex items-start gap-3">
           <div className="rounded-full border border-sky-200 bg-white p-3 text-sky-700"><FileText size={20} /></div>
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-sky-700">Evidencia necesaria</p>
-            <h3 className="mt-1 text-lg font-black text-[#0F172A]">Qué debe respaldar el usuario</h3>
+            <h3 className="mt-1 text-lg font-black text-[#0F172A]">Documentos reales que necesita el sistema</h3>
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {evidence.map((item) => <span key={item} className="rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-black text-sky-700">{formatTitleCase(item)}</span>)}
+        <div className="mt-4 grid flex-1 gap-3 md:grid-cols-2">
+          {evidenceGroups.map((group) => (
+            <article key={group.area} className="rounded-2xl border border-sky-100 bg-white/85 p-3 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-sky-700">{group.area}</p>
+              <p className="mt-1 text-sm font-black text-[#0F172A]">{group.focus}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {group.documents.map((item) => (
+                  <span key={`${group.area}-${item}`} className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-black text-sky-800">{item}</span>
+                ))}
+              </div>
+            </article>
+          ))}
         </div>
-        <div className="mt-4 rounded-2xl border border-sky-100 bg-white/80 p-3 text-sm font-semibold leading-6 text-[#334155]">{strategicPlan.operationalNextStep}</div>
+        <div className="mt-4 rounded-2xl border border-sky-100 bg-white/85 p-3 text-sm font-semibold leading-6 text-[#334155]">
+          {strategicPlan.operationalNextStep}
+        </div>
       </section>
     </div>
   );
