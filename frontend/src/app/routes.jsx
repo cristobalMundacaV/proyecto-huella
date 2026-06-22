@@ -6,12 +6,10 @@ import ImportacionesPage from "@/features/importaciones/pages/ImportacionesPage"
 import ObrasPage from "@/features/obras/pages/ObrasPage";
 import ReportesPage from "@/features/reportes/pages/ReportesPage";
 import EtapasPage from "@/features/etapas/pages/EtapasPage";
-import IngestaInteligentePage from "@/core/ingesta/pages/IngestaInteligentePage";
 import ReportesRegulatoriosPage from "@/core/reportes-regulatorios/pages/ReportesRegulatoriosPage";
 import CopilotoAmbientalPage from "@/core/copiloto/pages/CopilotoAmbientalPage";
 
 export const appRoutes = {
-  ingesta_inteligente: IngestaInteligentePage,
   reportes_regulatorios: ReportesRegulatoriosPage,
   copiloto_ambiental: CopilotoAmbientalPage,
   constructoras: ConstructorasPage,
