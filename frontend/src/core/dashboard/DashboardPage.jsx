@@ -155,13 +155,13 @@ function buildExecutiveScenario({ activePresetKey, byCategory, bySource, byStage
     recommendedActions: isConstruction
       ? [
           `Validar respaldo técnico y cantidades asociadas a ${sourceLabel}.`,
-          `Ejecutar un piloto medible en ${stageLabel} antes de escalar cambios de proveedor, diseño o especificación.`,
-          "Comparar alternativas con menor factor de emisión sin comprometer costo, plazo ni desempeño de obra.",
+          `Comparar factor de emisión, ficha técnica/EPD y proveedor antes de repetir compras en ${stageLabel}.`,
+          "Revisar si la presión viene de cantidad, especificación o clasificación del registro antes de comprometer cambios de diseño o abastecimiento.",
         ]
       : [
           `Validar respaldo técnico y cantidades asociadas a ${sourceLabel}.`,
-          `Ejecutar un piloto medible en ${stageLabel} antes de escalar cambios estructurales.`,
-          "Comparar alternativas operacionales con menor factor de emisión.",
+          `Comparar factor aplicado, proveedor y evidencia operacional antes de escalar cambios en ${stageLabel}.`,
+          "Separar si la presión viene de consumo real, proceso, proveedor o clasificación del registro.",
         ],
     evidenceNeeded: isConstruction
       ? ["guia de despacho", "factura", "ficha tecnica", "respaldo de cantidad"]
