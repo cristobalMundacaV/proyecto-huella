@@ -3,6 +3,7 @@ import { Activity, AlertTriangle, BarChart3, CheckCircle2, Database, Factory, Le
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import RealtimeIotMonitoring from "@/features/dashboard/components/RealtimeIotMonitoring";
+import ExecutiveSummary from "@/features/dashboard/components/ExecutiveSummary";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
 import { getTraceableActionsSummary } from "@/features/intelligence/services/traceableActionsApi";
 import KpiCard from "@/shared/components/KpiCard";
@@ -53,6 +54,85 @@ function groupBy(rows, key, outputKey = "name") {
       return accumulator;
     }, {})
   ).sort((left, right) => right.emisiones - left.emisiones);
+}
+
+function normalizeText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function buildExecutiveScenario({ activePresetKey, byCategory, bySource, byStage, rows, totalEmissions }) {
+  const total = Number(totalEmissions || 0);
+  const dominantSource = bySource[0];
+  const dominantStage = byStage[0];
+  const dominantCategory = byCategory[0];
+  const sourceConcentration = total > 0 && dominantSource?.emisiones ? (dominantSource.emisiones / total) * 100 : 0;
+  const stageConcentration = total > 0 && dominantStage?.emisiones ? (dominantStage.emisiones / total) * 100 : 0;
+  const dieselPresent = rows.some((row) => /diesel|combustible|petroleo/.test(normalizeText(`${row.fuente_visible} ${row.categoria_visible}`)));
+  const totalEmissionLevel = total > 100000 ? "Alto" : total > 10000 ? "Medio" : total > 0 ? "Bajo" : "Sin datos";
+  const potentialReduction = sourceConcentration > 0 ? Math.min(35, Math.max(3, sourceConcentration * 0.15)) : 0;
+  const riskScore = Math.min(
+    100,
+    Math.round(
+      sourceConcentration * 0.55 +
+        stageConcentration * 0.25 +
+        (total > 100000 ? 20 : total > 10000 ? 12 : total > 0 ? 5 : 0) +
+        (dieselPresent ? 8 : 0)
+    )
+  );
+  const isConstruction = activePresetKey === "construccion";
+  const sourceLabel = dominantSource?.fuente || "Sin fuente suficiente";
+  const stageLabel = dominantStage?.etapa || "Sin etapa suficiente";
+  const categoryLabel = dominantCategory?.categoria || "Sin categoria suficiente";
+
+  const riskProfile = {
+    score: riskScore,
+    label: riskScore > 70 ? "Alto" : riskScore > 30 ? "Medio" : "Bajo",
+    factors: {
+      dieselPresent,
+      dominantStageLabel: stageLabel,
+      stageConcentration,
+      totalEmissions: { label: totalEmissionLevel },
+      dominantSourceLabel: sourceLabel,
+      dominantSourcePercentage: sourceConcentration,
+      sourceConcentration,
+      potentialReduction,
+    },
+  };
+
+  if (!total || !dominantSource?.emisiones || !potentialReduction) {
+    return { optimizedScenario: null, riskProfile };
+  }
+
+  const optimizedScenario = {
+    currentTotal: total,
+    simulatedTotal: Math.max(total * (1 - potentialReduction / 100), 0),
+    reductionPct: potentialReduction,
+    targetSource: sourceLabel,
+    targetCategory: categoryLabel,
+    targetStage: stageLabel,
+    activityReduction: Math.min(45, Math.max(10, potentialReduction * 2.4)),
+    dieselReduction: dieselPresent ? Math.min(20, Math.max(5, potentialReduction)) : 0,
+    recommendedActions: isConstruction
+      ? [
+          `Validar respaldo técnico y cantidades asociadas a ${sourceLabel}.`,
+          `Ejecutar un piloto medible en ${stageLabel} antes de escalar cambios de proveedor, diseño o especificación.`,
+          "Comparar alternativas con menor factor de emisión sin comprometer costo, plazo ni desempeño de obra.",
+        ]
+      : [
+          `Validar respaldo técnico y cantidades asociadas a ${sourceLabel}.`,
+          `Ejecutar un piloto medible en ${stageLabel} antes de escalar cambios estructurales.`,
+          "Comparar alternativas operacionales con menor factor de emisión.",
+        ],
+    evidenceNeeded: isConstruction
+      ? ["guia de despacho", "factura", "ficha tecnica", "respaldo de cantidad"]
+      : ["documento de respaldo", "registro operacional", "factor aplicado"],
+    operationalNextStep: `Revisar datos, evidencia y responsable operativo para ${sourceLabel} en ${stageLabel}.`,
+  };
+
+  return { optimizedScenario, riskProfile };
 }
 
 function DashboardChart({ data, nameKey, title }) {
@@ -244,6 +324,10 @@ function DashboardPage({ onStatusChange, onSetActiveView }) {
   const criticalSource = bySource[0]?.fuente || data?.fuente_critica || "Sin datos";
   const criticalUnit = byUnit[0]?.unidad || data?.obra_critica || "Sin datos";
   const topShare = totalEmissions > 0 && bySource[0]?.emisiones ? (bySource[0].emisiones / totalEmissions) * 100 : 0;
+  const { optimizedScenario, riskProfile } = useMemo(
+    () => buildExecutiveScenario({ activePresetKey: activePreset.key, byCategory, bySource, byStage, rows, totalEmissions }),
+    [activePreset.key, byCategory, bySource, byStage, rows, totalEmissions]
+  );
 
   if (loading && !data && !ambientRecords.length) {
     return (
@@ -267,7 +351,7 @@ function DashboardPage({ onStatusChange, onSetActiveView }) {
               <Leaf size={28} />
             </div>
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-700">Panel ambiental</p>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-700">Dashboard ambiental</p>
               <h1 className="mt-2 text-3xl font-black tracking-tight text-[var(--text-main)] sm:text-4xl">
                 Carbono Zero
               </h1>
@@ -285,6 +369,13 @@ function DashboardPage({ onStatusChange, onSetActiveView }) {
           </div>
         </div>
       </section>
+
+      <ExecutiveSummary
+        fuenteCritica={criticalSource}
+        unidadCritica={criticalStage}
+        optimizedScenario={optimizedScenario}
+        riskProfile={riskProfile}
+      />
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <KpiCard icon={<Activity />} title="Emisiones totales" value={`${formatNumber(totalEmissions, 1)} kg CO₂e`} />
