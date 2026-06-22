@@ -1,4 +1,4 @@
-﻿import ConstructorasPage from "@/features/constructoras/pages/ConstructorasPage";
+import ConstructorasPage from "@/features/constructoras/pages/ConstructorasPage";
 import EvidenciasPage from "@/features/evidencias/pages/EvidenciasPage";
 import ConfiguracionPage from "@/features/configuracion/pages/ConfiguracionPage";
 import FactoresPage from "@/features/factores/pages/FactoresPage";
@@ -6,13 +6,11 @@ import ImportacionesPage from "@/features/importaciones/pages/ImportacionesPage"
 import ObrasPage from "@/features/obras/pages/ObrasPage";
 import ReportesPage from "@/features/reportes/pages/ReportesPage";
 import EtapasPage from "@/features/etapas/pages/EtapasPage";
-import CentralOperativaPage from "@/core/central-operativa/pages/CentralOperativaPage";
 import IngestaInteligentePage from "@/core/ingesta/pages/IngestaInteligentePage";
 import ReportesRegulatoriosPage from "@/core/reportes-regulatorios/pages/ReportesRegulatoriosPage";
 import CopilotoAmbientalPage from "@/core/copiloto/pages/CopilotoAmbientalPage";
 
 export const appRoutes = {
-  central_operativa: CentralOperativaPage,
   ingesta_inteligente: IngestaInteligentePage,
   reportes_regulatorios: ReportesRegulatoriosPage,
   copiloto_ambiental: CopilotoAmbientalPage,
