@@ -389,6 +389,8 @@ function DashboardPage({ onStatusChange, onSetActiveView }) {
       <ActionsExecutiveSummary summary={actionsSummary} onOpenActions={() => onSetActiveView?.("acciones")} />
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <DashboardChart title="Emisiones por obra" data={byUnit} nameKey="unidad" />
+        <DashboardChart title="Emisiones por categoría" data={byCategory} nameKey="categoria" />
         <DashboardChart title="Emisiones por etapa" data={byStage} nameKey="etapa" />
         <DashboardChart title="Emisiones por fuente" data={bySource} nameKey="fuente" />
       </section>
