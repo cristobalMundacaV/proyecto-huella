@@ -15,7 +15,6 @@ const aserraderoPreset = {
   intelligence: sawmillIntelligence,
   navigation: [
     { view: "dashboard", label: "Dashboard" },
-    { view: "central_operativa", label: "Central Operativa" },
     { view: "ingesta_inteligente", label: "Ingesta Inteligente" },
     { view: "reportes_regulatorios", label: "Reportes Regulatorios" },
     { view: "copiloto_ambiental", label: "Copiloto Ambiental" },
