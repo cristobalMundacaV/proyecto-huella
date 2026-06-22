@@ -16,12 +16,10 @@ const aserraderoPreset = {
   navigation: [
     { view: "dashboard", label: "Dashboard" },
     { view: "operacion", label: "Operacion" },
-    { view: "emisiones", label: "Gestion de Huella" },
     { view: "inteligencia", label: "Inteligencia" },
     { view: "copiloto_ambiental", label: "Copiloto Ambiental" },
     { view: "acciones", label: "Acciones" },
     { view: "evidencias", label: "Evidencias Ambientales" },
-    { view: "reportes", label: "Reportes" },
     { view: "administracion", label: "Administracion" },
   ],
 };
