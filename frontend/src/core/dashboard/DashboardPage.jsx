@@ -166,7 +166,7 @@ function buildExecutiveScenario({ activePresetKey, byCategory, bySource, byStage
 
 function getConicGradient(items) {
   let current = 0;
-  const parts = items.map((item, index) => {
+  const parts = items.map((item) => {
     const start = current;
     const end = current + Number(item.share || 0);
     current = end;
@@ -177,7 +177,7 @@ function getConicGradient(items) {
 
 function EmissionParticipationPanel({ data, description, nameKey, title, totalLabel = "Total obra" }) {
   const total = data.reduce((sum, item) => sum + Number(item.emisiones || 0), 0);
-  const items = data.slice(0, 8).map((item, index) => {
+  const items = data.map((item, index) => {
     const share = total > 0 ? (Number(item.emisiones || 0) / total) * 100 : 0;
     return {
       ...item,
@@ -215,7 +215,7 @@ function EmissionParticipationPanel({ data, description, nameKey, title, totalLa
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="max-h-[390px] space-y-3 overflow-y-auto pr-2 scroll-smooth">
             {items.map((item) => (
               <article key={`${title}-${item.label}`} className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
