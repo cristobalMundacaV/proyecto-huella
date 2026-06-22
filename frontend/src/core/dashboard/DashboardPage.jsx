@@ -63,6 +63,33 @@ function normalizeText(value) {
     .toLowerCase();
 }
 
+function getRowQuantity(row) {
+  const candidates = [
+    row?.cantidad,
+    row?.valor,
+    row?.quantity,
+    row?.litros,
+    row?.metadata?.cantidad,
+    row?.metadata?.valor,
+    row?.metadata?.value,
+    row?.metadata?.litros,
+    row?.metadata?.liters,
+    row?.metadata?.reading,
+  ];
+  const found = candidates.find((value) => Number.isFinite(Number(value)) && Number(value) > 0);
+  return Number(found || 0);
+}
+
+function calculateDieselLiters(rows) {
+  return rows.reduce((total, row) => {
+    const text = normalizeText(`${row?.fuente_visible} ${row?.categoria_visible} ${row?.unidad} ${row?.tipo} ${row?.metadata?.unit} ${row?.metadata?.tipo}`);
+    const isDiesel = /diesel|petroleo|combustible/.test(text);
+    const isLiters = /litro|litros|liter|liters|\bl\b/.test(text) || isDiesel;
+    if (!isDiesel || !isLiters) return total;
+    return total + getRowQuantity(row);
+  }, 0);
+}
+
 function buildExecutiveScenario({ activePresetKey, byCategory, bySource, byStage, rows, totalEmissions }) {
   const total = Number(totalEmissions || 0);
   const dominantSource = bySource[0];
@@ -70,7 +97,8 @@ function buildExecutiveScenario({ activePresetKey, byCategory, bySource, byStage
   const dominantCategory = byCategory[0];
   const sourceConcentration = total > 0 && dominantSource?.emisiones ? (dominantSource.emisiones / total) * 100 : 0;
   const stageConcentration = total > 0 && dominantStage?.emisiones ? (dominantStage.emisiones / total) * 100 : 0;
-  const dieselPresent = rows.some((row) => /diesel|combustible|petroleo/.test(normalizeText(`${row.fuente_visible} ${row.categoria_visible}`)));
+  const dieselLiters = calculateDieselLiters(rows);
+  const dieselPresent = dieselLiters > 0 || rows.some((row) => /diesel|combustible|petroleo/.test(normalizeText(`${row.fuente_visible} ${row.categoria_visible}`)));
   const totalEmissionLevel = total > 100000 ? "Alto" : total > 10000 ? "Medio" : total > 0 ? "Bajo" : "Sin datos";
   const potentialReduction = sourceConcentration > 0 ? Math.min(35, Math.max(3, sourceConcentration * 0.15)) : 0;
   const riskScore = Math.min(
@@ -92,6 +120,7 @@ function buildExecutiveScenario({ activePresetKey, byCategory, bySource, byStage
     label: riskScore > 70 ? "Alto" : riskScore > 30 ? "Medio" : "Bajo",
     factors: {
       dieselPresent,
+      dieselLiters,
       dominantStageLabel: stageLabel,
       stageConcentration,
       totalEmissions: { label: totalEmissionLevel },
@@ -193,11 +222,7 @@ function ActionsExecutiveSummary({ onOpenActions, summary }) {
               : "Aún no hay acciones ambientales creadas para esta empresa."}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onOpenActions}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-black text-emerald-800 shadow-sm hover:bg-emerald-50"
-        >
+        <button type="button" onClick={onOpenActions} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-black text-emerald-800 shadow-sm hover:bg-emerald-50">
           <CheckCircle2 size={17} />
           Ver acciones
         </button>
@@ -330,12 +355,7 @@ function DashboardPage({ onStatusChange, onSetActiveView }) {
   );
 
   if (loading && !data && !ambientRecords.length) {
-    return (
-      <PlatformLoader
-        title="Cargando tablero de empresa"
-        description="Estamos preparando indicadores, focos críticos y recomendaciones ambientales."
-      />
-    );
+    return <PlatformLoader title="Cargando tablero de empresa" description="Estamos preparando indicadores, focos críticos y recomendaciones ambientales." />;
   }
 
   if (error && !rows.length) {
@@ -347,35 +367,22 @@ function DashboardPage({ onStatusChange, onSetActiveView }) {
       <section className="overflow-hidden rounded-[32px] border border-emerald-300/40 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.18),transparent_32%),linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98))] p-6 shadow-[0_28px_80px_rgba(15,118,110,0.14)] ring-1 ring-white/70">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4">
-            <div className="rounded-3xl border border-emerald-200 bg-white/80 p-4 text-emerald-800 shadow-sm">
-              <Leaf size={28} />
-            </div>
+            <div className="rounded-3xl border border-emerald-200 bg-white/80 p-4 text-emerald-800 shadow-sm"><Leaf size={28} /></div>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-700">Dashboard ambiental</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight text-[var(--text-main)] sm:text-4xl">
-                Carbono Zero
-              </h1>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
-                Convierte datos reales de {activePreset.unitPluralLabel.toLowerCase()} en medición, trazabilidad y decisiones para reducir emisiones durante la operación.
-              </p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight text-[var(--text-main)] sm:text-4xl">Carbono Zero</h1>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">Convierte datos reales de {activePreset.unitPluralLabel.toLowerCase()} en medición, trazabilidad y decisiones para reducir emisiones durante la operación.</p>
             </div>
           </div>
 
           <div className="rounded-3xl border border-emerald-200 bg-white/80 p-4 text-sm shadow-sm">
             <p className="font-black text-emerald-900">Recomendación principal</p>
-            <p className="mt-1 max-w-sm leading-6 text-slate-600">
-              Prioriza {criticalSource} en {criticalStage}. Es el foco más relevante para transformar la medición en acción ambiental.
-            </p>
+            <p className="mt-1 max-w-sm leading-6 text-slate-600">Prioriza {criticalSource} en {criticalStage}. Es el foco más relevante para transformar la medición en acción ambiental.</p>
           </div>
         </div>
       </section>
 
-      <ExecutiveSummary
-        fuenteCritica={criticalSource}
-        unidadCritica={criticalStage}
-        optimizedScenario={optimizedScenario}
-        riskProfile={riskProfile}
-      />
+      <ExecutiveSummary fuenteCritica={criticalSource} unidadCritica={criticalStage} optimizedScenario={optimizedScenario} riskProfile={riskProfile} />
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <KpiCard icon={<Activity />} title="Emisiones totales" value={`${formatNumber(totalEmissions, 1)} kg CO₂e`} />
