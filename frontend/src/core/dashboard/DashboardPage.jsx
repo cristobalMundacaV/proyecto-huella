@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, AlertTriangle, BarChart3, Database, Factory, Leaf, Radar } from "lucide-react";
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import RealtimeIotMonitoring from "@/features/dashboard/components/RealtimeIotMonitoring";
 import ExecutiveSummary from "@/features/dashboard/components/ExecutiveSummary";
@@ -19,13 +18,7 @@ import { DEFAULT_PRESET_KEY, getActivePreset } from "@/presets/registry";
 
 const DASHBOARD_REFRESH_INTERVAL_MS = 12000;
 
-const tooltipContentStyle = {
-  backgroundColor: "#FCFDFC",
-  border: "1px solid #B7C6BD",
-  borderRadius: "12px",
-  color: "#1F2937",
-  boxShadow: "0 12px 28px rgba(15, 23, 42, 0.12)",
-};
+const PARTICIPATION_COLORS = ["#E11D48", "#EA580C", "#2563EB", "#7C3AED", "#059669", "#0891B2", "#84CC16", "#64748B"];
 
 const normalizeRows = (input) => {
   const rows = Array.isArray(input)
@@ -171,45 +164,85 @@ function buildExecutiveScenario({ activePresetKey, byCategory, bySource, byStage
   return { optimizedScenario, riskProfile };
 }
 
-function DashboardChart({ data, nameKey, title }) {
-  const chartData = data.slice(0, 7);
+function getConicGradient(items) {
+  let current = 0;
+  const parts = items.map((item, index) => {
+    const start = current;
+    const end = current + Number(item.share || 0);
+    current = end;
+    return `${item.color} ${start}% ${end}%`;
+  });
+  return parts.length ? `conic-gradient(${parts.join(", ")})` : "conic-gradient(#CBD5E1 0% 100%)";
+}
+
+function EmissionParticipationPanel({ data, description, nameKey, title, totalLabel = "Total obra" }) {
+  const total = data.reduce((sum, item) => sum + Number(item.emisiones || 0), 0);
+  const items = data.slice(0, 8).map((item, index) => {
+    const share = total > 0 ? (Number(item.emisiones || 0) / total) * 100 : 0;
+    return {
+      ...item,
+      color: PARTICIPATION_COLORS[index % PARTICIPATION_COLORS.length],
+      label: item[nameKey] || "Sin datos",
+      share,
+    };
+  });
+  const dominant = items[0];
 
   return (
-    <section className="rounded-[30px] border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-[var(--shadow-card)] ring-1 ring-white/70">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <section className="overflow-hidden rounded-[32px] border border-[var(--border)] bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] p-6 shadow-[var(--shadow-card)] ring-1 ring-white/70">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Lectura ambiental</p>
-          <h3 className="text-xl font-black text-[var(--text-main)]">{title}</h3>
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">Lectura visual</p>
+          <h3 className="mt-1 text-2xl font-black text-[var(--text-main)]">{title}</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">{description}</p>
         </div>
-        <BarChart3 className="text-emerald-700" />
+        {dominant ? (
+          <span className="w-fit rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700">
+            Dominante: {dominant.label}
+          </span>
+        ) : null}
       </div>
 
-      <div className="h-72">
-        {chartData.length ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} layout="vertical" margin={{ top: 8, right: 14, left: 58, bottom: 8 }}>
-              <XAxis type="number" tickFormatter={(value) => formatNumber(value, 0)} />
-              <YAxis
-                dataKey={nameKey}
-                interval={0}
-                type="category"
-                width={170}
-                tick={{ fontSize: 11, fontWeight: 700 }}
-                tickFormatter={(value) => String(value || "").length > 28 ? `${String(value).slice(0, 28)}...` : value}
-              />
-              <Tooltip
-                contentStyle={tooltipContentStyle}
-                formatter={(value) => [`${formatNumber(value, 1)} kg CO₂e`, "Emisiones"]}
-              />
-              <Bar dataKey="emisiones" fill="#0F7C6D" radius={[0, 10, 10, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm font-semibold text-[var(--text-muted)]">
-            Sin datos suficientes para graficar.
+      {items.length ? (
+        <div className="mt-6 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-center">
+          <div className="flex justify-center">
+            <div className="relative h-52 w-52 rounded-full shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]" style={{ background: getConicGradient(items) }}>
+              <div className="absolute inset-10 flex flex-col items-center justify-center rounded-full bg-white text-center shadow-[0_14px_35px_rgba(15,23,42,0.10)]">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">{totalLabel}</p>
+                <p className="mt-1 text-2xl font-black text-[var(--text-main)]">{formatNumber(total, 1)}</p>
+                <p className="text-xs font-black text-slate-500">kg CO₂e</p>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+
+          <div className="space-y-3">
+            {items.map((item) => (
+              <article key={`${title}-${item.label}`} className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+                    <div>
+                      <p className="text-base font-black text-[var(--text-main)]">{item.label}</p>
+                      <p className="text-xs font-bold text-slate-500">{item.registros} registros asociados</p>
+                    </div>
+                  </div>
+                  <div className="text-left sm:text-right">
+                    <p className="text-base font-black text-sky-950">{formatNumber(item.emisiones, 1)} kg CO₂e</p>
+                    <p className="text-xs font-black text-slate-500">{formatNumber(item.share, 1)}%</p>
+                  </div>
+                </div>
+                <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200">
+                  <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(1, item.share))}%`, backgroundColor: item.color }} />
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-6 flex min-h-[220px] items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-white/70 text-sm font-semibold text-[var(--text-muted)]">
+          Sin datos suficientes para construir esta lectura.
+        </div>
+      )}
     </section>
   );
 }
@@ -360,11 +393,31 @@ function DashboardPage({ onStatusChange }) {
         <KpiCard icon={<BarChart3 />} title="Registros analizados" value={formatNumber(rows.length, 0)} />
       </section>
 
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <DashboardChart title="Emisiones por obra" data={byUnit} nameKey="unidad" />
-        <DashboardChart title="Emisiones por categoría" data={byCategory} nameKey="categoria" />
-        <DashboardChart title="Emisiones por etapa" data={byStage} nameKey="etapa" />
-        <DashboardChart title="Emisiones por fuente" data={bySource} nameKey="fuente" />
+      <section className="space-y-6">
+        <EmissionParticipationPanel
+          data={byUnit}
+          description="Compara qué obra o unidad concentra más emisiones dentro de la empresa. Sirve para detectar dónde mirar primero antes de abrir detalle por etapa o fuente."
+          nameKey="unidad"
+          title="Participación de emisiones por obra"
+        />
+        <EmissionParticipationPanel
+          data={byStage}
+          description="Muestra qué etapa de obra concentra la mayor responsabilidad dentro de la huella. Mientras más grande el segmento, mayor prioridad operativa."
+          nameKey="etapa"
+          title="Participación de emisiones por etapa"
+        />
+        <EmissionParticipationPanel
+          data={byCategory}
+          description="Agrupa las emisiones por categoría ambiental para distinguir si la presión viene de materiales, energía, maquinaria, residuos o transporte."
+          nameKey="categoria"
+          title="Participación de emisiones por categoría"
+        />
+        <EmissionParticipationPanel
+          data={bySource}
+          description="Muestra todas las fuentes que generan emisiones. Mientras más grande sea el segmento, mayor es la responsabilidad de esa fuente dentro de la huella de la obra."
+          nameKey="fuente"
+          title="Participación de emisiones por fuente"
+        />
       </section>
 
       <RealtimeIotMonitoring activeConstructoraId={activeConstructoraId} />
