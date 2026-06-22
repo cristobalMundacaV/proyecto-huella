@@ -5,6 +5,7 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recha
 import RealtimeIotMonitoring from "@/features/dashboard/components/RealtimeIotMonitoring";
 import ExecutiveSummary from "@/features/dashboard/components/ExecutiveSummary";
 import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { getEnvironmentalKpis } from "@/features/environmental/services/environmentalKpiApi";
 import { getTraceableActionsSummary } from "@/features/intelligence/services/traceableActionsApi";
 import KpiCard from "@/shared/components/KpiCard";
 import PlatformLoader from "@/shared/components/PlatformLoader";
@@ -90,7 +91,13 @@ function calculateDieselLiters(rows) {
   }, 0);
 }
 
-function buildExecutiveScenario({ activePresetKey, byCategory, bySource, byStage, rows, totalEmissions }) {
+function getKpiCardValue(kpis, id) {
+  const card = (kpis?.cards || []).find((item) => item.id === id);
+  const value = Number(card?.value);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function buildExecutiveScenario({ activePresetKey, byCategory, bySource, byStage, footprintPerM2, rows, totalEmissions }) {
   const total = Number(totalEmissions || 0);
   const dominantSource = bySource[0];
   const dominantStage = byStage[0];
@@ -121,6 +128,7 @@ function buildExecutiveScenario({ activePresetKey, byCategory, bySource, byStage
     factors: {
       dieselPresent,
       dieselLiters,
+      footprintPerM2,
       dominantStageLabel: stageLabel,
       stageConcentration,
       totalEmissions: { label: totalEmissionLevel },
@@ -254,6 +262,7 @@ function DashboardPage({ onStatusChange, onSetActiveView }) {
   const [data, setData] = useState(null);
   const [ambientRecords, setAmbientRecords] = useState([]);
   const [emissionKpis, setEmissionKpis] = useState(null);
+  const [environmentalKpis, setEnvironmentalKpis] = useState(null);
   const [actionsSummary, setActionsSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -263,6 +272,7 @@ function DashboardPage({ onStatusChange, onSetActiveView }) {
       setData(null);
       setAmbientRecords([]);
       setEmissionKpis(null);
+      setEnvironmentalKpis(null);
       setActionsSummary(null);
       onStatusChange?.(null);
       setLoading(false);
@@ -272,18 +282,20 @@ function DashboardPage({ onStatusChange, onSetActiveView }) {
     if (showLoading) setLoading(true);
     setError("");
 
-    const [dashboardResult, estadoResult, emissionsResult, recordsResult, actionsSummaryResult] = await Promise.allSettled([
+    const [dashboardResult, estadoResult, emissionsResult, recordsResult, actionsSummaryResult, environmentalKpiResult] = await Promise.allSettled([
       getConstructoraDashboard(activeConstructoraId, { light: "1" }),
       getConstructoraEstado(activeConstructoraId),
       getConstructoraEmisiones(activeConstructoraId, { page: 1, page_size: 1 }),
       getEmpresaRegistrosAmbientales(activeConstructoraId),
       getTraceableActionsSummary(activeConstructoraId),
+      getEnvironmentalKpis(activeConstructoraId),
     ]);
 
     const normalizedRecords = recordsResult.status === "fulfilled" ? normalizeRows(recordsResult.value) : [];
 
     if (dashboardResult.status === "fulfilled") setData(dashboardResult.value);
     if (emissionsResult.status === "fulfilled") setEmissionKpis(emissionsResult.value?.kpis || null);
+    if (environmentalKpiResult.status === "fulfilled") setEnvironmentalKpis(environmentalKpiResult.value || null);
     if (recordsResult.status === "fulfilled") setAmbientRecords(normalizedRecords);
     if (actionsSummaryResult.status === "fulfilled") setActionsSummary(actionsSummaryResult.value);
 
@@ -349,9 +361,10 @@ function DashboardPage({ onStatusChange, onSetActiveView }) {
   const criticalSource = bySource[0]?.fuente || data?.fuente_critica || "Sin datos";
   const criticalUnit = byUnit[0]?.unidad || data?.obra_critica || "Sin datos";
   const topShare = totalEmissions > 0 && bySource[0]?.emisiones ? (bySource[0].emisiones / totalEmissions) * 100 : 0;
+  const footprintPerM2 = getKpiCardValue(environmentalKpis, "huella_m2");
   const { optimizedScenario, riskProfile } = useMemo(
-    () => buildExecutiveScenario({ activePresetKey: activePreset.key, byCategory, bySource, byStage, rows, totalEmissions }),
-    [activePreset.key, byCategory, bySource, byStage, rows, totalEmissions]
+    () => buildExecutiveScenario({ activePresetKey: activePreset.key, byCategory, bySource, byStage, footprintPerM2, rows, totalEmissions }),
+    [activePreset.key, byCategory, bySource, byStage, footprintPerM2, rows, totalEmissions]
   );
 
   if (loading && !data && !ambientRecords.length) {
