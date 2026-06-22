@@ -26,7 +26,6 @@ import FactoresView from "@/features/factores/pages/FactoresPage";
 import ImportacionesView from "@/features/importaciones/pages/ImportacionesPage";
 import UsuariosPage from "@/features/usuarios/pages/UsuariosPage";
 import ConfiguracionPage from "@/features/configuracion/pages/ConfiguracionPage";
-import IngestaInteligentePage from "@/core/ingesta/pages/IngestaInteligentePage";
 import ReportesRegulatoriosPage from "@/core/reportes-regulatorios/pages/ReportesRegulatoriosPage";
 import CopilotoAmbientalPage from "@/core/copiloto/pages/CopilotoAmbientalPage";
 
@@ -130,7 +129,6 @@ function App() {
 }
 
 function ActiveView({ activeConstructora, activeConstructoraId, activePreset, activeView, constructoraCreateSignal, onSetActiveView, onStatusChange }) {
-  if (activeView === "ingesta_inteligente") return <IngestaInteligentePage />;
   if (activeView === "reportes_regulatorios") return <ReportesRegulatoriosPage />;
   if (activeView === "copiloto_ambiental") return <CopilotoAmbientalPage />;
   if (activeView === "dashboard") return <DashboardPage onSetActiveView={onSetActiveView} onStatusChange={onStatusChange} />;
