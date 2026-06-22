@@ -13,12 +13,10 @@ import { DEFAULT_PRESET_KEY, getActivePreset } from "@/presets/registry";
 
 import DashboardPage from "@/core/dashboard/DashboardPage";
 import IntelligencePage from "@/features/intelligence/pages/IntelligencePage";
-import EmisionesView from "@/features/emisiones/EmisionesStableView";
 import AccionesAmbientalesPage from "@/features/acciones/pages/AccionesAmbientalesPage";
 import OperacionPage from "@/features/operacion/pages/OperacionPage";
 import AdministracionPage from "@/features/administracion/pages/AdministracionPage";
 import EvidenciasPage from "@/features/evidencias/pages/EvidenciasPage";
-import ReportesView from "@/features/reportes/pages/ReportesView";
 import ConstructorasView from "@/features/constructoras/pages/ConstructorasPage";
 import ObrasView from "@/features/obras/pages/ObrasPage";
 import EtapasObraView from "@/features/etapas/pages/EtapasPage";
@@ -26,8 +24,6 @@ import FactoresView from "@/features/factores/pages/FactoresPage";
 import ImportacionesView from "@/features/importaciones/pages/ImportacionesPage";
 import UsuariosPage from "@/features/usuarios/pages/UsuariosPage";
 import ConfiguracionPage from "@/features/configuracion/pages/ConfiguracionPage";
-import CentralOperativaPage from "@/core/central-operativa/pages/CentralOperativaPage";
-import IngestaInteligentePage from "@/core/ingesta/pages/IngestaInteligentePage";
 import ReportesRegulatoriosPage from "@/core/reportes-regulatorios/pages/ReportesRegulatoriosPage";
 import CopilotoAmbientalPage from "@/core/copiloto/pages/CopilotoAmbientalPage";
 
@@ -130,18 +126,14 @@ function App() {
   );
 }
 
-function ActiveView({ activeConstructora, activeConstructoraId, activePreset, activeView, constructoraCreateSignal, onSetActiveView, onStatusChange }) {
-  if (activeView === "central_operativa") return <CentralOperativaPage />;
-  if (activeView === "ingesta_inteligente") return <IngestaInteligentePage />;
+function ActiveView({ activePreset, activeView, constructoraCreateSignal, onSetActiveView, onStatusChange }) {
   if (activeView === "reportes_regulatorios") return <ReportesRegulatoriosPage />;
   if (activeView === "copiloto_ambiental") return <CopilotoAmbientalPage />;
   if (activeView === "dashboard") return <DashboardPage onSetActiveView={onSetActiveView} onStatusChange={onStatusChange} />;
   if (activeView === "inteligencia") return <IntelligencePage />;
-  if (activeView === "emisiones") return <EmisionesView onSetActiveView={onSetActiveView} />;
   if (activeView === "acciones") return <AccionesAmbientalesPage />;
   if (activeView === "operacion") return <OperacionPage />;
   if (activeView === "evidencias") return <EvidenciasPage />;
-  if (activeView === "reportes") return <ReportesView activeConstructoraId={activeConstructoraId} activeConstructora={activeConstructora} onSetActiveView={onSetActiveView} />;
   if (activeView === "administracion") return <AdministracionPage onSetActiveView={onSetActiveView} openCreateSignal={constructoraCreateSignal} />;
 
   if (activeView === "constructoras") return <ConstructorasView onSetActiveView={onSetActiveView} openCreateSignal={constructoraCreateSignal} />;

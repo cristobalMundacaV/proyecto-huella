@@ -50,7 +50,6 @@ function ReportesRegulatoriosPage() {
         setAlerts([]);
         setActionsSummary(null);
         setExecutiveReport(null);
-        setActionsSummary(null);
       });
   }, [activeCompany?.constructora_id]);
 

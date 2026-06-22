@@ -1,4 +1,4 @@
-﻿import { Boxes, Plus } from "lucide-react";
+import { Boxes, Plus } from "lucide-react";
 
 function ObrasHeader({ onOpenCreate }) {
   return (
@@ -17,6 +17,7 @@ function ObrasHeader({ onOpenCreate }) {
       <button
         type="button"
         onClick={onOpenCreate}
+        data-create-obra-button="true"
         className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--success-bg)] px-5 py-3 text-sm font-bold text-[var(--primary-dark)] transition hover:border-[var(--primary)]/40 hover:bg-[#D9F0E6]"
       >
         <Plus size={18} />

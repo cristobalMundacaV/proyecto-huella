@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FileUp, X } from "lucide-react";
+import { FileText, FileUp, X } from "lucide-react";
 
 import EmptyState from "@/shared/components/EmptyState";
 import PlatformLoader from "@/shared/components/PlatformLoader";
@@ -10,6 +10,7 @@ import {
   getEmpresaRegistrosAmbientales,
   getLotesForestales,
 } from "@/shared/services/api";
+import { createEnvironmentalDocument } from "@/features/environmental/services/environmentalComplianceApi";
 import { DEFAULT_PRESET_KEY, getActivePreset } from "@/presets/registry";
 import { construccionEvidence } from "@/presets/construccion/evidence";
 import { aserraderoEvidence } from "@/presets/aserradero/evidence";
@@ -35,6 +36,14 @@ const evidenceByPreset = {
   industrial: industrialEvidence,
 };
 
+const initialEnvironmentalDocumentForm = {
+  tipo_documento: "",
+  nombre: "",
+  fecha_documento: "",
+  fuente_origen: "manual",
+  resumen: "",
+};
+
 function EvidenciasPage() {
   const { activeConstructoraId, activeConstructora } = useConstructoraActiva();
   const activePreset = getActivePreset(activeConstructora?.preset || DEFAULT_PRESET_KEY);
@@ -45,9 +54,21 @@ function EvidenciasPage() {
   const [loading, setLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [documentSaving, setDocumentSaving] = useState(false);
   const [error, setError] = useState("");
+  const [documentFeedback, setDocumentFeedback] = useState("");
   const [loteFilter, setLoteFilter] = useState("");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
+  const [documentForm, setDocumentForm] = useState(initialEnvironmentalDocumentForm);
+
+  const environmentalDocumentTypes = useMemo(() => {
+    const fromEvidence = [...(config.requiredEvidenceTypes || []), ...(config.optionalEvidenceTypes || [])].map((item) => ({
+      label: item.label,
+      value: item.key || item.backendType || item.label,
+    }));
+    return [...fromEvidence, { label: "Otro", value: "otro" }];
+  }, [config]);
 
   async function loadData() {
     if (!activeConstructoraId) return;
@@ -82,7 +103,7 @@ function EvidenciasPage() {
         throw evidenciasData.reason || recordsData.reason;
       }
     } catch (requestError) {
-      setError(requestError?.response?.data?.error || "No se pudieron cargar las evidencias.");
+      setError(requestError?.response?.data?.error || "No se pudieron cargar las evidencias ambientales.");
     } finally {
       setHasLoaded(true);
       setLoading(false);
@@ -162,11 +183,39 @@ function EvidenciasPage() {
     }
   }
 
+  async function handleEnvironmentalDocumentSubmit(event) {
+    event.preventDefault();
+    if (!activeConstructoraId) return;
+    const selectedType = documentForm.tipo_documento || environmentalDocumentTypes[0]?.value || "otro";
+    const selectedLabel = environmentalDocumentTypes.find((item) => item.value === selectedType)?.label || selectedType;
+    try {
+      setDocumentSaving(true);
+      setError("");
+      setDocumentFeedback("");
+      await createEnvironmentalDocument(activeConstructoraId, {
+        ...documentForm,
+        tipo_documento: selectedType,
+        nombre: documentForm.nombre || selectedLabel,
+        fecha_documento: documentForm.fecha_documento || new Date().toISOString().slice(0, 10),
+        fuente_origen: documentForm.fuente_origen || "manual",
+        resumen: documentForm.resumen || `Documento ambiental registrado desde Evidencias Ambientales: ${selectedLabel}.`,
+      });
+      setDocumentForm(initialEnvironmentalDocumentForm);
+      setIsDocumentModalOpen(false);
+      setDocumentFeedback("Documento ambiental registrado correctamente.");
+      window.setTimeout(() => setDocumentFeedback(""), 3200);
+    } catch (requestError) {
+      setError(requestError?.response?.data?.error || "No se pudo registrar el documento ambiental.");
+    } finally {
+      setDocumentSaving(false);
+    }
+  }
+
   if (!activeConstructoraId) {
     return (
       <EmptyState
-        title="Evidencias"
-        description="Selecciona o crea una empresa para gestionar respaldos documentales."
+        title="Evidencias Ambientales"
+        description="Selecciona o crea una empresa para gestionar respaldos documentales ambientales."
       />
     );
   }
@@ -174,7 +223,7 @@ function EvidenciasPage() {
   if (loading && !hasLoaded) {
     return (
       <PlatformLoader
-        title="Cargando evidencias"
+        title="Cargando evidencias ambientales"
         description="Estamos preparando documentos, cobertura, pendientes críticos y checklist ambiental."
       />
     );
@@ -196,22 +245,41 @@ function EvidenciasPage() {
         </p>
       ) : null}
 
+      {documentFeedback ? (
+        <p className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-black text-emerald-800">
+          {documentFeedback}
+        </p>
+      ) : null}
+
       <section className="flex flex-col gap-4 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-[var(--shadow-card)] sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-800">Acción documental</p>
-          <h2 className="mt-1 text-xl font-black text-[var(--text-main)]">Subir evidencia ambiental</h2>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-800">Evidencias Ambientales</p>
+          <h2 className="mt-1 text-xl font-black text-[var(--text-main)]">Documentos, respaldos y trazabilidad ambiental</h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
-            La carga de documentos se realiza en modal para mantener esta vista enfocada en cobertura, pendientes y trazabilidad.
+            Toda carga documental ambiental se gestiona aquí. Importaciones queda separado para carga masiva y configuraciones.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsUploadModalOpen(true)}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,124,109,0.18)] hover:bg-[var(--primary-dark)]"
-        >
-          <FileUp size={18} />
-          Subir evidencia
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => {
+              setDocumentForm({ ...initialEnvironmentalDocumentForm, tipo_documento: environmentalDocumentTypes[0]?.value || "" });
+              setIsDocumentModalOpen(true);
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white px-5 py-3 text-sm font-black text-emerald-800 shadow-sm hover:bg-emerald-50"
+          >
+            <FileText size={18} />
+            Registrar documento ambiental
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsUploadModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,124,109,0.18)] hover:bg-[var(--primary-dark)]"
+          >
+            <FileUp size={18} />
+            Subir evidencia
+          </button>
+        </div>
       </section>
 
       <EvidenceKpiGrid kpis={kpis} />
@@ -268,6 +336,64 @@ function EvidenciasPage() {
               saving={saving}
             />
           </div>
+        </div>
+      ) : null}
+
+      {isDocumentModalOpen ? (
+        <div className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-950/35 px-4 py-6 backdrop-blur-sm">
+          <form onSubmit={handleEnvironmentalDocumentSubmit} className="w-full max-w-xl rounded-3xl border border-emerald-100 bg-white p-5 shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-black text-[var(--text-main)]">Registrar documento ambiental</h2>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">Registro manual para iniciar trazabilidad documental ambiental.</p>
+              </div>
+              <button type="button" onClick={() => setIsDocumentModalOpen(false)} className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)]">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-4">
+              <label className="text-sm font-bold text-[var(--text-main)]">
+                Tipo de documento
+                <select value={documentForm.tipo_documento} onChange={(event) => setDocumentForm((current) => ({ ...current, tipo_documento: event.target.value }))} className="mt-2 w-full px-3 py-2">
+                  {environmentalDocumentTypes.map((item) => (
+                    <option key={item.value} value={item.value}>{item.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm font-bold text-[var(--text-main)]">
+                Nombre
+                <input value={documentForm.nombre} onChange={(event) => setDocumentForm((current) => ({ ...current, nombre: event.target.value }))} className="mt-2 w-full px-3 py-2" />
+              </label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="text-sm font-bold text-[var(--text-main)]">
+                  Fecha documento
+                  <input type="date" value={documentForm.fecha_documento} onChange={(event) => setDocumentForm((current) => ({ ...current, fecha_documento: event.target.value }))} className="mt-2 w-full px-3 py-2" />
+                </label>
+                <label className="text-sm font-bold text-[var(--text-main)]">
+                  Fuente origen
+                  <select value={documentForm.fuente_origen} onChange={(event) => setDocumentForm((current) => ({ ...current, fuente_origen: event.target.value }))} className="mt-2 w-full px-3 py-2">
+                    {["manual", "excel", "csv", "pdf", "foto", "cems", "laboratorio", "otro"].map((item) => (
+                      <option key={item} value={item}>{item}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <label className="text-sm font-bold text-[var(--text-main)]">
+                Resumen
+                <textarea value={documentForm.resumen} onChange={(event) => setDocumentForm((current) => ({ ...current, resumen: event.target.value }))} rows={3} className="mt-2 w-full px-3 py-2" />
+              </label>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-3">
+              <button type="button" onClick={() => setIsDocumentModalOpen(false)} className="rounded-xl border border-[var(--border)] bg-white px-4 py-2 text-sm font-black text-[var(--text-muted)]">
+                Cancelar
+              </button>
+              <button type="submit" disabled={documentSaving} className="rounded-xl border border-emerald-200 bg-emerald-600 px-4 py-2 text-sm font-black text-white disabled:opacity-60">
+                {documentSaving ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </form>
         </div>
       ) : null}
     </main>
