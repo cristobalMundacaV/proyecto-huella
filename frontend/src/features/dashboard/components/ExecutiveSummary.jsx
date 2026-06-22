@@ -147,11 +147,11 @@ function buildStrategicPlan(fuenteCritica, optimizedScenario) {
   const evidenceNeeded = Array.isArray(optimizedScenario?.evidenceNeeded) ? optimizedScenario.evidenceNeeded : [];
   const operationalNextStep = optimizedScenario?.operationalNextStep || `Validar datos y evidencia de ${activityLabel} antes de ejecutar una intervención.`;
   const principalRecommendation = potentialReduction > 0
-    ? `El sistema detecta que ${categoryLabel} es el foco principal y que ${activityLabel} explica una parte relevante de la huella. Se recomienda partir con un piloto medible en ${stageLabel}, buscando una reducción inicial entre ${formatPercentRange(recommendedRange)} antes de escalar cambios estructurales.`
-    : `Completar datos y validar factores antes de definir un piloto de reducción para ${activityLabel}.`;
+    ? `${categoryLabel} aparece como la categoría que más empuja la huella y ${activityLabel} es el elemento que conviene revisar primero dentro de ${stageLabel}. La decisión útil no es “reducir en general”, sino descubrir si el impacto viene por cantidad comprada, factor de emisión aplicado, proveedor, ficha técnica/EPD o especificación usada en obra. Antes de nuevas compras o cubicaciones similares, conviene comparar el respaldo técnico del material y confirmar si existe una alternativa equivalente con menor huella.`
+    : `Antes de definir una reducción para ${activityLabel}, falta cerrar la trazabilidad mínima: cantidad, unidad, proveedor, factor de emisión y evidencia del registro. Sin esa base, la recomendación más responsable es ordenar el dato y recién después decidir si el problema está en consumo, proveedor, especificación o documentación.`;
   const optimalReference = potentialReduction > 0
-    ? `El máximo potencial proyectado es de ${formatNumber(potentialReduction, 1)}%. Esta cifra debe usarse como referencia estratégica, no como promesa inmediata, porque depende de evidencia, proveedores, operación y validación técnica.`
-    : "El máximo potencial proyectado debe tratarse como referencia estratégica de largo plazo, no como acción inmediata.";
+    ? `El ${formatNumber(potentialReduction, 1)}% proyectado no debe leerse como una meta automática, sino como una señal de sensibilidad: si este material cambia de factor, volumen o proveedor, la huella total se mueve. Para convertirlo en una decisión defendible, cruza guía de despacho, factura, ficha técnica/EPD y cantidad instalada; así la mejora queda respaldada frente a gerencia, mandante o licitación.`
+    : "Cuando el sistema tenga respaldo documental suficiente, podrá separar si la brecha es técnica, operacional o documental. Esa diferencia importa: no es lo mismo cambiar un material que corregir una carga mal clasificada o exigir evidencia al proveedor.";
 
   const actionLevels = [
     {
@@ -163,12 +163,12 @@ function buildStrategicPlan(fuenteCritica, optimizedScenario) {
       detail: "Ajustes de bajo esfuerzo: depurar datos, separar fuentes, validar cantidades, asociar evidencia y corregir registros incompletos.",
     },
     {
-      label: "Piloto recomendado",
+      label: "Validación técnica",
       range: formatPercentRange(actionRanges.pilotRange),
       tone: "border-[#F6D98B] bg-[var(--warning-bg)] text-[#8A5A00]",
       icon: FlaskConical,
       iconTone: "amber",
-      detail: "Intervención controlada sobre la fuente crítica. Permite medir impacto real antes de cambiar proveedores, especificaciones, rutas o procesos.",
+      detail: "Revisión controlada sobre la fuente crítica: comparar proveedor, factor, ficha técnica/EPD, cantidad y especificación antes de comprometer cambios de compra o diseño.",
     },
     {
       label: "Cambio estructural",
@@ -191,7 +191,7 @@ function ExecutiveSummary({ fuenteCritica, unidadCritica, optimizedScenario, red
   const strategicPlan = buildStrategicPlan(fuenteCriticaLabel, scenarioForPlan);
   const recommendedDecision = hasValidOptimizedScenario
     ? strategicPlan.principalRecommendation
-    : "Completar registros, asociar etapas y validar factores de emisión antes de definir un porcentaje de reducción. Luego priorizar la fuente crítica detectada con acciones progresivas y medibles.";
+    : "Primero hay que cerrar la trazabilidad del dato: cantidad, unidad, proveedor, factor de emisión y evidencia. Recién con esa base el sistema puede distinguir si la presión viene de consumo real, especificación técnica, proveedor o registro incompleto.";
   const currentTotal = Number(optimizedScenario?.currentTotal || 0);
   const simulatedTotal = hasValidOptimizedScenario ? Number(optimizedScenario?.simulatedTotal || 0) : 0;
   const avoidedEmissions = Math.max(currentTotal - simulatedTotal, 0);
@@ -294,8 +294,8 @@ function ExecutiveSummary({ fuenteCritica, unidadCritica, optimizedScenario, red
       </div>
 
       <p className="mt-5 rounded-2xl border border-[#99F6E4] bg-[#F0FDFA] px-4 py-3 text-sm leading-6 text-[#334155] shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition">
-        Carbono Zero recomienda seguir este orden: primero validar la huella total, luego aislar el punto crítico, después confirmar la evidencia de {formatTitleCase(fuenteCriticaLabel)} y finalmente ejecutar un piloto medible en {unidadCriticaLabel}.
-        {(optimizedScenario || reductionEquivalentKm != null) && ` Si la hoja de ruta se consolida por etapas, la reducción operativa estimada equivale aproximadamente a ${formatNumber(equivalentCarKm, 0)} km recorridos en auto.`}
+        Orden sugerido: confirmar la huella total, aislar el material o fuente que más pesa, validar evidencia de {formatTitleCase(fuenteCriticaLabel)} y decidir si corresponde optimizar cantidad, proveedor, factor de emisión o especificación técnica en {unidadCriticaLabel}.
+        {(optimizedScenario || reductionEquivalentKm != null) && ` Si esa decisión se documenta bien, la reducción operativa estimada equivale aproximadamente a ${formatNumber(equivalentCarKm, 0)} km recorridos en auto.`}
       </p>
     </section>
   );
