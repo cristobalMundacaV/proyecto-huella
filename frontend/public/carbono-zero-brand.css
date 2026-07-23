@@ -1,0 +1,160 @@
+/* Carbono Zero — identidad y contraste comercial */
+
+.cz-landing .cz-brand img,
+.cz-landing .cz-footer-brand img {
+  content: url('/brand/carbono-zero-logo.svg') !important;
+  display: block;
+  object-fit: contain;
+}
+
+.cz-landing .cz-brand img {
+  width: 206px !important;
+  max-height: 38px;
+}
+
+.cz-landing .cz-footer-brand {
+  padding: 12px 15px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #ffffff !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+
+.cz-landing .cz-footer-brand img {
+  width: 210px !important;
+}
+
+.cz-landing .cz-header-login {
+  min-height: 44px;
+  padding: 0 15px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: #075f36 !important;
+  -webkit-text-fill-color: #075f36 !important;
+  border: 1px solid #b8d9c6;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #edf7f1 100%);
+  box-shadow: 0 8px 20px rgba(5, 104, 58, 0.08);
+  font-weight: 900 !important;
+  transition: transform .2s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+
+.cz-landing .cz-header-login::after {
+  content: '↗';
+  font-size: .86rem;
+  line-height: 1;
+}
+
+.cz-landing .cz-header-login:hover {
+  transform: translateY(-1px);
+  color: #044c2b !important;
+  -webkit-text-fill-color: #044c2b !important;
+  border-color: #7ebc98;
+  background: #e4f3ea;
+  box-shadow: 0 11px 25px rgba(5, 104, 58, 0.14);
+}
+
+.cz-landing .cz-button.cz-button-primary {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  background: linear-gradient(135deg, #06713f 0%, #0b7a46 100%) !important;
+  box-shadow: 0 17px 38px rgba(4, 78, 43, 0.34) !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.16);
+}
+
+.cz-landing .cz-button.cz-button-primary:hover {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: linear-gradient(135deg, #05683a 0%, #087142 100%) !important;
+  box-shadow: 0 22px 48px rgba(4, 78, 43, 0.42) !important;
+}
+
+.cz-landing .cz-button.cz-button-primary svg,
+.cz-landing .cz-whatsapp svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+.cz-landing .cz-button.cz-button-light,
+.cz-landing .cz-intelligence .cz-button-light {
+  color: #064e2f !important;
+  -webkit-text-fill-color: #064e2f !important;
+  border: 1px solid #d4e7db !important;
+  background: #ffffff !important;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.22) !important;
+}
+
+.cz-landing .cz-button.cz-button-light:hover,
+.cz-landing .cz-intelligence .cz-button-light:hover {
+  color: #043e26 !important;
+  -webkit-text-fill-color: #043e26 !important;
+  background: #edf8f2 !important;
+}
+
+.cz-landing .cz-button.cz-button-ghost {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.34) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.cz-landing .cz-button.cz-button-ghost:hover {
+  background: rgba(255, 255, 255, 0.17) !important;
+}
+
+.cz-landing .cz-inline-cta a {
+  color: #05683a !important;
+  -webkit-text-fill-color: #05683a !important;
+}
+
+.cz-landing .cz-ai-actions span {
+  color: #e8f7ef !important;
+  -webkit-text-fill-color: #e8f7ef !important;
+  border-color: rgba(145, 239, 184, 0.28) !important;
+  background: rgba(7, 69, 45, 0.62) !important;
+}
+
+.cz-landing .cz-direct-link {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-color: rgba(145, 239, 184, 0.34) !important;
+  background: rgba(255, 255, 255, 0.09) !important;
+}
+
+.cz-landing .cz-direct-link small {
+  color: #b8d5c9 !important;
+  -webkit-text-fill-color: #b8d5c9 !important;
+}
+
+.cz-landing .cz-whatsapp {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #087a43 !important;
+  box-shadow: 0 18px 38px rgba(3, 74, 39, 0.38) !important;
+}
+
+.cz-landing .cz-whatsapp:hover {
+  background: #066a3a !important;
+}
+
+.cz-landing .cz-button:focus-visible,
+.cz-landing .cz-header-login:focus-visible,
+.cz-landing .cz-whatsapp:focus-visible,
+.cz-landing .cz-direct-link:focus-visible,
+.cz-landing .cz-inline-cta a:focus-visible {
+  outline: 3px solid #8df0b8;
+  outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .cz-landing .cz-brand img {
+    width: 164px !important;
+  }
+
+  .cz-landing .cz-footer-brand img {
+    width: 190px !important;
+  }
+}
