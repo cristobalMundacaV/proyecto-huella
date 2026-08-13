@@ -92,7 +92,7 @@ export async function createTransporteLoteForestal(organizacionId, loteId, paylo
 export async function createRegistroEmision(codigo, payload) { return (await api.post(obraPath(codigo, "/registros-emision/"), payload)).data; }
 export async function getOrganizacionEvidencias(id, params = {}) { return (await api.get(organizacionPath(id, "/evidencias/"), { params })).data; }
 export async function getEvidenciasOrganizacion(id, filters = {}) { return getOrganizacionEvidencias(id, filters); }
-export async function getEvidenciasKpisOrganizacion(id) { const e = await getOrganizacionEvidencias(id); const vinculadas = e.filter((x) => x.obra || x.registro_emision).length; return { total: e.length, vinculadas, pendientes: e.filter((x) => x.estado_documental === "pendiente").length, observadas: e.filter((x) => x.estado_documental === "observada").length, cobertura_documental: e.length ? (vinculadas / e.length) * 100 : null }; }
+export async function getEvidenciasKpisOrganizacion(id) { const e = await getOrganizacionEvidencias(id); const vinculadas = e.filter((x) => x.obra || x.registros_emision?.length).length; return { total: e.length, vinculadas, pendientes: e.filter((x) => x.estado_documental === "pendiente").length, observadas: e.filter((x) => x.estado_documental === "observada").length, cobertura_documental: e.length ? (vinculadas / e.length) * 100 : null }; }
 export async function crearEvidenciaOrganizacion(id, formData) { return (await api.post(organizacionPath(id, "/evidencias/"), formData)).data; }
 export async function extraerEvidenciaDocumento(id, file) {
   const formData = new FormData();

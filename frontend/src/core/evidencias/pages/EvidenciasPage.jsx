@@ -163,7 +163,7 @@ function EvidenciasPage() {
       formData.append("estado_documental", form.estado_documental || "pendiente");
       formData.append("metadata_extraccion", JSON.stringify(metadata));
       if (form.fecha_documento) formData.append("fecha_documento", form.fecha_documento);
-      if (form.registro_emision) formData.append("registro_emision", form.registro_emision);
+      if (form.registro_emision) formData.append("registros_emision", form.registro_emision);
       if (form.lote_forestal) formData.append("lote_forestal", form.lote_forestal);
       if (form.lote_id) formData.append("lote_id", form.lote_id);
       if (form.observaciones.trim()) formData.append("observaciones", form.observaciones.trim());

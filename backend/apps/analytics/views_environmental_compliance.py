@@ -34,8 +34,8 @@ def documentos_ambientales(request, organizacion_id):
     organizacion = get_organizacion_or_404(organizacion_id)
     if request.method == "GET":
         queryset = DocumentoAmbiental.objects.filter(organizacion=organizacion).select_related(
-            "organizacion", "obra", "etapa", "registro_emision"
-        )
+            "organizacion", "obra", "etapa"
+        ).prefetch_related("registros_emision")
         return Response(serialize(DocumentoAmbientalSerializer, queryset, request=request, many=True))
 
     data = request.data.copy()

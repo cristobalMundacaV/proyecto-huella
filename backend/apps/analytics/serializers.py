@@ -301,6 +301,11 @@ class RegistroEmisionSerializer(serializers.ModelSerializer):
             "tipo_ingreso",
             "fuente_ingreso",
             "estado_validacion",
+            "fingerprint",
+            "fingerprint_nucleo",
+            "estado_gobernanza",
+            "registro_canonico",
+            "contabilizable",
             "origen_transporte",
             "destino_transporte",
             "distancia_km",
@@ -320,6 +325,8 @@ class RegistroEmisionSerializer(serializers.ModelSerializer):
             "etapa_nombre",
             "lote_forestal_id",
             "actividad_key",
+            "fingerprint",
+            "fingerprint_nucleo",
             "emisiones_kg_co2e",
             "evidencia_asociada",
             "created_at",
@@ -381,7 +388,7 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
     obra_codigo = serializers.CharField(source="obra.codigo_obra", read_only=True)
     obra_nombre = serializers.CharField(source="obra.nombre", read_only=True)
     etapa_nombre = serializers.CharField(source="etapa.nombre", read_only=True)
-    registro_fuente = serializers.CharField(source="registro_emision.fuente_emision", read_only=True)
+    registros_fuente = serializers.SerializerMethodField()
     lote_forestal_id = serializers.CharField(source="lote_forestal.lote_id", read_only=True)
 
     class Meta:
@@ -396,8 +403,8 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
             "obra_nombre",
             "etapa",
             "etapa_nombre",
-            "registro_emision",
-            "registro_fuente",
+            "registros_emision",
+            "registros_fuente",
             "lote_forestal",
             "lote_forestal_id",
             "lote_id",
@@ -420,7 +427,7 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
             "obra_codigo",
             "obra_nombre",
             "etapa_nombre",
-            "registro_fuente",
+            "registros_fuente",
             "lote_forestal_id",
             "archivo_url",
             "texto_extraido",
@@ -445,6 +452,9 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
             if lote:
                 attrs["lote_forestal"] = lote
         return attrs
+
+    def get_registros_fuente(self, evidencia):
+        return list(evidencia.registros_emision.values_list("fuente_emision", flat=True))
 
     def get_archivo_url(self, evidencia):
         if not evidencia.archivo:
@@ -681,6 +691,7 @@ class DocumentoAmbientalSerializer(serializers.ModelSerializer):
     etapa_nombre = serializers.CharField(source="etapa.nombre", read_only=True)
     archivo_url = serializers.SerializerMethodField()
     variables_count = serializers.IntegerField(source="variables_extraidas.count", read_only=True)
+    registros_ids = serializers.SerializerMethodField()
 
     class Meta:
         model = DocumentoAmbiental
@@ -693,7 +704,8 @@ class DocumentoAmbientalSerializer(serializers.ModelSerializer):
             "obra_nombre",
             "etapa",
             "etapa_nombre",
-            "registro_emision",
+            "registros_emision",
+            "registros_ids",
             "tipo_documento",
             "industria",
             "nombre",
@@ -724,15 +736,15 @@ class DocumentoAmbientalSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        initial = getattr(self, "initial_data", {})
-        if not attrs.get("fuente_emision") and initial.get("actividad"):
-            attrs["fuente_emision"] = str(initial["actividad"]).strip()
         organizacion = attrs.get("organizacion") or getattr(self.instance, "organizacion", None) or self.context.get("organizacion")
         if organizacion:
-            for field in ["obra", "etapa", "registro_emision"]:
+            for field in ["obra", "etapa"]:
                 value = attrs.get(field)
                 if value and value.organizacion_id != organizacion.id:
                     raise serializers.ValidationError({field: "Debe pertenecer a la empresa activa."})
+            for registro in attrs.get("registros_emision", []):
+                if registro.organizacion_id != organizacion.id:
+                    raise serializers.ValidationError({"registros_emision": "Deben pertenecer a la empresa activa."})
         return attrs
 
     def get_archivo_url(self, documento):
@@ -742,6 +754,9 @@ class DocumentoAmbientalSerializer(serializers.ModelSerializer):
         if request:
             return request.build_absolute_uri(documento.archivo.url)
         return documento.archivo.url
+
+    def get_registros_ids(self, documento):
+        return list(documento.registros_emision.values_list("id", flat=True))
 
 
 class LimiteNormativoAmbientalSerializer(serializers.ModelSerializer):

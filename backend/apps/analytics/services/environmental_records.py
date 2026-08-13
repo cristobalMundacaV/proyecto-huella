@@ -1,3 +1,7 @@
+import hashlib
+import json
+import re
+import unicodedata
 from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
@@ -9,9 +13,55 @@ from apps.analytics.models import Organizacion, RegistroEmision, normalize_key
 
 REQUIRED_FIELDS = ("actividad", "categoria", "cantidad", "unidad", "fecha")
 
+UNIT_ALIASES = {
+    "kg": "kg", "kgs": "kg", "kilogramo": "kg", "kilogramos": "kg",
+    "t": "t", "ton": "t", "tons": "t", "tonelada": "t", "toneladas": "t",
+    "l": "l", "lt": "l", "lts": "l", "litro": "l", "litros": "l",
+    "kwh": "kwh", "kw h": "kwh", "m3": "m3", "m 3": "m3",
+}
+
 
 def _text(value):
     return str(value or "").strip()
+
+
+def normalize_fingerprint_text(value):
+    text = unicodedata.normalize("NFKD", _text(value).casefold())
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", text)).strip()
+
+
+def normalize_fingerprint_unit(value):
+    unit = normalize_fingerprint_text(value).replace("³", "3")
+    return UNIT_ALIASES.get(unit, unit.replace(" ", ""))
+
+
+def _canonical_decimal(value):
+    value = Decimal(str(value)).normalize()
+    return format(value, "f")
+
+
+def build_environmental_fingerprints(data):
+    date_value = data["fecha"]
+    date_key = date_value.isoformat() if hasattr(date_value, "isoformat") else _text(date_value)
+    core = {
+        "organizacion": data["organizacion"].pk,
+        "fecha": date_key,
+        "actividad": normalize_fingerprint_text(data["fuente_emision"]),
+        "categoria": normalize_fingerprint_text(data["categoria"]),
+        "cantidad": _canonical_decimal(data["cantidad"]),
+        "unidad": normalize_fingerprint_unit(data["unidad"]),
+        "proveedor": normalize_fingerprint_text(data.get("proveedor")),
+        "area_operacional": normalize_fingerprint_text(data.get("area_operacional")),
+        "unidad_operacional": normalize_fingerprint_text(data.get("unidad_operacional")),
+    }
+    complete = {
+        **core,
+        "numero_documento": normalize_fingerprint_text(data.get("numero_documento")),
+        "identificador_externo": normalize_fingerprint_text(data.get("identificador_externo")),
+    }
+    digest = lambda value: hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    return digest(complete), digest(core)
 
 
 def _decimal(value, field="cantidad"):
@@ -87,6 +137,10 @@ def normalize_environmental_record(payload, *, organizacion, tipo_ingreso, fuent
         metadata["ingesta"].update(
             {"tipo": tipo_ingreso, "fuente": _text(fuente_ingreso) or tipo_ingreso}
         )
+    metadata.setdefault(
+        "origenes_ingesta",
+        [{"tipo": tipo_ingreso, "fuente": _text(fuente_ingreso) or tipo_ingreso}],
+    )
 
     factor = payload.get("factor_emision", Decimal("0"))
     try:
@@ -133,7 +187,65 @@ def create_environmental_record(payload, *, organizacion, tipo_ingreso, fuente_i
         tipo_ingreso=tipo_ingreso,
         fuente_ingreso=fuente_ingreso,
     )
+    fingerprint, fingerprint_nucleo = build_environmental_fingerprints(normalized)
+    exact = RegistroEmision.objects.select_for_update().filter(
+        organizacion=organizacion,
+        fingerprint=fingerprint,
+    ).first()
+    if exact:
+        metadata = dict(exact.metadata or {})
+        origins = list(metadata.get("origenes_ingesta") or [])
+        origin = {"tipo": tipo_ingreso, "fuente": _text(fuente_ingreso) or tipo_ingreso}
+        if origin not in origins:
+            origins.append(origin)
+            metadata["origenes_ingesta"] = origins
+            exact.metadata = metadata
+            exact.save(update_fields=["metadata", "updated_at"])
+        return exact
+
+    possible = RegistroEmision.objects.select_for_update().filter(
+        organizacion=organizacion,
+        fingerprint_nucleo=fingerprint_nucleo,
+        contabilizable=True,
+    ).first()
+    normalized["fingerprint"] = fingerprint
+    normalized["fingerprint_nucleo"] = fingerprint_nucleo
+    if possible:
+        normalized["estado_gobernanza"] = RegistroEmision.EstadoGobernanza.POSIBLE_DUPLICADO
+        normalized["registro_canonico"] = possible
+        normalized["contabilizable"] = False
+    else:
+        normalized["estado_gobernanza"] = RegistroEmision.EstadoGobernanza.NUEVO
     return RegistroEmision.objects.create(**normalized)
+
+
+def link_evidence_to_records(evidence, records, *, organizacion):
+    if evidence.organizacion_id != organizacion.id:
+        raise ValidationError({"evidencia": "No pertenece a la organizacion indicada."})
+    records = list(records)
+    if any(record.organizacion_id != organizacion.id for record in records):
+        raise ValidationError({"registros": "Deben pertenecer a la misma organizacion."})
+    evidence.registros_emision.add(*records)
+    if hasattr(evidence, "estado_documental") and evidence.estado_documental in {"", "pendiente", "sin_vinculo"}:
+        evidence.estado_documental = "vinculada"
+        evidence.save(update_fields=["estado_documental", "updated_at"])
+    return evidence
+
+
+@transaction.atomic
+def resolve_record_governance(record, *, estado):
+    if estado not in {
+        RegistroEmision.EstadoGobernanza.DUPLICADO_CONFIRMADO,
+        RegistroEmision.EstadoGobernanza.VALIDADO,
+    }:
+        raise ValidationError({"estado_gobernanza": "Resolucion no permitida."})
+    record.estado_gobernanza = estado
+    record.contabilizable = estado == RegistroEmision.EstadoGobernanza.VALIDADO
+    if record.contabilizable:
+        record.registro_canonico = None
+        record.estado_validacion = RegistroEmision.EstadoValidacion.VALIDADO
+    record.save()
+    return record
 
 
 def create_document_environmental_record(payload, *, organizacion, documento):
@@ -142,12 +254,15 @@ def create_document_environmental_record(payload, *, organizacion, documento):
     metadata = dict(data.get("metadata") or {})
     metadata["documento_ambiental_id"] = documento.pk
     data["metadata"] = metadata
-    return create_environmental_record(
+    record = create_environmental_record(
         data,
         organizacion=organizacion,
         tipo_ingreso=RegistroEmision.TipoIngreso.DOCUMENTO,
         fuente_ingreso=getattr(documento, "nombre", "documento"),
     )
+    if hasattr(documento, "registros_emision"):
+        link_evidence_to_records(documento, [record], organizacion=organizacion)
+    return record
 
 
 def create_external_api_environmental_record(payload, *, organizacion, sistema):

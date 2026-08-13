@@ -557,7 +557,7 @@ def organizacion_evidencias(request, organizacion_id):
     if request.method == "GET":
         evidencias = (
             EvidenciaObra.objects.filter(organizacion=organizacion)
-            .select_related("obra", "etapa", "registro_emision", "lote_forestal")
+            .select_related("obra", "etapa", "lote_forestal").prefetch_related("registros_emision")
             .order_by("-created_at")
         )
         lote_id = request.query_params.get("lote_id") or request.query_params.get("lote")
@@ -658,8 +658,8 @@ def obra_evidencias(request, codigo_obra):
     obra = get_obra_or_404(codigo_obra)
     if request.method == "GET":
         evidencias = obra.evidencias.select_related(
-            "organizacion", "etapa", "registro_emision"
-        ).order_by("-created_at")
+            "organizacion", "etapa"
+        ).prefetch_related("registros_emision").order_by("-created_at")
         return Response(
             EvidenciaObraSerializer(
                 evidencias, many=True, context={"request": request}

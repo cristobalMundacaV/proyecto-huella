@@ -403,6 +403,12 @@ class RegistroEmision(models.Model):
         VALIDADO = "validado", "Validado"
         RECHAZADO = "rechazado", "Rechazado"
 
+    class EstadoGobernanza(models.TextChoices):
+        NUEVO = "nuevo", "Nuevo"
+        POSIBLE_DUPLICADO = "posible_duplicado", "Posible duplicado"
+        DUPLICADO_CONFIRMADO = "duplicado_confirmado", "Duplicado confirmado"
+        VALIDADO = "validado", "Validado"
+
     organizacion = models.ForeignKey(Organizacion, on_delete=models.PROTECT, related_name="registros_emision", null=True, blank=True)
     obra = models.ForeignKey(Obra, on_delete=models.CASCADE, related_name="registros_emision", null=True, blank=True)
     etapa = models.ForeignKey(EtapaObra, on_delete=models.PROTECT, related_name="registros_emision", null=True, blank=True)
@@ -428,6 +434,22 @@ class RegistroEmision(models.Model):
         default=EstadoValidacion.PENDIENTE,
         db_index=True,
     )
+    fingerprint = models.CharField(max_length=64, blank=True, db_index=True)
+    fingerprint_nucleo = models.CharField(max_length=64, blank=True, db_index=True)
+    estado_gobernanza = models.CharField(
+        max_length=30,
+        choices=EstadoGobernanza.choices,
+        default=EstadoGobernanza.NUEVO,
+        db_index=True,
+    )
+    registro_canonico = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="duplicados_detectados",
+    )
+    contabilizable = models.BooleanField(default=True, db_index=True)
     origen_transporte = models.CharField(max_length=240, blank=True)
     destino_transporte = models.CharField(max_length=240, blank=True)
     distancia_km = models.DecimalField(max_digits=12, decimal_places=3, null=True, blank=True)
@@ -446,6 +468,8 @@ class RegistroEmision(models.Model):
             models.Index(fields=["organizacion_id", "tipo_ingreso"]),
             models.Index(fields=["organizacion_id", "estado_validacion"]),
             models.Index(fields=["organizacion_id", "identificador_externo"]),
+            models.Index(fields=["organizacion_id", "fingerprint"]),
+            models.Index(fields=["organizacion_id", "fingerprint_nucleo"]),
             models.Index(fields=["obra_id", "categoria"]),
             models.Index(fields=["etapa_id", "categoria"]),
             models.Index(fields=["lote_forestal_id"]),
@@ -468,7 +492,29 @@ class RegistroEmision(models.Model):
                 ).first()
         if not self.actividad_key:
             self.actividad_key = normalize_key(self.fuente_emision).replace(" ", "_")
-        self.emisiones_kg_co2e = (self.cantidad or Decimal("0")) * (self.factor_emision or Decimal("0"))
+        if self.organizacion_id and self.fecha and self.fuente_emision and self.categoria and self.cantidad is not None and self.unidad:
+            from .services.environmental_records import build_environmental_fingerprints
+
+            self.fingerprint, self.fingerprint_nucleo = build_environmental_fingerprints(
+                {
+                    "organizacion": self.organizacion,
+                    "fecha": self.fecha,
+                    "fuente_emision": self.fuente_emision,
+                    "categoria": self.categoria,
+                    "cantidad": self.cantidad,
+                    "unidad": self.unidad,
+                    "proveedor": self.proveedor,
+                    "numero_documento": self.numero_documento,
+                    "area_operacional": self.area_operacional,
+                    "unidad_operacional": self.unidad_operacional,
+                    "identificador_externo": self.identificador_externo,
+                }
+            )
+        self.emisiones_kg_co2e = (
+            (self.cantidad or Decimal("0")) * (self.factor_emision or Decimal("0"))
+            if self.contabilizable
+            else Decimal("0")
+        )
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -505,7 +551,7 @@ class EvidenciaObra(models.Model):
     organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="evidencias")
     obra = models.ForeignKey(Obra, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias")
     etapa = models.ForeignKey(EtapaObra, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias")
-    registro_emision = models.ForeignKey(RegistroEmision, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias")
+    registros_emision = models.ManyToManyField(RegistroEmision, blank=True, related_name="evidencias")
     lote_forestal = models.ForeignKey(LoteForestal, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias")
     tipo_evidencia = models.CharField(max_length=40, choices=TipoEvidencia.choices, default=TipoEvidencia.OTRO)
     estado_documental = models.CharField(max_length=20, choices=EstadoDocumental.choices, default=EstadoDocumental.PENDIENTE)
@@ -524,15 +570,12 @@ class EvidenciaObra(models.Model):
             models.Index(fields=["organizacion_id", "estado_documental"]),
             models.Index(fields=["organizacion_id", "tipo_evidencia"]),
             models.Index(fields=["obra_id", "estado_documental"]),
-            models.Index(fields=["registro_emision_id"]),
             models.Index(fields=["lote_forestal_id"]),
         ]
 
     def save(self, *args, **kwargs):
         if self.obra_id and not self.organizacion_id:
             self.organizacion = self.obra.organizacion
-        if self.registro_emision_id and not self.lote_forestal_id:
-            self.lote_forestal = self.registro_emision.lote_forestal
         if not self.lote_forestal_id and self.organizacion_id:
             metadata = self.metadata_extraccion if isinstance(self.metadata_extraccion, dict) else {}
             lote_reference = metadata.get("lote") or metadata.get("lote_id") or metadata.get("lote_forestal")
@@ -541,9 +584,7 @@ class EvidenciaObra(models.Model):
                     organizacion_id=self.organizacion_id,
                     lote_id=str(lote_reference).strip(),
                 ).first()
-        if self.registro_emision_id and self.estado_documental in {"sin_vinculo", ""}:
-            self.estado_documental = self.EstadoDocumental.VINCULADA
-        elif self.lote_forestal_id and self.estado_documental in {"sin_vinculo", ""}:
+        if self.lote_forestal_id and self.estado_documental in {"sin_vinculo", ""}:
             self.estado_documental = self.EstadoDocumental.VINCULADA
         elif not self.obra_id and self.estado_documental == self.EstadoDocumental.PENDIENTE:
             self.estado_documental = self.EstadoDocumental.SIN_VINCULO
@@ -581,7 +622,7 @@ class DocumentoAmbiental(models.Model):
     organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="documentos_ambientales")
     obra = models.ForeignKey(Obra, on_delete=models.SET_NULL, null=True, blank=True, related_name="documentos_ambientales")
     etapa = models.ForeignKey(EtapaObra, on_delete=models.SET_NULL, null=True, blank=True, related_name="documentos_ambientales")
-    registro_emision = models.ForeignKey(RegistroEmision, on_delete=models.SET_NULL, null=True, blank=True, related_name="documentos_ambientales")
+    registros_emision = models.ManyToManyField(RegistroEmision, blank=True, related_name="documentos_ambientales")
     tipo_documento = models.CharField(max_length=80)
     industria = models.CharField(max_length=80, db_index=True)
     nombre = models.CharField(max_length=240)

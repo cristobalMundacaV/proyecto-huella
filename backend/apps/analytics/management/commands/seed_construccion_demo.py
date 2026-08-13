@@ -191,11 +191,10 @@ class Command(BaseCommand):
             if not registro:
                 continue
 
-            EvidenciaObra.objects.create(
+            evidencia = EvidenciaObra.objects.create(
                 organizacion=organizacion,
                 obra=obra,
                 etapa=registro.etapa,
-                registro_emision=registro,
                 tipo_evidencia=tipo,
                 estado_documental=EvidenciaObra.EstadoDocumental.VALIDADA,
                 fecha_documento=registro.fecha,
@@ -203,6 +202,7 @@ class Command(BaseCommand):
                 nombre=nombre,
                 observaciones="Evidencia demo de construccion.",
             )
+            evidencia.registros_emision.add(registro)
 
         self.stdout.write(
             self.style.SUCCESS(

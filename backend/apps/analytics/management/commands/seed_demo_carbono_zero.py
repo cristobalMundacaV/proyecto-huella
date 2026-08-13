@@ -298,8 +298,9 @@ class Command(BaseCommand):
                 continue
             evidence = registro.metadata.get("evidence_expected") or "otro"
             content = f"Evidencia Carbono Zero\nEmpresa: {empresa.nombre}\nFuente: {registro.fuente_emision}\nCantidad: {registro.cantidad} {registro.unidad}\nFecha: {registro.fecha}\nEmisiones: {registro.emisiones_kg_co2e} kg CO2e\n"
-            evidencia = EvidenciaObra(organizacion=empresa, obra=registro.obra, etapa=registro.etapa, registro_emision=registro, lote_forestal=registro.lote_forestal, tipo_evidencia=evidence, estado_documental=EvidenciaObra.EstadoDocumental.VINCULADA, fecha_documento=registro.fecha, nombre=f"Respaldo - {registro.fuente_emision}", observaciones="Documento vinculado al registro ambiental para trazabilidad.", texto_extraido=content, metadata_extraccion={"preset": empresa.preset, "module": registro.metadata.get("module"), "fuente_emision_sugerida": registro.fuente_emision, "categoria_sugerida": registro.categoria, "cantidad_sugerida": str(registro.cantidad), "unidad_sugerida": registro.unidad, "confianza_extraccion": 0.92, "quality_status": "validado"})
+            evidencia = EvidenciaObra(organizacion=empresa, obra=registro.obra, etapa=registro.etapa, lote_forestal=registro.lote_forestal, tipo_evidencia=evidence, estado_documental=EvidenciaObra.EstadoDocumental.VINCULADA, fecha_documento=registro.fecha, nombre=f"Respaldo - {registro.fuente_emision}", observaciones="Documento vinculado al registro ambiental para trazabilidad.", texto_extraido=content, metadata_extraccion={"preset": empresa.preset, "module": registro.metadata.get("module"), "fuente_emision_sugerida": registro.fuente_emision, "categoria_sugerida": registro.categoria, "cantidad_sugerida": str(registro.cantidad), "unidad_sugerida": registro.unidad, "confianza_extraccion": 0.92, "quality_status": "validado"})
             evidencia.archivo.save(f"{empresa.organizacion_id}_{registro.id}_{evidence}.txt", ContentFile(content), save=True)
+            evidencia.registros_emision.add(registro)
             total += 1
         return total
 

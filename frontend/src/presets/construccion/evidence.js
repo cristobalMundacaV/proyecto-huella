@@ -46,7 +46,7 @@ export const construccionEvidence = {
       { label: "Evidencias cargadas", value: formatNumber(rows.length, 0), detail: "Respaldos documentales", tone: "success" },
       { label: "Cobertura documental", value: `${formatNumber(coverage, 1)}%`, detail: "Tipos requeridos cubiertos", tone: coverage >= 70 ? "success" : "warning" },
       { label: "Evidencias pendientes", value: formatNumber(pending.length, 0), detail: "Tipos requeridos faltantes", tone: pending.length ? "danger" : "success" },
-      { label: "Evidencias vinculadas", value: formatNumber(rows.filter((row) => row.registro_emision || row.obra || row.etapa).length, 0), detail: "Con relacion operativa", tone: "info" },
+      { label: "Evidencias vinculadas", value: formatNumber(rows.filter((row) => row.registros_emision?.length || row.obra || row.etapa).length, 0), detail: "Con relacion operativa", tone: "info" },
       { label: "Criticas faltantes", value: formatNumber(pending.slice(0, 3).length, 0), detail: "Prioridad documental", tone: pending.length ? "danger" : "success" },
     ];
   },
@@ -62,7 +62,7 @@ export const construccionEvidence = {
       { key: "tipo", label: "Tipo", resolver: (row) => row.metadata?.evidence_label || row.tipo_evidencia },
       { key: "obra", label: "Obra", resolver: (row) => row.obra_nombre || row.metadata?.obra || "-" },
       { key: "etapa", label: "Etapa", resolver: (row) => row.etapa_nombre || row.metadata?.etapa || "-" },
-      { key: "registro", label: "Registro vinculado", resolver: (row) => row.registro_fuente || row.registro_emision || "-" },
+      { key: "registro", label: "Registros vinculados", resolver: (row) => row.registros_fuente?.join(", ") || "-" },
       { key: "estado", label: "Estado", resolver: (row) => getEvidenceStatus(row).label },
       { key: "archivo", label: "Archivo", resolver: (row) => row.archivo_url || "" },
     ];
