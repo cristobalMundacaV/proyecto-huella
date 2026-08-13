@@ -4,11 +4,6 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
-def validate_existing_rules(apps, schema_editor):
-    # Las reglas previas ya estaban activas y eran utilizadas para evaluar cumplimiento.
-    apps.get_model("analytics", "LimiteNormativoAmbiental").objects.update(validado=True)
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -60,7 +55,6 @@ class Migration(migrations.Migration):
             name="validado",
             field=models.BooleanField(db_index=True, default=False),
         ),
-        migrations.RunPython(validate_existing_rules, migrations.RunPython.noop),
         migrations.AddField(
             model_name="limitenormativoambiental",
             name="vigencia_desde",

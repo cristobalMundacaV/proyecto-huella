@@ -9,11 +9,11 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from .models import (
-    AccionMejoraAmbiental, LimiteNormativoAmbiental, Organizacion,
-    ProblematicaAmbiental, UsuarioOrganizacion,
+    AccionMejoraAmbiental, DocumentoAmbiental, LimiteNormativoAmbiental, Organizacion,
+    ProblematicaAmbiental, UsuarioOrganizacion, VariableAmbientalExtraida,
 )
 from .services.environmental_agent import EnvironmentalAgentService
-from .services.environmental_context import normative_context
+from .services.environmental_context import minimal_agent_context, normative_context
 from .services.environmental_dossier import generate_dossier
 from .services.environmental_escalation import apply_escalation, evaluate_escalation
 from .test_environmental_agent import MockProvider
@@ -118,6 +118,33 @@ class EnvironmentalEscalationTests(TestCase):
         valid.validado = False
         valid.save(update_fields=["validado"])
         self.assertFalse(normative_context(problem)["puede_afirmar_cumplimiento"])
+
+    def test_active_unvalidated_rule_is_ignored_everywhere(self):
+        problem = self.problem(
+            titulo="Sin regla validada", estado="detectada", resultado_evaluacion="pendiente",
+            valor_posterior=None, nivel_riesgo="bajo",
+        )
+        LimiteNormativoAmbiental.objects.create(
+            organizacion=self.org, industria="industrial", variable_id="co2e_total_kg",
+            nombre="Regla demo no verificada", normativa="ISO 14064-1", limite=Decimal("1"),
+            unidad="kgCO2e", comparador="<=", activo=True, validado=False,
+            fuente_normativa="Carga demo sin evidencia de validacion",
+        )
+        document = DocumentoAmbiental.objects.create(
+            organizacion=self.org, tipo_documento="medicion", industria="industrial", nombre="Medicion",
+            fecha_documento=timezone.localdate(), estado_validacion="valido",
+        )
+        variable = VariableAmbientalExtraida.objects.create(
+            documento=document, organizacion=self.org, variable_id="co2e_total_kg", nombre="CO2e",
+            valor=Decimal("100"), unidad="kgCO2e", fecha_medicion=timezone.localdate(),
+        )
+        self.assertIsNone(variable.limite_aplicable)
+        self.assertEqual(variable.estado_cumplimiento, "sin_limite")
+        self.assertEqual(normative_context(problem)["reglas_validadas"], [])
+        self.assertEqual(minimal_agent_context(problem)["normativa"]["reglas_validadas"], [])
+        result = evaluate_escalation(problem)
+        self.assertFalse(result["debe_escalar"])
+        self.assertNotIn("brecha_normativa_validada", [row["criterio"] for row in result["criterios"]])
 
     def test_escalation_and_dossier_endpoints_are_tenant_safe(self):
         own = self.problem(nivel_riesgo="critico")

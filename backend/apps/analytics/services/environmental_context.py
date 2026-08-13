@@ -28,7 +28,7 @@ def organization_context(organization):
         },
         "problematicas": dict(organization.problematicas_ambientales.values_list("estado").annotate(total=Count("id"))),
         "acv": calculate_partial_lca(organization),
-        "limites_activos": organization.limites_ambientales.filter(activo=True).count(),
+        "reglas_normativas_validadas": organization.limites_ambientales.filter(activo=True, validado=True).count(),
     }
 
 
