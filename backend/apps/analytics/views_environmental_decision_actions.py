@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import Constructora
+from .models import Organizacion
 from .services.environmental_decision_action_service import (
     DecisionPriorityNotFound,
     build_action_payload_from_priority,
@@ -13,11 +13,11 @@ from .services.environmental_decision_action_service import (
 
 
 @api_view(["GET"])
-def environmental_decision_action_preview(request, constructora_id, priority_id):
-    constructora = get_object_or_404(Constructora, constructora_id=constructora_id)
+def environmental_decision_action_preview(request, organizacion_id, priority_id):
+    organizacion = get_object_or_404(Organizacion, organizacion_id=organizacion_id)
     try:
-        payload = build_action_payload_from_priority(constructora, priority_id)
-        return Response({"payload": payload, "source_priority": find_priority(constructora, priority_id)})
+        payload = build_action_payload_from_priority(organizacion, priority_id)
+        return Response({"payload": payload, "source_priority": find_priority(organizacion, priority_id)})
     except DecisionPriorityNotFound:
         return Response({"error": "Decision ambiental priorizada no encontrada."}, status=status.HTTP_404_NOT_FOUND)
     except Exception:
@@ -28,8 +28,8 @@ def environmental_decision_action_preview(request, constructora_id, priority_id)
 
 
 @api_view(["POST"])
-def environmental_decision_create_action(request, constructora_id, priority_id):
-    constructora = get_object_or_404(Constructora, constructora_id=constructora_id)
+def environmental_decision_create_action(request, organizacion_id, priority_id):
+    organizacion = get_object_or_404(Organizacion, organizacion_id=organizacion_id)
     overrides = {
         "responsible": request.data.get("responsible", ""),
         "due_date": request.data.get("due_date") or request.data.get("dueDate") or "",
@@ -38,7 +38,7 @@ def environmental_decision_create_action(request, constructora_id, priority_id):
     }
     try:
         result = create_action_from_priority(
-            constructora,
+            organizacion,
             priority_id,
             user=request.user,
             overrides=overrides,

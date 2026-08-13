@@ -3,11 +3,11 @@ import { CheckCircle2, Clock3, Leaf, Loader2, Plus, Search, Trash2, X } from "lu
 
 import ActionClosurePanel from "@/core/environmental/components/ActionClosurePanel";
 import EmptyState from "@/shared/components/EmptyState";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import {
-  getConstructoraEvidencias,
-  getConstructoraObras,
-  getConstructoraRegistrosEmision,
+  getOrganizacionEvidencias,
+  getOrganizacionObras,
+  getOrganizacionRegistrosEmision,
   getLotesForestales,
 } from "@/shared/services/api";
 import { getEnvironmentalDocuments } from "@/features/environmental/services/environmentalComplianceApi";
@@ -228,7 +228,7 @@ function fallbackSummary(actions) {
 }
 
 function AccionesAmbientalesPage() {
-  const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
+  const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
   const [actions, setActions] = useState([]);
   const [summary, setSummary] = useState(null);
   const [traceabilityOptions, setTraceabilityOptions] = useState({ obras: [], lotes: [], registros: [], evidencias: [] });
@@ -242,20 +242,20 @@ function AccionesAmbientalesPage() {
   const [draft, setDraft] = useState(null);
 
   async function loadPageData() {
-    if (!activeConstructoraId) return;
+    if (!activeOrganizacionId) return;
     try {
       setLoading(true);
       setLoadingLinks(true);
       setError("");
 
       const [actionsResult, summaryResult, obrasResult, lotesResult, registrosResult, evidenciasResult, documentosResult] = await Promise.allSettled([
-        getTraceableActions(activeConstructoraId),
-        getTraceableActionsSummary(activeConstructoraId),
-        getConstructoraObras(activeConstructoraId),
-        getLotesForestales(activeConstructoraId),
-        getConstructoraRegistrosEmision(activeConstructoraId),
-        getConstructoraEvidencias(activeConstructoraId),
-        getEnvironmentalDocuments(activeConstructoraId),
+        getTraceableActions(activeOrganizacionId),
+        getTraceableActionsSummary(activeOrganizacionId),
+        getOrganizacionObras(activeOrganizacionId),
+        getLotesForestales(activeOrganizacionId),
+        getOrganizacionRegistrosEmision(activeOrganizacionId),
+        getOrganizacionEvidencias(activeOrganizacionId),
+        getEnvironmentalDocuments(activeOrganizacionId),
       ]);
 
       if (actionsResult.status !== "fulfilled") throw actionsResult.reason;
@@ -288,7 +288,7 @@ function AccionesAmbientalesPage() {
     setSourceFilter("all");
     loadPageData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeConstructoraId]);
+  }, [activeOrganizacionId]);
 
   const filteredActions = useMemo(() => {
     const query = normalizeText(search);
@@ -322,10 +322,10 @@ function AccionesAmbientalesPage() {
   const reportStats = useMemo(() => reportActionStats(actions), [actions]);
 
   async function refreshActionsOnly() {
-    if (!activeConstructoraId) return;
+    if (!activeOrganizacionId) return;
     const [nextActions, nextSummary] = await Promise.allSettled([
-      getTraceableActions(activeConstructoraId),
-      getTraceableActionsSummary(activeConstructoraId),
+      getTraceableActions(activeOrganizacionId),
+      getTraceableActionsSummary(activeOrganizacionId),
     ]);
     if (nextActions.status === "fulfilled") setActions(Array.isArray(nextActions.value) ? nextActions.value : []);
     if (nextSummary.status === "fulfilled") setSummary(nextSummary.value);
@@ -333,14 +333,14 @@ function AccionesAmbientalesPage() {
 
   async function saveDraft(event) {
     event.preventDefault();
-    if (!draft || !activeConstructoraId) return;
+    if (!draft || !activeOrganizacionId) return;
     try {
       setSaving(true);
       setError("");
       if (draft.editingId) {
-        await updateTraceableAction(activeConstructoraId, draft.editingId, draft);
+        await updateTraceableAction(activeOrganizacionId, draft.editingId, draft);
       } else {
-        await createTraceableAction(activeConstructoraId, draft);
+        await createTraceableAction(activeOrganizacionId, draft);
       }
       await refreshActionsOnly();
       setDraft(null);
@@ -355,7 +355,7 @@ function AccionesAmbientalesPage() {
     const previous = actions;
     setActions((current) => current.map((action) => (action.id === actionId ? { ...action, status: nextStatus } : action)));
     try {
-      await updateTraceableAction(activeConstructoraId, actionId, { status: nextStatus });
+      await updateTraceableAction(activeOrganizacionId, actionId, { status: nextStatus });
       await refreshActionsOnly();
     } catch (requestError) {
       setActions(previous);
@@ -367,7 +367,7 @@ function AccionesAmbientalesPage() {
     const previous = actions;
     setActions((current) => current.filter((action) => action.id !== actionId));
     try {
-      await deleteTraceableAction(activeConstructoraId, actionId);
+      await deleteTraceableAction(activeOrganizacionId, actionId);
       await refreshActionsOnly();
     } catch (requestError) {
       setActions(previous);
@@ -375,7 +375,7 @@ function AccionesAmbientalesPage() {
     }
   }
 
-  if (!activeConstructoraId) {
+  if (!activeOrganizacionId) {
     return <EmptyState title="Acciones ambientales" description="Selecciona una empresa activa para gestionar acciones ambientales trazables." />;
   }
 
@@ -387,7 +387,7 @@ function AccionesAmbientalesPage() {
             <div className="rounded-3xl border border-emerald-200 bg-white/80 p-4 text-emerald-800 shadow-sm"><CheckCircle2 size={30} /></div>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-700">Seguimiento ambiental</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight text-[var(--text-main)] sm:text-4xl">Acciones ambientales de {activeConstructora?.nombre || "la empresa"}</h1>
+              <h1 className="mt-2 text-3xl font-black tracking-tight text-[var(--text-main)] sm:text-4xl">Acciones ambientales de {activeOrganizacion?.nombre || "la empresa"}</h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">Convierte recomendaciones, hallazgos y compromisos en acciones con responsable, fecha objetivo, evidencia, KPI y vínculo operacional.</p>
             </div>
           </div>

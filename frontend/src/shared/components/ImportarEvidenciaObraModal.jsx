@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, FileText, Loader2, UploadCloud, X } from "lucide-react";
 
 import Modal from "@/shared/components/Modal";
@@ -8,7 +8,7 @@ import {
   extractDocumentJsonById,
   extractDocumentText,
   extractDocumentTextById,
-  getConstructoraObras,
+  getOrganizacionObras,
   getFactoresEmision,
   uploadObraEvidencia,
 } from "@/shared/services/api";
@@ -36,7 +36,7 @@ function FieldLabel({ children }) {
 }
 
 function ImportarEvidenciaObraModal({
-  activeConstructoraId,
+  activeOrganizacionId,
   archivoNombre = "",
   archivoUrl = "",
   evidenciaId = "",
@@ -72,7 +72,7 @@ function ImportarEvidenciaObraModal({
   });
 
   useEffect(() => {
-    if (!open || !activeConstructoraId) {
+    if (!open || !activeOrganizacionId) {
       return;
     }
 
@@ -81,7 +81,7 @@ function ImportarEvidenciaObraModal({
     async function loadCatalogs() {
       try {
         setLoadingCatalogs(true);
-        const [obrasData, factorsData] = await Promise.all([getConstructoraObras(activeConstructoraId), getFactoresEmision()]);
+        const [obrasData, factorsData] = await Promise.all([getOrganizacionObras(activeOrganizacionId), getFactoresEmision()]);
 
         if (cancelled) {
           return;
@@ -106,7 +106,7 @@ function ImportarEvidenciaObraModal({
     return () => {
       cancelled = true;
     };
-  }, [activeConstructoraId, initialObraId, open]);
+  }, [activeOrganizacionId, initialObraId, open]);
 
   useEffect(() => {
     if (!open) {
@@ -373,7 +373,7 @@ function ImportarEvidenciaObraModal({
                 <option value="">Selecciona una obra</option>
                 {obras.map((item) => (
                   <option key={item.codigo_obra} value={item.codigo_obra}>
-                    {item.codigo_obra} - {item.constructora_nombre || item.origen || "Obra"}
+                    {item.codigo_obra} - {item.organizacion_nombre || item.origen || "Obra"}
                   </option>
                 ))}
               </select>
@@ -563,7 +563,7 @@ function ImportarEvidenciaObraModal({
           <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">Contexto de obra</p>
             <p className="mt-2 text-sm text-[var(--text-main)]">
-              {selectedObra ? `${selectedObra.codigo_obra} · ${selectedObra.constructora_nombre || selectedObra.origen || "Obra"}` : "Selecciona una obra destino para continuar."}
+              {selectedObra ? `${selectedObra.codigo_obra} · ${selectedObra.organizacion_nombre || selectedObra.origen || "Obra"}` : "Selecciona una obra destino para continuar."}
             </p>
             {loadingCatalogs ? <p className="mt-2 text-xs text-[var(--text-muted)]">Cargando catalogo de obras y factores...</p> : null}
           </div>

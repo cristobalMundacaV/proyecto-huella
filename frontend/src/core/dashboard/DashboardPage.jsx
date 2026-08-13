@@ -3,13 +3,13 @@ import { Leaf } from "lucide-react";
 
 import RealtimeIotMonitoring from "@/features/dashboard/components/RealtimeIotMonitoring";
 import ExecutiveSummary from "@/features/dashboard/components/ExecutiveSummary";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { getEnvironmentalKpis } from "@/features/environmental/services/environmentalKpiApi";
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import {
-  getConstructoraDashboard,
-  getConstructoraEmisiones,
-  getConstructoraEstado,
+  getOrganizacionDashboard,
+  getOrganizacionEmisiones,
+  getOrganizacionEstado,
   getEmpresaRegistrosAmbientales,
 } from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
@@ -310,8 +310,8 @@ function EmissionParticipationPanel({ data, description, nameKey, title, totalLa
 }
 
 function DashboardPage({ onStatusChange }) {
-  const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
-  const activePreset = getActivePreset(activeConstructora?.preset || DEFAULT_PRESET_KEY);
+  const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
+  const activePreset = getActivePreset(activeOrganizacion?.preset || DEFAULT_PRESET_KEY);
   const [data, setData] = useState(null);
   const [ambientRecords, setAmbientRecords] = useState([]);
   const [emissionKpis, setEmissionKpis] = useState(null);
@@ -320,7 +320,7 @@ function DashboardPage({ onStatusChange }) {
   const [error, setError] = useState("");
 
   const refreshDashboard = useCallback(async (showLoading = false) => {
-    if (!activeConstructoraId) {
+    if (!activeOrganizacionId) {
       setData(null);
       setAmbientRecords([]);
       setEmissionKpis(null);
@@ -334,11 +334,11 @@ function DashboardPage({ onStatusChange }) {
     setError("");
 
     const [dashboardResult, estadoResult, emissionsResult, recordsResult, environmentalKpiResult] = await Promise.allSettled([
-      getConstructoraDashboard(activeConstructoraId, { light: "1" }),
-      getConstructoraEstado(activeConstructoraId),
-      getConstructoraEmisiones(activeConstructoraId, { page: 1, page_size: 1 }),
-      getEmpresaRegistrosAmbientales(activeConstructoraId),
-      getEnvironmentalKpis(activeConstructoraId),
+      getOrganizacionDashboard(activeOrganizacionId, { light: "1" }),
+      getOrganizacionEstado(activeOrganizacionId),
+      getOrganizacionEmisiones(activeOrganizacionId, { page: 1, page_size: 1 }),
+      getEmpresaRegistrosAmbientales(activeOrganizacionId),
+      getEnvironmentalKpis(activeOrganizacionId),
     ]);
 
     const normalizedRecords = recordsResult.status === "fulfilled" ? normalizeRows(recordsResult.value) : [];
@@ -362,7 +362,7 @@ function DashboardPage({ onStatusChange }) {
     }
 
     if (showLoading) setLoading(false);
-  }, [activeConstructoraId, onStatusChange]);
+  }, [activeOrganizacionId, onStatusChange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -470,7 +470,7 @@ function DashboardPage({ onStatusChange }) {
         />
       </section>
 
-      <RealtimeIotMonitoring activeConstructoraId={activeConstructoraId} />
+      <RealtimeIotMonitoring activeOrganizacionId={activeOrganizacionId} />
     </main>
   );
 }

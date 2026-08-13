@@ -3,10 +3,10 @@ import { Plus, ShieldCheck, UserRound, UsersRound, X } from "lucide-react";
 
 import EmptyState from "@/shared/components/EmptyState";
 import {
-  createConstructoraUsuario,
-  getConstructoraUsuarios,
+  createOrganizacionUsuario,
+  getOrganizacionUsuarios,
 } from "@/shared/services/api";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 
 const emptyForm = {
   username: "",
@@ -27,7 +27,7 @@ const roleLabels = {
 };
 
 function UsuariosPage() {
-  const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
+  const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -41,7 +41,7 @@ function UsuariosPage() {
   );
 
   useEffect(() => {
-    if (!activeConstructoraId) {
+    if (!activeOrganizacionId) {
       setUsuarios([]);
       setLoading(false);
       return;
@@ -51,7 +51,7 @@ function UsuariosPage() {
     setLoading(true);
     setError("");
 
-    getConstructoraUsuarios(activeConstructoraId)
+    getOrganizacionUsuarios(activeOrganizacionId)
       .then((data) => {
         if (!isCancelled) {
           setUsuarios(Array.isArray(data) ? data : []);
@@ -74,13 +74,13 @@ function UsuariosPage() {
     return () => {
       isCancelled = true;
     };
-  }, [activeConstructoraId]);
+  }, [activeOrganizacionId]);
 
-  if (!activeConstructora) {
+  if (!activeOrganizacion) {
     return (
       <EmptyState
-        title="Selecciona una constructora"
-        description="Los usuarios se crean dentro de la constructora activa."
+        title="Selecciona una organizacion"
+        description="Los usuarios se crean dentro de la organizacion activa."
       />
     );
   }
@@ -106,7 +106,7 @@ function UsuariosPage() {
     setError("");
 
     try {
-      const created = await createConstructoraUsuario(activeConstructoraId, form);
+      const created = await createOrganizacionUsuario(activeOrganizacionId, form);
       setUsuarios((current) => [created, ...current]);
       setForm(emptyForm);
       setFormOpen(false);
@@ -134,7 +134,7 @@ function UsuariosPage() {
               Usuarios
             </h1>
             <p className="max-w-3xl text-[#475569]">
-              Administra accesos, roles y permisos operativos para {activeConstructora.nombre}.
+              Administra accesos, roles y permisos operativos para {activeOrganizacion.nombre}.
             </p>
           </div>
         </div>
@@ -165,8 +165,8 @@ function UsuariosPage() {
         />
         <UserKpi
           icon={UserRound}
-          label="Constructora"
-          value={activeConstructora.nombre}
+          label="Organizacion"
+          value={activeOrganizacion.nombre}
           description="Empresa seleccionada"
           tone="blue"
         />
@@ -191,7 +191,7 @@ function UsuariosPage() {
                     Crear usuario
                   </h2>
                   <p className="mt-1 text-sm leading-6 text-[#64748B]">
-                    El usuario quedará vinculado a {activeConstructora.nombre} con el rol seleccionado.
+                    El usuario quedará vinculado a {activeOrganizacion.nombre} con el rol seleccionado.
                   </p>
                 </div>
               </div>
@@ -271,7 +271,7 @@ function UsuariosPage() {
               Gestión de accesos
             </p>
             <h2 className="mt-1 text-2xl font-black tracking-tight text-[#0F172A]">
-              Usuarios de la constructora
+              Usuarios de la organizacion
             </h2>
             <p className="mt-1 text-sm text-[#64748B]">
               {loading ? "Cargando usuarios..." : `${usuarios.length} usuarios encontrados.`}
@@ -331,7 +331,7 @@ function UsuariosPage() {
                           Aún no hay usuarios registrados
                         </p>
                         <p className="mt-2 text-sm leading-6 text-[#64748B]">
-                          Crea accesos para analistas, operadores o lectores de la constructora seleccionada.
+                          Crea accesos para analistas, operadores o lectores de la organizacion seleccionada.
                         </p>
                       </div>
                     </td>

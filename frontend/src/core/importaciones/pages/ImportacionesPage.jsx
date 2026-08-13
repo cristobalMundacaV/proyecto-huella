@@ -1,20 +1,20 @@
 import { useMemo, useState } from "react";
 
 import {
-  confirmarImportConstructoras,
-  confirmarImportEtapasForConstructora,
+  confirmarImportOrganizaciones,
+  confirmarImportEtapasForOrganizacion,
   confirmarImportFactores,
-  confirmarImportObrasForConstructora,
-  confirmRegistroEmisionImportForConstructora,
+  confirmarImportObrasForOrganizacion,
+  confirmRegistroEmisionImportForOrganizacion,
   createEmpresaRegistroAmbiental,
-  previewImportConstructoras,
-  previewImportEtapasForConstructora,
+  previewImportOrganizaciones,
+  previewImportEtapasForOrganizacion,
   previewImportFactores,
   previewImportGenerica,
-  previewImportObrasForConstructora,
-  previewRegistroEmisionImportForConstructora,
+  previewImportObrasForOrganizacion,
+  previewRegistroEmisionImportForOrganizacion,
 } from "@/shared/services/api";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { DEFAULT_PRESET_KEY, getActivePreset } from "@/presets/registry";
 import { aserraderoImport } from "@/presets/aserradero/import";
 import { construccionImport } from "@/presets/construccion/import";
@@ -37,25 +37,25 @@ import ImportValidationSummary from "../components/ImportValidationSummary";
 
 const importByPreset = {
   construccion: construccionImport,
-  aserradero: aserraderoImport,
+  forestal: aserraderoImport,
   transporte: transporteImport,
   industrial: industrialImport,
 };
 
 const constructionPreview = {
-  constructoras: previewImportConstructoras,
+  organizaciones: previewImportOrganizaciones,
   factores: previewImportFactores,
-  etapas: previewImportEtapasForConstructora,
-  obras: previewImportObrasForConstructora,
-  registros: previewRegistroEmisionImportForConstructora,
+  etapas: previewImportEtapasForOrganizacion,
+  obras: previewImportObrasForOrganizacion,
+  registros: previewRegistroEmisionImportForOrganizacion,
 };
 
 const constructionConfirm = {
-  constructoras: confirmarImportConstructoras,
+  organizaciones: confirmarImportOrganizaciones,
   factores: confirmarImportFactores,
-  etapas: confirmarImportEtapasForConstructora,
-  obras: confirmarImportObrasForConstructora,
-  registros: confirmRegistroEmisionImportForConstructora,
+  etapas: confirmarImportEtapasForOrganizacion,
+  obras: confirmarImportObrasForOrganizacion,
+  registros: confirmRegistroEmisionImportForOrganizacion,
 };
 function hasOperationalAmount(data) {
   return [
@@ -99,8 +99,8 @@ function validatePreviewRows(rows, columns) {
   });
 }
 function ImportacionesPage({ onImportConfirmed }) {
-  const { activeConstructora, activeConstructoraId, refreshConstructoras } = useConstructoraActiva();
-  const activePreset = getActivePreset(activeConstructora?.preset || DEFAULT_PRESET_KEY);
+  const { activeOrganizacion, activeOrganizacionId, refreshOrganizaciones } = useOrganizacionActiva();
+  const activePreset = getActivePreset(activeOrganizacion?.preset || DEFAULT_PRESET_KEY);
   const config = importByPreset[activePreset.key] || construccionImport;
   const [selectedModule, setSelectedModule] = useState(config.modules[0]?.key || "");
   const [previewRows, setPreviewRows] = useState([]);
@@ -130,7 +130,7 @@ function ImportacionesPage({ onImportConfirmed }) {
       if (activePreset.key === "construccion" && constructionPreview[selectedModule]) {
         const previewFn = constructionPreview[selectedModule];
         const result = ["etapas", "obras", "registros"].includes(selectedModule)
-          ? await previewFn(activeConstructoraId, file)
+          ? await previewFn(activeOrganizacionId, file)
           : await previewFn(file);
 
         const rows = normalizeImportRows(result.rows || result);
@@ -167,7 +167,7 @@ function ImportacionesPage({ onImportConfirmed }) {
   }
 
   async function handleConfirm() {
-    if (!activeConstructoraId || !moduleConfig || !previewRows.length) return;
+    if (!activeOrganizacionId || !moduleConfig || !previewRows.length) return;
     setSaving(true);
     setError("");
     setMessage("");
@@ -177,15 +177,15 @@ function ImportacionesPage({ onImportConfirmed }) {
         const confirmFn = constructionConfirm[selectedModule];
         const payload = backendBatchId ? { batch_id: backendBatchId } : { rows: previewRows.filter((row) => row.status === "valid") };
         const result = ["etapas", "obras", "registros"].includes(selectedModule)
-          ? await confirmFn(activeConstructoraId, payload)
+          ? await confirmFn(activeOrganizacionId, payload)
           : await confirmFn(payload);
         setMessage(`Importacion confirmada. Creados: ${result.creados ?? result.created ?? 0}.`);
-        await refreshConstructoras().catch(() => undefined);
+        await refreshOrganizaciones().catch(() => undefined);
         await onImportConfirmed?.();
-      } else if (activePreset.key === "aserradero" && moduleConfig.supported) {
-        const payloads = mapPresetImportPayload("aserradero", selectedModule, previewRows, config.buildPayload);
+      } else if (activePreset.key === "forestal" && moduleConfig.supported) {
+        const payloads = mapPresetImportPayload("forestal", selectedModule, previewRows, config.buildPayload);
         for (const payload of payloads) {
-          await createEmpresaRegistroAmbiental(activeConstructoraId, payload);
+          await createEmpresaRegistroAmbiental(activeOrganizacionId, payload);
         }
         setMessage(`${payloads.length} registros forestales importados correctamente.`);
         await onImportConfirmed?.();
@@ -199,7 +199,7 @@ function ImportacionesPage({ onImportConfirmed }) {
     }
   }
 
-  if (!activeConstructora) {
+  if (!activeOrganizacion) {
     return (
       <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center text-[var(--text-muted)]">
         Selecciona o crea una empresa para comenzar importaciones.
@@ -208,11 +208,11 @@ function ImportacionesPage({ onImportConfirmed }) {
   }
 
   const recommendations = config.buildRecommendations(summary || {});
-  const canConfirm = Boolean(activeConstructoraId && previewRows.some((row) => row.status === "valid") && moduleConfig?.supported);
+  const canConfirm = Boolean(activeOrganizacionId && previewRows.some((row) => row.status === "valid") && moduleConfig?.supported);
 
   return (
     <main className="mx-auto max-w-7xl space-y-8">
-      <ImportHero activeConstructora={activeConstructora} config={config} preset={activePreset} />
+      <ImportHero activeOrganizacion={activeOrganizacion} config={config} preset={activePreset} />
       {message && <p className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-800">{message}</p>}
       {error && <p className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-black text-rose-800">{error}</p>}
 

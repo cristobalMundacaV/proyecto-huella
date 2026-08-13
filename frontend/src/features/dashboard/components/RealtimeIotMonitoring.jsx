@@ -32,7 +32,7 @@ const formatTipo = (value) =>
     .replace(/_/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
-function RealtimeIotMonitoring({ activeConstructoraId }) {
+function RealtimeIotMonitoring({ activeOrganizacionId }) {
   const [kpis, setKpis] = useState(null);
   const [lecturas, setLecturas] = useState([]);
   const [lecturasPage, setLecturasPage] = useState(1);
@@ -56,7 +56,7 @@ function RealtimeIotMonitoring({ activeConstructoraId }) {
   useEffect(() => {
     let isCancelled = false;
 
-    if (!activeConstructoraId) {
+    if (!activeOrganizacionId) {
       return undefined;
     }
 
@@ -74,8 +74,8 @@ function RealtimeIotMonitoring({ activeConstructoraId }) {
         }
 
         const [kpisResult, lecturasResult] = await Promise.all([
-          getIotKpis(activeConstructoraId),
-          getIotUltimasLecturas(activeConstructoraId),
+          getIotKpis(activeOrganizacionId),
+          getIotUltimasLecturas(activeOrganizacionId),
         ]);
 
         if (!isCancelled) {
@@ -130,7 +130,7 @@ function RealtimeIotMonitoring({ activeConstructoraId }) {
         window.clearTimeout(clearNewRowsTimeoutRef.current);
       }
     };
-  }, [activeConstructoraId]);
+  }, [activeOrganizacionId]);
 
   return (
     <section className="premium-card premium-card-interactive slide-up overflow-hidden rounded-2xl bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] ring-1 ring-white/45 sm:p-6">

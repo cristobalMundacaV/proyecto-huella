@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import Constructora, RegistroEmision
+from .models import Organizacion, RegistroEmision
 from .serializers import RegistroEmisionSerializer
 
 
@@ -75,11 +75,11 @@ def _sorted_items(grouped, label_key):
 
 
 @api_view(["GET"])
-def constructora_emisiones(request, constructora_id):
-    constructora = get_object_or_404(Constructora, constructora_id=constructora_id)
+def organizacion_emisiones(request, organizacion_id):
+    organizacion = get_object_or_404(Organizacion, organizacion_id=organizacion_id)
     queryset = (
-        RegistroEmision.objects.filter(constructora=constructora)
-        .select_related("constructora", "obra", "etapa")
+        RegistroEmision.objects.filter(organizacion=organizacion)
+        .select_related("organizacion", "obra", "etapa")
         .order_by("-fecha", "-created_at")
     )
     registros = list(queryset)
@@ -153,8 +153,8 @@ def constructora_emisiones(request, constructora_id):
 
     return Response(
         {
-            "constructora_id": constructora.constructora_id,
-            "constructora_nombre": constructora.nombre,
+            "organizacion_id": organizacion.organizacion_id,
+            "organizacion_nombre": organizacion.nombre,
             "kpis": kpis,
             "rows": response_rows,
             "datos": rows,

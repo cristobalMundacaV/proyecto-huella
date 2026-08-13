@@ -16,7 +16,7 @@ PRESET_REQUIREMENTS = {
         "variables": ["diesel", "km", "rendimiento", "ralenti", "carga"],
         "fields": ["vehiculo", "patente", "ruta", "km", "litros", "cliente", "fecha"],
     },
-    "aserradero": {
+    "forestal": {
         "documents": ["trozas", "produccion", "energia", "combustible", "biomasa", "residuo", "transporte"],
         "variables": ["m3", "kwh", "biomasa", "aserrin", "humedad", "diesel"],
         "fields": ["lote", "especie", "m3", "proceso", "energia", "destino", "fecha"],
@@ -44,13 +44,13 @@ PRESET_REQUIREMENTS = {
 }
 
 
-def build_environmental_ingestion_readiness(constructora):
-    preset_key = normalize_preset(constructora)
+def build_environmental_ingestion_readiness(organizacion):
+    preset_key = normalize_preset(organizacion)
     requirements = PRESET_REQUIREMENTS.get(preset_key, PRESET_REQUIREMENTS["industrial"])
-    documents = list(DocumentoAmbiental.objects.filter(constructora=constructora).order_by("-created_at"))
-    variables = list(VariableAmbientalExtraida.objects.filter(constructora=constructora).order_by("-created_at"))
-    evidences = list(EvidenciaObra.objects.filter(constructora=constructora).order_by("-created_at")[:20])
-    records = RegistroEmision.objects.filter(constructora=constructora)
+    documents = list(DocumentoAmbiental.objects.filter(organizacion=organizacion).order_by("-created_at"))
+    variables = list(VariableAmbientalExtraida.objects.filter(organizacion=organizacion).order_by("-created_at"))
+    evidences = list(EvidenciaObra.objects.filter(organizacion=organizacion).order_by("-created_at")[:20])
+    records = RegistroEmision.objects.filter(organizacion=organizacion)
 
     doc_coverage = coverage_items(requirements["documents"], documents, document_text)
     variable_coverage = coverage_items(requirements["variables"], variables, variable_text)
@@ -64,9 +64,9 @@ def build_environmental_ingestion_readiness(constructora):
     blockers = build_blockers(documents, variables, records, doc_coverage, variable_coverage)
 
     return {
-        "constructora_id": constructora.constructora_id,
-        "preset": constructora.preset,
-        "rubro": constructora.rubro,
+        "organizacion_id": organizacion.organizacion_id,
+        "preset": organizacion.preset,
+        "rubro": organizacion.rubro,
         "generated_at": timezone.now().isoformat(),
         "summary": {
             "score": score,
@@ -89,19 +89,19 @@ def build_environmental_ingestion_readiness(constructora):
     }
 
 
-def normalize_preset(constructora):
-    text = f"{constructora.preset} {constructora.rubro}".lower()
+def normalize_preset(organizacion):
+    text = f"{organizacion.preset} {organizacion.rubro}".lower()
     if "transporte" in text:
         return "transporte"
     if "aserr" in text or "forestal" in text:
-        return "aserradero"
+        return "forestal"
     if "min" in text:
         return "mineria"
     if "energ" in text or "cems" in text:
         return "energia"
     if "constr" in text:
         return "construccion"
-    return constructora.preset or "industrial"
+    return organizacion.preset or "industrial"
 
 
 def coverage_items(expected, current_items, text_builder):

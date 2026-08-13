@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from apps.analytics.models import (
-    Constructora,
+    Organizacion,
     EtapaObra,
     EvidenciaObra,
     FactorEmision,
@@ -20,16 +20,16 @@ class Command(BaseCommand):
     help = "Crea datos demo de construccion para Carbono Zero."
 
     def handle(self, *args, **options):
-        constructora, _ = Constructora.objects.update_or_create(
-            constructora_id="CONSTRUCTORA_ANDINA",
+        organizacion, _ = Organizacion.objects.update_or_create(
+            organizacion_id="ORGANIZACION_ANDINA",
             defaults={
-                "nombre": "Constructora Andina SpA",
+                "nombre": "Organizacion Andina SpA",
                 "rut": "76.123.456-7",
                 "region": "Biobio",
                 "comuna": "Concepcion",
                 "direccion": "Av. Los Carrera 1200",
                 "rubro": "Construccion",
-                "email": "operaciones@constructoraandina.cl",
+                "email": "operaciones@organizacionandina.cl",
                 "telefono": "+56 41 222 0000",
                 "contacto": "Equipo de sostenibilidad",
             },
@@ -48,7 +48,7 @@ class Command(BaseCommand):
             etapa, _ = EtapaObra.objects.update_or_create(
                 etapa_id=etapa_id,
                 defaults={
-                    "constructora": constructora,
+                    "organizacion": organizacion,
                     "nombre": nombre,
                     "tipo": tipo,
                     "region": "Biobio",
@@ -62,7 +62,7 @@ class Command(BaseCommand):
         obra, _ = Obra.objects.update_or_create(
             codigo_obra="OBRA_LOS_ROBLES",
             defaults={
-                "constructora": constructora,
+                "organizacion": organizacion,
                 "etapa_principal": etapas["Obra gruesa"],
                 "nombre": "Edificio Habitacional Los Robles",
                 "tipo_proyecto": Obra.TipoProyecto.EDIFICIO,
@@ -192,7 +192,7 @@ class Command(BaseCommand):
                 continue
 
             EvidenciaObra.objects.create(
-                constructora=constructora,
+                organizacion=organizacion,
                 obra=obra,
                 etapa=registro.etapa,
                 registro_emision=registro,

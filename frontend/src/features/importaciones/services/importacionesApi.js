@@ -1,11 +1,11 @@
 export {
   confirmRegistroEmisionImport,
-  confirmarImportConstructoras,
+  confirmarImportOrganizaciones,
   confirmarImportFactores,
   confirmarImportObras,
   confirmarImportEtapas,
   previewRegistroEmisionImport,
-  previewImportConstructoras,
+  previewImportOrganizaciones,
   previewImportFactores,
   previewImportObras,
   previewImportEtapas,

@@ -1,4 +1,4 @@
-﻿from .emission_semantics import (
+from .emission_semantics import (
     is_diesel_emission,
     is_electricity_emission,
     is_transport_emission,
@@ -20,20 +20,20 @@ def simulate_rows(
     rows,
     diesel_reduction=0,
     electricity_increase=0,
-    selected_constructora="Todas",
+    selected_organizacion="Todas",
 ):
     simulated_rows = []
 
     for row in rows:
-        constructora = row.get("constructora")
-        should_apply_constructora = selected_constructora in (None, "", "Todas", constructora)
+        organizacion = row.get("organizacion")
+        should_apply_organizacion = selected_organizacion in (None, "", "Todas", organizacion)
         cantidad = to_float(row.get("cantidad"))
         factor = to_float(row.get("factor_emision"))
 
-        if should_apply_constructora and is_diesel_emission(row) and not is_transport_emission(row):
+        if should_apply_organizacion and is_diesel_emission(row) and not is_transport_emission(row):
             cantidad *= 1 - to_float(diesel_reduction) / 100
 
-        if should_apply_constructora and is_electricity_emission(row):
+        if should_apply_organizacion and is_electricity_emission(row):
             cantidad *= 1 + to_float(electricity_increase) / 100
 
         simulated_rows.append(
@@ -49,20 +49,20 @@ def simulate_rows(
 
 def summarize_rows(rows):
     total = sum(to_float(row.get("emisiones")) for row in rows)
-    by_constructora = {}
+    by_organizacion = {}
     by_source = {}
 
     for row in rows:
-        constructora = row.get("constructora", "Sin constructora")
+        organizacion = row.get("organizacion", "Sin organizacion")
         fuente = row.get("fuente_emision", "Sin fuente")
         emisiones = to_float(row.get("emisiones"))
-        by_constructora[constructora] = by_constructora.get(constructora, 0) + emisiones
+        by_organizacion[organizacion] = by_organizacion.get(organizacion, 0) + emisiones
         by_source[fuente] = by_source.get(fuente, 0) + emisiones
 
     return {
         "total_emisiones": total,
-        "emisiones_por_constructora": dict(
-            sorted(by_constructora.items(), key=lambda item: item[1], reverse=True)
+        "emisiones_por_organizacion": dict(
+            sorted(by_organizacion.items(), key=lambda item: item[1], reverse=True)
         ),
         "emisiones_por_fuente": dict(
             sorted(by_source.items(), key=lambda item: item[1], reverse=True)

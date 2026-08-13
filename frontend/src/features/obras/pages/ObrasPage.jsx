@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import CrearObraModal from "@/features/obras/components/CrearObraModal";
 import ObraDetailView from "@/features/obras/components/ObraDetailView";
@@ -15,12 +15,12 @@ import {
   createTransporteObra,
   downloadObraFichaAmbiental,
   extractDocumentJsonById,
-  getConstructoras,
+  getOrganizaciones,
   getMaterialesConstruccion,
   getFactoresEmision,
   getHistorialObra,
-  getConstructoraObras,
-  getConstructoraEtapas,
+  getOrganizacionObras,
+  getOrganizacionEtapas,
   getObraBalanceAmbiental,
   getObraDetail,
   rejectExtraccionEvidencia,
@@ -28,13 +28,13 @@ import {
   uploadObraEvidencia,
   validateExtraccionEvidencia,
 } from "@/shared/services/api";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 
 const emptyForm = {
   codigo_obra: "",
-  constructora_id: "",
+  organizacion_id: "",
   etapa_id: "",
-  constructora_nombre: "",
+  organizacion_nombre: "",
   fecha: "",
   tipo_proyecto: "",
   superficie_m2: "",
@@ -78,7 +78,7 @@ const emptyTransportForm = {
 
 function ObrasView() {
   const [obras, setObras] = useState([]);
-  const [constructoras, setConstructoras] = useState([]);
+  const [organizaciones, setOrganizaciones] = useState([]);
   const [etapasOperativas, setEtapasOperativas] = useState([]);
   const [materialesConstruccion, setMaterialesConstruccion] = useState([]);
   const [factoresEmision, setFactoresEmision] = useState([]);
@@ -118,7 +118,7 @@ function ObrasView() {
   const [registroFieldErrors, setregistroFieldErrors] = useState({});
   const [documentFieldErrors, setDocumentFieldErrors] = useState({});
   const [transportFieldErrors, setTransportFieldErrors] = useState({});
-  const { activeConstructora, activeConstructoraId, loadingConstructoras } = useConstructoraActiva();
+  const { activeOrganizacion, activeOrganizacionId, loadingOrganizaciones } = useOrganizacionActiva();
 
   const totalEmisiones = useMemo(
     () =>
@@ -130,17 +130,17 @@ function ObrasView() {
   );
 
   const etapasDisponibles = useMemo(() => {
-    if (!form.constructora_id) {
+    if (!form.organizacion_id) {
       return etapasOperativas;
     }
 
     return etapasOperativas.filter(
-      (unidad) => String(unidad.constructora_id) === String(form.constructora_id)
+      (unidad) => String(unidad.organizacion_id) === String(form.organizacion_id)
     );
-  }, [form.constructora_id, etapasOperativas]);
+  }, [form.organizacion_id, etapasOperativas]);
 
   useEffect(() => {
-    if (!activeConstructoraId) {
+    if (!activeOrganizacionId) {
       setSelectedObra(null);
       setSelectedBalanceAmbiental(null);
       setHistory([]);
@@ -159,9 +159,9 @@ function ObrasView() {
           materialesData,
           etapasData,
         ] = await Promise.all([
-          getConstructoraObras(activeConstructoraId),
+          getOrganizacionObras(activeOrganizacionId),
           getMaterialesConstruccion(),
-          getConstructoraEtapas(activeConstructoraId),
+          getOrganizacionEtapas(activeOrganizacionId),
         ]);
 
         // Normalize responses to arrays in case API returns paginated objects
@@ -191,11 +191,11 @@ function ObrasView() {
         setSelectedBalanceAmbiental(null);
         setHistory([]);
         setHistoryPageInfo(null);
-        setConstructoras(activeConstructora ? [activeConstructora] : []);
+        setOrganizaciones(activeOrganizacion ? [activeOrganizacion] : []);
         setForm((currentForm) => ({
           ...currentForm,
-          constructora_id: activeConstructoraId,
-          constructora_nombre: activeConstructora?.nombre || currentForm.constructora_nombre,
+          organizacion_id: activeOrganizacionId,
+          organizacion_nombre: activeOrganizacion?.nombre || currentForm.organizacion_nombre,
           tipo_proyecto: currentForm.tipo_proyecto || "",
         }));
 
@@ -229,7 +229,7 @@ function ObrasView() {
     return () => {
       mountedRef.current = false;
     };
-  }, [activeConstructora, activeConstructoraId]);
+  }, [activeOrganizacion, activeOrganizacionId]);
 
   useEffect(() => {
     if (
@@ -284,17 +284,17 @@ function ObrasView() {
   const updateForm = (event) => {
     const { name, value } = event.target;
     setForm((currentForm) => {
-      if (name === "constructora_id") {
-        const selectedConstructora = constructoras.find(
-          (constructora) => String(constructora.constructora_id) === String(value)
+      if (name === "organizacion_id") {
+        const selectedOrganizacion = organizaciones.find(
+          (organizacion) => String(organizacion.organizacion_id) === String(value)
         );
 
         return {
           ...currentForm,
-          constructora_id: value,
+          organizacion_id: value,
           etapa_id: "",
-          constructora_nombre:
-            selectedConstructora?.nombre || currentForm.constructora_nombre,
+          organizacion_nombre:
+            selectedOrganizacion?.nombre || currentForm.organizacion_nombre,
         };
       }
 
@@ -306,9 +306,9 @@ function ObrasView() {
         return {
           ...currentForm,
           etapa_id: value,
-          constructora_id: selectedEtapa?.constructora_id || currentForm.constructora_id,
-          constructora_nombre:
-            selectedEtapa?.constructora_nombre || currentForm.constructora_nombre,
+          organizacion_id: selectedEtapa?.organizacion_id || currentForm.organizacion_id,
+          organizacion_nombre:
+            selectedEtapa?.organizacion_nombre || currentForm.organizacion_nombre,
         };
       }
 
@@ -468,8 +468,8 @@ function ObrasView() {
       setCreateModalOpen(false);
       setForm({
         ...emptyForm,
-        constructora_id: activeConstructoraId,
-        constructora_nombre: activeConstructora?.nombre || "",
+        organizacion_id: activeOrganizacionId,
+        organizacion_nombre: activeOrganizacion?.nombre || "",
       });
     } catch (requestError) {
       const responseData = requestError.response?.data;
@@ -783,14 +783,14 @@ function ObrasView() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-      {loadingConstructoras ? (
+      {loadingOrganizaciones ? (
         <div className="min-h-[40vh] flex items-center justify-center text-slate-300">
-          Cargando constructoras...
+          Cargando organizaciones...
         </div>
-      ) : !activeConstructora ? (
+      ) : !activeOrganizacion ? (
         <EmptyState
-          title="Selecciona o crea una constructora para comenzar"
-          description="Las obras y registros de emision se gestionan dentro de la constructora activa."
+          title="Selecciona o crea una organizacion para comenzar"
+          description="Las obras y registros de emision se gestionan dentro de la organizacion activa."
         />
       ) : (
         <>
@@ -872,8 +872,8 @@ function ObrasView() {
 
       {createModalOpen && (
         <CrearObraModal
-          activeConstructora={activeConstructora}
-          constructoras={constructoras}
+          activeOrganizacion={activeOrganizacion}
+          organizaciones={organizaciones}
           materialesConstruccion={materialesConstruccion}
           fieldErrors={fieldErrors}
           form={form}
@@ -886,7 +886,7 @@ function ObrasView() {
       )}
 
       <ImportarEvidenciaObraModal
-        activeConstructoraId={activeConstructoraId}
+        activeOrganizacionId={activeOrganizacionId}
         initialObraId={selectedObra?.codigo_obra || ""}
         onClose={() => setDocumentImportOpen(false)}
         open={documentImportOpen}

@@ -38,8 +38,8 @@ function ObraDetailModal({ detailLoading, obra, onClose }) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <DetailItem label="Código de obra" value={obra.codigo_obra} />
             <DetailItem
-              label="constructora / proveedor principal"
-              value={obra.constructora_nombre}
+              label="organizacion / proveedor principal"
+              value={obra.organizacion_nombre}
             />
             <DetailItem label="Fecha de inicio" value={obra.fecha} />
             <DetailItem label="Tipo de obra / material principal" value={obra.tipo_proyecto} />

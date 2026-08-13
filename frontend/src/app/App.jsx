@@ -8,7 +8,7 @@ import PlatformLoader from "@/shared/components/PlatformLoader";
 import PresetComingSoon from "@/shared/components/PresetComingSoon";
 import LoginPage from "@/features/auth/pages/LoginPage";
 import { useAuth } from "@/features/auth/context/AuthContext";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { DEFAULT_PRESET_KEY, getActivePreset } from "@/presets/registry";
 
 import DashboardPage from "@/core/dashboard/DashboardPage";
@@ -17,7 +17,7 @@ import AccionesAmbientalesPage from "@/features/acciones/pages/AccionesAmbiental
 import OperacionPage from "@/features/operacion/pages/OperacionPage";
 import AdministracionPage from "@/features/administracion/pages/AdministracionPage";
 import EvidenciasPage from "@/features/evidencias/pages/EvidenciasPage";
-import ConstructorasView from "@/features/constructoras/pages/ConstructorasPage";
+import OrganizacionesView from "@/features/organizaciones/pages/OrganizacionesPage";
 import ObrasView from "@/features/obras/pages/ObrasPage";
 import EtapasObraView from "@/features/etapas/pages/EtapasPage";
 import FactoresView from "@/features/factores/pages/FactoresPage";
@@ -48,15 +48,15 @@ const placeholderViews = {
 function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeView, setActiveView] = useState("dashboard");
-  const [constructoraCreateSignal, setConstructoraCreateSignal] = useState(0);
+  const [organizacionCreateSignal, setOrganizacionCreateSignal] = useState(0);
   const [companyStatus, setCompanyStatus] = useState(null);
   const { loadingAuth, user } = useAuth();
-  const { activeConstructora, activeConstructoraId, loadingConstructoras } = useConstructoraActiva();
-  const activePreset = getActivePreset(activeConstructora?.preset || DEFAULT_PRESET_KEY);
+  const { activeOrganizacion, activeOrganizacionId, loadingOrganizaciones } = useOrganizacionActiva();
+  const activePreset = getActivePreset(activeOrganizacion?.preset || DEFAULT_PRESET_KEY);
 
   const handleSetActiveView = useCallback((view, options = {}) => {
     setActiveView(view);
-    if (options.openCreateConstructora) setConstructoraCreateSignal((value) => value + 1);
+    if (options.openCreateOrganizacion) setOrganizacionCreateSignal((value) => value + 1);
   }, []);
 
   if (loadingAuth) {
@@ -65,14 +65,14 @@ function App() {
 
   if (!user) return <LoginPage />;
 
-  if (loadingConstructoras) {
+  if (loadingOrganizaciones) {
     return <PlatformLoader fullScreen title="Cargando empresas" description="Estamos preparando empresas, presets y estado operativo." />;
   }
 
-  if (!activeConstructora) {
+  if (!activeOrganizacion) {
     return (
       <div className="min-h-screen bg-[var(--bg-main)] p-6 text-[var(--text-main)] sm:p-10">
-        <ConstructorasView onSetActiveView={handleSetActiveView} initialOpenCreate />
+        <OrganizacionesView onSetActiveView={handleSetActiveView} initialOpenCreate />
       </div>
     );
   }
@@ -108,13 +108,13 @@ function App() {
 
         <section className="min-w-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
           <AnimatePresence mode="wait">
-            <motion.div key={`${activeView}-${activeConstructoraId}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={viewTransition}>
+            <motion.div key={`${activeView}-${activeOrganizacionId}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={viewTransition}>
               <ActiveView
-                activeConstructora={activeConstructora}
-                activeConstructoraId={activeConstructoraId}
+                activeOrganizacion={activeOrganizacion}
+                activeOrganizacionId={activeOrganizacionId}
                 activePreset={activePreset}
                 activeView={activeView}
-                constructoraCreateSignal={constructoraCreateSignal}
+                organizacionCreateSignal={organizacionCreateSignal}
                 onSetActiveView={handleSetActiveView}
                 onStatusChange={setCompanyStatus}
               />
@@ -126,7 +126,7 @@ function App() {
   );
 }
 
-function ActiveView({ activePreset, activeView, constructoraCreateSignal, onSetActiveView, onStatusChange }) {
+function ActiveView({ activePreset, activeView, organizacionCreateSignal, onSetActiveView, onStatusChange }) {
   if (activeView === "reportes_regulatorios") return <ReportesRegulatoriosPage />;
   if (activeView === "copiloto_ambiental") return <CopilotoAmbientalPage />;
   if (activeView === "dashboard") return <DashboardPage onSetActiveView={onSetActiveView} onStatusChange={onStatusChange} />;
@@ -134,9 +134,9 @@ function ActiveView({ activePreset, activeView, constructoraCreateSignal, onSetA
   if (activeView === "acciones") return <AccionesAmbientalesPage />;
   if (activeView === "operacion") return <OperacionPage />;
   if (activeView === "evidencias") return <EvidenciasPage />;
-  if (activeView === "administracion") return <AdministracionPage onSetActiveView={onSetActiveView} openCreateSignal={constructoraCreateSignal} />;
+  if (activeView === "administracion") return <AdministracionPage onSetActiveView={onSetActiveView} openCreateSignal={organizacionCreateSignal} />;
 
-  if (activeView === "constructoras") return <ConstructorasView onSetActiveView={onSetActiveView} openCreateSignal={constructoraCreateSignal} />;
+  if (activeView === "organizaciones") return <OrganizacionesView onSetActiveView={onSetActiveView} openCreateSignal={organizacionCreateSignal} />;
   if (activeView === "obras") return <ObrasView />;
   if (activeView === "etapas") return <EtapasObraView />;
   if (activeView === "factores") return <FactoresView onSetActiveView={onSetActiveView} />;

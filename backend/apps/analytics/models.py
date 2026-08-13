@@ -33,28 +33,28 @@ def unique_code(model, field, base, pk=None, limit=80):
 
 
 def evidencia_obra_upload_path(instance, filename):
-    constructora = instance.constructora.constructora_id if instance.constructora_id else "SIN_CONSTRUCTORA"
+    organizacion = instance.organizacion.organizacion_id if instance.organizacion_id else "SIN_ORGANIZACION"
     obra = instance.obra.codigo_obra if instance.obra_id else "GENERAL"
-    return f"evidencias/{constructora}/{obra}/{filename}"
+    return f"evidencias/{organizacion}/{obra}/{filename}"
 
 
 def documento_ambiental_upload_path(instance, filename):
-    constructora = instance.constructora.constructora_id if instance.constructora_id else "SIN_CONSTRUCTORA"
-    return f"documentos_ambientales/{constructora}/{filename}"
+    organizacion = instance.organizacion.organizacion_id if instance.organizacion_id else "SIN_ORGANIZACION"
+    return f"documentos_ambientales/{organizacion}/{filename}"
 
 
 def evidencia_formatos_default():
     return ["PDF", "JPG", "PNG", "XLSX", "CSV", "DOCX"]
 
 
-class Constructora(models.Model):
+class Organizacion(models.Model):
     class Preset(models.TextChoices):
         CONSTRUCCION = "construccion", "Construcción"
-        ASERRADERO = "aserradero", "Aserradero / Forestal"
+        FORESTAL = "forestal", "Forestal"
         TRANSPORTE = "transporte", "Transporte"
         INDUSTRIAL = "industrial", "Industrial"
 
-    constructora_id = models.CharField(max_length=80, unique=True, blank=True)
+    organizacion_id = models.CharField(max_length=80, unique=True, blank=True)
     nombre = models.CharField(max_length=180)
     rut = models.CharField(max_length=30, blank=True)
     region = models.CharField(max_length=120, blank=True)
@@ -74,23 +74,23 @@ class Constructora(models.Model):
         ordering = ["nombre"]
 
     def save(self, *args, **kwargs):
-        if not self.constructora_id:
-            self.constructora_id = unique_code(Constructora, "constructora_id", self.nombre, self.pk)
+        if not self.organizacion_id:
+            self.organizacion_id = unique_code(Organizacion, "organizacion_id", self.nombre, self.pk)
         super().save(*args, **kwargs)
 
     def __str__(self):
         return self.nombre
 
 
-class UsuarioConstructora(models.Model):
+class UsuarioOrganizacion(models.Model):
     class Rol(models.TextChoices):
         ADMIN = "admin", "Administrador"
         ANALISTA = "analista", "Analista"
         OPERADOR = "operador", "Operador"
         LECTOR = "lector", "Lector"
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="constructoras_perfil")
-    constructora = models.ForeignKey(Constructora, on_delete=models.CASCADE, related_name="usuarios")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="organizaciones_perfil")
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="usuarios")
     rol = models.CharField(max_length=20, choices=Rol.choices, default=Rol.ANALISTA)
     cargo = models.CharField(max_length=120, blank=True)
     activo = models.BooleanField(default=True)
@@ -98,16 +98,16 @@ class UsuarioConstructora(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["constructora__nombre", "user__first_name", "user__username"]
+        ordering = ["organizacion__nombre", "user__first_name", "user__username"]
         constraints = [
-            models.UniqueConstraint(fields=["user", "constructora"], name="unique_usuario_constructora")
+            models.UniqueConstraint(fields=["user", "organizacion"], name="unique_usuario_organizacion")
         ]
 
     def __str__(self):
-        return f"{self.user.username} - {self.constructora.nombre}"
+        return f"{self.user.username} - {self.organizacion.nombre}"
 
 
-class ConfiguracionConstructora(models.Model):
+class ConfiguracionOrganizacion(models.Model):
     class ModoImportacion(models.TextChoices):
         FLEXIBLE = "flexible", "Flexible"
         ESTRICTO = "estricto", "Estricto"
@@ -126,7 +126,7 @@ class ConfiguracionConstructora(models.Model):
         ULTIMOS_12_MESES = "ultimos_12_meses", "Ultimos 12 meses"
         ANIO_ACTUAL = "anio_actual", "Anio actual"
 
-    constructora = models.OneToOneField(Constructora, on_delete=models.CASCADE, related_name="configuracion")
+    organizacion = models.OneToOneField(Organizacion, on_delete=models.CASCADE, related_name="configuracion")
     unidad_emisiones = models.CharField(max_length=20, default="kg CO2e")
     factor_electrico_default = models.CharField(max_length=160, blank=True, default="Factor electrico vigente")
     region_electrica_default = models.CharField(max_length=120, blank=True, default="Biobio")
@@ -156,7 +156,7 @@ class ConfiguracionConstructora(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Configuracion - {self.constructora.constructora_id}"
+        return f"Configuracion - {self.organizacion.organizacion_id}"
 
 
 class EtapaObra(models.Model):
@@ -180,7 +180,7 @@ class EtapaObra(models.Model):
         FINALIZADA = "finalizada", "Finalizada"
 
     etapa_id = models.CharField(max_length=80, unique=True, blank=True)
-    constructora = models.ForeignKey(Constructora, on_delete=models.CASCADE, related_name="etapas")
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="etapas")
     nombre = models.CharField(max_length=180)
     tipo = models.CharField(max_length=40, choices=Tipo.choices, default=Tipo.OTRO)
     region = models.CharField(max_length=120, blank=True)
@@ -193,15 +193,15 @@ class EtapaObra(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["constructora__nombre", "nombre"]
+        ordering = ["organizacion__nombre", "nombre"]
 
     def save(self, *args, **kwargs):
         if not self.etapa_id:
-            self.etapa_id = unique_code(EtapaObra, "etapa_id", f"{self.constructora.constructora_id}_{self.nombre}", self.pk)
+            self.etapa_id = unique_code(EtapaObra, "etapa_id", f"{self.organizacion.organizacion_id}_{self.nombre}", self.pk)
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.constructora.nombre} - {self.nombre}"
+        return f"{self.organizacion.nombre} - {self.nombre}"
 
 
 class Obra(models.Model):
@@ -222,7 +222,7 @@ class Obra(models.Model):
         FINALIZADA = "finalizada", "Finalizada"
 
     codigo_obra = models.CharField(max_length=80, unique=True, blank=True)
-    constructora = models.ForeignKey(Constructora, on_delete=models.PROTECT, related_name="obras")
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.PROTECT, related_name="obras")
     etapa_principal = models.ForeignKey(EtapaObra, on_delete=models.PROTECT, related_name="obras", null=True, blank=True)
     nombre = models.CharField(max_length=180)
     tipo_proyecto = models.CharField(max_length=40, choices=TipoProyecto.choices, default=TipoProyecto.OTRO)
@@ -276,7 +276,7 @@ class FactorEmision(models.Model):
         OTROS = "Otros", "Otros"
 
     actividad = models.CharField(max_length=120)
-    preset = models.CharField(max_length=40, choices=Constructora.Preset.choices, default=Constructora.Preset.CONSTRUCCION, db_index=True)
+    preset = models.CharField(max_length=40, choices=Organizacion.Preset.choices, default=Organizacion.Preset.CONSTRUCCION, db_index=True)
     module = models.CharField(max_length=80, blank=True)
     categoria = models.CharField(max_length=40, choices=Categoria.choices, default=Categoria.OTROS)
     unidad = models.CharField(max_length=40)
@@ -345,7 +345,7 @@ class EspecieMadera(models.Model):
 
 class LoteForestal(models.Model):
     lote_id = models.CharField(max_length=80, unique=True)
-    constructora = models.ForeignKey(Constructora, on_delete=models.PROTECT, related_name="lotes_forestales")
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.PROTECT, related_name="lotes_forestales")
     fecha = models.DateField()
     especie = models.CharField(max_length=120)
     volumen_m3 = models.DecimalField(max_digits=14, decimal_places=3)
@@ -363,9 +363,9 @@ class LoteForestal(models.Model):
     class Meta:
         ordering = ["-fecha", "lote_id"]
         indexes = [
-            models.Index(fields=["constructora_id", "fecha"]),
-            models.Index(fields=["constructora_id", "lote_id"]),
-            models.Index(fields=["constructora_id", "especie"]),
+            models.Index(fields=["organizacion_id", "fecha"]),
+            models.Index(fields=["organizacion_id", "lote_id"]),
+            models.Index(fields=["organizacion_id", "especie"]),
         ]
 
     def save(self, *args, **kwargs):
@@ -374,7 +374,7 @@ class LoteForestal(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.constructora.constructora_id} - {self.lote_id}"
+        return f"{self.organizacion.organizacion_id} - {self.lote_id}"
 
 
 class RegistroEmision(models.Model):
@@ -388,7 +388,7 @@ class RegistroEmision(models.Model):
         PROCESOS_EXTERNOS = "Procesos externos", "Procesos externos"
         OTROS = "Otros", "Otros"
 
-    constructora = models.ForeignKey(Constructora, on_delete=models.PROTECT, related_name="registros_emision", null=True, blank=True)
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.PROTECT, related_name="registros_emision", null=True, blank=True)
     obra = models.ForeignKey(Obra, on_delete=models.CASCADE, related_name="registros_emision", null=True, blank=True)
     etapa = models.ForeignKey(EtapaObra, on_delete=models.PROTECT, related_name="registros_emision", null=True, blank=True)
     lote_forestal = models.ForeignKey(LoteForestal, on_delete=models.SET_NULL, related_name="registros_emision", null=True, blank=True)
@@ -413,9 +413,9 @@ class RegistroEmision(models.Model):
     class Meta:
         ordering = ["-fecha", "-created_at"]
         indexes = [
-            models.Index(fields=["constructora_id", "fecha"]),
-            models.Index(fields=["constructora_id", "categoria"]),
-            models.Index(fields=["constructora_id", "actividad_key"]),
+            models.Index(fields=["organizacion_id", "fecha"]),
+            models.Index(fields=["organizacion_id", "categoria"]),
+            models.Index(fields=["organizacion_id", "actividad_key"]),
             models.Index(fields=["obra_id", "categoria"]),
             models.Index(fields=["etapa_id", "categoria"]),
             models.Index(fields=["lote_forestal_id"]),
@@ -423,17 +423,17 @@ class RegistroEmision(models.Model):
 
     def save(self, *args, **kwargs):
         if self.obra_id:
-            self.constructora = self.obra.constructora
+            self.organizacion = self.obra.organizacion
             if not self.etapa_id:
                 self.etapa = self.obra.etapa_principal
-        elif self.etapa_id and not self.constructora_id:
-            self.constructora = self.etapa.constructora
-        if not self.lote_forestal_id and self.constructora_id:
+        elif self.etapa_id and not self.organizacion_id:
+            self.organizacion = self.etapa.organizacion
+        if not self.lote_forestal_id and self.organizacion_id:
             metadata = self.metadata if isinstance(self.metadata, dict) else {}
             lote_reference = metadata.get("lote") or metadata.get("lote_id") or metadata.get("lote_forestal")
             if lote_reference:
                 self.lote_forestal = LoteForestal.objects.filter(
-                    constructora_id=self.constructora_id,
+                    organizacion_id=self.organizacion_id,
                     lote_id=str(lote_reference).strip(),
                 ).first()
         if not self.actividad_key:
@@ -442,7 +442,7 @@ class RegistroEmision(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.obra or self.constructora} - {self.fuente_emision}"
+        return f"{self.obra or self.organizacion} - {self.fuente_emision}"
 
 
 class EvidenciaObra(models.Model):
@@ -472,7 +472,7 @@ class EvidenciaObra(models.Model):
         SIN_VINCULO = "sin_vinculo", "Sin vinculo"
         VINCULADA = "vinculada", "Vinculada"
 
-    constructora = models.ForeignKey(Constructora, on_delete=models.CASCADE, related_name="evidencias")
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="evidencias")
     obra = models.ForeignKey(Obra, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias")
     etapa = models.ForeignKey(EtapaObra, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias")
     registro_emision = models.ForeignKey(RegistroEmision, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias")
@@ -491,24 +491,24 @@ class EvidenciaObra(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["constructora_id", "estado_documental"]),
-            models.Index(fields=["constructora_id", "tipo_evidencia"]),
+            models.Index(fields=["organizacion_id", "estado_documental"]),
+            models.Index(fields=["organizacion_id", "tipo_evidencia"]),
             models.Index(fields=["obra_id", "estado_documental"]),
             models.Index(fields=["registro_emision_id"]),
             models.Index(fields=["lote_forestal_id"]),
         ]
 
     def save(self, *args, **kwargs):
-        if self.obra_id and not self.constructora_id:
-            self.constructora = self.obra.constructora
+        if self.obra_id and not self.organizacion_id:
+            self.organizacion = self.obra.organizacion
         if self.registro_emision_id and not self.lote_forestal_id:
             self.lote_forestal = self.registro_emision.lote_forestal
-        if not self.lote_forestal_id and self.constructora_id:
+        if not self.lote_forestal_id and self.organizacion_id:
             metadata = self.metadata_extraccion if isinstance(self.metadata_extraccion, dict) else {}
             lote_reference = metadata.get("lote") or metadata.get("lote_id") or metadata.get("lote_forestal")
             if lote_reference:
                 self.lote_forestal = LoteForestal.objects.filter(
-                    constructora_id=self.constructora_id,
+                    organizacion_id=self.organizacion_id,
                     lote_id=str(lote_reference).strip(),
                 ).first()
         if self.registro_emision_id and self.estado_documental in {"sin_vinculo", ""}:
@@ -520,7 +520,7 @@ class EvidenciaObra(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.constructora.constructora_id} - {self.nombre}"
+        return f"{self.organizacion.organizacion_id} - {self.nombre}"
 
 
 class DocumentoAmbiental(models.Model):
@@ -548,7 +548,7 @@ class DocumentoAmbiental(models.Model):
         OBSERVADO = "observado", "Observado"
         RECHAZADO = "rechazado", "Rechazado"
 
-    constructora = models.ForeignKey(Constructora, on_delete=models.CASCADE, related_name="documentos_ambientales")
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="documentos_ambientales")
     obra = models.ForeignKey(Obra, on_delete=models.SET_NULL, null=True, blank=True, related_name="documentos_ambientales")
     etapa = models.ForeignKey(EtapaObra, on_delete=models.SET_NULL, null=True, blank=True, related_name="documentos_ambientales")
     registro_emision = models.ForeignKey(RegistroEmision, on_delete=models.SET_NULL, null=True, blank=True, related_name="documentos_ambientales")
@@ -570,18 +570,18 @@ class DocumentoAmbiental(models.Model):
     class Meta:
         ordering = ["-fecha_documento", "-created_at"]
         indexes = [
-            models.Index(fields=["constructora_id", "industria"]),
-            models.Index(fields=["constructora_id", "estado_validacion"]),
-            models.Index(fields=["constructora_id", "tipo_documento"]),
+            models.Index(fields=["organizacion_id", "industria"]),
+            models.Index(fields=["organizacion_id", "estado_validacion"]),
+            models.Index(fields=["organizacion_id", "tipo_documento"]),
         ]
 
     def save(self, *args, **kwargs):
-        if not self.industria and self.constructora_id:
-            self.industria = self.constructora.preset
+        if not self.industria and self.organizacion_id:
+            self.industria = self.organizacion.preset
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.constructora.constructora_id} - {self.nombre}"
+        return f"{self.organizacion.organizacion_id} - {self.nombre}"
 
 
 class LimiteNormativoAmbiental(models.Model):
@@ -606,7 +606,7 @@ class LimiteNormativoAmbiental(models.Model):
         PRESENCIA = "presencia", "Presencia"
         OBLIGATORIO = "obligatorio", "Obligatorio"
 
-    constructora = models.ForeignKey(Constructora, on_delete=models.CASCADE, related_name="limites_ambientales")
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="limites_ambientales")
     industria = models.CharField(max_length=80, db_index=True)
     variable_id = models.CharField(max_length=80, db_index=True)
     nombre = models.CharField(max_length=180)
@@ -623,17 +623,17 @@ class LimiteNormativoAmbiental(models.Model):
     class Meta:
         ordering = ["variable_id", "normativa", "-created_at"]
         indexes = [
-            models.Index(fields=["constructora_id", "industria"]),
-            models.Index(fields=["constructora_id", "variable_id", "activo"]),
+            models.Index(fields=["organizacion_id", "industria"]),
+            models.Index(fields=["organizacion_id", "variable_id", "activo"]),
         ]
 
     def save(self, *args, **kwargs):
-        if not self.industria and self.constructora_id:
-            self.industria = self.constructora.preset
+        if not self.industria and self.organizacion_id:
+            self.industria = self.organizacion.preset
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.constructora.constructora_id} - {self.variable_id} {self.comparador} {self.limite}"
+        return f"{self.organizacion.organizacion_id} - {self.variable_id} {self.comparador} {self.limite}"
 
 
 class VariableAmbientalExtraida(models.Model):
@@ -645,7 +645,7 @@ class VariableAmbientalExtraida(models.Model):
         SIN_DATO = "sin_dato", "Sin dato"
 
     documento = models.ForeignKey(DocumentoAmbiental, on_delete=models.CASCADE, related_name="variables_extraidas")
-    constructora = models.ForeignKey(Constructora, on_delete=models.CASCADE, related_name="variables_ambientales")
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="variables_ambientales")
     variable_id = models.CharField(max_length=80, db_index=True)
     nombre = models.CharField(max_length=180)
     categoria = models.CharField(max_length=80, blank=True)
@@ -665,14 +665,14 @@ class VariableAmbientalExtraida(models.Model):
     class Meta:
         ordering = ["-fecha_medicion", "-created_at"]
         indexes = [
-            models.Index(fields=["constructora_id", "variable_id"]),
-            models.Index(fields=["constructora_id", "estado_cumplimiento"]),
+            models.Index(fields=["organizacion_id", "variable_id"]),
+            models.Index(fields=["organizacion_id", "estado_cumplimiento"]),
             models.Index(fields=["documento_id"]),
         ]
 
     def save(self, *args, **kwargs):
-        if self.documento_id and not self.constructora_id:
-            self.constructora = self.documento.constructora
+        if self.documento_id and not self.organizacion_id:
+            self.organizacion = self.documento.organizacion
         self.apply_applicable_limit()
         previous_status = None
         if self.pk:
@@ -683,10 +683,10 @@ class VariableAmbientalExtraida(models.Model):
             self.sync_compliance_alert(previous_status)
 
     def apply_applicable_limit(self):
-        if self.limite_aplicable is not None or not self.constructora_id or not self.variable_id:
+        if self.limite_aplicable is not None or not self.organizacion_id or not self.variable_id:
             return
         limite = LimiteNormativoAmbiental.objects.filter(
-            constructora_id=self.constructora_id,
+            organizacion_id=self.organizacion_id,
             variable_id=self.variable_id,
             activo=True,
         ).order_by("-created_at").first()
@@ -736,7 +736,7 @@ class VariableAmbientalExtraida(models.Model):
         severidad = "amarillo" if tipo_alerta == self.EstadoCumplimiento.ALERTA else "rojo"
         normativa = (self.metadata or {}).get("normativa", "")
         base = {
-            "constructora": self.constructora,
+            "organizacion": self.organizacion,
             "documento": self.documento,
             "variable": self,
             "severidad": severidad,
@@ -759,7 +759,7 @@ class VariableAmbientalExtraida(models.Model):
         AlertaCumplimientoAmbiental.objects.create(**base)
 
     def __str__(self):
-        return f"{self.constructora.constructora_id} - {self.variable_id}: {self.valor}"
+        return f"{self.organizacion.organizacion_id} - {self.variable_id}: {self.valor}"
 
 
 class AlertaCumplimientoAmbiental(models.Model):
@@ -775,7 +775,7 @@ class AlertaCumplimientoAmbiental(models.Model):
         RESUELTA = "resuelta", "Resuelta"
         DESCARTADA = "descartada", "Descartada"
 
-    constructora = models.ForeignKey(Constructora, on_delete=models.CASCADE, related_name="alertas_cumplimiento")
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="alertas_cumplimiento")
     documento = models.ForeignKey(DocumentoAmbiental, on_delete=models.SET_NULL, null=True, blank=True, related_name="alertas_cumplimiento")
     variable = models.ForeignKey(VariableAmbientalExtraida, on_delete=models.SET_NULL, null=True, blank=True, related_name="alertas_cumplimiento")
     severidad = models.CharField(max_length=20, choices=Severidad.choices, default=Severidad.GRIS)
@@ -793,13 +793,13 @@ class AlertaCumplimientoAmbiental(models.Model):
     class Meta:
         ordering = ["-fecha_evento", "-created_at"]
         indexes = [
-            models.Index(fields=["constructora_id", "estado"]),
-            models.Index(fields=["constructora_id", "severidad"]),
+            models.Index(fields=["organizacion_id", "estado"]),
+            models.Index(fields=["organizacion_id", "severidad"]),
             models.Index(fields=["variable_id", "tipo_alerta"]),
         ]
 
     def __str__(self):
-        return f"{self.constructora.constructora_id} - {self.titulo}"
+        return f"{self.organizacion.organizacion_id} - {self.titulo}"
 
 
 class TransporteObra(models.Model):
@@ -901,7 +901,7 @@ class TransporteLoteForestal(models.Model):
 
     def sync_registro_emision(self, litros):
         metadata = {
-            "preset": "aserradero",
+            "preset": "forestal",
             "module": "transporte_forestal",
             "lote": self.lote_forestal.lote_id,
             "patente": self.patente,
@@ -910,7 +910,7 @@ class TransporteLoteForestal(models.Model):
             "distancia_km": str(self.distancia_km),
         }
         defaults = {
-            "constructora": self.lote_forestal.constructora,
+            "organizacion": self.lote_forestal.organizacion,
             "lote_forestal": self.lote_forestal,
             "categoria": RegistroEmision.Categoria.TRANSPORTE,
             "fuente_emision": "Transporte forestal",

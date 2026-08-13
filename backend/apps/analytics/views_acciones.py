@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import Constructora, EvidenciaObra, LoteForestal, Obra, RegistroEmision
+from .models import Organizacion, EvidenciaObra, LoteForestal, Obra, RegistroEmision
 from .models_acciones import AccionAmbiental
 
 VALID_STATUSES = {"pendiente", "en_progreso", "validacion", "completada"}
@@ -63,7 +63,7 @@ def serialize_action(action):
     }
 
 
-def resolve_links(constructora, data, current=None):
+def resolve_links(organizacion, data, current=None):
     current = current or {}
     obra_codigo = data.get("obraCodigo") or data.get("codigo_obra") or data.get("obra") or current.get("obraCodigo")
     lote_id = data.get("loteId") or data.get("lote_id") or data.get("lote") or current.get("loteId")
@@ -79,29 +79,29 @@ def resolve_links(constructora, data, current=None):
 
     if obra_codigo:
         links["obra"] = Obra.objects.filter(
-            constructora=constructora,
+            organizacion=organizacion,
             codigo_obra=str(obra_codigo).strip(),
         ).first()
     if lote_id:
         links["lote_forestal"] = LoteForestal.objects.filter(
-            constructora=constructora,
+            organizacion=organizacion,
             lote_id=str(lote_id).strip(),
         ).first()
     if registro_id:
         links["registro_emision"] = RegistroEmision.objects.filter(
-            constructora=constructora,
+            organizacion=organizacion,
             id=registro_id,
         ).first()
     if evidencia_id:
         links["evidencia"] = EvidenciaObra.objects.filter(
-            constructora=constructora,
+            organizacion=organizacion,
             id=evidencia_id,
         ).first()
 
     return links
 
 
-def normalize_payload(data, constructora, current=None):
+def normalize_payload(data, organizacion, current=None):
     current = current or {}
     status_value = data.get("status", current.get("status", "pendiente"))
     if status_value not in VALID_STATUSES:
@@ -112,7 +112,7 @@ def normalize_payload(data, constructora, current=None):
     responsible = data.get("responsible", data.get("responsable", current.get("responsible", "Equipo ambiental")))
     due_date = data.get("dueDate", data.get("due_date", current.get("dueDate") or current.get("due_date")))
     metadata = data.get("metadata", current.get("metadata", {}))
-    links = resolve_links(constructora, data, current=current)
+    links = resolve_links(organizacion, data, current=current)
 
     return {
         "title": str(title or "Acción ambiental").strip()[:180],
@@ -129,20 +129,20 @@ def normalize_payload(data, constructora, current=None):
     }
 
 
-def action_queryset(constructora):
+def action_queryset(organizacion):
     return (
         AccionAmbiental.objects
-        .filter(constructora=constructora)
+        .filter(organizacion=organizacion)
         .select_related("obra", "lote_forestal", "registro_emision", "evidencia")
     )
 
 
 @api_view(["GET"])
-def constructora_acciones_ambientales_resumen(request, constructora_id):
-    constructora = get_object_or_404(Constructora, constructora_id=constructora_id)
+def organizacion_acciones_ambientales_resumen(request, organizacion_id):
+    organizacion = get_object_or_404(Organizacion, organizacion_id=organizacion_id)
     today = timezone.localdate()
     soon_limit = today + timezone.timedelta(days=7)
-    actions = AccionAmbiental.objects.filter(constructora=constructora)
+    actions = AccionAmbiental.objects.filter(organizacion=organizacion)
 
     by_status = {
         row["status"]: row["total"]
@@ -170,7 +170,7 @@ def constructora_acciones_ambientales_resumen(request, constructora_id):
     traceability_pct = round((linked / total) * 100, 1) if total else 0
     completion_pct = round((completed / total) * 100, 1) if total else 0
 
-    latest_actions = action_queryset(constructora).order_by("-updated_at", "-id")[:5]
+    latest_actions = action_queryset(organizacion).order_by("-updated_at", "-id")[:5]
 
     return Response({
         "total": total,
@@ -193,26 +193,26 @@ def constructora_acciones_ambientales_resumen(request, constructora_id):
 
 
 @api_view(["GET", "POST"])
-def constructora_acciones_ambientales(request, constructora_id):
-    constructora = get_object_or_404(Constructora, constructora_id=constructora_id)
+def organizacion_acciones_ambientales(request, organizacion_id):
+    organizacion = get_object_or_404(Organizacion, organizacion_id=organizacion_id)
 
     if request.method == "GET":
-        actions = action_queryset(constructora).order_by("-created_at", "-id")
+        actions = action_queryset(organizacion).order_by("-created_at", "-id")
         return Response([serialize_action(action) for action in actions])
 
-    payload = normalize_payload(request.data, constructora=constructora)
-    action = AccionAmbiental.objects.create(constructora=constructora, **payload)
-    action = action_queryset(constructora).get(pk=action.pk)
+    payload = normalize_payload(request.data, organizacion=organizacion)
+    action = AccionAmbiental.objects.create(organizacion=organizacion, **payload)
+    action = action_queryset(organizacion).get(pk=action.pk)
     return Response(serialize_action(action), status=status.HTTP_201_CREATED)
 
 
 @api_view(["PATCH", "DELETE"])
-def constructora_accion_ambiental_detail(request, constructora_id, action_id):
-    constructora = get_object_or_404(Constructora, constructora_id=constructora_id)
+def organizacion_accion_ambiental_detail(request, organizacion_id, action_id):
+    organizacion = get_object_or_404(Organizacion, organizacion_id=organizacion_id)
     action = get_object_or_404(
-        action_queryset(constructora),
+        action_queryset(organizacion),
         id=action_id,
-        constructora=constructora,
+        organizacion=organizacion,
     )
 
     if request.method == "DELETE":
@@ -220,10 +220,10 @@ def constructora_accion_ambiental_detail(request, constructora_id, action_id):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     current = serialize_action(action)
-    payload = normalize_payload(request.data, constructora=constructora, current=current)
+    payload = normalize_payload(request.data, organizacion=organizacion, current=current)
     for field, value in payload.items():
         setattr(action, field, value)
     action.save()
 
-    action = action_queryset(constructora).get(pk=action.pk)
+    action = action_queryset(organizacion).get(pk=action.pk)
     return Response(serialize_action(action))

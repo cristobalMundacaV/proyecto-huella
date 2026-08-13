@@ -1,6 +1,6 @@
-﻿import EmptyState from "@/shared/components/EmptyState";
+import EmptyState from "@/shared/components/EmptyState";
 
-function ConstructoraDetailPage() {
+function OrganizacionDetailPage() {
   return (
     <EmptyState
       title="Detalle de empresa"
@@ -9,4 +9,4 @@ function ConstructoraDetailPage() {
   );
 }
 
-export default ConstructoraDetailPage;
+export default OrganizacionDetailPage;

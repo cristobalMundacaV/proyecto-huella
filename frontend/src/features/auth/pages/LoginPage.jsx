@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { Leaf, Lock, UserRound } from "lucide-react";
 
 import { useAuth } from "@/features/auth/context/AuthContext";
@@ -68,7 +68,7 @@ function LoginPage() {
               </h1>
               <p className="mt-3 text-sm leading-6 text-slate-300">
                 {isBootstrap
-                  ? "Aun no hay usuarios en el sistema. Crea una cuenta inicial para administrar constructoras y usuarios."
+                  ? "Aun no hay usuarios en el sistema. Crea una cuenta inicial para administrar organizaciones y usuarios."
                   : "Accede al panel para gestionar emisiones, obras, reportes y trazabilidad ambiental."}
               </p>
             </div>

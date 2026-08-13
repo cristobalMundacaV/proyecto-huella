@@ -1,7 +1,7 @@
-﻿import { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { Building2, Download, Loader2, Upload, Save } from "lucide-react";
 import { previewImportacionCompletaConstruccion, confirmarImportacionCompletaConstruccion, getPlantillaImportacionConstruccionUrl } from "@/shared/services/api";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import Toast from "@/shared/components/Toast";
 
 function RowsPreviewTable({ rows }) {
@@ -34,7 +34,7 @@ function RowsPreviewTable({ rows }) {
   );
 }
 
-export default function ConstructoraCompletaImport({ onImported }) {
+export default function OrganizacionCompletaImport({ onImported }) {
   const [state, setState] = useState({
     loading: false,
     result: null,
@@ -43,7 +43,7 @@ export default function ConstructoraCompletaImport({ onImported }) {
     savedMessage: "",
   });
   const inputRef = useRef(null);
-  const { setActiveConstructora } = useConstructoraActiva();
+  const { setActiveOrganizacion } = useOrganizacionActiva();
   const [toast, setToast] = useState(null);
 
   const showToast = (message) => setToast({ id: Date.now(), message });
@@ -79,15 +79,15 @@ export default function ConstructoraCompletaImport({ onImported }) {
     setState((s) => ({ ...s, saving: true, error: "" }));
     try {
       const res = await confirmarImportacionCompletaConstruccion({ batch_id: state.result.batch_id });
-      const msg = "Archivo importado correctamente. Los registros fueron validados y agregados a la constructora activa.";
+      const msg = "Archivo importado correctamente. Los registros fueron validados y agregados a la organizacion activa.";
       setState((s) => ({ ...s, saving: false, savedMessage: msg }));
       showToast(msg);
 
-      // If backend returns the created constructora object, set it active
-      if (res.constructora) {
-        setActiveConstructora(res.constructora);
-      } else if (res.constructora_id) {
-        setActiveConstructora({ constructora_id: res.constructora_id, nombre: res.constructora_nombre || "" });
+      // If backend returns the created organizacion object, set it active
+      if (res.organizacion) {
+        setActiveOrganizacion(res.organizacion);
+      } else if (res.organizacion_id) {
+        setActiveOrganizacion({ organizacion_id: res.organizacion_id, nombre: res.organizacion_nombre || "" });
       }
 
       onImported?.(res);
@@ -118,12 +118,12 @@ export default function ConstructoraCompletaImport({ onImported }) {
         </a>
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-400/20">
           <Upload size={16} />
-          Importar constructora completa
+          Importar organizacion completa
           <input ref={inputRef} type="file" accept=".xlsx" onChange={onFile} className="hidden" />
         </label>
       </div>
       <p className="mt-2 text-xs text-slate-500">
-        constructora, factores, etapas con territorio y estado, obras asociadas a etapa, y registros con obra, etapa, fecha, observacion y fuente de dato.
+        organizacion, factores, etapas con territorio y estado, obras asociadas a etapa, y registros con obra, etapa, fecha, observacion y fuente de dato.
       </p>
       {state.loading && (
         <div className="mt-3 text-sm text-slate-400 inline-flex items-center gap-2">
@@ -139,18 +139,18 @@ export default function ConstructoraCompletaImport({ onImported }) {
         <div className="mt-4 space-y-4">
           <div className="rounded-2xl border bg-slate-950 p-4">
             <h3 className="text-lg font-semibold">Resumen</h3>
-            <p className="text-sm text-slate-400 mt-2">constructora: {state.result.constructora?.data?.nombre || "(sin datos)"}</p>
+            <p className="text-sm text-slate-400 mt-2">organizacion: {state.result.organizacion?.data?.nombre || "(sin datos)"}</p>
             <p className="text-sm text-slate-400">Etapas: {state.result.etapas?.total ?? 0} - Obras: {state.result.obras?.total ?? 0} - Registros: {state.result.registros_emision?.total ?? 0}</p>
             {state.result.blocking_errors && state.result.blocking_errors.length > 0 && (
               <div className="mt-2 text-sm text-red-300">Errores bloqueantes: {state.result.blocking_errors.join("; ")}</div>
             )}
           </div>
 
-          {/* Sections previews: constructora, etapas, obras, registros_emision, factores */}
-          {state.result.constructora && (
+          {/* Sections previews: organizacion, etapas, obras, registros_emision, factores */}
+          {state.result.organizacion && (
             <div className="rounded-2xl border bg-slate-950 p-4">
-              <h4 className="font-semibold">constructora</h4>
-              <pre className="text-xs text-slate-300 mt-2">{JSON.stringify(state.result.constructora.data, null, 2)}</pre>
+              <h4 className="font-semibold">organizacion</h4>
+              <pre className="text-xs text-slate-300 mt-2">{JSON.stringify(state.result.organizacion.data, null, 2)}</pre>
             </div>
           )}
 

@@ -11,22 +11,22 @@ from apps.analytics.views_acciones import serialize_action
 ACTIVE_ACTION_STATUSES = {"pendiente", "en_progreso", "validacion"}
 
 
-def build_environmental_executive_report(constructora):
+def build_environmental_executive_report(organizacion):
     warnings = []
-    kpis = safe_call("KPIs ambientales", lambda: build_environmental_kpis(constructora), {}, warnings)
-    recommendations = safe_call("recomendaciones tecnicas", lambda: build_environmental_recommendations(constructora), {"recommendations": []}, warnings)
-    scenarios = safe_call("escenarios de impacto", lambda: build_environmental_scenarios(constructora), {"scenarios": []}, warnings)
-    decisions = safe_call("decisiones priorizadas", lambda: build_environmental_decision_priorities(constructora), {"priorities": []}, warnings)
+    kpis = safe_call("KPIs ambientales", lambda: build_environmental_kpis(organizacion), {}, warnings)
+    recommendations = safe_call("recomendaciones tecnicas", lambda: build_environmental_recommendations(organizacion), {"recommendations": []}, warnings)
+    scenarios = safe_call("escenarios de impacto", lambda: build_environmental_scenarios(organizacion), {"scenarios": []}, warnings)
+    decisions = safe_call("decisiones priorizadas", lambda: build_environmental_decision_priorities(organizacion), {"priorities": []}, warnings)
 
     actions = list(
-        AccionAmbiental.objects.filter(constructora=constructora)
+        AccionAmbiental.objects.filter(organizacion=organizacion)
         .select_related("obra", "lote_forestal", "registro_emision", "evidencia")
         .order_by("-updated_at", "-id")
     )
-    documents = DocumentoAmbiental.objects.filter(constructora=constructora)
-    evidence_total = EvidenciaObra.objects.filter(constructora=constructora).count()
+    documents = DocumentoAmbiental.objects.filter(organizacion=organizacion)
+    evidence_total = EvidenciaObra.objects.filter(organizacion=organizacion).count()
     open_alerts = AlertaCumplimientoAmbiental.objects.filter(
-        constructora=constructora,
+        organizacion=organizacion,
         estado__in=[AlertaCumplimientoAmbiental.Estado.ABIERTA, AlertaCumplimientoAmbiental.Estado.EN_REVISION],
     )
 
@@ -37,13 +37,13 @@ def build_environmental_executive_report(constructora):
     action_summary = build_action_summary(actions)
     traceability = build_traceability_summary(documents, evidence_total, open_alerts)
     readiness = build_readiness(kpi_summary, top_recommendations, top_scenarios, top_priorities, action_summary, traceability)
-    executive_summary = build_summary(constructora, kpi_summary, top_priorities, action_summary, traceability, readiness)
+    executive_summary = build_summary(organizacion, kpi_summary, top_priorities, action_summary, traceability, readiness)
 
     return {
-        "constructora_id": constructora.constructora_id,
-        "empresa": constructora.nombre,
-        "preset": constructora.preset,
-        "rubro": constructora.rubro,
+        "organizacion_id": organizacion.organizacion_id,
+        "empresa": organizacion.nombre,
+        "preset": organizacion.preset,
+        "rubro": organizacion.rubro,
         "generated_at": timezone.now().isoformat(),
         "title": "Informe ejecutivo ambiental",
         "period": "Periodo disponible",
@@ -153,8 +153,8 @@ def check(label, passed, detail):
     return {"label": label, "passed": bool(passed), "detail": detail}
 
 
-def build_summary(constructora, kpi_summary, priorities, action_summary, traceability, readiness):
-    empresa = constructora.nombre or constructora.constructora_id
+def build_summary(organizacion, kpi_summary, priorities, action_summary, traceability, readiness):
+    empresa = organizacion.nombre or organizacion.organizacion_id
     top_priority = priorities[0] if priorities else None
     headline = f"{empresa} presenta un estado ambiental {readiness['status'].lower()} con {readiness['score']}% de preparacion ejecutiva."
     footprint = kpi_summary.get("huella_total_tco2e")

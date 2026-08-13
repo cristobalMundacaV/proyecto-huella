@@ -78,13 +78,13 @@ function buildInsights(context) {
 }
 
 function buildExecutiveSummary(context) {
-  const empresa = context.activeConstructora?.nombre || "La operacion logistica";
+  const empresa = context.activeOrganizacion?.nombre || "La operacion logistica";
   if (!context.common.total) return `${empresa} no registra actividad logistica en el periodo analizado.`;
   return `${empresa} registro ${formatReportNumber(context.common.total)} kg CO2e en transporte. El foco principal esta en ${context.modules[0]?.label || "Sin ruta"}, por lo que conviene revisar combustible, km, carga y frecuencia de viajes.`;
 }
 
 function buildExportPayload(report, context) {
-  return { empresa: context.activeConstructora?.nombre || "", preset: "transporte", periodo: context.filters, kpis: report.kpis, insights: report.insights, registros: report.rows };
+  return { empresa: context.activeOrganizacion?.nombre || "", preset: "transporte", periodo: context.filters, kpis: report.kpis, insights: report.insights, registros: report.rows };
 }
 
 export const transporteReport = {

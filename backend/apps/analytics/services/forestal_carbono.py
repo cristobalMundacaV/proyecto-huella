@@ -81,9 +81,9 @@ def registros_emision_lote(lote):
     )
     return (
         RegistroEmision.objects.filter(
-            Q(lote_forestal=lote) | Q(constructora=lote.constructora) & metadata_filter
+            Q(lote_forestal=lote) | Q(organizacion=lote.organizacion) & metadata_filter
         )
-        .select_related("constructora", "obra", "etapa", "lote_forestal")
+        .select_related("organizacion", "obra", "etapa", "lote_forestal")
         .distinct()
     )
 

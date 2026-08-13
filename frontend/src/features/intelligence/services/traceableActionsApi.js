@@ -1,25 +1,25 @@
 import { api } from "@/shared/services/api";
 
-function constructoraPath(id, path = "") {
-  return `/constructoras/${encodeURIComponent(id)}${path}`;
+function organizacionPath(id, path = "") {
+  return `/organizaciones/${encodeURIComponent(id)}${path}`;
 }
 
-export async function getTraceableActionsSummary(constructoraId) {
-  return (await api.get(constructoraPath(constructoraId, "/acciones-ambientales/resumen/"))).data;
+export async function getTraceableActionsSummary(organizacionId) {
+  return (await api.get(organizacionPath(organizacionId, "/acciones-ambientales/resumen/"))).data;
 }
 
-export async function getTraceableActions(constructoraId) {
-  return (await api.get(constructoraPath(constructoraId, "/acciones-ambientales/"))).data;
+export async function getTraceableActions(organizacionId) {
+  return (await api.get(organizacionPath(organizacionId, "/acciones-ambientales/"))).data;
 }
 
-export async function createTraceableAction(constructoraId, payload) {
-  return (await api.post(constructoraPath(constructoraId, "/acciones-ambientales/"), payload)).data;
+export async function createTraceableAction(organizacionId, payload) {
+  return (await api.post(organizacionPath(organizacionId, "/acciones-ambientales/"), payload)).data;
 }
 
-export async function updateTraceableAction(constructoraId, actionId, payload) {
-  return (await api.patch(constructoraPath(constructoraId, `/acciones-ambientales/${encodeURIComponent(actionId)}/`), payload)).data;
+export async function updateTraceableAction(organizacionId, actionId, payload) {
+  return (await api.patch(organizacionPath(organizacionId, `/acciones-ambientales/${encodeURIComponent(actionId)}/`), payload)).data;
 }
 
-export async function deleteTraceableAction(constructoraId, actionId) {
-  await api.delete(constructoraPath(constructoraId, `/acciones-ambientales/${encodeURIComponent(actionId)}/`));
+export async function deleteTraceableAction(organizacionId, actionId) {
+  await api.delete(organizacionPath(organizacionId, `/acciones-ambientales/${encodeURIComponent(actionId)}/`));
 }

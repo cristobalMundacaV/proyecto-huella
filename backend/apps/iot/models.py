@@ -4,7 +4,7 @@ from django.contrib.auth.hashers import check_password, make_password
 from django.db import models
 from django.utils import timezone
 
-from apps.analytics.models import Constructora, EtapaObra, FactorEmision, Obra, RegistroEmision
+from apps.analytics.models import Organizacion, EtapaObra, FactorEmision, Obra, RegistroEmision
 
 
 class LecturaSensor(models.Model):
@@ -43,7 +43,7 @@ class LecturaSensor(models.Model):
         Tipo.HUMEDAD: Decimal("0"),
     }
 
-    constructora = models.CharField(max_length=180)
+    organizacion = models.CharField(max_length=180)
     etapa_obra = models.CharField(max_length=180)
     sensor = models.CharField(max_length=120)
     tipo = models.CharField(max_length=40, choices=Tipo.choices)
@@ -57,7 +57,7 @@ class LecturaSensor(models.Model):
         indexes = [
             models.Index(fields=["fecha_registro"]),
             models.Index(fields=["sensor", "fecha_registro"]),
-            models.Index(fields=["constructora", "fecha_registro"]),
+            models.Index(fields=["organizacion", "fecha_registro"]),
             models.Index(fields=["tipo", "fecha_registro"]),
         ]
 
@@ -83,8 +83,8 @@ class DispositivoSensor(models.Model):
 
     dispositivo_id = models.CharField(max_length=120, unique=True)
     nombre = models.CharField(max_length=160)
-    constructora = models.ForeignKey(
-        Constructora,
+    organizacion = models.ForeignKey(
+        Organizacion,
         on_delete=models.PROTECT,
         related_name="dispositivos_iot",
     )
@@ -124,9 +124,9 @@ class DispositivoSensor(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["constructora__nombre", "nombre"]
+        ordering = ["organizacion__nombre", "nombre"]
         indexes = [
-            models.Index(fields=["constructora", "activo"]),
+            models.Index(fields=["organizacion", "activo"]),
             models.Index(fields=["dispositivo_id"]),
             models.Index(fields=["tipo_sensor", "activo"]),
         ]
@@ -163,8 +163,8 @@ class RegistroSensor(models.Model):
         on_delete=models.PROTECT,
         related_name="registros",
     )
-    constructora = models.ForeignKey(
-        Constructora,
+    organizacion = models.ForeignKey(
+        Organizacion,
         on_delete=models.PROTECT,
         related_name="registros_iot",
     )
@@ -220,7 +220,7 @@ class RegistroSensor(models.Model):
     class Meta:
         ordering = ["-timestamp_sensor", "-received_at"]
         indexes = [
-            models.Index(fields=["constructora", "timestamp_sensor"]),
+            models.Index(fields=["organizacion", "timestamp_sensor"]),
             models.Index(fields=["dispositivo", "timestamp_sensor"]),
             models.Index(fields=["tipo", "timestamp_sensor"]),
             models.Index(fields=["estado_procesamiento"]),
@@ -229,8 +229,8 @@ class RegistroSensor(models.Model):
 
     def save(self, *args, **kwargs):
         if self.dispositivo_id:
-            if not self.constructora_id:
-                self.constructora = self.dispositivo.constructora
+            if not self.organizacion_id:
+                self.organizacion = self.dispositivo.organizacion
             if not self.obra_id:
                 self.obra = self.dispositivo.obra
             if not self.etapa_id:

@@ -5,7 +5,7 @@ import DecisionToActionModal from "@/core/environmental/components/DecisionToAct
 import EnvironmentalDecisionPriorityList from "@/core/environmental/components/EnvironmentalDecisionPriorityList";
 import EnvironmentalRecommendationList from "@/core/environmental/components/EnvironmentalRecommendationList";
 import EnvironmentalScenarioList from "@/core/environmental/components/EnvironmentalScenarioList";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { createActionFromDecision, getDecisionActionPreview } from "@/features/environmental/services/environmentalDecisionActionApi";
 import { getEnvironmentalDecisionPriorities } from "@/features/environmental/services/environmentalDecisionPriorityApi";
 import { getEnvironmentalKpis } from "@/features/environmental/services/environmentalKpiApi";
@@ -368,7 +368,7 @@ function ActionPlan({ actions = [] }) {
 }
 
 function IntelligencePanel({ initialScope = "dashboard", compact = false }) {
-  const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
+  const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
   const [scope, setScope] = useState(initialScope);
   const [activeTab, setActiveTab] = useState("vision");
   const [data, setData] = useState(null);
@@ -391,17 +391,17 @@ function IntelligencePanel({ initialScope = "dashboard", compact = false }) {
     let cancelled = false;
 
     async function load() {
-      if (!activeConstructoraId) return;
+      if (!activeOrganizacionId) return;
       try {
         setLoading(true);
         setError("");
         setActionFeedback("");
         const [intelligenceResult, kpiResult, recommendationResult, scenarioResult, decisionResult] = await Promise.allSettled([
-          getIntelligenceRecommendations({ constructora_id: activeConstructoraId, iot_hours: 24, scope }),
-          getEnvironmentalKpis(activeConstructoraId),
-          getEnvironmentalRecommendations(activeConstructoraId),
-          getEnvironmentalScenarios(activeConstructoraId),
-          getEnvironmentalDecisionPriorities(activeConstructoraId),
+          getIntelligenceRecommendations({ organizacion_id: activeOrganizacionId, iot_hours: 24, scope }),
+          getEnvironmentalKpis(activeOrganizacionId),
+          getEnvironmentalRecommendations(activeOrganizacionId),
+          getEnvironmentalScenarios(activeOrganizacionId),
+          getEnvironmentalDecisionPriorities(activeOrganizacionId),
         ]);
         if (cancelled) return;
         if (intelligenceResult.status === "fulfilled") setData(intelligenceResult.value);
@@ -429,10 +429,10 @@ function IntelligencePanel({ initialScope = "dashboard", compact = false }) {
     return () => {
       cancelled = true;
     };
-  }, [activeConstructoraId, scope]);
+  }, [activeOrganizacionId, scope]);
 
   async function openDecisionActionModal(priority) {
-    if (!activeConstructoraId || !priority?.id) return;
+    if (!activeOrganizacionId || !priority?.id) return;
     setWorkingPriorityId(priority.id);
     setActionModalLoading(true);
     setActionError("");
@@ -447,7 +447,7 @@ function IntelligencePanel({ initialScope = "dashboard", compact = false }) {
       notes: "",
     });
     try {
-      const preview = await getDecisionActionPreview(activeConstructoraId, priority.id);
+      const preview = await getDecisionActionPreview(activeOrganizacionId, priority.id);
       const payload = preview.payload || {};
       setActionModalDraft({
         priorityId: priority.id,
@@ -468,11 +468,11 @@ function IntelligencePanel({ initialScope = "dashboard", compact = false }) {
 
   async function confirmDecisionAction(event) {
     event.preventDefault();
-    if (!activeConstructoraId || !actionModalDraft?.priorityId) return;
+    if (!activeOrganizacionId || !actionModalDraft?.priorityId) return;
     setActionSaving(true);
     setActionError("");
     try {
-      const result = await createActionFromDecision(activeConstructoraId, actionModalDraft.priorityId, {
+      const result = await createActionFromDecision(activeOrganizacionId, actionModalDraft.priorityId, {
         responsible: actionModalDraft.responsible,
         due_date: actionModalDraft.dueDate,
         required_evidence: actionModalDraft.requiredEvidence,
@@ -500,7 +500,7 @@ function IntelligencePanel({ initialScope = "dashboard", compact = false }) {
     [cards, context, operationalData.kpis, priorities, scenarios]
   );
 
-  if (!activeConstructoraId) {
+  if (!activeOrganizacionId) {
     return (
       <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-6 text-center text-[var(--text-muted)]">
         Selecciona una empresa para activar la inteligencia ambiental.
@@ -519,7 +519,7 @@ function IntelligencePanel({ initialScope = "dashboard", compact = false }) {
             <div>
               <p className="text-xs font-black uppercase tracking-[0.26em] text-emerald-700">Carbono Zero Intelligence</p>
               <h2 className="mt-2 text-2xl font-black tracking-tight text-[var(--text-main)] sm:text-3xl">
-                Inteligencia de reducción para {activeConstructora?.nombre || "la empresa"}
+                Inteligencia de reducción para {activeOrganizacion?.nombre || "la empresa"}
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
                 Aquí vive el motor de decisión: foco crítico, etapa prioritaria, escenarios, recomendaciones y acciones trazables.
@@ -597,7 +597,7 @@ function IntelligencePanel({ initialScope = "dashboard", compact = false }) {
 
       {!loading && !error && activeTab === "escenarios" && <EnvironmentalScenarioList scenarios={scenarios} />}
       {!loading && !error && activeTab === "recomendaciones" && <EnvironmentalRecommendationList recommendations={recommendations} />}
-      {!loading && !error && activeTab === "acciones" && <TraceableActionsPanel cards={cards} constructoraId={activeConstructoraId} />}
+      {!loading && !error && activeTab === "acciones" && <TraceableActionsPanel cards={cards} organizacionId={activeOrganizacionId} />}
 
       {actionModalDraft ? (
         <DecisionToActionModal

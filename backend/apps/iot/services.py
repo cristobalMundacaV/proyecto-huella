@@ -90,7 +90,7 @@ def resolve_device(payload):
         raise SensorIngestionError("device_id es obligatorio para registrar telemetria.")
     dispositivo = (
         DispositivoSensor.objects.select_related(
-            "constructora",
+            "organizacion",
             "obra",
             "etapa",
             "factor_emision_default",
@@ -120,7 +120,7 @@ def resolve_factor(payload, dispositivo, tipo):
     if actividad_key:
         return (
             FactorEmision.objects.filter(
-                preset=dispositivo.constructora.preset,
+                preset=dispositivo.organizacion.preset,
                 actividad_key=actividad_key,
                 activo=True,
             )
@@ -135,7 +135,7 @@ def resolve_factor(payload, dispositivo, tipo):
 
     return (
         FactorEmision.objects.filter(
-            preset=dispositivo.constructora.preset,
+            preset=dispositivo.organizacion.preset,
             unidad=unidad,
             activo=True,
         )
@@ -195,7 +195,7 @@ def create_registro_emision_from_sensor(registro_sensor, payload):
         return None
 
     return RegistroEmision.objects.create(
-        constructora=registro_sensor.constructora,
+        organizacion=registro_sensor.organizacion,
         obra=registro_sensor.obra,
         etapa=registro_sensor.etapa,
         categoria=CATEGORIA_POR_TIPO.get(
@@ -237,7 +237,7 @@ def procesar_lectura_sensor(payload):
     registro = RegistroSensor.objects.create(
         external_id=external_id,
         dispositivo=dispositivo,
-        constructora=dispositivo.constructora,
+        organizacion=dispositivo.organizacion,
         obra=dispositivo.obra,
         etapa=dispositivo.etapa,
         tipo=tipo,

@@ -1,10 +1,10 @@
-﻿import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import ReportesView from "./ReportesView";
 
 function ReportesPage() {
-  const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
+  const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
 
-  return <ReportesView activeConstructora={activeConstructora} activeConstructoraId={activeConstructoraId} />;
+  return <ReportesView activeOrganizacion={activeOrganizacion} activeOrganizacionId={activeOrganizacionId} />;
 }
 
 export default ReportesPage;

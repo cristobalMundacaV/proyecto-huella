@@ -27,7 +27,7 @@ function buildPreviewUrl(file) {
   return isPreviewable ? URL.createObjectURL(file) : "";
 }
 
-function EvidenceUploadPanel({ config, constructoraId, lotesForestales = [], onSubmit, presetKey = "", records = [], saving }) {
+function EvidenceUploadPanel({ config, organizacionId, lotesForestales = [], onSubmit, presetKey = "", records = [], saving }) {
   const evidenceTypes = [...config.requiredEvidenceTypes, ...config.optionalEvidenceTypes];
   const metadataFields = config.getUploadMetadataFields();
   const initialMetadata = useMemo(() => buildInitialMetadata(metadataFields), [metadataFields]);
@@ -124,11 +124,11 @@ function EvidenceUploadPanel({ config, constructoraId, lotesForestales = [], onS
 
     setPreviewUrl(buildPreviewUrl(file));
 
-    if (!file || !constructoraId) return;
+    if (!file || !organizacionId) return;
 
     try {
       setAnalyzing(true);
-      const result = await extraerEvidenciaDocumento(constructoraId, file);
+      const result = await extraerEvidenciaDocumento(organizacionId, file);
       setAnalysis(result);
       applyAnalysis(result, file);
     } catch (requestError) {
@@ -312,7 +312,7 @@ function EvidenceUploadPanel({ config, constructoraId, lotesForestales = [], onS
           ))}
         </select>
 
-        {presetKey === "aserradero" ? (
+        {presetKey === "forestal" ? (
           <select
             className={`${inputClass} md:col-span-2`}
             value={form.lote_forestal}

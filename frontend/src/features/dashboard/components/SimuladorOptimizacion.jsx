@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, Factory, Lightbulb, SlidersHorizontal } from "lucide-react";
 import {
   Bar,
@@ -46,13 +46,13 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
   const [selectedCompany, setSelectedCompany] = useState("Todas");
 
   const companies = useMemo(() => {
-    const uniqueCompanies = new Set(data.datos.map((row) => row.constructora));
+    const uniqueCompanies = new Set(data.datos.map((row) => row.organizacion));
     return ["Todas", ...Array.from(uniqueCompanies)];
   }, [data]);
 
   const simulation = useMemo(() => {
     const appliesToCompany = (row) =>
-      selectedCompany === "Todas" || row.constructora === selectedCompany;
+      selectedCompany === "Todas" || row.organizacion === selectedCompany;
 
     const rows = data.datos.map((row) => {
       let simulatedQuantity = Number(row.cantidad);
@@ -178,7 +178,7 @@ function SimuladorOptimizacion({ data, onSimulationChange }) {
           </div>
 
           <label className="min-w-56">
-            <span className="text-xs font-medium text-[var(--text-muted)]">Constructora</span>
+            <span className="text-xs font-medium text-[var(--text-muted)]">Organizacion</span>
             <select
               value={selectedCompany}
               onChange={(event) => setSelectedCompany(event.target.value)}

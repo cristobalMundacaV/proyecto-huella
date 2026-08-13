@@ -17,14 +17,14 @@ import {
 
 import EmptyState from "@/shared/components/EmptyState";
 import PlatformLoader from "@/shared/components/PlatformLoader";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import {
-  getConstructoraConfiguracion,
-  updateConstructoraConfiguracion,
+  getOrganizacionConfiguracion,
+  updateOrganizacionConfiguracion,
 } from "@/shared/services/api";
 
 const tabs = [
-  { value: "constructora", label: "Empresa", icon: Building2 },
+  { value: "organizacion", label: "Empresa", icon: Building2 },
   { value: "calculo", label: "Cálculo", icon: Calculator },
   { value: "importaciones", label: "Importación", icon: UploadCloud },
   { value: "ficha_ambiental", label: "Ficha ambiental", icon: ShieldCheck },
@@ -33,7 +33,7 @@ const tabs = [
 ];
 
 const sectionCopy = {
-  constructora: {
+  organizacion: {
     title: "Datos de empresa",
     description: "Información base de la empresa activa. El ID interno queda protegido para no romper relaciones con registros, evidencias y procesos.",
   },
@@ -60,9 +60,9 @@ const sectionCopy = {
 };
 
 const defaultConfig = {
-  constructora: {
+  organizacion: {
     nombre: "",
-    constructora_id: "",
+    organizacion_id: "",
     rut: "",
     rubro: "Construcción",
     region: "",
@@ -108,7 +108,7 @@ const defaultConfig = {
     requerida_ficha_ambiental: true,
     requerida_obras_criticos: true,
     umbral_obra_critico: 1000,
-    permitir_constructora: true,
+    permitir_organizacion: true,
     permitir_unidad: true,
     permitir_obra: true,
     permitir_emision: true,
@@ -129,7 +129,7 @@ const defaultConfig = {
 
 const fieldLabels = {
   nombre: "Nombre",
-  constructora_id: "ID empresa",
+  organizacion_id: "ID empresa",
   rut: "RUT",
   rubro: "Rubro",
   region: "Región",
@@ -167,7 +167,7 @@ const fieldLabels = {
   requerida_ficha_ambiental: "Evidencia obligatoria para ficha",
   requerida_obras_criticos: "Evidencia en obras críticas",
   umbral_obra_critico: "Umbral obra crítica kg CO₂e",
-  permitir_constructora: "Permitir evidencia empresa",
+  permitir_organizacion: "Permitir evidencia empresa",
   permitir_unidad: "Permitir evidencia unidad",
   permitir_obra: "Permitir evidencia obra",
   permitir_emision: "Permitir evidencia emisión",
@@ -208,30 +208,30 @@ const formatLabel = (value) =>
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
     .trim();
 
-function storageKey(constructoraId) {
-  return `carbono_zero.configuracion.${constructoraId}`;
+function storageKey(organizacionId) {
+  return `carbono_zero.configuracion.${organizacionId}`;
 }
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value || {}));
 }
 
-function buildInitialConfig(activeConstructora) {
+function buildInitialConfig(activeOrganizacion) {
   return {
     ...clone(defaultConfig),
-    constructora: {
-      ...defaultConfig.constructora,
-      nombre: activeConstructora?.nombre || "",
-      constructora_id: activeConstructora?.constructora_id || "",
-      rut: activeConstructora?.rut || "",
-      rubro: activeConstructora?.rubro || "Construcción",
-      region: activeConstructora?.region || "",
-      comuna: activeConstructora?.comuna || "",
-      direccion: activeConstructora?.direccion || "",
-      contacto: activeConstructora?.contacto || "",
-      email: activeConstructora?.email || "",
-      telefono: activeConstructora?.telefono || "",
-      observaciones: activeConstructora?.observaciones || "",
+    organizacion: {
+      ...defaultConfig.organizacion,
+      nombre: activeOrganizacion?.nombre || "",
+      organizacion_id: activeOrganizacion?.organizacion_id || "",
+      rut: activeOrganizacion?.rut || "",
+      rubro: activeOrganizacion?.rubro || "Construcción",
+      region: activeOrganizacion?.region || "",
+      comuna: activeOrganizacion?.comuna || "",
+      direccion: activeOrganizacion?.direccion || "",
+      contacto: activeOrganizacion?.contacto || "",
+      email: activeOrganizacion?.email || "",
+      telefono: activeOrganizacion?.telefono || "",
+      observaciones: activeOrganizacion?.observaciones || "",
     },
   };
 }
@@ -259,8 +259,8 @@ function setNestedValue(source, section, field, value) {
 }
 
 function ConfiguracionPage() {
-  const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
-  const [activeTab, setActiveTab] = useState("constructora");
+  const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
+  const [activeTab, setActiveTab] = useState("organizacion");
   const [config, setConfig] = useState(null);
   const [savedConfig, setSavedConfig] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -270,7 +270,7 @@ function ConfiguracionPage() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   useEffect(() => {
-    if (!activeConstructoraId) {
+    if (!activeOrganizacionId) {
       setConfig(null);
       setSavedConfig(null);
       return;
@@ -283,10 +283,10 @@ function ConfiguracionPage() {
       setError("");
       setSuccessMessage("");
 
-      const defaults = buildInitialConfig(activeConstructora);
+      const defaults = buildInitialConfig(activeOrganizacion);
 
       try {
-        const remoteConfig = await getConstructoraConfiguracion(activeConstructoraId);
+        const remoteConfig = await getOrganizacionConfiguracion(activeOrganizacionId);
         if (isCancelled) return;
         const normalized = mergeConfig(defaults, remoteConfig);
         setConfig(clone(normalized));
@@ -295,7 +295,7 @@ function ConfiguracionPage() {
         if (isCancelled) return;
         const parsedLocalConfig = (() => {
           try {
-            return JSON.parse(window.localStorage.getItem(storageKey(activeConstructoraId)) || "null");
+            return JSON.parse(window.localStorage.getItem(storageKey(activeOrganizacionId)) || "null");
           } catch {
             return null;
           }
@@ -318,7 +318,7 @@ function ConfiguracionPage() {
     return () => {
       isCancelled = true;
     };
-  }, [activeConstructora, activeConstructoraId]);
+  }, [activeOrganizacion, activeOrganizacionId]);
 
   const hasChanges = useMemo(
     () => JSON.stringify(config) !== JSON.stringify(savedConfig),
@@ -328,7 +328,7 @@ function ConfiguracionPage() {
   const selectedSection = tabs.find((tab) => tab.value === activeTab) || tabs[0];
   const SelectedIcon = selectedSection.icon;
 
-  if (!activeConstructoraId || !config) {
+  if (!activeOrganizacionId || !config) {
     return (
       <EmptyState
         title="Configuración"
@@ -370,9 +370,9 @@ function ConfiguracionPage() {
     setSuccessMessage("");
 
     try {
-      const remoteConfig = await updateConstructoraConfiguracion(activeConstructoraId, config);
-      const normalized = mergeConfig(buildInitialConfig(activeConstructora), remoteConfig);
-      window.localStorage.setItem(storageKey(activeConstructoraId), JSON.stringify(normalized));
+      const remoteConfig = await updateOrganizacionConfiguracion(activeOrganizacionId, config);
+      const normalized = mergeConfig(buildInitialConfig(activeOrganizacion), remoteConfig);
+      window.localStorage.setItem(storageKey(activeOrganizacionId), JSON.stringify(normalized));
       setConfig(clone(normalized));
       setSavedConfig(clone(normalized));
       setSuccessMessage("Configuración guardada para la empresa activa.");
@@ -387,7 +387,7 @@ function ConfiguracionPage() {
   }
 
   function restoreDefaults() {
-    const defaults = buildInitialConfig(activeConstructora);
+    const defaults = buildInitialConfig(activeOrganizacion);
     setConfig(clone(defaults));
     setSuccessMessage("Valores predeterminados cargados. Guarda para aplicarlos.");
   }
@@ -403,7 +403,7 @@ function ConfiguracionPage() {
             <p className="text-xs font-black uppercase tracking-[0.22em] text-[#0F766E]">Reglas del sistema</p>
             <h1 className="text-3xl font-black tracking-tight text-[#0F172A] sm:text-4xl">Configuración</h1>
             <p className="max-w-3xl text-[#475569]">
-              Revisa cómo Carbono Zero calcula, valida, importa y reporta la información ambiental de {activeConstructora?.nombre}.
+              Revisa cómo Carbono Zero calcula, valida, importa y reporta la información ambiental de {activeOrganizacion?.nombre}.
             </p>
           </div>
         </div>
@@ -441,7 +441,7 @@ function ConfiguracionPage() {
             <p className="text-xs font-black uppercase tracking-[0.22em] text-[#0F766E]">Lectura operativa</p>
             <h2 className="mt-2 text-2xl font-black tracking-tight text-[#0F172A]">Reglas activas para operar la plataforma</h2>
             <p className="mt-3 max-w-4xl text-sm leading-7 text-[#334155]">
-              {activeConstructora?.nombre} trabaja con importación {formatLabel(config.importaciones.modo_importacion)}, ficha ambiental {config.ficha_ambiental.ficha_ambiental_activo ? "activa" : "inactiva"} y validación documental {config.evidencias.requerida_ficha_ambiental ? "obligatoria" : "flexible"}. Estos ajustes afectan nuevos cálculos, importaciones, evidencias y reportes; no modifican automáticamente registros históricos ya procesados.
+              {activeOrganizacion?.nombre} trabaja con importación {formatLabel(config.importaciones.modo_importacion)}, ficha ambiental {config.ficha_ambiental.ficha_ambiental_activo ? "activa" : "inactiva"} y validación documental {config.evidencias.requerida_ficha_ambiental ? "obligatoria" : "flexible"}. Estos ajustes afectan nuevos cálculos, importaciones, evidencias y reportes; no modifican automáticamente registros históricos ya procesados.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
@@ -452,7 +452,7 @@ function ConfiguracionPage() {
       </section>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        <KpiCard icon={Building2} label="Empresa" value={config.constructora.nombre || "Sin nombre"} tone="slate" />
+        <KpiCard icon={Building2} label="Empresa" value={config.organizacion.nombre || "Sin nombre"} tone="slate" />
         <KpiCard icon={UploadCloud} label="Importación" value={formatLabel(config.importaciones.modo_importacion)} tone={config.importaciones.modo_importacion === "estricto" ? "amber" : "cyan"} />
         <KpiCard icon={ShieldCheck} label="Ficha ambiental" value={config.ficha_ambiental.ficha_ambiental_activo ? "Activa" : "Inactiva"} tone="emerald" />
         <KpiCard icon={FileCheck2} label="Evidencias" value={config.evidencias.requerida_ficha_ambiental ? "Obligatorias" : "Flexibles"} tone="amber" />
@@ -592,7 +592,7 @@ function ConfigurationEditorModal({
                 key={field}
                 onToggleFormat={onToggleFormat}
                 onUpdate={(nextValue) => onUpdate(activeTab, field, nextValue)}
-                readOnly={activeTab === "constructora" && field === "constructora_id"}
+                readOnly={activeTab === "organizacion" && field === "organizacion_id"}
                 section={activeTab}
                 value={value}
               />

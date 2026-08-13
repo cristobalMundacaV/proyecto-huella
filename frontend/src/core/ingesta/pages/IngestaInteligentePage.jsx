@@ -34,12 +34,12 @@ function IngestaInteligentePage() {
   const narrativeReadiness = useMemo(() => buildIngestionReadiness({ documents, matrix, suggestedTypes }), [documents, matrix, suggestedTypes]);
 
   const refreshDocuments = useCallback(() => {
-    if (!activeCompany?.constructora_id) return;
+    if (!activeCompany?.organizacion_id) return;
     setLoading(true);
     setError("");
     Promise.allSettled([
-      getEnvironmentalDocuments(activeCompany.constructora_id),
-      getEnvironmentalIngestionReadiness(activeCompany.constructora_id),
+      getEnvironmentalDocuments(activeCompany.organizacion_id),
+      getEnvironmentalIngestionReadiness(activeCompany.organizacion_id),
     ])
       .then(([documentsResult, readinessResult]) => {
         if (documentsResult.status === "fulfilled") setDocuments(documentsResult.value);
@@ -51,7 +51,7 @@ function IngestaInteligentePage() {
         }
       })
       .finally(() => setLoading(false));
-  }, [activeCompany?.constructora_id]);
+  }, [activeCompany?.organizacion_id]);
 
   useEffect(() => {
     refreshDocuments();
@@ -59,11 +59,11 @@ function IngestaInteligentePage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!activeCompany?.constructora_id) return;
+    if (!activeCompany?.organizacion_id) return;
     setSaving(true);
     setError("");
     try {
-      await createEnvironmentalDocument(activeCompany.constructora_id, {
+      await createEnvironmentalDocument(activeCompany.organizacion_id, {
         ...form,
         tipo_documento: form.tipo_documento || suggestedTypes[0] || "otro",
         nombre: form.nombre || form.tipo_documento || "Documento ambiental",

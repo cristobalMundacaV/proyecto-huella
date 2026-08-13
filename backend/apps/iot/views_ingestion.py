@@ -8,20 +8,20 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from apps.analytics.models import Constructora, EtapaObra, Obra
+from apps.analytics.models import Organizacion, EtapaObra, Obra
 
 from .models import DispositivoSensor, RegistroSensor
 from .serializers import DispositivoSensorSerializer, RegistroSensorSerializer
 from .services import SensorIngestionError, procesar_payload_ingesta
 
 
-def resolve_constructora(request):
-    constructora_id = request.query_params.get("constructora_id") or request.query_params.get("constructora")
-    if not constructora_id:
+def resolve_organizacion(request):
+    organizacion_id = request.query_params.get("organizacion_id") or request.query_params.get("organizacion")
+    if not organizacion_id:
         return None
     return (
-        Constructora.objects.filter(constructora_id=constructora_id).first()
-        or Constructora.objects.filter(nombre__iexact=constructora_id).first()
+        Organizacion.objects.filter(organizacion_id=organizacion_id).first()
+        or Organizacion.objects.filter(nombre__iexact=organizacion_id).first()
     )
 
 
@@ -37,22 +37,22 @@ def top_emisiones(queryset, group_field):
 def normalize_relation_payload(data):
     payload = data.copy()
 
-    constructora_codigo = payload.pop("constructora_id", None) or payload.pop("constructora_codigo", None)
-    if constructora_codigo:
-        constructora = get_object_or_404(Constructora, constructora_id=str(constructora_codigo).strip())
-        payload["constructora"] = constructora.id
+    organizacion_codigo = payload.pop("organizacion_id", None) or payload.pop("organizacion_codigo", None)
+    if organizacion_codigo:
+        organizacion = get_object_or_404(Organizacion, organizacion_id=str(organizacion_codigo).strip())
+        payload["organizacion"] = organizacion.id
 
     obra_codigo = payload.pop("obra_codigo", None)
     if obra_codigo:
         obra = get_object_or_404(Obra, codigo_obra=str(obra_codigo).strip())
         payload["obra"] = obra.id
-        payload["constructora"] = obra.constructora_id
+        payload["organizacion"] = obra.organizacion_id
 
     etapa_codigo = payload.pop("etapa_codigo", None) or payload.pop("etapa_id", None)
     if etapa_codigo and not str(etapa_codigo).isdigit():
         etapa = get_object_or_404(EtapaObra, etapa_id=str(etapa_codigo).strip())
         payload["etapa"] = etapa.id
-        payload.setdefault("constructora", etapa.constructora_id)
+        payload.setdefault("organizacion", etapa.organizacion_id)
 
     return payload
 
@@ -61,11 +61,11 @@ def normalize_relation_payload(data):
 def dispositivos(request):
     if request.method == "GET":
         queryset = DispositivoSensor.objects.select_related(
-            "constructora", "obra", "etapa", "factor_emision_default"
+            "organizacion", "obra", "etapa", "factor_emision_default"
         )
-        constructora = resolve_constructora(request)
-        if constructora:
-            queryset = queryset.filter(constructora=constructora)
+        organizacion = resolve_organizacion(request)
+        if organizacion:
+            queryset = queryset.filter(organizacion=organizacion)
         activo = request.query_params.get("activo")
         if activo not in (None, ""):
             queryset = queryset.filter(activo=str(activo).lower() in {"1", "true", "si", "yes"})
@@ -80,7 +80,7 @@ def dispositivos(request):
 @api_view(["GET", "PATCH"])
 def dispositivo_detail(request, dispositivo_id):
     dispositivo = get_object_or_404(
-        DispositivoSensor.objects.select_related("constructora", "obra", "etapa", "factor_emision_default"),
+        DispositivoSensor.objects.select_related("organizacion", "obra", "etapa", "factor_emision_default"),
         dispositivo_id=dispositivo_id,
     )
     if request.method == "GET":
@@ -124,11 +124,11 @@ def ingesta(request):
 @api_view(["GET"])
 def registros_sensor(request):
     queryset = RegistroSensor.objects.select_related(
-        "dispositivo", "constructora", "obra", "etapa", "registro_emision"
+        "dispositivo", "organizacion", "obra", "etapa", "registro_emision"
     ).order_by("-timestamp_sensor", "-received_at")
-    constructora = resolve_constructora(request)
-    if constructora:
-        queryset = queryset.filter(constructora=constructora)
+    organizacion = resolve_organizacion(request)
+    if organizacion:
+        queryset = queryset.filter(organizacion=organizacion)
 
     dispositivo_id = request.query_params.get("device_id") or request.query_params.get("dispositivo_id")
     if dispositivo_id:
@@ -145,9 +145,9 @@ def registros_sensor(request):
 @api_view(["GET"])
 def kpis_operacionales(request):
     queryset = RegistroSensor.objects.all()
-    constructora = resolve_constructora(request)
-    if constructora:
-        queryset = queryset.filter(constructora=constructora)
+    organizacion = resolve_organizacion(request)
+    if organizacion:
+        queryset = queryset.filter(organizacion=organizacion)
 
     ultimas_24h = queryset.filter(timestamp_sensor__gte=timezone.now() - timedelta(hours=24))
     agregados = ultimas_24h.aggregate(emisiones_totales=Sum("co2e_estimado"), consumo_promedio=Avg("valor"))

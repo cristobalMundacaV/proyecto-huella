@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from apps.analytics.models import Constructora
+from apps.analytics.models import Organizacion
 
 from .models import LecturaSensor
 from .serializers import LecturaSensorSerializer
@@ -26,24 +26,24 @@ def lecturas_de_hoy_queryset():
     )
 
 
-def resolve_constructora(request):
-    constructora_id = (
-        request.query_params.get("constructora_id")
-        or request.query_params.get("constructora")
+def resolve_organizacion(request):
+    organizacion_id = (
+        request.query_params.get("organizacion_id")
+        or request.query_params.get("organizacion")
     )
-    if not constructora_id:
+    if not organizacion_id:
         return None
 
     return (
-        Constructora.objects.filter(constructora_id=constructora_id).first()
-        or Constructora.objects.filter(nombre__iexact=constructora_id).first()
+        Organizacion.objects.filter(organizacion_id=organizacion_id).first()
+        or Organizacion.objects.filter(nombre__iexact=organizacion_id).first()
     )
 
 
-def lecturas_constructora_hoy_queryset(constructora=None):
+def lecturas_organizacion_hoy_queryset(organizacion=None):
     queryset = lecturas_de_hoy_queryset()
-    if constructora:
-        queryset = queryset.filter(constructora__iexact=constructora.nombre)
+    if organizacion:
+        queryset = queryset.filter(organizacion__iexact=organizacion.nombre)
     return queryset
 
 
@@ -69,8 +69,8 @@ def lecturas(request):
 
 @api_view(["GET"])
 def kpis(request):
-    constructora = resolve_constructora(request)
-    queryset = lecturas_constructora_hoy_queryset(constructora)
+    organizacion = resolve_organizacion(request)
+    queryset = lecturas_organizacion_hoy_queryset(organizacion)
     agregados = queryset.aggregate(
         emisiones_totales=Sum("co2e_estimado"),
         consumo_promedio=Avg("valor"),
@@ -106,8 +106,8 @@ def kpis(request):
 
 @api_view(["GET"])
 def ultimas_lecturas(request):
-    constructora = resolve_constructora(request)
-    queryset = lecturas_constructora_hoy_queryset(constructora)
+    organizacion = resolve_organizacion(request)
+    queryset = lecturas_organizacion_hoy_queryset(organizacion)
     queryset = queryset.order_by("-fecha_registro")[:20]
     serializer = LecturaSensorSerializer(queryset, many=True)
     return Response(serializer.data)

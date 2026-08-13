@@ -6,7 +6,7 @@ import {
   createEmpresaRegistroAmbiental,
   getEmpresaRegistrosAmbientales,
 } from "@/shared/services/api";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 
 import AserraderoModuleShell from "../components/AserraderoModuleShell";
 import AserraderoOperationalKpis from "../components/AserraderoOperationalKpis";
@@ -31,7 +31,7 @@ function compactObject(input) {
 
 function AserraderoModulePage({ moduleKey }) {
   const config = getAserraderoModuleConfig(moduleKey);
-  const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
+  const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,7 +40,7 @@ function AserraderoModulePage({ moduleKey }) {
   const [isQuickFormOpen, setIsQuickFormOpen] = useState(false);
 
   const loadRecords = useCallback(async () => {
-    if (!activeConstructoraId) {
+    if (!activeOrganizacionId) {
       setRecords([]);
       setLoading(false);
       return;
@@ -50,14 +50,14 @@ function AserraderoModulePage({ moduleKey }) {
     setError("");
 
     try {
-      const data = await getEmpresaRegistrosAmbientales(activeConstructoraId);
+      const data = await getEmpresaRegistrosAmbientales(activeOrganizacionId);
       setRecords(normalizeRows(data));
     } catch (requestError) {
       setError(requestError.response?.data?.error || "No se pudieron cargar los registros operativos.");
     } finally {
       setLoading(false);
     }
-  }, [activeConstructoraId]);
+  }, [activeOrganizacionId]);
 
   useEffect(() => {
     loadRecords();
@@ -73,7 +73,7 @@ function AserraderoModulePage({ moduleKey }) {
   );
 
   const handleSubmit = async (form) => {
-    if (!activeConstructoraId || !config) return;
+    if (!activeOrganizacionId || !config) return;
 
     setSaving(true);
     setError("");
@@ -104,7 +104,7 @@ function AserraderoModulePage({ moduleKey }) {
     };
 
     try {
-      await createEmpresaRegistroAmbiental(activeConstructoraId, payload);
+      await createEmpresaRegistroAmbiental(activeOrganizacionId, payload);
       setMessage(
         factor > 0
           ? "Registro ambiental calculado correctamente."
@@ -134,7 +134,7 @@ function AserraderoModulePage({ moduleKey }) {
     );
   }
 
-  if (!activeConstructora) {
+  if (!activeOrganizacion) {
     return (
       <PresetComingSoon
         title={config.title}
@@ -160,7 +160,7 @@ function AserraderoModulePage({ moduleKey }) {
         <button
           type="button"
           onClick={() => setIsQuickFormOpen(true)}
-          disabled={!activeConstructoraId}
+          disabled={!activeOrganizacionId}
           className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,124,109,0.18)] hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <FilePlus2 size={18} />
@@ -181,7 +181,7 @@ function AserraderoModulePage({ moduleKey }) {
             >
               <X size={18} />
             </button>
-            <AserraderoQuickForm config={config} disabled={!activeConstructoraId} onSubmit={handleSubmit} saving={saving} />
+            <AserraderoQuickForm config={config} disabled={!activeOrganizacionId} onSubmit={handleSubmit} saving={saving} />
           </div>
         </div>
       ) : null}

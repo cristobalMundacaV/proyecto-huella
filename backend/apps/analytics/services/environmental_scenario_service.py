@@ -8,12 +8,12 @@ from apps.analytics.services.environmental_kpi_service import build_environmenta
 from apps.analytics.services.environmental_recommendation_engine import build_environmental_recommendations
 
 
-def build_environmental_scenarios(constructora):
-    kpis = build_environmental_kpis(constructora)
-    recommendations = build_environmental_recommendations(constructora)
-    industry = detect_industry_key(constructora)
-    registros = list(RegistroEmision.objects.filter(constructora=constructora))
-    variables = list(VariableAmbientalExtraida.objects.filter(constructora=constructora, valor__isnull=False))
+def build_environmental_scenarios(organizacion):
+    kpis = build_environmental_kpis(organizacion)
+    recommendations = build_environmental_recommendations(organizacion)
+    industry = detect_industry_key(organizacion)
+    registros = list(RegistroEmision.objects.filter(organizacion=organizacion))
+    variables = list(VariableAmbientalExtraida.objects.filter(organizacion=organizacion, valor__isnull=False))
     baseline = {
         "huella_total_kg_co2e": kpis["summary"].get("huella_total_kg_co2e"),
         "huella_total_tco2e": kpis["summary"].get("huella_total_tco2e"),
@@ -27,16 +27,16 @@ def build_environmental_scenarios(constructora):
         "mineria": build_mining_scenarios,
         "energia": build_energy_scenarios,
     }
-    scenarios = builders.get(industry, build_industrial_scenarios)(constructora, registros, variables, recommendations)
+    scenarios = builders.get(industry, build_industrial_scenarios)(organizacion, registros, variables, recommendations)
     best = sorted(
         [item for item in scenarios if item["status"] == "available" and item["estimated_reduction_kg_co2e"] is not None],
         key=lambda item: item["estimated_reduction_kg_co2e"],
         reverse=True,
     )[:3]
     return {
-        "constructora_id": constructora.constructora_id,
-        "preset": constructora.preset,
-        "rubro": constructora.rubro,
+        "organizacion_id": organizacion.organizacion_id,
+        "preset": organizacion.preset,
+        "rubro": organizacion.rubro,
         "generated_at": timezone.now().isoformat(),
         "baseline": baseline,
         "scenarios": scenarios,
@@ -45,7 +45,7 @@ def build_environmental_scenarios(constructora):
     }
 
 
-def build_construction_scenarios(constructora, registros, variables, recommendations):
+def build_construction_scenarios(organizacion, registros, variables, recommendations):
     scenarios = []
     material = top_emission(registros, lambda item: any(term in normalize(item.fuente_emision) for term in ["hormigon", "acero", "cemento", "arido", "asfalto"]))
     if material:
@@ -91,12 +91,12 @@ def build_construction_scenarios(constructora, registros, variables, recommendat
 
     rcd = variable_sum(variables, "rcd_ton")
     scenarios.append(variable_proxy_scenario("rcd-valorization", "Aumentar valorizacion RCD", "waste_valorization", "residuos", rcd, "ton", Decimal("15"), "Escenario sobre RCD registrado.") if rcd is not None else missing_scenario("rcd-valorization", "Aumentar valorizacion RCD", "waste_valorization", "residuos", "Requiere variable rcd_ton."))
-    if not Obra.objects.filter(constructora=constructora, superficie_m2__isnull=False).exists():
+    if not Obra.objects.filter(organizacion=organizacion, superficie_m2__isnull=False).exists():
         scenarios.append(missing_scenario("surface-gap", "Calcular intensidad por m2", "factor_reduction", "materiales", "Requiere superficie m2 de obra."))
     return scenarios
 
 
-def build_transport_scenarios(constructora, registros, variables, recommendations):
+def build_transport_scenarios(organizacion, registros, variables, recommendations):
     scenarios = []
     transport_emissions = emissions_sum(registros, lambda item: "transporte" in normalize(item.categoria))
     km = variable_sum(variables, "km_traveled") or sum_field(registros, "distancia_km", lambda item: "transporte" in normalize(item.categoria))
@@ -111,9 +111,9 @@ def build_transport_scenarios(constructora, registros, variables, recommendation
     return scenarios
 
 
-def build_sawmill_scenarios(constructora, registros, variables, recommendations):
+def build_sawmill_scenarios(organizacion, registros, variables, recommendations):
     scenarios = []
-    volume = variable_sum(variables, "wood_volume_m3") or LoteForestal.objects.filter(constructora=constructora).aggregate(total=Sum("volumen_m3"))["total"] or sum_quantity(registros, lambda item: "m3" in normalize(item.unidad))
+    volume = variable_sum(variables, "wood_volume_m3") or LoteForestal.objects.filter(organizacion=organizacion).aggregate(total=Sum("volumen_m3"))["total"] or sum_quantity(registros, lambda item: "m3" in normalize(item.unidad))
     energy_emissions = emissions_sum(registros, lambda item: "energia" in normalize(item.categoria))
     if volume and energy_emissions:
         for pct in [10, 15]:
@@ -127,7 +127,7 @@ def build_sawmill_scenarios(constructora, registros, variables, recommendations)
     return scenarios
 
 
-def build_industrial_scenarios(constructora, registros, variables, recommendations):
+def build_industrial_scenarios(organizacion, registros, variables, recommendations):
     scenarios = []
     energy = emissions_sum(registros, lambda item: "energia" in normalize(item.categoria))
     fuel = emissions_sum(registros, lambda item: "litros" in normalize(item.unidad) or "combustible" in normalize(item.fuente_emision))
@@ -140,7 +140,7 @@ def build_industrial_scenarios(constructora, registros, variables, recommendatio
     return scenarios
 
 
-def build_mining_scenarios(constructora, registros, variables, recommendations):
+def build_mining_scenarios(organizacion, registros, variables, recommendations):
     scenarios = []
     diesel = emissions_sum(registros, lambda item: "diesel" in normalize(item.fuente_emision) or "litros diesel" in normalize(item.unidad))
     scenarios.append(percent_scenario("mining-diesel-10", "Reducir diesel en maquinaria en 10%", "fuel_efficiency", "combustible", diesel, Decimal("10"), "Escenario sobre emisiones diesel de maquinaria.", ["Registros diesel de faena."], "Revisar mantencion, ralentí y planificacion de equipos.", find_related_recommendation(recommendations, "combustible")) if diesel else missing_scenario("mining-diesel-10", "Reducir diesel en maquinaria", "fuel_efficiency", "combustible", "Requiere registros diesel."))
@@ -153,7 +153,7 @@ def build_mining_scenarios(constructora, registros, variables, recommendations):
     return scenarios
 
 
-def build_energy_scenarios(constructora, registros, variables, recommendations):
+def build_energy_scenarios(organizacion, registros, variables, recommendations):
     scenarios = []
     fuel = emissions_sum(registros, lambda item: "combustible" in normalize(item.fuente_emision) or "m3" in normalize(item.unidad))
     generation = sum_quantity(registros, lambda item: "mwh" in normalize(item.unidad))

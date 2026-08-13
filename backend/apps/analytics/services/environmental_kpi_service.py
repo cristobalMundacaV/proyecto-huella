@@ -54,14 +54,14 @@ def normalize(value):
     )
 
 
-def detect_industry_key(constructora):
-    rubro = normalize(constructora.rubro)
-    preset = normalize(constructora.preset)
+def detect_industry_key(organizacion):
+    rubro = normalize(organizacion.rubro)
+    preset = normalize(organizacion.preset)
     if "mineria" in rubro or "minera" in rubro:
         return "mineria"
     if "energia" in rubro or "generacion" in rubro:
         return "energia"
-    if preset == "aserradero" or "forestal" in rubro:
+    if preset == "forestal" or "forestal" in rubro:
         return "forestal_aserradero"
     if preset == "transporte":
         return "transporte"
@@ -155,18 +155,18 @@ def emisiones_sum(registros, *, categoria_contains=None):
     return total if found else None
 
 
-def build_common_context(constructora):
+def build_common_context(organizacion):
     registros = list(
-        RegistroEmision.objects.filter(constructora=constructora).select_related("obra", "etapa")
+        RegistroEmision.objects.filter(organizacion=organizacion).select_related("obra", "etapa")
     )
-    documentos = DocumentoAmbiental.objects.filter(constructora=constructora)
+    documentos = DocumentoAmbiental.objects.filter(organizacion=organizacion)
     variables = list(
-        VariableAmbientalExtraida.objects.filter(constructora=constructora, valor__isnull=False).order_by(
+        VariableAmbientalExtraida.objects.filter(organizacion=organizacion, valor__isnull=False).order_by(
             "-fecha_medicion", "-created_at"
         )
     )
     alertas_abiertas = AlertaCumplimientoAmbiental.objects.filter(
-        constructora=constructora,
+        organizacion=organizacion,
         estado__in=[
             AlertaCumplimientoAmbiental.Estado.ABIERTA,
             AlertaCumplimientoAmbiental.Estado.EN_REVISION,
@@ -220,7 +220,7 @@ def build_top_categories(registros, total_kg):
     ]
 
 
-def build_summary(constructora, context):
+def build_summary(organizacion, context):
     documentos = context["documentos"]
     alertas = context["alertas_abiertas"]
     total_kg = context["total_kg"]
@@ -267,11 +267,11 @@ def common_next_actions(cards, summary):
     return actions[:5]
 
 
-def build_construccion_cards(constructora, context):
+def build_construccion_cards(organizacion, context):
     registros = context["registros"]
     variables = context["variables"]
     total_kg = context["total_kg"]
-    superficie = Obra.objects.filter(constructora=constructora).aggregate(total=Sum("superficie_m2"))["total"]
+    superficie = Obra.objects.filter(organizacion=organizacion).aggregate(total=Sum("superficie_m2"))["total"]
     diesel = variable_sum(variables, "diesel_l") or registro_sum(registros, unidad_contains="litros diesel")
     rcd = variable_sum(variables, "rcd_ton")
     noise_alerts = variable_status_count(variables, ["noise_db", "ruido_db"])
@@ -306,11 +306,11 @@ def build_transporte_cards(context):
     return cards
 
 
-def build_forestal_cards(constructora, context):
+def build_forestal_cards(organizacion, context):
     registros = context["registros"]
     variables = context["variables"]
     total_kg = context["total_kg"]
-    volume = variable_sum(variables, "wood_volume_m3") or LoteForestal.objects.filter(constructora=constructora).aggregate(total=Sum("volumen_m3"))["total"] or registro_sum(registros, unidad_contains="m3")
+    volume = variable_sum(variables, "wood_volume_m3") or LoteForestal.objects.filter(organizacion=organizacion).aggregate(total=Sum("volumen_m3"))["total"] or registro_sum(registros, unidad_contains="m3")
     energia = registro_sum(registros, unidad_contains="kwh")
     biomass = variable_sum(variables, "biomass_boiler_ton")
     sawdust = variable_sum(variables, "sawdust_ton", "bark_ton")
@@ -392,16 +392,16 @@ def build_energia_cards(context):
     return cards
 
 
-def build_environmental_kpis(constructora):
-    industry_key = detect_industry_key(constructora)
-    context = build_common_context(constructora)
-    summary = build_summary(constructora, context)
+def build_environmental_kpis(organizacion):
+    industry_key = detect_industry_key(organizacion)
+    context = build_common_context(organizacion)
+    summary = build_summary(organizacion, context)
     total_kg = context["total_kg"]
 
     builders = {
-        "construccion": lambda: build_construccion_cards(constructora, context),
+        "construccion": lambda: build_construccion_cards(organizacion, context),
         "transporte": lambda: build_transporte_cards(context),
-        "forestal_aserradero": lambda: build_forestal_cards(constructora, context),
+        "forestal_aserradero": lambda: build_forestal_cards(organizacion, context),
         "industrial_agroindustria": lambda: build_industrial_cards(context),
         "mineria": lambda: build_mineria_cards(context),
         "energia": lambda: build_energia_cards(context),
@@ -410,9 +410,9 @@ def build_environmental_kpis(constructora):
     star_kpi = cards[0] if cards else missing_card("star_kpi", "KPI principal", "", "No hay KPIs configurados.", "calculado", "high")
 
     return {
-        "constructora_id": constructora.constructora_id,
-        "preset": constructora.preset,
-        "rubro": constructora.rubro,
+        "organizacion_id": organizacion.organizacion_id,
+        "preset": organizacion.preset,
+        "rubro": organizacion.rubro,
         "periodo": context["periodo"],
         "summary": summary,
         "star_kpi": star_kpi,

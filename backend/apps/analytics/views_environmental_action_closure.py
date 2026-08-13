@@ -52,4 +52,4 @@ def environmental_action_close(request, action_id):
 
 
 def action_queryset():
-    return AccionAmbiental.objects.select_related("constructora", "evidencia")
+    return AccionAmbiental.objects.select_related("organizacion", "evidencia")

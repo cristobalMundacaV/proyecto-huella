@@ -1,6 +1,6 @@
 import { Building2, Filter } from "lucide-react";
 
-function ReportHero({ activeConstructora, filters, onOpenFilters, preset, report, reportConfig }) {
+function ReportHero({ activeOrganizacion, filters, onOpenFilters, preset, report, reportConfig }) {
   const periodLabel = buildPeriodLabel(filters);
   const statusLabel = report.rows.length ? "Periodo con datos" : "Sin datos del periodo";
   const dataQuality = buildDataQualityDiagnosis(report.rows || []);
@@ -12,7 +12,7 @@ function ReportHero({ activeConstructora, filters, onOpenFilters, preset, report
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-emerald-700">
               <Building2 size={14} />
-              {activeConstructora?.nombre || "Empresa activa"}
+              {activeOrganizacion?.nombre || "Empresa activa"}
             </span>
             <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-sky-700">
               Preset: {preset.name}

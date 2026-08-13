@@ -1,3 +1,3 @@
-﻿export default function ConstructorasImport() {
+export default function OrganizacionesImport() {
   return null;
 }

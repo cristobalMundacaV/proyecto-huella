@@ -19,15 +19,15 @@ def to_float(value):
     return float(value or 0)
 
 
-def build_iot_context(constructora_id=None, hours=24):
+def build_iot_context(organizacion_id=None, hours=24):
     since = timezone.now() - timedelta(hours=hours)
-    queryset = RegistroSensor.objects.select_related("dispositivo", "constructora", "obra", "etapa").filter(
+    queryset = RegistroSensor.objects.select_related("dispositivo", "organizacion", "obra", "etapa").filter(
         timestamp_sensor__gte=since
     )
-    if constructora_id:
+    if organizacion_id:
         queryset = queryset.filter(
-            Q(constructora__constructora_id=constructora_id)
-            | Q(constructora__nombre__iexact=constructora_id)
+            Q(organizacion__organizacion_id=organizacion_id)
+            | Q(organizacion__nombre__iexact=organizacion_id)
         ).distinct()
 
     total = queryset.aggregate(total=Sum("co2e_estimado"))["total"]
@@ -83,20 +83,20 @@ def build_top_obras(registros):
 
 
 def build_recommendation_context(payload):
-    constructora_id = payload.get("constructora_id") or payload.get("constructora")
+    organizacion_id = payload.get("organizacion_id") or payload.get("organizacion")
     obra_codigo = payload.get("obra_codigo") or payload.get("codigo_obra")
     hours = int(payload.get("iot_hours") or payload.get("horas_iot") or 24)
     scope = payload.get("scope") or payload.get("area") or "dashboard"
 
-    registros = RegistroEmision.objects.select_related("constructora", "obra", "etapa")
+    registros = RegistroEmision.objects.select_related("organizacion", "obra", "etapa")
     obras = Obra.objects.all()
     evidencias = EvidenciaObra.objects.all()
 
-    if constructora_id:
-        filtro_constructora = Q(constructora__constructora_id=constructora_id) | Q(constructora__nombre__iexact=constructora_id)
-        registros = registros.filter(filtro_constructora).distinct()
-        obras = obras.filter(filtro_constructora).distinct()
-        evidencias = evidencias.filter(filtro_constructora).distinct()
+    if organizacion_id:
+        filtro_organizacion = Q(organizacion__organizacion_id=organizacion_id) | Q(organizacion__nombre__iexact=organizacion_id)
+        registros = registros.filter(filtro_organizacion).distinct()
+        obras = obras.filter(filtro_organizacion).distinct()
+        evidencias = evidencias.filter(filtro_organizacion).distinct()
 
     if obra_codigo:
         registros = registros.filter(obra__codigo_obra=obra_codigo)
@@ -127,7 +127,7 @@ def build_recommendation_context(payload):
     cobertura = None if registros_count == 0 else round((registros_con_evidencia / registros_count) * 100, 2)
 
     context = {
-        "constructora_id": constructora_id,
+        "organizacion_id": organizacion_id,
         "obra_codigo": obra_codigo,
         "scope": scope,
         "total_emisiones": round(total, 3),
@@ -145,7 +145,7 @@ def build_recommendation_context(payload):
         "registros_count": registros_count,
         "evidencias_count": evidencias.count(),
     }
-    context.update(build_iot_context(constructora_id=constructora_id, hours=hours))
+    context.update(build_iot_context(organizacion_id=organizacion_id, hours=hours))
     return context
 
 

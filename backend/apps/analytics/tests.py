@@ -1,30 +1,34 @@
 from decimal import Decimal
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Constructora, EtapaObra, EvidenciaObra, Obra, RegistroEmision, TransporteObra
+from .models import Organizacion, EtapaObra, EvidenciaObra, Obra, RegistroEmision, TransporteObra, UsuarioOrganizacion
 from .services.local_advisor import generar_analisis_local
 
 
 class AnalyticsConstructionApiTests(APITestCase):
     def setUp(self):
-        self.constructora = Constructora.objects.create(
-            constructora_id="CONSTRUCTORA_ANDINA",
-            nombre="Constructora Andina SpA",
+        self.organizacion = Organizacion.objects.create(
+            organizacion_id="ORGANIZACION_ANDINA",
+            nombre="Organizacion Andina SpA",
             region="Biobio",
             comuna="Concepcion",
             rubro="Construccion",
         )
+        self.user = User.objects.create_user("analista", password="segura-test-123")
+        UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.organizacion)
+        self.client.force_login(self.user)
         self.etapa = EtapaObra.objects.create(
-            constructora=self.constructora,
+            organizacion=self.organizacion,
             etapa_id="ETAPA_OBRA_GRUESA",
             nombre="Obra gruesa",
             tipo=EtapaObra.Tipo.OBRA_GRUESA,
         )
         self.obra = Obra.objects.create(
-            constructora=self.constructora,
+            organizacion=self.organizacion,
             etapa_principal=self.etapa,
             codigo_obra="OBRA_LOS_ROBLES",
             nombre="Edificio Habitacional Los Robles",
@@ -45,11 +49,11 @@ class AnalyticsConstructionApiTests(APITestCase):
             fecha="2026-02-01",
         )
 
-        self.assertEqual(registro.constructora, self.constructora)
+        self.assertEqual(registro.organizacion, self.organizacion)
         self.assertEqual(registro.etapa, self.etapa)
         self.assertEqual(registro.emisiones_kg_co2e, Decimal("32050.000"))
 
-    def test_dashboard_constructora_entrega_inteligencia_ambiental(self):
+    def test_dashboard_organizacion_entrega_inteligencia_ambiental(self):
         RegistroEmision.objects.create(
             obra=self.obra,
             categoria=RegistroEmision.Categoria.MATERIALES,
@@ -60,12 +64,30 @@ class AnalyticsConstructionApiTests(APITestCase):
             fecha="2026-02-01",
         )
 
-        response = self.client.get(f"/api/constructoras/{self.constructora.constructora_id}/dashboard/")
+        response = self.client.get(f"/api/organizaciones/{self.organizacion.organizacion_id}/dashboard/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["categoria_critica"], RegistroEmision.Categoria.MATERIALES)
         self.assertEqual(response.data["fuente_critica"], "Acero estructural")
         self.assertEqual(response.data["intensidad_carbono"], 3.854)
+
+    def test_usuario_no_puede_acceder_a_otro_tenant(self):
+        otra = Organizacion.objects.create(organizacion_id="OTRA", nombre="Otra organizacion")
+        response = self.client.get(f"/api/organizaciones/{otra.organizacion_id}/dashboard/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_login_entrega_contexto_de_organizacion(self):
+        self.client.logout()
+        response = self.client.post(
+            "/api/auth/login/",
+            {"username": "analista", "password": "segura-test-123"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["user"]["organizaciones"][0]["organizacion_id"],
+            self.organizacion.organizacion_id,
+        )
 
     def test_crea_registro_desde_endpoint_de_obra(self):
         response = self.client.post(

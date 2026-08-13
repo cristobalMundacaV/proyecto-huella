@@ -16,21 +16,21 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from .models import (
-    ConfiguracionConstructora,
-    Constructora,
+    ConfiguracionOrganizacion,
+    Organizacion,
     EtapaObra,
     EvidenciaObra,
     FactorEmision,
     Obra,
     RegistroEmision,
-    UsuarioConstructora,
+    UsuarioOrganizacion,
 )
 
 BATCH_PREFIX = "importaciones"
 BATCH_TTL = 60 * 60
 
 SHEET_ALIASES = {
-    "constructoras": ["constructora", "constructoras", "empresa", "empresas"],
+    "organizaciones": ["organizacion", "organizaciones", "empresa", "empresas"],
     "factores": [
         "factores",
         "factores_emision",
@@ -232,19 +232,19 @@ def load_batch(batch_id):
     return cache.get(f"{BATCH_PREFIX}:{batch_id}") if batch_id else None
 
 
-def resolve_constructora(constructora_id):
-    if not constructora_id:
+def resolve_organizacion(organizacion_id):
+    if not organizacion_id:
         return None
-    return Constructora.objects.get(constructora_id=constructora_id)
+    return Organizacion.objects.get(organizacion_id=organizacion_id)
 
 
-def parse_constructoras(raw_rows):
+def parse_organizaciones(raw_rows):
     rows = []
     seen = set()
     for row_number, raw in raw_rows:
         data = {
-            "constructora_id": get(raw, "ID constructora", "constructora_id", "id"),
-            "nombre": get(raw, "Nombre", "Constructora", "Nombre constructora"),
+            "organizacion_id": get(raw, "ID organizacion", "organizacion_id", "id"),
+            "nombre": get(raw, "Nombre", "Organizacion", "Nombre organizacion"),
             "rut": get(raw, "RUT"),
             "region": get(raw, "Región", "Region"),
             "comuna": get(raw, "Comuna"),
@@ -255,22 +255,22 @@ def parse_constructoras(raw_rows):
             "contacto": get(raw, "Contacto"),
             "observaciones": get(raw, "Observaciones"),
         }
-        if not data["constructora_id"] and data["nombre"]:
-            data["constructora_id"] = norm(data["nombre"]).upper()
+        if not data["organizacion_id"] and data["nombre"]:
+            data["organizacion_id"] = norm(data["nombre"]).upper()
         errors = []
         warnings = []
         if not data["nombre"]:
-            errors.append("El nombre de la constructora es obligatorio.")
-        if not data["constructora_id"]:
-            errors.append("El ID constructora es obligatorio.")
-        key = norm(data["constructora_id"] or data["nombre"])
+            errors.append("El nombre de la organizacion es obligatorio.")
+        if not data["organizacion_id"]:
+            errors.append("El ID organizacion es obligatorio.")
+        key = norm(data["organizacion_id"] or data["nombre"])
         if key in seen:
             warnings.append("Posible duplicado dentro del archivo.")
         seen.add(key)
         exists = bool(
-            data["constructora_id"]
-            and Constructora.objects.filter(
-                constructora_id=data["constructora_id"]
+            data["organizacion_id"]
+            and Organizacion.objects.filter(
+                organizacion_id=data["organizacion_id"]
             ).exists()
         )
         rows.append(
@@ -332,17 +332,17 @@ def parse_factores(raw_rows):
     return rows
 
 
-def parse_etapas(raw_rows, constructora=None):
+def parse_etapas(raw_rows, organizacion=None):
     rows = []
     for row_number, raw in raw_rows:
-        constructora_id = get(raw, "ID constructora", "constructora_id") or getattr(
-            constructora, "constructora_id", ""
+        organizacion_id = get(raw, "ID organizacion", "organizacion_id") or getattr(
+            organizacion, "organizacion_id", ""
         )
         nombre = get(raw, "Nombre", "Etapa", "Frente")
         data = {
             "etapa_id": get(raw, "ID Etapa", "Etapa ID", "id_etapa")
-            or norm(f"{constructora_id}_{nombre}").upper(),
-            "constructora_id": constructora_id,
+            or norm(f"{organizacion_id}_{nombre}").upper(),
+            "organizacion_id": organizacion_id,
             "nombre": nombre,
             "tipo": get(raw, "Tipo") or nombre or "Otro",
             "region": get(raw, "Región", "Region"),
@@ -353,8 +353,8 @@ def parse_etapas(raw_rows, constructora=None):
             "descripcion": get(raw, "Descripción", "Descripcion", "Observaciones"),
         }
         errors = []
-        if not data["constructora_id"]:
-            errors.append("El ID constructora es obligatorio.")
+        if not data["organizacion_id"]:
+            errors.append("El ID organizacion es obligatorio.")
         if not data["nombre"]:
             errors.append("El nombre de la etapa es obligatorio.")
         exists = EtapaObra.objects.filter(etapa_id=data["etapa_id"]).exists()
@@ -366,12 +366,12 @@ def parse_etapas(raw_rows, constructora=None):
     return rows
 
 
-def parse_obras(raw_rows, constructora=None, known_stage_ids=None):
+def parse_obras(raw_rows, organizacion=None, known_stage_ids=None):
     rows = []
     known_stage_ids = known_stage_ids or set()
     for row_number, raw in raw_rows:
-        constructora_id = get(raw, "ID constructora", "constructora_id") or getattr(
-            constructora, "constructora_id", ""
+        organizacion_id = get(raw, "ID organizacion", "organizacion_id") or getattr(
+            organizacion, "organizacion_id", ""
         )
         tipo = (
             get(raw, "Material / tipo de obra", "Tipo de obra", "Tipo proyecto", "Tipo")
@@ -381,7 +381,7 @@ def parse_obras(raw_rows, constructora=None, known_stage_ids=None):
         name = get(raw, "Obra / proyecto", "Nombre", "Proyecto") or tipo or code
         data = {
             "codigo_obra": code or norm(name).upper(),
-            "constructora_id": constructora_id,
+            "organizacion_id": organizacion_id,
             "etapa_id": get(raw, "ID Etapa", "Etapa ID", "id_etapa"),
             "fecha": get(raw, "Fecha", "Fecha inicio", "fecha_inicio"),
             "fecha_inicio": get(raw, "Fecha", "Fecha inicio", "fecha_inicio"),
@@ -404,8 +404,8 @@ def parse_obras(raw_rows, constructora=None, known_stage_ids=None):
         errors = []
         if not data["codigo_obra"]:
             errors.append("El código de obra es obligatorio.")
-        if not data["constructora_id"]:
-            errors.append("El ID constructora es obligatorio.")
+        if not data["organizacion_id"]:
+            errors.append("El ID organizacion es obligatorio.")
         if not as_date(data["fecha_inicio"]):
             errors.append("La fecha de inicio es obligatoria y debe ser válida.")
         if (
@@ -436,7 +436,7 @@ def find_factor(activity, unit):
 
 def parse_registros(
     raw_rows,
-    constructora=None,
+    organizacion=None,
     known_stage_ids=None,
     known_work_codes=None,
     known_factors=None,
@@ -460,8 +460,8 @@ def parse_registros(
         data = {
             "registro_id": get(raw, "ID Registro", "Registro ID", "id_registro"),
             "codigo_obra": get(raw, "Código de obra", "Codigo de obra", "codigo_obra"),
-            "constructora_id": get(raw, "ID constructora", "constructora_id")
-            or getattr(constructora, "constructora_id", ""),
+            "organizacion_id": get(raw, "ID organizacion", "organizacion_id")
+            or getattr(organizacion, "organizacion_id", ""),
             "etapa_id": get(raw, "ID Etapa", "Etapa ID", "id_etapa"),
             "fuente_emision": source,
             "categoria": normalize_category(
@@ -505,7 +505,7 @@ def parse_registros(
     return rows
 
 
-def parse_evidencias(raw_rows, constructora=None, known_work_codes=None):
+def parse_evidencias(raw_rows, organizacion=None, known_work_codes=None):
     rows = []
     known_work_codes = known_work_codes or set()
     for row_number, raw in raw_rows:
@@ -530,9 +530,9 @@ def parse_evidencias(raw_rows, constructora=None, known_work_codes=None):
             and not Obra.objects.filter(codigo_obra=data["codigo_obra"]).exists()
         ):
             errors.append(f"No existe la obra {data['codigo_obra']}.")
-        if not data["codigo_obra"] and not constructora:
+        if not data["codigo_obra"] and not organizacion:
             errors.append(
-                "Debes indicar código de obra o importar dentro de una constructora."
+                "Debes indicar código de obra o importar dentro de una organizacion."
             )
         rows.append(row_result(row_number, data, errors))
     return rows
@@ -549,7 +549,7 @@ def summary(rows, kind):
     duplicates = len(
         [row for row in rows if "duplic" in " ".join(row.get("warnings", [])).lower()]
     )
-    if kind in {"constructoras", "factores"}:
+    if kind in {"organizaciones", "factores"}:
         return {
             "total_filas": total,
             "validas": valid,
@@ -758,18 +758,18 @@ def plantilla_importacion_generica(request):
     return response
 
 
-def save_constructoras(rows, user=None):
+def save_organizaciones(rows, user=None):
     created = updated = 0
     last = None
     for row in valid_rows(rows):
         data = row["data"]
-        constructora_id = (
-            data.get("constructora_id") or norm(data.get("nombre")).upper()
+        organizacion_id = (
+            data.get("organizacion_id") or norm(data.get("nombre")).upper()
         )
-        constructora, was_created = Constructora.objects.update_or_create(
-            constructora_id=constructora_id,
+        organizacion, was_created = Organizacion.objects.update_or_create(
+            organizacion_id=organizacion_id,
             defaults={
-                "nombre": data.get("nombre") or constructora_id,
+                "nombre": data.get("nombre") or organizacion_id,
                 "rut": data.get("rut", ""),
                 "region": data.get("region", ""),
                 "comuna": data.get("comuna", ""),
@@ -782,24 +782,24 @@ def save_constructoras(rows, user=None):
                 "activa": True,
             },
         )
-        ConfiguracionConstructora.objects.get_or_create(constructora=constructora)
+        ConfiguracionOrganizacion.objects.get_or_create(organizacion=organizacion)
         if user and getattr(user, "is_authenticated", False):
-            UsuarioConstructora.objects.get_or_create(
+            UsuarioOrganizacion.objects.get_or_create(
                 user=user,
-                constructora=constructora,
+                organizacion=organizacion,
                 defaults={
-                    "rol": UsuarioConstructora.Rol.ADMIN,
+                    "rol": UsuarioOrganizacion.Rol.ADMIN,
                     "cargo": "Administrador",
                 },
             )
-        last = constructora
+        last = organizacion
         created += int(was_created)
         updated += int(not was_created)
     return {
         "creados": created,
         "actualizados": updated,
         "rechazados": len(rows) - len(valid_rows(rows)),
-        "constructora": last,
+        "organizacion": last,
     }
 
 
@@ -829,17 +829,17 @@ def save_factores(rows):
     }
 
 
-def save_etapas(rows, constructora=None):
+def save_etapas(rows, organizacion=None):
     created = updated = 0
     for row in valid_rows(rows):
         data = row["data"]
-        owner = constructora or Constructora.objects.get(
-            constructora_id=data["constructora_id"]
+        owner = organizacion or Organizacion.objects.get(
+            organizacion_id=data["organizacion_id"]
         )
         _, was_created = EtapaObra.objects.update_or_create(
             etapa_id=data["etapa_id"],
             defaults={
-                "constructora": owner,
+                "organizacion": owner,
                 "nombre": data.get("nombre") or data["etapa_id"],
                 "tipo": data.get("tipo") or "Otro",
                 "region": data.get("region", ""),
@@ -859,18 +859,18 @@ def save_etapas(rows, constructora=None):
     }
 
 
-def save_obras(rows, constructora=None):
+def save_obras(rows, organizacion=None):
     created = updated = 0
     for row in valid_rows(rows):
         data = row["data"]
-        owner = constructora or Constructora.objects.get(
-            constructora_id=data["constructora_id"]
+        owner = organizacion or Organizacion.objects.get(
+            organizacion_id=data["organizacion_id"]
         )
         etapa = EtapaObra.objects.filter(etapa_id=data.get("etapa_id")).first()
         _, was_created = Obra.objects.update_or_create(
             codigo_obra=data["codigo_obra"],
             defaults={
-                "constructora": owner,
+                "organizacion": owner,
                 "etapa_principal": etapa,
                 "nombre": data.get("nombre") or data["codigo_obra"],
                 "tipo_proyecto": data.get("tipo_proyecto") or "Otro",
@@ -893,19 +893,19 @@ def save_obras(rows, constructora=None):
     }
 
 
-def save_registros(rows, constructora=None):
+def save_registros(rows, organizacion=None):
     created = 0
     for row in valid_rows(rows):
         data = row["data"]
         obra = Obra.objects.filter(codigo_obra=data.get("codigo_obra")).first()
         etapa = EtapaObra.objects.filter(etapa_id=data.get("etapa_id")).first()
         owner = (
-            constructora
-            or (obra.constructora if obra else None)
-            or (etapa.constructora if etapa else None)
+            organizacion
+            or (obra.organizacion if obra else None)
+            or (etapa.organizacion if etapa else None)
         )
         RegistroEmision.objects.create(
-            constructora=owner,
+            organizacion=owner,
             obra=obra,
             etapa=etapa,
             categoria=normalize_category(
@@ -930,21 +930,21 @@ def save_registros(rows, constructora=None):
     }
 
 
-def save_evidencias(rows, constructora=None):
+def save_evidencias(rows, organizacion=None):
     created = 0
     for row in valid_rows(rows):
         data = row["data"]
         obra = Obra.objects.filter(codigo_obra=data.get("codigo_obra")).first()
         etapa = EtapaObra.objects.filter(etapa_id=data.get("etapa_id")).first()
         owner = (
-            constructora
-            or (obra.constructora if obra else None)
-            or (etapa.constructora if etapa else None)
+            organizacion
+            or (obra.organizacion if obra else None)
+            or (etapa.organizacion if etapa else None)
         )
         if not owner:
             continue
         evidencia = EvidenciaObra(
-            constructora=owner,
+            organizacion=owner,
             obra=obra,
             etapa=etapa,
             tipo_evidencia=data.get("tipo_evidencia") or "otro",
@@ -967,64 +967,64 @@ def save_evidencias(rows, constructora=None):
     }
 
 
-def parse_for_kind(kind, upload, constructora=None):
+def parse_for_kind(kind, upload, organizacion=None):
     rows = read_rows(upload)
-    if kind == "constructoras":
-        return parse_constructoras(rows)
+    if kind == "organizaciones":
+        return parse_organizaciones(rows)
     if kind == "factores":
         return parse_factores(rows)
     if kind == "etapas":
-        return parse_etapas(rows, constructora)
+        return parse_etapas(rows, organizacion)
     if kind == "obras":
-        return parse_obras(rows, constructora)
+        return parse_obras(rows, organizacion)
     if kind == "registros":
-        return parse_registros(rows, constructora)
+        return parse_registros(rows, organizacion)
     raise ValueError("Tipo de importación no soportado.")
 
 
-def save_for_kind(kind, rows, user=None, constructora=None):
-    if kind == "constructoras":
-        return save_constructoras(rows, user)
+def save_for_kind(kind, rows, user=None, organizacion=None):
+    if kind == "organizaciones":
+        return save_organizaciones(rows, user)
     if kind == "factores":
         return save_factores(rows)
     if kind == "etapas":
-        return save_etapas(rows, constructora)
+        return save_etapas(rows, organizacion)
     if kind == "obras":
-        return save_obras(rows, constructora)
+        return save_obras(rows, organizacion)
     if kind == "registros":
-        return save_registros(rows, constructora)
+        return save_registros(rows, organizacion)
     raise ValueError("Tipo de importación no soportado.")
 
 
 def normalize_kind(kind):
     kind = norm(kind).replace("registros_emision", "registros")
-    if kind in {"constructoras", "factores", "etapas", "obras", "registros"}:
+    if kind in {"organizaciones", "factores", "etapas", "obras", "registros"}:
         return kind
     raise ValueError("Tipo de importación no soportado.")
 
 
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
-def importacion_preview(request, kind, constructora_id=None):
+def importacion_preview(request, kind, organizacion_id=None):
     try:
         normalized_kind = normalize_kind(kind)
-        constructora = resolve_constructora(constructora_id)
-        rows = parse_for_kind(normalized_kind, get_upload(request), constructora)
+        organizacion = resolve_organizacion(organizacion_id)
+        rows = parse_for_kind(normalized_kind, get_upload(request), organizacion)
         return Response(preview_payload(normalized_kind, rows))
     except Exception as exc:
         return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["POST"])
-def importacion_confirm(request, kind, constructora_id=None):
+def importacion_confirm(request, kind, organizacion_id=None):
     try:
         normalized_kind = normalize_kind(kind)
-        constructora = resolve_constructora(constructora_id)
+        organizacion = resolve_organizacion(organizacion_id)
         batch = load_batch(request.data.get("batch_id"))
         rows = (batch or {}).get("rows") or request.data.get("rows") or []
         with transaction.atomic():
-            result = save_for_kind(normalized_kind, rows, request.user, constructora)
-        result.pop("constructora", None)
+            result = save_for_kind(normalized_kind, rows, request.user, organizacion)
+        result.pop("organizacion", None)
         return Response(result)
     except Exception as exc:
         return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -1036,7 +1036,7 @@ def plantilla_importacion_construccion(request):
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         pd.DataFrame(
             columns=[
-                "ID constructora",
+                "ID organizacion",
                 "Nombre",
                 "RUT",
                 "Región",
@@ -1048,7 +1048,7 @@ def plantilla_importacion_construccion(request):
                 "Contacto",
                 "Observaciones",
             ]
-        ).to_excel(writer, sheet_name="constructora", index=False)
+        ).to_excel(writer, sheet_name="organizacion", index=False)
         pd.DataFrame(
             columns=[
                 "Fuente de emisión",
@@ -1063,7 +1063,7 @@ def plantilla_importacion_construccion(request):
         pd.DataFrame(
             columns=[
                 "ID Etapa",
-                "ID constructora",
+                "ID organizacion",
                 "Nombre",
                 "Tipo",
                 "Región",
@@ -1076,7 +1076,7 @@ def plantilla_importacion_construccion(request):
         pd.DataFrame(
             columns=[
                 "Código de obra",
-                "ID constructora",
+                "ID organizacion",
                 "ID Etapa",
                 "Obra / proyecto",
                 "Fecha",
@@ -1133,7 +1133,7 @@ def preview_complete_payload(upload):
     missing = []
     raw = {}
     for key in [
-        "constructoras",
+        "organizaciones",
         "factores",
         "etapas",
         "obras",
@@ -1146,12 +1146,12 @@ def preview_complete_payload(upload):
         elif sheet:
             raw[key] = read_rows(upload, sheet)
     blocking_errors = [f"Falta la hoja {sheet}." for sheet in missing]
-    constructoras = parse_constructoras(raw.get("constructoras", []))
-    constructora_data = constructoras[0]["data"] if constructoras else {}
-    temp_constructora = type(
-        "TempConstructora",
+    organizaciones = parse_organizaciones(raw.get("organizaciones", []))
+    organizacion_data = organizaciones[0]["data"] if organizaciones else {}
+    temp_organizacion = type(
+        "TempOrganizacion",
         (),
-        {"constructora_id": constructora_data.get("constructora_id", "")},
+        {"organizacion_id": organizacion_data.get("organizacion_id", "")},
     )()
     factores = parse_factores(raw.get("factores", []))
     factor_map = {
@@ -1160,18 +1160,18 @@ def preview_complete_payload(upload):
         ].get("factor_emision")
         for row in valid_rows(factores)
     }
-    etapas = parse_etapas(raw.get("etapas", []), temp_constructora)
+    etapas = parse_etapas(raw.get("etapas", []), temp_organizacion)
     stage_ids = {row["data"].get("etapa_id") for row in valid_rows(etapas)}
-    obras = parse_obras(raw.get("obras", []), temp_constructora, stage_ids)
+    obras = parse_obras(raw.get("obras", []), temp_organizacion, stage_ids)
     work_codes = {row["data"].get("codigo_obra") for row in valid_rows(obras)}
     registros = parse_registros(
-        raw.get("registros", []), temp_constructora, stage_ids, work_codes, factor_map
+        raw.get("registros", []), temp_organizacion, stage_ids, work_codes, factor_map
     )
     evidencias = parse_evidencias(
-        raw.get("evidencias", []), temp_constructora, work_codes
+        raw.get("evidencias", []), temp_organizacion, work_codes
     )
-    if constructoras and constructoras[0]["status"] == "error":
-        blocking_errors.extend(constructoras[0].get("errors", []))
+    if organizaciones and organizaciones[0]["status"] == "error":
+        blocking_errors.extend(organizaciones[0].get("errors", []))
     dates = [
         as_date(row["data"].get("fecha"))
         for row in valid_rows(registros)
@@ -1185,13 +1185,13 @@ def preview_complete_payload(upload):
         for row in valid_rows(registros)
     )
     payload = {
-        "constructora": (
-            constructoras[0]
-            if constructoras
+        "organizacion": (
+            organizaciones[0]
+            if organizaciones
             else {
                 "status": "error",
                 "data": {},
-                "errors": ["No se encontró la constructora."],
+                "errors": ["No se encontró la organizacion."],
             }
         ),
         "factores": {
@@ -1227,7 +1227,7 @@ def preview_complete_payload(upload):
         },
         "blocking_errors": blocking_errors,
         "resumen": {
-            "Constructora_detectada": constructora_data.get("nombre", ""),
+            "Organizacion_detectada": organizacion_data.get("nombre", ""),
             "periodo_detectado": (
                 f"{min(dates)} a {max(dates)}" if dates else "Sin fechas"
             ),
@@ -1260,28 +1260,28 @@ def importacion_completa_confirm(request):
         )
     payload = batch.get("payload") or {}
     with transaction.atomic():
-        constructora_result = save_constructoras(
-            [payload["constructora"]], request.user
+        organizacion_result = save_organizaciones(
+            [payload["organizacion"]], request.user
         )
-        constructora = constructora_result.get("constructora")
+        organizacion = organizacion_result.get("organizacion")
         factores_result = save_factores(payload.get("factores", {}).get("rows", []))
         etapas_result = save_etapas(
-            payload.get("etapas", {}).get("rows", []), constructora
+            payload.get("etapas", {}).get("rows", []), organizacion
         )
         obras_result = save_obras(
-            payload.get("obras", {}).get("rows", []), constructora
+            payload.get("obras", {}).get("rows", []), organizacion
         )
         registros_result = save_registros(
-            payload.get("registros_emision", {}).get("rows", []), constructora
+            payload.get("registros_emision", {}).get("rows", []), organizacion
         )
         evidencias_result = save_evidencias(
-            payload.get("evidencias", {}).get("rows", []), constructora
+            payload.get("evidencias", {}).get("rows", []), organizacion
         )
     return Response(
         {
-            "creados": constructora_result["creados"],
-            "actualizados": constructora_result["actualizados"],
-            "rechazados": constructora_result["rechazados"],
+            "creados": organizacion_result["creados"],
+            "actualizados": organizacion_result["actualizados"],
+            "rechazados": organizacion_result["rechazados"],
             "factores_creados": factores_result["creados"],
             "etapas_creadas": etapas_result["creados"],
             "obras_creados": obras_result["creados"],

@@ -78,13 +78,13 @@ function buildInsights(context) {
 }
 
 function buildExecutiveSummary(context) {
-  const empresa = context.activeConstructora?.nombre || "La operacion industrial";
+  const empresa = context.activeOrganizacion?.nombre || "La operacion industrial";
   if (!context.common.total) return `${empresa} no registra actividad industrial en el periodo analizado.`;
   return `${empresa} registro ${formatReportNumber(context.common.total)} kg CO2e. La categoria critica es ${context.categorias[0]?.label || "Sin datos"} y el proceso prioritario es ${context.modules[0]?.label || "Sin datos"}.`;
 }
 
 function buildExportPayload(report, context) {
-  return { empresa: context.activeConstructora?.nombre || "", preset: "industrial", periodo: context.filters, kpis: report.kpis, insights: report.insights, registros: report.rows };
+  return { empresa: context.activeOrganizacion?.nombre || "", preset: "industrial", periodo: context.filters, kpis: report.kpis, insights: report.insights, registros: report.rows };
 }
 
 export const industrialReport = {

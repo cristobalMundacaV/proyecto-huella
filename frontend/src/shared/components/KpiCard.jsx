@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
-import { getConstructoraDashboard } from "@/shared/services/api";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
+import { getOrganizacionDashboard } from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
 
 function normalizeKpiTitle(value) {
@@ -120,7 +120,7 @@ function resolveDashboardKpiValue({ dashboardData, isCriticalWorkCard, isEvidenc
 }
 
 function KpiCard({ detail, icon, title, tone, value }) {
-  const { activeConstructoraId } = useConstructoraActiva();
+  const { activeOrganizacionId } = useOrganizacionActiva();
   const [resolvedDashboardValue, setResolvedDashboardValue] = useState("");
   const normalizedTitle = useMemo(() => normalizeKpiTitle(title), [title]);
   const isCriticalWorkCard = normalizedTitle.includes("obra critica");
@@ -132,14 +132,14 @@ function KpiCard({ detail, icon, title, tone, value }) {
     (isIntensityCard && isPendingValue(value));
 
   useEffect(() => {
-    if (!shouldResolveFromDashboard || !activeConstructoraId) {
+    if (!shouldResolveFromDashboard || !activeOrganizacionId) {
       setResolvedDashboardValue("");
       return undefined;
     }
 
     let isCancelled = false;
 
-    getConstructoraDashboard(activeConstructoraId, { light: "1" })
+    getOrganizacionDashboard(activeOrganizacionId, { light: "1" })
       .then((dashboardData) => {
         if (isCancelled) return;
         setResolvedDashboardValue(
@@ -160,7 +160,7 @@ function KpiCard({ detail, icon, title, tone, value }) {
       isCancelled = true;
     };
   }, [
-    activeConstructoraId,
+    activeOrganizacionId,
     isCriticalWorkCard,
     isEvidenceCard,
     isIntensityCard,

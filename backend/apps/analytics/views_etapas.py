@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import Constructora, EtapaObra, EvidenciaObra, Obra, RegistroEmision
+from .models import Organizacion, EtapaObra, EvidenciaObra, Obra, RegistroEmision
 from .serializers import EtapaObraSerializer
 
 
@@ -99,23 +99,23 @@ def _build_enriched_stage(etapa, registros, obras, evidencias_count):
 
 
 @api_view(["GET", "POST"])
-def constructora_etapas(request, constructora_id):
-    constructora = get_object_or_404(Constructora, constructora_id=constructora_id)
+def organizacion_etapas(request, organizacion_id):
+    organizacion = get_object_or_404(Organizacion, organizacion_id=organizacion_id)
 
     if request.method == "POST":
-        serializer = EtapaObraSerializer(data={**request.data, "constructora": constructora.id})
+        serializer = EtapaObraSerializer(data={**request.data, "organizacion": organizacion.id})
         serializer.is_valid(raise_exception=True)
         etapa = serializer.save()
         return Response(EtapaObraSerializer(etapa).data, status=status.HTTP_201_CREATED)
 
-    etapas = list(constructora.etapas.order_by("nombre"))
+    etapas = list(organizacion.etapas.order_by("nombre"))
     registros = list(
-        RegistroEmision.objects.filter(constructora=constructora)
+        RegistroEmision.objects.filter(organizacion=organizacion)
         .select_related("obra", "etapa")
         .order_by("-fecha", "-created_at")
     )
     obras = list(
-        Obra.objects.filter(constructora=constructora)
+        Obra.objects.filter(organizacion=organizacion)
         .select_related("etapa_principal")
         .order_by("nombre")
     )
@@ -139,7 +139,7 @@ def constructora_etapas(request, constructora_id):
             Q(etapa=etapa) |
             Q(obra__etapa_principal=etapa) |
             Q(registro_emision__etapa=etapa),
-            constructora=constructora,
+            organizacion=organizacion,
         ).distinct().count()
         enriched.append(_build_enriched_stage(etapa, etapa_registros, etapa_obras, evidencias_count))
 

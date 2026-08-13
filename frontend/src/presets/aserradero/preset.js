@@ -1,7 +1,7 @@
 import { sawmillIntelligence } from "./intelligence";
 
 const aserraderoPreset = {
-  key: "aserradero",
+  key: "forestal",
   name: "Aserradero",
   entityLabel: "Empresa",
   entityPluralLabel: "Empresas",

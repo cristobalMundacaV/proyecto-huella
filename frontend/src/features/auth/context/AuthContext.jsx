@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import {
   bootstrapUser,
@@ -15,7 +15,7 @@ const demoUser = {
   nombre: "Demo Carbono Zero",
   email: "",
   is_demo: true,
-  constructoras: [],
+  organizaciones: [],
 };
 
 export function AuthProvider({ children }) {

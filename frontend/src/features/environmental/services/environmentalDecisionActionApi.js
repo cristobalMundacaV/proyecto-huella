@@ -1,13 +1,13 @@
 import { api } from "@/shared/services/api";
 
-function priorityPath(constructoraId, priorityId, suffix) {
-  return `/environmental/decisions/priorities/${encodeURIComponent(constructoraId)}/${encodeURIComponent(priorityId)}/${suffix}/`;
+function priorityPath(organizacionId, priorityId, suffix) {
+  return `/environmental/decisions/priorities/${encodeURIComponent(organizacionId)}/${encodeURIComponent(priorityId)}/${suffix}/`;
 }
 
-export async function getDecisionActionPreview(constructoraId, priorityId) {
-  return (await api.get(priorityPath(constructoraId, priorityId, "action-preview"))).data;
+export async function getDecisionActionPreview(organizacionId, priorityId) {
+  return (await api.get(priorityPath(organizacionId, priorityId, "action-preview"))).data;
 }
 
-export async function createActionFromDecision(constructoraId, priorityId, payload) {
-  return (await api.post(priorityPath(constructoraId, priorityId, "create-action"), payload)).data;
+export async function createActionFromDecision(organizacionId, priorityId, payload) {
+  return (await api.post(priorityPath(organizacionId, priorityId, "create-action"), payload)).data;
 }

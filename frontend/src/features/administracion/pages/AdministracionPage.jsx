@@ -1,26 +1,26 @@
 import { useMemo, useState } from "react";
 import { Building2, DatabaseZap, Settings, UsersRound } from "lucide-react";
 
-import ConstructorasView from "@/features/constructoras/pages/ConstructorasPage";
+import OrganizacionesView from "@/features/organizaciones/pages/OrganizacionesPage";
 import ImportacionesView from "@/features/importaciones/pages/ImportacionesPage";
 import ConfiguracionPage from "@/features/configuracion/pages/ConfiguracionPage";
 import UsuariosPage from "@/features/usuarios/pages/UsuariosPage";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 
 const tabs = [
-  { id: "empresas", label: "Empresas", icon: Building2, component: <ConstructorasView /> },
+  { id: "empresas", label: "Empresas", icon: Building2, component: <OrganizacionesView /> },
   { id: "usuarios", label: "Usuarios", icon: UsersRound, component: <UsuariosPage /> },
   { id: "importaciones", label: "Importaciones", icon: DatabaseZap, component: <ImportacionesView /> },
   { id: "configuracion", label: "Configuración", icon: Settings, component: <ConfiguracionPage /> },
 ];
 
 function AdministracionPage({ onSetActiveView, openCreateSignal }) {
-  const { activeConstructora } = useConstructoraActiva();
+  const { activeOrganizacion } = useOrganizacionActiva();
   const [activeTab, setActiveTab] = useState("empresas");
   const selectedTab = useMemo(() => tabs.find((tab) => tab.id === activeTab) || tabs[0], [activeTab]);
 
   const contentByTab = {
-    empresas: <ConstructorasView onSetActiveView={onSetActiveView} openCreateSignal={openCreateSignal} />,
+    empresas: <OrganizacionesView onSetActiveView={onSetActiveView} openCreateSignal={openCreateSignal} />,
     usuarios: <UsuariosPage />,
     importaciones: <ImportacionesView />,
     configuracion: <ConfiguracionPage />,
@@ -33,7 +33,7 @@ function AdministracionPage({ onSetActiveView, openCreateSignal }) {
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Administración</p>
             <h1 className="mt-2 text-3xl font-black tracking-tight text-[var(--text-main)] sm:text-4xl">
-              Configuración de {activeConstructora?.nombre || "la plataforma"}
+              Configuración de {activeOrganizacion?.nombre || "la plataforma"}
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
               Agrupa empresas, usuarios, importaciones y configuración en un solo espacio administrativo para mantener el sidebar enfocado en gestión ambiental.

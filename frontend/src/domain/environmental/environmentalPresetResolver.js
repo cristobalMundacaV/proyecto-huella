@@ -18,8 +18,8 @@ export function resolveEnvironmentalPresetKey(company = {}) {
   if (rubro.includes("energia") || rubro.includes("generacion")) return "energia";
   if (rubro.includes("acuicultura") || rubro.includes("acuicola")) return "acuicultura";
   if (preset === "construccion") return "construccion";
-  if (preset === "aserradero" && rubro.includes("forestal")) return "forestal_aserradero";
-  if (preset === "aserradero") return "forestal_aserradero";
+  if (preset === "forestal" && rubro.includes("forestal")) return "forestal_aserradero";
+  if (preset === "forestal") return "forestal_aserradero";
   if (preset === "industrial") return "industrial_agroindustria";
   if (preset === "transporte") return environmentalPresetMatrix.transporte ? "transporte" : DEFAULT_ENVIRONMENTAL_MATRIX_KEY;
   if (preset === "energia") return "energia";

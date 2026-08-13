@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 
 import {
   DEFAULT_ENVIRONMENTAL_MATRIX_KEY,
@@ -19,16 +19,16 @@ export {
 };
 
 export function useEnvironmentalContext() {
-  const { activeConstructora } = useConstructoraActiva();
+  const { activeOrganizacion } = useOrganizacionActiva();
 
   return useMemo(() => {
-    const matrixKey = resolveEnvironmentalPresetKey(activeConstructora);
-    const matrix = resolveEnvironmentalPreset(activeConstructora);
+    const matrixKey = resolveEnvironmentalPresetKey(activeOrganizacion);
+    const matrix = resolveEnvironmentalPreset(activeOrganizacion);
 
     return {
-      activeCompany: activeConstructora,
+      activeCompany: activeOrganizacion,
       matrix,
       matrixKey,
     };
-  }, [activeConstructora]);
+  }, [activeOrganizacion]);
 }

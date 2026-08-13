@@ -15,10 +15,10 @@ function CopilotoAmbientalPage() {
   const [documents, setDocuments] = useState([]);
 
   useEffect(() => {
-    if (!activeCompany?.constructora_id) return;
+    if (!activeCompany?.organizacion_id) return;
     Promise.all([
-      getComplianceAlerts(activeCompany.constructora_id),
-      getEnvironmentalDocuments(activeCompany.constructora_id),
+      getComplianceAlerts(activeCompany.organizacion_id),
+      getEnvironmentalDocuments(activeCompany.organizacion_id),
     ])
       .then(([alertData, documentData]) => {
         setAlerts(alertData);
@@ -28,7 +28,7 @@ function CopilotoAmbientalPage() {
         setAlerts([]);
         setDocuments([]);
       });
-  }, [activeCompany?.constructora_id]);
+  }, [activeCompany?.organizacion_id]);
 
   return (
     <EnvironmentalShell

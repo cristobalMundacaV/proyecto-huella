@@ -3,8 +3,8 @@ from rest_framework import serializers
 
 from .models import (
     AlertaCumplimientoAmbiental,
-    ConfiguracionConstructora,
-    Constructora,
+    ConfiguracionOrganizacion,
+    Organizacion,
     DocumentoAmbiental,
     EspecieMadera,
     EtapaObra,
@@ -17,7 +17,7 @@ from .models import (
     RegistroEmision,
     TransporteLoteForestal,
     TransporteObra,
-    UsuarioConstructora,
+    UsuarioOrganizacion,
     VariableAmbientalExtraida,
 )
 from .services.forestal_carbono import calcular_balance_neto_lote
@@ -29,17 +29,17 @@ def normalize_carbon_percentage(value):
     return value
 
 
-class ConstructoraSerializer(serializers.ModelSerializer):
+class OrganizacionSerializer(serializers.ModelSerializer):
     etapas_count = serializers.IntegerField(source="etapas.count", read_only=True)
     obras_count = serializers.IntegerField(source="obras.count", read_only=True)
     registros_count = serializers.IntegerField(source="registros_emision.count", read_only=True)
     evidencias_count = serializers.IntegerField(source="evidencias.count", read_only=True)
 
     class Meta:
-        model = Constructora
+        model = Organizacion
         fields = [
             "id",
-            "constructora_id",
+            "organizacion_id",
             "nombre",
             "rut",
             "region",
@@ -70,18 +70,18 @@ class ConstructoraSerializer(serializers.ModelSerializer):
         ]
 
 
-class UsuarioConstructoraSerializer(serializers.ModelSerializer):
+class UsuarioOrganizacionSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source="user.id", read_only=True)
     username = serializers.CharField(source="user.username", read_only=True)
     first_name = serializers.CharField(source="user.first_name", read_only=True)
     last_name = serializers.CharField(source="user.last_name", read_only=True)
     email = serializers.EmailField(source="user.email", read_only=True)
     nombre = serializers.SerializerMethodField()
-    constructora_id = serializers.CharField(source="constructora.constructora_id", read_only=True)
-    constructora_nombre = serializers.CharField(source="constructora.nombre", read_only=True)
+    organizacion_id = serializers.CharField(source="organizacion.organizacion_id", read_only=True)
+    organizacion_nombre = serializers.CharField(source="organizacion.nombre", read_only=True)
 
     class Meta:
-        model = UsuarioConstructora
+        model = UsuarioOrganizacion
         fields = [
             "id",
             "username",
@@ -89,8 +89,8 @@ class UsuarioConstructoraSerializer(serializers.ModelSerializer):
             "last_name",
             "nombre",
             "email",
-            "constructora_id",
-            "constructora_nombre",
+            "organizacion_id",
+            "organizacion_nombre",
             "rol",
             "cargo",
             "activo",
@@ -98,18 +98,18 @@ class UsuarioConstructoraSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
-    def get_nombre(self, usuario_constructora):
-        full_name = usuario_constructora.user.get_full_name().strip()
-        return full_name or usuario_constructora.user.username
+    def get_nombre(self, usuario_organizacion):
+        full_name = usuario_organizacion.user.get_full_name().strip()
+        return full_name or usuario_organizacion.user.username
 
 
-class UsuarioConstructoraCreateSerializer(serializers.Serializer):
+class UsuarioOrganizacionCreateSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150)
     email = serializers.EmailField(required=False, allow_blank=True)
     first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
     last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
     password = serializers.CharField(min_length=8, write_only=True)
-    rol = serializers.ChoiceField(choices=UsuarioConstructora.Rol.choices, default=UsuarioConstructora.Rol.ANALISTA)
+    rol = serializers.ChoiceField(choices=UsuarioOrganizacion.Rol.choices, default=UsuarioOrganizacion.Rol.ANALISTA)
     cargo = serializers.CharField(max_length=120, required=False, allow_blank=True)
     activo = serializers.BooleanField(default=True)
 
@@ -119,7 +119,7 @@ class UsuarioConstructoraCreateSerializer(serializers.Serializer):
         return value
 
     def create(self, validated_data):
-        constructora = self.context["constructora"]
+        organizacion = self.context["organizacion"]
         user = User.objects.create_user(
             username=validated_data["username"],
             email=validated_data.get("email", ""),
@@ -127,25 +127,25 @@ class UsuarioConstructoraCreateSerializer(serializers.Serializer):
             first_name=validated_data.get("first_name", ""),
             last_name=validated_data.get("last_name", ""),
         )
-        return UsuarioConstructora.objects.create(
+        return UsuarioOrganizacion.objects.create(
             user=user,
-            constructora=constructora,
-            rol=validated_data.get("rol", UsuarioConstructora.Rol.ANALISTA),
+            organizacion=organizacion,
+            rol=validated_data.get("rol", UsuarioOrganizacion.Rol.ANALISTA),
             cargo=validated_data.get("cargo", ""),
             activo=validated_data.get("activo", True),
         )
 
 
-class ConfiguracionConstructoraSerializer(serializers.ModelSerializer):
+class ConfiguracionOrganizacionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ConfiguracionConstructora
+        model = ConfiguracionOrganizacion
         fields = "__all__"
         read_only_fields = ["id", "created_at", "updated_at"]
 
 
 class EtapaObraSerializer(serializers.ModelSerializer):
-    constructora_id = serializers.CharField(source="constructora.constructora_id", read_only=True)
-    constructora_nombre = serializers.CharField(source="constructora.nombre", read_only=True)
+    organizacion_id = serializers.CharField(source="organizacion.organizacion_id", read_only=True)
+    organizacion_nombre = serializers.CharField(source="organizacion.nombre", read_only=True)
     registros_count = serializers.IntegerField(source="registros_emision.count", read_only=True)
 
     class Meta:
@@ -153,9 +153,9 @@ class EtapaObraSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "etapa_id",
-            "constructora",
-            "constructora_id",
-            "constructora_nombre",
+            "organizacion",
+            "organizacion_id",
+            "organizacion_nombre",
             "nombre",
             "tipo",
             "region",
@@ -168,12 +168,12 @@ class EtapaObraSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "constructora_id", "constructora_nombre", "registros_count", "created_at", "updated_at"]
+        read_only_fields = ["id", "organizacion_id", "organizacion_nombre", "registros_count", "created_at", "updated_at"]
 
 
 class ObraSerializer(serializers.ModelSerializer):
-    constructora_id = serializers.CharField(source="constructora.constructora_id", read_only=True)
-    constructora_nombre = serializers.CharField(source="constructora.nombre", read_only=True)
+    organizacion_id = serializers.CharField(source="organizacion.organizacion_id", read_only=True)
+    organizacion_nombre = serializers.CharField(source="organizacion.nombre", read_only=True)
     etapa_principal_nombre = serializers.CharField(source="etapa_principal.nombre", read_only=True)
     emisiones_kg_co2e = serializers.DecimalField(max_digits=18, decimal_places=3, read_only=True)
     registros_count = serializers.IntegerField(source="registros_emision.count", read_only=True)
@@ -184,9 +184,9 @@ class ObraSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "codigo_obra",
-            "constructora",
-            "constructora_id",
-            "constructora_nombre",
+            "organizacion",
+            "organizacion_id",
+            "organizacion_nombre",
             "etapa_principal",
             "etapa_principal_nombre",
             "nombre",
@@ -208,8 +208,8 @@ class ObraSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
-            "constructora_id",
-            "constructora_nombre",
+            "organizacion_id",
+            "organizacion_nombre",
             "etapa_principal_nombre",
             "emisiones_kg_co2e",
             "registros_count",
@@ -258,8 +258,8 @@ class MaterialConstruccionSerializer(serializers.ModelSerializer):
 
 class RegistroEmisionSerializer(serializers.ModelSerializer):
     factor_emision_id = serializers.PrimaryKeyRelatedField(queryset=FactorEmision.objects.all(), required=False, write_only=True)
-    constructora_id = serializers.CharField(source="constructora.constructora_id", read_only=True)
-    constructora_nombre = serializers.CharField(source="constructora.nombre", read_only=True)
+    organizacion_id = serializers.CharField(source="organizacion.organizacion_id", read_only=True)
+    organizacion_nombre = serializers.CharField(source="organizacion.nombre", read_only=True)
     obra_codigo = serializers.CharField(source="obra.codigo_obra", read_only=True)
     obra_nombre = serializers.CharField(source="obra.nombre", read_only=True)
     etapa_nombre = serializers.CharField(source="etapa.nombre", read_only=True)
@@ -270,9 +270,9 @@ class RegistroEmisionSerializer(serializers.ModelSerializer):
         model = RegistroEmision
         fields = [
             "id",
-            "constructora",
-            "constructora_id",
-            "constructora_nombre",
+            "organizacion",
+            "organizacion_id",
+            "organizacion_nombre",
             "obra",
             "obra_codigo",
             "obra_nombre",
@@ -302,8 +302,8 @@ class RegistroEmisionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
-            "constructora_id",
-            "constructora_nombre",
+            "organizacion_id",
+            "organizacion_nombre",
             "obra_codigo",
             "obra_nombre",
             "etapa_nombre",
@@ -340,8 +340,8 @@ class RegistroEmisionSerializer(serializers.ModelSerializer):
 class EvidenciaObraSerializer(serializers.ModelSerializer):
     archivo_url = serializers.SerializerMethodField()
     lote_id = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    constructora_id = serializers.CharField(source="constructora.constructora_id", read_only=True)
-    constructora_nombre = serializers.CharField(source="constructora.nombre", read_only=True)
+    organizacion_id = serializers.CharField(source="organizacion.organizacion_id", read_only=True)
+    organizacion_nombre = serializers.CharField(source="organizacion.nombre", read_only=True)
     obra_codigo = serializers.CharField(source="obra.codigo_obra", read_only=True)
     obra_nombre = serializers.CharField(source="obra.nombre", read_only=True)
     etapa_nombre = serializers.CharField(source="etapa.nombre", read_only=True)
@@ -352,9 +352,9 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
         model = EvidenciaObra
         fields = [
             "id",
-            "constructora",
-            "constructora_id",
-            "constructora_nombre",
+            "organizacion",
+            "organizacion_id",
+            "organizacion_nombre",
             "obra",
             "obra_codigo",
             "obra_nombre",
@@ -379,8 +379,8 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
-            "constructora_id",
-            "constructora_nombre",
+            "organizacion_id",
+            "organizacion_nombre",
             "obra_codigo",
             "obra_nombre",
             "etapa_nombre",
@@ -403,9 +403,9 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
                 attrs["metadata_extraccion"] = metadata
             except json.JSONDecodeError:
                 metadata = {}
-        constructora = attrs.get("constructora") or getattr(self.instance, "constructora", None)
-        if lote_id and constructora and not attrs.get("lote_forestal"):
-            lote = LoteForestal.objects.filter(constructora=constructora, lote_id=lote_id.strip()).first()
+        organizacion = attrs.get("organizacion") or getattr(self.instance, "organizacion", None)
+        if lote_id and organizacion and not attrs.get("lote_forestal"):
+            lote = LoteForestal.objects.filter(organizacion=organizacion, lote_id=lote_id.strip()).first()
             if lote:
                 attrs["lote_forestal"] = lote
         return attrs
@@ -534,7 +534,7 @@ class LoteForestalSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "lote_id",
-            "constructora",
+            "organizacion",
             "fecha",
             "especie",
             "volumen_m3",
@@ -639,8 +639,8 @@ class LoteForestalDetailSerializer(LoteForestalSerializer):
 
 
 class DocumentoAmbientalSerializer(serializers.ModelSerializer):
-    constructora_id = serializers.CharField(source="constructora.constructora_id", read_only=True)
-    constructora_nombre = serializers.CharField(source="constructora.nombre", read_only=True)
+    organizacion_id = serializers.CharField(source="organizacion.organizacion_id", read_only=True)
+    organizacion_nombre = serializers.CharField(source="organizacion.nombre", read_only=True)
     obra_nombre = serializers.CharField(source="obra.nombre", read_only=True)
     etapa_nombre = serializers.CharField(source="etapa.nombre", read_only=True)
     archivo_url = serializers.SerializerMethodField()
@@ -650,9 +650,9 @@ class DocumentoAmbientalSerializer(serializers.ModelSerializer):
         model = DocumentoAmbiental
         fields = [
             "id",
-            "constructora",
-            "constructora_id",
-            "constructora_nombre",
+            "organizacion",
+            "organizacion_id",
+            "organizacion_nombre",
             "obra",
             "obra_nombre",
             "etapa",
@@ -677,8 +677,8 @@ class DocumentoAmbientalSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
-            "constructora_id",
-            "constructora_nombre",
+            "organizacion_id",
+            "organizacion_nombre",
             "obra_nombre",
             "etapa_nombre",
             "archivo_url",
@@ -688,11 +688,11 @@ class DocumentoAmbientalSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        constructora = attrs.get("constructora") or getattr(self.instance, "constructora", None) or self.context.get("constructora")
-        if constructora:
+        organizacion = attrs.get("organizacion") or getattr(self.instance, "organizacion", None) or self.context.get("organizacion")
+        if organizacion:
             for field in ["obra", "etapa", "registro_emision"]:
                 value = attrs.get(field)
-                if value and value.constructora_id != constructora.id:
+                if value and value.organizacion_id != organizacion.id:
                     raise serializers.ValidationError({field: "Debe pertenecer a la empresa activa."})
         return attrs
 
@@ -706,14 +706,14 @@ class DocumentoAmbientalSerializer(serializers.ModelSerializer):
 
 
 class LimiteNormativoAmbientalSerializer(serializers.ModelSerializer):
-    constructora_id = serializers.CharField(source="constructora.constructora_id", read_only=True)
+    organizacion_id = serializers.CharField(source="organizacion.organizacion_id", read_only=True)
 
     class Meta:
         model = LimiteNormativoAmbiental
         fields = [
             "id",
-            "constructora",
-            "constructora_id",
+            "organizacion",
+            "organizacion_id",
             "industria",
             "variable_id",
             "nombre",
@@ -727,11 +727,11 @@ class LimiteNormativoAmbientalSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "constructora_id", "created_at", "updated_at"]
+        read_only_fields = ["id", "organizacion_id", "created_at", "updated_at"]
 
 
 class VariableAmbientalExtraidaSerializer(serializers.ModelSerializer):
-    constructora_id = serializers.CharField(source="constructora.constructora_id", read_only=True)
+    organizacion_id = serializers.CharField(source="organizacion.organizacion_id", read_only=True)
     documento_nombre = serializers.CharField(source="documento.nombre", read_only=True)
     documento_tipo = serializers.CharField(source="documento.tipo_documento", read_only=True)
 
@@ -742,8 +742,8 @@ class VariableAmbientalExtraidaSerializer(serializers.ModelSerializer):
             "documento",
             "documento_nombre",
             "documento_tipo",
-            "constructora",
-            "constructora_id",
+            "organizacion",
+            "organizacion_id",
             "variable_id",
             "nombre",
             "categoria",
@@ -764,7 +764,7 @@ class VariableAmbientalExtraidaSerializer(serializers.ModelSerializer):
             "id",
             "documento_nombre",
             "documento_tipo",
-            "constructora_id",
+            "organizacion_id",
             "estado_cumplimiento",
             "porcentaje_sobre_limite",
             "created_at",
@@ -772,15 +772,15 @@ class VariableAmbientalExtraidaSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        constructora = attrs.get("constructora") or getattr(self.instance, "constructora", None) or self.context.get("constructora")
+        organizacion = attrs.get("organizacion") or getattr(self.instance, "organizacion", None) or self.context.get("organizacion")
         documento = attrs.get("documento") or getattr(self.instance, "documento", None)
-        if constructora and documento and documento.constructora_id != constructora.id:
+        if organizacion and documento and documento.organizacion_id != organizacion.id:
             raise serializers.ValidationError({"documento": "Debe pertenecer a la empresa activa."})
         return attrs
 
 
 class AlertaCumplimientoAmbientalSerializer(serializers.ModelSerializer):
-    constructora_id = serializers.CharField(source="constructora.constructora_id", read_only=True)
+    organizacion_id = serializers.CharField(source="organizacion.organizacion_id", read_only=True)
     documento_nombre = serializers.CharField(source="documento.nombre", read_only=True)
     variable_nombre = serializers.CharField(source="variable.nombre", read_only=True)
     variable_id_codigo = serializers.CharField(source="variable.variable_id", read_only=True)
@@ -789,8 +789,8 @@ class AlertaCumplimientoAmbientalSerializer(serializers.ModelSerializer):
         model = AlertaCumplimientoAmbiental
         fields = [
             "id",
-            "constructora",
-            "constructora_id",
+            "organizacion",
+            "organizacion_id",
             "documento",
             "documento_nombre",
             "variable",
@@ -810,8 +810,8 @@ class AlertaCumplimientoAmbientalSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
-            "constructora",
-            "constructora_id",
+            "organizacion",
+            "organizacion_id",
             "documento",
             "documento_nombre",
             "variable",

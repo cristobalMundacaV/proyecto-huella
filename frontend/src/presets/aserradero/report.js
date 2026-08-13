@@ -39,8 +39,8 @@ const avg = (rows, field) => {
 };
 
 function getPresetRows(rows, context = {}) {
-  const filtered = rows.filter((row) => getMetadata(row).preset === "aserradero");
-  return filtered.length ? filtered : context.activePreset?.key === "aserradero" ? rows : filtered;
+  const filtered = rows.filter((row) => getMetadata(row).preset === "forestal");
+  return filtered.length ? filtered : context.activePreset?.key === "forestal" ? rows : filtered;
 }
 
 function byModule(rows, moduleKey) {
@@ -111,14 +111,14 @@ function buildInsights(context) {
 }
 
 function buildExecutiveSummary(context) {
-  const empresa = context.activeConstructora?.nombre || "La operacion forestal";
+  const empresa = context.activeOrganizacion?.nombre || "La operacion forestal";
   if (!context.common.total) return `${empresa} no registra operaciones forestales en el periodo analizado.`;
   const foco = context.modules[0]?.label || context.common.criticalCategory;
   return `${empresa} registro ${formatReportNumber(context.common.total)} kg CO2e en el periodo analizado. El principal foco de impacto se concentra en ${foco}, por lo que se recomienda priorizar control de consumo, rendimiento operativo y trazabilidad por lote.`;
 }
 
 function buildExportPayload(report, context) {
-  return { empresa: context.activeConstructora?.nombre || "", preset: "aserradero", periodo: context.filters, kpis: report.kpis, insights: report.insights, registros: report.rows };
+  return { empresa: context.activeOrganizacion?.nombre || "", preset: "forestal", periodo: context.filters, kpis: report.kpis, insights: report.insights, registros: report.rows };
 }
 
 export const aserraderoReport = {

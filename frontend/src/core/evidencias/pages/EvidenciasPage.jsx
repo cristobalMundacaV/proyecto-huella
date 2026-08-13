@@ -3,10 +3,10 @@ import { FileText, FileUp, X } from "lucide-react";
 
 import EmptyState from "@/shared/components/EmptyState";
 import PlatformLoader from "@/shared/components/PlatformLoader";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import {
-  crearEvidenciaConstructora,
-  getEvidenciasConstructora,
+  crearEvidenciaOrganizacion,
+  getEvidenciasOrganizacion,
   getEmpresaRegistrosAmbientales,
   getLotesForestales,
 } from "@/shared/services/api";
@@ -31,7 +31,7 @@ import EvidenceValidationPanel from "../components/EvidenceValidationPanel";
 
 const evidenceByPreset = {
   construccion: construccionEvidence,
-  aserradero: aserraderoEvidence,
+  forestal: aserraderoEvidence,
   transporte: transporteEvidence,
   industrial: industrialEvidence,
 };
@@ -45,8 +45,8 @@ const initialEnvironmentalDocumentForm = {
 };
 
 function EvidenciasPage() {
-  const { activeConstructoraId, activeConstructora } = useConstructoraActiva();
-  const activePreset = getActivePreset(activeConstructora?.preset || DEFAULT_PRESET_KEY);
+  const { activeOrganizacionId, activeOrganizacion } = useOrganizacionActiva();
+  const activePreset = getActivePreset(activeOrganizacion?.preset || DEFAULT_PRESET_KEY);
   const config = evidenceByPreset[activePreset.key] || construccionEvidence;
   const [evidencias, setEvidencias] = useState([]);
   const [records, setRecords] = useState([]);
@@ -71,14 +71,14 @@ function EvidenciasPage() {
   }, [config]);
 
   async function loadData() {
-    if (!activeConstructoraId) return;
+    if (!activeOrganizacionId) return;
     try {
       setLoading(true);
       setError("");
       const [evidenciasData, recordsData, lotesData] = await Promise.allSettled([
-        getEvidenciasConstructora(activeConstructoraId),
-        getEmpresaRegistrosAmbientales(activeConstructoraId),
-        activePreset.key === "aserradero" ? getLotesForestales(activeConstructoraId) : Promise.resolve([]),
+        getEvidenciasOrganizacion(activeOrganizacionId),
+        getEmpresaRegistrosAmbientales(activeOrganizacionId),
+        activePreset.key === "forestal" ? getLotesForestales(activeOrganizacionId) : Promise.resolve([]),
       ]);
 
       if (evidenciasData.status === "fulfilled") {
@@ -117,7 +117,7 @@ function EvidenciasPage() {
     setLotesForestales([]);
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeConstructoraId, activePreset.key]);
+  }, [activeOrganizacionId, activePreset.key]);
 
   const presetRows = useMemo(() => {
     const matching = evidencias.filter((row) => row.metadata?.preset === activePreset.key);
@@ -135,7 +135,7 @@ function EvidenciasPage() {
   const recommendations = useMemo(() => config.buildRecommendations(presetRows, records), [config, presetRows, records]);
 
   async function handleSubmit(form) {
-    if (!activeConstructoraId) return;
+    if (!activeOrganizacionId) return;
     if (!form.archivo || !form.nombre.trim()) {
       setError("Nombre y archivo son obligatorios.");
       return;
@@ -167,7 +167,7 @@ function EvidenciasPage() {
       if (form.lote_id) formData.append("lote_id", form.lote_id);
       if (form.observaciones.trim()) formData.append("observaciones", form.observaciones.trim());
 
-      await crearEvidenciaConstructora(activeConstructoraId, formData);
+      await crearEvidenciaOrganizacion(activeOrganizacionId, formData);
       await loadData();
       setIsUploadModalOpen(false);
     } catch (requestError) {
@@ -185,14 +185,14 @@ function EvidenciasPage() {
 
   async function handleEnvironmentalDocumentSubmit(event) {
     event.preventDefault();
-    if (!activeConstructoraId) return;
+    if (!activeOrganizacionId) return;
     const selectedType = documentForm.tipo_documento || environmentalDocumentTypes[0]?.value || "otro";
     const selectedLabel = environmentalDocumentTypes.find((item) => item.value === selectedType)?.label || selectedType;
     try {
       setDocumentSaving(true);
       setError("");
       setDocumentFeedback("");
-      await createEnvironmentalDocument(activeConstructoraId, {
+      await createEnvironmentalDocument(activeOrganizacionId, {
         ...documentForm,
         tipo_documento: selectedType,
         nombre: documentForm.nombre || selectedLabel,
@@ -211,7 +211,7 @@ function EvidenciasPage() {
     }
   }
 
-  if (!activeConstructoraId) {
+  if (!activeOrganizacionId) {
     return (
       <EmptyState
         title="Evidencias Ambientales"
@@ -232,7 +232,7 @@ function EvidenciasPage() {
   return (
     <main className="mx-auto max-w-7xl space-y-8">
       <EvidenceHero
-        activeConstructora={activeConstructora}
+        activeOrganizacion={activeOrganizacion}
         config={config}
         coverage={coverage}
         preset={activePreset}
@@ -289,7 +289,7 @@ function EvidenciasPage() {
         <EvidenceValidationPanel recommendations={recommendations} />
       </section>
 
-      {activePreset.key === "aserradero" && lotesForestales.length ? (
+      {activePreset.key === "forestal" && lotesForestales.length ? (
         <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[0_12px_28px_var(--shadow)]">
           <label className="text-xs font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">
             Filtrar por lote forestal
@@ -328,7 +328,7 @@ function EvidenciasPage() {
             </button>
             <EvidenceUploadPanel
               config={config}
-              constructoraId={activeConstructoraId}
+              organizacionId={activeOrganizacionId}
               lotesForestales={lotesForestales}
               onSubmit={handleSubmit}
               presetKey={activePreset.key}

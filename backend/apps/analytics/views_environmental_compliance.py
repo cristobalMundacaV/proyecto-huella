@@ -7,7 +7,7 @@ from rest_framework.response import Response
 
 from .models import (
     AlertaCumplimientoAmbiental,
-    Constructora,
+    Organizacion,
     DocumentoAmbiental,
     LimiteNormativoAmbiental,
     VariableAmbientalExtraida,
@@ -20,8 +20,8 @@ from .serializers import (
 )
 
 
-def get_constructora_or_404(constructora_id):
-    return get_object_or_404(Constructora, constructora_id=constructora_id)
+def get_organizacion_or_404(organizacion_id):
+    return get_object_or_404(Organizacion, organizacion_id=organizacion_id)
 
 
 def serialize(serializer_class, instance, request=None, many=False):
@@ -30,18 +30,18 @@ def serialize(serializer_class, instance, request=None, many=False):
 
 @api_view(["GET", "POST"])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
-def documentos_ambientales(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
+def documentos_ambientales(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
     if request.method == "GET":
-        queryset = DocumentoAmbiental.objects.filter(constructora=constructora).select_related(
-            "constructora", "obra", "etapa", "registro_emision"
+        queryset = DocumentoAmbiental.objects.filter(organizacion=organizacion).select_related(
+            "organizacion", "obra", "etapa", "registro_emision"
         )
         return Response(serialize(DocumentoAmbientalSerializer, queryset, request=request, many=True))
 
     data = request.data.copy()
-    data["constructora"] = constructora.id
-    data.setdefault("industria", constructora.preset)
-    serializer = DocumentoAmbientalSerializer(data=data, context={"request": request, "constructora": constructora})
+    data["organizacion"] = organizacion.id
+    data.setdefault("industria", organizacion.preset)
+    serializer = DocumentoAmbientalSerializer(data=data, context={"request": request, "organizacion": organizacion})
     serializer.is_valid(raise_exception=True)
     documento = serializer.save()
     return Response(
@@ -52,9 +52,9 @@ def documentos_ambientales(request, constructora_id):
 
 @api_view(["GET", "PATCH", "DELETE"])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
-def documento_ambiental_detail(request, constructora_id, documento_id):
-    constructora = get_constructora_or_404(constructora_id)
-    documento = get_object_or_404(DocumentoAmbiental, pk=documento_id, constructora=constructora)
+def documento_ambiental_detail(request, organizacion_id, documento_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
+    documento = get_object_or_404(DocumentoAmbiental, pk=documento_id, organizacion=organizacion)
     if request.method == "GET":
         return Response(serialize(DocumentoAmbientalSerializer, documento, request=request))
     if request.method == "DELETE":
@@ -64,7 +64,7 @@ def documento_ambiental_detail(request, constructora_id, documento_id):
         documento,
         data=request.data,
         partial=True,
-        context={"request": request, "constructora": constructora},
+        context={"request": request, "organizacion": organizacion},
     )
     serializer.is_valid(raise_exception=True)
     documento = serializer.save()
@@ -72,11 +72,11 @@ def documento_ambiental_detail(request, constructora_id, documento_id):
 
 
 @api_view(["GET", "POST"])
-def variables_ambientales(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
+def variables_ambientales(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
     if request.method == "GET":
-        queryset = VariableAmbientalExtraida.objects.filter(constructora=constructora).select_related(
-            "constructora", "documento"
+        queryset = VariableAmbientalExtraida.objects.filter(organizacion=organizacion).select_related(
+            "organizacion", "documento"
         )
         estado = request.query_params.get("estado")
         if estado:
@@ -84,17 +84,17 @@ def variables_ambientales(request, constructora_id):
         return Response(VariableAmbientalExtraidaSerializer(queryset, many=True).data)
 
     data = request.data.copy()
-    data["constructora"] = constructora.id
-    serializer = VariableAmbientalExtraidaSerializer(data=data, context={"constructora": constructora})
+    data["organizacion"] = organizacion.id
+    serializer = VariableAmbientalExtraidaSerializer(data=data, context={"organizacion": organizacion})
     serializer.is_valid(raise_exception=True)
     variable = serializer.save()
     return Response(VariableAmbientalExtraidaSerializer(variable).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(["GET", "PATCH", "DELETE"])
-def variable_ambiental_detail(request, constructora_id, variable_id):
-    constructora = get_constructora_or_404(constructora_id)
-    variable = get_object_or_404(VariableAmbientalExtraida, pk=variable_id, constructora=constructora)
+def variable_ambiental_detail(request, organizacion_id, variable_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
+    variable = get_object_or_404(VariableAmbientalExtraida, pk=variable_id, organizacion=organizacion)
     if request.method == "GET":
         return Response(VariableAmbientalExtraidaSerializer(variable).data)
     if request.method == "DELETE":
@@ -104,7 +104,7 @@ def variable_ambiental_detail(request, constructora_id, variable_id):
         variable,
         data=request.data,
         partial=True,
-        context={"constructora": constructora},
+        context={"organizacion": organizacion},
     )
     serializer.is_valid(raise_exception=True)
     variable = serializer.save()
@@ -112,18 +112,18 @@ def variable_ambiental_detail(request, constructora_id, variable_id):
 
 
 @api_view(["GET", "POST"])
-def limites_ambientales(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
+def limites_ambientales(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
     if request.method == "GET":
-        queryset = LimiteNormativoAmbiental.objects.filter(constructora=constructora)
+        queryset = LimiteNormativoAmbiental.objects.filter(organizacion=organizacion)
         activo = request.query_params.get("activo")
         if activo not in (None, ""):
             queryset = queryset.filter(activo=str(activo).lower() in {"1", "true", "si", "yes"})
         return Response(LimiteNormativoAmbientalSerializer(queryset, many=True).data)
 
     data = request.data.copy()
-    data["constructora"] = constructora.id
-    data.setdefault("industria", constructora.preset)
+    data["organizacion"] = organizacion.id
+    data.setdefault("industria", organizacion.preset)
     serializer = LimiteNormativoAmbientalSerializer(data=data)
     serializer.is_valid(raise_exception=True)
     limite = serializer.save()
@@ -131,9 +131,9 @@ def limites_ambientales(request, constructora_id):
 
 
 @api_view(["GET", "PATCH", "DELETE"])
-def limite_ambiental_detail(request, constructora_id, limite_id):
-    constructora = get_constructora_or_404(constructora_id)
-    limite = get_object_or_404(LimiteNormativoAmbiental, pk=limite_id, constructora=constructora)
+def limite_ambiental_detail(request, organizacion_id, limite_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
+    limite = get_object_or_404(LimiteNormativoAmbiental, pk=limite_id, organizacion=organizacion)
     if request.method == "GET":
         return Response(LimiteNormativoAmbientalSerializer(limite).data)
     if request.method == "DELETE":
@@ -146,9 +146,9 @@ def limite_ambiental_detail(request, constructora_id, limite_id):
 
 
 @api_view(["GET"])
-def alertas_cumplimiento(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
-    queryset = AlertaCumplimientoAmbiental.objects.filter(constructora=constructora).select_related(
+def alertas_cumplimiento(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
+    queryset = AlertaCumplimientoAmbiental.objects.filter(organizacion=organizacion).select_related(
         "documento", "variable"
     )
     estado = request.query_params.get("estado")
@@ -158,9 +158,9 @@ def alertas_cumplimiento(request, constructora_id):
 
 
 @api_view(["PATCH"])
-def alerta_cumplimiento_detail(request, constructora_id, alerta_id):
-    constructora = get_constructora_or_404(constructora_id)
-    alerta = get_object_or_404(AlertaCumplimientoAmbiental, pk=alerta_id, constructora=constructora)
+def alerta_cumplimiento_detail(request, organizacion_id, alerta_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
+    alerta = get_object_or_404(AlertaCumplimientoAmbiental, pk=alerta_id, organizacion=organizacion)
     serializer = AlertaCumplimientoAmbientalSerializer(alerta, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
     alerta = serializer.save()
@@ -168,11 +168,11 @@ def alerta_cumplimiento_detail(request, constructora_id, alerta_id):
 
 
 @api_view(["GET"])
-def cumplimiento_ambiental_resumen(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
-    documentos = DocumentoAmbiental.objects.filter(constructora=constructora)
-    variables = VariableAmbientalExtraida.objects.filter(constructora=constructora)
-    alertas = AlertaCumplimientoAmbiental.objects.filter(constructora=constructora)
+def cumplimiento_ambiental_resumen(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
+    documentos = DocumentoAmbiental.objects.filter(organizacion=organizacion)
+    variables = VariableAmbientalExtraida.objects.filter(organizacion=organizacion)
+    alertas = AlertaCumplimientoAmbiental.objects.filter(organizacion=organizacion)
     alertas_abiertas_q = Q(estado__in=[
         AlertaCumplimientoAmbiental.Estado.ABIERTA,
         AlertaCumplimientoAmbiental.Estado.EN_REVISION,
@@ -189,8 +189,8 @@ def cumplimiento_ambiental_resumen(request, constructora_id):
 
     return Response(
         {
-            "constructora_id": constructora.constructora_id,
-            "industria": constructora.preset,
+            "organizacion_id": organizacion.organizacion_id,
+            "industria": organizacion.preset,
             "total_documentos": documentos.count(),
             "documentos_pendientes": documentos.filter(estado_validacion=DocumentoAmbiental.EstadoValidacion.PENDIENTE).count(),
             "documentos_validados": documentos.filter(estado_validacion=DocumentoAmbiental.EstadoValidacion.VALIDO).count(),

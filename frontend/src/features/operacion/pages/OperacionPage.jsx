@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Factory, FileSearch, Layers3, Plus, Settings2, Table2, Truck, Zap } from "lucide-react";
 
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import ObrasView from "@/features/obras/pages/ObrasPage";
 import RecepcionTrozasPage from "@/presets/aserradero/pages/RecepcionTrozasPage";
 import ProduccionAserraderoPage from "@/presets/aserradero/pages/ProduccionAserraderoPage";
@@ -21,7 +21,7 @@ const STAGE_DONUT_CIRCUMFERENCE = 2 * Math.PI * STAGE_DONUT_RADIUS;
 const STAGE_COLORS = ["#E11D48", "#EA580C", "#2563EB", "#7C3AED", "#059669", "#0891B2", "#84CC16", "#64748B"];
 
 function getTabsForPreset(presetKey) {
-  if (presetKey === "aserradero") {
+  if (presetKey === "forestal") {
     return [
       { id: "recepcion", label: "Recepción", scope: "dashboard", component: <RecepcionTrozasPage />, insight: "Controla entrada de trozas, lote, volumen y trazabilidad desde el origen." },
       { id: "produccion", label: "Producción", scope: "materiales", component: <ProduccionAserraderoPage />, insight: "Mide rendimiento de aserrío y vincula producción con consumo energético y residuos." },
@@ -163,7 +163,7 @@ function StageDonut({ activeStage, stages, total, onSelect }) {
   );
 }
 
-function StagesInsideWorksPanel({ constructoraId }) {
+function StagesInsideWorksPanel({ organizacionId }) {
   const [records, setRecords] = useState([]);
   const [selectedStage, setSelectedStage] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -172,14 +172,14 @@ function StagesInsideWorksPanel({ constructoraId }) {
     let cancelled = false;
 
     async function loadRecords() {
-      if (!constructoraId) {
+      if (!organizacionId) {
         setRecords([]);
         setSelectedStage(null);
         return;
       }
       try {
         setLoading(true);
-        const response = await getEmpresaRegistrosAmbientales(constructoraId);
+        const response = await getEmpresaRegistrosAmbientales(organizacionId);
         const rows = Array.isArray(response) ? response : response?.results || response?.data || response?.registros || [];
         if (!cancelled) {
           setRecords(rows.map(normalizeRecord));
@@ -199,7 +199,7 @@ function StagesInsideWorksPanel({ constructoraId }) {
     return () => {
       cancelled = true;
     };
-  }, [constructoraId]);
+  }, [organizacionId]);
 
   const total = records.reduce((sum, record) => sum + Number(record.emisiones || 0), 0);
   const stages = buildStages(records).map((stage, index) => ({
@@ -347,8 +347,8 @@ function StageEmptyState({ description, title }) {
 }
 
 function OperacionPage() {
-  const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
-  const presetKey = activeConstructora?.preset || "construccion";
+  const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
+  const presetKey = activeOrganizacion?.preset || "construccion";
   const tabs = useMemo(() => getTabsForPreset(presetKey), [presetKey]);
   const [activeTab, setActiveTab] = useState(tabs[0]?.id || "unidades");
   const selectedTab = tabs.find((tab) => tab.id === activeTab) || tabs[0];
@@ -361,7 +361,7 @@ function OperacionPage() {
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-700">Operación ambiental</p>
             <h1 className="mt-2 text-3xl font-black tracking-tight text-[var(--text-main)] sm:text-4xl">
-              Procesos de {activeConstructora?.nombre || "la empresa"}
+              Procesos de {activeOrganizacion?.nombre || "la empresa"}
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
               Centraliza obras, etapas y procesos operacionales en una sola vista.
@@ -410,7 +410,7 @@ function OperacionPage() {
           <div className={selectedTab.id === "unidades" ? "[&>div]:!space-y-0 [&>div]:flex [&>div]:flex-col [&>div]:gap-6 [&>div>header]:hidden [&>div>section:first-of-type]:hidden [&>div>section:nth-of-type(2)]:order-2 [&>div>section:nth-of-type(3)]:order-1 [&>div>div.space-y-6]:order-1" : ""}>
             {selectedTab.component}
           </div>
-          {selectedTab.id === "unidades" ? <StagesInsideWorksPanel constructoraId={activeConstructoraId} /> : null}
+          {selectedTab.id === "unidades" ? <StagesInsideWorksPanel organizacionId={activeOrganizacionId} /> : null}
         </div>
       ) : (
         <OperationPlaceholder tab={selectedTab} />

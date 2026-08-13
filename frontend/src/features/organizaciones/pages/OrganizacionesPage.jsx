@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Building2, Pencil, Plus, Trash2 } from "lucide-react";
 
-import ConstructoraForm from "../components/ConstructoraForm";
+import OrganizacionForm from "../components/OrganizacionForm";
 import Pagination from "@/shared/components/Pagination";
 import Toast from "@/shared/components/Toast";
 import { getPresetLabel } from "@/presets/registry";
@@ -17,7 +17,7 @@ import {
   isValidEmail,
   isValidPhone,
 } from "@/shared/utils/validators";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 
 const PAGE_SIZE = 8;
 
@@ -44,7 +44,7 @@ const fieldLabels = {
 };
 
 function normalizeEmpresaId(empresa) {
-  return empresa?.constructora_id || empresa?.id || "";
+  return empresa?.organizacion_id || empresa?.id || "";
 }
 
 function normalizeFormFromEmpresa(empresa) {
@@ -87,7 +87,7 @@ function validateForm(form) {
   return { missingFields, nextFieldErrors };
 }
 
-function ConstructorasView({
+function OrganizacionesView({
   onSetActiveView,
   initialOpenCreate = false,
   openCreateSignal = 0,
@@ -103,12 +103,12 @@ function ConstructorasView({
   const { clearToast, showToast, toast } = useToast();
 
   const {
-    activeConstructora,
-    activeConstructoraId,
-    clearActiveConstructora,
-    refreshConstructoras,
-    setActiveConstructora,
-  } = useConstructoraActiva();
+    activeOrganizacion,
+    activeOrganizacionId,
+    clearActiveOrganizacion,
+    refreshOrganizaciones,
+    setActiveOrganizacion,
+  } = useOrganizacionActiva();
 
   async function loadEmpresas() {
     try {
@@ -225,21 +225,21 @@ function ConstructorasView({
           )
         );
 
-        if (String(activeConstructoraId) === String(empresaId)) {
-          setActiveConstructora(updatedEmpresa);
+        if (String(activeOrganizacionId) === String(empresaId)) {
+          setActiveOrganizacion(updatedEmpresa);
         }
 
         showToast("Empresa actualizada correctamente.");
       } else {
         const createdEmpresa = await createEmpresa(form);
         setEmpresas((current) => [createdEmpresa, ...current]);
-        setActiveConstructora(createdEmpresa);
+        setActiveOrganizacion(createdEmpresa);
         showToast("Empresa creada correctamente.");
       }
 
-      await refreshConstructoras();
+      await refreshOrganizaciones();
       closeModal();
-      onSetActiveView?.("constructoras");
+      onSetActiveView?.("organizaciones");
     } catch (requestError) {
       const responseData = requestError.response?.data;
 
@@ -269,17 +269,17 @@ function ConstructorasView({
 
       setEmpresas(nextEmpresas);
 
-      if (String(activeConstructoraId) === String(empresaId)) {
+      if (String(activeOrganizacionId) === String(empresaId)) {
         const nextActive = nextEmpresas[0] || null;
 
         if (nextActive) {
-          setActiveConstructora(nextActive);
+          setActiveOrganizacion(nextActive);
         } else {
-          clearActiveConstructora();
+          clearActiveOrganizacion();
         }
       }
 
-      await refreshConstructoras();
+      await refreshOrganizaciones();
       showToast("Empresa eliminada correctamente.");
     } catch (requestError) {
       showToast(
@@ -361,7 +361,7 @@ function ConstructorasView({
             <tbody>
               {visibleEmpresas.map((empresa) => {
                 const empresaId = normalizeEmpresaId(empresa);
-                const isActive = String(empresaId) === String(activeConstructoraId);
+                const isActive = String(empresaId) === String(activeOrganizacionId);
 
                 return (
                   <tr key={empresaId} className="border-t border-[var(--border)]">
@@ -394,7 +394,7 @@ function ConstructorasView({
                       <div className="flex justify-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setActiveConstructora(empresa)}
+                          onClick={() => setActiveOrganizacion(empresa)}
                           className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700"
                         >
                           Usar
@@ -442,7 +442,7 @@ function ConstructorasView({
       </section>
 
       {modalOpen && (
-        <ConstructoraForm
+        <OrganizacionForm
           error=""
           fieldErrors={fieldErrors}
           form={form}
@@ -470,4 +470,4 @@ function SummaryCard({ label, value }) {
   );
 }
 
-export default ConstructorasView;
+export default OrganizacionesView;

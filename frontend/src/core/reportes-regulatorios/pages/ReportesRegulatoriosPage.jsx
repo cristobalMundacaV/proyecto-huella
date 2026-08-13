@@ -26,14 +26,14 @@ function ReportesRegulatoriosPage() {
   const [executiveReport, setExecutiveReport] = useState(null);
 
   useEffect(() => {
-    if (!activeCompany?.constructora_id) return;
+    if (!activeCompany?.organizacion_id) return;
     Promise.all([
-      getEnvironmentalComplianceSummary(activeCompany.constructora_id),
-      getEnvironmentalDocuments(activeCompany.constructora_id),
-      getEnvironmentalVariables(activeCompany.constructora_id),
-      getComplianceAlerts(activeCompany.constructora_id),
-      getTraceableActionsSummary(activeCompany.constructora_id),
-      getEnvironmentalExecutiveReport(activeCompany.constructora_id),
+      getEnvironmentalComplianceSummary(activeCompany.organizacion_id),
+      getEnvironmentalDocuments(activeCompany.organizacion_id),
+      getEnvironmentalVariables(activeCompany.organizacion_id),
+      getComplianceAlerts(activeCompany.organizacion_id),
+      getTraceableActionsSummary(activeCompany.organizacion_id),
+      getEnvironmentalExecutiveReport(activeCompany.organizacion_id),
     ])
       .then(([summaryData, documentData, variableData, alertData, actionsData, executiveReportData]) => {
         setSummary(summaryData);
@@ -51,7 +51,7 @@ function ReportesRegulatoriosPage() {
         setActionsSummary(null);
         setExecutiveReport(null);
       });
-  }, [activeCompany?.constructora_id]);
+  }, [activeCompany?.organizacion_id]);
 
   const readiness = buildReadiness({ actionsSummary, alerts, documents, summary, variables });
   const isConstruction = activeCompany?.preset === "construccion";

@@ -47,7 +47,7 @@ function ObrasTable({ loading, obras, onOpenDetail, onSelectObra, selectedObra }
             <tr>
               <th className="px-4 py-3 text-center">Código</th>
               <th className="px-4 py-3 text-center">Obra / proyecto</th>
-              <th className="px-4 py-3 text-center">Constructora</th>
+              <th className="px-4 py-3 text-center">Organizacion</th>
               <th className="px-4 py-3 text-center">Emisiones</th>
               <th className="px-4 py-3 text-center">Evidencias</th>
               <th className="px-4 py-3 text-center">Estado</th>
@@ -100,7 +100,7 @@ function ObrasTable({ loading, obras, onOpenDetail, onSelectObra, selectedObra }
                     {obra.tipo_proyecto || "Obra registrada"}
                   </td>
                   <td className="px-4 py-4 text-center align-middle text-[var(--text-main)]">
-                    {obra.constructora_nombre || "Empresa activa"}
+                    {obra.organizacion_nombre || "Empresa activa"}
                   </td>
                   <td className="px-4 py-4 text-center align-middle font-black text-[#075985]">
                     {formatNumber(Number(obra.emisiones_kg_co2e || 0))} kg CO2e

@@ -10,8 +10,8 @@ from django.utils import timezone
 
 from apps.analytics.models import (
     AlertaCumplimientoAmbiental,
-    ConfiguracionConstructora,
-    Constructora,
+    ConfiguracionOrganizacion,
+    Organizacion,
     DocumentoAmbiental,
     EtapaObra,
     EvidenciaObra,
@@ -46,8 +46,8 @@ def source(categoria, fuente, unidad, factor, min_value, max_value, module, evid
 
 PILOT_COMPANIES = {
     "construccion": {
-        "id": "CZP_CONSTRUCTORA_BIOBIO",
-        "name": "Constructora Bio Bio Infraestructura",
+        "id": "CZP_ORGANIZACION_BIOBIO",
+        "name": "Organizacion Bio Bio Infraestructura",
         "rubro": "Construccion",
         "preset": "construccion",
         "region": "Biobio",
@@ -67,11 +67,11 @@ PILOT_COMPANIES = {
             ("factura_combustible", "Factura combustible maquinaria", "diesel_l", "Diesel maquinaria", "Combustible", "L", "820.0", "900.0", "<=", "RETC"),
         ],
     },
-    "aserradero": {
+    "forestal": {
         "id": "CZP_ASERRADERO_LAJA",
         "name": "Aserradero Laja",
         "rubro": "Forestal / Aserradero",
-        "preset": "aserradero",
+        "preset": "forestal",
         "region": "Biobio",
         "comuna": "Laja",
         "units": ["Planta Aserrio", "Secado Norte", "Patio Trozas"],
@@ -206,29 +206,29 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(str(totals)))
 
     def reset_pilots(self):
-        empresas = Constructora.objects.filter(Q(constructora_id__startswith=ACTIVE_PREFIX) | Q(constructora_id__startswith=LEGACY_PREFIX))
-        AlertaCumplimientoAmbiental.objects.filter(constructora__in=empresas).delete()
-        VariableAmbientalExtraida.objects.filter(constructora__in=empresas).delete()
-        DocumentoAmbiental.objects.filter(constructora__in=empresas).delete()
-        LimiteNormativoAmbiental.objects.filter(constructora__in=empresas).delete()
-        TransporteObra.objects.filter(obra__constructora__in=empresas).delete()
-        TransporteLoteForestal.objects.filter(lote_forestal__constructora__in=empresas).delete()
-        EvidenciaObra.objects.filter(constructora__in=empresas).delete()
-        RegistroEmision.objects.filter(constructora__in=empresas).delete()
-        LoteForestal.objects.filter(constructora__in=empresas).delete()
-        Obra.objects.filter(constructora__in=empresas).delete()
-        EtapaObra.objects.filter(constructora__in=empresas).delete()
-        ConfiguracionConstructora.objects.filter(constructora__in=empresas).delete()
+        empresas = Organizacion.objects.filter(Q(organizacion_id__startswith=ACTIVE_PREFIX) | Q(organizacion_id__startswith=LEGACY_PREFIX))
+        AlertaCumplimientoAmbiental.objects.filter(organizacion__in=empresas).delete()
+        VariableAmbientalExtraida.objects.filter(organizacion__in=empresas).delete()
+        DocumentoAmbiental.objects.filter(organizacion__in=empresas).delete()
+        LimiteNormativoAmbiental.objects.filter(organizacion__in=empresas).delete()
+        TransporteObra.objects.filter(obra__organizacion__in=empresas).delete()
+        TransporteLoteForestal.objects.filter(lote_forestal__organizacion__in=empresas).delete()
+        EvidenciaObra.objects.filter(organizacion__in=empresas).delete()
+        RegistroEmision.objects.filter(organizacion__in=empresas).delete()
+        LoteForestal.objects.filter(organizacion__in=empresas).delete()
+        Obra.objects.filter(organizacion__in=empresas).delete()
+        EtapaObra.objects.filter(organizacion__in=empresas).delete()
+        ConfiguracionOrganizacion.objects.filter(organizacion__in=empresas).delete()
         count = empresas.count()
         empresas.delete()
         self.stdout.write(self.style.WARNING(f"Empresas piloto eliminadas: {count}"))
 
     def seed_company(self, key, cfg, count, days, rng):
-        empresa, created = Constructora.objects.update_or_create(
-            constructora_id=cfg["id"],
+        empresa, created = Organizacion.objects.update_or_create(
+            organizacion_id=cfg["id"],
             defaults={"nombre": cfg["name"], "rubro": cfg["rubro"], "preset": cfg["preset"], "region": cfg["region"], "comuna": cfg["comuna"], "direccion": f"{cfg['comuna']}, {cfg['region']}", "email": f"ambiental+{key}@carbonozero.cl", "telefono": "+56 9 4321 0000", "contacto": "Equipo ambiental", "observaciones": "Empresa piloto para validar gestion ambiental por industria.", "activa": True},
         )
-        ConfiguracionConstructora.objects.get_or_create(constructora=empresa)
+        ConfiguracionOrganizacion.objects.get_or_create(organizacion=empresa)
         etapas = self.create_stages(empresa, cfg)
         unidades = self.create_units(empresa, etapas, cfg)
         lotes = self.create_lotes(empresa, cfg)
@@ -241,7 +241,7 @@ class Command(BaseCommand):
     def create_stages(self, empresa, cfg):
         etapas = []
         for index, name in enumerate(cfg["stages"], 1):
-            etapa, _ = EtapaObra.objects.update_or_create(etapa_id=f"{empresa.constructora_id}_ETAPA_{index:02d}", defaults={"constructora": empresa, "nombre": name, "tipo": self.stage_type(name), "region": empresa.region, "comuna": empresa.comuna, "direccion": empresa.direccion, "descripcion": f"Proceso operativo: {name}.", "estado": "activa", "activa": True})
+            etapa, _ = EtapaObra.objects.update_or_create(etapa_id=f"{empresa.organizacion_id}_ETAPA_{index:02d}", defaults={"organizacion": empresa, "nombre": name, "tipo": self.stage_type(name), "region": empresa.region, "comuna": empresa.comuna, "direccion": empresa.direccion, "descripcion": f"Proceso operativo: {name}.", "estado": "activa", "activa": True})
             etapas.append(etapa)
         return etapas
 
@@ -250,7 +250,7 @@ class Command(BaseCommand):
         start = timezone.localdate() - timedelta(days=180)
         for index, name in enumerate(cfg["units"], 1):
             etapa = etapas[(index - 1) % len(etapas)]
-            unidad, _ = Obra.objects.update_or_create(codigo_obra=f"{empresa.constructora_id}_UNIDAD_{index:02d}", defaults={"constructora": empresa, "etapa_principal": etapa, "nombre": name, "tipo_proyecto": self.unit_type(empresa.preset), "fecha_inicio": start + timedelta(days=index * 8), "fecha_termino_estimada": timezone.localdate() + timedelta(days=90), "superficie_m2": Decimal(str(1200 + index * 740)), "ubicacion": f"{empresa.comuna}, {empresa.region}", "region": empresa.region, "comuna": empresa.comuna, "mandante": "Mandante de referencia", "estado": "en_ejecucion", "descripcion": f"Unidad operativa para medicion ambiental de {empresa.rubro}."})
+            unidad, _ = Obra.objects.update_or_create(codigo_obra=f"{empresa.organizacion_id}_UNIDAD_{index:02d}", defaults={"organizacion": empresa, "etapa_principal": etapa, "nombre": name, "tipo_proyecto": self.unit_type(empresa.preset), "fecha_inicio": start + timedelta(days=index * 8), "fecha_termino_estimada": timezone.localdate() + timedelta(days=90), "superficie_m2": Decimal(str(1200 + index * 740)), "ubicacion": f"{empresa.comuna}, {empresa.region}", "region": empresa.region, "comuna": empresa.comuna, "mandante": "Mandante de referencia", "estado": "en_ejecucion", "descripcion": f"Unidad operativa para medicion ambiental de {empresa.rubro}."})
             unidades.append(unidad)
         return unidades
 
@@ -259,7 +259,7 @@ class Command(BaseCommand):
         start = timezone.localdate() - timedelta(days=90)
         for index, item in enumerate(cfg.get("lotes", []), 1):
             lote_id, especie, volumen, origen, destino, producto, densidad, carbono = item
-            lote, _ = LoteForestal.objects.update_or_create(lote_id=f"{empresa.constructora_id}_{lote_id}", defaults={"constructora": empresa, "fecha": start + timedelta(days=index * 14), "especie": especie, "volumen_m3": Decimal(volumen), "origen": origen, "destino": destino, "tipo_producto": producto, "densidad_kg_m3": Decimal(densidad), "porcentaje_carbono": Decimal(carbono), "estado": "activo", "observaciones": "Lote trazable para balance neto, transporte y evidencias.", "metadata": {"preset": "aserradero", "module": "lotes_forestales", "quality_status": "validado"}})
+            lote, _ = LoteForestal.objects.update_or_create(lote_id=f"{empresa.organizacion_id}_{lote_id}", defaults={"organizacion": empresa, "fecha": start + timedelta(days=index * 14), "especie": especie, "volumen_m3": Decimal(volumen), "origen": origen, "destino": destino, "tipo_producto": producto, "densidad_kg_m3": Decimal(densidad), "porcentaje_carbono": Decimal(carbono), "estado": "activo", "observaciones": "Lote trazable para balance neto, transporte y evidencias.", "metadata": {"preset": "forestal", "module": "lotes_forestales", "quality_status": "validado"}})
             lotes.append(lote)
         return lotes
 
@@ -287,7 +287,7 @@ class Command(BaseCommand):
             metadata = {"preset": empresa.preset, "module": item["module"], "source_profile": item["fuente"], "quality_status": "validado", "evidence_expected": item["evidence"]}
             if lote:
                 metadata["lote"] = lote.lote_id
-            registro = RegistroEmision.objects.create(constructora=empresa, obra=obra, etapa=etapa, lote_forestal=lote, categoria=item["categoria"], fuente_emision=item["fuente"], cantidad=cantidad, unidad=item["unidad"], factor_emision=factor.factor_emision, fecha=today - timedelta(days=max(0, days - int((index / max(count, 1)) * days))), proveedor=self.provider(item["fuente"], empresa.preset), origen_transporte=self.origin(empresa, lote) if is_transport else "", destino_transporte=self.destination(empresa, lote) if is_transport else "", distancia_km=Decimal(str(round(rng.uniform(8, 280), 3))) if is_transport else None, observaciones="Registro validado para seguimiento ambiental y analisis de puntos criticos.", metadata=metadata)
+            registro = RegistroEmision.objects.create(organizacion=empresa, obra=obra, etapa=etapa, lote_forestal=lote, categoria=item["categoria"], fuente_emision=item["fuente"], cantidad=cantidad, unidad=item["unidad"], factor_emision=factor.factor_emision, fecha=today - timedelta(days=max(0, days - int((index / max(count, 1)) * days))), proveedor=self.provider(item["fuente"], empresa.preset), origen_transporte=self.origin(empresa, lote) if is_transport else "", destino_transporte=self.destination(empresa, lote) if is_transport else "", distancia_km=Decimal(str(round(rng.uniform(8, 280), 3))) if is_transport else None, observaciones="Registro validado para seguimiento ambiental y analisis de puntos criticos.", metadata=metadata)
             registros.append(registro)
         return registros
 
@@ -298,8 +298,8 @@ class Command(BaseCommand):
                 continue
             evidence = registro.metadata.get("evidence_expected") or "otro"
             content = f"Evidencia Carbono Zero\nEmpresa: {empresa.nombre}\nFuente: {registro.fuente_emision}\nCantidad: {registro.cantidad} {registro.unidad}\nFecha: {registro.fecha}\nEmisiones: {registro.emisiones_kg_co2e} kg CO2e\n"
-            evidencia = EvidenciaObra(constructora=empresa, obra=registro.obra, etapa=registro.etapa, registro_emision=registro, lote_forestal=registro.lote_forestal, tipo_evidencia=evidence, estado_documental=EvidenciaObra.EstadoDocumental.VINCULADA, fecha_documento=registro.fecha, nombre=f"Respaldo - {registro.fuente_emision}", observaciones="Documento vinculado al registro ambiental para trazabilidad.", texto_extraido=content, metadata_extraccion={"preset": empresa.preset, "module": registro.metadata.get("module"), "fuente_emision_sugerida": registro.fuente_emision, "categoria_sugerida": registro.categoria, "cantidad_sugerida": str(registro.cantidad), "unidad_sugerida": registro.unidad, "confianza_extraccion": 0.92, "quality_status": "validado"})
-            evidencia.archivo.save(f"{empresa.constructora_id}_{registro.id}_{evidence}.txt", ContentFile(content), save=True)
+            evidencia = EvidenciaObra(organizacion=empresa, obra=registro.obra, etapa=registro.etapa, registro_emision=registro, lote_forestal=registro.lote_forestal, tipo_evidencia=evidence, estado_documental=EvidenciaObra.EstadoDocumental.VINCULADA, fecha_documento=registro.fecha, nombre=f"Respaldo - {registro.fuente_emision}", observaciones="Documento vinculado al registro ambiental para trazabilidad.", texto_extraido=content, metadata_extraccion={"preset": empresa.preset, "module": registro.metadata.get("module"), "fuente_emision_sugerida": registro.fuente_emision, "categoria_sugerida": registro.categoria, "cantidad_sugerida": str(registro.cantidad), "unidad_sugerida": registro.unidad, "confianza_extraccion": 0.92, "quality_status": "validado"})
+            evidencia.archivo.save(f"{empresa.organizacion_id}_{registro.id}_{evidence}.txt", ContentFile(content), save=True)
             total += 1
         return total
 
@@ -308,13 +308,13 @@ class Command(BaseCommand):
         today = timezone.localdate()
         for index, item in enumerate(cfg.get("environmental", []), 1):
             tipo, doc_name, variable_id, variable_name, categoria, unidad, valor, limite, comparador, normativa = item
-            limite_obj, limite_created = LimiteNormativoAmbiental.objects.update_or_create(constructora=empresa, variable_id=variable_id, normativa=normativa, defaults={"industria": industry_key, "nombre": variable_name, "limite": Decimal(limite), "unidad": unidad, "comparador": comparador, "activo": True, "descripcion": f"Limite operativo para {variable_name}.", "metadata": {"seed": True, "industria": industry_key}})
-            documento, doc_created = DocumentoAmbiental.objects.update_or_create(constructora=empresa, tipo_documento=tipo, nombre=doc_name, defaults={"industria": industry_key, "fecha_documento": today - timedelta(days=index * 7), "periodo_inicio": today - timedelta(days=index * 7 + 30), "periodo_fin": today - timedelta(days=index * 7), "fuente_origen": "manual", "estado_procesamiento": "extraido", "estado_validacion": "valido", "resumen": f"Registro ambiental estructurado para {variable_name}.", "metadata": {"seed": True, "normativa": normativa}})
-            _, variable_created = VariableAmbientalExtraida.objects.update_or_create(documento=documento, constructora=empresa, variable_id=variable_id, defaults={"nombre": variable_name, "categoria": categoria, "valor": Decimal(valor), "unidad": unidad, "fecha_medicion": documento.fecha_documento, "punto_medicion": "Punto principal", "limite_aplicable": limite_obj.limite, "unidad_limite": limite_obj.unidad, "confianza_extraccion": Decimal("0.92"), "metadata": {"normativa": normativa, "comparador_limite": limite_obj.comparador, "limite_id": limite_obj.id, "seed": True}})
+            limite_obj, limite_created = LimiteNormativoAmbiental.objects.update_or_create(organizacion=empresa, variable_id=variable_id, normativa=normativa, defaults={"industria": industry_key, "nombre": variable_name, "limite": Decimal(limite), "unidad": unidad, "comparador": comparador, "activo": True, "descripcion": f"Limite operativo para {variable_name}.", "metadata": {"seed": True, "industria": industry_key}})
+            documento, doc_created = DocumentoAmbiental.objects.update_or_create(organizacion=empresa, tipo_documento=tipo, nombre=doc_name, defaults={"industria": industry_key, "fecha_documento": today - timedelta(days=index * 7), "periodo_inicio": today - timedelta(days=index * 7 + 30), "periodo_fin": today - timedelta(days=index * 7), "fuente_origen": "manual", "estado_procesamiento": "extraido", "estado_validacion": "valido", "resumen": f"Registro ambiental estructurado para {variable_name}.", "metadata": {"seed": True, "normativa": normativa}})
+            _, variable_created = VariableAmbientalExtraida.objects.update_or_create(documento=documento, organizacion=empresa, variable_id=variable_id, defaults={"nombre": variable_name, "categoria": categoria, "valor": Decimal(valor), "unidad": unidad, "fecha_medicion": documento.fecha_documento, "punto_medicion": "Punto principal", "limite_aplicable": limite_obj.limite, "unidad_limite": limite_obj.unidad, "confianza_extraccion": Decimal("0.92"), "metadata": {"normativa": normativa, "comparador_limite": limite_obj.comparador, "limite_id": limite_obj.id, "seed": True}})
             created_docs += int(doc_created)
             created_variables += int(variable_created)
             created_limits += int(limite_created)
-        return {"documentos_ambientales": created_docs, "variables_ambientales": created_variables, "limites_ambientales": created_limits, "alertas_cumplimiento": AlertaCumplimientoAmbiental.objects.filter(constructora=empresa).count()}
+        return {"documentos_ambientales": created_docs, "variables_ambientales": created_variables, "limites_ambientales": created_limits, "alertas_cumplimiento": AlertaCumplimientoAmbiental.objects.filter(organizacion=empresa).count()}
 
     def stage_type(self, name):
         text = name.lower()
@@ -347,7 +347,7 @@ class Command(BaseCommand):
             return "Distribuidora Electrica Regional"
         if "residuo" in source_name or "escombro" in source_name:
             return "Gestor Ambiental Certificado"
-        if preset == "aserradero":
+        if preset == "forestal":
             return "Operacion Forestal Integrada"
         return "Proveedor operacional"
 

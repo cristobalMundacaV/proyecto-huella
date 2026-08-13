@@ -16,7 +16,7 @@ import {
   UsersRound,
 } from "lucide-react";
 
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { getActivePreset, getPresetLabel } from "@/presets/registry";
 
 const navigationIconMap = {
@@ -31,7 +31,7 @@ const navigationIconMap = {
   operacion: Factory,
   administracion: Settings,
   factores: Database,
-  constructoras: Building2,
+  organizaciones: Building2,
   obras: Boxes,
   etapas: Factory,
   evidencias: FileCheck2,
@@ -54,15 +54,15 @@ const navigationIconMap = {
 
 function Sidebar({ activeView, onSetActiveView, systemStatus }) {
   const {
-    activeConstructora,
-    activeConstructoraId,
-    clearActiveConstructora,
-    constructoras,
-    loadingConstructoras,
-    setActiveConstructora,
-  } = useConstructoraActiva();
+    activeOrganizacion,
+    activeOrganizacionId,
+    clearActiveOrganizacion,
+    organizaciones,
+    loadingOrganizaciones,
+    setActiveOrganizacion,
+  } = useOrganizacionActiva();
 
-  const activePresetKey = activeConstructora?.preset || "construccion";
+  const activePresetKey = activeOrganizacion?.preset || "construccion";
   const activePreset = getActivePreset(activePresetKey);
 
   const navigationItems = (activePreset.navigation || []).map((item) => ({
@@ -137,30 +137,30 @@ function Sidebar({ activeView, onSetActiveView, systemStatus }) {
 
           <div className="mt-3 space-y-3">
             <select
-              value={activeConstructoraId}
+              value={activeOrganizacionId}
               onChange={(event) => {
-                const selected = constructoras.find(
-                  (constructora) =>
-                    String(constructora.constructora_id) === String(event.target.value)
+                const selected = organizaciones.find(
+                  (organizacion) =>
+                    String(organizacion.organizacion_id) === String(event.target.value)
                 );
 
                 if (selected) {
-                  setActiveConstructora(selected);
+                  setActiveOrganizacion(selected);
                 } else {
-                  clearActiveConstructora();
+                  clearActiveOrganizacion();
                 }
               }}
               className="w-full rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-sm font-bold text-[var(--text-main)] shadow-sm outline-none transition focus:border-emerald-300/60 focus:ring-4 focus:ring-emerald-400/10"
             >
               <option value="">Selecciona una empresa</option>
-              {constructoras.map((constructora) => (
-                <option key={constructora.constructora_id} value={constructora.constructora_id}>
-                  {constructora.nombre}
+              {organizaciones.map((organizacion) => (
+                <option key={organizacion.organizacion_id} value={organizacion.organizacion_id}>
+                  {organizacion.nombre}
                 </option>
               ))}
             </select>
 
-            {loadingConstructoras && (
+            {loadingOrganizaciones && (
               <p className="text-xs text-[var(--text-muted)]">Cargando empresas...</p>
             )}
 

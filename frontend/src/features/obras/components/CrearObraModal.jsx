@@ -3,8 +3,8 @@ import { Loader2, Plus, X } from "lucide-react";
 import { Field } from "./common";
 
 function CrearObraModal({
-  activeConstructora = null,
-  constructoras = [],
+  activeOrganizacion = null,
+  organizaciones = [],
   materialesConstruccion,
   fieldErrors,
   form,
@@ -54,24 +54,24 @@ function CrearObraModal({
             />
           </Field>
 
-          {activeConstructora ? (
-            <Field label="constructora activa">
+          {activeOrganizacion ? (
+            <Field label="organizacion activa">
               <div className="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100">
-                <p className="font-semibold">{activeConstructora.nombre}</p>
-                <p className="text-xs text-slate-400">{activeConstructora.constructora_id}</p>
+                <p className="font-semibold">{activeOrganizacion.nombre}</p>
+                <p className="text-xs text-slate-400">{activeOrganizacion.organizacion_id}</p>
               </div>
             </Field>
           ) : (
             <Field
-              label="constructora / proveedor principal"
-              error={fieldErrors.constructora_nombre?.[0] || fieldErrors.constructora?.[0]}
+              label="organizacion / proveedor principal"
+              error={fieldErrors.organizacion_nombre?.[0] || fieldErrors.organizacion?.[0]}
             >
               <input
-                name="constructora_nombre"
-                value={form.constructora_nombre}
+                name="organizacion_nombre"
+                value={form.organizacion_nombre}
                 onChange={onUpdateForm}
                 required
-                placeholder="constructora Andina SpA"
+                placeholder="organizacion Andina SpA"
                 className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-emerald-400/60"
               />
             </Field>

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 import EmptyState from "@/shared/components/EmptyState";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { formatNumber } from "@/shared/utils/formatters";
 import {
   createLoteForestal,
@@ -89,7 +89,7 @@ function statusClass(status) {
 }
 
 function LotesForestalesPage() {
-  const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
+  const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
   const [lotes, setLotes] = useState([]);
   const [summary, setSummary] = useState(null);
   const [form, setForm] = useState(initialLoteForm);
@@ -105,7 +105,7 @@ function LotesForestalesPage() {
   const [isTransportModalOpen, setIsTransportModalOpen] = useState(false);
 
   const loadData = useCallback(async () => {
-    if (!activeConstructoraId) {
+    if (!activeOrganizacionId) {
       setLotes([]);
       setSummary(null);
       setLoading(false);
@@ -115,8 +115,8 @@ function LotesForestalesPage() {
       setLoading(true);
       setError("");
       const [lotesData, summaryData] = await Promise.all([
-        getLotesForestales(activeConstructoraId),
-        getLotesForestalesResumen(activeConstructoraId),
+        getLotesForestales(activeOrganizacionId),
+        getLotesForestalesResumen(activeOrganizacionId),
       ]);
       setLotes(Array.isArray(lotesData) ? lotesData : []);
       setSummary(summaryData || null);
@@ -125,7 +125,7 @@ function LotesForestalesPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeConstructoraId]);
+  }, [activeOrganizacionId]);
 
   useEffect(() => {
     loadData();
@@ -150,12 +150,12 @@ function LotesForestalesPage() {
 
   async function handleCreateLote(event) {
     event.preventDefault();
-    if (!activeConstructoraId) return;
+    if (!activeOrganizacionId) return;
     try {
       setSaving(true);
       setError("");
       setMessage("");
-      await createLoteForestal(activeConstructoraId, compactPayload(form));
+      await createLoteForestal(activeOrganizacionId, compactPayload(form));
       setForm(initialLoteForm);
       setIsCreateModalOpen(false);
       setMessage("Lote forestal creado y balance calculado.");
@@ -172,12 +172,12 @@ function LotesForestalesPage() {
   async function handleCreateTransport(event) {
     event.preventDefault();
     const target = transportTarget || selectedLote;
-    if (!activeConstructoraId || !target) return;
+    if (!activeOrganizacionId || !target) return;
     try {
       setSavingTransport(true);
       setError("");
       setMessage("");
-      await createTransporteLoteForestal(activeConstructoraId, target.lote_id, compactPayload(transportForm));
+      await createTransporteLoteForestal(activeOrganizacionId, target.lote_id, compactPayload(transportForm));
       setTransportForm({
         ...initialTransportForm,
         origen: target.origen || "",
@@ -195,7 +195,7 @@ function LotesForestalesPage() {
     }
   }
 
-  if (!activeConstructora) {
+  if (!activeOrganizacion) {
     return (
       <EmptyState
         title="Lotes forestales"

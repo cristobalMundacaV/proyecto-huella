@@ -8,7 +8,7 @@ class LecturaSensorSerializer(serializers.ModelSerializer):
         model = LecturaSensor
         fields = [
             "id",
-            "constructora",
+            "organizacion",
             "etapa_obra",
             "sensor",
             "tipo",
@@ -29,8 +29,8 @@ class LecturaSensorSerializer(serializers.ModelSerializer):
 
 class DispositivoSensorSerializer(serializers.ModelSerializer):
     api_key = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    constructora_id = serializers.CharField(source="constructora.constructora_id", read_only=True)
-    constructora_nombre = serializers.CharField(source="constructora.nombre", read_only=True)
+    organizacion_id = serializers.CharField(source="organizacion.organizacion_id", read_only=True)
+    organizacion_nombre = serializers.CharField(source="organizacion.nombre", read_only=True)
     obra_codigo = serializers.CharField(source="obra.codigo_obra", read_only=True)
     obra_nombre = serializers.CharField(source="obra.nombre", read_only=True)
     etapa_codigo = serializers.CharField(source="etapa.etapa_id", read_only=True)
@@ -43,9 +43,9 @@ class DispositivoSensorSerializer(serializers.ModelSerializer):
             "id",
             "dispositivo_id",
             "nombre",
-            "constructora",
-            "constructora_id",
-            "constructora_nombre",
+            "organizacion",
+            "organizacion_id",
+            "organizacion_nombre",
             "obra",
             "obra_codigo",
             "obra_nombre",
@@ -66,8 +66,8 @@ class DispositivoSensorSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
-            "constructora_id",
-            "constructora_nombre",
+            "organizacion_id",
+            "organizacion_nombre",
             "obra_codigo",
             "obra_nombre",
             "etapa_codigo",
@@ -77,7 +77,7 @@ class DispositivoSensorSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        extra_kwargs = {"constructora": {"write_only": True}}
+        extra_kwargs = {"organizacion": {"write_only": True}}
 
     def create(self, validated_data):
         raw_key = validated_data.pop("api_key", None)
@@ -99,8 +99,8 @@ class DispositivoSensorSerializer(serializers.ModelSerializer):
 class RegistroSensorSerializer(serializers.ModelSerializer):
     dispositivo_id = serializers.CharField(source="dispositivo.dispositivo_id", read_only=True)
     dispositivo_nombre = serializers.CharField(source="dispositivo.nombre", read_only=True)
-    constructora_id = serializers.CharField(source="constructora.constructora_id", read_only=True)
-    constructora_nombre = serializers.CharField(source="constructora.nombre", read_only=True)
+    organizacion_id = serializers.CharField(source="organizacion.organizacion_id", read_only=True)
+    organizacion_nombre = serializers.CharField(source="organizacion.nombre", read_only=True)
     obra_codigo = serializers.CharField(source="obra.codigo_obra", read_only=True)
     obra_nombre = serializers.CharField(source="obra.nombre", read_only=True)
     etapa_codigo = serializers.CharField(source="etapa.etapa_id", read_only=True)
@@ -115,9 +115,9 @@ class RegistroSensorSerializer(serializers.ModelSerializer):
             "dispositivo",
             "dispositivo_id",
             "dispositivo_nombre",
-            "constructora",
-            "constructora_id",
-            "constructora_nombre",
+            "organizacion",
+            "organizacion_id",
+            "organizacion_nombre",
             "obra",
             "obra_codigo",
             "obra_nombre",
@@ -143,8 +143,8 @@ class RegistroSensorSerializer(serializers.ModelSerializer):
             "id",
             "dispositivo_id",
             "dispositivo_nombre",
-            "constructora_id",
-            "constructora_nombre",
+            "organizacion_id",
+            "organizacion_nombre",
             "obra_codigo",
             "obra_nombre",
             "etapa_codigo",

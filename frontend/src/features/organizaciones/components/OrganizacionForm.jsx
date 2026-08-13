@@ -5,12 +5,12 @@ import { CHILE_REGION_NAMES, getComunasByRegion } from "../utils/chileRegions";
 
 const PRESET_OPTIONS = [
   { value: "construccion", label: "Construcción" },
-  { value: "aserradero", label: "Aserradero / Forestal" },
+  { value: "forestal", label: "Aserradero / Forestal" },
   { value: "transporte", label: "Transporte" },
   { value: "industrial", label: "Industrial" },
 ];
 
-function ConstructoraForm({
+function OrganizacionForm({
   error,
   fieldErrors = {},
   form,
@@ -298,4 +298,4 @@ function inputClass(error, extraClass = "") {
   return `w-full rounded-2xl border px-4 py-3 text-[var(--text-main)] outline-none shadow-[0_1px_0_rgba(255,255,255,0.85)_inset] transition placeholder:text-slate-400 ${errorClass} ${extraClass}`;
 }
 
-export default ConstructoraForm;
+export default OrganizacionForm;

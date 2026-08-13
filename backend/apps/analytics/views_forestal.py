@@ -5,45 +5,45 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import Constructora, EvidenciaObra, LoteForestal, RegistroEmision, TransporteLoteForestal
+from .models import Organizacion, EvidenciaObra, LoteForestal, RegistroEmision, TransporteLoteForestal
 from .serializers import LoteForestalDetailSerializer, LoteForestalSerializer, TransporteLoteForestalSerializer
 from .services.forestal_carbono import calcular_balance_neto_lote
 
 
-def get_constructora_or_404(constructora_id):
-    return get_object_or_404(Constructora, constructora_id=constructora_id)
+def get_organizacion_or_404(organizacion_id):
+    return get_object_or_404(Organizacion, organizacion_id=organizacion_id)
 
 
-def get_lote_or_404(constructora, lote_id):
+def get_lote_or_404(organizacion, lote_id):
     return get_object_or_404(
-        LoteForestal.objects.select_related("constructora").prefetch_related(
+        LoteForestal.objects.select_related("organizacion").prefetch_related(
             "transportes",
             "evidencias",
             "registros_emision",
         ),
-        constructora=constructora,
+        organizacion=organizacion,
         lote_id=lote_id,
     )
 
 
 @api_view(["GET", "POST"])
-def constructora_lotes_forestales(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
+def organizacion_lotes_forestales(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
 
     if request.method == "GET":
-        lotes = LoteForestal.objects.filter(constructora=constructora).order_by("-fecha", "lote_id")
+        lotes = LoteForestal.objects.filter(organizacion=organizacion).order_by("-fecha", "lote_id")
         return Response(LoteForestalDetailSerializer(lotes, many=True, context={"request": request}).data)
 
-    serializer = LoteForestalSerializer(data={**request.data, "constructora": constructora.id})
+    serializer = LoteForestalSerializer(data={**request.data, "organizacion": organizacion.id})
     serializer.is_valid(raise_exception=True)
     lote = serializer.save()
     return Response(LoteForestalDetailSerializer(lote, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(["GET", "PATCH", "DELETE"])
-def constructora_lote_forestal_detail(request, constructora_id, lote_id):
-    constructora = get_constructora_or_404(constructora_id)
-    lote = get_lote_or_404(constructora, lote_id)
+def organizacion_lote_forestal_detail(request, organizacion_id, lote_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
+    lote = get_lote_or_404(organizacion, lote_id)
 
     if request.method == "GET":
         return Response(LoteForestalDetailSerializer(lote, context={"request": request}).data)
@@ -62,9 +62,9 @@ def constructora_lote_forestal_detail(request, constructora_id, lote_id):
 
 
 @api_view(["GET", "POST"])
-def constructora_lote_forestal_transportes(request, constructora_id, lote_id):
-    constructora = get_constructora_or_404(constructora_id)
-    lote = get_lote_or_404(constructora, lote_id)
+def organizacion_lote_forestal_transportes(request, organizacion_id, lote_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
+    lote = get_lote_or_404(organizacion, lote_id)
 
     if request.method == "GET":
         transportes = lote.transportes.order_by("-fecha", "-created_at")
@@ -77,9 +77,9 @@ def constructora_lote_forestal_transportes(request, constructora_id, lote_id):
 
 
 @api_view(["GET"])
-def constructora_lotes_forestales_resumen(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
-    lotes = list(LoteForestal.objects.filter(constructora=constructora).order_by("-fecha", "lote_id"))
+def organizacion_lotes_forestales_resumen(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
+    lotes = list(LoteForestal.objects.filter(organizacion=organizacion).order_by("-fecha", "lote_id"))
 
     total_emisiones = 0.0
     total_co2 = 0.0
@@ -114,7 +114,7 @@ def constructora_lotes_forestales_resumen(request, constructora_id):
         [item for item in balances if item["estado_balance"] == "favorable"],
         key=lambda item: item["balance_neto_kg_co2e"],
     )[:5]
-    volumen_total = LoteForestal.objects.filter(constructora=constructora).aggregate(total=Sum("volumen_m3"))["total"] or 0
+    volumen_total = LoteForestal.objects.filter(organizacion=organizacion).aggregate(total=Sum("volumen_m3"))["total"] or 0
 
     return Response(
         {

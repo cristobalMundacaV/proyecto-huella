@@ -1,6 +1,6 @@
 import { Database, ShieldCheck, Sparkles } from "lucide-react";
 
-function FactorHero({ activeConstructora, config, preset, status }) {
+function FactorHero({ activeOrganizacion, config, preset, status }) {
   return (
     <section className="relative overflow-hidden rounded-[34px] border border-emerald-200/70 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.20),transparent_34%),linear-gradient(135deg,rgba(15,45,39,0.98),rgba(18,61,52,0.96))] p-6 text-white shadow-[0_28px_90px_rgba(15,45,39,0.24)] sm:p-8">
       <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
@@ -23,7 +23,7 @@ function FactorHero({ activeConstructora, config, preset, status }) {
 
           <div className="mt-5 flex flex-wrap gap-2">
             <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-wide text-emerald-50">
-              {activeConstructora?.nombre || "Empresa activa"}
+              {activeOrganizacion?.nombre || "Empresa activa"}
             </span>
             <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-wide text-emerald-50">
               Preset: {preset.name}

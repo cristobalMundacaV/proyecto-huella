@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import EmissionValue from "@/shared/components/EmissionValue";
 import PlatformLoader from "@/shared/components/PlatformLoader";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { DEFAULT_PRESET_KEY, getActivePreset } from "@/presets/registry";
 import { aserraderoFactors } from "@/presets/aserradero/factors";
 import { construccionFactors } from "@/presets/construccion/factors";
@@ -24,7 +24,7 @@ import PendingFactorRecords from "../components/PendingFactorRecords";
 
 const configByPreset = {
   construccion: construccionFactors,
-  aserradero: aserraderoFactors,
+  forestal: aserraderoFactors,
   transporte: transporteFactors,
   industrial: industrialFactors,
 };
@@ -43,8 +43,8 @@ function normalizeFactor(factor) {
 }
 
 function FactoresPage({ onSetActiveView }) {
-  const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
-  const activePreset = getActivePreset(activeConstructora?.preset || DEFAULT_PRESET_KEY);
+  const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
+  const activePreset = getActivePreset(activeOrganizacion?.preset || DEFAULT_PRESET_KEY);
   const config = configByPreset[activePreset.key] || construccionFactors;
 
   const [factors, setFactors] = useState([]);
@@ -57,7 +57,7 @@ function FactoresPage({ onSetActiveView }) {
   const [applyState, setApplyState] = useState(null);
 
   async function loadData() {
-    if (!activeConstructoraId) return;
+    if (!activeOrganizacionId) return;
 
     try {
       setLoading(true);
@@ -65,7 +65,7 @@ function FactoresPage({ onSetActiveView }) {
 
       const [factorData, recordData] = await Promise.all([
         getFactoresEmision({ preset: activePreset.key }),
-        getEmpresaRegistrosAmbientales(activeConstructoraId),
+        getEmpresaRegistrosAmbientales(activeOrganizacionId),
       ]);
 
       setFactors(normalizeRows(factorData).map(normalizeFactor));
@@ -80,7 +80,7 @@ function FactoresPage({ onSetActiveView }) {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeConstructoraId, activePreset.key]);
+  }, [activeOrganizacionId, activePreset.key]);
 
   const scopedRecords = useMemo(() => {
     if (activePreset.key === "construccion") return records;
@@ -139,7 +139,7 @@ function FactoresPage({ onSetActiveView }) {
 
     try {
       setError("");
-      await aplicarFactorRegistroEmision(activeConstructoraId, applyState.record.id, { factor_id: factor.id });
+      await aplicarFactorRegistroEmision(activeOrganizacionId, applyState.record.id, { factor_id: factor.id });
       setApplyState(null);
       setMessage("Factor aplicado y emisiones recalculadas correctamente.");
       await loadData();
@@ -148,7 +148,7 @@ function FactoresPage({ onSetActiveView }) {
     }
   }
 
-  if (!activeConstructoraId) {
+  if (!activeOrganizacionId) {
     return (
       <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center text-[var(--text-muted)]">
         Selecciona una empresa para gestionar factores de emisión.
@@ -165,7 +165,7 @@ function FactoresPage({ onSetActiveView }) {
   }
   return (
     <main className="mx-auto max-w-7xl space-y-8">
-      <FactorHero activeConstructora={activeConstructora} config={config} preset={activePreset} status={status} />
+      <FactorHero activeOrganizacion={activeOrganizacion} config={config} preset={activePreset} status={status} />
 
 
       {message && (

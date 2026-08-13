@@ -1,13 +1,13 @@
-﻿import { AuthProvider } from "@/features/auth/context/AuthContext";
-import { ConstructoraActivaProvider } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { AuthProvider } from "@/features/auth/context/AuthContext";
+import { OrganizacionActivaProvider } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { FactoresProvider } from "@/features/factores/context/FactoresContext";
 
 function Providers({ children }) {
   return (
     <AuthProvider>
-      <ConstructoraActivaProvider>
+      <OrganizacionActivaProvider>
         <FactoresProvider>{children}</FactoresProvider>
-      </ConstructoraActivaProvider>
+      </OrganizacionActivaProvider>
     </AuthProvider>
   );
 }

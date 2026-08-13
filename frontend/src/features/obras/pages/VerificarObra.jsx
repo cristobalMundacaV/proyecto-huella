@@ -116,7 +116,7 @@ function VerificarObra() {
 
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <PublicMetric label="Fecha de emision" value={emittedAt} />
-          <PublicMetric label="constructora / proveedor" value={verification.constructora} />
+          <PublicMetric label="organizacion / proveedor" value={verification.organizacion} />
           <PublicMetric label="Material / tipo de obra" value={verification.tipo_proyecto || verification.obra} />
           <PublicMetric
             label="Cantidad base / superficie"

@@ -14,14 +14,14 @@ EFFORT_POINTS = {"bajo": 10, "medio": 5, "alto": 0}
 ACTIVE_ACTION_STATUSES = {"pendiente", "en_progreso", "validacion"}
 
 
-def build_environmental_decision_priorities(constructora):
-    kpis = build_environmental_kpis(constructora)
-    recommendations = build_environmental_recommendations(constructora)
-    scenarios = build_environmental_scenarios(constructora)
-    industry = detect_industry_key(constructora)
+def build_environmental_decision_priorities(organizacion):
+    kpis = build_environmental_kpis(organizacion)
+    recommendations = build_environmental_recommendations(organizacion)
+    scenarios = build_environmental_scenarios(organizacion)
+    industry = detect_industry_key(organizacion)
     open_alerts = list(
         AlertaCumplimientoAmbiental.objects.filter(
-            constructora=constructora,
+            organizacion=organizacion,
             estado__in=[
                 AlertaCumplimientoAmbiental.Estado.ABIERTA,
                 AlertaCumplimientoAmbiental.Estado.EN_REVISION,
@@ -32,7 +32,7 @@ def build_environmental_decision_priorities(constructora):
     )
     risky_documents = list(
         DocumentoAmbiental.objects.filter(
-            constructora=constructora,
+            organizacion=organizacion,
             estado_validacion__in=[
                 DocumentoAmbiental.EstadoValidacion.PENDIENTE,
                 DocumentoAmbiental.EstadoValidacion.OBSERVADO,
@@ -83,12 +83,12 @@ def build_environmental_decision_priorities(constructora):
     priorities = sorted(priorities, key=lambda item: (-item["score"], PRIORITY_ORDER.get(item["priority"], 9), item["id"]))[:12]
     for index, item in enumerate(priorities, start=1):
         item["rank"] = index
-    mark_existing_actions(constructora, priorities)
+    mark_existing_actions(organizacion, priorities)
 
     return {
-        "constructora_id": constructora.constructora_id,
-        "preset": constructora.preset,
-        "rubro": constructora.rubro,
+        "organizacion_id": organizacion.organizacion_id,
+        "preset": organizacion.preset,
+        "rubro": organizacion.rubro,
         "generated_at": timezone.now().isoformat(),
         "summary": build_summary(priorities),
         "priorities": priorities,
@@ -341,12 +341,12 @@ def build_data_gaps(kpis, scenarios, priorities):
     return unique[:10]
 
 
-def mark_existing_actions(constructora, priorities):
+def mark_existing_actions(organizacion, priorities):
     priority_ids = [item["id"] for item in priorities]
     if not priority_ids:
         return
     actions = AccionAmbiental.objects.filter(
-        constructora=constructora,
+        organizacion=organizacion,
         status__in=ACTIVE_ACTION_STATUSES,
         metadata__priority_id__in=priority_ids,
     ).order_by("-created_at")

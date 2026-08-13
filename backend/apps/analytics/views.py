@@ -8,13 +8,14 @@ from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from rest_framework import status
-from rest_framework.decorators import api_view, parser_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
 from .models import (
-    ConfiguracionConstructora,
-    Constructora,
+    ConfiguracionOrganizacion,
+    Organizacion,
     EtapaObra,
     EvidenciaObra,
     FactorEmision,
@@ -23,11 +24,11 @@ from .models import (
     Obra,
     RegistroEmision,
     TransporteObra,
-    UsuarioConstructora,
+    UsuarioOrganizacion,
 )
 from .serializers import (
-    ConfiguracionConstructoraSerializer,
-    ConstructoraSerializer,
+    ConfiguracionOrganizacionSerializer,
+    OrganizacionSerializer,
     EtapaObraSerializer,
     EvidenciaObraSerializer,
     FactorEmisionSerializer,
@@ -35,8 +36,8 @@ from .serializers import (
     ObraSerializer,
     RegistroEmisionSerializer,
     TransporteObraSerializer,
-    UsuarioConstructoraCreateSerializer,
-    UsuarioConstructoraSerializer,
+    UsuarioOrganizacionCreateSerializer,
+    UsuarioOrganizacionSerializer,
 )
 from .services.local_advisor import generar_analisis_local
 from .services.document_extraction import extract_environmental_document
@@ -56,8 +57,8 @@ def sorted_group(grouped):
     return dict(sorted(grouped.items(), key=lambda item: item[1], reverse=True))
 
 
-def get_constructora_or_404(constructora_id):
-    return get_object_or_404(Constructora, constructora_id=constructora_id)
+def get_organizacion_or_404(organizacion_id):
+    return get_object_or_404(Organizacion, organizacion_id=organizacion_id)
 
 
 def get_obra_or_404(codigo_obra):
@@ -68,15 +69,15 @@ def serialize_auth_user(user):
     if not user or not user.is_authenticated:
         return None
 
-    perfiles = UsuarioConstructora.objects.select_related("constructora").filter(
+    perfiles = UsuarioOrganizacion.objects.select_related("organizacion").filter(
         user=user,
         activo=True,
     )
-    constructoras_usuario = [
+    organizaciones_usuario = [
         {
-            "constructora_id": perfil.constructora.constructora_id,
-            "constructora_nombre": perfil.constructora.nombre,
-            "preset": perfil.constructora.preset,
+            "organizacion_id": perfil.organizacion.organizacion_id,
+            "organizacion_nombre": perfil.organizacion.nombre,
+            "preset": perfil.organizacion.preset,
             "rol": perfil.rol,
         }
         for perfil in perfiles
@@ -90,7 +91,7 @@ def serialize_auth_user(user):
         "nombre": user.get_full_name().strip() or user.username,
         "is_staff": user.is_staff,
         "is_superuser": user.is_superuser,
-        "constructoras": constructoras_usuario,
+        "organizaciones": organizaciones_usuario,
     }
 
 
@@ -163,12 +164,12 @@ def auth_bootstrap(request):
         first_name=(request.data.get("first_name") or "").strip(),
         last_name=(request.data.get("last_name") or "").strip(),
     )
-    constructora = Constructora.objects.order_by("nombre").first()
-    if constructora:
-        UsuarioConstructora.objects.create(
+    organizacion = Organizacion.objects.order_by("nombre").first()
+    if organizacion:
+        UsuarioOrganizacion.objects.create(
             user=user,
-            constructora=constructora,
-            rol=UsuarioConstructora.Rol.ADMIN,
+            organizacion=organizacion,
+            rol=UsuarioOrganizacion.Rol.ADMIN,
             cargo="Administrador",
         )
     login(request, user)
@@ -177,7 +178,7 @@ def auth_bootstrap(request):
 
 def build_system_status():
     return {
-        "constructoras": Constructora.objects.count(),
+        "organizaciones": Organizacion.objects.count(),
         "etapas": EtapaObra.objects.count(),
         "obras": Obra.objects.count(),
         "registros_emision": RegistroEmision.objects.count(),
@@ -337,7 +338,7 @@ def sistema_estado(request):
 @api_view(["GET"])
 def dashboard_data(request):
     registros = RegistroEmision.objects.select_related(
-        "constructora", "obra", "etapa"
+        "organizacion", "obra", "etapa"
     ).all()
     obras = Obra.objects.all()
     evidencias = EvidenciaObra.objects.all()
@@ -345,50 +346,62 @@ def dashboard_data(request):
     payload["datos"] = RegistroEmisionSerializer(
         registros.order_by("-fecha", "-created_at")[:200], many=True
     ).data
-    payload["constructoras_count"] = Constructora.objects.count()
+    payload["organizaciones_count"] = Organizacion.objects.count()
     payload["obras_count"] = obras.count()
     return Response(payload)
 
 
 @api_view(["GET", "POST"])
-def constructoras(request):
+@permission_classes([IsAuthenticated])
+def organizaciones(request):
     if request.method == "GET":
-        serializer = ConstructoraSerializer(
-            Constructora.objects.order_by("nombre"), many=True
+        queryset = Organizacion.objects.order_by("nombre")
+        if request.user.is_authenticated and not request.user.is_superuser:
+            queryset = queryset.filter(
+                usuarios__user=request.user,
+                usuarios__activo=True,
+            )
+        serializer = OrganizacionSerializer(
+            queryset.distinct(), many=True
         )
         return Response(serializer.data)
-    serializer = ConstructoraSerializer(data=request.data)
+    serializer = OrganizacionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    constructora = serializer.save()
-    ConfiguracionConstructora.objects.get_or_create(constructora=constructora)
+    organizacion = serializer.save()
+    ConfiguracionOrganizacion.objects.get_or_create(organizacion=organizacion)
+    UsuarioOrganizacion.objects.get_or_create(
+        user=request.user,
+        organizacion=organizacion,
+        defaults={"rol": UsuarioOrganizacion.Rol.ADMIN, "activo": True},
+    )
     return Response(
-        ConstructoraSerializer(constructora).data, status=status.HTTP_201_CREATED
+        OrganizacionSerializer(organizacion).data, status=status.HTTP_201_CREATED
     )
 
 
 @api_view(["GET", "PATCH", "DELETE"])
-def constructora_detail(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
+def organizacion_detail(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
     if request.method == "GET":
-        return Response(ConstructoraSerializer(constructora).data)
+        return Response(OrganizacionSerializer(organizacion).data)
     if request.method == "DELETE":
-        constructora.delete()
+        organizacion.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-    serializer = ConstructoraSerializer(constructora, data=request.data, partial=True)
+    serializer = OrganizacionSerializer(organizacion, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
     serializer.save()
     return Response(serializer.data)
 
 
 @api_view(["GET", "PATCH"])
-def constructora_configuracion(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
-    configuracion, _ = ConfiguracionConstructora.objects.get_or_create(
-        constructora=constructora
+def organizacion_configuracion(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
+    configuracion, _ = ConfiguracionOrganizacion.objects.get_or_create(
+        organizacion=organizacion
     )
     if request.method == "GET":
-        return Response(ConfiguracionConstructoraSerializer(configuracion).data)
-    serializer = ConfiguracionConstructoraSerializer(
+        return Response(ConfiguracionOrganizacionSerializer(configuracion).data)
+    serializer = ConfiguracionOrganizacionSerializer(
         configuracion, data=request.data, partial=True
     )
     serializer.is_valid(raise_exception=True)
@@ -397,17 +410,17 @@ def constructora_configuracion(request, constructora_id):
 
 
 @api_view(["GET"])
-def constructora_estado(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
-    registros = RegistroEmision.objects.filter(constructora=constructora)
+def organizacion_estado(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
+    registros = RegistroEmision.objects.filter(organizacion=organizacion)
     return Response(
         {
-            "constructora_id": constructora.constructora_id,
-            "preset": constructora.preset,
-            "etapas": constructora.etapas.count(),
-            "obras": constructora.obras.count(),
+            "organizacion_id": organizacion.organizacion_id,
+            "preset": organizacion.preset,
+            "etapas": organizacion.etapas.count(),
+            "obras": organizacion.obras.count(),
             "registros": registros.count(),
-            "evidencias": constructora.evidencias.count(),
+            "evidencias": organizacion.evidencias.count(),
             "emisiones_kg_co2e": to_float(
                 registros.aggregate(total=Sum("emisiones_kg_co2e"))["total"]
             ),
@@ -416,22 +429,22 @@ def constructora_estado(request, constructora_id):
 
 
 @api_view(["GET"])
-def constructora_dashboard(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
+def organizacion_dashboard(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
     registros = RegistroEmision.objects.filter(
-        constructora=constructora
+        organizacion=organizacion
     ).select_related("obra", "etapa")
-    obras = Obra.objects.filter(constructora=constructora)
-    evidencias = EvidenciaObra.objects.filter(constructora=constructora)
+    obras = Obra.objects.filter(organizacion=organizacion)
+    evidencias = EvidenciaObra.objects.filter(organizacion=organizacion)
     payload = build_environmental_summary(registros, obras=obras, evidencias=evidencias)
-    payload["constructora_id"] = constructora.constructora_id
-    payload["constructora_nombre"] = constructora.nombre
-    payload["preset"] = constructora.preset
+    payload["organizacion_id"] = organizacion.organizacion_id
+    payload["organizacion_nombre"] = organizacion.nombre
+    payload["preset"] = organizacion.preset
     payload["datos"] = RegistroEmisionSerializer(
         registros.order_by("-fecha", "-created_at")[:200], many=True
     ).data
-    if constructora.preset == Constructora.Preset.ASERRADERO:
-        lotes = LoteForestal.objects.filter(constructora=constructora)
+    if organizacion.preset == Organizacion.Preset.FORESTAL:
+        lotes = LoteForestal.objects.filter(organizacion=organizacion)
         lotes_balance = [calcular_balance_neto_lote(lote) for lote in lotes]
         payload["lotes_forestales"] = {
             "total_lotes": lotes.count(),
@@ -445,32 +458,32 @@ def constructora_dashboard(request, constructora_id):
 
 
 @api_view(["GET", "POST"])
-def constructora_usuarios(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
+def organizacion_usuarios(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
     if request.method == "GET":
-        perfiles = UsuarioConstructora.objects.select_related(
-            "user", "constructora"
-        ).filter(constructora=constructora)
-        return Response(UsuarioConstructoraSerializer(perfiles, many=True).data)
-    serializer = UsuarioConstructoraCreateSerializer(
-        data=request.data, context={"constructora": constructora}
+        perfiles = UsuarioOrganizacion.objects.select_related(
+            "user", "organizacion"
+        ).filter(organizacion=organizacion)
+        return Response(UsuarioOrganizacionSerializer(perfiles, many=True).data)
+    serializer = UsuarioOrganizacionCreateSerializer(
+        data=request.data, context={"organizacion": organizacion}
     )
     serializer.is_valid(raise_exception=True)
     perfil = serializer.save()
     return Response(
-        UsuarioConstructoraSerializer(perfil).data, status=status.HTTP_201_CREATED
+        UsuarioOrganizacionSerializer(perfil).data, status=status.HTTP_201_CREATED
     )
 
 
 @api_view(["GET", "POST"])
-def constructora_etapas(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
+def organizacion_etapas(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
     if request.method == "GET":
         return Response(
-            EtapaObraSerializer(constructora.etapas.order_by("nombre"), many=True).data
+            EtapaObraSerializer(organizacion.etapas.order_by("nombre"), many=True).data
         )
     serializer = EtapaObraSerializer(
-        data={**request.data, "constructora": constructora.id}
+        data={**request.data, "organizacion": organizacion.id}
     )
     serializer.is_valid(raise_exception=True)
     etapa = serializer.save()
@@ -478,37 +491,37 @@ def constructora_etapas(request, constructora_id):
 
 
 @api_view(["GET", "POST"])
-def constructora_obras(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
+def organizacion_obras(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
     if request.method == "GET":
         return Response(
             ObraSerializer(
-                constructora.obras.select_related("etapa_principal").order_by(
+                organizacion.obras.select_related("etapa_principal").order_by(
                     "-created_at"
                 ),
                 many=True,
             ).data
         )
-    serializer = ObraSerializer(data={**request.data, "constructora": constructora.id})
+    serializer = ObraSerializer(data={**request.data, "organizacion": organizacion.id})
     serializer.is_valid(raise_exception=True)
     obra = serializer.save()
     return Response(ObraSerializer(obra).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(["GET"])
-def constructora_reportes(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
+def organizacion_reportes(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
     registros = RegistroEmision.objects.filter(
-        constructora=constructora
+        organizacion=organizacion
     ).select_related("obra", "etapa")
     payload = build_environmental_summary(
         registros,
-        obras=Obra.objects.filter(constructora=constructora),
-        evidencias=EvidenciaObra.objects.filter(constructora=constructora),
+        obras=Obra.objects.filter(organizacion=organizacion),
+        evidencias=EvidenciaObra.objects.filter(organizacion=organizacion),
     )
-    payload["constructora_id"] = constructora.constructora_id
-    payload["constructora_nombre"] = constructora.nombre
-    payload["preset"] = constructora.preset
+    payload["organizacion_id"] = organizacion.organizacion_id
+    payload["organizacion_nombre"] = organizacion.nombre
+    payload["preset"] = organizacion.preset
     payload["reporte"] = {
         "lectura_ejecutiva": payload["insight"],
         "unidad_visual_emisiones": "kg CO2e",
@@ -518,17 +531,17 @@ def constructora_reportes(request, constructora_id):
 
 
 @api_view(["GET", "POST"])
-def constructora_registros_emision(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
+def organizacion_registros_emision(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
     if request.method == "GET":
         registros = (
-            RegistroEmision.objects.filter(constructora=constructora)
+            RegistroEmision.objects.filter(organizacion=organizacion)
             .select_related("obra", "etapa")
             .order_by("-fecha", "-created_at")
         )
         return Response(RegistroEmisionSerializer(registros, many=True).data)
     data = request.data.copy()
-    data["constructora"] = constructora.id
+    data["organizacion"] = organizacion.id
     serializer = RegistroEmisionSerializer(data=data)
     serializer.is_valid(raise_exception=True)
     registro = serializer.save()
@@ -539,11 +552,11 @@ def constructora_registros_emision(request, constructora_id):
 
 @api_view(["GET", "POST"])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
-def constructora_evidencias(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
+def organizacion_evidencias(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
     if request.method == "GET":
         evidencias = (
-            EvidenciaObra.objects.filter(constructora=constructora)
+            EvidenciaObra.objects.filter(organizacion=organizacion)
             .select_related("obra", "etapa", "registro_emision", "lote_forestal")
             .order_by("-created_at")
         )
@@ -556,7 +569,7 @@ def constructora_evidencias(request, constructora_id):
             ).data
         )
     data = request.data.copy()
-    data["constructora"] = constructora.id
+    data["organizacion"] = organizacion.id
     serializer = EvidenciaObraSerializer(data=data, context={"request": request})
     serializer.is_valid(raise_exception=True)
     evidencia = serializer.save()
@@ -568,8 +581,8 @@ def constructora_evidencias(request, constructora_id):
 
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
-def constructora_evidencia_extraer(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
+def organizacion_evidencia_extraer(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
     upload = request.FILES.get("file") or request.FILES.get("archivo")
 
     if not upload:
@@ -578,7 +591,7 @@ def constructora_evidencia_extraer(request, constructora_id):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    result = extract_environmental_document(upload, preset=constructora.preset)
+    result = extract_environmental_document(upload, preset=organizacion.preset)
     return Response(result)
 
 
@@ -587,7 +600,7 @@ def obras(request):
     if request.method == "GET":
         return Response(
             ObraSerializer(
-                Obra.objects.select_related("constructora", "etapa_principal").order_by(
+                Obra.objects.select_related("organizacion", "etapa_principal").order_by(
                     "-created_at"
                 ),
                 many=True,
@@ -625,11 +638,11 @@ def obra_registros_emision(request, codigo_obra):
     obra = get_obra_or_404(codigo_obra)
     if request.method == "GET":
         registros = obra.registros_emision.select_related(
-            "constructora", "etapa"
+            "organizacion", "etapa"
         ).order_by("-fecha", "-created_at")
         return Response(RegistroEmisionSerializer(registros, many=True).data)
     data = request.data.copy()
-    data["constructora"] = obra.constructora_id
+    data["organizacion"] = obra.organizacion_id
     data["obra"] = obra.id
     serializer = RegistroEmisionSerializer(data=data)
     serializer.is_valid(raise_exception=True)
@@ -645,7 +658,7 @@ def obra_evidencias(request, codigo_obra):
     obra = get_obra_or_404(codigo_obra)
     if request.method == "GET":
         evidencias = obra.evidencias.select_related(
-            "constructora", "etapa", "registro_emision"
+            "organizacion", "etapa", "registro_emision"
         ).order_by("-created_at")
         return Response(
             EvidenciaObraSerializer(
@@ -653,7 +666,7 @@ def obra_evidencias(request, codigo_obra):
             ).data
         )
     data = request.data.copy()
-    data["constructora"] = obra.constructora_id
+    data["organizacion"] = obra.organizacion_id
     data["obra"] = obra.id
     serializer = EvidenciaObraSerializer(data=data, context={"request": request})
     serializer.is_valid(raise_exception=True)
@@ -697,7 +710,7 @@ def verificar_obra(request, codigo_obra):
         {
             "codigo_obra": obra.codigo_obra,
             "obra": obra.nombre,
-            "constructora": obra.constructora.nombre,
+            "organizacion": obra.organizacion.nombre,
             "estado": obra.estado,
             "resumen": resumen,
             "mensaje": "Ficha ambiental verificable de obra generada por Carbono Zero.",
@@ -747,10 +760,10 @@ def factores_emision_detail(request, factor_id):
 
 
 @api_view(["POST"])
-def constructora_registro_aplicar_factor(request, constructora_id, registro_id):
-    constructora = get_constructora_or_404(constructora_id)
+def organizacion_registro_aplicar_factor(request, organizacion_id, registro_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
     registro = get_object_or_404(
-        RegistroEmision, pk=registro_id, constructora=constructora
+        RegistroEmision, pk=registro_id, organizacion=organizacion
     )
     factor_id = request.data.get("factor_id")
     if not factor_id:

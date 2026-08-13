@@ -73,14 +73,14 @@ function buildInsights({ common, modules, categorias, tendencia, maxPeriod }) {
 }
 
 function buildExecutiveSummary({ common, modules, categorias, tendencia, maxPeriod, context }) {
-  const empresa = context.activeConstructora?.nombre || "La empresa";
+  const empresa = context.activeOrganizacion?.nombre || "La empresa";
   if (!common.total) return `${empresa} no registra emisiones de construccion en el periodo analizado.`;
   return `${empresa} registro ${formatReportNumber(common.total)} kg CO2e en el periodo. La tendencia es ${tendencia}, con foco principal en ${common.criticalSource}, etapa ${modules[0]?.label || "Sin datos"} y categoria ${categorias[0]?.label || "Sin datos"}. El periodo mas alto fue ${maxPeriod?.label || "Sin datos"}.`;
 }
 
 function buildExportPayload(report, context) {
   return {
-    empresa: context.activeConstructora?.nombre || "",
+    empresa: context.activeOrganizacion?.nombre || "",
     preset: "construccion",
     periodo: context.filters,
     kpis: report.kpis,

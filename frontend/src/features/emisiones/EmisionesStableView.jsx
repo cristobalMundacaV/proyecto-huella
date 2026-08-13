@@ -16,11 +16,11 @@ import {
 } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { createTraceableAction } from "@/features/intelligence/services/traceableActionsApi";
 import EmptyState from "@/shared/components/EmptyState";
 import PlatformLoader from "@/shared/components/PlatformLoader";
-import { getConstructoraEmisiones } from "@/shared/services/api";
+import { getOrganizacionEmisiones } from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
 
 const tooltipContentStyle = {
@@ -216,7 +216,7 @@ function HorizontalChart({ data, dataKey, nameKey, title }) {
 
 function LifecycleOverview({ activePreset, lifecycleUnits, onSelectUnit }) {
   const topUnits = lifecycleUnits.slice(0, 4);
-  const label = activePreset === "aserradero" ? "lote/producto" : "obra/unidad";
+  const label = activePreset === "forestal" ? "lote/producto" : "obra/unidad";
 
   return (
     <section className="rounded-[30px] border border-emerald-200 bg-emerald-50/60 p-5 shadow-[var(--shadow-card)] ring-1 ring-white/70">
@@ -295,7 +295,7 @@ function CycleMetric({ icon, label, value }) {
 }
 
 function LifecycleDetailModal({ activePreset, actionStatus, onClose, onCreateAction, totalEmissions, unit }) {
-  const label = activePreset === "aserradero" ? "lote/producto" : "obra/unidad";
+  const label = activePreset === "forestal" ? "lote/producto" : "obra/unidad";
   const rows = [...(unit.rows || [])].sort((left, right) => String(right.fecha || "").localeCompare(String(left.fecha || "")));
   const topSources = sortedEntries(unit.fuentes).slice(0, 5);
   const topStages = sortedEntries(unit.etapas).slice(0, 5);
@@ -440,7 +440,7 @@ function RankingList({ rows, title }) {
 }
 
 function EmisionesStableView({ onSetActiveView }) {
-  const { activeConstructora, activeConstructoraId } = useConstructoraActiva();
+  const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -452,11 +452,11 @@ function EmisionesStableView({ onSetActiveView }) {
     let cancelled = false;
 
     async function load() {
-      if (!activeConstructoraId) return;
+      if (!activeOrganizacionId) return;
       try {
         setLoading(true);
         setError("");
-        const response = await getConstructoraEmisiones(activeConstructoraId);
+        const response = await getOrganizacionEmisiones(activeOrganizacionId);
         if (!cancelled) setData(response);
       } catch (requestError) {
         if (!cancelled) setError(requestError.response?.data?.error || "No se pudieron cargar las emisiones.");
@@ -472,7 +472,7 @@ function EmisionesStableView({ onSetActiveView }) {
     return () => {
       cancelled = true;
     };
-  }, [activeConstructoraId]);
+  }, [activeOrganizacionId]);
 
   const rows = useMemo(() => normalizeRows(data), [data]);
   const filteredRows = useMemo(() => {
@@ -499,7 +499,7 @@ function EmisionesStableView({ onSetActiveView }) {
   const sourceShare = totalEmissions > 0 && bySource[0]?.emisiones ? (bySource[0].emisiones / totalEmissions) * 100 : 0;
 
   async function handleCreateLifecycleAction(unit, actionFocus) {
-    if (!activeConstructoraId || !unit) return;
+    if (!activeOrganizacionId || !unit) return;
     try {
       setActionStatus({ loading: true, message: "", type: "" });
       const payload = {
@@ -525,7 +525,7 @@ function EmisionesStableView({ onSetActiveView }) {
           cobertura_ciclo: unit.coberturaCiclo,
         },
       };
-      await createTraceableAction(activeConstructoraId, payload);
+      await createTraceableAction(activeOrganizacionId, payload);
       setActionStatus({ loading: false, message: "Acción creada y enviada al tablero de Acciones.", type: "success" });
     } catch (requestError) {
       setActionStatus({
@@ -536,7 +536,7 @@ function EmisionesStableView({ onSetActiveView }) {
     }
   }
 
-  if (!activeConstructoraId) {
+  if (!activeOrganizacionId) {
     return (
       <EmptyState
         title="Selecciona una empresa para revisar su huella."
@@ -556,7 +556,7 @@ function EmisionesStableView({ onSetActiveView }) {
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-700">Gestión de huella</p>
             <h1 className="mt-2 text-3xl font-black tracking-tight text-[var(--text-main)] sm:text-4xl">
-              Emisiones de {activeConstructora?.nombre || "la empresa"}
+              Emisiones de {activeOrganizacion?.nombre || "la empresa"}
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
               Esta vista identifica fuentes, etapas, categorías y unidades completas para priorizar acciones de gestión ambiental.
@@ -593,7 +593,7 @@ function EmisionesStableView({ onSetActiveView }) {
       </section>
 
       <LifecycleOverview
-        activePreset={activeConstructora?.preset}
+        activePreset={activeOrganizacion?.preset}
         lifecycleUnits={lifecycleUnits}
         onSelectUnit={(unit) => {
           setActionStatus({ loading: false, message: "", type: "" });
@@ -660,7 +660,7 @@ function EmisionesStableView({ onSetActiveView }) {
 
       {selectedLifecycleUnit ? (
         <LifecycleDetailModal
-          activePreset={activeConstructora?.preset}
+          activePreset={activeOrganizacion?.preset}
           actionStatus={actionStatus}
           onClose={() => setSelectedLifecycleUnit(null)}
           onCreateAction={handleCreateLifecycleAction}

@@ -1,4 +1,4 @@
-import ConstructorasPage from "@/features/constructoras/pages/ConstructorasPage";
+import OrganizacionesPage from "@/features/organizaciones/pages/OrganizacionesPage";
 import EvidenciasPage from "@/features/evidencias/pages/EvidenciasPage";
 import ConfiguracionPage from "@/features/configuracion/pages/ConfiguracionPage";
 import FactoresPage from "@/features/factores/pages/FactoresPage";
@@ -12,7 +12,7 @@ import CopilotoAmbientalPage from "@/core/copiloto/pages/CopilotoAmbientalPage";
 export const appRoutes = {
   reportes_regulatorios: ReportesRegulatoriosPage,
   copiloto_ambiental: CopilotoAmbientalPage,
-  constructoras: ConstructorasPage,
+  organizaciones: OrganizacionesPage,
   evidencias: EvidenciasPage,
   configuracion: ConfiguracionPage,
   factores: FactoresPage,

@@ -2,8 +2,8 @@ from django.contrib import admin
 
 from .models import (
     AlertaCumplimientoAmbiental,
-    ConfiguracionConstructora,
-    Constructora,
+    ConfiguracionOrganizacion,
+    Organizacion,
     DocumentoAmbiental,
     EtapaObra,
     EvidenciaObra,
@@ -14,42 +14,42 @@ from .models import (
     Obra,
     RegistroEmision,
     TransporteObra,
-    UsuarioConstructora,
+    UsuarioOrganizacion,
     VariableAmbientalExtraida,
 )
 
 
-@admin.register(Constructora)
-class ConstructoraAdmin(admin.ModelAdmin):
-    list_display = ("constructora_id", "nombre", "rut", "region", "comuna", "rubro", "activa")
-    search_fields = ("constructora_id", "nombre", "rut", "region", "comuna")
+@admin.register(Organizacion)
+class OrganizacionAdmin(admin.ModelAdmin):
+    list_display = ("organizacion_id", "nombre", "rut", "region", "comuna", "rubro", "activa")
+    search_fields = ("organizacion_id", "nombre", "rut", "region", "comuna")
     list_filter = ("region", "comuna", "rubro", "activa")
 
 
-@admin.register(UsuarioConstructora)
-class UsuarioConstructoraAdmin(admin.ModelAdmin):
-    list_display = ("user", "constructora", "rol", "cargo", "activo")
-    search_fields = ("user__username", "user__email", "constructora__nombre", "cargo")
+@admin.register(UsuarioOrganizacion)
+class UsuarioOrganizacionAdmin(admin.ModelAdmin):
+    list_display = ("user", "organizacion", "rol", "cargo", "activo")
+    search_fields = ("user__username", "user__email", "organizacion__nombre", "cargo")
     list_filter = ("rol", "activo")
 
 
-@admin.register(ConfiguracionConstructora)
-class ConfiguracionConstructoraAdmin(admin.ModelAdmin):
-    list_display = ("constructora", "unidad_emisiones", "modo_importacion", "evidencia_obligatoria")
-    search_fields = ("constructora__nombre",)
+@admin.register(ConfiguracionOrganizacion)
+class ConfiguracionOrganizacionAdmin(admin.ModelAdmin):
+    list_display = ("organizacion", "unidad_emisiones", "modo_importacion", "evidencia_obligatoria")
+    search_fields = ("organizacion__nombre",)
 
 
 @admin.register(EtapaObra)
 class EtapaObraAdmin(admin.ModelAdmin):
-    list_display = ("etapa_id", "constructora", "nombre", "tipo", "estado", "activa")
-    search_fields = ("etapa_id", "constructora__nombre", "nombre", "tipo")
+    list_display = ("etapa_id", "organizacion", "nombre", "tipo", "estado", "activa")
+    search_fields = ("etapa_id", "organizacion__nombre", "nombre", "tipo")
     list_filter = ("tipo", "estado", "activa")
 
 
 @admin.register(Obra)
 class ObraAdmin(admin.ModelAdmin):
-    list_display = ("codigo_obra", "constructora", "nombre", "tipo_proyecto", "superficie_m2", "estado")
-    search_fields = ("codigo_obra", "constructora__nombre", "nombre", "mandante", "ubicacion")
+    list_display = ("codigo_obra", "organizacion", "nombre", "tipo_proyecto", "superficie_m2", "estado")
+    search_fields = ("codigo_obra", "organizacion__nombre", "nombre", "mandante", "ubicacion")
     list_filter = ("tipo_proyecto", "estado", "region", "comuna")
 
 
@@ -69,29 +69,29 @@ class EvidenciaObraAdmin(admin.ModelAdmin):
 
 @admin.register(DocumentoAmbiental)
 class DocumentoAmbientalAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "constructora", "tipo_documento", "industria", "estado_validacion", "fecha_documento")
-    search_fields = ("nombre", "constructora__nombre", "tipo_documento", "resumen")
+    list_display = ("nombre", "organizacion", "tipo_documento", "industria", "estado_validacion", "fecha_documento")
+    search_fields = ("nombre", "organizacion__nombre", "tipo_documento", "resumen")
     list_filter = ("industria", "tipo_documento", "estado_procesamiento", "estado_validacion")
 
 
 @admin.register(VariableAmbientalExtraida)
 class VariableAmbientalExtraidaAdmin(admin.ModelAdmin):
-    list_display = ("variable_id", "nombre", "constructora", "valor", "unidad", "estado_cumplimiento")
-    search_fields = ("variable_id", "nombre", "constructora__nombre", "punto_medicion")
+    list_display = ("variable_id", "nombre", "organizacion", "valor", "unidad", "estado_cumplimiento")
+    search_fields = ("variable_id", "nombre", "organizacion__nombre", "punto_medicion")
     list_filter = ("categoria", "estado_cumplimiento", "unidad")
 
 
 @admin.register(LimiteNormativoAmbiental)
 class LimiteNormativoAmbientalAdmin(admin.ModelAdmin):
-    list_display = ("variable_id", "nombre", "constructora", "normativa", "comparador", "limite", "unidad", "activo")
-    search_fields = ("variable_id", "nombre", "constructora__nombre", "normativa")
+    list_display = ("variable_id", "nombre", "organizacion", "normativa", "comparador", "limite", "unidad", "activo")
+    search_fields = ("variable_id", "nombre", "organizacion__nombre", "normativa")
     list_filter = ("industria", "normativa", "comparador", "activo")
 
 
 @admin.register(AlertaCumplimientoAmbiental)
 class AlertaCumplimientoAmbientalAdmin(admin.ModelAdmin):
-    list_display = ("titulo", "constructora", "severidad", "estado", "normativa", "fecha_evento")
-    search_fields = ("titulo", "constructora__nombre", "descripcion", "normativa")
+    list_display = ("titulo", "organizacion", "severidad", "estado", "normativa", "fecha_evento")
+    search_fields = ("titulo", "organizacion__nombre", "descripcion", "normativa")
     list_filter = ("severidad", "estado", "normativa")
 
 

@@ -26,7 +26,7 @@ import {
 
 import DecisionCenter from "@/features/dashboard/components/DecisionCenter";
 import FactorCategoryBadge from "@/features/factores/components/FactorCategoryBadge";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { optimizeScenario } from "@/features/dashboard/utils/optimizer";
 import {
   constructionCategories,
@@ -38,7 +38,7 @@ import EmptyState from "@/shared/components/EmptyState";
 import Pagination from "@/shared/components/Pagination";
 import {
   getAiAdvisor,
-  getConstructoraEmisiones,
+  getOrganizacionEmisiones,
   optimizeScenarioApi,
 } from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
@@ -236,7 +236,7 @@ function buildDecisionModel(data) {
       carKmEquivalent,
       homeMonthsEquivalent,
       risks: [
-        "Todavía no existen emisiones calculadas para esta constructora. El primer riesgo operativo es tomar decisiones sin una línea base confiable de materiales, energía, transporte, maquinaria y residuos.",
+        "Todavía no existen emisiones calculadas para esta organizacion. El primer riesgo operativo es tomar decisiones sin una línea base confiable de materiales, energía, transporte, maquinaria y residuos.",
       ],
     };
   }
@@ -303,7 +303,7 @@ function buildDecisionModel(data) {
 }
 
 function EmisionesView() {
-  const { activeConstructora, activeConstructoraId, loadingConstructoras } = useConstructoraActiva();
+  const { activeOrganizacion, activeOrganizacionId, loadingOrganizaciones } = useOrganizacionActiva();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -321,7 +321,7 @@ function EmisionesView() {
   const [, setSimulatedScenario] = useState(null);
 
   useEffect(() => {
-    if (!activeConstructoraId) {
+    if (!activeOrganizacionId) {
       setData(null);
       return undefined;
     }
@@ -334,7 +334,7 @@ function EmisionesView() {
         setLoading(true);
       }
 
-      return getConstructoraEmisiones(activeConstructoraId)
+      return getOrganizacionEmisiones(activeOrganizacionId)
         .then((response) => {
           if (!cancelled) {
             setData(response);
@@ -345,7 +345,7 @@ function EmisionesView() {
           if (!cancelled) {
             setError(
               requestError.response?.data?.error ||
-              "No se pudieron cargar las emisiones de la constructora."
+              "No se pudieron cargar las emisiones de la organizacion."
             );
           }
         })
@@ -363,7 +363,7 @@ function EmisionesView() {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [activeConstructoraId]);
+  }, [activeOrganizacionId]);
 
   const rows = Array.isArray(data?.rows)
     ? data.rows
@@ -467,7 +467,7 @@ function EmisionesView() {
     () => ({
       total_emisiones: kpis.emisiones_totales || 0,
       datos: rowsWithCategories.map((row) => ({
-        constructora: row.constructora || data?.constructora?.nombre || activeConstructora?.nombre || "",
+        organizacion: row.organizacion || data?.organizacion?.nombre || activeOrganizacion?.nombre || "",
         fuente_emision: row.fuente_emision,
         fuente_emision_key: row.fuente_emision_key,
         categoria: row.categoria,
@@ -479,7 +479,7 @@ function EmisionesView() {
         codigo_obra: row.codigo_obra || row.obra_codigo,
       })),
     }),
-    [activeConstructora?.nombre, data?.constructora?.nombre, kpis.emisiones_totales, rowsWithCategories]
+    [activeOrganizacion?.nombre, data?.organizacion?.nombre, kpis.emisiones_totales, rowsWithCategories]
   );
 
   const categoryOptions = constructionCategories;
@@ -572,7 +572,7 @@ function EmisionesView() {
     if (shouldOptimize) handleOptimize();
   };
 
-  if (loadingConstructoras) {
+  if (loadingOrganizaciones) {
     return (
       <PlatformLoader
         title="Cargando empresa activa"
@@ -581,7 +581,7 @@ function EmisionesView() {
     );
   }
 
-  if (!activeConstructoraId) {
+  if (!activeOrganizacionId) {
     if (loading && !data) {
       return (
         <PlatformLoader
@@ -592,8 +592,8 @@ function EmisionesView() {
     }
     return (
       <EmptyState
-        title="Selecciona o crea una constructora para revisar sus emisiones."
-        description="La vista Emisiones trabaja siempre sobre la constructora activa."
+        title="Selecciona o crea una organizacion para revisar sus emisiones."
+        description="La vista Emisiones trabaja siempre sobre la organizacion activa."
       />
     );
   }

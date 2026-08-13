@@ -13,9 +13,9 @@ import {
 import EmptyState from "@/shared/components/EmptyState";
 import Pagination from "@/shared/components/Pagination";
 import Tabs from "@/shared/components/Tabs";
-import { getConstructoraEtapas } from "@/shared/services/api";
+import { getOrganizacionEtapas } from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 
 const rowsPerPage = 8;
 const detailRowsPerPage = 8;
@@ -29,10 +29,10 @@ function EtapasObraView() {
   const [selectedEtapaId, setSelectedEtapaId] = useState("");
   const [selectedEtapaLoading, setSelectedEtapaLoading] = useState(false);
   const [activeDetailTab, setActiveDetailTab] = useState("resumen");
-  const { activeConstructora, activeConstructoraId, loadingConstructoras } = useConstructoraActiva();
+  const { activeOrganizacion, activeOrganizacionId, loadingOrganizaciones } = useOrganizacionActiva();
 
   useEffect(() => {
-    if (!activeConstructoraId) {
+    if (!activeOrganizacionId) {
       setEtapas([]);
       setLoading(false);
       return;
@@ -44,7 +44,7 @@ function EtapasObraView() {
 
     async function loadEtapas() {
       try {
-        const data = await getConstructoraEtapas(activeConstructoraId);
+        const data = await getOrganizacionEtapas(activeOrganizacionId);
 
         if (!isCancelled) {
           const nextEtapas = Array.isArray(data) ? data : [];
@@ -75,10 +75,10 @@ function EtapasObraView() {
     return () => {
       isCancelled = true;
     };
-  }, [activeConstructoraId]);
+  }, [activeOrganizacionId]);
 
   async function loadEtapaDetail(unidad) {
-    if (!activeConstructoraId || !unidad?.etapa_id) {
+    if (!activeOrganizacionId || !unidad?.etapa_id) {
       return;
     }
 
@@ -87,7 +87,7 @@ function EtapasObraView() {
     setSelectedEtapaLoading(true);
 
     try {
-      const data = await getConstructoraEtapas(activeConstructoraId, {
+      const data = await getOrganizacionEtapas(activeOrganizacionId, {
         detail: 1,
         etapa_id: unidad.etapa_id,
       });
@@ -124,7 +124,7 @@ function EtapasObraView() {
         unidad.etapa_id,
         unidad.nombre,
         unidad.tipo,
-        unidad.constructora_nombre,
+        unidad.organizacion_nombre,
         unidad.region,
         unidad.comuna,
         unidad.direccion,
@@ -150,19 +150,19 @@ function EtapasObraView() {
     setCurrentPage(1);
   }, [search]);
 
-  if (loadingConstructoras) {
+  if (loadingOrganizaciones) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-slate-300">
-        Cargando constructoras...
+        Cargando organizaciones...
       </div>
     );
   }
 
-  if (!activeConstructora) {
+  if (!activeOrganizacion) {
     return (
       <EmptyState
-        title="Selecciona o crea una constructora para comenzar"
-        description="Las etapas se muestran dentro de la constructora activa."
+        title="Selecciona o crea una organizacion para comenzar"
+        description="Las etapas se muestran dentro de la organizacion activa."
       />
     );
   }
@@ -177,7 +177,7 @@ function EtapasObraView() {
           <div>
             <h1 className="text-3xl font-bold sm:text-4xl">Etapas</h1>
             <p className="max-w-3xl text-slate-400">
-              Fases operativas de la obra vinculadas a registros, evidencias y emisiones de la constructora activa.
+              Fases operativas de la obra vinculadas a registros, evidencias y emisiones de la organizacion activa.
             </p>
           </div>
         </div>
@@ -225,10 +225,10 @@ function EtapasObraView() {
       <section className="premium-card premium-card-interactive rounded-3xl bg-[var(--info-bg)] p-4 shadow-[var(--shadow-card)] sm:p-6">
         <p className="text-sm font-bold text-[#075985]">Resumen operativo</p>
         <h2 className="mt-2 text-2xl font-bold text-[var(--text-main)]">
-          Mapa operativo de {activeConstructora.nombre}
+          Mapa operativo de {activeOrganizacion.nombre}
         </h2>
         <p className="mt-3 max-w-6xl text-base font-medium leading-8 text-[#334155]">
-          {buildOperationalSummary(activeConstructora, metrics)}
+          {buildOperationalSummary(activeOrganizacion, metrics)}
         </p>
       </section>
 
@@ -251,7 +251,7 @@ function EtapasObraView() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar por etapa, constructora, tipo, región o comuna"
+            placeholder="Buscar por etapa, organizacion, tipo, región o comuna"
             className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] py-3 pl-11 pr-4 text-sm text-[var(--text-main)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]/60"
           />
         </label>
@@ -260,7 +260,7 @@ function EtapasObraView() {
           <table className="w-full min-w-[1180px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] text-left text-xs text-[var(--text-muted)]">
-                <th className="px-4 py-3">Constructora</th>
+                <th className="px-4 py-3">Organizacion</th>
                 <th className="px-4 py-3">Etapa</th>
                 <th className="px-4 py-3">Tipo</th>
                 <th className="px-4 py-3">Región</th>
@@ -291,7 +291,7 @@ function EtapasObraView() {
                   }`}
                 >
                   <td className="px-4 py-4 font-semibold text-[var(--text-main)]">
-                    {unidad.constructora_nombre || activeConstructora.nombre || "-"}
+                    {unidad.organizacion_nombre || activeOrganizacion.nombre || "-"}
                   </td>
                   <td className="px-4 py-4">
                     <p className="font-semibold text-[var(--text-main)]">{unidad.nombre || "-"}</p>
@@ -408,9 +408,9 @@ function buildOperationalMetrics(etapas) {
   };
 }
 
-function buildOperationalSummary(activeConstructora, metrics) {
+function buildOperationalSummary(activeOrganizacion, metrics) {
   if (!metrics.totalUnits) {
-    return "La constructora aún no tiene etapas registradas. Crea o importa etapas para habilitar trazabilidad, registros de emisión y lectura operativa.";
+    return "La organizacion aún no tiene etapas registradas. Crea o importa etapas para habilitar trazabilidad, registros de emisión y lectura operativa.";
   }
 
   const topEmitter = metrics.topEmissionUnit;
@@ -424,10 +424,10 @@ function buildOperationalSummary(activeConstructora, metrics) {
     : "La cobertura territorial aún no está completamente definida";
 
   if (!metrics.totalEmissions) {
-    return `${activeConstructora.nombre} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas y ${formatNumber(metrics.totalActivities, 0)} registros operativos. El foco inmediato debe ser completar registros de emisión y evidencias para identificar qué etapa concentra el mayor impacto ambiental.`;
+    return `${activeOrganizacion.nombre} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas y ${formatNumber(metrics.totalActivities, 0)} registros operativos. El foco inmediato debe ser completar registros de emisión y evidencias para identificar qué etapa concentra el mayor impacto ambiental.`;
   }
 
-  return `${activeConstructora.nombre} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas, ${formatNumber(metrics.totalActivities, 0)} registros y ${formatNumber(metrics.totalLots, 0)} obras asociadas. ${topEmitter?.nombre || "La etapa principal"} concentra ${formatNumber(topEmitterEmissions, 1)} kg CO2e, equivalente al ${formatNumber(topEmitterShare, 0)}% de la huella registrada, por lo que debe priorizarse en la gestión ambiental. ${topOperational?.nombre || "La etapa con mayor actividad"} presenta la mayor carga operativa con ${formatNumber(topOperational?.registros_count || 0, 0)} registros. ${territory}.`;
+  return `${activeOrganizacion.nombre} cuenta con ${formatNumber(metrics.totalUnits, 0)} etapas activas, ${formatNumber(metrics.totalActivities, 0)} registros y ${formatNumber(metrics.totalLots, 0)} obras asociadas. ${topEmitter?.nombre || "La etapa principal"} concentra ${formatNumber(topEmitterEmissions, 1)} kg CO2e, equivalente al ${formatNumber(topEmitterShare, 0)}% de la huella registrada, por lo que debe priorizarse en la gestión ambiental. ${topOperational?.nombre || "La etapa con mayor actividad"} presenta la mayor carga operativa con ${formatNumber(topOperational?.registros_count || 0, 0)} registros. ${territory}.`;
 }
 
 function maxBy(items, selector) {
@@ -570,7 +570,7 @@ function EtapaDetailPanel({ activeTab, loading, onTabChange, unidad }) {
           <p className="text-sm font-bold text-[var(--primary-dark)]">Detalle etapa</p>
           <h2 className="mt-1 text-2xl font-bold text-[var(--text-main)]">{unidad.nombre}</h2>
           <p className="mt-2 text-sm font-medium text-[var(--text-muted)]">
-            {unidad.constructora_nombre || "Sin constructora"} · {unidad.region || "Sin región"} ·{" "}
+            {unidad.organizacion_nombre || "Sin organizacion"} · {unidad.region || "Sin región"} ·{" "}
             {unidad.comuna || "Sin comuna"}
           </p>
           {unidad.direccion && (

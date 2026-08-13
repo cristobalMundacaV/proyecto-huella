@@ -6,33 +6,33 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from .models import (
-    Constructora,
+    Organizacion,
     EtapaObra,
     EvidenciaObra,
     Obra,
     RegistroEmision,
     TransporteObra,
 )
-from .serializers import ConstructoraSerializer
+from .serializers import OrganizacionSerializer
 
 
-def get_constructora_or_404(constructora_id):
-    return get_object_or_404(Constructora, constructora_id=constructora_id)
+def get_organizacion_or_404(organizacion_id):
+    return get_object_or_404(Organizacion, organizacion_id=organizacion_id)
 
 
 @transaction.atomic
-def delete_constructora_with_related_data(constructora):
-    """Elimina una constructora de prueba junto con sus datos dependientes.
+def delete_organizacion_with_related_data(organizacion):
+    """Elimina una organizacion de prueba junto con sus datos dependientes.
 
     El modelo protege algunas relaciones críticas con PROTECT para evitar borrados
     accidentales. Para la acción explícita de la interfaz se borra en orden:
-    transportes/evidencias, registros, obras, etapas y finalmente constructora.
+    transportes/evidencias, registros, obras, etapas y finalmente organizacion.
     """
 
-    obras = Obra.objects.filter(constructora=constructora)
-    etapas = EtapaObra.objects.filter(constructora=constructora)
-    registros = RegistroEmision.objects.filter(constructora=constructora)
-    evidencias = EvidenciaObra.objects.filter(constructora=constructora)
+    obras = Obra.objects.filter(organizacion=organizacion)
+    etapas = EtapaObra.objects.filter(organizacion=organizacion)
+    registros = RegistroEmision.objects.filter(organizacion=organizacion)
+    evidencias = EvidenciaObra.objects.filter(organizacion=organizacion)
     transportes = TransporteObra.objects.filter(obra__in=obras)
 
     deleted_summary = {
@@ -50,31 +50,31 @@ def delete_constructora_with_related_data(constructora):
     registros.delete()
     obras.delete()
     etapas.delete()
-    constructora.delete()
+    organizacion.delete()
 
     return deleted_summary
 
 
 @api_view(["GET", "PATCH", "DELETE"])
-def constructora_detail_safe(request, constructora_id):
-    constructora = get_constructora_or_404(constructora_id)
+def organizacion_detail_safe(request, organizacion_id):
+    organizacion = get_organizacion_or_404(organizacion_id)
 
     if request.method == "GET":
-        return Response(ConstructoraSerializer(constructora).data)
+        return Response(OrganizacionSerializer(organizacion).data)
 
     if request.method == "PATCH":
-        serializer = ConstructoraSerializer(constructora, data=request.data, partial=True)
+        serializer = OrganizacionSerializer(organizacion, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
 
     try:
-        deleted_summary = delete_constructora_with_related_data(constructora)
+        deleted_summary = delete_organizacion_with_related_data(organizacion)
     except ProtectedError as exc:
         protected_objects = [str(obj) for obj in exc.protected_objects][:5]
         return Response(
             {
-                "error": "No se pudo eliminar la constructora porque existen relaciones protegidas.",
+                "error": "No se pudo eliminar la organizacion porque existen relaciones protegidas.",
                 "detalle": protected_objects,
             },
             status=status.HTTP_409_CONFLICT,

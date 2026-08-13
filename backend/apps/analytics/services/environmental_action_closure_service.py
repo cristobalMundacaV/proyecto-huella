@@ -55,14 +55,14 @@ def attach_evidence_to_action(action, payload):
     reference = clean_text(payload.get("reference"))
 
     if evidence_id:
-        evidence = EvidenciaObra.objects.filter(id=evidence_id, constructora=action.constructora).first()
+        evidence = EvidenciaObra.objects.filter(id=evidence_id, organizacion=action.organizacion).first()
         if not evidence:
             raise ValueError("Evidencia no encontrada para esta empresa.")
         action.evidencia = evidence
         upsert_ref(metadata["linked_evidence"], {"id": evidence.id, "label": evidence.nombre, "type": evidence.tipo_evidencia})
 
     if document_id:
-        document = DocumentoAmbiental.objects.filter(id=document_id, constructora=action.constructora).first()
+        document = DocumentoAmbiental.objects.filter(id=document_id, organizacion=action.organizacion).first()
         if not document:
             raise ValueError("Documento ambiental no encontrado para esta empresa.")
         upsert_ref(metadata["linked_documents"], {"id": document.id, "label": document.nombre, "type": document.tipo_documento})

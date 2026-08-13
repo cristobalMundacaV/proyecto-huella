@@ -27,8 +27,8 @@ function ObraDetailHeader({ detailLoading, onImportEvidencia, selectedObra }) {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <DetailItem label="Código de obra" value={selectedObra.codigo_obra} />
           <DetailItem
-            label="constructora / proveedor principal"
-            value={selectedObra.constructora_nombre}
+            label="organizacion / proveedor principal"
+            value={selectedObra.organizacion_nombre}
           />
           <DetailItem label="Fecha de inicio" value={selectedObra.fecha} />
           <DetailItem label="Tipo de obra / material principal" value={selectedObra.tipo_proyecto} />

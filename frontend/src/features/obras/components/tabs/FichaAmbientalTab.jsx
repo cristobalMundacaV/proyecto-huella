@@ -1,4 +1,4 @@
-﻿import { Download, Loader2, QrCode } from "lucide-react";
+import { Download, Loader2, QrCode } from "lucide-react";
 
 import {
   getObraExportCsvUrl,
@@ -96,7 +96,7 @@ function FichaAmbientalTab({
                 {selectedObra.codigo_obra}
               </h3>
               <p className="mt-2 text-sm font-medium text-[var(--text-muted)]">
-                Emitido para {selectedObra.constructora_nombre}
+                Emitido para {selectedObra.organizacion_nombre}
               </p>
             </div>
             <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-2xl border border-slate-700 bg-white text-slate-950">
@@ -151,7 +151,7 @@ function FichaAmbientalTab({
                   Integracion BIM / API
                 </p>
                 <p className="mt-2 text-sm font-medium text-[var(--text-muted)]">
-                  Exporta esta obra para modelos BIM, reportes ambientales y sistemas de constructoras.
+                  Exporta esta obra para modelos BIM, reportes ambientales y sistemas de organizaciones.
                 </p>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">

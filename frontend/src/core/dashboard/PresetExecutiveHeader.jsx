@@ -1,6 +1,6 @@
 import { Building2, Download, Leaf } from "lucide-react";
 
-function PresetExecutiveHeader({ activeConstructora, dashboardConfig, environmentalStatus, preset, onExport }) {
+function PresetExecutiveHeader({ activeOrganizacion, dashboardConfig, environmentalStatus, preset, onExport }) {
   return (
     <header className="overflow-hidden rounded-[28px] border border-[var(--border)] bg-[linear-gradient(135deg,rgba(236,253,245,0.96),rgba(255,255,255,0.98)_50%,rgba(240,249,255,0.94))] p-5 shadow-[var(--shadow-premium)] sm:p-6">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -29,7 +29,7 @@ function PresetExecutiveHeader({ activeConstructora, dashboardConfig, environmen
                 Empresa activa
               </p>
               <p className="truncate text-base font-black text-[var(--text-main)]">
-                {activeConstructora?.nombre || "Sin empresa activa"}
+                {activeOrganizacion?.nombre || "Sin empresa activa"}
               </p>
             </div>
           </div>

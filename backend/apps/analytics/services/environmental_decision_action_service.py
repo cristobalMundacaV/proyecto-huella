@@ -15,8 +15,8 @@ class DecisionPriorityNotFound(ValueError):
     pass
 
 
-def build_action_payload_from_priority(constructora, priority_id, overrides=None):
-    priority = find_priority(constructora, priority_id)
+def build_action_payload_from_priority(organizacion, priority_id, overrides=None):
+    priority = find_priority(organizacion, priority_id)
     overrides = overrides or {}
     due_date = overrides.get("due_date") or overrides.get("dueDate") or suggested_due_date(priority)
     evidence = overrides.get("required_evidence") or overrides.get("evidence") or evidence_from_priority(priority)
@@ -47,10 +47,10 @@ def build_action_payload_from_priority(constructora, priority_id, overrides=None
     }
 
 
-def create_action_from_priority(constructora, priority_id, user=None, overrides=None):
-    priority = find_priority(constructora, priority_id)
+def create_action_from_priority(organizacion, priority_id, user=None, overrides=None):
+    priority = find_priority(organizacion, priority_id)
     payload = build_action_payload(priority, overrides)
-    duplicate = find_duplicate_action(constructora, priority_id, payload["title"])
+    duplicate = find_duplicate_action(organizacion, priority_id, payload["title"])
     if duplicate:
         return {
             "created": False,
@@ -63,7 +63,7 @@ def create_action_from_priority(constructora, priority_id, user=None, overrides=
     metadata = dict(payload.get("metadata") or {})
     if user and getattr(user, "is_authenticated", False):
         metadata["created_by"] = getattr(user, "username", "")
-    action = AccionAmbiental.objects.create(constructora=constructora, **{**payload, "metadata": metadata})
+    action = AccionAmbiental.objects.create(organizacion=organizacion, **{**payload, "metadata": metadata})
     return {
         "created": True,
         "duplicate": False,
@@ -72,8 +72,8 @@ def create_action_from_priority(constructora, priority_id, user=None, overrides=
     }
 
 
-def find_priority(constructora, priority_id):
-    priorities = build_environmental_decision_priorities(constructora)
+def find_priority(organizacion, priority_id):
+    priorities = build_environmental_decision_priorities(organizacion)
     for priority in priorities.get("priorities", []):
         if priority.get("id") == priority_id:
             return priority
@@ -109,9 +109,9 @@ def build_action_payload(priority, overrides=None):
     }
 
 
-def find_duplicate_action(constructora, priority_id, title):
+def find_duplicate_action(organizacion, priority_id, title):
     return (
-        AccionAmbiental.objects.filter(constructora=constructora, status__in=ACTIVE_STATUSES)
+        AccionAmbiental.objects.filter(organizacion=organizacion, status__in=ACTIVE_STATUSES)
         .filter(
             Q(metadata__priority_id=priority_id)
             | Q(source_card_id=priority_id[:120])

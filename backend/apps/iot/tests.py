@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.analytics.models import Constructora, EtapaObra, Obra, RegistroEmision
+from apps.analytics.models import Organizacion, EtapaObra, Obra, RegistroEmision
 
 from .models import DispositivoSensor, LecturaSensor, RegistroSensor
 
@@ -18,7 +18,7 @@ class LecturaSensorApiTests(TestCase):
         response = self.client.post(
             "/api/iot/lecturas/",
             {
-                "constructora": "Constructora Andina SpA",
+                "organizacion": "Organizacion Andina SpA",
                 "etapa_obra": "Obra gruesa",
                 "sensor": "SENSOR-DIESEL-001",
                 "tipo": "diesel_litros",
@@ -34,7 +34,7 @@ class LecturaSensorApiTests(TestCase):
 
     def test_kpis_ultimas_24_horas(self):
         LecturaSensor.objects.create(
-            constructora="Constructora Andina SpA",
+            organizacion="Organizacion Andina SpA",
             etapa_obra="Faena electrica",
             sensor="SENSOR-ELECTRICIDAD-001",
             tipo=LecturaSensor.Tipo.ELECTRICIDAD_KWH,
@@ -48,49 +48,49 @@ class LecturaSensorApiTests(TestCase):
         self.assertEqual(response.data["sensores_activos"], 1)
         self.assertEqual(response.data["emisiones_totales_kg_co2e"], 3.9)
 
-    def test_kpis_y_ultimas_lecturas_respetan_constructora(self):
-        Constructora.objects.create(constructora_id="ANDINA", nombre="Constructora Andina SpA")
-        Constructora.objects.create(constructora_id="PACIFICO", nombre="Constructora Pacifico SpA")
+    def test_kpis_y_ultimas_lecturas_respetan_organizacion(self):
+        Organizacion.objects.create(organizacion_id="ANDINA", nombre="Organizacion Andina SpA")
+        Organizacion.objects.create(organizacion_id="PACIFICO", nombre="Organizacion Pacifico SpA")
         LecturaSensor.objects.create(
-            constructora="Constructora Andina SpA",
+            organizacion="Organizacion Andina SpA",
             etapa_obra="Obra gruesa",
             sensor="SENSOR-DIESEL-001",
             tipo=LecturaSensor.Tipo.DIESEL_LITROS,
             valor=Decimal("10"),
         )
         LecturaSensor.objects.create(
-            constructora="Constructora Pacifico SpA",
+            organizacion="Organizacion Pacifico SpA",
             etapa_obra="Fundaciones",
             sensor="SENSOR-MAQUINARIA-001",
             tipo=LecturaSensor.Tipo.HORAS_MAQUINARIA,
             valor=Decimal("8"),
         )
 
-        kpis_response = self.client.get("/api/iot/kpis/?constructora_id=ANDINA")
-        lecturas_response = self.client.get("/api/iot/lecturas/ultimas/?constructora_id=ANDINA")
+        kpis_response = self.client.get("/api/iot/kpis/?organizacion_id=ANDINA")
+        lecturas_response = self.client.get("/api/iot/lecturas/ultimas/?organizacion_id=ANDINA")
 
         self.assertEqual(kpis_response.status_code, status.HTTP_200_OK)
         self.assertEqual(kpis_response.data["total_lecturas"], 1)
         self.assertEqual(kpis_response.data["etapa_mayor_emision_hoy"], "Obra gruesa")
         self.assertEqual(lecturas_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(lecturas_response.data), 1)
-        self.assertEqual(lecturas_response.data[0]["constructora"], "Constructora Andina SpA")
+        self.assertEqual(lecturas_response.data[0]["organizacion"], "Organizacion Andina SpA")
 
 
 class SensorIngestionApiTests(TestCase):
     def setUp(self):
         self.client = APIClient(HTTP_HOST="localhost")
-        self.constructora = Constructora.objects.create(
-            constructora_id="ANDINA",
-            nombre="Constructora Andina SpA",
+        self.organizacion = Organizacion.objects.create(
+            organizacion_id="ANDINA",
+            nombre="Organizacion Andina SpA",
         )
         self.etapa = EtapaObra.objects.create(
-            constructora=self.constructora,
+            organizacion=self.organizacion,
             nombre="Obra gruesa",
             tipo=EtapaObra.Tipo.OBRA_GRUESA,
         )
         self.obra = Obra.objects.create(
-            constructora=self.constructora,
+            organizacion=self.organizacion,
             etapa_principal=self.etapa,
             nombre="Edificio Sensorizado",
             tipo_proyecto=Obra.TipoProyecto.EDIFICIO,
@@ -100,7 +100,7 @@ class SensorIngestionApiTests(TestCase):
         self.dispositivo = DispositivoSensor.objects.create(
             dispositivo_id="SENSOR-DIESEL-001",
             nombre="Sensor estanque diesel",
-            constructora=self.constructora,
+            organizacion=self.organizacion,
             obra=self.obra,
             etapa=self.etapa,
             tipo_sensor=DispositivoSensor.TipoSensor.COMBUSTIBLE,

@@ -1,4 +1,4 @@
-function EvidenceHero({ activeConstructora, config, coverage, preset, rows }) {
+function EvidenceHero({ activeOrganizacion, config, coverage, preset, rows }) {
   const status = getDocumentalStatus(rows.length, coverage);
   return (
     <section className="rounded-3xl border border-[#B7DEC9] bg-[linear-gradient(135deg,rgba(236,253,245,0.95),rgba(255,255,255,0.98))] p-5 shadow-[0_18px_45px_var(--shadow)] sm:p-7">
@@ -6,7 +6,7 @@ function EvidenceHero({ activeConstructora, config, coverage, preset, rows }) {
         <div className="max-w-4xl">
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-emerald-700">
-              {activeConstructora?.nombre || "Empresa activa"}
+              {activeOrganizacion?.nombre || "Empresa activa"}
             </span>
             <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-sky-700">
               Preset: {preset.name}

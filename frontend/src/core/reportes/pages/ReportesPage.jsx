@@ -3,8 +3,8 @@ import { BarChart3, CheckCircle2, Clock3, Database, RefreshCcw } from "lucide-re
 
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import { createTraceableAction, getTraceableActions, getTraceableActionsSummary, updateTraceableAction } from "@/features/intelligence/services/traceableActionsApi";
-import { getConstructoraDashboard, getEmpresaRegistrosAmbientales } from "@/shared/services/api";
-import { useConstructoraActiva } from "@/features/constructoras/context/ConstructoraActivaContext";
+import { getOrganizacionDashboard, getEmpresaRegistrosAmbientales } from "@/shared/services/api";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { DEFAULT_PRESET_KEY, getActivePreset } from "@/presets/registry";
 import { construccionReport } from "@/presets/construccion/report";
 import { aserraderoReport } from "@/presets/aserradero/report";
@@ -21,7 +21,7 @@ import ReportTable from "../components/ReportTable";
 
 const reportByPreset = {
   construccion: construccionReport,
-  aserradero: aserraderoReport,
+  forestal: aserraderoReport,
   transporte: transporteReport,
   industrial: industrialReport,
 };
@@ -228,8 +228,8 @@ function buildPriorityFollowUp(actions = []) {
   return { totalOpen: reportActions.length, overdue, dueSoon, validation, status, nextStep, items };
 }
 
-function buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary, filters, report, traceableActions }) {
-  const empresa = activeConstructora?.nombre || "La empresa";
+function buildExecutiveBrief({ activeOrganizacion, activePreset, actionsSummary, filters, report, traceableActions }) {
+  const empresa = activeOrganizacion?.nombre || "La empresa";
   const preset = activePreset?.name || "ambiental";
   const totalEmissions = findKpi(report, "emisiones")?.value || "Sin datos";
   const criticalSource = findKpi(report, "fuente")?.value || "Sin datos";
@@ -308,11 +308,11 @@ function periodoClean(value) {
   return String(value || "periodo disponible").replace(/\s+/g, " ").trim();
 }
 
-function ReportesPage({ activeConstructora: propActiveConstructora, activeConstructoraId: propActiveConstructoraId, onSetActiveView }) {
-  const context = useConstructoraActiva();
-  const activeConstructora = propActiveConstructora || context.activeConstructora;
-  const activeConstructoraId = propActiveConstructoraId || context.activeConstructoraId;
-  const activePreset = getActivePreset(activeConstructora?.preset || DEFAULT_PRESET_KEY);
+function ReportesPage({ activeOrganizacion: propActiveOrganizacion, activeOrganizacionId: propActiveOrganizacionId, onSetActiveView }) {
+  const context = useOrganizacionActiva();
+  const activeOrganizacion = propActiveOrganizacion || context.activeOrganizacion;
+  const activeOrganizacionId = propActiveOrganizacionId || context.activeOrganizacionId;
+  const activePreset = getActivePreset(activeOrganizacion?.preset || DEFAULT_PRESET_KEY);
   const reportConfig = reportByPreset[activePreset.key] || construccionReport;
   const [allRows, setAllRows] = useState([]);
   const [dashboardData, setDashboardData] = useState(null);
@@ -330,15 +330,15 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
   const [actionFeedback, setActionFeedback] = useState("");
 
   const loadReport = async (showLoading = true) => {
-    if (!activeConstructoraId) return;
+    if (!activeOrganizacionId) return;
     try {
       if (showLoading) setLoading(true);
       setError("");
       const [recordsResult, dashboardResult, actionsSummaryResult, actionsResult] = await Promise.allSettled([
-        getEmpresaRegistrosAmbientales(activeConstructoraId),
-        getConstructoraDashboard(activeConstructoraId, { light: "1" }),
-        getTraceableActionsSummary(activeConstructoraId),
-        getTraceableActions(activeConstructoraId),
+        getEmpresaRegistrosAmbientales(activeOrganizacionId),
+        getOrganizacionDashboard(activeOrganizacionId, { light: "1" }),
+        getTraceableActionsSummary(activeOrganizacionId),
+        getTraceableActions(activeOrganizacionId),
       ]);
       if (recordsResult.status === "fulfilled") setAllRows(normalizeReportRows(recordsResult.value)); else setAllRows([]);
       if (dashboardResult.status === "fulfilled") setDashboardData(dashboardResult.value); else setDashboardData(null);
@@ -355,22 +355,22 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
 
   useEffect(() => {
     setAllRows([]); setDashboardData(null); setActionsSummary(null); setTraceableActions([]); setFilters(defaultFilters); setDraftFilters(defaultFilters); setHasLoaded(false);
-    if (!activeConstructoraId) return undefined;
+    if (!activeOrganizacionId) return undefined;
     loadReport(true);
     const intervalId = window.setInterval(() => loadReport(false), 10000);
     return () => window.clearInterval(intervalId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeConstructoraId, activePreset.key]);
+  }, [activeOrganizacionId, activePreset.key]);
 
-  const report = useMemo(() => reportConfig.buildReport(allRows, filters, { activeConstructora, activePreset, dashboardData, filters }), [activeConstructora, activePreset, allRows, dashboardData, filters, reportConfig]);
-  const executiveBrief = useMemo(() => buildExecutiveBrief({ activeConstructora, activePreset, actionsSummary, filters, report, traceableActions }), [activeConstructora, activePreset, actionsSummary, filters, report, traceableActions]);
-  const exportPayload = useMemo(() => ({ ...reportConfig.buildExportPayload(report, { activeConstructora, activePreset, filters }), informe_ejecutivo: executiveBrief, resumen_cliente: executiveBrief.clientSummary, ciclo_mejora: executiveBrief.improvementCycle, seguimiento_prioritario: executiveBrief.priorityFollowUp, riesgos_brechas: executiveBrief.risks, acciones_resumen: actionsSummary, agenda_decision: executiveBrief.decisionAgenda, estado_preparacion: executiveBrief.readiness, plan_accion: executiveBrief.actionPlan }), [activeConstructora, activePreset, actionsSummary, executiveBrief, filters, report, reportConfig]);
+  const report = useMemo(() => reportConfig.buildReport(allRows, filters, { activeOrganizacion, activePreset, dashboardData, filters }), [activeOrganizacion, activePreset, allRows, dashboardData, filters, reportConfig]);
+  const executiveBrief = useMemo(() => buildExecutiveBrief({ activeOrganizacion, activePreset, actionsSummary, filters, report, traceableActions }), [activeOrganizacion, activePreset, actionsSummary, filters, report, traceableActions]);
+  const exportPayload = useMemo(() => ({ ...reportConfig.buildExportPayload(report, { activeOrganizacion, activePreset, filters }), informe_ejecutivo: executiveBrief, resumen_cliente: executiveBrief.clientSummary, ciclo_mejora: executiveBrief.improvementCycle, seguimiento_prioritario: executiveBrief.priorityFollowUp, riesgos_brechas: executiveBrief.risks, acciones_resumen: actionsSummary, agenda_decision: executiveBrief.decisionAgenda, estado_preparacion: executiveBrief.readiness, plan_accion: executiveBrief.actionPlan }), [activeOrganizacion, activePreset, actionsSummary, executiveBrief, filters, report, reportConfig]);
 
   async function handleCreateRiskAction(risk) {
-    if (!activeConstructoraId || risk.key === "sin_brechas") return;
+    if (!activeOrganizacionId || risk.key === "sin_brechas") return;
     try {
       setCreatingRiskKey(risk.key); setActionFeedback("");
-      await createTraceableAction(activeConstructoraId, buildRiskActionPayload(risk));
+      await createTraceableAction(activeOrganizacionId, buildRiskActionPayload(risk));
       setActionFeedback(`Acción creada desde brecha: ${risk.title}`);
       await loadReport(false);
       window.setTimeout(() => setActionFeedback(""), 2600);
@@ -382,11 +382,11 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
   }
 
   async function handleCreateDecisionAction(item, index) {
-    if (!activeConstructoraId) return;
+    if (!activeOrganizacionId) return;
     const decisionKey = `decision_${index + 1}`;
     try {
       setCreatingDecisionKey(decisionKey); setActionFeedback("");
-      await createTraceableAction(activeConstructoraId, buildDecisionActionPayload(item, index));
+      await createTraceableAction(activeOrganizacionId, buildDecisionActionPayload(item, index));
       setActionFeedback(`Acción creada desde decisión: ${item.decision}`);
       await loadReport(false);
       window.setTimeout(() => setActionFeedback(""), 2600);
@@ -398,10 +398,10 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
   }
 
   async function handleUpdatePriorityActionStatus(action, nextStatus) {
-    if (!activeConstructoraId || !action?.id) return;
+    if (!activeOrganizacionId || !action?.id) return;
     try {
       setUpdatingPriorityActionId(action.id); setActionFeedback("");
-      await updateTraceableAction(activeConstructoraId, action.id, { status: nextStatus });
+      await updateTraceableAction(activeOrganizacionId, action.id, { status: nextStatus });
       setActionFeedback(`Acción actualizada: ${action.title || "Acción ambiental"} → ${statusLabel(nextStatus)}`);
       await loadReport(false);
       window.setTimeout(() => setActionFeedback(""), 2600);
@@ -416,7 +416,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
   function applyFilters() { setFilters({ fecha_inicio: draftFilters.fecha_inicio || "", fecha_fin: draftFilters.fecha_fin || "", agrupacion: draftFilters.agrupacion || "mes" }); setIsFiltersModalOpen(false); }
   function clearFilters() { setDraftFilters(defaultFilters); setFilters(defaultFilters); setIsFiltersModalOpen(false); }
 
-  if (!activeConstructoraId) return <main className="mx-auto max-w-7xl text-[var(--text-main)]"><h1 className="text-4xl font-black">Reportes</h1><div className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center text-[var(--text-muted)]">Selecciona o crea una empresa para revisar reportes temporales.</div></main>;
+  if (!activeOrganizacionId) return <main className="mx-auto max-w-7xl text-[var(--text-main)]"><h1 className="text-4xl font-black">Reportes</h1><div className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center text-[var(--text-muted)]">Selecciona o crea una empresa para revisar reportes temporales.</div></main>;
   if (loading && !hasLoaded) return <PlatformLoader title="Cargando reportes" description="Estamos preparando tendencias, KPIs del periodo y tablas ambientales del preset activo." />;
 
   return (
@@ -430,7 +430,7 @@ function ReportesPage({ activeConstructora: propActiveConstructora, activeConstr
       {error && <div className="rounded-2xl border border-[#F1B8B8] bg-[var(--danger-bg)] p-6 text-[#B42318]">{error}</div>}
       {actionFeedback && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-800">{actionFeedback}</div>}
 
-      <ReportHero activeConstructora={activeConstructora} filters={filters} onOpenFilters={openFiltersModal} preset={activePreset} report={report} reportConfig={reportConfig} />
+      <ReportHero activeOrganizacion={activeOrganizacion} filters={filters} onOpenFilters={openFiltersModal} preset={activePreset} report={report} reportConfig={reportConfig} />
       <ClientSummaryCard summary={executiveBrief.clientSummary} />
       <ReportCycleCard cycle={executiveBrief.improvementCycle} onOpenActions={() => onSetActiveView?.("acciones")} />
       <ReportPriorityFollowUpCard followUp={executiveBrief.priorityFollowUp} onOpenActions={() => onSetActiveView?.("acciones")} onUpdateStatus={handleUpdatePriorityActionStatus} updatingActionId={updatingPriorityActionId} />

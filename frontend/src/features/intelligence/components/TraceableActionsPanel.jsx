@@ -54,7 +54,7 @@ function statusLabel(status) {
   return statusOptions.find((option) => option.value === status)?.label || "Pendiente";
 }
 
-function TraceableActionsPanel({ cards = [], constructoraId }) {
+function TraceableActionsPanel({ cards = [], organizacionId }) {
   const [actions, setActions] = useState([]);
   const [draft, setDraft] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -65,11 +65,11 @@ function TraceableActionsPanel({ cards = [], constructoraId }) {
     let cancelled = false;
 
     async function loadActions() {
-      if (!constructoraId) return;
+      if (!organizacionId) return;
       try {
         setLoading(true);
         setError("");
-        const data = await getTraceableActions(constructoraId);
+        const data = await getTraceableActions(organizacionId);
         if (!cancelled) setActions(Array.isArray(data) ? data : []);
       } catch (requestError) {
         if (!cancelled) setError(requestError?.response?.data?.error || "No se pudieron cargar las acciones ambientales.");
@@ -84,7 +84,7 @@ function TraceableActionsPanel({ cards = [], constructoraId }) {
     return () => {
       cancelled = true;
     };
-  }, [constructoraId]);
+  }, [organizacionId]);
 
   const stats = useMemo(() => {
     const total = actions.length;
@@ -99,11 +99,11 @@ function TraceableActionsPanel({ cards = [], constructoraId }) {
 
   async function saveDraft(event) {
     event.preventDefault();
-    if (!draft || !constructoraId) return;
+    if (!draft || !organizacionId) return;
     try {
       setSaving(true);
       setError("");
-      const created = await createTraceableAction(constructoraId, draft);
+      const created = await createTraceableAction(organizacionId, draft);
       setActions((current) => [created, ...current]);
       setDraft(null);
     } catch (requestError) {
@@ -117,7 +117,7 @@ function TraceableActionsPanel({ cards = [], constructoraId }) {
     const previous = actions;
     setActions((current) => current.map((action) => (action.id === actionId ? { ...action, status: nextStatus } : action)));
     try {
-      const updated = await updateTraceableAction(constructoraId, actionId, { status: nextStatus });
+      const updated = await updateTraceableAction(organizacionId, actionId, { status: nextStatus });
       setActions((current) => current.map((action) => (action.id === actionId ? updated : action)));
     } catch (requestError) {
       setActions(previous);
@@ -129,7 +129,7 @@ function TraceableActionsPanel({ cards = [], constructoraId }) {
     const previous = actions;
     setActions((current) => current.filter((action) => action.id !== actionId));
     try {
-      await deleteTraceableAction(constructoraId, actionId);
+      await deleteTraceableAction(organizacionId, actionId);
     } catch (requestError) {
       setActions(previous);
       setError(requestError?.response?.data?.error || "No se pudo eliminar la acción.");

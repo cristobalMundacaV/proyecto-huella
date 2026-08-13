@@ -16,18 +16,18 @@ from apps.analytics.services.environmental_kpi_service import (
 SEVERITY_ORDER = {"critica": 0, "alta": 1, "media": 2, "baja": 3}
 
 
-def build_environmental_recommendations(constructora):
-    kpis = build_environmental_kpis(constructora)
-    industry = detect_industry_key(constructora)
+def build_environmental_recommendations(organizacion):
+    kpis = build_environmental_kpis(organizacion)
+    industry = detect_industry_key(organizacion)
     variables = list(
-        VariableAmbientalExtraida.objects.filter(constructora=constructora)
+        VariableAmbientalExtraida.objects.filter(organizacion=organizacion)
         .select_related("documento")
         .order_by("-fecha_medicion", "-created_at")
     )
-    documents = list(DocumentoAmbiental.objects.filter(constructora=constructora).order_by("-created_at"))
+    documents = list(DocumentoAmbiental.objects.filter(organizacion=organizacion).order_by("-created_at"))
     alerts = list(
         AlertaCumplimientoAmbiental.objects.filter(
-            constructora=constructora,
+            organizacion=organizacion,
             estado__in=[
                 AlertaCumplimientoAmbiental.Estado.ABIERTA,
                 AlertaCumplimientoAmbiental.Estado.EN_REVISION,
@@ -36,7 +36,7 @@ def build_environmental_recommendations(constructora):
         .select_related("documento", "variable")
         .order_by("-created_at")
     )
-    registros = list(RegistroEmision.objects.filter(constructora=constructora).order_by("-emisiones_kg_co2e"))
+    registros = list(RegistroEmision.objects.filter(organizacion=organizacion).order_by("-emisiones_kg_co2e"))
 
     recommendations = []
     recommendations.extend(recommend_from_alerts(alerts, industry))
@@ -50,9 +50,9 @@ def build_environmental_recommendations(constructora):
     summary = build_summary(recommendations, kpis)
 
     return {
-        "constructora_id": constructora.constructora_id,
-        "preset": constructora.preset,
-        "rubro": constructora.rubro,
+        "organizacion_id": organizacion.organizacion_id,
+        "preset": organizacion.preset,
+        "rubro": organizacion.rubro,
         "generated_at": timezone.now().isoformat(),
         "summary": summary,
         "recommendations": recommendations,

@@ -1,6 +1,6 @@
 from django.db import models
 
-from .models import Constructora, EvidenciaObra, LoteForestal, Obra, RegistroEmision
+from .models import Organizacion, EvidenciaObra, LoteForestal, Obra, RegistroEmision
 
 
 class AccionAmbiental(models.Model):
@@ -10,8 +10,8 @@ class AccionAmbiental(models.Model):
         VALIDACION = "validacion", "En validacion"
         COMPLETADA = "completada", "Completada"
 
-    constructora = models.ForeignKey(
-        Constructora,
+    organizacion = models.ForeignKey(
+        Organizacion,
         on_delete=models.CASCADE,
         related_name="acciones_ambientales_orm",
     )
@@ -67,13 +67,13 @@ class AccionAmbiental(models.Model):
         managed = False
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["constructora", "status"]),
-            models.Index(fields=["constructora", "due_date"]),
-            models.Index(fields=["constructora", "obra"]),
-            models.Index(fields=["constructora", "lote_forestal"]),
-            models.Index(fields=["constructora", "registro_emision"]),
-            models.Index(fields=["constructora", "evidencia"]),
+            models.Index(fields=["organizacion", "status"]),
+            models.Index(fields=["organizacion", "due_date"]),
+            models.Index(fields=["organizacion", "obra"]),
+            models.Index(fields=["organizacion", "lote_forestal"]),
+            models.Index(fields=["organizacion", "registro_emision"]),
+            models.Index(fields=["organizacion", "evidencia"]),
         ]
 
     def __str__(self):
-        return f"{self.constructora.constructora_id} - {self.title}"
+        return f"{self.organizacion.organizacion_id} - {self.title}"
