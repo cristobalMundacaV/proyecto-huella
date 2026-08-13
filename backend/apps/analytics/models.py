@@ -1077,3 +1077,103 @@ class HistorialCambioObra(models.Model):
 
     def __str__(self):
         return f"{self.obra.codigo_obra} - {self.get_tipo_display()}"
+
+
+class ProblematicaAmbiental(models.Model):
+    class Estado(models.TextChoices):
+        DETECTADA = "detectada", "Detectada"
+        EN_ANALISIS = "en_analisis", "En analisis"
+        ACCION_PROPUESTA = "accion_propuesta", "Accion propuesta"
+        EN_IMPLEMENTACION = "en_implementacion", "En implementacion"
+        EN_SEGUIMIENTO = "en_seguimiento", "En seguimiento"
+        RESUELTA = "resuelta", "Resuelta"
+        MEJORA_INSUFICIENTE = "mejora_insuficiente", "Mejora insuficiente"
+        NO_RESUELTA = "no_resuelta", "No resuelta"
+        ESCALADA = "escalada", "Escalada"
+
+    class Riesgo(models.TextChoices):
+        BAJO = "bajo", "Bajo"
+        MEDIO = "medio", "Medio"
+        ALTO = "alto", "Alto"
+        CRITICO = "critico", "Critico"
+
+    class Resultado(models.TextChoices):
+        PENDIENTE = "pendiente", "Pendiente de medicion"
+        EFECTIVA = "efectiva", "Efectiva"
+        PARCIAL = "parcialmente_efectiva", "Parcialmente efectiva"
+        NO_EFECTIVA = "no_efectiva", "No efectiva"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="problematicas_ambientales")
+    titulo = models.CharField(max_length=240)
+    descripcion = models.TextField()
+    categoria = models.CharField(max_length=120)
+    indicador = models.CharField(max_length=120, default="co2e_total_kg")
+    unidad_indicador = models.CharField(max_length=40, default="kgCO2e")
+    obra = models.ForeignKey(Obra, on_delete=models.SET_NULL, null=True, blank=True, related_name="problematicas_ambientales")
+    area_operacional = models.CharField(max_length=180, blank=True)
+    unidad_operacional = models.CharField(max_length=180, blank=True)
+    valor_inicial = models.DecimalField(max_digits=18, decimal_places=6)
+    objetivo_meta = models.DecimalField(max_digits=18, decimal_places=6)
+    valor_posterior = models.DecimalField(max_digits=18, decimal_places=6, null=True, blank=True)
+    mejora_absoluta = models.DecimalField(max_digits=18, decimal_places=6, null=True, blank=True)
+    mejora_porcentaje = models.DecimalField(max_digits=9, decimal_places=2, null=True, blank=True)
+    fecha_deteccion = models.DateField()
+    nivel_riesgo = models.CharField(max_length=20, choices=Riesgo.choices, default=Riesgo.MEDIO)
+    estado = models.CharField(max_length=30, choices=Estado.choices, default=Estado.DETECTADA)
+    resultado_evaluacion = models.CharField(max_length=30, choices=Resultado.choices, default=Resultado.PENDIENTE)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-fecha_deteccion", "-created_at"]
+        indexes = [models.Index(fields=["organizacion", "estado"]), models.Index(fields=["organizacion", "categoria"])]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.obra_id and self.obra.organizacion_id != self.organizacion_id:
+            raise ValidationError({"obra": "Debe pertenecer a la organizacion."})
+
+
+class AccionMejoraAmbiental(models.Model):
+    problematica = models.ForeignKey(ProblematicaAmbiental, on_delete=models.CASCADE, related_name="acciones")
+    titulo = models.CharField(max_length=240)
+    descripcion = models.TextField()
+    responsable = models.CharField(max_length=180, blank=True)
+    fecha_inicio = models.DateField(null=True, blank=True)
+    fecha_objetivo = models.DateField(null=True, blank=True)
+    implementada_at = models.DateTimeField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+
+class MedicionSeguimientoAmbiental(models.Model):
+    problematica = models.ForeignKey(ProblematicaAmbiental, on_delete=models.CASCADE, related_name="mediciones")
+    accion = models.ForeignKey(AccionMejoraAmbiental, on_delete=models.SET_NULL, null=True, blank=True, related_name="mediciones")
+    fecha = models.DateField()
+    valor = models.DecimalField(max_digits=18, decimal_places=6)
+    unidad = models.CharField(max_length=40)
+    fuente = models.CharField(max_length=120, default="manual")
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["fecha", "created_at"]
+
+
+class HistorialProblematicaAmbiental(models.Model):
+    problematica = models.ForeignKey(ProblematicaAmbiental, on_delete=models.CASCADE, related_name="historial")
+    evento = models.CharField(max_length=40)
+    estado_anterior = models.CharField(max_length=30, blank=True)
+    estado_nuevo = models.CharField(max_length=30, blank=True)
+    detalle = models.TextField(blank=True)
+    usuario = models.CharField(max_length=150, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]

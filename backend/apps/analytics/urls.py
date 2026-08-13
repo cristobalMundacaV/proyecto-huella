@@ -83,6 +83,11 @@ from .views_importaciones import (
 )
 from .views_recommendations import recommendation_context, recomendaciones
 from .views_environmental_engine import environmental_engine_results, environmental_lca_results
+from .views_problematicas import (
+    problematica_action_implement, problematica_actions, problematica_detail,
+    problematica_evaluate, problematica_history, problematica_measure_engine,
+    problematica_measurements, problematica_transition, problematicas,
+)
 
 urlpatterns = [
     path("auth/me/", auth_me),
@@ -123,6 +128,15 @@ urlpatterns = [
     path("organizaciones/<str:organizacion_id>/cumplimiento-ambiental/resumen/", cumplimiento_ambiental_resumen),
     path("organizaciones/<str:organizacion_id>/motor-ambiental/", environmental_engine_results),
     path("organizaciones/<str:organizacion_id>/acv/", environmental_lca_results),
+    path("organizaciones/<str:organizacion_id>/problematicas/", problematicas),
+    path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/", problematica_detail),
+    path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/transicion/", problematica_transition),
+    path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/acciones/", problematica_actions),
+    path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/acciones/<int:action_id>/implementar/", problematica_action_implement),
+    path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/seguimientos/", problematica_measurements),
+    path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/seguimientos/motor/", problematica_measure_engine),
+    path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/evaluar/", problematica_evaluate),
+    path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/historial/", problematica_history),
     path("environmental/kpis/<str:organizacion_id>/", environmental_kpis),
     path("environmental/recommendations/<str:organizacion_id>/", environmental_recommendations),
     path("environmental/scenarios/<str:organizacion_id>/", environmental_scenarios),
