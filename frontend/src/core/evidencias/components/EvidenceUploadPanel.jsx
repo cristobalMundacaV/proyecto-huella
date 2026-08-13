@@ -312,7 +312,7 @@ function EvidenceUploadPanel({ config, organizacionId, lotesForestales = [], onS
           ))}
         </select>
 
-        {presetKey === "forestal" ? (
+        {["forestal", "aserradero"].includes(presetKey) ? (
           <select
             className={`${inputClass} md:col-span-2`}
             value={form.lote_forestal}

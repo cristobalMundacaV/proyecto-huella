@@ -443,7 +443,7 @@ def organizacion_dashboard(request, organizacion_id):
     payload["datos"] = RegistroEmisionSerializer(
         registros.order_by("-fecha", "-created_at")[:200], many=True
     ).data
-    if organizacion.preset == Organizacion.Preset.FORESTAL:
+    if organizacion.preset in {Organizacion.Preset.FORESTAL, Organizacion.Preset.ASERRADERO}:
         lotes = LoteForestal.objects.filter(organizacion=organizacion)
         lotes_balance = [calcular_balance_neto_lote(lote) for lote in lotes]
         payload["lotes_forestales"] = {

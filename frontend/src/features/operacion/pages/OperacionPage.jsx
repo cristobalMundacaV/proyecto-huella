@@ -21,7 +21,7 @@ const STAGE_DONUT_CIRCUMFERENCE = 2 * Math.PI * STAGE_DONUT_RADIUS;
 const STAGE_COLORS = ["#E11D48", "#EA580C", "#2563EB", "#7C3AED", "#059669", "#0891B2", "#84CC16", "#64748B"];
 
 function getTabsForPreset(presetKey) {
-  if (presetKey === "forestal") {
+  if (presetKey === "aserradero") {
     return [
       { id: "recepcion", label: "Recepción", scope: "dashboard", component: <RecepcionTrozasPage />, insight: "Controla entrada de trozas, lote, volumen y trazabilidad desde el origen." },
       { id: "produccion", label: "Producción", scope: "materiales", component: <ProduccionAserraderoPage />, insight: "Mide rendimiento de aserrío y vincula producción con consumo energético y residuos." },

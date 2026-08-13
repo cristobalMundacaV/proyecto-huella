@@ -38,6 +38,7 @@ import ImportValidationSummary from "../components/ImportValidationSummary";
 const importByPreset = {
   construccion: construccionImport,
   forestal: aserraderoImport,
+  aserradero: aserraderoImport,
   transporte: transporteImport,
   industrial: industrialImport,
 };
@@ -182,8 +183,8 @@ function ImportacionesPage({ onImportConfirmed }) {
         setMessage(`Importacion confirmada. Creados: ${result.creados ?? result.created ?? 0}.`);
         await refreshOrganizaciones().catch(() => undefined);
         await onImportConfirmed?.();
-      } else if (activePreset.key === "forestal" && moduleConfig.supported) {
-        const payloads = mapPresetImportPayload("forestal", selectedModule, previewRows, config.buildPayload);
+      } else if (activePreset.key === "aserradero" && moduleConfig.supported) {
+        const payloads = mapPresetImportPayload("aserradero", selectedModule, previewRows, config.buildPayload);
         for (const payload of payloads) {
           await createEmpresaRegistroAmbiental(activeOrganizacionId, payload);
         }

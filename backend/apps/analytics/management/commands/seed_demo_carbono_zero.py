@@ -67,11 +67,11 @@ PILOT_COMPANIES = {
             ("factura_combustible", "Factura combustible maquinaria", "diesel_l", "Diesel maquinaria", "Combustible", "L", "820.0", "900.0", "<=", "RETC"),
         ],
     },
-    "forestal": {
+    "aserradero": {
         "id": "CZP_ASERRADERO_LAJA",
         "name": "Aserradero Laja",
         "rubro": "Forestal / Aserradero",
-        "preset": "forestal",
+        "preset": "aserradero",
         "region": "Biobio",
         "comuna": "Laja",
         "units": ["Planta Aserrio", "Secado Norte", "Patio Trozas"],
@@ -259,7 +259,7 @@ class Command(BaseCommand):
         start = timezone.localdate() - timedelta(days=90)
         for index, item in enumerate(cfg.get("lotes", []), 1):
             lote_id, especie, volumen, origen, destino, producto, densidad, carbono = item
-            lote, _ = LoteForestal.objects.update_or_create(lote_id=f"{empresa.organizacion_id}_{lote_id}", defaults={"organizacion": empresa, "fecha": start + timedelta(days=index * 14), "especie": especie, "volumen_m3": Decimal(volumen), "origen": origen, "destino": destino, "tipo_producto": producto, "densidad_kg_m3": Decimal(densidad), "porcentaje_carbono": Decimal(carbono), "estado": "activo", "observaciones": "Lote trazable para balance neto, transporte y evidencias.", "metadata": {"preset": "forestal", "module": "lotes_forestales", "quality_status": "validado"}})
+            lote, _ = LoteForestal.objects.update_or_create(lote_id=f"{empresa.organizacion_id}_{lote_id}", defaults={"organizacion": empresa, "fecha": start + timedelta(days=index * 14), "especie": especie, "volumen_m3": Decimal(volumen), "origen": origen, "destino": destino, "tipo_producto": producto, "densidad_kg_m3": Decimal(densidad), "porcentaje_carbono": Decimal(carbono), "estado": "activo", "observaciones": "Lote trazable para balance neto, transporte y evidencias.", "metadata": {"preset": "aserradero", "module": "lotes_forestales", "quality_status": "validado"}})
             lotes.append(lote)
         return lotes
 
@@ -347,7 +347,7 @@ class Command(BaseCommand):
             return "Distribuidora Electrica Regional"
         if "residuo" in source_name or "escombro" in source_name:
             return "Gestor Ambiental Certificado"
-        if preset == "forestal":
+        if preset == "aserradero":
             return "Operacion Forestal Integrada"
         return "Proveedor operacional"
 

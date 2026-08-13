@@ -60,7 +60,7 @@ export const aserraderoEvidence = {
   buildRecommendations(rows, records = []) {
     const recommendations = [];
     const evidenceModules = new Set(rows.map((row) => row.metadata?.module).filter(Boolean));
-    const recordModules = new Set(records.filter((row) => row.metadata?.preset === "forestal").map((row) => row.metadata?.module).filter(Boolean));
+    const recordModules = new Set(records.filter((row) => row.metadata?.preset === "aserradero").map((row) => row.metadata?.module).filter(Boolean));
     if (recordModules.has("recepcion_trozas") && !evidenceModules.has("recepcion_trozas")) recommendations.push("Existen recepciones de trozas sin guia o documento de lote.");
     if (recordModules.has("secado") && !evidenceModules.has("secado")) recommendations.push("Existen procesos de secado sin respaldo de camara, humedad o consumo energetico.");
     if (recordModules.has("residuos_subproductos") && !evidenceModules.has("residuos_subproductos")) recommendations.push("Hay residuos o subproductos sin certificado, valorizacion o gestor asociado.");

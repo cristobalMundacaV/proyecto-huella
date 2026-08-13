@@ -22,6 +22,7 @@ import ReportTable from "../components/ReportTable";
 const reportByPreset = {
   construccion: construccionReport,
   forestal: aserraderoReport,
+  aserradero: aserraderoReport,
   transporte: transporteReport,
   industrial: industrialReport,
 };

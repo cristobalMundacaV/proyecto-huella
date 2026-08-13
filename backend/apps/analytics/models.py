@@ -51,6 +51,7 @@ class Organizacion(models.Model):
     class Preset(models.TextChoices):
         CONSTRUCCION = "construccion", "Construcción"
         FORESTAL = "forestal", "Forestal"
+        ASERRADERO = "aserradero", "Aserradero"
         TRANSPORTE = "transporte", "Transporte"
         INDUSTRIAL = "industrial", "Industrial"
 
@@ -901,7 +902,7 @@ class TransporteLoteForestal(models.Model):
 
     def sync_registro_emision(self, litros):
         metadata = {
-            "preset": "forestal",
+            "preset": self.lote_forestal.organizacion.preset,
             "module": "transporte_forestal",
             "lote": self.lote_forestal.lote_id,
             "patente": self.patente,

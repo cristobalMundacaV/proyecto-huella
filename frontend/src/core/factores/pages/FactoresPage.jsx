@@ -25,6 +25,7 @@ import PendingFactorRecords from "../components/PendingFactorRecords";
 const configByPreset = {
   construccion: construccionFactors,
   forestal: aserraderoFactors,
+  aserradero: aserraderoFactors,
   transporte: transporteFactors,
   industrial: industrialFactors,
 };

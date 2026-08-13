@@ -216,7 +216,7 @@ function HorizontalChart({ data, dataKey, nameKey, title }) {
 
 function LifecycleOverview({ activePreset, lifecycleUnits, onSelectUnit }) {
   const topUnits = lifecycleUnits.slice(0, 4);
-  const label = activePreset === "forestal" ? "lote/producto" : "obra/unidad";
+  const label = ["forestal", "aserradero"].includes(activePreset) ? "lote/producto" : "obra/unidad";
 
   return (
     <section className="rounded-[30px] border border-emerald-200 bg-emerald-50/60 p-5 shadow-[var(--shadow-card)] ring-1 ring-white/70">
@@ -295,7 +295,7 @@ function CycleMetric({ icon, label, value }) {
 }
 
 function LifecycleDetailModal({ activePreset, actionStatus, onClose, onCreateAction, totalEmissions, unit }) {
-  const label = activePreset === "forestal" ? "lote/producto" : "obra/unidad";
+  const label = ["forestal", "aserradero"].includes(activePreset) ? "lote/producto" : "obra/unidad";
   const rows = [...(unit.rows || [])].sort((left, right) => String(right.fecha || "").localeCompare(String(left.fecha || "")));
   const topSources = sortedEntries(unit.fuentes).slice(0, 5);
   const topStages = sortedEntries(unit.etapas).slice(0, 5);

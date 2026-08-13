@@ -22,7 +22,7 @@ const avg = (rows, field) => {
 };
 
 function getAserraderoRows(context) {
-  return context.rows.filter((row) => row.metadata?.preset === "forestal");
+  return context.rows.filter((row) => row.metadata?.preset === "aserradero");
 }
 
 function moduleRows(rows, moduleKey) {

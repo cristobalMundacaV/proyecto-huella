@@ -1,4 +1,4 @@
-const ASERRADERO_PRESET_KEY = "forestal";
+const ASERRADERO_PRESET_KEY = "aserradero";
 
 const backendCategoryByAserraderoCategory = {
   "Materia prima": "Materiales",

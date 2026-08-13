@@ -89,6 +89,18 @@ class AnalyticsConstructionApiTests(APITestCase):
             self.organizacion.organizacion_id,
         )
 
+    def test_preset_aserradero_conserva_flujo_de_lotes(self):
+        aserradero = Organizacion.objects.create(
+            organizacion_id="ASERRADERO_SUR",
+            nombre="Aserradero Sur",
+            preset=Organizacion.Preset.ASERRADERO,
+        )
+        UsuarioOrganizacion.objects.create(user=self.user, organizacion=aserradero)
+        response = self.client.get(f"/api/organizaciones/{aserradero.organizacion_id}/dashboard/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(aserradero.preset, "aserradero")
+        self.assertIn("lotes_forestales", response.data)
+
     def test_crea_registro_desde_endpoint_de_obra(self):
         response = self.client.post(
             f"/api/obras/{self.obra.codigo_obra}/registros-emision/",

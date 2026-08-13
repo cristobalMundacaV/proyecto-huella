@@ -5,7 +5,8 @@ import { CHILE_REGION_NAMES, getComunasByRegion } from "../utils/chileRegions";
 
 const PRESET_OPTIONS = [
   { value: "construccion", label: "Construcción" },
-  { value: "forestal", label: "Aserradero / Forestal" },
+  { value: "forestal", label: "Forestal" },
+  { value: "aserradero", label: "Aserradero" },
   { value: "transporte", label: "Transporte" },
   { value: "industrial", label: "Industrial" },
 ];

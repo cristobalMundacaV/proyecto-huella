@@ -32,6 +32,7 @@ import EvidenceValidationPanel from "../components/EvidenceValidationPanel";
 const evidenceByPreset = {
   construccion: construccionEvidence,
   forestal: aserraderoEvidence,
+  aserradero: aserraderoEvidence,
   transporte: transporteEvidence,
   industrial: industrialEvidence,
 };
@@ -78,7 +79,7 @@ function EvidenciasPage() {
       const [evidenciasData, recordsData, lotesData] = await Promise.allSettled([
         getEvidenciasOrganizacion(activeOrganizacionId),
         getEmpresaRegistrosAmbientales(activeOrganizacionId),
-        activePreset.key === "forestal" ? getLotesForestales(activeOrganizacionId) : Promise.resolve([]),
+        ["forestal", "aserradero"].includes(activePreset.key) ? getLotesForestales(activeOrganizacionId) : Promise.resolve([]),
       ]);
 
       if (evidenciasData.status === "fulfilled") {
@@ -289,7 +290,7 @@ function EvidenciasPage() {
         <EvidenceValidationPanel recommendations={recommendations} />
       </section>
 
-      {activePreset.key === "forestal" && lotesForestales.length ? (
+      {["forestal", "aserradero"].includes(activePreset.key) && lotesForestales.length ? (
         <section className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[0_12px_28px_var(--shadow)]">
           <label className="text-xs font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">
             Filtrar por lote forestal

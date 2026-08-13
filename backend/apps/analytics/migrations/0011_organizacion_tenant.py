@@ -1,16 +1,6 @@
 from django.db import migrations, models
 
 
-def migrate_preset_forward(apps, schema_editor):
-    Organizacion = apps.get_model("analytics", "Organizacion")
-    Organizacion.objects.filter(preset="aserradero").update(preset="forestal")
-
-
-def migrate_preset_backward(apps, schema_editor):
-    Organizacion = apps.get_model("analytics", "Organizacion")
-    Organizacion.objects.filter(preset="forestal").update(preset="aserradero")
-
-
 class Migration(migrations.Migration):
     dependencies = [
         ("analytics", "0010_documentoambiental_limitenormativoambiental_and_more"),
@@ -55,7 +45,6 @@ class Migration(migrations.Migration):
         migrations.RenameField("limitenormativoambiental", "constructora", "organizacion"),
         migrations.RenameField("variableambientalextraida", "constructora", "organizacion"),
         migrations.RenameField("alertacumplimientoambiental", "constructora", "organizacion"),
-        migrations.RunPython(migrate_preset_forward, migrate_preset_backward),
         migrations.AlterField(
             model_name="organizacion",
             name="preset",
@@ -63,6 +52,7 @@ class Migration(migrations.Migration):
                 choices=[
                     ("construccion", "Construcción"),
                     ("forestal", "Forestal"),
+                    ("aserradero", "Aserradero"),
                     ("transporte", "Transporte"),
                     ("industrial", "Industrial"),
                 ],

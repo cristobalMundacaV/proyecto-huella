@@ -39,8 +39,8 @@ const avg = (rows, field) => {
 };
 
 function getPresetRows(rows, context = {}) {
-  const filtered = rows.filter((row) => getMetadata(row).preset === "forestal");
-  return filtered.length ? filtered : context.activePreset?.key === "forestal" ? rows : filtered;
+  const filtered = rows.filter((row) => getMetadata(row).preset === "aserradero");
+  return filtered.length ? filtered : context.activePreset?.key === "aserradero" ? rows : filtered;
 }
 
 function byModule(rows, moduleKey) {
@@ -118,7 +118,7 @@ function buildExecutiveSummary(context) {
 }
 
 function buildExportPayload(report, context) {
-  return { empresa: context.activeOrganizacion?.nombre || "", preset: "forestal", periodo: context.filters, kpis: report.kpis, insights: report.insights, registros: report.rows };
+  return { empresa: context.activeOrganizacion?.nombre || "", preset: "aserradero", periodo: context.filters, kpis: report.kpis, insights: report.insights, registros: report.rows };
 }
 
 export const aserraderoReport = {

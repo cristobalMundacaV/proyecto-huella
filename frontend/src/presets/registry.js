@@ -1,5 +1,6 @@
 import aserraderoPreset from "./aserradero/preset";
 import construccionPreset from "./construccion/preset";
+import forestalPreset from "./forestal/preset";
 import industrialPreset from "./industrial/preset";
 import transportePreset from "./transporte/preset";
 
@@ -9,6 +10,7 @@ export const PRESET_STORAGE_KEY = "carbono_zero.activePreset";
 export const presets = {
   [construccionPreset.key]: construccionPreset,
   [aserraderoPreset.key]: aserraderoPreset,
+  [forestalPreset.key]: forestalPreset,
   [transportePreset.key]: transportePreset,
   [industrialPreset.key]: industrialPreset,
 };

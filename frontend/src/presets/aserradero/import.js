@@ -97,7 +97,7 @@ function buildPayload(data, { module, rowNumber }) {
     distancia_km: data.distancia_km || null,
     observaciones: data.observaciones || data.observacion || data.observacion_operativa || "",
     metadata: {
-      preset: "forestal",
+      preset: "aserradero",
       module,
       imported_from: "preset_import",
       original_row: rowNumber,
