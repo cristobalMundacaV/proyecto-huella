@@ -61,6 +61,8 @@ class EnvironmentalAgentService:
         self.provider = provider
 
     def recommend(self, problem):
+        if problem.requiere_evaluacion_profesional or problem.estado == "escalada":
+            raise ValidationError("La problematica fue escalada y no admite nuevas recomendaciones automaticas.")
         context = minimal_agent_context(problem)
         payload = self.provider.generate(system_rules=SYSTEM_RULES, context=context)
         self._validate(payload, problem, context)

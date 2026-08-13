@@ -658,6 +658,15 @@ class DocumentoAmbiental(models.Model):
 
 class LimiteNormativoAmbiental(models.Model):
     class Normativa(models.TextChoices):
+        ISO_14001 = "ISO 14001", "ISO 14001"
+        ISO_14064_1 = "ISO 14064-1", "ISO 14064-1"
+        ISO_14067 = "ISO 14067", "ISO 14067"
+        ISO_14040_14044 = "ISO 14040/14044", "ISO 14040/14044"
+        ISO_21930 = "ISO 21930", "ISO 21930"
+        LEY_21455 = "Ley 21.455", "Ley 21.455"
+        LEY_20920 = "Ley 20.920", "Ley 20.920"
+        LEY_19300 = "Ley 19.300", "Ley 19.300"
+        HUELLA_CHILE = "HuellaChile", "HuellaChile"
         RCA = "RCA", "RCA"
         DS90 = "DS90", "DS90"
         DS38 = "DS38", "DS38"
@@ -683,9 +692,15 @@ class LimiteNormativoAmbiental(models.Model):
     variable_id = models.CharField(max_length=80, db_index=True)
     nombre = models.CharField(max_length=180)
     normativa = models.CharField(max_length=40, choices=Normativa.choices)
-    limite = models.DecimalField(max_digits=14, decimal_places=4)
-    unidad = models.CharField(max_length=40)
+    limite = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    unidad = models.CharField(max_length=40, blank=True)
     comparador = models.CharField(max_length=20, choices=Comparador.choices, default=Comparador.MENOR_IGUAL)
+    region = models.CharField(max_length=120, blank=True)
+    tipo_instalacion = models.CharField(max_length=120, blank=True)
+    vigencia_desde = models.DateField(null=True, blank=True)
+    vigencia_hasta = models.DateField(null=True, blank=True)
+    fuente_normativa = models.CharField(max_length=300, blank=True)
+    validado = models.BooleanField(default=False, db_index=True)
     activo = models.BooleanField(default=True)
     descripcion = models.TextField(blank=True)
     metadata = models.JSONField(default=dict, blank=True)
@@ -697,6 +712,7 @@ class LimiteNormativoAmbiental(models.Model):
         indexes = [
             models.Index(fields=["organizacion_id", "industria"]),
             models.Index(fields=["organizacion_id", "variable_id", "activo"]),
+            models.Index(fields=["organizacion_id", "industria", "region", "validado"]),
         ]
 
     def save(self, *args, **kwargs):
@@ -757,11 +773,11 @@ class VariableAmbientalExtraida(models.Model):
     def apply_applicable_limit(self):
         if self.limite_aplicable is not None or not self.organizacion_id or not self.variable_id:
             return
-        limite = LimiteNormativoAmbiental.objects.filter(
-            organizacion_id=self.organizacion_id,
-            variable_id=self.variable_id,
-            activo=True,
-        ).order_by("-created_at").first()
+        from .services.environmental_normative import applicable_validated_rules
+        limite = applicable_validated_rules(
+            self.organizacion, self.variable_id, on_date=self.fecha_medicion,
+            installation_type=(self.metadata or {}).get("tipo_instalacion", ""),
+        ).filter(limite__isnull=False).order_by("-created_at").first()
         if not limite:
             return
         metadata = dict(self.metadata or {})
@@ -1121,6 +1137,9 @@ class ProblematicaAmbiental(models.Model):
     nivel_riesgo = models.CharField(max_length=20, choices=Riesgo.choices, default=Riesgo.MEDIO)
     estado = models.CharField(max_length=30, choices=Estado.choices, default=Estado.DETECTADA)
     resultado_evaluacion = models.CharField(max_length=30, choices=Resultado.choices, default=Resultado.PENDIENTE)
+    requiere_evaluacion_profesional = models.BooleanField(default=False, db_index=True)
+    criterios_escalamiento = models.JSONField(default=list, blank=True)
+    escalada_at = models.DateTimeField(null=True, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1208,3 +1227,18 @@ class RecomendacionAgenteAmbiental(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["problematica", "prioridad"])]
+
+
+class ExpedienteAmbiental(models.Model):
+    problematica = models.ForeignKey(ProblematicaAmbiental, on_delete=models.CASCADE, related_name="expedientes")
+    version = models.PositiveIntegerField(default=1)
+    contenido_procesado = models.JSONField(default=dict)
+    resumen_ejecutivo = models.TextField()
+    proveedor_resumen = models.CharField(max_length=80, blank=True)
+    modelo_resumen = models.CharField(max_length=120, blank=True)
+    generado_por = models.CharField(max_length=150, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-version", "-created_at"]
+        constraints = [models.UniqueConstraint(fields=["problematica", "version"], name="unique_expediente_problematica_version")]

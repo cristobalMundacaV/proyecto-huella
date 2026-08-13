@@ -1,9 +1,10 @@
 from django.db.models import Count, Sum
 
 from apps.analytics.models import (
-    DatoACV, DocumentoAmbiental, EvidenciaObra, LimiteNormativoAmbiental,
+    DatoACV, DocumentoAmbiental, EvidenciaObra,
 )
 from apps.analytics.services.environmental_engine import calculate_environmental_metrics, calculate_partial_lca
+from apps.analytics.services.environmental_normative import applicable_validated_rules
 
 
 MAX_ITEMS = 10
@@ -83,8 +84,11 @@ def evidence_summary(problem):
 
 
 def normative_context(problem):
-    rules = LimiteNormativoAmbiental.objects.filter(organizacion=problem.organizacion, activo=True, variable_id=problem.indicador)[:MAX_ITEMS]
-    return {"reglas_validadas": [{"id": row.id, "nombre": row.nombre, "normativa": row.normativa, "limite": row.limite, "unidad": row.unidad, "comparador": row.comparador} for row in rules], "puede_afirmar_cumplimiento": bool(rules), "limit": MAX_ITEMS}
+    rules = applicable_validated_rules(
+        problem.organizacion, problem.indicador,
+        installation_type=(problem.metadata or {}).get("tipo_instalacion", ""),
+    )[:MAX_ITEMS]
+    return {"reglas_validadas": [{"id": row.id, "nombre": row.nombre, "normativa": row.normativa, "limite": row.limite, "unidad": row.unidad, "comparador": row.comparador, "fuente_normativa": row.fuente_normativa, "vigencia_desde": row.vigencia_desde, "vigencia_hasta": row.vigencia_hasta} for row in rules], "puede_afirmar_cumplimiento": bool(rules), "limit": MAX_ITEMS}
 
 
 def material_lifecycle(organization, material):

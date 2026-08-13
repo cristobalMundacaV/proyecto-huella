@@ -94,6 +94,7 @@ from .views_environmental_context import (
     problem_history_view, problem_normative_view, problem_recommendations_view,
     problem_sources_view,
 )
+from .views_environmental_escalation import problem_dossier_view, problem_escalation_view
 
 urlpatterns = [
     path("auth/me/", auth_me),
@@ -143,6 +144,8 @@ urlpatterns = [
     path("problemas/<int:problem_id>/evidencias-resumen/", problem_evidence_view),
     path("problemas/<int:problem_id>/contexto-normativo/", problem_normative_view),
     path("problemas/<int:problem_id>/recomendaciones/", problem_recommendations_view),
+    path("problemas/<int:problem_id>/escalamiento/", problem_escalation_view),
+    path("problemas/<int:problem_id>/expediente/", problem_dossier_view),
     path("materiales/<int:material_id>/ciclo-vida/", material_lifecycle_view),
     path("organizaciones/<str:organizacion_id>/problematicas/", problematicas),
     path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/", problematica_detail),
