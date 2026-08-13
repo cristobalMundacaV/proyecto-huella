@@ -88,6 +88,12 @@ from .views_problematicas import (
     problematica_evaluate, problematica_history, problematica_measure_engine,
     problematica_measurements, problematica_transition, problematicas,
 )
+from .views_environmental_context import (
+    material_lifecycle_view, organization_context_view, organization_kpis_view,
+    problem_actions_view, problem_context_view, problem_evidence_view,
+    problem_history_view, problem_normative_view, problem_recommendations_view,
+    problem_sources_view,
+)
 
 urlpatterns = [
     path("auth/me/", auth_me),
@@ -128,6 +134,16 @@ urlpatterns = [
     path("organizaciones/<str:organizacion_id>/cumplimiento-ambiental/resumen/", cumplimiento_ambiental_resumen),
     path("organizaciones/<str:organizacion_id>/motor-ambiental/", environmental_engine_results),
     path("organizaciones/<str:organizacion_id>/acv/", environmental_lca_results),
+    path("organizaciones/<str:organizacion_id>/contexto/", organization_context_view),
+    path("organizaciones/<str:organizacion_id>/kpis/", organization_kpis_view),
+    path("problemas/<int:problem_id>/contexto/", problem_context_view),
+    path("problemas/<int:problem_id>/historial/", problem_history_view),
+    path("problemas/<int:problem_id>/fuentes/", problem_sources_view),
+    path("problemas/<int:problem_id>/acciones-previas/", problem_actions_view),
+    path("problemas/<int:problem_id>/evidencias-resumen/", problem_evidence_view),
+    path("problemas/<int:problem_id>/contexto-normativo/", problem_normative_view),
+    path("problemas/<int:problem_id>/recomendaciones/", problem_recommendations_view),
+    path("materiales/<int:material_id>/ciclo-vida/", material_lifecycle_view),
     path("organizaciones/<str:organizacion_id>/problematicas/", problematicas),
     path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/", problematica_detail),
     path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/transicion/", problematica_transition),

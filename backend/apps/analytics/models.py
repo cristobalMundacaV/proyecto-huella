@@ -1177,3 +1177,34 @@ class HistorialProblematicaAmbiental(models.Model):
 
     class Meta:
         ordering = ["created_at", "id"]
+
+
+class RecomendacionAgenteAmbiental(models.Model):
+    class Prioridad(models.TextChoices):
+        BAJA = "baja", "Baja"
+        MEDIA = "media", "Media"
+        ALTA = "alta", "Alta"
+        CRITICA = "critica", "Critica"
+
+    class Confianza(models.TextChoices):
+        BAJA = "baja", "Baja"
+        MEDIA = "media", "Media"
+        ALTA = "alta", "Alta"
+
+    problematica = models.ForeignKey(ProblematicaAmbiental, on_delete=models.CASCADE, related_name="recomendaciones_agente")
+    accion = models.TextField()
+    justificacion = models.TextField()
+    indicador_afectado = models.CharField(max_length=120)
+    resultado_esperado = models.TextField()
+    prioridad = models.CharField(max_length=20, choices=Prioridad.choices)
+    periodo_seguimiento = models.CharField(max_length=120)
+    nivel_confianza = models.CharField(max_length=20, choices=Confianza.choices)
+    diagnostico = models.JSONField(default=dict, blank=True)
+    contexto_resumen = models.JSONField(default=dict, blank=True)
+    proveedor = models.CharField(max_length=80, blank=True)
+    modelo = models.CharField(max_length=120, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["problematica", "prioridad"])]
