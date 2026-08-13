@@ -6,6 +6,7 @@ from django.utils.dateparse import parse_datetime
 from rest_framework import status
 
 from apps.analytics.models import FactorEmision, RegistroEmision
+from apps.analytics.services.environmental_records import create_environmental_record
 
 from .models import DispositivoSensor, LecturaSensor, RegistroSensor
 
@@ -194,25 +195,31 @@ def create_registro_emision_from_sensor(registro_sensor, payload):
     if factor <= 0:
         return None
 
-    return RegistroEmision.objects.create(
-        organizacion=registro_sensor.organizacion,
-        obra=registro_sensor.obra,
-        etapa=registro_sensor.etapa,
-        categoria=CATEGORIA_POR_TIPO.get(
+    return create_environmental_record(
+        {
+        "obra": registro_sensor.obra,
+        "etapa": registro_sensor.etapa,
+        "categoria": CATEGORIA_POR_TIPO.get(
             registro_sensor.tipo,
             RegistroEmision.Categoria.OTROS,
         ),
-        fuente_emision=build_fuente_emision(
+        "fuente_emision": build_fuente_emision(
             registro_sensor.dispositivo,
             registro_sensor.tipo,
             payload,
         ),
-        cantidad=registro_sensor.valor,
-        unidad=registro_sensor.unidad,
-        factor_emision=factor,
-        fecha=registro_sensor.timestamp_sensor.date(),
-        metadata=build_emission_metadata(registro_sensor, payload),
-        observaciones="Registro generado automaticamente desde sensor IoT.",
+        "cantidad": registro_sensor.valor,
+        "unidad": registro_sensor.unidad,
+        "factor_emision": factor,
+        "fecha": registro_sensor.timestamp_sensor.date(),
+        "identificador_externo": registro_sensor.external_id,
+        "metadata": build_emission_metadata(registro_sensor, payload),
+        "observaciones": "Registro generado automaticamente desde sensor IoT.",
+        "estado_validacion": RegistroEmision.EstadoValidacion.VALIDADO,
+        },
+        organizacion=registro_sensor.organizacion,
+        tipo_ingreso=RegistroEmision.TipoIngreso.SENSOR_IOT,
+        fuente_ingreso=registro_sensor.dispositivo.dispositivo_id,
     )
 
 

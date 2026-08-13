@@ -389,6 +389,20 @@ class RegistroEmision(models.Model):
         PROCESOS_EXTERNOS = "Procesos externos", "Procesos externos"
         OTROS = "Otros", "Otros"
 
+    class TipoIngreso(models.TextChoices):
+        MANUAL = "manual", "Manual"
+        EXCEL = "excel", "Excel"
+        CSV = "csv", "CSV"
+        DOCUMENTO = "documento", "Documento"
+        API_EXTERNA = "api_externa", "API externa"
+        SENSOR_IOT = "sensor_iot", "Sensor IoT"
+        SISTEMA = "sistema", "Sistema"
+
+    class EstadoValidacion(models.TextChoices):
+        PENDIENTE = "pendiente", "Pendiente"
+        VALIDADO = "validado", "Validado"
+        RECHAZADO = "rechazado", "Rechazado"
+
     organizacion = models.ForeignKey(Organizacion, on_delete=models.PROTECT, related_name="registros_emision", null=True, blank=True)
     obra = models.ForeignKey(Obra, on_delete=models.CASCADE, related_name="registros_emision", null=True, blank=True)
     etapa = models.ForeignKey(EtapaObra, on_delete=models.PROTECT, related_name="registros_emision", null=True, blank=True)
@@ -402,6 +416,18 @@ class RegistroEmision(models.Model):
     emisiones_kg_co2e = models.DecimalField(max_digits=14, decimal_places=3, editable=False)
     fecha = models.DateField(null=True, blank=True)
     proveedor = models.CharField(max_length=180, blank=True)
+    numero_documento = models.CharField(max_length=120, blank=True)
+    area_operacional = models.CharField(max_length=180, blank=True)
+    unidad_operacional = models.CharField(max_length=180, blank=True)
+    identificador_externo = models.CharField(max_length=180, blank=True)
+    tipo_ingreso = models.CharField(max_length=30, choices=TipoIngreso.choices, default=TipoIngreso.SISTEMA, db_index=True)
+    fuente_ingreso = models.CharField(max_length=180, blank=True)
+    estado_validacion = models.CharField(
+        max_length=20,
+        choices=EstadoValidacion.choices,
+        default=EstadoValidacion.PENDIENTE,
+        db_index=True,
+    )
     origen_transporte = models.CharField(max_length=240, blank=True)
     destino_transporte = models.CharField(max_length=240, blank=True)
     distancia_km = models.DecimalField(max_digits=12, decimal_places=3, null=True, blank=True)
@@ -417,6 +443,9 @@ class RegistroEmision(models.Model):
             models.Index(fields=["organizacion_id", "fecha"]),
             models.Index(fields=["organizacion_id", "categoria"]),
             models.Index(fields=["organizacion_id", "actividad_key"]),
+            models.Index(fields=["organizacion_id", "tipo_ingreso"]),
+            models.Index(fields=["organizacion_id", "estado_validacion"]),
+            models.Index(fields=["organizacion_id", "identificador_externo"]),
             models.Index(fields=["obra_id", "categoria"]),
             models.Index(fields=["etapa_id", "categoria"]),
             models.Index(fields=["lote_forestal_id"]),

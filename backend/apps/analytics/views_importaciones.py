@@ -25,6 +25,7 @@ from .models import (
     RegistroEmision,
     UsuarioOrganizacion,
 )
+from .services.environmental_records import create_environmental_record
 
 BATCH_PREFIX = "importaciones"
 BATCH_TTL = 60 * 60
@@ -904,23 +905,38 @@ def save_registros(rows, organizacion=None):
             or (obra.organizacion if obra else None)
             or (etapa.organizacion if etapa else None)
         )
-        RegistroEmision.objects.create(
-            organizacion=owner,
-            obra=obra,
-            etapa=etapa,
-            categoria=normalize_category(
+        fuente_dato = str(data.get("fuente_dato") or "excel").strip().lower()
+        tipo_ingreso = (
+            RegistroEmision.TipoIngreso.CSV
+            if "csv" in fuente_dato
+            else RegistroEmision.TipoIngreso.EXCEL
+        )
+        create_environmental_record(
+            {
+            "obra": obra,
+            "etapa": etapa,
+            "categoria": normalize_category(
                 data.get("categoria"), data.get("fuente_emision")
             ),
-            fuente_emision=data.get("fuente_emision") or "Fuente importada",
-            cantidad=dec(data.get("cantidad"), Decimal("0")),
-            unidad=data.get("unidad") or "unidad",
-            factor_emision=dec(data.get("factor_emision"), Decimal("0")),
-            fecha=as_date(data.get("fecha")),
-            observaciones=data.get("observaciones", ""),
-            metadata={
+            "fuente_emision": data.get("fuente_emision") or "Fuente importada",
+            "cantidad": dec(data.get("cantidad"), Decimal("0")),
+            "unidad": data.get("unidad") or "unidad",
+            "factor_emision": dec(data.get("factor_emision"), Decimal("0")),
+            "fecha": as_date(data.get("fecha")),
+            "proveedor": data.get("proveedor", ""),
+            "numero_documento": data.get("numero_documento", ""),
+            "area_operacional": data.get("area_operacional", ""),
+            "unidad_operacional": data.get("unidad_operacional", ""),
+            "identificador_externo": data.get("registro_id", ""),
+            "observaciones": data.get("observaciones", ""),
+            "metadata": {
                 "registro_import_id": data.get("registro_id", ""),
-                "fuente_dato": data.get("fuente_dato", ""),
+                "fuente_dato": fuente_dato,
             },
+            },
+            organizacion=owner,
+            tipo_ingreso=tipo_ingreso,
+            fuente_ingreso=fuente_dato,
         )
         created += 1
     return {

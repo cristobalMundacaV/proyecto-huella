@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from .models import (
@@ -265,9 +266,11 @@ class RegistroEmisionSerializer(serializers.ModelSerializer):
     etapa_nombre = serializers.CharField(source="etapa.nombre", read_only=True)
     evidencia_asociada = serializers.SerializerMethodField()
     lote_forestal_id = serializers.CharField(source="lote_forestal.lote_id", read_only=True)
+    actividad = serializers.CharField(source="fuente_emision", required=False)
 
     class Meta:
         model = RegistroEmision
+        extra_kwargs = {"fuente_emision": {"required": False}}
         fields = [
             "id",
             "organizacion",
@@ -281,6 +284,7 @@ class RegistroEmisionSerializer(serializers.ModelSerializer):
             "lote_forestal",
             "lote_forestal_id",
             "categoria",
+            "actividad",
             "fuente_emision",
             "actividad_key",
             "factor_emision_id",
@@ -290,6 +294,13 @@ class RegistroEmisionSerializer(serializers.ModelSerializer):
             "emisiones_kg_co2e",
             "fecha",
             "proveedor",
+            "numero_documento",
+            "area_operacional",
+            "unidad_operacional",
+            "identificador_externo",
+            "tipo_ingreso",
+            "fuente_ingreso",
+            "estado_validacion",
             "origen_transporte",
             "destino_transporte",
             "distancia_km",
@@ -323,7 +334,32 @@ class RegistroEmisionSerializer(serializers.ModelSerializer):
             attrs["categoria"] = factor.categoria
             attrs["unidad"] = factor.unidad
             attrs["factor_emision"] = factor.factor_emision
+        if self.instance is None:
+            for field in ("fecha", "cantidad", "unidad", "fuente_emision", "categoria"):
+                if attrs.get(field) in (None, ""):
+                    raise serializers.ValidationError({field: "Este campo es requerido."})
+            if attrs["cantidad"] <= 0:
+                raise serializers.ValidationError({"cantidad": "Debe ser mayor que cero."})
+            attrs["unidad"] = attrs["unidad"].strip()
+            if not attrs["unidad"]:
+                raise serializers.ValidationError({"unidad": "Este campo es requerido."})
         return attrs
+
+    def create(self, validated_data):
+        from .services.environmental_records import create_environmental_record
+
+        organizacion = validated_data.pop("organizacion", None)
+        tipo_ingreso = validated_data.pop("tipo_ingreso", RegistroEmision.TipoIngreso.MANUAL)
+        fuente_ingreso = validated_data.pop("fuente_ingreso", "") or tipo_ingreso
+        try:
+            return create_environmental_record(
+                validated_data,
+                organizacion=organizacion,
+                tipo_ingreso=tipo_ingreso,
+                fuente_ingreso=fuente_ingreso,
+            )
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(getattr(exc, "message_dict", {"detail": exc.messages}))
 
     def get_evidencia_asociada(self, registro):
         evidencia = registro.evidencias.order_by("-created_at").first()
@@ -688,6 +724,9 @@ class DocumentoAmbientalSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
+        initial = getattr(self, "initial_data", {})
+        if not attrs.get("fuente_emision") and initial.get("actividad"):
+            attrs["fuente_emision"] = str(initial["actividad"]).strip()
         organizacion = attrs.get("organizacion") or getattr(self.instance, "organizacion", None) or self.context.get("organizacion")
         if organizacion:
             for field in ["obra", "etapa", "registro_emision"]:

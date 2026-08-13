@@ -125,6 +125,8 @@ class SensorIngestionApiTests(TestCase):
         self.assertEqual(registro_sensor.co2e_estimado, Decimal("28.140"))
         self.assertEqual(RegistroEmision.objects.count(), 1)
         self.assertEqual(RegistroEmision.objects.get().metadata["origen"], "iot_sensor")
+        self.assertEqual(RegistroEmision.objects.get().tipo_ingreso, RegistroEmision.TipoIngreso.SENSOR_IOT)
+        self.assertEqual(RegistroEmision.objects.get().identificador_externo, "msg-001")
 
     def test_ingesta_es_idempotente_por_external_id(self):
         payload = {
