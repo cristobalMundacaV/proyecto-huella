@@ -153,6 +153,7 @@ class ConfiguracionOrganizacion(models.Model):
     reporte_unidad_visual_emisiones = models.CharField(max_length=20, default="kg CO2e")
     reporte_lectura_ejecutiva = models.BooleanField(default=True)
     reporte_equivalencias = models.BooleanField(default=True)
+    meta_emisiones_kg_co2e = models.DecimalField(max_digits=16, decimal_places=3, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1006,6 +1007,52 @@ class TransporteLoteForestal(models.Model):
 
     def __str__(self):
         return f"{self.lote_forestal.lote_id} - {self.patente or self.fecha}"
+
+
+class DatoACV(models.Model):
+    class Etapa(models.TextChoices):
+        MATERIA_PRIMA = "materia_prima", "Materia prima"
+        FABRICACION = "fabricacion", "Fabricacion"
+        TRANSPORTE = "transporte", "Transporte"
+        USO_OPERACION = "uso_operacion", "Uso / operacion"
+        MANTENCION = "mantencion", "Mantencion"
+        FIN_VIDA = "fin_vida", "Fin de vida"
+        REUTILIZACION_RECICLAJE_DISPOSICION = "reutilizacion_reciclaje_disposicion", "Reutilizacion / reciclaje / disposicion"
+
+    class CalidadDato(models.TextChoices):
+        MEDIDO = "medido", "Medido"
+        CALCULADO = "calculado", "Calculado"
+        REFERENCIAL = "referencial", "Referencial"
+        DESCONOCIDO = "desconocido", "Desconocido"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="datos_acv")
+    material_producto = models.CharField(max_length=240)
+    obra = models.ForeignKey(Obra, on_delete=models.SET_NULL, null=True, blank=True, related_name="datos_acv")
+    lote_forestal = models.ForeignKey(LoteForestal, on_delete=models.SET_NULL, null=True, blank=True, related_name="datos_acv")
+    etapa = models.CharField(max_length=50, choices=Etapa.choices)
+    valor = models.DecimalField(max_digits=16, decimal_places=6)
+    unidad = models.CharField(max_length=40)
+    fuente = models.CharField(max_length=240)
+    evidencias = models.ManyToManyField(EvidenciaObra, blank=True, related_name="datos_acv")
+    documentos = models.ManyToManyField(DocumentoAmbiental, blank=True, related_name="datos_acv")
+    calidad_dato = models.CharField(max_length=20, choices=CalidadDato.choices, default=CalidadDato.DESCONOCIDO)
+    origen_dato = models.CharField(max_length=120, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["material_producto", "etapa"]
+        indexes = [models.Index(fields=["organizacion", "etapa"])]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.valor is None or self.valor < 0:
+            raise ValidationError({"valor": "No puede ser negativo."})
+        for field in ("obra", "lote_forestal"):
+            relation = getattr(self, field)
+            if relation and relation.organizacion_id != self.organizacion_id:
+                raise ValidationError({field: "Debe pertenecer a la organizacion."})
 
 
 class HistorialCambioObra(models.Model):

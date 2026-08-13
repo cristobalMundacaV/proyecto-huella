@@ -11,6 +11,7 @@ from apps.analytics.models import (
     RegistroEmision,
     VariableAmbientalExtraida,
 )
+from apps.analytics.services.environmental_engine import valid_accountable_records
 
 
 AVAILABLE = "available"
@@ -157,7 +158,7 @@ def emisiones_sum(registros, *, categoria_contains=None):
 
 def build_common_context(organizacion):
     registros = list(
-        RegistroEmision.objects.filter(organizacion=organizacion).select_related("obra", "etapa")
+        valid_accountable_records(organizacion).select_related("obra", "etapa")
     )
     documentos = DocumentoAmbiental.objects.filter(organizacion=organizacion)
     variables = list(

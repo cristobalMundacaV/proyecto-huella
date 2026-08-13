@@ -82,6 +82,7 @@ from .views_importaciones import (
     plantilla_importacion_generica,
 )
 from .views_recommendations import recommendation_context, recomendaciones
+from .views_environmental_engine import environmental_engine_results, environmental_lca_results
 
 urlpatterns = [
     path("auth/me/", auth_me),
@@ -120,6 +121,8 @@ urlpatterns = [
     path("organizaciones/<str:organizacion_id>/alertas-cumplimiento/", alertas_cumplimiento),
     path("organizaciones/<str:organizacion_id>/alertas-cumplimiento/<int:alerta_id>/", alerta_cumplimiento_detail),
     path("organizaciones/<str:organizacion_id>/cumplimiento-ambiental/resumen/", cumplimiento_ambiental_resumen),
+    path("organizaciones/<str:organizacion_id>/motor-ambiental/", environmental_engine_results),
+    path("organizaciones/<str:organizacion_id>/acv/", environmental_lca_results),
     path("environmental/kpis/<str:organizacion_id>/", environmental_kpis),
     path("environmental/recommendations/<str:organizacion_id>/", environmental_recommendations),
     path("environmental/scenarios/<str:organizacion_id>/", environmental_scenarios),
