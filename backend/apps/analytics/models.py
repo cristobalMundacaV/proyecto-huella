@@ -2449,6 +2449,15 @@ class ComandoCopiloto(models.Model):
 
 
 class ExpedienteAmbiental(models.Model):
+    class Estado(models.TextChoices):
+        ABIERTO = "abierto", "Abierto"
+        RECOPILANDO = "recopilando_antecedentes", "Recopilando antecedentes"
+        EN_REVISION = "en_revision", "En revision"
+        REQUIERE_ANTECEDENTES = "requiere_antecedentes", "Requiere antecedentes"
+        VALIDADO = "validado", "Validado"
+        CERRADO = "cerrado", "Cerrado"
+        REABIERTO = "reabierto", "Reabierto"
+
     problematica = models.ForeignKey(ProblematicaAmbiental, on_delete=models.CASCADE, related_name="expedientes")
     version = models.PositiveIntegerField(default=1)
     contenido_procesado = models.JSONField(default=dict)
@@ -2456,8 +2465,168 @@ class ExpedienteAmbiental(models.Model):
     proveedor_resumen = models.CharField(max_length=80, blank=True)
     modelo_resumen = models.CharField(max_length=120, blank=True)
     generado_por = models.CharField(max_length=150, blank=True)
+    estado = models.CharField(max_length=35, choices=Estado.choices, default=Estado.ABIERTO)
+    responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="expedientes_ambientales_responsable")
+    referencias = models.JSONField(default=dict, blank=True)
+    cerrado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="expedientes_ambientales_cerrados")
+    cerrado_at = models.DateTimeField(null=True, blank=True)
+    reabierto_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="expedientes_ambientales_reabiertos")
+    reabierto_at = models.DateTimeField(null=True, blank=True)
+    motivo_reapertura = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-version", "-created_at"]
         constraints = [models.UniqueConstraint(fields=["problematica", "version"], name="unique_expediente_problematica_version")]
+
+
+class RevisionProfesionalAmbiental(models.Model):
+    class Tipo(models.TextChoices):
+        EVIDENCIA = "evidencia", "Evidencia"
+        OBSERVACION = "observacion", "Observacion"
+        CALCULO = "calculo", "Calculo"
+        INDICADOR = "indicador", "Indicador"
+        PROBLEMATICA = "problematica", "Problematica"
+        INTERVENCION = "intervencion", "Intervencion"
+        EXPEDIENTE = "expediente", "Expediente"
+    class Estado(models.TextChoices):
+        PENDIENTE = "pendiente", "Pendiente"
+        VALIDADA = "validada", "Validada"
+        VALIDADA_OBSERVACIONES = "validada_con_observaciones", "Validada con observaciones"
+        SOLICITA_ANTECEDENTES = "solicita_antecedentes", "Solicita antecedentes"
+        RECHAZADA = "rechazada", "Rechazada"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="revisiones_profesionales")
+    tipo = models.CharField(max_length=25, choices=Tipo.choices)
+    evidencia = models.ForeignKey(EvidenciaObra, on_delete=models.PROTECT, null=True, blank=True, related_name="revisiones_profesionales")
+    observacion = models.ForeignKey(Observacion, on_delete=models.PROTECT, null=True, blank=True, related_name="revisiones_profesionales")
+    calculo = models.ForeignKey(CalculoAmbiental, on_delete=models.PROTECT, null=True, blank=True, related_name="revisiones_profesionales")
+    indicador = models.ForeignKey(IndicadorAmbiental, on_delete=models.PROTECT, null=True, blank=True, related_name="revisiones_profesionales")
+    problematica = models.ForeignKey(ProblematicaAmbiental, on_delete=models.PROTECT, null=True, blank=True, related_name="revisiones_profesionales")
+    intervencion = models.ForeignKey(ResultadoIntervencion, on_delete=models.PROTECT, null=True, blank=True, related_name="revisiones_profesionales")
+    expediente = models.ForeignKey(ExpedienteAmbiental, on_delete=models.PROTECT, null=True, blank=True, related_name="revisiones_profesionales")
+    estado = models.CharField(max_length=35, choices=Estado.choices, default=Estado.PENDIENTE, db_index=True)
+    profesional = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name="revisiones_profesionales")
+    profesional_nombre = models.CharField(max_length=180, blank=True)
+    profesional_cargo = models.CharField(max_length=120, blank=True)
+    fecha = models.DateTimeField(null=True, blank=True)
+    conclusion = models.TextField(blank=True)
+    observaciones = models.TextField(blank=True)
+    antecedentes_solicitados = models.JSONField(default=list, blank=True)
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.pk and RevisionProfesionalAmbiental.objects.filter(pk=self.pk, estado__in=[self.Estado.VALIDADA, self.Estado.VALIDADA_OBSERVACIONES, self.Estado.RECHAZADA]).exists():
+            from django.core.exceptions import ValidationError
+            raise ValidationError("Una revision profesional decidida es inmutable; cree una nueva version.")
+        super().save(*args, **kwargs)
+
+
+class HallazgoRevisionProfesional(models.Model):
+    class Tipo(models.TextChoices):
+        OBSERVACION = "observacion", "Observacion"
+        INCONSISTENCIA = "inconsistencia", "Inconsistencia"
+        FALTA_ANTECEDENTE = "falta_antecedente", "Falta antecedente"
+        CORRECCION = "correccion_requerida", "Correccion requerida"
+        VALIDACION = "validacion", "Validacion"
+        RECOMENDACION = "recomendacion", "Recomendacion"
+    class Severidad(models.TextChoices):
+        BAJA = "baja", "Baja"
+        MEDIA = "media", "Media"
+        ALTA = "alta", "Alta"
+        CRITICA = "critica", "Critica"
+
+    revision = models.ForeignKey(RevisionProfesionalAmbiental, on_delete=models.PROTECT, related_name="hallazgos")
+    tipo = models.CharField(max_length=30, choices=Tipo.choices)
+    severidad = models.CharField(max_length=15, choices=Severidad.choices, default=Severidad.MEDIA)
+    observacion = models.TextField()
+    recomendacion = models.TextField(blank=True)
+    requerimiento = models.TextField(blank=True)
+    decision = models.TextField(blank=True)
+    referencia_tecnica = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class CorreccionHistoricaAmbiental(models.Model):
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="correcciones_historicas")
+    observacion_afectada = models.ForeignKey(Observacion, on_delete=models.PROTECT, null=True, blank=True, related_name="correcciones_historicas")
+    calculo_afectado = models.ForeignKey(CalculoAmbiental, on_delete=models.PROTECT, null=True, blank=True, related_name="correcciones_historicas")
+    impacto_afectado = models.ForeignKey(ImpactoAmbiental, on_delete=models.PROTECT, null=True, blank=True, related_name="correcciones_historicas")
+    snapshot_afectado = models.ForeignKey(SnapshotIntervencion, on_delete=models.PROTECT, null=True, blank=True, related_name="correcciones_historicas")
+    resultado_afectado = models.ForeignKey(ResultadoIntervencion, on_delete=models.PROTECT, null=True, blank=True, related_name="correcciones_historicas")
+    motivo = models.TextField()
+    valor_estado_anterior = models.JSONField(default=dict)
+    propuesta_corregida = models.JSONField(default=dict)
+    autor = models.ForeignKey(User, on_delete=models.PROTECT, related_name="correcciones_historicas")
+    fecha = models.DateTimeField(auto_now_add=True)
+    revision_origen = models.ForeignKey(RevisionProfesionalAmbiental, on_delete=models.PROTECT, related_name="correcciones_historicas")
+    version = models.PositiveIntegerField(default=1)
+    recalculo_generado = models.ForeignKey(CalculoAmbiental, on_delete=models.PROTECT, null=True, blank=True, related_name="correcciones_origen")
+
+
+class EventoAuditoriaAmbiental(models.Model):
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="eventos_auditoria_ambiental")
+    tipo = models.SlugField(max_length=80, db_index=True)
+    actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="eventos_auditoria_ambiental")
+    entidad = models.CharField(max_length=80)
+    referencia = models.CharField(max_length=120)
+    resumen = models.TextField()
+    metadata_auditable = models.JSONField(default=dict, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-timestamp", "-id"]
+
+
+class InformeAmbiental(models.Model):
+    class Tipo(models.TextChoices):
+        ACTIVIDAD = "actividad", "Actividad"
+        PROBLEMATICA = "problematica", "Problematica"
+        INTERVENCION = "intervencion", "Intervencion"
+        EXPEDIENTE = "expediente", "Expediente"
+    class Estado(models.TextChoices):
+        BORRADOR = "borrador", "Borrador"
+        GENERADO = "generado", "Generado"
+        REVISADO = "revisado", "Revisado"
+        VALIDADO = "validado", "Validado"
+        OBSOLETO = "obsoleto", "Obsoleto"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="informes_ambientales")
+    tipo = models.CharField(max_length=20, choices=Tipo.choices)
+    actividad = models.ForeignKey(ActividadOperacional, on_delete=models.PROTECT, null=True, blank=True, related_name="informes_ambientales")
+    problematica = models.ForeignKey(ProblematicaAmbiental, on_delete=models.PROTECT, null=True, blank=True, related_name="informes_ambientales")
+    intervencion = models.ForeignKey(ResultadoIntervencion, on_delete=models.PROTECT, null=True, blank=True, related_name="informes_ambientales")
+    expediente = models.ForeignKey(ExpedienteAmbiental, on_delete=models.PROTECT, null=True, blank=True, related_name="informes")
+    version = models.PositiveIntegerField()
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.BORRADOR)
+    generado_por = models.ForeignKey(User, on_delete=models.PROTECT, related_name="informes_ambientales_generados")
+    fecha = models.DateTimeField(default=timezone.now)
+    checksum_sha256 = models.CharField(max_length=64, blank=True)
+    archivo = models.FileField(upload_to="informes_ambientales/%Y/%m/", blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    validado_por = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name="informes_ambientales_validados")
+    validado_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["organizacion", "tipo", "actividad", "problematica", "intervencion", "expediente", "version"], name="unique_informe_ambiental_version")]
+
+    def save(self, *args, **kwargs):
+        if self.pk and InformeAmbiental.objects.filter(pk=self.pk, estado=self.Estado.VALIDADO).exists():
+            from django.core.exceptions import ValidationError
+            raise ValidationError("Un informe validado es inmutable; genere una nueva version.")
+        super().save(*args, **kwargs)
+
+
+class SnapshotInformeAmbiental(models.Model):
+    informe = models.OneToOneField(InformeAmbiental, on_delete=models.PROTECT, related_name="snapshot")
+    contenido = models.JSONField(default=dict)
+    referencias = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            from django.core.exceptions import ValidationError
+            raise ValidationError("El snapshot de informe es inmutable.")
+        super().save(*args, **kwargs)
