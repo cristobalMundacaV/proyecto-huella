@@ -1324,6 +1324,171 @@ class ImpactoAmbiental(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
+class EvaluacionCalidadDato(models.Model):
+    class Estado(models.TextChoices):
+        CONFIABLE = "confiable", "Confiable"
+        CONFIABLE_OBSERVACIONES = "confiable_con_observaciones", "Confiable con observaciones"
+        INCOMPLETO = "incompleto", "Incompleto"
+        REQUIERE_REVISION = "requiere_revision", "Requiere revision"
+        NO_CONFIABLE = "no_confiable", "No confiable"
+        NO_CALCULABLE = "no_calculable", "No calculable"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="evaluaciones_calidad")
+    observacion = models.ForeignKey(Observacion, on_delete=models.PROTECT, related_name="evaluaciones_calidad")
+    estado = models.CharField(max_length=40, choices=Estado.choices, db_index=True)
+    motivos = models.JSONField(default=list, blank=True)
+    dimensiones = models.JSONField(default=dict, blank=True)
+    fecha_evaluacion = models.DateTimeField(auto_now_add=True)
+    version_reglas = models.CharField(max_length=30, default="calidad-v1")
+    automatica = models.BooleanField(default=True)
+    evaluado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="evaluaciones_calidad")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.observacion_id and self.observacion.organizacion_id != self.organizacion_id:
+            raise ValidationError({"observacion": "La observacion pertenece a otra organizacion."})
+
+
+class DiscrepanciaDato(models.Model):
+    class Estado(models.TextChoices):
+        DETECTADA = "detectada", "Detectada"
+        REQUIERE_REVISION = "requiere_revision", "Requiere revision"
+        RESUELTA = "resuelta", "Resuelta"
+        ACEPTADA = "aceptada", "Aceptada"
+        DESCARTADA = "descartada", "Descartada"
+    class Severidad(models.TextChoices):
+        BAJA = "baja", "Baja"
+        MEDIA = "media", "Media"
+        ALTA = "alta", "Alta"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="discrepancias_dato")
+    actividad = models.ForeignKey(ActividadOperacional, on_delete=models.SET_NULL, null=True, blank=True, related_name="discrepancias")
+    concepto = models.SlugField(max_length=120, db_index=True)
+    observaciones = models.ManyToManyField(Observacion, related_name="discrepancias")
+    estado = models.CharField(max_length=30, choices=Estado.choices, default=Estado.DETECTADA)
+    diferencia_absoluta = models.DecimalField(max_digits=24, decimal_places=10, null=True, blank=True)
+    diferencia_relativa = models.DecimalField(max_digits=16, decimal_places=8, null=True, blank=True)
+    severidad = models.CharField(max_length=15, choices=Severidad.choices, default=Severidad.MEDIA)
+    resolucion = models.TextField(blank=True)
+    observacion_seleccionada = models.ForeignKey(Observacion, on_delete=models.PROTECT, null=True, blank=True, related_name="discrepancias_seleccionada")
+    motivo = models.TextField(blank=True)
+    responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="discrepancias_responsable")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.actividad_id and self.actividad.organizacion_id != self.organizacion_id:
+            raise ValidationError({"actividad": "La actividad pertenece a otra organizacion."})
+        if self.observacion_seleccionada_id and self.observacion_seleccionada.organizacion_id != self.organizacion_id:
+            raise ValidationError({"observacion_seleccionada": "La observacion pertenece a otra organizacion."})
+
+
+class PoliticaConfianzaFuente(models.Model):
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, null=True, blank=True, related_name="politicas_confianza_fuente")
+    concepto = models.SlugField(max_length=120)
+    tipo_fuente = models.CharField(max_length=30, choices=FuenteDatos.Tipo.choices)
+    prioridad = models.PositiveIntegerField()
+    activa = models.BooleanField(default=True)
+    descripcion = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["concepto", "tipo_fuente"], condition=Q(organizacion__isnull=True), name="unique_politica_fuente_global"),
+            models.UniqueConstraint(fields=["organizacion", "concepto", "tipo_fuente"], condition=Q(organizacion__isnull=False), name="unique_politica_fuente_tenant"),
+        ]
+
+
+class IndicadorAmbiental(models.Model):
+    class Tipo(models.TextChoices):
+        ABSOLUTO = "absoluto", "Absoluto"
+        INTENSIDAD = "intensidad", "Intensidad"
+        OPERACIONAL = "operacional", "Operacional"
+        PROBLEMATICA = "problematica", "Problematica"
+    class DireccionDeseable(models.TextChoices):
+        MENOR = "menor_es_mejor", "Menor es mejor"
+        MAYOR = "mayor_es_mejor", "Mayor es mejor"
+        NEUTRAL = "neutral", "Neutral"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="indicadores_ambientales_v2")
+    codigo = models.SlugField(max_length=120)
+    nombre = models.CharField(max_length=200)
+    tipo = models.CharField(max_length=20, choices=Tipo.choices)
+    unidad = models.CharField(max_length=60)
+    descripcion = models.TextField(blank=True)
+    origen_numerador = models.CharField(max_length=120)
+    origen_denominador = models.CharField(max_length=120, blank=True)
+    direccion_deseable = models.CharField(max_length=25, choices=DireccionDeseable.choices, default=DireccionDeseable.NEUTRAL)
+    activo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["organizacion", "codigo"], name="unique_indicador_codigo_org")]
+
+
+class ValorIndicador(models.Model):
+    indicador = models.ForeignKey(IndicadorAmbiental, on_delete=models.PROTECT, related_name="valores")
+    periodo_inicio = models.DateField(db_index=True)
+    periodo_fin = models.DateField()
+    valor = models.DecimalField(max_digits=24, decimal_places=10)
+    unidad = models.CharField(max_length=60)
+    fuente_calculo = models.CharField(max_length=160)
+    version = models.PositiveIntegerField(default=1)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["periodo_inicio", "version"]
+        constraints = [models.UniqueConstraint(fields=["indicador", "periodo_inicio", "periodo_fin", "version"], name="unique_valor_indicador_version")]
+
+
+class LineaBaseAmbiental(models.Model):
+    class Estado(models.TextChoices):
+        CONSTRUYENDO = "construyendo", "Construyendo"
+        SUFICIENTE = "suficiente", "Suficiente"
+        REQUIERE_REVISION = "requiere_revision", "Requiere revision"
+        CERRADA = "cerrada", "Cerrada"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="lineas_base_ambientales")
+    indicador = models.ForeignKey(IndicadorAmbiental, on_delete=models.PROTECT, related_name="lineas_base")
+    periodo_inicio = models.DateField(null=True, blank=True)
+    periodo_fin = models.DateField(null=True, blank=True)
+    metodo = models.CharField(max_length=80, default="promedio_periodos")
+    estado = models.CharField(max_length=30, choices=Estado.choices, default=Estado.CONSTRUYENDO)
+    valor_base = models.DecimalField(max_digits=24, decimal_places=10, null=True, blank=True)
+    cantidad_periodos = models.PositiveIntegerField(default=0)
+    observaciones = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.indicador_id and self.indicador.organizacion_id != self.organizacion_id:
+            raise ValidationError({"indicador": "El indicador pertenece a otra organizacion."})
+
+
+class PeriodoComparable(models.Model):
+    class Regla(models.TextChoices):
+        MISMO_MES_ANTERIOR = "mismo_mes_anio_anterior", "Mismo mes del ano anterior"
+        ANTERIOR_EQUIVALENTE = "periodo_anterior_equivalente", "Periodo anterior equivalente"
+        MANUAL = "manual", "Manual"
+
+    indicador = models.ForeignKey(IndicadorAmbiental, on_delete=models.CASCADE, related_name="periodos_comparables")
+    periodo_actual_inicio = models.DateField()
+    periodo_actual_fin = models.DateField()
+    periodo_referencia_inicio = models.DateField()
+    periodo_referencia_fin = models.DateField()
+    regla = models.CharField(max_length=40, choices=Regla.choices)
+    motivo_comparabilidad = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["indicador", "periodo_actual_inicio", "periodo_actual_fin"], name="unique_periodo_comparable_indicador")]
+
+
 class DocumentoAmbiental(models.Model):
     class FuenteOrigen(models.TextChoices):
         MANUAL = "manual", "Manual"

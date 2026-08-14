@@ -115,6 +115,10 @@ from .views_sensors_v2 import (calibraciones, instalaciones, lecturas_sensor_v2,
 from .views_calculation_v2 import (calcular_actividad, calculo_detail, calculos_actividad,
                                    elegibilidad_actividad, factores_ambientales, impactos_ambientales,
                                    metodologia_detail, metodologias)
+from .views_quality_v2 import (calidad_observaciones, comparacion_indicador,
+                               discrepancia_detail, discrepancias, indicadores,
+                               lineas_base, politicas_fuente, resumen_ambiental_v2,
+                               serie_indicador)
 
 urlpatterns = [
     path("capacidades-ambientales/", capacidades_disponibles),
@@ -165,6 +169,15 @@ urlpatterns = [
     path("organizaciones/<str:organizacion_id>/actividades-operacionales/<int:actividad_id>/calculos/", calculos_actividad),
     path("organizaciones/<str:organizacion_id>/calculos/<int:calculo_id>/", calculo_detail),
     path("organizaciones/<str:organizacion_id>/impactos-ambientales/", impactos_ambientales),
+    path("organizaciones/<str:organizacion_id>/calidad/observaciones/", calidad_observaciones),
+    path("organizaciones/<str:organizacion_id>/discrepancias/", discrepancias),
+    path("organizaciones/<str:organizacion_id>/discrepancias/<int:discrepancia_id>/", discrepancia_detail),
+    path("organizaciones/<str:organizacion_id>/politicas-fuente/", politicas_fuente),
+    path("organizaciones/<str:organizacion_id>/indicadores/", indicadores),
+    path("organizaciones/<str:organizacion_id>/indicadores/<int:indicador_id>/serie/", serie_indicador),
+    path("organizaciones/<str:organizacion_id>/indicadores/<int:indicador_id>/comparacion/", comparacion_indicador),
+    path("organizaciones/<str:organizacion_id>/lineas-base/", lineas_base),
+    path("organizaciones/<str:organizacion_id>/resumen-ambiental-v2/", resumen_ambiental_v2),
     path("organizaciones/<str:organizacion_id>/estado/", organizacion_estado),
     path("organizaciones/<str:organizacion_id>/configuracion/", organizacion_configuracion),
     path("organizaciones/<str:organizacion_id>/dashboard/", organizacion_dashboard),

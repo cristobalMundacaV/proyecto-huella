@@ -1,6 +1,7 @@
 from django.db.models import Q
 
 from ..models import Observacion, VersionFactorAmbiental
+from .observation_resolver import resolve_observation
 
 
 def active_factor_version(formula, organizacion):
@@ -19,19 +20,17 @@ def evaluate_formula(actividad, formula):
     if not factor_version:
         reasons.append("No existe una version activa y aplicable del factor.")
     for variable in formula.variables.all():
-        observations = list(actividad.observaciones.filter(
-            concepto=variable.concepto_observacion,
-        ).exclude(estado=Observacion.Estado.RECHAZADA).select_related("fuente", "evidencia", "version_evidencia"))
-        if len(observations) > 1:
+        resolution = resolve_observation(actividad, variable.concepto_observacion)
+        observation = resolution["observacion"]
+        if resolution["estado"] == "requiere_revision":
             reasons.append(f"Existen multiples observaciones para {variable.concepto_observacion}; requiere revision.")
             continue
-        if not observations:
+        if not observation:
             if variable.obligatoria:
                 reasons.append(f"Falta la variable critica {variable.concepto_observacion}.")
             else:
                 warnings.append(f"Falta la variable complementaria {variable.concepto_observacion}.")
             continue
-        observation = observations[0]
         if observation.valor_numerico is None:
             reasons.append(f"{variable.concepto_observacion} no tiene valor numerico.")
         elif observation.unidad.lower() != variable.unidad_esperada.lower():

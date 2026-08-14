@@ -3,6 +3,7 @@ import { Leaf } from "lucide-react";
 
 import RealtimeIotMonitoring from "@/features/dashboard/components/RealtimeIotMonitoring";
 import ExecutiveSummary from "@/features/dashboard/components/ExecutiveSummary";
+import EnvironmentalSummaryV2 from "@/features/quality/components/EnvironmentalSummaryV2";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { getEnvironmentalKpis } from "@/features/environmental/services/environmentalKpiApi";
 import PlatformLoader from "@/shared/components/PlatformLoader";
@@ -173,18 +174,19 @@ function truncateLabel(value, max = 24) {
 }
 
 function InteractiveDonut({ activeItem, items, onHover, onLeave, total, totalLabel }) {
-  let accumulated = 0;
   const currentItem = activeItem;
+  const segments = items.reduce((result, item) => {
+    const dash = Math.max((item.share / 100) * DONUT_CIRCUMFERENCE, 0.2);
+    return { accumulated: result.accumulated + dash, items: [...result.items, { ...item, dash, offset: result.accumulated }] };
+  }, { accumulated: 0, items: [] }).items;
 
   return (
     <div className="relative h-[240px] w-[240px]">
       <svg viewBox={`0 0 ${DONUT_SIZE} ${DONUT_SIZE}`} className="h-full w-full overflow-visible" role="img" aria-label="Dona interactiva de participación de emisiones">
         <circle cx={DONUT_CENTER} cy={DONUT_CENTER} r={DONUT_RADIUS} fill="none" stroke="#E2E8F0" strokeWidth="28" />
         <g transform={`rotate(-90 ${DONUT_CENTER} ${DONUT_CENTER})`}>
-          {items.map((item) => {
-            const dash = Math.max((item.share / 100) * DONUT_CIRCUMFERENCE, 0.2);
-            const offset = accumulated;
-            accumulated += dash;
+          {segments.map((item) => {
+            const { dash, offset } = item;
             const isActive = currentItem?.label === item.label;
             return (
               <circle
@@ -442,6 +444,7 @@ function DashboardPage({ onStatusChange }) {
       </section>
 
       <ExecutiveSummary fuenteCritica={criticalSource} unidadCritica={criticalStage} optimizedScenario={optimizedScenario} riskProfile={riskProfile} />
+      <EnvironmentalSummaryV2 organizacionId={activeOrganizacionId} />
 
       <section className="space-y-6">
         <EmissionParticipationPanel
