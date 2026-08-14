@@ -21,12 +21,13 @@ class ObservacionSerializer(serializers.ModelSerializer):
     fuente_detalle = FuenteDatosSerializer(source="fuente", read_only=True)
     evidencia_detalle = serializers.SerializerMethodField()
     version_evidencia_detalle = serializers.SerializerMethodField()
+    sensor_detalle = serializers.SerializerMethodField()
 
     class Meta:
         model = Observacion
         fields = ["id", "actividad", "fuente", "fuente_detalle", "concepto", "valor_numerico", "valor_texto",
                   "unidad", "timestamp_observacion", "metodo_captura", "naturaleza", "actor", "evidencia",
-                  "evidencia_detalle", "version_evidencia", "version_evidencia_detalle", "estado", "created_at", "updated_at"]
+                  "evidencia_detalle", "version_evidencia", "version_evidencia_detalle", "sensor_detalle", "estado", "created_at", "updated_at"]
         read_only_fields = ["id", "actividad", "actor", "created_at", "updated_at"]
 
     def validate(self, attrs):
@@ -77,6 +78,13 @@ class ObservacionSerializer(serializers.ModelSerializer):
         version = observacion.version_evidencia
         return {"id": version.id, "version": version.version, "nombre_original": version.nombre_original, "checksum_sha256": version.checksum_sha256}
 
+    def get_sensor_detalle(self, observacion):
+        lectura = getattr(observacion, "lectura_sensor_v2", None)
+        if not lectura:
+            return None
+        return {"id": lectura.sensor_id, "identificador": lectura.sensor.dispositivo_id, "nombre": lectura.sensor.nombre,
+                "lectura_id": lectura.id, "calidad_tecnica": lectura.calidad_tecnica}
+
 
 class ActividadOperacionalSerializer(serializers.ModelSerializer):
     unidad_nombre = serializers.CharField(source="unidad_operacional.nombre", read_only=True)
@@ -88,7 +96,7 @@ class ActividadOperacionalSerializer(serializers.ModelSerializer):
     class Meta:
         model = ActividadOperacional
         fields = ["id", "tipo", "codigo", "nombre", "timestamp_inicio", "timestamp_fin", "unidad_operacional",
-                  "unidad_nombre", "proceso_operacional", "proceso_nombre", "estado", "referencia_externa", "metadata",
+                  "unidad_nombre", "proceso_operacional", "proceso_nombre", "activos", "estado", "referencia_externa", "metadata",
                   "observaciones_count", "observaciones", "registros_emision_legacy_count", "created_at", "updated_at"]
         read_only_fields = ["id", "observaciones_count", "observaciones", "registros_emision_legacy_count", "created_at", "updated_at"]
 
@@ -100,10 +108,19 @@ class ActividadOperacionalSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"unidad_operacional": "La unidad pertenece a otra organizacion."})
         if proceso and proceso.organizacion_id != organizacion.id:
             raise serializers.ValidationError({"proceso_operacional": "El proceso pertenece a otra organizacion."})
+        if any(activo.organizacion_id != organizacion.id for activo in attrs.get("activos", [])):
+            raise serializers.ValidationError({"activos": "Todos los activos deben pertenecer a la organizacion."})
         return attrs
 
     def create(self, validated_data):
-        return crear_entidad(ActividadOperacional, organizacion=self.context["organizacion"], datos=validated_data)
+        activos = validated_data.pop("activos", [])
+        actividad = crear_entidad(ActividadOperacional, organizacion=self.context["organizacion"], datos=validated_data)
+        actividad.activos.set(activos)
+        return actividad
 
     def update(self, instance, validated_data):
-        return actualizar_entidad(instance, validated_data)
+        activos = validated_data.pop("activos", None)
+        actividad = actualizar_entidad(instance, validated_data)
+        if activos is not None:
+            actividad.activos.set(activos)
+        return actividad

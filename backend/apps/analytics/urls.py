@@ -108,6 +108,10 @@ from .views_ingestion_v2 import (
     ingesta_analizar, ingesta_confirmar, ingesta_detail, ingesta_mapeo,
     ingesta_preview, ingestas, plantillas_mapeo,
 )
+from .views_assets import (activo_detail, activos, condiciones_activo, mantenimiento_detail,
+                           mantenimientos_activo)
+from .views_sensors_v2 import (calibraciones, instalaciones, lecturas_sensor_v2, sensor_detail,
+                               sensores)
 
 urlpatterns = [
     path("capacidades-ambientales/", capacidades_disponibles),
@@ -140,6 +144,16 @@ urlpatterns = [
     path("organizaciones/<str:organizacion_id>/ingestas/<int:ingesta_id>/preview/", ingesta_preview),
     path("organizaciones/<str:organizacion_id>/ingestas/<int:ingesta_id>/confirmar/", ingesta_confirmar),
     path("organizaciones/<str:organizacion_id>/plantillas-mapeo/", plantillas_mapeo),
+    path("organizaciones/<str:organizacion_id>/activos/", activos),
+    path("organizaciones/<str:organizacion_id>/activos/<int:activo_id>/", activo_detail),
+    path("organizaciones/<str:organizacion_id>/activos/<int:activo_id>/mantenimientos/", mantenimientos_activo),
+    path("organizaciones/<str:organizacion_id>/mantenimientos/<int:mantenimiento_id>/", mantenimiento_detail),
+    path("organizaciones/<str:organizacion_id>/activos/<int:activo_id>/condiciones/", condiciones_activo),
+    path("organizaciones/<str:organizacion_id>/sensores/", sensores),
+    path("organizaciones/<str:organizacion_id>/sensores/<int:sensor_id>/", sensor_detail),
+    path("organizaciones/<str:organizacion_id>/sensores/<int:sensor_id>/instalaciones/", instalaciones),
+    path("organizaciones/<str:organizacion_id>/sensores/<int:sensor_id>/calibraciones/", calibraciones),
+    path("organizaciones/<str:organizacion_id>/sensores/<int:sensor_id>/lecturas/", lecturas_sensor_v2),
     path("organizaciones/<str:organizacion_id>/estado/", organizacion_estado),
     path("organizaciones/<str:organizacion_id>/configuracion/", organizacion_configuracion),
     path("organizaciones/<str:organizacion_id>/dashboard/", organizacion_dashboard),

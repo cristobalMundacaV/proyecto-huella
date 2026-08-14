@@ -14,6 +14,7 @@ import {
   ScanSearch,
   Settings,
   ShieldCheck,
+  Truck,
   UsersRound,
 } from "lucide-react";
 
@@ -41,6 +42,8 @@ const navigationIconMap = {
   usuarios: UsersRound,
   configuracion: Settings,
   diagnostico: ClipboardCheck,
+  activos: Truck,
+  sensores: DatabaseZap,
   recepcion_trozas: Database,
   produccion: Factory,
   secado: Flame,

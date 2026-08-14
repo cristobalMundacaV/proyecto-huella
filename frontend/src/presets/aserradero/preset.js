@@ -17,6 +17,8 @@ const aserraderoPreset = {
     { view: "dashboard", label: "Dashboard" },
     { view: "diagnostico", label: "Diagnostico Ambiental" },
     { view: "operacion", label: "Operacion" },
+    { view: "activos", label: "Activos" },
+    { view: "sensores", label: "Sensores" },
     { view: "inteligencia", label: "Inteligencia" },
     { view: "copiloto_ambiental", label: "Copiloto Ambiental" },
     { view: "acciones", label: "Acciones" },

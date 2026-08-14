@@ -20,5 +20,6 @@ def actualizar_entidad(entidad, datos):
 
 def detalle_actividad(queryset, actividad_id):
     return queryset.select_related("unidad_operacional", "proceso_operacional").prefetch_related(
-        "observaciones__fuente", "observaciones__evidencia", "observaciones__version_evidencia", "registros_emision_legacy"
+        "observaciones__fuente", "observaciones__evidencia", "observaciones__version_evidencia",
+        "observaciones__lectura_sensor_v2__sensor", "registros_emision_legacy"
     ).get(id=actividad_id)
