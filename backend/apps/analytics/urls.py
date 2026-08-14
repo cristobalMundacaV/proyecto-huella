@@ -100,6 +100,10 @@ from .views_foundation import (
     diagnostico_ambiental, preparacion_ambiental, proceso_operacional_detail,
     procesos_operacionales, unidad_operacional_detail, unidades_operacionales,
 )
+from .views_activity_core import (
+    actividad_operacional_detail, actividades_operacionales, fuente_datos_detail,
+    fuentes_datos, observacion_detail, observaciones_actividad,
+)
 
 urlpatterns = [
     path("capacidades-ambientales/", capacidades_disponibles),
@@ -119,6 +123,12 @@ urlpatterns = [
     path("organizaciones/<str:organizacion_id>/procesos-operacionales/", procesos_operacionales),
     path("organizaciones/<str:organizacion_id>/procesos-operacionales/<int:proceso_id>/", proceso_operacional_detail),
     path("organizaciones/<str:organizacion_id>/preparacion-ambiental/", preparacion_ambiental),
+    path("organizaciones/<str:organizacion_id>/fuentes-datos/", fuentes_datos),
+    path("organizaciones/<str:organizacion_id>/fuentes-datos/<int:fuente_id>/", fuente_datos_detail),
+    path("organizaciones/<str:organizacion_id>/actividades-operacionales/", actividades_operacionales),
+    path("organizaciones/<str:organizacion_id>/actividades-operacionales/<int:actividad_id>/", actividad_operacional_detail),
+    path("organizaciones/<str:organizacion_id>/actividades-operacionales/<int:actividad_id>/observaciones/", observaciones_actividad),
+    path("organizaciones/<str:organizacion_id>/observaciones/<int:observacion_id>/", observacion_detail),
     path("organizaciones/<str:organizacion_id>/estado/", organizacion_estado),
     path("organizaciones/<str:organizacion_id>/configuracion/", organizacion_configuracion),
     path("organizaciones/<str:organizacion_id>/dashboard/", organizacion_dashboard),

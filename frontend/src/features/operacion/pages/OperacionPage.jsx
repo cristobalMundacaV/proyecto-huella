@@ -12,6 +12,7 @@ import ResiduosSubproductosPage from "@/presets/aserradero/pages/ResiduosSubprod
 import LotesForestalesPage from "@/presets/aserradero/pages/LotesForestalesPage";
 import { getEmpresaRegistrosAmbientales } from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
+import ActivityCorePanel from "../components/ActivityCorePanel";
 
 const tabBaseClass = "rounded-2xl px-4 py-3 text-sm font-black transition";
 const STAGE_DONUT_SIZE = 220;
@@ -110,17 +111,17 @@ function buildStages(records) {
 }
 
 function StageDonut({ activeStage, stages, total, onSelect }) {
-  let accumulated = 0;
-
   return (
     <div className="relative h-[240px] w-[240px]">
       <svg viewBox={`0 0 ${STAGE_DONUT_SIZE} ${STAGE_DONUT_SIZE}`} className="h-full w-full overflow-visible" role="img" aria-label="Dona interactiva de emisiones por etapa">
         <circle cx={STAGE_DONUT_CENTER} cy={STAGE_DONUT_CENTER} r={STAGE_DONUT_RADIUS} fill="none" stroke="#E2E8F0" strokeWidth="28" />
         <g transform={`rotate(-90 ${STAGE_DONUT_CENTER} ${STAGE_DONUT_CENTER})`}>
-          {stages.map((stage) => {
+          {stages.map((stage, index) => {
             const dash = Math.max((stage.share / 100) * STAGE_DONUT_CIRCUMFERENCE, 0.2);
-            const offset = accumulated;
-            accumulated += dash;
+            const offset = stages.slice(0, index).reduce(
+              (sum, previous) => sum + Math.max((previous.share / 100) * STAGE_DONUT_CIRCUMFERENCE, 0.2),
+              0
+            );
             const isActive = activeStage?.label === stage.label;
             return (
               <circle
@@ -386,6 +387,8 @@ function OperacionPage() {
           </div>
         </div>
       </section>
+
+      <ActivityCorePanel organizacionId={activeOrganizacionId} />
 
       <div className="overflow-x-auto rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-2 shadow-[var(--shadow-card)]">
         <div className="flex min-w-max gap-2">
