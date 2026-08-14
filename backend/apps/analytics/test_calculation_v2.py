@@ -1,0 +1,135 @@
+from decimal import Decimal
+
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+from rest_framework.test import APITestCase
+
+from apps.iot.models import LecturaSensorV2
+
+from .models import (ActividadOperacional, ActivoOperacional, CalculoAmbiental, FactorAmbiental,
+                     FormulaAmbiental, ImpactoAmbiental, InputCalculoAmbiental, MetodologiaAmbiental,
+                     Observacion, Organizacion, RegistroEmision, FuenteDatos, UsuarioOrganizacion,
+                     VariableFormula, Vehiculo, VersionFactorAmbiental, VersionMetodologia)
+from .services.calculation_v2 import calculate_activity
+from .services.methodology_selector import select_methodology
+
+
+class CalculationV2Tests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("calculation-v2", password="test-pass")
+        self.org = Organizacion.objects.create(nombre="Calculo Uno")
+        self.other = Organizacion.objects.create(nombre="Calculo Dos")
+        UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.org)
+        self.client.force_login(self.user)
+        self.base = f"/api/organizaciones/{self.org.organizacion_id}"
+        self.source = FuenteDatos.objects.create(organizacion=self.org, nombre="Datos demo")
+        self.activity = ActividadOperacional.objects.create(
+            organizacion=self.org, codigo="V-001", nombre="Viaje V-001", tipo="transporte", timestamp_inicio=timezone.now()
+        )
+        self.asset = ActivoOperacional.objects.create(organizacion=self.org, codigo="CAM-01", nombre="Camion 01", tipo="vehiculo")
+        Vehiculo.objects.create(activo=self.asset, tipo_vehiculo="camion", combustible="diesel")
+        self.activity.activos.add(self.asset)
+        self._create_method("MET-TKM", "Transporte t.km", "transporte_tkm", "transporte_tkm", "FACTOR-TKM", "kgCO2e/t.km", Decimal("0.10"), [
+            ("distancia", "distancia_recorrida_km", "km"), ("masa", "masa_transportada_t", "t")])
+        self._create_method("MET-KM", "Transporte vehiculo.km", "transporte_vehiculo_km", "transporte_vehiculo_km", "FACTOR-KM", "kgCO2e/km", Decimal("0.50"), [
+            ("distancia", "distancia_recorrida_km", "km")], {"tipo_vehiculo": "camion"})
+        self._create_method("MET-FUEL", "Transporte combustible", "transporte_combustible", "transporte_combustible", "FACTOR-FUEL", "kgCO2e/L", Decimal("2.00"), [
+            ("combustible", "combustible_consumido_l", "L")], {"combustible": "diesel"})
+
+    def _create_method(self, code, name, flow, formula_type, factor_code, factor_unit, value, variables, context=None):
+        factor = FactorAmbiental.objects.create(
+            organizacion=self.org, codigo=factor_code.lower(), nombre=f"Factor de prueba / demostracion {factor_code}",
+            categoria="transporte", unidad_entrada=factor_unit.split("/")[-1], unidad_resultado="kgCO2e", contexto=context or {},
+        )
+        VersionFactorAmbiental.objects.create(factor=factor, version=1, valor=value, fuente="FACTOR DE PRUEBA / DEMOSTRACION", estado="activo")
+        method = MetodologiaAmbiental.objects.create(organizacion=self.org, codigo=code.lower(), nombre=name, categoria="transporte", flujo=flow)
+        version = VersionMetodologia.objects.create(metodologia=method, version=1, estado="activa", fuente_referencia="DEMO")
+        formula = FormulaAmbiental.objects.create(
+            version_metodologia=version, factor_ambiental=factor, codigo=f"formula-{code.lower()}", tipo=formula_type,
+            expresion_legible={"transporte_tkm":"masa x distancia x factor", "transporte_vehiculo_km":"distancia x factor", "transporte_combustible":"combustible x factor"}[formula_type],
+        )
+        for key, concept, unit in variables:
+            VariableFormula.objects.create(formula=formula, clave=key, concepto_observacion=concept, unidad_esperada=unit)
+        return method, version, factor
+
+    def observe(self, concept, value, unit):
+        return Observacion.objects.create(
+            organizacion=self.org, actividad=self.activity, fuente=self.source, concepto=concept,
+            valor_numerico=value, unidad=unit, timestamp_observacion=timezone.now(), estado="validada",
+        )
+
+    def test_metodologia_factor_y_versiones_activas_inmutables(self):
+        method = MetodologiaAmbiental.objects.get(flujo="transporte_tkm")
+        self.assertEqual(method.versiones.count(), 1)
+        version = method.versiones.get(); version.descripcion_tecnica = "Cambio destructivo"
+        with self.assertRaises(ValidationError): version.save()
+        new_version = VersionMetodologia.objects.create(metodologia=method, version=2, estado="borrador")
+        self.assertEqual(new_version.version, 2)
+        factor_version = VersionFactorAmbiental.objects.get(factor__codigo="factor-tkm", version=1)
+        with self.assertRaises(ValidationError):
+            factor_version.valor = Decimal("0.12"); factor_version.save()
+        self.assertEqual(VersionFactorAmbiental.objects.create(factor=factor_version.factor, version=2, valor="0.12", fuente="DEMO", estado="borrador").version, 2)
+
+    def test_caso_obligatorio_prioriza_tkm_y_no_suma_alternativas(self):
+        distance = self.observe("distancia_recorrida_km", "132", "km")
+        mass = self.observe("masa_transportada_t", "18", "t")
+        self.observe("combustible_consumido_l", "42", "L")
+        selection = select_methodology(self.activity)
+        self.assertEqual(selection["seleccion"]["metodo"], "transporte_tkm")
+        self.assertEqual({x["metodo"] for x in selection["alternativos"]}, {"transporte_vehiculo_km", "transporte_combustible"})
+        calculation, _ = calculate_activity(self.activity)
+        self.assertEqual(calculation.resultado, Decimal("237.6000000000"))
+        self.assertEqual(CalculoAmbiental.objects.count(), 1); self.assertEqual(ImpactoAmbiental.objects.count(), 1)
+        self.assertEqual(set(calculation.inputs.values_list("observacion_id", flat=True)), {distance.id, mass.id})
+        self.assertEqual(InputCalculoAmbiental.objects.count(), 2)
+        self.assertEqual(RegistroEmision.objects.count(), 0)
+
+    def test_metodo_b_si_falta_masa(self):
+        self.observe("distancia_recorrida_km", "132", "km")
+        selection = select_methodology(self.activity)
+        self.assertEqual(selection["seleccion"]["metodo"], "transporte_vehiculo_km")
+        calculation, _ = calculate_activity(self.activity)
+        self.assertEqual(calculation.resultado, Decimal("66.0000000000"))
+
+    def test_metodo_combustible_si_es_unico_disponible(self):
+        self.observe("combustible_consumido_l", "42", "L")
+        selection = select_methodology(self.activity)
+        self.assertEqual(selection["seleccion"]["metodo"], "transporte_combustible")
+        calculation, _ = calculate_activity(self.activity)
+        self.assertEqual(calculation.resultado, Decimal("84.0000000000"))
+
+    def test_falta_critica_y_ambiguedad_no_calculables(self):
+        self.assertIsNone(select_methodology(self.activity)["seleccion"])
+        self.observe("distancia_recorrida_km", "132", "km")
+        self.observe("distancia_recorrida_km", "134", "km")
+        selection = select_methodology(self.activity)
+        self.assertIsNone(selection["seleccion"])
+        self.assertTrue(any("multiples" in reason.lower() for item in selection["descartados"] for reason in item["motivos"]))
+
+    def test_snapshot_factor_historico_y_recalculo_nuevo(self):
+        self.observe("distancia_recorrida_km", "132", "km"); self.observe("masa_transportada_t", "18", "t")
+        old, _ = calculate_activity(self.activity)
+        factor = FactorAmbiental.objects.get(codigo="factor-tkm")
+        old_factor = old.version_factor
+        VersionFactorAmbiental.objects.filter(pk=old_factor.pk).update(estado="obsoleto")
+        VersionFactorAmbiental.objects.create(factor=factor, version=2, valor="0.12", fuente="DEMO v2", estado="activo")
+        new, _ = calculate_activity(self.activity)
+        old.refresh_from_db()
+        self.assertEqual(old.version_factor, old_factor); self.assertEqual(old.resultado, Decimal("237.6000000000"))
+        self.assertEqual(new.version_factor.version, 2); self.assertEqual(new.resultado, Decimal("285.1200000000"))
+        self.assertEqual(CalculoAmbiental.objects.count(), 2); self.assertEqual(ImpactoAmbiental.objects.count(), 2)
+
+    def test_api_detalle_elegibilidad_y_tenant(self):
+        self.observe("distancia_recorrida_km", "132", "km"); self.observe("masa_transportada_t", "18", "t")
+        eligibility = self.client.get(f"{self.base}/actividades-operacionales/{self.activity.id}/elegibilidad/")
+        self.assertEqual(eligibility.status_code, 200); self.assertEqual(eligibility.data["estado"], "calculable_completo")
+        response = self.client.post(f"{self.base}/actividades-operacionales/{self.activity.id}/calcular/", {}, format="json")
+        self.assertEqual(response.status_code, 201)
+        detail = self.client.get(f"{self.base}/calculos/{response.data['calculo']['id']}/")
+        self.assertEqual(detail.status_code, 200); self.assertEqual(len(detail.data["inputs"]), 2)
+        foreign = ActividadOperacional.objects.create(organizacion=self.other, codigo="OTHER", nombre="Otra", tipo="transporte", timestamp_inicio=timezone.now())
+        self.assertEqual(self.client.get(f"{self.base}/actividades-operacionales/{foreign.id}/elegibilidad/").status_code, 404)
+
+    def test_iot_v2_no_contiene_calculo_ambiental(self):
+        self.assertFalse(hasattr(LecturaSensorV2, "co2e_estimado"))

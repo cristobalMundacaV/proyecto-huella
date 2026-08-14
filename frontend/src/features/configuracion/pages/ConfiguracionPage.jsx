@@ -20,6 +20,7 @@ import PlatformLoader from "@/shared/components/PlatformLoader";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import CapacidadesAmbientales from "@/features/diagnostico/components/CapacidadesAmbientales";
 import { useDiagnostico } from "@/features/diagnostico/hooks/useDiagnostico";
+import MethodologiesPanel from "../components/MethodologiesPanel";
 import {
   getOrganizacionConfiguracion,
   updateOrganizacionConfiguracion,
@@ -444,6 +445,7 @@ function ConfiguracionPage() {
         <p className="mb-5 mt-1 text-sm text-[#64748B]">La recomendación inicial proviene del backend y puede personalizarse sin alterar el preset.</p>
         {foundation.loading ? <p className="text-sm text-slate-500">Cargando capacidades...</p> : <CapacidadesAmbientales organizacionId={activeOrganizacionId} capacidades={foundation.capacidades} onChange={foundation.reload} />}
       </section>
+      <MethodologiesPanel organizacionId={activeOrganizacionId} />
 
       <section className="rounded-[28px] border border-[#99F6E4] bg-[#F0FDFA] p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] sm:p-6">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">

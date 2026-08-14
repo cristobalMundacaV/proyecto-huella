@@ -112,6 +112,9 @@ from .views_assets import (activo_detail, activos, condiciones_activo, mantenimi
                            mantenimientos_activo)
 from .views_sensors_v2 import (calibraciones, instalaciones, lecturas_sensor_v2, sensor_detail,
                                sensores)
+from .views_calculation_v2 import (calcular_actividad, calculo_detail, calculos_actividad,
+                                   elegibilidad_actividad, factores_ambientales, impactos_ambientales,
+                                   metodologia_detail, metodologias)
 
 urlpatterns = [
     path("capacidades-ambientales/", capacidades_disponibles),
@@ -154,6 +157,14 @@ urlpatterns = [
     path("organizaciones/<str:organizacion_id>/sensores/<int:sensor_id>/instalaciones/", instalaciones),
     path("organizaciones/<str:organizacion_id>/sensores/<int:sensor_id>/calibraciones/", calibraciones),
     path("organizaciones/<str:organizacion_id>/sensores/<int:sensor_id>/lecturas/", lecturas_sensor_v2),
+    path("organizaciones/<str:organizacion_id>/metodologias/", metodologias),
+    path("organizaciones/<str:organizacion_id>/metodologias/<int:metodologia_id>/", metodologia_detail),
+    path("organizaciones/<str:organizacion_id>/factores-ambientales/", factores_ambientales),
+    path("organizaciones/<str:organizacion_id>/actividades-operacionales/<int:actividad_id>/elegibilidad/", elegibilidad_actividad),
+    path("organizaciones/<str:organizacion_id>/actividades-operacionales/<int:actividad_id>/calcular/", calcular_actividad),
+    path("organizaciones/<str:organizacion_id>/actividades-operacionales/<int:actividad_id>/calculos/", calculos_actividad),
+    path("organizaciones/<str:organizacion_id>/calculos/<int:calculo_id>/", calculo_detail),
+    path("organizaciones/<str:organizacion_id>/impactos-ambientales/", impactos_ambientales),
     path("organizaciones/<str:organizacion_id>/estado/", organizacion_estado),
     path("organizaciones/<str:organizacion_id>/configuracion/", organizacion_configuracion),
     path("organizaciones/<str:organizacion_id>/dashboard/", organizacion_dashboard),

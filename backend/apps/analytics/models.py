@@ -1090,6 +1090,194 @@ class RegistroExtraido(models.Model):
         constraints = [models.UniqueConstraint(fields=["proceso_ingesta", "numero_fila"], name="unique_registro_extraido_fila")]
 
 
+class MetodologiaAmbiental(models.Model):
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, null=True, blank=True, related_name="metodologias_ambientales")
+    codigo = models.SlugField(max_length=100)
+    nombre = models.CharField(max_length=200)
+    categoria = models.CharField(max_length=80, db_index=True)
+    flujo = models.SlugField(max_length=100, db_index=True)
+    descripcion = models.TextField(blank=True)
+    activa = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["organizacion", "codigo"], name="unique_metodologia_codigo_org")]
+
+
+class VersionMetodologia(models.Model):
+    class Estado(models.TextChoices):
+        BORRADOR = "borrador", "Borrador"
+        PRUEBAS = "pruebas", "Pruebas"
+        VALIDADA = "validada", "Validada"
+        ACTIVA = "activa", "Activa"
+        OBSOLETA = "obsoleta", "Obsoleta"
+
+    metodologia = models.ForeignKey(MetodologiaAmbiental, on_delete=models.CASCADE, related_name="versiones")
+    version = models.PositiveIntegerField()
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.BORRADOR, db_index=True)
+    descripcion_tecnica = models.TextField(blank=True)
+    fuente_referencia = models.TextField(blank=True)
+    vigencia_desde = models.DateField(null=True, blank=True)
+    vigencia_hasta = models.DateField(null=True, blank=True)
+    validado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="metodologias_validadas")
+    fecha_validacion = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-version"]
+        constraints = [models.UniqueConstraint(fields=["metodologia", "version"], name="unique_version_metodologia")]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            previous = VersionMetodologia.objects.filter(pk=self.pk).first()
+            if previous and previous.estado == self.Estado.ACTIVA:
+                from django.core.exceptions import ValidationError
+                raise ValidationError("Una version activa es inmutable; cree una nueva version.")
+        super().save(*args, **kwargs)
+
+
+class FactorAmbiental(models.Model):
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, null=True, blank=True, related_name="factores_ambientales_v2")
+    codigo = models.SlugField(max_length=100)
+    nombre = models.CharField(max_length=200)
+    categoria = models.CharField(max_length=80, db_index=True)
+    sustancia_impacto = models.CharField(max_length=80, default="CO2e")
+    unidad_entrada = models.CharField(max_length=60)
+    unidad_resultado = models.CharField(max_length=60, default="kgCO2e")
+    contexto = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["organizacion", "codigo"], name="unique_factor_ambiental_codigo_org")]
+
+
+class VersionFactorAmbiental(models.Model):
+    class Estado(models.TextChoices):
+        BORRADOR = "borrador", "Borrador"
+        PRUEBAS = "pruebas", "Pruebas"
+        VALIDADO = "validado", "Validado"
+        ACTIVO = "activo", "Activo"
+        OBSOLETO = "obsoleto", "Obsoleto"
+
+    factor = models.ForeignKey(FactorAmbiental, on_delete=models.CASCADE, related_name="versiones")
+    version = models.PositiveIntegerField()
+    valor = models.DecimalField(max_digits=20, decimal_places=10)
+    fuente = models.TextField()
+    referencia = models.TextField(blank=True)
+    region = models.CharField(max_length=100, blank=True)
+    vigencia_desde = models.DateField(null=True, blank=True)
+    vigencia_hasta = models.DateField(null=True, blank=True)
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.BORRADOR, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-version"]
+        constraints = [models.UniqueConstraint(fields=["factor", "version"], name="unique_version_factor_ambiental")]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            previous = VersionFactorAmbiental.objects.filter(pk=self.pk).first()
+            if previous and previous.estado == self.Estado.ACTIVO:
+                from django.core.exceptions import ValidationError
+                raise ValidationError("Una version activa es inmutable; cree una nueva version.")
+        super().save(*args, **kwargs)
+
+
+class FormulaAmbiental(models.Model):
+    class Tipo(models.TextChoices):
+        TRANSPORTE_TKM = "transporte_tkm", "Masa x distancia x factor"
+        TRANSPORTE_VEHICULO_KM = "transporte_vehiculo_km", "Distancia x factor vehiculo"
+        TRANSPORTE_COMBUSTIBLE = "transporte_combustible", "Combustible x factor"
+
+    version_metodologia = models.OneToOneField(VersionMetodologia, on_delete=models.PROTECT, related_name="formula")
+    factor_ambiental = models.ForeignKey(FactorAmbiental, on_delete=models.PROTECT, related_name="formulas")
+    codigo = models.SlugField(max_length=100)
+    tipo = models.CharField(max_length=40, choices=Tipo.choices)
+    expresion_legible = models.CharField(max_length=300)
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class VariableFormula(models.Model):
+    class Rol(models.TextChoices):
+        ACTIVIDAD = "actividad", "Actividad"
+        COMPLEMENTARIA = "complementaria", "Complementaria"
+
+    formula = models.ForeignKey(FormulaAmbiental, on_delete=models.CASCADE, related_name="variables")
+    clave = models.SlugField(max_length=100)
+    concepto_observacion = models.SlugField(max_length=120)
+    unidad_esperada = models.CharField(max_length=40)
+    obligatoria = models.BooleanField(default=True)
+    rol = models.CharField(max_length=20, choices=Rol.choices, default=Rol.ACTIVIDAD)
+    descripcion = models.TextField(blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["formula", "clave"], name="unique_variable_formula")]
+
+
+class CalculoAmbiental(models.Model):
+    class Estado(models.TextChoices):
+        FINALIZADO = "finalizado", "Finalizado"
+        REQUIERE_REVISION = "requiere_revision", "Requiere revision"
+        FALLIDO = "fallido", "Fallido"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.PROTECT, related_name="calculos_ambientales_v2")
+    actividad = models.ForeignKey(ActividadOperacional, on_delete=models.PROTECT, related_name="calculos_ambientales")
+    version_metodologia = models.ForeignKey(VersionMetodologia, on_delete=models.PROTECT, related_name="calculos")
+    formula = models.ForeignKey(FormulaAmbiental, on_delete=models.PROTECT, related_name="calculos")
+    version_factor = models.ForeignKey(VersionFactorAmbiental, on_delete=models.PROTECT, related_name="calculos")
+    resultado = models.DecimalField(max_digits=24, decimal_places=10)
+    unidad_resultado = models.CharField(max_length=60)
+    estado = models.CharField(max_length=30, choices=Estado.choices, default=Estado.FINALIZADO)
+    fecha_calculo = models.DateTimeField(auto_now_add=True)
+    version_interna = models.PositiveIntegerField(default=1)
+    formula_aplicada = models.CharField(max_length=300)
+    advertencias = models.JSONField(default=list, blank=True)
+    completitud = models.CharField(max_length=30)
+    snapshot_tecnico = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-fecha_calculo"]
+
+    def save(self, *args, **kwargs):
+        if self.pk and CalculoAmbiental.objects.filter(pk=self.pk).exists():
+            from django.core.exceptions import ValidationError
+            raise ValidationError("Un calculo finalizado es inmutable; cree uno nuevo.")
+        super().save(*args, **kwargs)
+
+
+class InputCalculoAmbiental(models.Model):
+    calculo = models.ForeignKey(CalculoAmbiental, on_delete=models.PROTECT, related_name="inputs")
+    variable = models.ForeignKey(VariableFormula, on_delete=models.PROTECT, related_name="inputs_calculo")
+    observacion = models.ForeignKey(Observacion, on_delete=models.PROTECT, related_name="inputs_calculo")
+    valor_utilizado = models.DecimalField(max_digits=20, decimal_places=10)
+    unidad = models.CharField(max_length=40)
+    concepto = models.SlugField(max_length=120)
+    fuente = models.ForeignKey(FuenteDatos, on_delete=models.PROTECT, related_name="inputs_calculo")
+    evidencia = models.ForeignKey(EvidenciaObra, on_delete=models.PROTECT, null=True, blank=True, related_name="inputs_calculo")
+    version_evidencia = models.ForeignKey(VersionEvidencia, on_delete=models.PROTECT, null=True, blank=True, related_name="inputs_calculo")
+
+
+class ImpactoAmbiental(models.Model):
+    class Tipo(models.TextChoices):
+        GENERADO = "generado", "Generado"
+        REDUCCION = "reduccion", "Reduccion"
+        EVITADO = "evitado", "Evitado"
+        CAPTURA_REMOCION = "captura_remocion", "Captura/remocion"
+        COMPENSACION = "compensacion", "Compensacion"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.PROTECT, related_name="impactos_ambientales_v2")
+    actividad = models.ForeignKey(ActividadOperacional, on_delete=models.PROTECT, related_name="impactos_ambientales")
+    calculo = models.OneToOneField(CalculoAmbiental, on_delete=models.PROTECT, related_name="impacto")
+    tipo = models.CharField(max_length=30, choices=Tipo.choices, default=Tipo.GENERADO)
+    categoria = models.CharField(max_length=80)
+    valor = models.DecimalField(max_digits=24, decimal_places=10)
+    unidad = models.CharField(max_length=60)
+    timestamp = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class DocumentoAmbiental(models.Model):
     class FuenteOrigen(models.TextChoices):
         MANUAL = "manual", "Manual"
