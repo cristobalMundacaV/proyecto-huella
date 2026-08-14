@@ -18,6 +18,8 @@ import {
 import EmptyState from "@/shared/components/EmptyState";
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
+import CapacidadesAmbientales from "@/features/diagnostico/components/CapacidadesAmbientales";
+import { useDiagnostico } from "@/features/diagnostico/hooks/useDiagnostico";
 import {
   getOrganizacionConfiguracion,
   updateOrganizacionConfiguracion,
@@ -261,6 +263,7 @@ function setNestedValue(source, section, field, value) {
 function ConfiguracionPage() {
   const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
   const [activeTab, setActiveTab] = useState("organizacion");
+  const foundation = useDiagnostico(activeOrganizacionId);
   const [config, setConfig] = useState(null);
   const [savedConfig, setSavedConfig] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -434,6 +437,13 @@ function ConfiguracionPage() {
           {successMessage}
         </div>
       ) : null}
+
+      <section className="rounded-[28px] border border-[#CBD5E1] bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] sm:p-6">
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#0F766E]">Flujos / Capacidades ambientales</p>
+        <h2 className="mt-1 text-2xl font-black tracking-tight text-[#0F172A]">Capacidades de la organización</h2>
+        <p className="mb-5 mt-1 text-sm text-[#64748B]">La recomendación inicial proviene del backend y puede personalizarse sin alterar el preset.</p>
+        {foundation.loading ? <p className="text-sm text-slate-500">Cargando capacidades...</p> : <CapacidadesAmbientales organizacionId={activeOrganizacionId} capacidades={foundation.capacidades} onChange={foundation.reload} />}
+      </section>
 
       <section className="rounded-[28px] border border-[#99F6E4] bg-[#F0FDFA] p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] sm:p-6">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">

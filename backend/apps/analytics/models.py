@@ -108,6 +108,114 @@ class UsuarioOrganizacion(models.Model):
         return f"{self.user.username} - {self.organizacion.nombre}"
 
 
+class DiagnosticoAmbientalInicial(models.Model):
+    class Estado(models.TextChoices):
+        PENDIENTE = "pendiente", "Pendiente"
+        EN_PROGRESO = "en_progreso", "En progreso"
+        COMPLETADO = "completado", "Completado"
+        REQUIERE_ACTUALIZACION = "requiere_actualizacion", "Requiere actualizacion"
+
+    organizacion = models.OneToOneField(Organizacion, on_delete=models.CASCADE, related_name="diagnostico_ambiental")
+    estado = models.CharField(max_length=30, choices=Estado.choices, default=Estado.PENDIENTE, db_index=True)
+    fecha_inicio = models.DateField(null=True, blank=True)
+    fecha_finalizacion = models.DateField(null=True, blank=True)
+    objetivo_principal = models.TextField(blank=True)
+    descripcion_contexto = models.TextField(blank=True)
+    observaciones = models.TextField(blank=True)
+    responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="diagnosticos_ambientales")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class ElementoDiagnosticoAmbiental(models.Model):
+    class Tipo(models.TextChoices):
+        PROCESO = "proceso", "Proceso identificado"
+        INFORMACION_DISPONIBLE = "informacion_disponible", "Informacion disponible"
+        INFORMACION_FALTANTE = "informacion_faltante", "Informacion faltante"
+        FUENTE = "fuente", "Fuente conocida"
+        BRECHA = "brecha", "Brecha ambiental"
+
+    diagnostico = models.ForeignKey(DiagnosticoAmbientalInicial, on_delete=models.CASCADE, related_name="elementos")
+    tipo = models.CharField(max_length=30, choices=Tipo.choices, db_index=True)
+    nombre = models.CharField(max_length=180)
+    descripcion = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["tipo", "nombre"]
+
+
+class CapacidadAmbiental(models.Model):
+    clave = models.SlugField(max_length=60, unique=True)
+    nombre = models.CharField(max_length=120)
+    descripcion = models.TextField(blank=True)
+    activa = models.BooleanField(default=True)
+    orden = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["orden", "nombre"]
+
+
+class CapacidadOrganizacion(models.Model):
+    class Estado(models.TextChoices):
+        PENDIENTE_DIAGNOSTICO = "pendiente_diagnostico", "Pendiente de diagnostico"
+        APLICA = "aplica", "Aplica"
+        NO_APLICA = "no_aplica", "No aplica"
+        SIN_DATOS = "sin_datos", "Sin datos"
+        CONSTRUYENDO_LINEA_BASE = "construyendo_linea_base", "Construyendo linea base"
+        OPERATIVA = "operativa", "Operativa"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="capacidades_ambientales")
+    capacidad = models.ForeignKey(CapacidadAmbiental, on_delete=models.PROTECT, related_name="organizaciones")
+    estado = models.CharField(max_length=35, choices=Estado.choices, default=Estado.PENDIENTE_DIAGNOSTICO, db_index=True)
+    recomendada_por_preset = models.BooleanField(default=False)
+    configuracion = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["organizacion", "capacidad"], name="unique_capacidad_organizacion")]
+
+
+class UnidadOperacional(models.Model):
+    class Tipo(models.TextChoices):
+        PLANTA = "planta", "Planta"
+        INSTALACION = "instalacion", "Instalacion"
+        FAENA = "faena", "Faena"
+        SUCURSAL = "sucursal", "Sucursal"
+        CENTRO = "centro_operacional", "Centro operacional"
+        OTRO = "otro", "Otro"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="unidades_operacionales")
+    nombre = models.CharField(max_length=180)
+    tipo = models.CharField(max_length=30, choices=Tipo.choices, default=Tipo.OTRO)
+    descripcion = models.TextField(blank=True)
+    activa = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class ProcesoOperacional(models.Model):
+    class Estado(models.TextChoices):
+        ACTIVO = "activo", "Activo"
+        INACTIVO = "inactivo", "Inactivo"
+        EN_DISENO = "en_diseno", "En diseno"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="procesos_operacionales")
+    unidad = models.ForeignKey(UnidadOperacional, on_delete=models.SET_NULL, null=True, blank=True, related_name="procesos")
+    nombre = models.CharField(max_length=180)
+    descripcion = models.TextField(blank=True)
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.ACTIVO)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        if self.unidad_id and self.unidad.organizacion_id != self.organizacion_id:
+            from django.core.exceptions import ValidationError
+            raise ValidationError({"unidad": "La unidad debe pertenecer a la misma organizacion."})
+
+
 class ConfiguracionOrganizacion(models.Model):
     class ModoImportacion(models.TextChoices):
         FLEXIBLE = "flexible", "Flexible"

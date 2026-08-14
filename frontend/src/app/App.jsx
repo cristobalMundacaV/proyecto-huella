@@ -26,6 +26,7 @@ import UsuariosPage from "@/features/usuarios/pages/UsuariosPage";
 import ConfiguracionPage from "@/features/configuracion/pages/ConfiguracionPage";
 import ReportesRegulatoriosPage from "@/core/reportes-regulatorios/pages/ReportesRegulatoriosPage";
 import CopilotoAmbientalPage from "@/core/copiloto/pages/CopilotoAmbientalPage";
+import DiagnosticoAmbientalPage from "@/features/diagnostico/pages/DiagnosticoAmbientalPage";
 
 import RecepcionTrozasPage from "@/presets/aserradero/pages/RecepcionTrozasPage";
 import ProduccionAserraderoPage from "@/presets/aserradero/pages/ProduccionAserraderoPage";
@@ -127,6 +128,7 @@ function App() {
 }
 
 function ActiveView({ activePreset, activeView, organizacionCreateSignal, onSetActiveView, onStatusChange }) {
+  if (activeView === "diagnostico") return <DiagnosticoAmbientalPage />;
   if (activeView === "reportes_regulatorios") return <ReportesRegulatoriosPage />;
   if (activeView === "copiloto_ambiental") return <CopilotoAmbientalPage />;
   if (activeView === "dashboard") return <DashboardPage onSetActiveView={onSetActiveView} onStatusChange={onStatusChange} />;

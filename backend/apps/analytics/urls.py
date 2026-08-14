@@ -95,8 +95,14 @@ from .views_environmental_context import (
     problem_sources_view,
 )
 from .views_environmental_escalation import problem_dossier_view, problem_escalation_view
+from .views_foundation import (
+    capacidad_organizacion_detail, capacidades_disponibles, capacidades_organizacion,
+    diagnostico_ambiental, preparacion_ambiental, proceso_operacional_detail,
+    procesos_operacionales, unidad_operacional_detail, unidades_operacionales,
+)
 
 urlpatterns = [
+    path("capacidades-ambientales/", capacidades_disponibles),
     path("auth/me/", auth_me),
     path("auth/csrf-token/", auth_csrf_token),
     path("auth/login/", auth_login),
@@ -105,6 +111,14 @@ urlpatterns = [
     path("dashboard/", dashboard_data),
     path("organizaciones/", organizaciones),
     path("organizaciones/<str:organizacion_id>/", organizacion_detail_safe),
+    path("organizaciones/<str:organizacion_id>/diagnostico-ambiental/", diagnostico_ambiental),
+    path("organizaciones/<str:organizacion_id>/capacidades-ambientales/", capacidades_organizacion),
+    path("organizaciones/<str:organizacion_id>/capacidades-ambientales/<int:capacidad_id>/", capacidad_organizacion_detail),
+    path("organizaciones/<str:organizacion_id>/unidades-operacionales/", unidades_operacionales),
+    path("organizaciones/<str:organizacion_id>/unidades-operacionales/<int:unidad_id>/", unidad_operacional_detail),
+    path("organizaciones/<str:organizacion_id>/procesos-operacionales/", procesos_operacionales),
+    path("organizaciones/<str:organizacion_id>/procesos-operacionales/<int:proceso_id>/", proceso_operacional_detail),
+    path("organizaciones/<str:organizacion_id>/preparacion-ambiental/", preparacion_ambiental),
     path("organizaciones/<str:organizacion_id>/estado/", organizacion_estado),
     path("organizaciones/<str:organizacion_id>/configuracion/", organizacion_configuracion),
     path("organizaciones/<str:organizacion_id>/dashboard/", organizacion_dashboard),

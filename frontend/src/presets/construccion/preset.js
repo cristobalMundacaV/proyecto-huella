@@ -15,6 +15,7 @@ const construccionPreset = {
   intelligence: constructionIntelligence,
   navigation: [
     { view: "dashboard", label: "Dashboard" },
+    { view: "diagnostico", label: "Diagnostico Ambiental" },
     { view: "operacion", label: "Operacion" },
     { view: "inteligencia", label: "Inteligencia" },
     { view: "copiloto_ambiental", label: "Copiloto Ambiental" },
