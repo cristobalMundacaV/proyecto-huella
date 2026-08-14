@@ -2311,6 +2311,14 @@ class RecomendacionAgenteAmbiental(models.Model):
         MEDIA = "media", "Media"
         ALTA = "alta", "Alta"
 
+    class Estado(models.TextChoices):
+        PROPUESTA = "propuesta", "Propuesta"
+        AJUSTADA = "ajustada", "Ajustada"
+        ACEPTADA = "aceptada", "Aceptada"
+        RECHAZADA = "rechazada", "Rechazada"
+        DESCARTADA = "descartada", "Descartada"
+        CONVERTIDA = "convertida_en_accion", "Convertida en accion"
+
     problematica = models.ForeignKey(ProblematicaAmbiental, on_delete=models.CASCADE, related_name="recomendaciones_agente")
     accion = models.TextField()
     justificacion = models.TextField()
@@ -2323,11 +2331,121 @@ class RecomendacionAgenteAmbiental(models.Model):
     contexto_resumen = models.JSONField(default=dict, blank=True)
     proveedor = models.CharField(max_length=80, blank=True)
     modelo = models.CharField(max_length=120, blank=True)
+    titulo = models.CharField(max_length=240, blank=True)
+    descripcion = models.TextField(blank=True)
+    requisitos = models.JSONField(default=list, blank=True)
+    riesgos = models.JSONField(default=list, blank=True)
+    restricciones_consideradas = models.JSONField(default=list, blank=True)
+    kpis_afectados = models.JSONField(default=list, blank=True)
+    referencias_contexto = models.JSONField(default=list, blank=True)
+    estado = models.CharField(max_length=30, choices=Estado.choices, default=Estado.PROPUESTA)
+    version = models.PositiveIntegerField(default=1)
+    propuesta_anterior = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="ajustes")
+    mensaje_usuario = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["problematica", "prioridad"])]
+
+
+class MemoriaOrganizacion(models.Model):
+    class Tipo(models.TextChoices):
+        SOLUCION_INTENTADA = "solucion_intentada", "Solucion intentada"
+        ACCION_ACEPTADA = "accion_aceptada", "Accion aceptada"
+        ACCION_RECHAZADA = "accion_rechazada", "Accion rechazada"
+        RESTRICCION = "restriccion_operacional", "Restriccion operacional"
+        ACTIVO_PROBLEMATICO = "activo_problematico", "Activo problematico"
+        PROCESO_RECURRENT = "proceso_recurrente", "Proceso recurrente"
+        EVOLUCION_KPI = "evolucion_kpi", "Evolucion KPI"
+        INTERVENCION = "intervencion", "Intervencion"
+        CAMBIO_OPERACIONAL = "cambio_operacional", "Cambio operacional"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="memoria_organizacional")
+    tipo = models.CharField(max_length=40, choices=Tipo.choices, db_index=True)
+    contenido = models.JSONField(default=dict)
+    fuente_origen = models.CharField(max_length=80)
+    problematica = models.ForeignKey(ProblematicaAmbiental, on_delete=models.SET_NULL, null=True, blank=True, related_name="memorias_organizacionales")
+    vigente_desde = models.DateTimeField(default=timezone.now)
+    vigente_hasta = models.DateTimeField(null=True, blank=True)
+    contexto = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.problematica_id and self.problematica.organizacion_id != self.organizacion_id:
+            raise ValidationError({"problematica": "La problematica pertenece a otra organizacion."})
+
+
+class RestriccionContextual(models.Model):
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="restricciones_contextuales")
+    problematica = models.ForeignKey(ProblematicaAmbiental, on_delete=models.SET_NULL, null=True, blank=True, related_name="restricciones_contextuales")
+    tipo = models.SlugField(max_length=80)
+    descripcion = models.TextField()
+    contenido = models.JSONField(default=dict, blank=True)
+    vigente_desde = models.DateTimeField(default=timezone.now)
+    vigente_hasta = models.DateTimeField(null=True, blank=True)
+    activa = models.BooleanField(default=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="restricciones_contextuales")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.problematica_id and self.problematica.organizacion_id != self.organizacion_id:
+            raise ValidationError({"problematica": "La problematica pertenece a otra organizacion."})
+
+
+class HistorialRestriccionContextual(models.Model):
+    restriccion = models.ForeignKey(RestriccionContextual, on_delete=models.PROTECT, related_name="historial")
+    contenido_anterior = models.JSONField(default=dict)
+    contenido_nuevo = models.JSONField(default=dict)
+    motivo = models.TextField()
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT, related_name="historial_restricciones")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class HitoDecisionIA(models.Model):
+    class Tipo(models.TextChoices):
+        CONTEXTO = "contexto_consultado", "Contexto consultado"
+        PROPUESTA = "propuesta", "Propuesta"
+        REFUTACION = "refutacion", "Refutacion"
+        ADAPTACION = "adaptacion", "Adaptacion"
+        PROPUESTA_FINAL = "propuesta_final", "Propuesta final"
+        DECISION = "decision_humana", "Decision humana"
+        RESULTADO = "resultado_posterior", "Resultado posterior"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="hitos_decision_ia")
+    problematica = models.ForeignKey(ProblematicaAmbiental, on_delete=models.CASCADE, related_name="hitos_decision_ia")
+    propuesta = models.ForeignKey(RecomendacionAgenteAmbiental, on_delete=models.SET_NULL, null=True, blank=True, related_name="hitos")
+    tipo = models.CharField(max_length=30, choices=Tipo.choices)
+    resumen = models.TextField()
+    referencias_contexto = models.JSONField(default=list, blank=True)
+    payload_auditable = models.JSONField(default=dict, blank=True)
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="hitos_decision_ia")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class ComandoCopiloto(models.Model):
+    class Tipo(models.TextChoices):
+        ACCION = "prepare_action", "Preparar accion"
+        REEVALUACION = "prepare_reevaluation", "Preparar reevaluacion"
+        RESTRICCION = "prepare_restriction", "Preparar restriccion"
+        ESCALAMIENTO = "prepare_escalation", "Preparar escalamiento"
+    class Estado(models.TextChoices):
+        PREPARADO = "preparado", "Preparado"
+        CONFIRMADO = "confirmado", "Confirmado"
+        RECHAZADO = "rechazado", "Rechazado"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="comandos_copiloto")
+    problematica = models.ForeignKey(ProblematicaAmbiental, on_delete=models.CASCADE, related_name="comandos_copiloto")
+    propuesta = models.ForeignKey(RecomendacionAgenteAmbiental, on_delete=models.PROTECT, null=True, blank=True, related_name="comandos")
+    tipo = models.CharField(max_length=30, choices=Tipo.choices)
+    payload = models.JSONField(default=dict)
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PREPARADO)
+    confirmado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="comandos_copiloto_confirmados")
+    created_at = models.DateTimeField(auto_now_add=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
 
 
 class ExpedienteAmbiental(models.Model):

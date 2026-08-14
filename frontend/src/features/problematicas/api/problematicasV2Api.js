@@ -9,3 +9,8 @@ export const getProblemHistory = async (organizationId, id) => (await api.get(`$
 export const getBaseSnapshot = async (organizationId, id) => (await api.get(`${base(organizationId)}/${id}/snapshot-base/`)).data;
 export const selectProblemAction = async (organizationId, problemId, actionId) => (await api.post(`${base(organizationId)}/${problemId}/acciones/${actionId}/seleccionar/`)).data;
 export const startProblemAction = async (organizationId, problemId, actionId) => (await api.post(`${base(organizationId)}/${problemId}/acciones/${actionId}/iniciar/`, { confirmado: true })).data;
+export const getProblemContextV2 = async (problemId) => (await api.get(`/context/problems/${problemId}/`)).data;
+export const getCopilotProposals = async (problemId) => (await api.get(`/agent/problems/${problemId}/proposals/`)).data;
+export const createCopilotProposal = async (problemId, mensaje) => (await api.post(`/agent/problems/${problemId}/proposals/`, { mensaje })).data;
+export const sendProposalFeedback = async (problemId, proposalId, decision, mensaje = "") => (await api.post(`/agent/problems/${problemId}/proposals/${proposalId}/feedback/`, { decision, mensaje })).data;
+export const confirmCopilotCommand = async (commandId) => (await api.post(`/agent/commands/${commandId}/confirm/`, { confirmado: true })).data;
