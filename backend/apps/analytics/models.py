@@ -334,6 +334,7 @@ class Observacion(models.Model):
     naturaleza = models.CharField(max_length=35, choices=Naturaleza.choices, default=Naturaleza.DECLARATIVO)
     actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="observaciones_operacionales")
     evidencia = models.ForeignKey("EvidenciaObra", on_delete=models.SET_NULL, null=True, blank=True, related_name="observaciones_operacionales")
+    version_evidencia = models.ForeignKey("VersionEvidencia", on_delete=models.SET_NULL, null=True, blank=True, related_name="observaciones_operacionales")
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PENDIENTE, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -351,6 +352,10 @@ class Observacion(models.Model):
             errors["fuente"] = "La fuente debe pertenecer a la misma organizacion."
         if self.evidencia_id and self.evidencia.organizacion_id != self.organizacion_id:
             errors["evidencia"] = "La evidencia debe pertenecer a la misma organizacion."
+        if self.version_evidencia_id and self.version_evidencia.organizacion_id != self.organizacion_id:
+            errors["version_evidencia"] = "La version de evidencia debe pertenecer a la misma organizacion."
+        if self.version_evidencia_id and self.evidencia_id and self.version_evidencia.evidencia_id != self.evidencia_id:
+            errors["version_evidencia"] = "La version debe pertenecer a la evidencia asociada."
         if self.valor_numerico is None and not self.valor_texto:
             errors["valor_numerico"] = "Debe informar un valor numerico o textual."
         if self.valor_numerico is not None and self.valor_texto:

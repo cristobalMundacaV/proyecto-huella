@@ -20,12 +20,13 @@ class FuenteDatosSerializer(serializers.ModelSerializer):
 class ObservacionSerializer(serializers.ModelSerializer):
     fuente_detalle = FuenteDatosSerializer(source="fuente", read_only=True)
     evidencia_detalle = serializers.SerializerMethodField()
+    version_evidencia_detalle = serializers.SerializerMethodField()
 
     class Meta:
         model = Observacion
         fields = ["id", "actividad", "fuente", "fuente_detalle", "concepto", "valor_numerico", "valor_texto",
                   "unidad", "timestamp_observacion", "metodo_captura", "naturaleza", "actor", "evidencia",
-                  "evidencia_detalle", "estado", "created_at", "updated_at"]
+                  "evidencia_detalle", "version_evidencia", "version_evidencia_detalle", "estado", "created_at", "updated_at"]
         read_only_fields = ["id", "actividad", "actor", "created_at", "updated_at"]
 
     def validate(self, attrs):
@@ -36,12 +37,17 @@ class ObservacionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"actividad": "La actividad no coincide con el recurso solicitado."})
         fuente = attrs.get("fuente", getattr(self.instance, "fuente", None))
         evidencia = attrs.get("evidencia", getattr(self.instance, "evidencia", None))
+        version_evidencia = attrs.get("version_evidencia", getattr(self.instance, "version_evidencia", None))
         if actividad and actividad.organizacion_id != organizacion.id:
             raise serializers.ValidationError({"actividad": "La actividad pertenece a otra organizacion."})
         if fuente and fuente.organizacion_id != organizacion.id:
             raise serializers.ValidationError({"fuente": "La fuente pertenece a otra organizacion."})
         if evidencia and evidencia.organizacion_id != organizacion.id:
             raise serializers.ValidationError({"evidencia": "La evidencia pertenece a otra organizacion."})
+        if version_evidencia and version_evidencia.organizacion_id != organizacion.id:
+            raise serializers.ValidationError({"version_evidencia": "La version de evidencia pertenece a otra organizacion."})
+        if version_evidencia and evidencia and version_evidencia.evidencia_id != evidencia.id:
+            raise serializers.ValidationError({"version_evidencia": "La version no pertenece a la evidencia asociada."})
         numerico = attrs.get("valor_numerico", getattr(self.instance, "valor_numerico", None))
         texto = attrs.get("valor_texto", getattr(self.instance, "valor_texto", ""))
         if numerico is None and not texto:
@@ -64,6 +70,12 @@ class ObservacionSerializer(serializers.ModelSerializer):
         if not observacion.evidencia_id:
             return None
         return {"id": observacion.evidencia_id, "nombre": observacion.evidencia.nombre, "tipo_evidencia": observacion.evidencia.tipo_evidencia}
+
+    def get_version_evidencia_detalle(self, observacion):
+        if not observacion.version_evidencia_id:
+            return None
+        version = observacion.version_evidencia
+        return {"id": version.id, "version": version.version, "nombre_original": version.nombre_original, "checksum_sha256": version.checksum_sha256}
 
 
 class ActividadOperacionalSerializer(serializers.ModelSerializer):

@@ -74,7 +74,7 @@ def actividad_operacional_detail(request, organizacion_id, actividad_id):
 def observaciones_actividad(request, organizacion_id, actividad_id):
     organizacion = _organizacion(organizacion_id)
     actividad = get_object_or_404(ActividadOperacional, organizacion=organizacion, id=actividad_id)
-    queryset = actividad.observaciones.select_related("fuente", "evidencia")
+    queryset = actividad.observaciones.select_related("fuente", "evidencia", "version_evidencia")
     if request.query_params.get("concepto"):
         queryset = queryset.filter(concepto=request.query_params["concepto"])
     if request.query_params.get("fuente"):
@@ -85,7 +85,7 @@ def observaciones_actividad(request, organizacion_id, actividad_id):
 @api_view(["GET", "PATCH"])
 def observacion_detail(request, organizacion_id, observacion_id):
     organizacion = _organizacion(organizacion_id)
-    observacion = get_object_or_404(Observacion.objects.select_related("fuente", "evidencia", "actividad"), organizacion=organizacion, id=observacion_id)
+    observacion = get_object_or_404(Observacion.objects.select_related("fuente", "evidencia", "version_evidencia", "actividad"), organizacion=organizacion, id=observacion_id)
     if request.method == "GET":
         return Response(ObservacionSerializer(observacion).data)
     serializer = ObservacionSerializer(observacion, data=request.data, partial=True, context={"organizacion": organizacion, "actividad": observacion.actividad})

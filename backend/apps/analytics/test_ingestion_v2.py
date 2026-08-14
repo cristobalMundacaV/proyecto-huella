@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from .models import (ActividadOperacional, EvidenciaObra, FuenteDatos, Observacion, Organizacion,
@@ -67,6 +68,8 @@ class IngestionV2ApiTests(APITestCase):
         self.assertEqual(RegistroEmision.objects.count(), 0)
         evidencia = EvidenciaObra.objects.get()
         self.assertTrue(all(item.evidencia_id == evidencia.id for item in Observacion.objects.all()))
+        version = VersionEvidencia.objects.get()
+        self.assertTrue(all(item.version_evidencia_id == version.id for item in Observacion.objects.all()))
         self.assertTrue(all(item.fuente.organizacion == self.organizacion for item in Observacion.objects.all()))
 
     def test_confirmacion_doble_es_idempotente(self):
@@ -111,3 +114,63 @@ class IngestionV2ApiTests(APITestCase):
         self.assertEqual(self.client.get(f"/api/organizaciones/{self.otra.organizacion_id}/ingestas/{foreign.data['id']}/").status_code, 404)
         legacy = self.client.get(f"{self.base}/registros-emision/")
         self.assertEqual(legacy.status_code, 200)
+
+    def test_dos_versiones_generan_observaciones_distinguibles(self):
+        first = self.upload("viaje_id,km\nV-001,10\n", "viajes_julio_v1.csv").data
+        self.analyze_and_map(first["id"])
+        self.client.post(f"{self.base}/ingestas/{first['id']}/confirmar/", {}, format="json")
+        evidencia = ProcesoIngesta.objects.get(id=first["id"]).version_evidencia.evidencia
+
+        file = SimpleUploadedFile("viajes_julio_corregido.csv", b"viaje_id,km\nV-002,12\n", content_type="text/csv")
+        second = self.client.post(
+            f"{self.base}/ingestas/", {"archivo": file, "fuente_nombre": "Planilla logistica", "evidencia": evidencia.id}, format="multipart"
+        ).data
+        analysis = self.client.post(f"{self.base}/ingestas/{second['id']}/analizar/", {}, format="json")
+        if analysis.data["estado"] != "listo_para_confirmar":
+            self.client.post(f"{self.base}/ingestas/{second['id']}/mapeo/", {"mapeos": analysis.data["columnas"], "nombre": "Viajes"}, format="json")
+        self.client.post(f"{self.base}/ingestas/{second['id']}/confirmar/", {}, format="json")
+
+        first_observation = Observacion.objects.get(actividad__referencia_externa="V-001")
+        second_observation = Observacion.objects.get(actividad__referencia_externa="V-002")
+        self.assertEqual(first_observation.evidencia_id, second_observation.evidencia_id)
+        self.assertEqual(first_observation.version_evidencia.version, 1)
+        self.assertEqual(second_observation.version_evidencia.version, 2)
+        self.assertEqual(second_observation.version_evidencia.nombre_original, "viajes_julio_corregido.csv")
+
+    def test_rechaza_version_ajena_y_version_de_otra_evidencia(self):
+        first = self.upload("viaje_id,km\nV-001,10\n", "primera.csv").data
+        second = self.upload("viaje_id,km\nV-002,12\n", "segunda.csv", fuente_nombre="Otra planilla").data
+        process_first = ProcesoIngesta.objects.get(id=first["id"])
+        process_second = ProcesoIngesta.objects.get(id=second["id"])
+        activity = ActividadOperacional.objects.create(
+            organizacion=self.organizacion, codigo="MANUAL-VERSION", nombre="Manual", timestamp_inicio=timezone.now()
+        )
+        source = process_first.fuente_datos
+        path = f"{self.base}/actividades-operacionales/{activity.id}/observaciones/"
+        payload = {"fuente": source.id, "concepto": "distancia_recorrida_km", "valor_numerico": "1",
+                   "timestamp_observacion": timezone.now().isoformat(), "evidencia": process_first.version_evidencia.evidencia_id,
+                   "version_evidencia": process_second.version_evidencia_id}
+        self.assertEqual(self.client.post(path, payload, format="json").status_code, 400)
+
+        foreign_evidence = EvidenciaObra.objects.create(
+            organizacion=self.otra, nombre="Ajena", archivo=SimpleUploadedFile("ajena.csv", b"x")
+        )
+        foreign_version = VersionEvidencia.objects.create(
+            evidencia=foreign_evidence, organizacion=self.otra, version=1,
+            archivo=SimpleUploadedFile("ajena.csv", b"x"), nombre_original="ajena.csv", checksum_sha256="a" * 64,
+        )
+        payload.update({"evidencia": None, "version_evidencia": foreign_version.id})
+        self.assertEqual(self.client.post(path, payload, format="json").status_code, 400)
+
+    def test_observacion_manual_admite_version_nula(self):
+        activity = ActividadOperacional.objects.create(
+            organizacion=self.organizacion, codigo="MANUAL-SIN-VERSION", nombre="Manual", timestamp_inicio=timezone.now()
+        )
+        source = FuenteDatos.objects.create(organizacion=self.organizacion, nombre="Declaracion manual")
+        response = self.client.post(
+            f"{self.base}/actividades-operacionales/{activity.id}/observaciones/",
+            {"fuente": source.id, "concepto": "horas_operacion", "valor_numerico": "2", "timestamp_observacion": timezone.now().isoformat()},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertIsNone(response.data["version_evidencia"])

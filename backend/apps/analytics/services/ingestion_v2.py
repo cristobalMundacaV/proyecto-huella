@@ -216,6 +216,7 @@ def confirmar_ingesta(proceso):
                         concepto=concept, valor_numerico=_decimal(value), unidad=unit,
                         timestamp_observacion=timestamp, metodo_captura=Observacion.MetodoCaptura.IMPORTADO,
                         naturaleza=Observacion.Naturaleza.DOCUMENTAL, evidencia=proceso.version_evidencia.evidencia,
+                        version_evidencia=proceso.version_evidencia,
                     )
                     observations += 1
                 record.actividad_creada = actividad; record.estado = RegistroExtraido.Estado.PROCESADO; record.errores = []; record.save()
