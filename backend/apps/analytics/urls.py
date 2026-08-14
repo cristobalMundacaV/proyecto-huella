@@ -104,6 +104,10 @@ from .views_activity_core import (
     actividad_operacional_detail, actividades_operacionales, fuente_datos_detail,
     fuentes_datos, observacion_detail, observaciones_actividad,
 )
+from .views_ingestion_v2 import (
+    ingesta_analizar, ingesta_confirmar, ingesta_detail, ingesta_mapeo,
+    ingesta_preview, ingestas, plantillas_mapeo,
+)
 
 urlpatterns = [
     path("capacidades-ambientales/", capacidades_disponibles),
@@ -129,6 +133,13 @@ urlpatterns = [
     path("organizaciones/<str:organizacion_id>/actividades-operacionales/<int:actividad_id>/", actividad_operacional_detail),
     path("organizaciones/<str:organizacion_id>/actividades-operacionales/<int:actividad_id>/observaciones/", observaciones_actividad),
     path("organizaciones/<str:organizacion_id>/observaciones/<int:observacion_id>/", observacion_detail),
+    path("organizaciones/<str:organizacion_id>/ingestas/", ingestas),
+    path("organizaciones/<str:organizacion_id>/ingestas/<int:ingesta_id>/", ingesta_detail),
+    path("organizaciones/<str:organizacion_id>/ingestas/<int:ingesta_id>/analizar/", ingesta_analizar),
+    path("organizaciones/<str:organizacion_id>/ingestas/<int:ingesta_id>/mapeo/", ingesta_mapeo),
+    path("organizaciones/<str:organizacion_id>/ingestas/<int:ingesta_id>/preview/", ingesta_preview),
+    path("organizaciones/<str:organizacion_id>/ingestas/<int:ingesta_id>/confirmar/", ingesta_confirmar),
+    path("organizaciones/<str:organizacion_id>/plantillas-mapeo/", plantillas_mapeo),
     path("organizaciones/<str:organizacion_id>/estado/", organizacion_estado),
     path("organizaciones/<str:organizacion_id>/configuracion/", organizacion_configuracion),
     path("organizaciones/<str:organizacion_id>/dashboard/", organizacion_dashboard),

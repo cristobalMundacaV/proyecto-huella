@@ -34,6 +34,7 @@ import ImportPreviewTable from "../components/ImportPreviewTable";
 import ImportTemplatePanel from "../components/ImportTemplatePanel";
 import ImportUploadPanel from "../components/ImportUploadPanel";
 import ImportValidationSummary from "../components/ImportValidationSummary";
+import IngestionV2Flow from "@/features/importaciones/components/IngestionV2Flow";
 
 const importByPreset = {
   construccion: construccionImport,
@@ -214,6 +215,7 @@ function ImportacionesPage({ onImportConfirmed }) {
   return (
     <main className="mx-auto max-w-7xl space-y-8">
       <ImportHero activeOrganizacion={activeOrganizacion} config={config} preset={activePreset} />
+      <IngestionV2Flow organizacionId={activeOrganizacionId} />
       {message && <p className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-800">{message}</p>}
       {error && <p className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-black text-rose-800">{error}</p>}
 

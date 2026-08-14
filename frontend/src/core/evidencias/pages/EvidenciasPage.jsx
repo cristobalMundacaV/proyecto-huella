@@ -28,6 +28,7 @@ import EvidenceKpiGrid from "../components/EvidenceKpiGrid";
 import EvidenceTable from "../components/EvidenceTable";
 import EvidenceUploadPanel from "../components/EvidenceUploadPanel";
 import EvidenceValidationPanel from "../components/EvidenceValidationPanel";
+import IngestionEvidenceTrace from "@/features/evidencias/components/IngestionEvidenceTrace";
 
 const evidenceByPreset = {
   construccion: construccionEvidence,
@@ -284,6 +285,7 @@ function EvidenciasPage() {
       </section>
 
       <EvidenceKpiGrid kpis={kpis} />
+      <IngestionEvidenceTrace organizacionId={activeOrganizacionId} />
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <EvidenceChecklist items={config.checklist} />
