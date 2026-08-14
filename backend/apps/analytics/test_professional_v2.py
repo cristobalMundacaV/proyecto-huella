@@ -4,17 +4,18 @@ from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from .models import (AccionMejoraAmbiental, ActividadOperacional,
                      AlcanceProblematica, CalculoAmbiental,
                      CorreccionHistoricaAmbiental, EventoAuditoriaAmbiental,
-                     FactorAmbiental, FormulaAmbiental, HitoDecisionIA,
+                     EvidenciaObra, FactorAmbiental, FormulaAmbiental, HitoDecisionIA,
                      IndicadorAmbiental, IndicadorProblematica, InformeAmbiental,
                      Observacion, Organizacion, ProblematicaAmbiental,
                      RecomendacionAgenteAmbiental, RevisionProfesionalAmbiental,
-                     SnapshotInformeAmbiental, UsuarioOrganizacion,
+                     SnapshotInformeAmbiental, SnapshotIntervencion, UsuarioOrganizacion,
                      ValorIndicador, VariableFormula, VersionFactorAmbiental,
                      VersionMetodologia, MetodologiaAmbiental, FuenteDatos)
 from .services.calculation_v2 import calculate_activity
@@ -62,6 +63,57 @@ class ProfessionalV2Tests(APITestCase):
         if state:
             decide_review(row, state, "Antecedentes revisados", "Observaciones tecnicas", ["respaldo adicional"] if state == "solicita_antecedentes" else [], self.professional)
         return row
+
+    def other_case(self):
+        problem = ProblematicaAmbiental.objects.create(organizacion=self.org, titulo="Consumo energetico anomalo", descripcion="Caso B", categoria="energia", valor_inicial=5, objetivo_meta=4, fecha_deteccion=date.today())
+        action = AccionMejoraAmbiental.objects.create(problematica=problem, titulo="Ajustar consumo", descripcion="Caso B")
+        base = SnapshotIntervencion.objects.create(problematica=problem, accion=action, ciclo=1, tipo="base", fecha=date.today(), congelado=True)
+        result = SnapshotIntervencion.objects.create(problematica=problem, accion=action, ciclo=1, tipo="resultado", fecha=date.today(), congelado=True)
+        intervention = self.result.__class__.objects.create(problematica=problem, accion=action, ciclo=1, snapshot_base=base, snapshot_resultado=result, estado="inconclusa", fecha_evaluacion=date.today())
+        return problem, intervention
+
+    def test_revision_tipo_debe_corresponder_a_referencia(self):
+        valid = RevisionProfesionalAmbiental.objects.create(organizacion=self.org, tipo="calculo", calculo=self.calculation)
+        self.assertEqual(valid.calculo_id, self.calculation.id)
+        evidence = EvidenciaObra.objects.create(organizacion=self.org, nombre="Respaldo", archivo=SimpleUploadedFile("respaldo.txt", b"dato"))
+        self.assertEqual(RevisionProfesionalAmbiental.objects.create(organizacion=self.org, tipo="evidencia", evidencia=evidence).evidencia_id, evidence.id)
+        with self.assertRaises(ValidationError):
+            RevisionProfesionalAmbiental.objects.create(organizacion=self.org, tipo="calculo", evidencia=evidence)
+        with self.assertRaises(ValidationError):
+            RevisionProfesionalAmbiental.objects.create(organizacion=self.org, tipo="calculo")
+        with self.assertRaises(ValidationError):
+            RevisionProfesionalAmbiental.objects.create(organizacion=self.other, tipo="calculo", calculo=self.calculation)
+
+    def test_informe_rechaza_referencias_de_casos_distintos(self):
+        problem_b, intervention_b = self.other_case()
+        valid = generate_report(self.org, "problematica", self.professional, problem=problem_b, intervention=intervention_b)
+        self.assertEqual(valid.estado, "generado")
+        before = InformeAmbiental.objects.count()
+        with self.assertRaises(ValidationError):
+            generate_report(self.org, "problematica", self.professional, problem=self.problem, intervention=intervention_b)
+        dossier = create_dossier(self.problem, self.professional)
+        with self.assertRaises(ValidationError):
+            generate_report(self.org, "expediente", self.professional, problem=problem_b, dossier=dossier)
+        self.assertEqual(InformeAmbiental.objects.count(), before)
+
+    def test_servicio_informe_exige_tipo_y_objeto_principal(self):
+        with self.assertRaises(ValidationError):
+            generate_report(self.org, "actividad", self.professional)
+        with self.assertRaises(ValidationError):
+            generate_report(self.org, "desconocido", self.professional, problem=self.problem)
+
+    def test_validacion_exige_version_generada_completa(self):
+        draft = InformeAmbiental.objects.create(organizacion=self.org, tipo="problematica", problematica=self.problem, version=99, estado="borrador", generado_por=self.professional)
+        with self.assertRaises(ValidationError):
+            validate_report(draft, self.professional)
+        report = generate_report(self.org, "problematica", self.professional, problem=self.problem)
+        validate_report(report, self.professional)
+        self.assertEqual(report.estado, "validado")
+        with self.assertRaises(ValidationError):
+            validate_report(report, self.professional)
+        report.metadata = {"mutacion": True}
+        with self.assertRaises(ValidationError):
+            report.save()
 
     def test_crear_revision_y_rechazar_cross_tenant(self):
         response = self.client.post(f"{self.base}/revisiones-profesionales/", {"tipo":"problematica", "problematica":self.problem.id}, format="json")

@@ -2516,10 +2516,39 @@ class RevisionProfesionalAmbiental(models.Model):
     version = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    REFERENCE_BY_TYPE = {
+        Tipo.EVIDENCIA: "evidencia",
+        Tipo.OBSERVACION: "observacion",
+        Tipo.CALCULO: "calculo",
+        Tipo.INDICADOR: "indicador",
+        Tipo.PROBLEMATICA: "problematica",
+        Tipo.INTERVENCION: "intervencion",
+        Tipo.EXPEDIENTE: "expediente",
+    }
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        references = {
+            field: getattr(self, f"{field}_id")
+            for field in self.REFERENCE_BY_TYPE.values()
+        }
+        populated = [field for field, value in references.items() if value]
+        if len(populated) != 1:
+            raise ValidationError("La revision debe referenciar exactamente un objeto.")
+        expected = self.REFERENCE_BY_TYPE.get(self.tipo)
+        if not expected or populated[0] != expected:
+            raise ValidationError({"tipo": "El tipo de revision no corresponde al objeto revisado."})
+        item = getattr(self, expected)
+        owner_id = getattr(item, "organizacion_id", None) or item.problematica.organizacion_id
+        if self.organizacion_id and owner_id != self.organizacion_id:
+            raise ValidationError("El objeto revisado pertenece a otra organizacion.")
+
     def save(self, *args, **kwargs):
         if self.pk and RevisionProfesionalAmbiental.objects.filter(pk=self.pk, estado__in=[self.Estado.VALIDADA, self.Estado.VALIDADA_OBSERVACIONES, self.Estado.RECHAZADA]).exists():
             from django.core.exceptions import ValidationError
             raise ValidationError("Una revision profesional decidida es inmutable; cree una nueva version.")
+        self.full_clean()
         super().save(*args, **kwargs)
 
 

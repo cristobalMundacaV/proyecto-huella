@@ -21,9 +21,16 @@ class RevisionProfesionalSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         organization = self.context["organizacion"]
-        references = [attrs.get(field) for field in ("evidencia", "observacion", "calculo", "indicador", "problematica", "intervencion", "expediente") if attrs.get(field)]
+        fields = tuple(RevisionProfesionalAmbiental.REFERENCE_BY_TYPE.values())
+        values = {field: attrs.get(field, getattr(self.instance, field, None)) for field in fields}
+        references = [item for item in values.values() if item]
         if len(references) != 1:
             raise serializers.ValidationError("La revision debe referenciar exactamente un objeto.")
+        review_type = attrs.get("tipo", getattr(self.instance, "tipo", None))
+        expected = RevisionProfesionalAmbiental.REFERENCE_BY_TYPE.get(review_type)
+        populated = next(field for field, item in values.items() if item)
+        if not expected or populated != expected:
+            raise serializers.ValidationError({"tipo": "El tipo de revision no corresponde al objeto revisado."})
         item = references[0]
         owner_id = getattr(item, "organizacion_id", None) or item.problematica.organizacion_id
         if owner_id != organization.id:

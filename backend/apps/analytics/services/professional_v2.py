@@ -173,12 +173,39 @@ def _pdf_bytes(snapshot, version):
     pdf.save(); return output.getvalue()
 
 
-@transaction.atomic
-def generate_report(organization, report_type, user, activity=None, problem=None, intervention=None, dossier=None):
+def _validate_report_references(organization, report_type, activity, problem, intervention, dossier):
+    valid_types = set(InformeAmbiental.Tipo.values)
+    if report_type not in valid_types:
+        raise ValidationError("Tipo de informe invalido.")
+    primary = {
+        InformeAmbiental.Tipo.ACTIVIDAD: activity,
+        InformeAmbiental.Tipo.PROBLEMATICA: problem,
+        InformeAmbiental.Tipo.INTERVENCION: intervention,
+        InformeAmbiental.Tipo.EXPEDIENTE: dossier,
+    }[report_type]
+    if primary is None:
+        raise ValidationError("El tipo de informe requiere su objeto principal correspondiente.")
+
     for item in (activity, problem, intervention, dossier):
         if item:
-            owner_id = item.organizacion_id if hasattr(item, "organizacion_id") else item.problematica.organizacion_id
-            if owner_id != organization.id: raise ValidationError("El objeto principal pertenece a otra organizacion.")
+            owner_id = getattr(item, "organizacion_id", None) or item.problematica.organizacion_id
+            if owner_id != organization.id:
+                raise ValidationError("Una referencia del informe pertenece a otra organizacion.")
+
+    case_problems = [item for item in (
+        problem,
+        intervention.problematica if intervention else None,
+        dossier.problematica if dossier else None,
+    ) if item]
+    if case_problems and any(item.pk != case_problems[0].pk for item in case_problems[1:]):
+        raise ValidationError("Las referencias del informe no corresponden a la misma problematica.")
+    if activity and case_problems and not case_problems[0].alcances_v2.filter(actividad_operacional=activity).exists():
+        raise ValidationError("La actividad no pertenece al alcance de la problematica del informe.")
+
+
+@transaction.atomic
+def generate_report(organization, report_type, user, activity=None, problem=None, intervention=None, dossier=None):
+    _validate_report_references(organization, report_type, activity, problem, intervention, dossier)
     query = InformeAmbiental.objects.filter(organizacion=organization, tipo=report_type, actividad=activity, problematica=problem, intervencion=intervention, expediente=dossier)
     version = (query.order_by("-version").values_list("version", flat=True).first() or 0) + 1
     report = InformeAmbiental.objects.create(organizacion=organization, tipo=report_type, actividad=activity, problematica=problem, intervencion=intervention, expediente=dossier, version=version, estado="borrador", generado_por=user)
@@ -194,6 +221,14 @@ def generate_report(organization, report_type, user, activity=None, problem=None
 def validate_report(report, user):
     if not can_review(user, report.organizacion): raise ValidationError("El usuario no tiene capacidad de revision profesional.")
     if report.estado == "validado": raise ValidationError("El informe ya fue validado.")
+    if report.estado not in {InformeAmbiental.Estado.GENERADO, InformeAmbiental.Estado.REVISADO}:
+        raise ValidationError("Solo un informe generado o revisado puede validarse.")
+    if not report.archivo or not report.archivo.name or not report.archivo.storage.exists(report.archivo.name):
+        raise ValidationError("El informe no tiene un archivo PDF existente.")
+    if not report.checksum_sha256:
+        raise ValidationError("El informe no tiene checksum.")
+    if not SnapshotInformeAmbiental.objects.filter(informe=report).exists():
+        raise ValidationError("El informe no tiene snapshot.")
     report.estado = "validado"; report.validado_por = user; report.validado_at = timezone.now(); report.save(update_fields=["estado", "validado_por", "validado_at"])
     audit(report.organizacion, "validacion_informe", user, "InformeAmbiental", report.id, "Version de informe validada.", {"version": report.version, "checksum": report.checksum_sha256})
     return report
