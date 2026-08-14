@@ -2,7 +2,8 @@ from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 
 from .models import (CapacidadOrganizacion, DiagnosticoAmbientalInicial, Organizacion,
-                     ProcesoOperacional, UnidadOperacional, UsuarioOrganizacion)
+                     ElementoDiagnosticoAmbiental, ProcesoOperacional, UnidadOperacional,
+                     UsuarioOrganizacion)
 from .services.foundation import inicializar_capacidades_preset, resumen_preparacion_ambiental
 
 
@@ -52,3 +53,67 @@ class FoundationApiTests(APITestCase):
         UnidadOperacional.objects.create(organizacion=self.organizacion, nombre="Faena")
         ProcesoOperacional.objects.create(organizacion=self.organizacion, nombre="Montaje")
         self.assertTrue(resumen_preparacion_ambiental(self.organizacion)["preparada_para_operacion"])
+
+    def _diagnostico_con_elemento(self):
+        diagnostico = DiagnosticoAmbientalInicial.objects.create(organizacion=self.organizacion)
+        elemento = ElementoDiagnosticoAmbiental.objects.create(
+            diagnostico=diagnostico, tipo="proceso", nombre="Montaje", descripcion="Inicial"
+        )
+        return diagnostico, elemento
+
+    def test_actualizar_elemento_conserva_id(self):
+        _, elemento = self._diagnostico_con_elemento()
+        response = self.client.patch(
+            f"{self.base}/diagnostico-ambiental/",
+            {"elementos": [{"id": elemento.id, "nombre": "Montaje actualizado"}]}, format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        elemento.refresh_from_db()
+        self.assertEqual(elemento.nombre, "Montaje actualizado")
+        self.assertEqual(response.data["elementos"][0]["id"], elemento.id)
+
+    def test_agregar_elemento_no_recrea_existentes(self):
+        diagnostico, elemento = self._diagnostico_con_elemento()
+        created_at = elemento.created_at
+        response = self.client.patch(
+            f"{self.base}/diagnostico-ambiental/",
+            {"elementos": [{"tipo": "fuente", "nombre": "Factura electrica"}]}, format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        elemento.refresh_from_db()
+        self.assertEqual(elemento.created_at, created_at)
+        self.assertEqual(diagnostico.elementos.count(), 2)
+
+    def test_eliminar_elemento_requiere_marca_explicita(self):
+        diagnostico, elemento = self._diagnostico_con_elemento()
+        response = self.client.patch(
+            f"{self.base}/diagnostico-ambiental/",
+            {"elementos": [{"id": elemento.id, "eliminar": True}]}, format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(diagnostico.elementos.filter(id=elemento.id).exists())
+
+    def test_no_modifica_elemento_de_otro_diagnostico_tenant(self):
+        self._diagnostico_con_elemento()
+        diagnostico_ajeno = DiagnosticoAmbientalInicial.objects.create(organizacion=self.otra)
+        ajeno = ElementoDiagnosticoAmbiental.objects.create(
+            diagnostico=diagnostico_ajeno, tipo="brecha", nombre="Ajena"
+        )
+        response = self.client.patch(
+            f"{self.base}/diagnostico-ambiental/",
+            {"elementos": [{"id": ajeno.id, "nombre": "Intrusion"}]}, format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        ajeno.refresh_from_db()
+        self.assertEqual(ajeno.nombre, "Ajena")
+
+    def test_patch_sin_elementos_no_altera_existentes(self):
+        diagnostico, elemento = self._diagnostico_con_elemento()
+        updated_at = elemento.updated_at
+        response = self.client.patch(
+            f"{self.base}/diagnostico-ambiental/", {"observaciones": "Nueva nota"}, format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        elemento.refresh_from_db()
+        self.assertEqual(elemento.updated_at, updated_at)
+        self.assertEqual(diagnostico.elementos.count(), 1)
