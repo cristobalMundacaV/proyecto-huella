@@ -2593,6 +2593,32 @@ class CorreccionHistoricaAmbiental(models.Model):
     version = models.PositiveIntegerField(default=1)
     recalculo_generado = models.ForeignKey(CalculoAmbiental, on_delete=models.PROTECT, null=True, blank=True, related_name="correcciones_origen")
 
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.revision_origen_id and self.organizacion_id != self.revision_origen.organizacion_id:
+            raise ValidationError({"revision_origen": "La revision origen pertenece a otra organizacion."})
+
+        owners = {
+            "observacion_afectada": self.observacion_afectada.organizacion_id if self.observacion_afectada_id else None,
+            "calculo_afectado": self.calculo_afectado.organizacion_id if self.calculo_afectado_id else None,
+            "impacto_afectado": self.impacto_afectado.organizacion_id if self.impacto_afectado_id else None,
+            "snapshot_afectado": self.snapshot_afectado.problematica.organizacion_id if self.snapshot_afectado_id else None,
+            "resultado_afectado": self.resultado_afectado.problematica.organizacion_id if self.resultado_afectado_id else None,
+            "recalculo_generado": self.recalculo_generado.organizacion_id if self.recalculo_generado_id else None,
+        }
+        errors = {
+            field: "La referencia pertenece a otra organizacion."
+            for field, owner_id in owners.items()
+            if owner_id is not None and owner_id != self.organizacion_id
+        }
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
 
 class EventoAuditoriaAmbiental(models.Model):
     organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="eventos_auditoria_ambiental")

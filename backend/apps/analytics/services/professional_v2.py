@@ -229,6 +229,12 @@ def validate_report(report, user):
         raise ValidationError("El informe no tiene checksum.")
     if not SnapshotInformeAmbiental.objects.filter(informe=report).exists():
         raise ValidationError("El informe no tiene snapshot.")
+    digest = hashlib.sha256()
+    with report.archivo.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    if digest.hexdigest() != report.checksum_sha256:
+        raise ValidationError("El archivo PDF no coincide con el checksum almacenado.")
     report.estado = "validado"; report.validado_por = user; report.validado_at = timezone.now(); report.save(update_fields=["estado", "validado_por", "validado_at"])
     audit(report.organizacion, "validacion_informe", user, "InformeAmbiental", report.id, "Version de informe validada.", {"version": report.version, "checksum": report.checksum_sha256})
     return report

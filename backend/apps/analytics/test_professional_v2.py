@@ -141,6 +141,36 @@ class ProfessionalV2Tests(APITestCase):
         correction = create_correction(review, self.professional, "Valor requiere aclaracion", {"valor":"132"}, {"valor":"133"}, observacion_afectada=self.distance)
         self.distance.refresh_from_db(); self.assertEqual(self.distance.valor_numerico, Decimal("132")); self.assertEqual(correction.propuesta_corregida["valor"], "133")
 
+    def test_correccion_cross_tenant_rechazada_por_servicio_y_modelo(self):
+        review = self.review("validada_con_observaciones")
+        foreign_activity = ActividadOperacional.objects.create(organizacion=self.other, codigo="B-001", nombre="Actividad B", tipo="transporte", timestamp_inicio=timezone.now())
+        foreign_calculation = CalculoAmbiental.objects.create(
+            organizacion=self.other, actividad=foreign_activity,
+            version_metodologia=self.calculation.version_metodologia,
+            formula=self.calculation.formula, version_factor=self.calculation.version_factor,
+            resultado=1, unidad_resultado="kgCO2e", formula_aplicada="test",
+            completitud="completo",
+        )
+        before = CorreccionHistoricaAmbiental.objects.count()
+        with self.assertRaises(ValidationError):
+            create_correction(review, self.professional, "Referencia ajena", {}, {}, calculo_afectado=foreign_calculation)
+        with self.assertRaises(ValidationError):
+            CorreccionHistoricaAmbiental.objects.create(
+                organizacion=self.org, revision_origen=review, autor=self.professional,
+                motivo="Creacion directa ajena", valor_estado_anterior={},
+                propuesta_corregida={}, calculo_afectado=foreign_calculation,
+            )
+        foreign_problem = ProblematicaAmbiental.objects.create(organizacion=self.other, titulo="Caso extranjero", descripcion="B", categoria="energia", valor_inicial=2, objetivo_meta=1, fecha_deteccion=date.today())
+        foreign_action = AccionMejoraAmbiental.objects.create(problematica=foreign_problem, titulo="Accion B", descripcion="B")
+        foreign_snapshot = SnapshotIntervencion.objects.create(problematica=foreign_problem, accion=foreign_action, ciclo=1, tipo="base", fecha=date.today(), congelado=True)
+        with self.assertRaises(ValidationError):
+            CorreccionHistoricaAmbiental.objects.create(
+                organizacion=self.org, revision_origen=review, autor=self.professional,
+                motivo="Snapshot ajeno", valor_estado_anterior={},
+                propuesta_corregida={}, snapshot_afectado=foreign_snapshot,
+            )
+        self.assertEqual(CorreccionHistoricaAmbiental.objects.count(), before)
+
     def test_recalculo_por_correccion_crea_nuevo_calculo(self):
         review = self.review("validada_con_observaciones")
         correction = create_correction(review, self.professional, "Recalcular sin sobrescribir", {"calculo":self.calculation.id}, {"recalcular":True}, calculo_afectado=self.calculation)
@@ -186,6 +216,17 @@ class ProfessionalV2Tests(APITestCase):
         self.assertEqual(self.client.post(f"{self.base}/informes/{report.id}/validar/", {}, format="json").status_code, 400)
         validate_report(report, self.professional); report.metadata = {"cambio":True}
         with self.assertRaises(ValidationError): report.save()
+
+    def test_pdf_alterado_no_puede_validarse(self):
+        report = generate_report(self.org, "problematica", self.professional, problem=self.problem)
+        original_checksum = report.checksum_sha256
+        with report.archivo.storage.open(report.archivo.name, "wb") as stream:
+            stream.write(b"PDF alterado despues de generarse")
+        with self.assertRaises(ValidationError):
+            validate_report(report, self.professional)
+        report.refresh_from_db()
+        self.assertEqual(report.estado, "generado")
+        self.assertEqual(report.checksum_sha256, original_checksum)
 
     def test_ia_no_equivale_revision_y_negativos_aparecen(self):
         proposal = RecomendacionAgenteAmbiental.objects.create(problematica=self.problem, accion="Propuesta", justificacion="IA", indicador_afectado="intensidad-v9", resultado_esperado="Pendiente", prioridad="media", periodo_seguimiento="30", nivel_confianza="media")
