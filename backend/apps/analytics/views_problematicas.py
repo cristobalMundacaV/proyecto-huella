@@ -5,15 +5,21 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import AccionMejoraAmbiental, Organizacion, ProblematicaAmbiental
+from .models import (AccionMejoraAmbiental, AlcanceProblematica,
+                     IndicadorProblematica, Organizacion, ProblematicaAmbiental)
 from .serializers_problematicas import (
     AccionMejoraAmbientalSerializer, HistorialProblematicaAmbientalSerializer,
-    MedicionSeguimientoAmbientalSerializer, ProblematicaAmbientalSerializer,
+    AlcanceProblematicaSerializer, CicloReevaluacionSerializer,
+    IndicadorProblematicaSerializer, MedicionSeguimientoAmbientalSerializer,
+    ProblematicaAmbientalSerializer, ResultadoIntervencionSerializer,
+    SnapshotIntervencionSerializer,
 )
 from .services.environmental_problems import (
     add_measurement, evaluate_problem, implement_action, measure_from_engine,
     recommend_action, transition_problem,
 )
+from .services.intervention_v2 import (escalate_problem, evaluate_intervention,
+                                       select_action, start_action)
 
 
 def _problem(organizacion, problematica_id):
@@ -92,7 +98,7 @@ def problematica_measurements(request, organizacion_id, problematica_id):
     problem = _problem(org, problematica_id)
     if request.method == "GET":
         return Response(MedicionSeguimientoAmbientalSerializer(problem.mediciones.all(), many=True).data)
-    serializer = MedicionSeguimientoAmbientalSerializer(data=request.data)
+    serializer = MedicionSeguimientoAmbientalSerializer(data=request.data, context={"problematica": problem})
     serializer.is_valid(raise_exception=True)
     action = serializer.validated_data.pop("accion", None)
     try:
@@ -121,7 +127,10 @@ def problematica_measure_engine(request, organizacion_id, problematica_id):
 def problematica_evaluate(request, organizacion_id, problematica_id):
     org = get_object_or_404(Organizacion, organizacion_id=organizacion_id)
     try:
-        problem = evaluate_problem(_problem(org, problematica_id), user=request.user)
+        problem = _problem(org, problematica_id)
+        if problem.ciclos_reevaluacion.filter(fecha_cierre=None).exists():
+            return Response(ResultadoIntervencionSerializer(evaluate_intervention(problem, user=request.user)).data)
+        problem = evaluate_problem(problem, user=request.user)
         return Response(ProblematicaAmbientalSerializer(problem).data)
     except DjangoValidationError as exc:
         return _error(exc)
@@ -131,3 +140,79 @@ def problematica_evaluate(request, organizacion_id, problematica_id):
 def problematica_history(request, organizacion_id, problematica_id):
     org = get_object_or_404(Organizacion, organizacion_id=organizacion_id)
     return Response(HistorialProblematicaAmbientalSerializer(_problem(org, problematica_id).historial.all(), many=True).data)
+
+
+@api_view(["GET", "POST"])
+def problematica_scope(request, organizacion_id, problematica_id):
+    problem = _problem(get_object_or_404(Organizacion, organizacion_id=organizacion_id), problematica_id)
+    if request.method == "GET":
+        return Response(AlcanceProblematicaSerializer(problem.alcances_v2.all(), many=True).data)
+    serializer = AlcanceProblematicaSerializer(data=request.data, context={"problematica": problem})
+    serializer.is_valid(raise_exception=True)
+    return Response(AlcanceProblematicaSerializer(serializer.save(problematica=problem)).data, status=201)
+
+
+@api_view(["GET", "POST"])
+def problematica_indicators(request, organizacion_id, problematica_id):
+    problem = _problem(get_object_or_404(Organizacion, organizacion_id=organizacion_id), problematica_id)
+    if request.method == "GET":
+        return Response(IndicadorProblematicaSerializer(problem.indicadores_v2.select_related("indicador"), many=True).data)
+    serializer = IndicadorProblematicaSerializer(data=request.data, context={"problematica": problem})
+    serializer.is_valid(raise_exception=True)
+    return Response(IndicadorProblematicaSerializer(serializer.save(problematica=problem)).data, status=201)
+
+
+@api_view(["POST"])
+def problematica_action_select(request, organizacion_id, problematica_id, action_id):
+    problem = _problem(get_object_or_404(Organizacion, organizacion_id=organizacion_id), problematica_id)
+    action = get_object_or_404(AccionMejoraAmbiental, problematica=problem, id=action_id)
+    try:
+        cycle = select_action(action, user=request.user)
+        return Response(CicloReevaluacionSerializer(cycle).data, status=201)
+    except DjangoValidationError as exc:
+        return _error(exc)
+
+
+@api_view(["POST"])
+def problematica_action_start(request, organizacion_id, problematica_id, action_id):
+    problem = _problem(get_object_or_404(Organizacion, organizacion_id=organizacion_id), problematica_id)
+    action = get_object_or_404(AccionMejoraAmbiental, problematica=problem, id=action_id)
+    try:
+        cycle = start_action(action, confirmed=request.data.get("confirmado") is True, user=request.user)
+        return Response(CicloReevaluacionSerializer(cycle).data)
+    except DjangoValidationError as exc:
+        return _error(exc)
+
+
+@api_view(["GET"])
+def problematica_snapshot_base(request, organizacion_id, problematica_id):
+    problem = _problem(get_object_or_404(Organizacion, organizacion_id=organizacion_id), problematica_id)
+    snapshot = problem.snapshots_intervencion.filter(tipo="base").order_by("-ciclo").first()
+    if not snapshot:
+        return Response({"detail": "Snapshot BASE no disponible."}, status=404)
+    return Response(SnapshotIntervencionSerializer(snapshot).data)
+
+
+@api_view(["GET"])
+def problematica_cycles(request, organizacion_id, problematica_id):
+    problem = _problem(get_object_or_404(Organizacion, organizacion_id=organizacion_id), problematica_id)
+    return Response(CicloReevaluacionSerializer(problem.ciclos_reevaluacion.select_related("resultado"), many=True).data)
+
+
+@api_view(["POST"])
+def problematica_reevaluate(request, organizacion_id, problematica_id):
+    problem = _problem(get_object_or_404(Organizacion, organizacion_id=organizacion_id), problematica_id)
+    action = get_object_or_404(AccionMejoraAmbiental, problematica=problem, id=request.data.get("accion"))
+    try:
+        return Response(CicloReevaluacionSerializer(select_action(action, user=request.user)).data, status=201)
+    except DjangoValidationError as exc:
+        return _error(exc)
+
+
+@api_view(["POST"])
+def problematica_escalate(request, organizacion_id, problematica_id):
+    problem = _problem(get_object_or_404(Organizacion, organizacion_id=organizacion_id), problematica_id)
+    try:
+        return Response(ProblematicaAmbientalSerializer(escalate_problem(problem, request.data.get("motivo", ""), request.user)).data)
+    except DjangoValidationError as exc:
+        return _error(exc)

@@ -1,0 +1,11 @@
+import { api } from "@/shared/services/api";
+const base = (organizationId) => `/organizaciones/${encodeURIComponent(organizationId)}/problematicas`;
+export const getProblems = async (organizationId) => (await api.get(`${base(organizationId)}/`)).data;
+export const getProblemScope = async (organizationId, id) => (await api.get(`${base(organizationId)}/${id}/alcance/`)).data;
+export const getProblemIndicators = async (organizationId, id) => (await api.get(`${base(organizationId)}/${id}/indicadores/`)).data;
+export const getProblemActions = async (organizationId, id) => (await api.get(`${base(organizationId)}/${id}/acciones/`)).data;
+export const getProblemCycles = async (organizationId, id) => (await api.get(`${base(organizationId)}/${id}/ciclos/`)).data;
+export const getProblemHistory = async (organizationId, id) => (await api.get(`${base(organizationId)}/${id}/historial/`)).data;
+export const getBaseSnapshot = async (organizationId, id) => (await api.get(`${base(organizationId)}/${id}/snapshot-base/`)).data;
+export const selectProblemAction = async (organizationId, problemId, actionId) => (await api.post(`${base(organizationId)}/${problemId}/acciones/${actionId}/seleccionar/`)).data;
+export const startProblemAction = async (organizationId, problemId, actionId) => (await api.post(`${base(organizationId)}/${problemId}/acciones/${actionId}/iniciar/`, { confirmado: true })).data;

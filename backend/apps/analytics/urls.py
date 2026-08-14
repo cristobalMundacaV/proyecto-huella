@@ -85,8 +85,11 @@ from .views_recommendations import recommendation_context, recomendaciones
 from .views_environmental_engine import environmental_engine_results, environmental_lca_results
 from .views_problematicas import (
     problematica_action_implement, problematica_actions, problematica_detail,
-    problematica_evaluate, problematica_history, problematica_measure_engine,
-    problematica_measurements, problematica_transition, problematicas,
+    problematica_action_select, problematica_action_start, problematica_cycles,
+    problematica_escalate, problematica_evaluate, problematica_history,
+    problematica_indicators, problematica_measure_engine,
+    problematica_measurements, problematica_reevaluate, problematica_scope,
+    problematica_snapshot_base, problematica_transition, problematicas,
 )
 from .views_environmental_context import (
     material_lifecycle_view, organization_context_view, organization_kpis_view,
@@ -224,10 +227,18 @@ urlpatterns = [
     path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/", problematica_detail),
     path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/transicion/", problematica_transition),
     path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/acciones/", problematica_actions),
+    path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/alcance/", problematica_scope),
+    path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/indicadores/", problematica_indicators),
+    path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/acciones/<int:action_id>/seleccionar/", problematica_action_select),
+    path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/acciones/<int:action_id>/iniciar/", problematica_action_start),
     path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/acciones/<int:action_id>/implementar/", problematica_action_implement),
     path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/seguimientos/", problematica_measurements),
     path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/seguimientos/motor/", problematica_measure_engine),
     path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/evaluar/", problematica_evaluate),
+    path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/snapshot-base/", problematica_snapshot_base),
+    path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/ciclos/", problematica_cycles),
+    path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/reevaluar/", problematica_reevaluate),
+    path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/escalar/", problematica_escalate),
     path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/historial/", problematica_history),
     path("environmental/kpis/<str:organizacion_id>/", environmental_kpis),
     path("environmental/recommendations/<str:organizacion_id>/", environmental_recommendations),

@@ -49,14 +49,22 @@ def transition_problem(problem, new_state, *, user=None, detail=""):
 
 
 @transaction.atomic
-def recommend_action(problem, *, titulo, descripcion, responsable="", fecha_inicio=None, fecha_objetivo=None, metadata=None, user=None):
-    if problem.estado != ProblematicaAmbiental.Estado.EN_ANALISIS:
+def recommend_action(problem, *, titulo, descripcion, responsable="", fecha_inicio=None, fecha_objetivo=None,
+                     metadata=None, justificacion="", fecha_termino_real=None, responsable_usuario=None,
+                     observaciones="", user=None, **kwargs):
+    if problem.estado not in {ProblematicaAmbiental.Estado.EN_ANALISIS, ProblematicaAmbiental.Estado.ANALIZANDO, ProblematicaAmbiental.Estado.DETECTADA}:
         raise ValidationError({"estado": "La problematica debe estar en analisis."})
     action = AccionMejoraAmbiental.objects.create(
         problematica=problem, titulo=titulo, descripcion=descripcion, responsable=responsable,
         fecha_inicio=fecha_inicio, fecha_objetivo=fecha_objetivo, metadata=metadata or {},
+        justificacion=justificacion, fecha_termino_real=fecha_termino_real,
+        responsable_usuario=responsable_usuario, observaciones=observaciones,
     )
-    transition_problem(problem, ProblematicaAmbiental.Estado.ACCION_PROPUESTA, user=user)
+    if problem.estado == ProblematicaAmbiental.Estado.EN_ANALISIS:
+        transition_problem(problem, ProblematicaAmbiental.Estado.ACCION_PROPUESTA, user=user)
+    else:
+        problem.estado = ProblematicaAmbiental.Estado.PROPUESTA
+        problem.save(update_fields=["estado", "updated_at"])
     _history(problem, "recomendacion", detail=titulo, user=user, metadata={"accion_id": action.id})
     return action
 
@@ -74,8 +82,11 @@ def implement_action(action, *, user=None):
 
 
 @transaction.atomic
-def add_measurement(problem, *, fecha, valor, unidad=None, fuente="manual", accion=None, metadata=None, user=None):
-    if problem.estado not in {ProblematicaAmbiental.Estado.EN_IMPLEMENTACION, ProblematicaAmbiental.Estado.EN_SEGUIMIENTO}:
+def add_measurement(problem, *, fecha, valor, unidad=None, fuente="manual", accion=None, metadata=None,
+                    indicador_v2=None, valor_indicador=None, referencia="", observaciones="", evidencia=None,
+                    user=None, **kwargs):
+    if problem.estado not in {ProblematicaAmbiental.Estado.EN_IMPLEMENTACION, ProblematicaAmbiental.Estado.EN_SEGUIMIENTO,
+                              ProblematicaAmbiental.Estado.IMPLEMENTANDO, ProblematicaAmbiental.Estado.SEGUIMIENTO}:
         raise ValidationError({"estado": "La problematica debe estar en implementacion o seguimiento."})
     if fecha <= problem.fecha_deteccion:
         raise ValidationError({"fecha": "La medicion posterior debe ser posterior a la deteccion."})
@@ -87,9 +98,14 @@ def add_measurement(problem, *, fecha, valor, unidad=None, fuente="manual", acci
     measurement = MedicionSeguimientoAmbiental.objects.create(
         problematica=problem, accion=accion, fecha=fecha, valor=valor,
         unidad=unidad or problem.unidad_indicador, fuente=fuente, metadata=metadata or {},
+        indicador_v2=indicador_v2, valor_indicador=valor_indicador, referencia=referencia,
+        observaciones=observaciones, evidencia=evidencia,
     )
     if problem.estado == ProblematicaAmbiental.Estado.EN_IMPLEMENTACION:
         transition_problem(problem, ProblematicaAmbiental.Estado.EN_SEGUIMIENTO, user=user)
+    elif problem.estado == ProblematicaAmbiental.Estado.IMPLEMENTANDO:
+        problem.estado = ProblematicaAmbiental.Estado.SEGUIMIENTO
+        problem.save(update_fields=["estado", "updated_at"])
     _history(problem, "medicion", detail=str(valor), user=user, metadata={"medicion_id": measurement.id, "fuente": fuente})
     return measurement
 
