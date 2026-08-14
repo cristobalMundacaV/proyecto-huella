@@ -1,10 +1,14 @@
+from django.db.models import Q
+
 from ..models import Observacion, VersionFactorAmbiental
 
 
 def active_factor_version(formula, organizacion):
     queryset = VersionFactorAmbiental.objects.filter(
         factor=formula.factor_ambiental, estado=VersionFactorAmbiental.Estado.ACTIVO,
-        factor__organizacion__in=[None, organizacion],
+    ).filter(
+        Q(factor__organizacion__isnull=True) |
+        Q(factor__organizacion=organizacion)
     )
     return queryset.order_by("-version").first()
 

@@ -2,7 +2,9 @@ from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.db import models
-from django.db.models import Sum
+from django.db.models import Q, Sum
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
 from django.utils.dateparse import parse_datetime
 
 
@@ -1102,7 +1104,10 @@ class MetodologiaAmbiental(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=["organizacion", "codigo"], name="unique_metodologia_codigo_org")]
+        constraints = [
+            models.UniqueConstraint(fields=["codigo"], condition=Q(organizacion__isnull=True), name="unique_metodologia_codigo_global"),
+            models.UniqueConstraint(fields=["organizacion", "codigo"], condition=Q(organizacion__isnull=False), name="unique_metodologia_codigo_tenant"),
+        ]
 
 
 class VersionMetodologia(models.Model):
@@ -1149,7 +1154,10 @@ class FactorAmbiental(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=["organizacion", "codigo"], name="unique_factor_ambiental_codigo_org")]
+        constraints = [
+            models.UniqueConstraint(fields=["codigo"], condition=Q(organizacion__isnull=True), name="unique_factor_ambiental_codigo_global"),
+            models.UniqueConstraint(fields=["organizacion", "codigo"], condition=Q(organizacion__isnull=False), name="unique_factor_ambiental_codigo_tenant"),
+        ]
 
 
 class VersionFactorAmbiental(models.Model):
@@ -1198,6 +1206,18 @@ class FormulaAmbiental(models.Model):
     version = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def save(self, *args, **kwargs):
+        if self.pk and self.version_metodologia.estado == VersionMetodologia.Estado.ACTIVA:
+            from django.core.exceptions import ValidationError
+            raise ValidationError("La formula de una metodologia activa es inmutable; cree una nueva version.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.version_metodologia.estado == VersionMetodologia.Estado.ACTIVA:
+            from django.core.exceptions import ValidationError
+            raise ValidationError("La formula de una metodologia activa no puede eliminarse.")
+        return super().delete(*args, **kwargs)
+
 
 class VariableFormula(models.Model):
     class Rol(models.TextChoices):
@@ -1214,6 +1234,32 @@ class VariableFormula(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["formula", "clave"], name="unique_variable_formula")]
+
+    def save(self, *args, **kwargs):
+        if self.formula.version_metodologia.estado == VersionMetodologia.Estado.ACTIVA:
+            from django.core.exceptions import ValidationError
+            raise ValidationError("Las variables de una metodologia activa son inmutables; cree una nueva version.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.formula.version_metodologia.estado == VersionMetodologia.Estado.ACTIVA:
+            from django.core.exceptions import ValidationError
+            raise ValidationError("Las variables de una metodologia activa no pueden eliminarse.")
+        return super().delete(*args, **kwargs)
+
+
+@receiver(pre_delete, sender=FormulaAmbiental)
+def proteger_eliminacion_formula_activa(sender, instance, **kwargs):
+    if instance.version_metodologia.estado == VersionMetodologia.Estado.ACTIVA:
+        from django.core.exceptions import ValidationError
+        raise ValidationError("La formula de una metodologia activa no puede eliminarse.")
+
+
+@receiver(pre_delete, sender=VariableFormula)
+def proteger_eliminacion_variable_activa(sender, instance, **kwargs):
+    if instance.formula.version_metodologia.estado == VersionMetodologia.Estado.ACTIVA:
+        from django.core.exceptions import ValidationError
+        raise ValidationError("Las variables de una metodologia activa no pueden eliminarse.")
 
 
 class CalculoAmbiental(models.Model):

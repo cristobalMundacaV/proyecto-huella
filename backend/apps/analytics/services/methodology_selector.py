@@ -1,3 +1,5 @@
+from django.db.models import Q
+
 from ..models import VersionMetodologia
 from .eligibility_v2 import evaluate_formula
 
@@ -12,7 +14,9 @@ def select_methodology(actividad):
         estado=VersionMetodologia.Estado.ACTIVA,
         metodologia__activa=True,
         metodologia__flujo__in=TRANSPORT_PRIORITY,
-        metodologia__organizacion__in=[None, actividad.organizacion],
+    ).filter(
+        Q(metodologia__organizacion__isnull=True) |
+        Q(metodologia__organizacion=actividad.organizacion)
     ).select_related("metodologia", "formula__factor_ambiental").prefetch_related("formula__variables")
     by_flow = {}
     for version in versions.order_by("-version"):

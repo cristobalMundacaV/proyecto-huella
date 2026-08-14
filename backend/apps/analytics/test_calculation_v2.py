@@ -12,6 +12,7 @@ from .models import (ActividadOperacional, ActivoOperacional, CalculoAmbiental, 
                      Observacion, Organizacion, RegistroEmision, FuenteDatos, UsuarioOrganizacion,
                      VariableFormula, Vehiculo, VersionFactorAmbiental, VersionMetodologia)
 from .services.calculation_v2 import calculate_activity
+from .services.eligibility_v2 import active_factor_version
 from .services.methodology_selector import select_methodology
 
 
@@ -37,20 +38,23 @@ class CalculationV2Tests(APITestCase):
         self._create_method("MET-FUEL", "Transporte combustible", "transporte_combustible", "transporte_combustible", "FACTOR-FUEL", "kgCO2e/L", Decimal("2.00"), [
             ("combustible", "combustible_consumido_l", "L")], {"combustible": "diesel"})
 
-    def _create_method(self, code, name, flow, formula_type, factor_code, factor_unit, value, variables, context=None):
+    def _create_method(self, code, name, flow, formula_type, factor_code, factor_unit, value, variables, context=None, organization="own"):
+        organization = self.org if organization == "own" else organization
         factor = FactorAmbiental.objects.create(
-            organizacion=self.org, codigo=factor_code.lower(), nombre=f"Factor de prueba / demostracion {factor_code}",
+            organizacion=organization, codigo=factor_code.lower(), nombre=f"Factor de prueba / demostracion {factor_code}",
             categoria="transporte", unidad_entrada=factor_unit.split("/")[-1], unidad_resultado="kgCO2e", contexto=context or {},
         )
         VersionFactorAmbiental.objects.create(factor=factor, version=1, valor=value, fuente="FACTOR DE PRUEBA / DEMOSTRACION", estado="activo")
-        method = MetodologiaAmbiental.objects.create(organizacion=self.org, codigo=code.lower(), nombre=name, categoria="transporte", flujo=flow)
-        version = VersionMetodologia.objects.create(metodologia=method, version=1, estado="activa", fuente_referencia="DEMO")
+        method = MetodologiaAmbiental.objects.create(organizacion=organization, codigo=code.lower(), nombre=name, categoria="transporte", flujo=flow)
+        version = VersionMetodologia.objects.create(metodologia=method, version=1, estado="borrador", fuente_referencia="DEMO")
         formula = FormulaAmbiental.objects.create(
             version_metodologia=version, factor_ambiental=factor, codigo=f"formula-{code.lower()}", tipo=formula_type,
             expresion_legible={"transporte_tkm":"masa x distancia x factor", "transporte_vehiculo_km":"distancia x factor", "transporte_combustible":"combustible x factor"}[formula_type],
         )
         for key, concept, unit in variables:
             VariableFormula.objects.create(formula=formula, clave=key, concepto_observacion=concept, unidad_esperada=unit)
+        VersionMetodologia.objects.filter(pk=version.pk).update(estado=VersionMetodologia.Estado.ACTIVA)
+        version.refresh_from_db()
         return method, version, factor
 
     def observe(self, concept, value, unit):
@@ -70,6 +74,68 @@ class CalculationV2Tests(APITestCase):
         with self.assertRaises(ValidationError):
             factor_version.valor = Decimal("0.12"); factor_version.save()
         self.assertEqual(VersionFactorAmbiental.objects.create(factor=factor_version.factor, version=2, valor="0.12", fuente="DEMO", estado="borrador").version, 2)
+
+    def test_metodologia_global_es_seleccionable(self):
+        method = MetodologiaAmbiental.objects.get(flujo="transporte_tkm")
+        MetodologiaAmbiental.objects.filter(pk=method.pk).update(organizacion=None)
+        self.observe("distancia_recorrida_km", "132", "km"); self.observe("masa_transportada_t", "18", "t")
+        self.assertEqual(select_methodology(self.activity)["seleccion"]["version_metodologia"].metodologia_id, method.id)
+
+    def test_factor_global_es_seleccionable(self):
+        formula = FormulaAmbiental.objects.get(tipo=FormulaAmbiental.Tipo.TRANSPORTE_TKM)
+        FactorAmbiental.objects.filter(pk=formula.factor_ambiental_id).update(organizacion=None)
+        self.assertIsNotNone(active_factor_version(formula, self.org))
+
+    def test_metodologia_privada_propia_es_seleccionable(self):
+        self.observe("distancia_recorrida_km", "132", "km"); self.observe("masa_transportada_t", "18", "t")
+        selected = select_methodology(self.activity)["seleccion"]
+        self.assertEqual(selected["version_metodologia"].metodologia.organizacion, self.org)
+
+    def test_factor_privado_propio_es_seleccionable(self):
+        formula = FormulaAmbiental.objects.get(tipo=FormulaAmbiental.Tipo.TRANSPORTE_TKM)
+        self.assertEqual(active_factor_version(formula, self.org).factor.organizacion, self.org)
+
+    def test_recursos_privados_de_otro_tenant_quedan_excluidos(self):
+        MetodologiaAmbiental.objects.update(activa=False)
+        _, version, factor = self._create_method(
+            "OTHER-TKM", "Metodo ajeno", "transporte_tkm", "transporte_tkm", "OTHER-FACTOR", "kgCO2e/t.km",
+            Decimal("9"), [("distancia", "distancia_recorrida_km", "km"), ("masa", "masa_transportada_t", "t")], organization=self.other,
+        )
+        self.observe("distancia_recorrida_km", "132", "km"); self.observe("masa_transportada_t", "18", "t")
+        self.assertIsNone(select_methodology(self.activity)["seleccion"])
+        self.assertIsNone(active_factor_version(version.formula, self.org))
+        self.assertEqual(factor.organizacion, self.other)
+
+    def test_formula_y_variables_de_metodologia_activa_son_inmutables(self):
+        formula = FormulaAmbiental.objects.get(tipo=FormulaAmbiental.Tipo.TRANSPORTE_TKM)
+        variable = formula.variables.get(clave="distancia")
+        formula.expresion_legible = "cambio"
+        with self.assertRaises(ValidationError):
+            formula.save()
+        with self.assertRaises(ValidationError):
+            formula.delete()
+        variable.descripcion = "cambio"
+        with self.assertRaises(ValidationError):
+            variable.save()
+        with self.assertRaises(ValidationError):
+            variable.delete()
+        with self.assertRaises(ValidationError):
+            VariableFormula.objects.create(
+                formula=formula, clave="nueva", concepto_observacion="nueva", unidad_esperada="u",
+            )
+
+    def test_metodologia_borrador_y_sus_hijos_siguen_editables(self):
+        method = MetodologiaAmbiental.objects.get(flujo="transporte_tkm")
+        version = VersionMetodologia.objects.create(metodologia=method, version=2, estado="borrador")
+        factor = FactorAmbiental.objects.get(codigo="factor-tkm")
+        formula = FormulaAmbiental.objects.create(
+            version_metodologia=version, factor_ambiental=factor, codigo="draft", tipo="transporte_tkm", expresion_legible="draft",
+        )
+        variable = VariableFormula.objects.create(formula=formula, clave="draft", concepto_observacion="draft", unidad_esperada="u")
+        formula.expresion_legible = "edited"; formula.save()
+        variable.descripcion = "edited"; variable.save()
+        variable.delete(); formula.delete()
+        self.assertFalse(FormulaAmbiental.objects.filter(pk=formula.pk).exists())
 
     def test_caso_obligatorio_prioriza_tkm_y_no_suma_alternativas(self):
         distance = self.observe("distancia_recorrida_km", "132", "km")
