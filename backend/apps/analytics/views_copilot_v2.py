@@ -57,6 +57,8 @@ def context_asset_maintenance(request, asset_id):
 @api_view(["GET"])
 def context_sensor_health(request, sensor_id):
     sensor = _owned(request, DispositivoSensor, sensor_id)
+    if sensor:
+        sensor = DispositivoSensor.objects.select_related("organizacion", "activo_operacional").get(pk=sensor.pk)
     return Response(ContextGateway().sensor_health(sensor, sensor.organizacion)) if sensor else _not_found()
 
 

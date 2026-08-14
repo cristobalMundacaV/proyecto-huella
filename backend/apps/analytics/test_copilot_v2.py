@@ -1,3 +1,4 @@
+import json
 from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import patch
@@ -7,7 +8,10 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from .models import (AccionMejoraAmbiental, CalculoAmbiental, HitoDecisionIA,
+from apps.iot.models import DispositivoSensor
+
+from .models import (AccionMejoraAmbiental, ActivoOperacional,
+                     CalculoAmbiental, HitoDecisionIA,
                      IndicadorAmbiental, IndicadorProblematica,
                      MemoriaOrganizacion, Organizacion, ProblematicaAmbiental,
                      RecomendacionAgenteAmbiental, RestriccionContextual,
@@ -68,6 +72,36 @@ class CopilotV2Tests(APITestCase):
         memory = ContextGateway().organization_memory(self.org)
         self.assertEqual(memory["items"][0]["contenido"]["accion"], "cambio proveedor")
         self.assertEqual([item["id"] for item in memory["restricciones"]], [active.id])
+
+    def test_contexto_problema_combina_restriccion_global_y_especifica(self):
+        other_problem = ProblematicaAmbiental.objects.create(organizacion=self.org, titulo="Otra", descripcion="Otra", categoria="x", valor_inicial=1, objetivo_meta=0, fecha_deteccion=date.today())
+        global_restriction = RestriccionContextual.objects.create(organizacion=self.org, tipo="contrato", descripcion="Proveedor logistico no puede cambiarse")
+        specific = RestriccionContextual.objects.create(organizacion=self.org, problematica=self.problem, tipo="operacion", descripcion="Proceso continuo")
+        RestriccionContextual.objects.create(organizacion=self.org, problematica=other_problem, tipo="otra", descripcion="No aplica")
+        RestriccionContextual.objects.create(organizacion=self.org, problematica=self.problem, tipo="inactiva", descripcion="No aplica", activa=False)
+        RestriccionContextual.objects.create(organizacion=self.org, problematica=self.problem, tipo="vencida", descripcion="No aplica", vigente_hasta=timezone.now()-timedelta(days=1))
+        package = ContextGateway().problem(self.problem, self.org)
+        self.assertEqual({item["id"] for item in package["restricciones"]}, {global_restriction.id, specific.id})
+
+    def test_sensor_health_json_safe_sin_y_con_activo_y_endpoint_tenant(self):
+        sensor_without = DispositivoSensor.objects.create(dispositivo_id="HEALTH-EMPTY", nombre="Sensor sin activo", organizacion=self.org)
+        asset = ActivoOperacional.objects.create(organizacion=self.org, codigo="CAM-HEALTH", nombre="Camion health", estado="operativo")
+        sensor_with = DispositivoSensor.objects.create(dispositivo_id="HEALTH-ASSET", nombre="Sensor con activo", organizacion=self.org, activo_operacional=asset)
+        gateway = ContextGateway()
+        without_package = gateway.sensor_health(sensor_without, self.org)
+        with_package = gateway.sensor_health(sensor_with, self.org)
+        self.assertIsNone(without_package["sensor"]["activo"]); self.assertIsNone(without_package["sensor"]["activo_id"])
+        self.assertEqual(with_package["sensor"]["activo"], {"id": asset.id, "codigo": asset.codigo, "nombre": asset.nombre, "estado": asset.estado})
+        json.dumps(without_package); json.dumps(with_package)
+        self.assertEqual(self.client.get(f"/api/context/sensors/{sensor_with.id}/health/").status_code, 200)
+        foreign = DispositivoSensor.objects.create(dispositivo_id="HEALTH-FOREIGN", nombre="Ajeno", organizacion=self.other)
+        self.assertEqual(self.client.get(f"/api/context/sensors/{foreign.id}/health/").status_code, 404)
+
+    def test_restriccion_global_llega_al_copiloto_y_propuesta(self):
+        restriction = RestriccionContextual.objects.create(organizacion=self.org, tipo="contrato", descripcion="Proveedor logistico no puede cambiarse")
+        provider = CopilotProvider(); proposal = CopilotProposalService(provider).propose(self.problem, user=self.user)
+        self.assertEqual(proposal.restricciones_consideradas, [restriction.id])
+        self.assertEqual(provider.received[0]["context"]["context"]["restricciones"][0]["id"], restriction.id)
 
     def test_propuesta_persistida_hito_y_contexto_minimo_provider(self):
         provider = CopilotProvider(); proposal = CopilotProposalService(provider).propose(self.problem, "Necesito una alternativa", self.user)

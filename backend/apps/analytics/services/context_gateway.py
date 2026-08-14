@@ -67,7 +67,8 @@ class ContextGateway:
     def sensor_health(self, sensor, organization):
         self._tenant(sensor, organization)
         calibration = sensor.calibraciones.order_by("-fecha").first()
-        return {"context_type": "sensor_health", "references": {"organization": organization.organizacion_id, "sensor": sensor.id}, "sensor": {"nombre": sensor.nombre, "tipo": sensor.tipo_sensor, "estado": sensor.estado, "activo": sensor.activo, "last_seen_at": sensor.last_seen_at}, "ultima_calibracion": {"fecha": calibration.fecha, "resultado": calibration.resultado, "proxima": calibration.fecha_proxima_calibracion} if calibration else None, "lecturas_recientes": list(sensor.lecturas_v2.values("timestamp", "concepto", "unidad", "calidad_tecnica").order_by("-timestamp")[:self.MAX_HISTORY])}
+        asset = sensor.activo_operacional
+        return {"context_type": "sensor_health", "references": {"organization": organization.organizacion_id, "sensor": sensor.id}, "sensor": {"nombre": sensor.nombre, "tipo": sensor.tipo_sensor, "estado": sensor.estado, "habilitado": sensor.activo, "activo_id": sensor.activo_operacional_id, "activo": ({"id": asset.id, "codigo": asset.codigo, "nombre": asset.nombre, "estado": asset.estado} if asset else None), "last_seen_at": sensor.last_seen_at}, "ultima_calibracion": {"fecha": calibration.fecha, "resultado": calibration.resultado, "proxima": calibration.fecha_proxima_calibracion} if calibration else None, "lecturas_recientes": list(sensor.lecturas_v2.values("timestamp", "concepto", "unidad", "calidad_tecnica").order_by("-timestamp")[:self.MAX_HISTORY])}
 
     def indicator_history(self, indicator, organization):
         self._tenant(indicator, organization)
@@ -91,5 +92,5 @@ class ContextGateway:
         now = timezone.now()
         rows = RestriccionContextual.objects.filter(organizacion=organization, activa=True, vigente_desde__lte=now).filter(Q(vigente_hasta__isnull=True) | Q(vigente_hasta__gte=now))
         if problem:
-            rows = rows.filter(problematica__in=[None, problem])
+            rows = rows.filter(Q(problematica__isnull=True) | Q(problematica=problem))
         return [{"id": row.id, "tipo": row.tipo, "descripcion": row.descripcion, "contenido": row.contenido, "vigente_hasta": row.vigente_hasta} for row in rows.order_by("-created_at")[:20]]
