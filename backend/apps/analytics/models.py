@@ -444,7 +444,7 @@ class Observacion(models.Model):
         EXTRAIDO = "extraido_automaticamente", "Extraido automaticamente"
 
     organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="observaciones_operacionales")
-    actividad = models.ForeignKey(ActividadOperacional, on_delete=models.CASCADE, null=True, blank=True, related_name="observaciones")
+    actividad = models.ForeignKey(ActividadOperacional, on_delete=models.SET_NULL, null=True, blank=True, related_name="observaciones")
     fuente = models.ForeignKey(FuenteDatos, on_delete=models.PROTECT, related_name="observaciones")
     concepto = models.SlugField(max_length=120, db_index=True)
     valor_numerico = models.DecimalField(max_digits=20, decimal_places=6, null=True, blank=True)
