@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.contrib.auth.models import User
@@ -13,7 +13,7 @@ from .models import (ActividadOperacional, DiscrepanciaDato, FuenteDatos,
                      UsuarioOrganizacion, ValorIndicador)
 from .services.comparison_v2 import compare_values
 from .services.indicators_v2 import build_baseline
-from .services.observation_resolver import is_technical_duplicate, resolve_observation
+from .services.observation_resolver import _policy_priority, is_technical_duplicate, resolve_observation
 from .services.quality_v2 import evaluate_observation_quality
 
 
@@ -73,11 +73,43 @@ class QualityIndicatorsV2Tests(APITestCase):
         result = resolve_observation(self.activity, first.concepto)
         self.assertEqual(result["estado"], "requiere_revision"); self.assertIsNone(result["observacion"])
 
-    def test_deduplicacion_tecnica_conservadora_y_complementarias(self):
-        moment = timezone.now(); first = self.observation(self.gps, "132", timestamp=moment); duplicate = self.observation(self.gps, "132", timestamp=moment)
-        mass = self.observation(self.gps, "18", concept="masa_transportada_t", timestamp=moment)
+    def test_precedencia_tenant_global_y_aislamiento(self):
+        PoliticaConfianzaFuente.objects.create(organizacion=None, concepto="distancia", tipo_fuente="gps", prioridad=5)
+        PoliticaConfianzaFuente.objects.create(organizacion=self.org, concepto="distancia", tipo_fuente="gps", prioridad=1)
+        PoliticaConfianzaFuente.objects.create(organizacion=self.other, concepto="combustible", tipo_fuente="gps", prioridad=2)
+        self.assertEqual(_policy_priority(self.org, "distancia", "gps"), 1)
+        self.assertEqual(_policy_priority(self.other, "distancia", "gps"), 5)
+        self.assertIsNone(_policy_priority(self.org, "combustible", "gps"))
+        self.assertIsNone(_policy_priority(self.org, "inexistente", "gps"))
+
+    def test_politica_tenant_resuelve_antes_que_global(self):
+        gps = self.observation(self.gps, "132"); odometer = self.observation(self.document, "134")
+        PoliticaConfianzaFuente.objects.create(organizacion=None, concepto=gps.concepto, tipo_fuente="gps", prioridad=5)
+        PoliticaConfianzaFuente.objects.create(organizacion=self.org, concepto=gps.concepto, tipo_fuente="gps", prioridad=1)
+        PoliticaConfianzaFuente.objects.create(organizacion=self.org, concepto=gps.concepto, tipo_fuente="documento", prioridad=2)
+        result = resolve_observation(self.activity, gps.concepto)
+        self.assertEqual(result["observacion"], gps)
+        self.assertEqual(result["discrepancia"].observaciones.count(), 2)
+        self.assertTrue(Observacion.objects.filter(pk=odometer.pk).exists())
+
+    def test_lecturas_iguales_en_timestamps_distintos_no_son_duplicados(self):
+        source = FuenteDatos.objects.create(organizacion=self.org, nombre="Sensor dedup", tipo="sensor")
+        sensor = DispositivoSensor.objects.create(dispositivo_id="DEDUP-1", nombre="Dedup", organizacion=self.org, fuente_datos=source)
+        first = self.observation(source, "12.5", timestamp=timezone.now())
+        second = self.observation(source, "12.5", timestamp=first.timestamp_observacion + timedelta(hours=1))
+        LecturaSensorV2.objects.create(sensor=sensor, actividad=self.activity, timestamp=first.timestamp_observacion, concepto=first.concepto, valor_numerico=first.valor_numerico, unidad=first.unidad, observacion=first)
+        LecturaSensorV2.objects.create(sensor=sensor, actividad=self.activity, timestamp=second.timestamp_observacion, concepto=second.concepto, valor_numerico=second.valor_numerico, unidad=second.unidad, observacion=second)
+        self.assertFalse(is_technical_duplicate(first, second))
+
+    def test_misma_referencia_tecnica_es_duplicado_y_complementarias_no(self):
+        source = FuenteDatos.objects.create(organizacion=self.org, nombre="Sensor referencia", tipo="sensor")
+        sensor = DispositivoSensor.objects.create(dispositivo_id="DEDUP-2", nombre="Dedup ref", organizacion=self.org, fuente_datos=source)
+        moment = timezone.now(); first = self.observation(source, "12.5", timestamp=moment); duplicate = self.observation(source, "12.5", timestamp=moment)
+        for observation in (first, duplicate):
+            LecturaSensorV2.objects.create(sensor=sensor, actividad=self.activity, timestamp=moment, concepto=observation.concepto, valor_numerico=observation.valor_numerico, unidad=observation.unidad, observacion=observation, metadata_tecnica={"message_id": "MSG-001"})
+        guide = self.observation(self.document, "18", concept="masa_transportada_t", timestamp=moment)
         self.assertTrue(is_technical_duplicate(first, duplicate))
-        self.assertFalse(is_technical_duplicate(first, mass))
+        self.assertFalse(is_technical_duplicate(first, guide))
 
     def test_indicadores_absoluto_e_intensidad_y_serie_historica(self):
         absolute = IndicadorAmbiental.objects.create(organizacion=self.org, codigo="emisiones", nombre="Emisiones", tipo="absoluto", unidad="kgCO2e", origen_numerador="impactos_ambientales", direccion_deseable="menor_es_mejor")

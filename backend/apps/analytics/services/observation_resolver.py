@@ -1,7 +1,6 @@
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Q
 
 from ..models import DiscrepanciaDato, Observacion, PoliticaConfianzaFuente
 from .quality_v2 import evaluate_observation_quality
@@ -12,17 +11,39 @@ def is_technical_duplicate(first, second):
         return False
     if first.valor_numerico != second.valor_numerico or first.valor_texto != second.valor_texto or first.unidad != second.unidad:
         return False
-    return bool(
-        (first.version_evidencia_id and first.version_evidencia_id == second.version_evidencia_id)
-        or (hasattr(first, "lectura_sensor_v2") and hasattr(second, "lectura_sensor_v2") and first.fuente_id == second.fuente_id)
-        or (first.metodo_captura == second.metodo_captura and first.timestamp_observacion == second.timestamp_observacion)
-    )
+    first_reading = getattr(first, "lectura_sensor_v2", None)
+    second_reading = getattr(second, "lectura_sensor_v2", None)
+    if first_reading and second_reading:
+        if first_reading.pk == second_reading.pk:
+            return True
+        same_measurement = (
+            first_reading.sensor_id == second_reading.sensor_id
+            and first_reading.timestamp == second_reading.timestamp
+            and first_reading.concepto == second_reading.concepto
+            and first_reading.valor_numerico == second_reading.valor_numerico
+            and first_reading.unidad == second_reading.unidad
+        )
+        if not same_measurement:
+            return False
+        technical_keys = ("external_id", "message_id", "reading_id", "idempotency_key")
+        first_reference = next((first_reading.metadata_tecnica.get(key) for key in technical_keys if first_reading.metadata_tecnica.get(key)), None)
+        second_reference = next((second_reading.metadata_tecnica.get(key) for key in technical_keys if second_reading.metadata_tecnica.get(key)), None)
+        return not (first_reference or second_reference) or first_reference == second_reference
+    if first_reading or second_reading:
+        return False
+    if first.version_evidencia_id and first.version_evidencia_id == second.version_evidencia_id:
+        return (
+            first.metodo_captura == second.metodo_captura
+            and first.timestamp_observacion == second.timestamp_observacion
+        )
+    return False
 
 
 def _policy_priority(organization, concept, source_type):
-    policy = PoliticaConfianzaFuente.objects.filter(concepto=concept, tipo_fuente=source_type, activa=True).filter(
-        Q(organizacion=organization) | Q(organizacion__isnull=True)
-    ).order_by("-organizacion_id").first()
+    policies = PoliticaConfianzaFuente.objects.filter(concepto=concept, tipo_fuente=source_type, activa=True)
+    policy = policies.filter(organizacion=organization).first()
+    if policy is None:
+        policy = policies.filter(organizacion__isnull=True).first()
     return policy.prioridad if policy else None
 
 
