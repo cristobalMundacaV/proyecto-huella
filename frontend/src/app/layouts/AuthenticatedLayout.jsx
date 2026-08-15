@@ -7,6 +7,7 @@ import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 import Breadcrumbs from "@/shared/components/Breadcrumbs";
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { IconButton } from "@/shared/ui/Button";
 
 export default function AuthenticatedLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -27,7 +28,7 @@ export default function AuthenticatedLayout() {
       <AnimatePresence>{mobileMenuOpen && <motion.div className="fixed inset-0 z-50 lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
         <button type="button" className="absolute inset-0 bg-slate-950/30 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} aria-label="Cerrar menú" />
         <motion.div className="absolute left-0 top-0 h-full w-[85vw] max-w-sm overflow-y-auto border-r border-white/10 bg-[var(--sidebar)] shadow-2xl" initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }}>
-          <button type="button" onClick={() => setMobileMenuOpen(false)} className="absolute right-4 top-4 rounded-2xl border border-white/10 bg-white/10 p-3"><X size={20} /></button>
+          <IconButton aria-label="Cerrar menú" icon={X} onClick={() => setMobileMenuOpen(false)} className="absolute right-4 top-4" />
           <Sidebar onNavigate={() => setMobileMenuOpen(false)} systemStatus={companyStatus} />
         </motion.div>
       </motion.div>}</AnimatePresence>

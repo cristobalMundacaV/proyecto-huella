@@ -3,6 +3,7 @@ import { Leaf, Lock, UserRound } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { Button } from "@/shared/ui/Button";
 
 const initialForm = {
   username: "",
@@ -129,25 +130,26 @@ function LoginPage() {
               </p>
             )}
 
-            <button
+            <Button
               type="submit"
               disabled={loading}
-              className="mt-6 w-full rounded-2xl border border-emerald-300/20 bg-emerald-300/15 px-5 py-3 text-sm font-bold text-emerald-100 transition hover:bg-emerald-300/25 disabled:cursor-not-allowed disabled:opacity-60"
+              loading={loading}
+              className="mt-6 w-full"
             >
               {loading
                 ? "Procesando..."
                 : isBootstrap
                   ? "Crear administrador"
                   : "Entrar al sistema"}
-            </button>
+            </Button>
 
-            <button
-              type="button"
+            <Button
               onClick={() => { enterDemo(); navigate("/inicio", { replace: true }); }}
-              className="mt-3 w-full rounded-2xl border border-slate-600 bg-slate-900/70 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-emerald-300/30 hover:bg-emerald-300/10 hover:text-emerald-100"
+              variant="secondary"
+              className="mt-3 w-full"
             >
               Ver demo
-            </button>
+            </Button>
 
             <p className="mt-3 text-center text-xs leading-5 text-slate-500">
               El modo demo permite ver la informacion sin crear, editar ni eliminar datos.

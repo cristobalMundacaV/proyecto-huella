@@ -408,3 +408,100 @@ También existen rutas definitivas de extensión aserradero bajo `/operacion`: r
 - Build Vite: aprobado.
 - Backend: no modificado.
 - UX-03 queda pendiente: tokens y primitives visuales. UX-04/UX-05 completarán el contenido definitivo del workspace; UX-02 sólo establece routing y layout base.
+
+## 21. UX-03 — Design System unificado
+
+UX-03 se implementó sobre el commit `9ebfb472a64d352ce193ba48c9b1ee101ab4e312` sin modificar backend ni iniciar el rediseño de Inicio/Obras.
+
+### Identidad y principios
+
+Carbono Zero usa una interfaz técnica, sobria y orientada a datos. El verde identifica marca y acciones primarias; los estados usan color por significado. Principios:
+
+1. claridad sobre decoración;
+2. estados explícitos sobre ceros ficticios;
+3. una acción primaria por sección;
+4. información jerarquizada;
+5. color comunica significado;
+6. no usar verde para todo;
+7. scopes visibles;
+8. trazabilidad accesible;
+9. responsive desde la primitive;
+10. patrones consistentes.
+
+### Tokens
+
+`styles/theme.css` dejó de contener el ejemplo Vite y es la autoridad de tokens. Define:
+
+- fondos `bg-app/surface/surface-subtle/elevated`;
+- bordes `default/subtle/strong`;
+- texto `primary/secondary/muted/disabled`;
+- marca `brand-primary/hover/soft`;
+- estados `success/warning/danger/info/neutral`;
+- calidad `data-good/review/missing/invalid`;
+- sombras `sm/md/lg`, radios `sm/md/lg/xl`;
+- layout `content-max/page-padding/section-gap/card-padding`;
+- focus ring común.
+
+Light es el tema por defecto y `[data-theme="dark"]` redefine todos los tokens semánticos. Permanecen aliases (`--bg-main`, `--text-main`, `--primary`, etc.) para consumidores aún no migrados; deben desaparecer gradualmente antes de UX-10.
+
+Tipografía: stack actual del sistema, títulos de página 30 px/900, sección 20 px/700, card/body 14–16 px, caption/label 12 px. Iconografía: exclusivamente Lucide, tamaños 16/18/20/24.
+
+### Estructura y primitives definitivas
+
+```text
+shared/
+  ui/
+    Button, IconButton
+    Badge, StatusBadge, DataQualityBadge, ScopeBadge
+    Card, CardHeader, CardContent, CardFooter
+    KpiCard
+    PageHeader, SectionHeader
+    EmptyState, LoadingState, ErrorState, Alert
+    Input, Textarea, Select, SearchInput, FilterBar
+    TableShell, TableHead, TableBody, TableCell
+    Pagination, Tabs, Modal
+    Timeline, TimelineItem
+    TraceabilityLink
+  charts/
+    ChartCard, ChartEmptyState
+```
+
+`KpiCard` distingue `null/undefined/""` como “Sin datos”; no transforma ausencia en cero. `Modal` incluye Escape, backdrop configurable, retorno de foco, roles ARIA y adaptación móvil. Tabs son para estado local; navegación usa `NavLink`. Table es una estructura visual pequeña, no un framework. No se creó Drawer porque aún no hay repetición suficiente validada.
+
+Los formatters de `shared/utils/formatters.js` centralizan `formatNumber`, `formatPercent`, `formatCompactNumber`, `formatDate` y `formatDateTime` con locale `es-CL` y ausencia explícita.
+
+### Auditoría y consolidación
+
+| Familia anterior | Decisión UX-03 |
+|---|---|
+| `Badge`, `KpiCard`, `EmptyState`, `Pagination`, `Tabs`, `ChartCard` en `shared/components` | MERGE: implementación eliminada; alias temporal hacia autoridad `shared/ui`/`shared/charts` |
+| `PlatformLoader` | KEEP temporal como loader de bootstrap; loading de sección usa `LoadingState` |
+| `Modal`, `AnimatedModalShell`, `ConfirmationModal` | REPLACE progresivo; `shared/ui/Modal` es autoridad para nuevas migraciones, legacy permanece por consumidores no abordados |
+| `DataTable` y tablas feature | REPLACE progresivo con primitives Table durante cada corte vertical |
+| `Toast` | KEEP: feedback efímero distinto de Alert; migración visual pendiente |
+| headers/heroes por core/feature | REPLACE progresivo por PageHeader/SectionHeader |
+| cards environmental/domain-specific | KEEP contenido; migrar sólo contenedor visual cuando se rediseñe el feature |
+
+No se eliminaron componentes de dominio. Las implementaciones antiguas fusionadas no constituyen un segundo sistema: sus archivos sólo reexportan la única primitive para evitar una migración masiva de imports en UX-03.
+
+### Consumidores migrados
+
+- Navbar: tokens, `IconButton`, focus y superficies semánticas.
+- Drawer móvil del shell: `IconButton` accesible.
+- Breadcrumbs: color/focus semánticos.
+- Login: `Button` primary/secondary con loading.
+- 404: `Card` + `Button`.
+- Workspace base: `PageHeader`, `Card`, `CardContent`.
+- Consumidores actuales de Badge/KPI/Empty/Pagination/Tabs/Chart reciben la implementación unificada mediante aliases.
+
+### Responsive y accesibilidad
+
+Las primitives usan flex/grid responsivo, overflow horizontal en tablas, ancho/max-height móvil en modal y actions que envuelven. Button/inputs/tabs/links tienen focus visible; disabled y loading son explícitos; IconButton exige `aria-label`; Modal usa `role=dialog`, `aria-modal`, Escape y restaura foco. La auditoría WCAG completa queda para UX-10.
+
+### Pendientes UX-04+
+
+- Migrar cards, headers y tablas internas al rediseñar cada página.
+- Sustituir modales legacy por el Modal definitivo y eliminar `AnimatedModalShell` cuando quede sin consumidores.
+- Migrar Toast y PlatformLoader a tokens sin alterar su semántica.
+- Retirar reglas globales invasivas y aliases CSS antes de UX-10.
+- No se creó ruta/showcase ni otro design system.
