@@ -859,6 +859,32 @@ class RegistroFlujoAmbiental(models.Model):
         required = required_scope.get(self.granularidad)
         if required and not getattr(self, f"{required}_id"):
             errors[required] = "Debe indicar la referencia correspondiente a la granularidad."
+        scope_ids = {"unidad_operacional": self.unidad_operacional_id, "obra": self.obra_id, "proceso": self.proceso_id, "activo": self.activo_id, "punto": self.punto_id}
+        allowed_scope = {
+            self.Granularidad.ORGANIZACION: set(),
+            self.Granularidad.INSTALACION: {"unidad_operacional"},
+            self.Granularidad.OBRA: {"obra"},
+            self.Granularidad.PROCESO: {"proceso", "unidad_operacional"},
+            self.Granularidad.ACTIVO: {"activo", "proceso", "unidad_operacional"},
+            self.Granularidad.PUNTO: {"punto", "activo", "proceso", "unidad_operacional", "obra"},
+        }.get(self.granularidad, set())
+        for field, value in scope_ids.items():
+            if value and field not in allowed_scope:
+                errors[field] = "La referencia excede la granularidad atribuible declarada."
+        if self.granularidad == self.Granularidad.PROCESO and self.proceso_id and self.unidad_operacional_id and self.proceso.unidad_id != self.unidad_operacional_id:
+            errors["unidad_operacional"] = "La unidad debe corresponder al proceso declarado."
+        if self.granularidad == self.Granularidad.ACTIVO and self.activo_id:
+            if self.proceso_id and self.activo.proceso_operacional_id != self.proceso_id:
+                errors["proceso"] = "El proceso debe corresponder al activo declarado."
+            if self.unidad_operacional_id and self.activo.unidad_operacional_id != self.unidad_operacional_id:
+                errors["unidad_operacional"] = "La unidad debe corresponder al activo declarado."
+        if self.granularidad == self.Granularidad.PUNTO and self.punto_id:
+            point_fields = {"activo": "activo_id", "proceso": "proceso_operacional_id", "unidad_operacional": "unidad_operacional_id", "obra": "obra_id"}
+            for field, point_field in point_fields.items():
+                record_id = scope_ids[field]
+                point_id = getattr(self.punto, point_field)
+                if record_id and point_id and record_id != point_id:
+                    errors[field] = "La referencia contradice el contexto del punto ambiental."
         if self.periodo_fin and self.periodo_fin < self.periodo_inicio:
             errors["periodo_fin"] = "El fin del periodo no puede ser anterior al inicio."
         if self.evento_material_id and self.flujo != self.Flujo.RESIDUO:

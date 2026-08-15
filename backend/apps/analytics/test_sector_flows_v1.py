@@ -164,3 +164,60 @@ class SectorFlowsV1Tests(APITestCase):
     def test_legacy_registro_emision_sigue_funcionando(self):
         legacy = RegistroEmision.objects.create(organizacion=self.org, categoria="Energia", fuente_emision="Electricidad legacy", cantidad=10, unidad="kWh", factor_emision=Decimal("0.2"))
         self.assertEqual(legacy.emisiones_kg_co2e, Decimal("2")); self.assertEqual(RegistroFlujoAmbiental.objects.count(), 0)
+
+    def test_ruido_compatible_no_suma_y_conserva_extremos(self):
+        point = PuntoAmbientalOperacional.objects.create(organizacion=self.org, codigo="R-C", nombre="Punto comparable", tipo="punto_ruido")
+        for value in (70, 75):
+            record = self.record("ruido", granularidad="punto", punto=point, metrica="Leq")
+            self.observation(record, "nivel_ruido", value, "dB(A)")
+        item = sector_summary(self.org, flow="ruido")["indicadores"][0]
+        self.assertIsNone(item["total"])
+        self.assertEqual(item["mediciones"], 2); self.assertEqual(item["minimo"], Decimal("70")); self.assertEqual(item["maximo"], Decimal("75"))
+
+    def test_conceptos_aditivos_energia_y_agua_mantienen_total(self):
+        for flow, concept, values, unit in (("energia", "consumo_energia", (10, 15), "kWh"), ("agua", "consumo_agua", (3, 4), "m3")):
+            for value in values:
+                record = self.record(flow); self.observation(record, concept, value, unit)
+        result = sector_summary(self.org)
+        totals = {(row["flujo"], row["concepto"]): row["total"] for row in result["indicadores"]}
+        self.assertEqual(totals[("energia", "consumo_energia")], Decimal("25"))
+        self.assertEqual(totals[("agua", "consumo_agua")], Decimal("7"))
+
+    def test_magnitud_no_clasificada_no_es_aditiva(self):
+        record = self.record("gestion_hidrica_suelo"); self.observation(record, "precipitacion_observada", 30, "mm")
+        item = sector_summary(self.org)["indicadores"][0]
+        self.assertIsNone(item["total"]); self.assertEqual(item["estrategia_agregacion"], "serie_no_aditiva")
+
+    def test_granularidad_organizacion_rechaza_alcances_especificos(self):
+        point = PuntoAmbientalOperacional.objects.create(organizacion=self.org, codigo="P-G", nombre="Punto", tipo="otro")
+        references = ({"unidad_operacional": self.unit}, {"obra": self.work}, {"proceso": self.process}, {"activo": self.asset}, {"punto": point})
+        for reference in references:
+            with self.subTest(reference=next(iter(reference))), self.assertRaises(ValidationError):
+                self.record("energia", granularidad="organizacion", **reference)
+
+    def test_granularidades_exigen_referencia_principal(self):
+        cases = (("instalacion", "energia"), ("obra", "energia"), ("proceso", "energia"), ("activo", "combustible_estacionario"), ("punto", "ruido"))
+        for granularity, flow in cases:
+            with self.subTest(granularity=granularity), self.assertRaises(ValidationError):
+                self.record(flow, granularidad=granularity)
+
+    def test_instalacion_y_obra_rechazan_atribucion_mas_especifica(self):
+        with self.assertRaises(ValidationError):
+            self.record("energia", granularidad="instalacion", unidad_operacional=self.unit, proceso=self.process)
+        with self.assertRaises(ValidationError):
+            self.record("energia", granularidad="obra", obra=self.work, activo=self.asset)
+
+    def test_contexto_superior_de_proceso_y_activo_debe_ser_coherente(self):
+        other_unit = UnidadOperacional.objects.create(organizacion=self.org, nombre="Otra instalacion")
+        with self.assertRaises(ValidationError):
+            self.record("energia", granularidad="proceso", proceso=self.process, unidad_operacional=other_unit)
+        with self.assertRaises(ValidationError):
+            self.record("combustible_estacionario", granularidad="activo", activo=self.asset, proceso=ProcesoOperacional.objects.create(organizacion=self.org, nombre="Otro proceso"))
+
+    def test_punto_y_registro_rechazan_contexto_contradictorio(self):
+        point = PuntoAmbientalOperacional.objects.create(organizacion=self.org, codigo="P-OBRA", nombre="Punto obra A", tipo="punto_ruido", obra=self.work, proceso_operacional=self.process, activo=self.asset, unidad_operacional=self.unit)
+        other_work = Obra.objects.create(organizacion=self.org, etapa_principal=self.stage, nombre="Obra B", fecha_inicio="2026-01-01")
+        with self.assertRaises(ValidationError):
+            self.record("ruido", granularidad="punto", punto=point, obra=other_work)
+        valid = self.record("ruido", granularidad="punto", punto=point, obra=self.work, proceso=self.process, activo=self.asset, unidad_operacional=self.unit)
+        self.assertEqual(valid.punto, point)

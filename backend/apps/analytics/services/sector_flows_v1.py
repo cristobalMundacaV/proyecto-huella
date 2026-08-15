@@ -6,6 +6,17 @@ from django.db.models import Prefetch
 from ..models import Observacion, RegistroFlujoAmbiental
 
 
+ADDITIVE_CONCEPTS = {
+    (RegistroFlujoAmbiental.Flujo.ENERGIA, "consumo_energia"),
+    (RegistroFlujoAmbiental.Flujo.GENERACION_PROPIA, "energia_generada"),
+    (RegistroFlujoAmbiental.Flujo.GENERACION_PROPIA, "energia_autoconsumida"),
+    (RegistroFlujoAmbiental.Flujo.GENERACION_PROPIA, "energia_exportada"),
+    (RegistroFlujoAmbiental.Flujo.AGUA, "consumo_agua"),
+    (RegistroFlujoAmbiental.Flujo.COMBUSTIBLE_ESTACIONARIO, "combustible_consumido"),
+    (RegistroFlujoAmbiental.Flujo.RESIDUO, "cantidad_residuo"),
+}
+
+
 def _rows(organization, *, flow=None, start=None, end=None, work=None, process=None, asset=None, point=None):
     rows = RegistroFlujoAmbiental.objects.filter(organizacion=organization).select_related(
         "actividad", "punto", "unidad_operacional", "proceso", "activo", "obra", "evento_material"
@@ -40,7 +51,7 @@ def record_summary(record):
 
 
 def sector_summary(organization, **filters):
-    aggregates = defaultdict(lambda: {"total": Decimal("0"), "mediciones": 0, "registros_ambiguos": 0, "minimo": None, "maximo": None})
+    aggregates = defaultdict(lambda: {"total": None, "mediciones": 0, "registros_ambiguos": 0, "minimo": None, "maximo": None})
     records = []
     signals = []
     for record in _rows(organization, **filters):
@@ -59,13 +70,18 @@ def sector_summary(organization, **filters):
             item["mediciones"] += len(values)
             item["minimo"] = min(values) if item["minimo"] is None else min(item["minimo"], *values)
             item["maximo"] = max(values) if item["maximo"] is None else max(item["maximo"], *values)
-            if len(values) == 1:
+            additive = (record.flujo, concept) in ADDITIVE_CONCEPTS
+            if additive and item["total"] is None:
+                item["total"] = Decimal("0")
+            if additive and len(values) == 1:
                 item["total"] += values[0]
             else:
-                item["registros_ambiguos"] += 1
+                if len(values) > 1:
+                    item["registros_ambiguos"] += 1
     indicators = []
     for key, values in aggregates.items():
         flow, concept, unit, granularity, unit_id, work_id, process_id, asset_id, point_id, metric = key
         indicators.append({"flujo": flow, "concepto": concept, "unidad": unit, "metrica": metric,
+                           "estrategia_agregacion": "suma" if (flow, concept) in ADDITIVE_CONCEPTS else "serie_no_aditiva",
                            "alcance": {"granularidad": granularity, "unidad_operacional_id": unit_id, "obra_id": work_id, "proceso_id": process_id, "activo_id": asset_id, "punto_id": point_id}, **values})
     return {"organizacion_id": organization.organizacion_id, "indicadores": indicators, "senales": signals, "registros": records[:20], "cumplimiento_normativo": None, "impacto_ambiental": None}
