@@ -521,3 +521,13 @@ Servicios creados: `features/inicio/services/inicioApi.js` y `features/obras/ser
 Las rutas profundas conservan contexto y navegación coherentes; salvo Operación existente, permanecen explícitamente como bases temporales. Los dashboards sectoriales profundos quedan para UX-05 y el workflow documental para UX-06.
 
 Correctivo semántico final: los conteos exitosos preservan `0` como dato real y reservan “Sin datos” para `null`/`undefined`; el KPI de Inicio se denomina “Obras registradas” porque cuenta el listado completo sin inventar una definición de obra activa. Los indicadores destacados usan selección explícita: agregados nombrados de transporte y totales aditivos tipados de flujos, con su unidad real. IDs, alcance, estrategia de agregación, flags, códigos, estados internos y metadata nunca se convierten automáticamente en KPIs.
+
+## UX-05 — Operación ambiental de obra
+
+`/obras/:obraId/operacion` es el resumen operacional obra-scoped y contiene navegación URL hacia Energía, Agua, Combustibles, Transporte, Materiales, Residuos, Ruido e Hídrica/suelo. Energía integra generación propia. Cada dominio distingue aplicabilidad (`No aplica`, `Por definir`), ausencia, datos disponibles y revisión requerida.
+
+La carga común usa exclusivamente contratos backend acotados por obra: viajes e indicadores `?obra=`, puntos `?obra=`, registros sectoriales `?obra=`, eventos de materiales `?obra=`, balances materiales por obra y `work_indicators`. No se filtran viajes en frontend ni se consumen agregados organizacionales para representar la obra.
+
+Los selectors son explícitos. Sólo `estrategia_agregacion=suma` permite mostrar total; series no aditivas muestran cantidad y rango. Ruido nunca suma dB. Los registros ambiguos muestran “Requiere revisión”. Transporte utiliza nombres y unidades cerradas del contrato (`viajes`, `km`, `t`, `t·km`, `L`, `%`). Materiales usa el balance determinístico y no trata `cantidad_inicial` como autoridad. Residuos sectoriales y residuos originados en eventos materiales permanecen en secciones separadas para evitar doble conteo.
+
+Los registros presentan fecha, concepto, valor, unidad, contexto, calidad y enlace al origen cuando existe. Los CTA sin datos dirigen a Evidencia o Importaciones; el workflow documental completo continúa pendiente para UX-06. Se eliminó `OperacionPage` organizacional legacy junto con sus paneles stateful de Activity Core, transporte, materiales y flujos. Las rutas específicas de aserradero permanecen intactas.

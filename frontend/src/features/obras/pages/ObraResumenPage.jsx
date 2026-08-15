@@ -2,25 +2,14 @@ import { Activity, AlertTriangle, FileCheck2, Gauge, ListChecks } from "lucide-r
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { statusLabel, statusTone } from "../components/WorkStatus";
 import { Card, CardContent, KpiCard, SectionHeader, StatusBadge, Timeline, TimelineItem } from "@/shared/ui";
+import { transportMetrics } from "@/features/operacion/utils/operationSelectors";
 
 const label = (value) => String(value || "No determinado").replaceAll("_", " ");
 const date = (value) => value ? new Intl.DateTimeFormat("es-CL", { dateStyle: "medium" }).format(new Date(value)) : "Fecha no disponible";
-const TRANSPORT_METRICS = [
-  ["numero_viajes", "Viajes completados", "viajes"],
-  ["km_totales", "Distancia recorrida", "km"],
-  ["tonelaje_transportado", "Carga transportada", "t"],
-  ["toneladas_km", "Trabajo de transporte", "t·km"],
-  ["combustible_total", "Combustible consumido", "L"],
-  ["porcentaje_km_vacios", "Distancia recorrida en vacío", "%"],
-];
-
 export const selectFeaturedIndicators = (indicators) => {
-  const transport = indicators?.transporte;
-  const result = transport && typeof transport === "object"
-    ? TRANSPORT_METRICS.flatMap(([key, name, unit]) => transport[key] === null || transport[key] === undefined
-      ? []
-      : [{ name, value: transport[key], unit, helper: "Transporte operacional" }])
-    : [];
+  const result = transportMetrics(indicators?.transporte)
+    .filter((metric) => metric.value !== null)
+    .map((metric) => ({ name: metric.label, value: metric.value, unit: metric.unit, helper: "Transporte operacional" }));
 
   for (const metric of Array.isArray(indicators?.flujos) ? indicators.flujos : []) {
     if (result.length >= 6) break;

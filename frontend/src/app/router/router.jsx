@@ -16,7 +16,12 @@ import ImportacionesPage from "@/features/importaciones/pages/ImportacionesPage"
 import EvidenciasPage from "@/features/evidencias/pages/EvidenciasPage";
 import ActivosPage from "@/features/activos/pages/ActivosPage";
 import SensoresPage from "@/features/sensores/pages/SensoresPage";
-import OperacionPage from "@/features/operacion/pages/OperacionPage";
+import OperationLayout from "@/features/operacion/components/OperationLayout";
+import OperacionOverviewPage from "@/features/operacion/pages/OperacionOverviewPage";
+import SectorDomainPage from "@/features/operacion/pages/SectorDomainPage";
+import TransportPage from "@/features/operacion/pages/TransportPage";
+import MaterialsPage from "@/features/operacion/pages/MaterialsPage";
+import WastePage from "@/features/operacion/pages/WastePage";
 import IntelligencePage from "@/features/intelligence/pages/IntelligencePage";
 import AccionesAmbientalesPage from "@/features/acciones/pages/AccionesAmbientalesPage";
 import CopilotoAmbientalPage from "@/core/copiloto/pages/CopilotoAmbientalPage";
@@ -55,7 +60,17 @@ export default function AppRouter() {
         <Route path="obras/:obraId" element={<ObraWorkspaceLayout />}>
           <Route index element={<Navigate to="resumen" replace />} />
           <Route path="resumen" element={<ObraResumenPage />} />
-          <Route path="operacion" element={<OperacionPage />} />
+          <Route path="operacion" element={<OperationLayout />}>
+            <Route index element={<OperacionOverviewPage />} />
+            <Route path="energia" element={<SectorDomainPage domain="energia" />} />
+            <Route path="agua" element={<SectorDomainPage domain="agua" />} />
+            <Route path="combustibles" element={<SectorDomainPage domain="combustibles" />} />
+            <Route path="transporte" element={<TransportPage />} />
+            <Route path="materiales" element={<MaterialsPage />} />
+            <Route path="residuos" element={<WastePage />} />
+            <Route path="ruido" element={<SectorDomainPage domain="ruido" />} />
+            <Route path="hidrica-suelo" element={<SectorDomainPage domain="hidrica-suelo" />} />
+          </Route>
           <Route path="indicadores" element={<ObraWorkspaceSection title="Indicadores" description="Los indicadores conservan alcance de obra. La exploración profunda se completa en UX-05." />} />
           <Route path="problemas" element={<ObraWorkspaceSection title="Problemas y acciones" description="El resumen ya muestra problemas y acciones reales; el ciclo completo se abordará en su fase específica." />} />
           <Route path="evidencias" element={<ObraWorkspaceSection title="Evidencia" description="La evidencia permanece vinculada al contexto de esta obra. El flujo documental completo corresponde a UX-06." />} />
