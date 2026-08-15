@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { BarChart3, CheckCircle2, Clock3, Database, RefreshCcw } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import { createTraceableAction, getTraceableActions, getTraceableActionsSummary, updateTraceableAction } from "@/features/intelligence/services/traceableActionsApi";
@@ -309,7 +310,8 @@ function periodoClean(value) {
   return String(value || "periodo disponible").replace(/\s+/g, " ").trim();
 }
 
-function ReportesPage({ activeOrganizacion: propActiveOrganizacion, activeOrganizacionId: propActiveOrganizacionId, onSetActiveView }) {
+function ReportesPage({ activeOrganizacion: propActiveOrganizacion, activeOrganizacionId: propActiveOrganizacionId }) {
+  const navigate = useNavigate();
   const context = useOrganizacionActiva();
   const activeOrganizacion = propActiveOrganizacion || context.activeOrganizacion;
   const activeOrganizacionId = propActiveOrganizacionId || context.activeOrganizacionId;
@@ -433,16 +435,16 @@ function ReportesPage({ activeOrganizacion: propActiveOrganizacion, activeOrgani
 
       <ReportHero activeOrganizacion={activeOrganizacion} filters={filters} onOpenFilters={openFiltersModal} preset={activePreset} report={report} reportConfig={reportConfig} />
       <ClientSummaryCard summary={executiveBrief.clientSummary} />
-      <ReportCycleCard cycle={executiveBrief.improvementCycle} onOpenActions={() => onSetActiveView?.("acciones")} />
-      <ReportPriorityFollowUpCard followUp={executiveBrief.priorityFollowUp} onOpenActions={() => onSetActiveView?.("acciones")} onUpdateStatus={handleUpdatePriorityActionStatus} updatingActionId={updatingPriorityActionId} />
+      <ReportCycleCard cycle={executiveBrief.improvementCycle} onOpenActions={() => navigate("/inteligencia/acciones")} />
+      <ReportPriorityFollowUpCard followUp={executiveBrief.priorityFollowUp} onOpenActions={() => navigate("/inteligencia/acciones")} onUpdateStatus={handleUpdatePriorityActionStatus} updatingActionId={updatingPriorityActionId} />
       <ReportReadinessCard readiness={executiveBrief.readiness} />
       <ReportRisksCard creatingRiskKey={creatingRiskKey} onCreateAction={handleCreateRiskAction} risks={executiveBrief.risks} />
       <ExecutiveBriefCard brief={executiveBrief} />
       <DecisionAgendaCard agenda={executiveBrief.decisionAgenda} creatingDecisionKey={creatingDecisionKey} onCreateAction={handleCreateDecisionAction} />
-      <ReportActionPlan onOpenActions={() => onSetActiveView?.("acciones")} actions={executiveBrief.actionPlan} />
-      <ReportActionsSummary onOpenActions={() => onSetActiveView?.("acciones")} summary={actionsSummary} />
+      <ReportActionPlan onOpenActions={() => navigate("/inteligencia/acciones")} actions={executiveBrief.actionPlan} />
+      <ReportActionsSummary onOpenActions={() => navigate("/inteligencia/acciones")} summary={actionsSummary} />
 
-      {!loading && !report.rows.length ? <EmptyReportState message={report.emptyMessage} onImport={() => onSetActiveView?.("importaciones")} onPrimary={() => onSetActiveView?.(report.primaryModuleView || "emisiones")} preset={activePreset} /> : <><ReportKpiGrid kpis={report.kpis} /><ReportCharts report={report} reportConfig={reportConfig} /><ReportTable report={report} reportConfig={reportConfig} /></>}
+      {!loading && !report.rows.length ? <EmptyReportState message={report.emptyMessage} onImport={() => navigate("/datos/importaciones")} onPrimary={() => navigate("/inicio")} preset={activePreset} /> : <><ReportKpiGrid kpis={report.kpis} /><ReportCharts report={report} reportConfig={reportConfig} /><ReportTable report={report} reportConfig={reportConfig} /></>}
     </main>
   );
 }

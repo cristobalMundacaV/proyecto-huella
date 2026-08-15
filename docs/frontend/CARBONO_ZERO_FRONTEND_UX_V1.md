@@ -330,3 +330,81 @@ Cada fase trabaja por corte vertical:
 ## 19. Decisión final UX-01
 
 La autoridad futura será `app + features + shared + presets + assets + styles`. La navegación será URL-first, con organización como contexto de sesión y obra como parámetro/contexto del workspace. El frontend actual se migrará por cortes verticales, eliminando cada autoridad antigua en la misma fase. No se crea una segunda aplicación ni se conserva indefinidamente una arquitectura paralela.
+
+## 20. UX-02 — Routing real y App Shell unificado
+
+UX-02 se implementó sobre el commit `1d80635060d0e9c4b2f6dafa72a0a842a5dafb3e`.
+
+### Router y estructura
+
+- Dependencia: `react-router-dom` 7.x, compatible con React 19.
+- Bootstrap único: `Root.jsx → BrowserRouter → AppRouter`.
+- Autoridad de rutas: `src/app/router/router.jsx`.
+- Shell: `src/app/layouts/AuthenticatedLayout.jsx` con Navbar, Sidebar reutilizado en desktop/móvil, breadcrumbs y `Outlet`.
+- Workspace: `src/app/layouts/ObraWorkspaceLayout.jsx`; `obraId` proviene exclusivamente de `useParams`.
+- Navegación: `src/app/navigation.js`; contiene labels, paths e iconos, pero no componentes.
+- Providers existentes se montan una vez mediante un boundary de rutas. Landing y verificación pública quedan fuera del shell.
+
+### Árbol implementado
+
+```text
+/
+/login
+/verificar/:codigo
+/inicio
+/obras
+/obras/:obraId
+  /resumen
+  /operacion
+  /indicadores
+  /problemas
+  /evidencias
+  /timeline
+  /informes
+/datos/importaciones
+/datos/evidencias
+/operacion/activos
+/operacion/sensores
+/inteligencia
+/inteligencia/acciones
+/inteligencia/copiloto
+/gobernanza/factores
+/gobernanza/informes
+/administracion
+/administracion/organizacion
+/administracion/usuarios
+/administracion/configuracion
+/administracion/diagnostico
+/administracion/estructura
+```
+
+También existen rutas definitivas de extensión aserradero bajo `/operacion`: recepción de trozas, producción, secado, energía, transporte forestal, residuos/subproductos y lotes forestales.
+
+### Guards y comportamiento
+
+- `RequireAuth`: conserva `AuthContext`; redirige a `/login` guardando `returnTo`.
+- Login/bootstrap/demo: vuelve a `returnTo` o `/inicio`.
+- `RequireOrganization`: conserva `OrganizacionActivaContext`; sin organización redirige a `/administracion/organizacion`, donde se mantiene la creación inicial.
+- Cambiar organización desde Sidebar navega a `/inicio`, evitando conservar una obra anterior.
+- El workspace recarga la obra con el ID de URL y rechaza/redirecta un owner distinto de la organización activa.
+- La ruta pública de verificación usa `useParams`, no inspección manual de pathname.
+- Rutas desconocidas muestran 404 público o 404 dentro del shell.
+- El historial, refresh y back/forward quedan delegados al router/navegador.
+
+### Migración y eliminaciones
+
+- Eliminados `App.jsx`, `app/routes.jsx` y `layouts/MainLayout.jsx`.
+- Movidos Navbar/Sidebar desde `src/layouts` a `src/app/layouts`; la carpeta antigua quedó eliminada.
+- Eliminados `activeView`, `ActiveView`, callbacks de cambio de vista, placeholders globales y registro manual de páginas.
+- Sidebar usa `NavLink`; Navbar usa `Link/useNavigate`; el drawer móvil reutiliza el mismo Sidebar y cierra al cambiar la ruta.
+- Los presets dejaron de emitir `view`; usan `navigationExtensions` con paths. Los placeholders transporte no se exponen.
+- `ObrasPage` navega al workspace mediante URL en lugar de abrir el detalle modal como autoridad.
+- Breadcrumbs mínimos derivan de segmentos de ruta.
+
+### Validación y pendiente siguiente
+
+- Búsqueda estática: cero ocurrencias de la arquitectura `activeView` y del routing manual anterior.
+- ESLint: 0 errores; permanecen 19 warnings preexistentes.
+- Build Vite: aprobado.
+- Backend: no modificado.
+- UX-03 queda pendiente: tokens y primitives visuales. UX-04/UX-05 completarán el contenido definitivo del workspace; UX-02 sólo establece routing y layout base.

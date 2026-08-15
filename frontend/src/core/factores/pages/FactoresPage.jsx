@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import EmissionValue from "@/shared/components/EmissionValue";
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
@@ -44,7 +45,8 @@ function normalizeFactor(factor) {
   };
 }
 
-function FactoresPage({ onSetActiveView }) {
+function FactoresPage() {
+  const navigate = useNavigate();
   const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
   const activePreset = getActivePreset(activeOrganizacion?.preset || DEFAULT_PRESET_KEY);
   const config = configByPreset[activePreset.key] || construccionFactors;
@@ -195,7 +197,7 @@ function FactoresPage({ onSetActiveView }) {
         factors={factors}
         onCreate={() => setCreateOpen(true)}
         onEdit={setEditFactor}
-        onImport={() => onSetActiveView?.("importaciones")}
+        onImport={() => navigate("/datos/importaciones")}
         onToggleActive={handleToggleActive}
       />
 

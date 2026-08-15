@@ -14,13 +14,13 @@ const tabs = [
   { id: "configuracion", label: "Configuración", icon: Settings, component: <ConfiguracionPage /> },
 ];
 
-function AdministracionPage({ onSetActiveView, openCreateSignal }) {
+function AdministracionPage() {
   const { activeOrganizacion } = useOrganizacionActiva();
   const [activeTab, setActiveTab] = useState("empresas");
   const selectedTab = useMemo(() => tabs.find((tab) => tab.id === activeTab) || tabs[0], [activeTab]);
 
   const contentByTab = {
-    empresas: <OrganizacionesView onSetActiveView={onSetActiveView} openCreateSignal={openCreateSignal} />,
+    empresas: <OrganizacionesView />,
     usuarios: <UsuariosPage />,
     importaciones: <ImportacionesView />,
     configuracion: <ConfiguracionPage />,

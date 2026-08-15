@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Activity,
   AlertTriangle,
@@ -439,7 +440,8 @@ function RankingList({ rows, title }) {
   );
 }
 
-function EmisionesStableView({ onSetActiveView }) {
+function EmisionesStableView() {
+  const navigate = useNavigate();
   const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -570,11 +572,9 @@ function EmisionesStableView({ onSetActiveView }) {
                 ? `La fuente ${criticalSource} explica ${formatNumber(sourceShare, 1)}% de la huella registrada.`
                 : "Aún no hay suficientes datos para determinar una fuente crítica."}
             </p>
-            {onSetActiveView ? (
-              <button type="button" onClick={() => onSetActiveView("acciones")} className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-800 hover:bg-emerald-100">
-                Ver acciones trazables
-              </button>
-            ) : null}
+            <button type="button" onClick={() => navigate("/inteligencia/acciones")} className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-800 hover:bg-emerald-100">
+              Ver acciones trazables
+            </button>
           </div>
         </div>
       </section>

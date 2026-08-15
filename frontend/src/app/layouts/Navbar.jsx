@@ -1,0 +1,11 @@
+import { ChevronDown, Leaf, LogOut, Menu, UserRound } from "lucide-react";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/features/auth/context/AuthContext";
+
+export default function Navbar({ onOpenMobileMenu }) {
+  const { logout, user } = useAuth(); const navigate=useNavigate(); const [open,setOpen]=useState(false);
+  const displayName=user?.first_name||user?.nombre||user?.username||"Usuario";
+  const handleLogout=async()=>{await logout();navigate("/login",{replace:true});};
+  return <header className="sticky top-0 z-40 border-b border-emerald-100/80 bg-white/88 px-4 py-3 shadow-[0_14px_42px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:px-6 lg:px-10"><div className="flex items-center justify-between gap-4"><div className="flex items-center gap-3"><button type="button" onClick={onOpenMobileMenu} className="flex h-11 w-11 items-center justify-center rounded-2xl border bg-white lg:hidden" aria-label="Abrir menú"><Menu size={20}/></button><Link to="/inicio" className="flex items-center gap-3"><div className="rounded-2xl bg-[linear-gradient(180deg,#123D34,#0F2D27)] p-2.5 text-emerald-200"><Leaf size={22}/></div><div className="hidden sm:block"><p className="text-lg font-black">Carbono Zero</p><p className="text-xs text-slate-500">Inteligencia ambiental por rubro</p></div></Link></div><div className="relative"><button type="button" onClick={()=>setOpen(!open)} className="inline-flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/80 px-3 py-2 text-sm font-bold"><UserRound size={18}/><span className="hidden sm:inline">{displayName}</span><ChevronDown size={16}/></button>{open&&<div className="absolute right-0 mt-3 w-72 overflow-hidden rounded-3xl border bg-white shadow-xl"><div className="border-b p-4"><p className="font-black">{displayName}</p><p className="text-xs text-slate-500">{user?.email||"Sin correo registrado"}</p></div><Link to="/administracion/usuarios" onClick={()=>setOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm font-bold"><UserRound size={17}/>Ver información de usuario</Link><button type="button" onClick={handleLogout} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-bold text-rose-700"><LogOut size={17}/>Cerrar sesión</button></div>}</div></div></header>;
+}

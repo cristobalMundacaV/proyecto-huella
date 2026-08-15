@@ -1,13 +1,9 @@
 import { useEffect, useState } from "react";
 import { BadgeCheck, Boxes, Loader2, ShieldCheck } from "lucide-react";
+import { useParams } from "react-router-dom";
 
 import { getVerificacionObra } from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
-
-function getObraIdFromPath() {
-  const [, route, codigoObra] = window.location.pathname.split("/");
-  return route === "verificar" ? decodeURIComponent(codigoObra || "") : "";
-}
 
 function PublicMetric({ label, value }) {
   return (
@@ -24,7 +20,7 @@ function VerificarObra() {
   const [verification, setVerification] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const codigoObra = getObraIdFromPath();
+  const { codigo: codigoObra } = useParams();
 
   useEffect(() => {
     let isCancelled = false;

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import CrearObraModal from "@/features/obras/components/CrearObraModal";
 import ObraDetailView from "@/features/obras/components/ObraDetailView";
@@ -77,6 +78,7 @@ const emptyTransportForm = {
 };
 
 function ObrasView() {
+  const navigate = useNavigate();
   const [obras, setObras] = useState([]);
   const [organizaciones, setOrganizaciones] = useState([]);
   const [etapasOperativas, setEtapasOperativas] = useState([]);
@@ -810,8 +812,8 @@ function ObrasView() {
       <ObrasTable
         loading={loading}
         obras={obras}
-        onOpenDetail={(codigoObra) => loadObraDetail(codigoObra, { openModal: true })}
-        onSelectObra={(codigoObra) => loadObraDetail(codigoObra)}
+        onOpenDetail={(codigoObra) => navigate(`/obras/${encodeURIComponent(codigoObra)}/resumen`)}
+        onSelectObra={(codigoObra) => navigate(`/obras/${encodeURIComponent(codigoObra)}/resumen`)}
         selectedObra={selectedObra}
       />
 

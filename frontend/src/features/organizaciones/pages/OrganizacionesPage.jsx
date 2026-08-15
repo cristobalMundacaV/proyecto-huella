@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Building2, Pencil, Plus, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import OrganizacionForm from "../components/OrganizacionForm";
 import Pagination from "@/shared/components/Pagination";
@@ -88,10 +89,10 @@ function validateForm(form) {
 }
 
 function OrganizacionesView({
-  onSetActiveView,
   initialOpenCreate = false,
   openCreateSignal = 0,
 }) {
+  const navigate = useNavigate();
   const [empresas, setEmpresas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -239,7 +240,7 @@ function OrganizacionesView({
 
       await refreshOrganizaciones();
       closeModal();
-      onSetActiveView?.("organizaciones");
+      navigate("/administracion/organizacion", { replace: true });
     } catch (requestError) {
       const responseData = requestError.response?.data;
 

@@ -13,17 +13,14 @@ const aserraderoPreset = {
   primaryKpi: "Emisiones por produccion",
   categories: ["Materia prima", "Produccion", "Secado", "Energia", "Transporte", "Residuos", "Otros"],
   intelligence: sawmillIntelligence,
-  navigation: [
-    { view: "dashboard", label: "Dashboard" },
-    { view: "diagnostico", label: "Diagnostico Ambiental" },
-    { view: "operacion", label: "Operacion" },
-    { view: "activos", label: "Activos" },
-    { view: "sensores", label: "Sensores" },
-    { view: "inteligencia", label: "Inteligencia" },
-    { view: "copiloto_ambiental", label: "Copiloto Ambiental" },
-    { view: "acciones", label: "Acciones" },
-    { view: "evidencias", label: "Evidencias Ambientales" },
-    { view: "administracion", label: "Administracion" },
+  navigationExtensions: [
+    { path: "/operacion/recepcion-trozas", label: "Recepción de trozas" },
+    { path: "/operacion/produccion", label: "Producción" },
+    { path: "/operacion/secado", label: "Secado" },
+    { path: "/operacion/energia", label: "Energía" },
+    { path: "/operacion/transporte-forestal", label: "Transporte forestal" },
+    { path: "/operacion/residuos-subproductos", label: "Residuos y subproductos" },
+    { path: "/operacion/lotes-forestales", label: "Lotes forestales" },
   ],
 };
 

@@ -5,7 +5,7 @@ const forestalPreset = {
   key: "forestal",
   name: "Forestal",
   dashboardTitle: "Dashboard forestal",
-  navigation: aserraderoPreset.navigation.filter((item) => item.view !== "operacion"),
+  navigationExtensions: aserraderoPreset.navigationExtensions,
 };
 
 export default forestalPreset;
