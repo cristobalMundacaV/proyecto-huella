@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
@@ -65,6 +65,17 @@ def get_obra_or_404(codigo_obra):
     return get_object_or_404(Obra, codigo_obra=codigo_obra)
 
 
+def user_organizations(request):
+    queryset = Organizacion.objects.all()
+    if not request.user.is_superuser:
+        queryset = queryset.filter(usuarios__user=request.user, usuarios__activo=True)
+    return queryset.distinct()
+
+
+def get_user_obra_or_404(request, codigo_obra):
+    return get_object_or_404(Obra, codigo_obra=codigo_obra, organizacion__in=user_organizations(request))
+
+
 def serialize_auth_user(user):
     if not user or not user.is_authenticated:
         return None
@@ -98,6 +109,7 @@ def serialize_auth_user(user):
 @ensure_csrf_cookie
 @csrf_exempt
 @api_view(["GET"])
+@permission_classes([AllowAny])
 def auth_me(request):
     return Response(
         {
@@ -110,6 +122,7 @@ def auth_me(request):
 
 @ensure_csrf_cookie
 @api_view(["GET", "POST"])
+@permission_classes([AllowAny])
 def auth_csrf_token(request):
     return Response({"csrfToken": get_token(request)})
 
@@ -117,6 +130,7 @@ def auth_csrf_token(request):
 @ensure_csrf_cookie
 @csrf_exempt
 @api_view(["POST"])
+@permission_classes([AllowAny])
 def auth_login(request):
     username = (request.data.get("username") or "").strip()
     password = request.data.get("password") or ""
@@ -142,6 +156,7 @@ def auth_logout(request):
 
 @csrf_exempt
 @api_view(["POST"])
+@permission_classes([AllowAny])
 def auth_bootstrap(request):
     if User.objects.exists():
         return Response(
@@ -331,22 +346,24 @@ def build_category_insight(categoria, total):
 
 
 @api_view(["GET"])
+@permission_classes([AllowAny])
 def sistema_estado(request):
     return Response(build_system_status())
 
 
 @api_view(["GET"])
 def dashboard_data(request):
+    organizations = user_organizations(request)
     registros = RegistroEmision.objects.select_related(
         "organizacion", "obra", "etapa"
-    ).all()
-    obras = Obra.objects.all()
-    evidencias = EvidenciaObra.objects.all()
+    ).filter(organizacion__in=organizations)
+    obras = Obra.objects.filter(organizacion__in=organizations)
+    evidencias = EvidenciaObra.objects.filter(organizacion__in=organizations)
     payload = build_environmental_summary(registros, obras=obras, evidencias=evidencias)
     payload["datos"] = RegistroEmisionSerializer(
         registros.order_by("-fecha", "-created_at")[:200], many=True
     ).data
-    payload["organizaciones_count"] = Organizacion.objects.count()
+    payload["organizaciones_count"] = organizations.count()
     payload["obras_count"] = obras.count()
     return Response(payload)
 
@@ -600,7 +617,7 @@ def obras(request):
     if request.method == "GET":
         return Response(
             ObraSerializer(
-                Obra.objects.select_related("organizacion", "etapa_principal").order_by(
+                Obra.objects.filter(organizacion__in=user_organizations(request)).select_related("organizacion", "etapa_principal").order_by(
                     "-created_at"
                 ),
                 many=True,
@@ -608,13 +625,15 @@ def obras(request):
         )
     serializer = ObraSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
+    if serializer.validated_data["organizacion"] not in user_organizations(request):
+        return Response({"detail": "Recurso no encontrado."}, status=404)
     obra = serializer.save()
     return Response(ObraSerializer(obra).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(["GET", "PATCH", "DELETE"])
 def obra_detail(request, codigo_obra):
-    obra = get_obra_or_404(codigo_obra)
+    obra = get_user_obra_or_404(request, codigo_obra)
     if request.method == "GET":
         payload = ObraSerializer(obra).data
         registros = obra.registros_emision.select_related("etapa", "obra")
@@ -637,7 +656,7 @@ def obra_detail(request, codigo_obra):
 
 @api_view(["GET", "POST"])
 def obra_registros_emision(request, codigo_obra):
-    obra = get_obra_or_404(codigo_obra)
+    obra = get_user_obra_or_404(request, codigo_obra)
     if request.method == "GET":
         registros = obra.registros_emision.select_related(
             "organizacion", "etapa"
@@ -657,7 +676,7 @@ def obra_registros_emision(request, codigo_obra):
 @api_view(["GET", "POST"])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def obra_evidencias(request, codigo_obra):
-    obra = get_obra_or_404(codigo_obra)
+    obra = get_user_obra_or_404(request, codigo_obra)
     if request.method == "GET":
         evidencias = obra.evidencias.select_related(
             "organizacion", "etapa"
@@ -681,7 +700,7 @@ def obra_evidencias(request, codigo_obra):
 
 @api_view(["GET", "POST"])
 def obra_transportes(request, codigo_obra):
-    obra = get_obra_or_404(codigo_obra)
+    obra = get_user_obra_or_404(request, codigo_obra)
     if request.method == "GET":
         return Response(
             TransporteObraSerializer(
@@ -700,6 +719,7 @@ def obra_transportes(request, codigo_obra):
 
 
 @api_view(["GET"])
+@permission_classes([AllowAny])
 def verificar_obra(request, codigo_obra):
     obra = get_obra_or_404(codigo_obra)
     registros = obra.registros_emision.all()

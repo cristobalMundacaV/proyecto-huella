@@ -1,11 +1,12 @@
 from decimal import Decimal
 
 from django.test import TestCase
+from django.contrib.auth.models import User
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.analytics.models import Organizacion, EtapaObra, Obra, RegistroEmision
+from apps.analytics.models import Organizacion, EtapaObra, Obra, RegistroEmision, UsuarioOrganizacion
 
 from .models import DispositivoSensor, LecturaSensor, RegistroSensor
 
@@ -13,6 +14,10 @@ from .models import DispositivoSensor, LecturaSensor, RegistroSensor
 class LecturaSensorApiTests(TestCase):
     def setUp(self):
         self.client = APIClient(HTTP_HOST="localhost")
+        self.organizacion = Organizacion.objects.create(organizacion_id="ANDINA", nombre="Organizacion Andina SpA")
+        self.user = User.objects.create_user("iot-reader", password="test")
+        UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.organizacion)
+        self.client.force_login(self.user)
 
     def test_crea_lectura_y_calcula_co2e(self):
         response = self.client.post(
@@ -49,7 +54,6 @@ class LecturaSensorApiTests(TestCase):
         self.assertEqual(response.data["emisiones_totales_kg_co2e"], 3.9)
 
     def test_kpis_y_ultimas_lecturas_respetan_organizacion(self):
-        Organizacion.objects.create(organizacion_id="ANDINA", nombre="Organizacion Andina SpA")
         Organizacion.objects.create(organizacion_id="PACIFICO", nombre="Organizacion Pacifico SpA")
         LecturaSensor.objects.create(
             organizacion="Organizacion Andina SpA",
@@ -105,6 +109,9 @@ class SensorIngestionApiTests(TestCase):
             etapa=self.etapa,
             tipo_sensor=DispositivoSensor.TipoSensor.COMBUSTIBLE,
         )
+        self.sensor_key = "sensor-test-key"
+        self.dispositivo.set_api_key(self.sensor_key)
+        self.dispositivo.save(update_fields=["api_key_hash"])
 
     def test_ingesta_crea_registro_sensor_y_registro_emision(self):
         response = self.client.post(
@@ -115,6 +122,7 @@ class SensorIngestionApiTests(TestCase):
                 "type": "diesel_litros",
                 "value": "10.5",
                 "timestamp": timezone.now().isoformat(),
+                "api_key": self.sensor_key,
             },
             format="json",
         )
@@ -134,6 +142,7 @@ class SensorIngestionApiTests(TestCase):
             "external_id": "msg-duplicado",
             "type": "diesel_litros",
             "value": "3",
+            "api_key": self.sensor_key,
         }
         first = self.client.post("/api/iot/ingesta/", payload, format="json")
         second = self.client.post("/api/iot/ingesta/", payload, format="json")
@@ -151,6 +160,7 @@ class SensorIngestionApiTests(TestCase):
                 "external_id": "msg-temp",
                 "type": "temperatura",
                 "value": "21.4",
+                "api_key": self.sensor_key,
             },
             format="json",
         )

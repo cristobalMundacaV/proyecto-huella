@@ -152,7 +152,7 @@ class DispositivoSensor(models.Model):
 
     def verify_api_key(self, raw_key):
         if not self.api_key_hash:
-            return True
+            return False
         if not raw_key:
             return False
         return check_password(str(raw_key), self.api_key_hash)

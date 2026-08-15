@@ -5,6 +5,19 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+def repair_accion_organizacion_column(apps, schema_editor):
+    """Repair the legacy table whose FK rename was skipped on PostgreSQL."""
+    if schema_editor.connection.vendor != "postgresql":
+        return
+    table = "analytics_accionambiental"
+    with schema_editor.connection.cursor() as cursor:
+        columns = {column.name for column in schema_editor.connection.introspection.get_table_description(cursor, table)}
+    if "constructora_id" in columns and "organizacion_id" not in columns:
+        schema_editor.execute(
+            'ALTER TABLE "analytics_accionambiental" RENAME COLUMN "constructora_id" TO "organizacion_id"'
+        )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -13,6 +26,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(repair_accion_organizacion_column, migrations.RunPython.noop),
         migrations.AlterModelOptions(
             name="etapaobra",
             options={"ordering": ["organizacion__nombre", "nombre"]},

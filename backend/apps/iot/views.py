@@ -34,16 +34,22 @@ def resolve_organizacion(request):
     if not organizacion_id:
         return None
 
-    return (
+    organization = (
         Organizacion.objects.filter(organizacion_id=organizacion_id).first()
         or Organizacion.objects.filter(nombre__iexact=organizacion_id).first()
     )
+    if organization and not (request.user.is_superuser or organization.usuarios.filter(user=request.user, activo=True).exists()):
+        return None
+    return organization
 
 
-def lecturas_organizacion_hoy_queryset(organizacion=None):
+def lecturas_organizacion_hoy_queryset(organizacion=None, request=None):
     queryset = lecturas_de_hoy_queryset()
     if organizacion:
         queryset = queryset.filter(organizacion__iexact=organizacion.nombre)
+    elif request and not request.user.is_superuser:
+        names = Organizacion.objects.filter(usuarios__user=request.user, usuarios__activo=True).values_list("nombre", flat=True)
+        queryset = queryset.filter(organizacion__in=names)
     return queryset
 
 
@@ -60,6 +66,9 @@ def top_emisiones(queryset, group_field):
 def lecturas(request):
     serializer = LecturaSensorSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
+    organization = Organizacion.objects.filter(nombre__iexact=serializer.validated_data["organizacion"]).first()
+    if not organization or not (request.user.is_superuser or organization.usuarios.filter(user=request.user, activo=True).exists()):
+        return Response({"detail": "Recurso no encontrado."}, status=404)
     lectura = serializer.save()
     return Response(
         LecturaSensorSerializer(lectura).data,
@@ -70,7 +79,7 @@ def lecturas(request):
 @api_view(["GET"])
 def kpis(request):
     organizacion = resolve_organizacion(request)
-    queryset = lecturas_organizacion_hoy_queryset(organizacion)
+    queryset = lecturas_organizacion_hoy_queryset(organizacion, request)
     agregados = queryset.aggregate(
         emisiones_totales=Sum("co2e_estimado"),
         consumo_promedio=Avg("valor"),
@@ -107,7 +116,7 @@ def kpis(request):
 @api_view(["GET"])
 def ultimas_lecturas(request):
     organizacion = resolve_organizacion(request)
-    queryset = lecturas_organizacion_hoy_queryset(organizacion)
+    queryset = lecturas_organizacion_hoy_queryset(organizacion, request)
     queryset = queryset.order_by("-fecha_registro")[:20]
     serializer = LecturaSensorSerializer(queryset, many=True)
     return Response(serializer.data)

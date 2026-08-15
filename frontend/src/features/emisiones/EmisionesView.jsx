@@ -35,6 +35,7 @@ import {
 import AnimatedModalShell from "@/shared/components/AnimatedModalShell";
 import ChartCard from "@/shared/components/ChartCard";
 import EmptyState from "@/shared/components/EmptyState";
+import EmissionValue from "@/shared/components/EmissionValue";
 import Pagination from "@/shared/components/Pagination";
 import {
   getAiAdvisor,
@@ -1138,6 +1139,15 @@ function ImpactRow({ label, value }) {
       <p className="mt-2 text-xl font-black text-emerald-900">
         {value}
       </p>
+    </div>
+  );
+}
+
+function RiskMessage({ children, icon = <AlertTriangle size={18} /> }) {
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-white/70 p-4 text-sm font-semibold leading-6 text-red-800">
+      <span className="mt-0.5 shrink-0 text-red-600">{icon}</span>
+      <span>{children}</span>
     </div>
   );
 }

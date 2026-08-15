@@ -5,7 +5,8 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from apps.analytics.models import Organizacion, EtapaObra, Obra
@@ -15,13 +16,18 @@ from .serializers import DispositivoSensorSerializer, RegistroSensorSerializer
 from .services import SensorIngestionError, procesar_payload_ingesta
 
 
+def allowed_organizations(request):
+    rows = Organizacion.objects.all()
+    return rows if request.user.is_superuser else rows.filter(usuarios__user=request.user, usuarios__activo=True).distinct()
+
+
 def resolve_organizacion(request):
     organizacion_id = request.query_params.get("organizacion_id") or request.query_params.get("organizacion")
     if not organizacion_id:
         return None
     return (
-        Organizacion.objects.filter(organizacion_id=organizacion_id).first()
-        or Organizacion.objects.filter(nombre__iexact=organizacion_id).first()
+        allowed_organizations(request).filter(organizacion_id=organizacion_id).first()
+        or allowed_organizations(request).filter(nombre__iexact=organizacion_id).first()
     )
 
 
@@ -34,23 +40,23 @@ def top_emisiones(queryset, group_field):
     )
 
 
-def normalize_relation_payload(data):
+def normalize_relation_payload(data, request):
     payload = data.copy()
 
     organizacion_codigo = payload.pop("organizacion_id", None) or payload.pop("organizacion_codigo", None)
     if organizacion_codigo:
-        organizacion = get_object_or_404(Organizacion, organizacion_id=str(organizacion_codigo).strip())
+        organizacion = get_object_or_404(allowed_organizations(request), organizacion_id=str(organizacion_codigo).strip())
         payload["organizacion"] = organizacion.id
 
     obra_codigo = payload.pop("obra_codigo", None)
     if obra_codigo:
-        obra = get_object_or_404(Obra, codigo_obra=str(obra_codigo).strip())
+        obra = get_object_or_404(Obra, organizacion__in=allowed_organizations(request), codigo_obra=str(obra_codigo).strip())
         payload["obra"] = obra.id
         payload["organizacion"] = obra.organizacion_id
 
     etapa_codigo = payload.pop("etapa_codigo", None) or payload.pop("etapa_id", None)
     if etapa_codigo and not str(etapa_codigo).isdigit():
-        etapa = get_object_or_404(EtapaObra, etapa_id=str(etapa_codigo).strip())
+        etapa = get_object_or_404(EtapaObra, organizacion__in=allowed_organizations(request), etapa_id=str(etapa_codigo).strip())
         payload["etapa"] = etapa.id
         payload.setdefault("organizacion", etapa.organizacion_id)
 
@@ -60,7 +66,7 @@ def normalize_relation_payload(data):
 @api_view(["GET", "POST"])
 def dispositivos(request):
     if request.method == "GET":
-        queryset = DispositivoSensor.objects.select_related(
+        queryset = DispositivoSensor.objects.filter(organizacion__in=allowed_organizations(request)).select_related(
             "organizacion", "obra", "etapa", "factor_emision_default"
         )
         organizacion = resolve_organizacion(request)
@@ -71,7 +77,7 @@ def dispositivos(request):
             queryset = queryset.filter(activo=str(activo).lower() in {"1", "true", "si", "yes"})
         return Response(DispositivoSensorSerializer(queryset, many=True).data)
 
-    serializer = DispositivoSensorSerializer(data=normalize_relation_payload(request.data))
+    serializer = DispositivoSensorSerializer(data=normalize_relation_payload(request.data, request))
     serializer.is_valid(raise_exception=True)
     dispositivo = serializer.save()
     return Response(DispositivoSensorSerializer(dispositivo).data, status=status.HTTP_201_CREATED)
@@ -80,7 +86,7 @@ def dispositivos(request):
 @api_view(["GET", "PATCH"])
 def dispositivo_detail(request, dispositivo_id):
     dispositivo = get_object_or_404(
-        DispositivoSensor.objects.select_related("organizacion", "obra", "etapa", "factor_emision_default"),
+        DispositivoSensor.objects.filter(organizacion__in=allowed_organizations(request)).select_related("organizacion", "obra", "etapa", "factor_emision_default"),
         dispositivo_id=dispositivo_id,
     )
     if request.method == "GET":
@@ -88,7 +94,7 @@ def dispositivo_detail(request, dispositivo_id):
 
     serializer = DispositivoSensorSerializer(
         dispositivo,
-        data=normalize_relation_payload(request.data),
+        data=normalize_relation_payload(request.data, request),
         partial=True,
     )
     serializer.is_valid(raise_exception=True)
@@ -97,6 +103,7 @@ def dispositivo_detail(request, dispositivo_id):
 
 @csrf_exempt
 @api_view(["POST"])
+@permission_classes([AllowAny])
 def ingesta(request):
     payload = {"lecturas": request.data} if isinstance(request.data, list) else dict(request.data)
     sensor_key = request.headers.get("X-Sensor-Key")
@@ -123,7 +130,7 @@ def ingesta(request):
 
 @api_view(["GET"])
 def registros_sensor(request):
-    queryset = RegistroSensor.objects.select_related(
+    queryset = RegistroSensor.objects.filter(organizacion__in=allowed_organizations(request)).select_related(
         "dispositivo", "organizacion", "obra", "etapa", "registro_emision"
     ).order_by("-timestamp_sensor", "-received_at")
     organizacion = resolve_organizacion(request)
@@ -144,7 +151,7 @@ def registros_sensor(request):
 
 @api_view(["GET"])
 def kpis_operacionales(request):
-    queryset = RegistroSensor.objects.all()
+    queryset = RegistroSensor.objects.filter(organizacion__in=allowed_organizations(request))
     organizacion = resolve_organizacion(request)
     if organizacion:
         queryset = queryset.filter(organizacion=organizacion)
