@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from ..models import (EventoMaterial, MaterialOperacional, Obra,
+from ..models import (AplicabilidadCapacidadObra, EventoMaterial, MaterialOperacional, Obra,
                       ProblematicaAmbiental)
 from .foundation import inicializar_capacidades_preset
 from .materials_v2 import material_balance
@@ -45,7 +45,7 @@ def environmental_timeline(work):
                    for row in problem.acciones.all()]
         events += [{"tipo": "resultado", "fecha": row.created_at, "referencia_id": row.id, "titulo": row.estado}
                    for row in problem.resultados_intervencion.all()]
-    if work.fecha_cierre_ambiental:
+    if work.estado_ambiental == Obra.EstadoAmbiental.CERRADA and work.fecha_cierre_ambiental:
         events.append({"tipo": "cierre_ambiental", "fecha": work.fecha_cierre_ambiental,
                        "referencia_id": work.id, "titulo": work.get_estado_ambiental_display()})
     return sorted(events, key=lambda item: (str(item["fecha"]), item["tipo"]))
@@ -53,6 +53,8 @@ def environmental_timeline(work):
 
 def work_context(work):
     capabilities = inicializar_capacidades_preset(work.organizacion)
+    diagnosis = work.diagnosticos_ambientales.prefetch_related("elementos", "aplicabilidades_capacidades__capacidad").first()
+    applicability = {row.capacidad_id: row for row in diagnosis.aplicabilidades_capacidades.all()} if diagnosis else {}
     indicators = construction_indicators(work)
     open_problems = work.problematicas_ambientales.filter(estado__in=OPEN_PROBLEM_STATES)
     return {
@@ -60,7 +62,19 @@ def work_context(work):
         "references": {"organization": work.organizacion.organizacion_id, "work": work.id},
         "obra": {"codigo": work.codigo_obra, "nombre": work.nombre, "perfil": work.perfil_ambiental,
                  "estado": work.estado, "estado_ambiental": work.estado_ambiental},
-        "capacidades": list(capabilities.values("capacidad__clave", "estado")),
+        "capacidades_organizacion": [{"clave": row.capacidad.clave, "estado_organizacion": row.estado,
+                                       "disponible_preset": row.recomendada_por_preset} for row in capabilities],
+        "diagnostico_obra": ({
+            "id": diagnosis.id, "estado": diagnosis.estado,
+            "aplicabilidad": [{"clave": row.capacidad.clave,
+                                "estado_obra": applicability[row.capacidad_id].estado if row.capacidad_id in applicability else AplicabilidadCapacidadObra.Estado.NO_DETERMINADO}
+                               for row in capabilities],
+            "elementos": list(diagnosis.elementos.values("id", "tipo", "nombre", "descripcion")),
+        } if diagnosis else {
+            "id": None, "estado": "no_determinado",
+            "aplicabilidad": [{"clave": row.capacidad.clave, "estado_obra": AplicabilidadCapacidadObra.Estado.NO_DETERMINADO}
+                               for row in capabilities], "elementos": [],
+        }),
         "indicadores": indicators,
         "problematicas_abiertas": list(open_problems.values("id", "titulo", "categoria", "estado")[:10]),
         "acciones_actuales": list(open_problems.values("acciones__id", "acciones__titulo", "acciones__estado")[:10]),
@@ -73,7 +87,7 @@ def work_context(work):
 @transaction.atomic
 def close_environmental_work(work, observations=""):
     pending = work.problematicas_ambientales.filter(estado__in=OPEN_PROBLEM_STATES).exists()
-    work.fecha_cierre_ambiental = timezone.localdate()
+    work.fecha_cierre_ambiental = None if pending else timezone.localdate()
     work.observaciones_cierre_ambiental = observations
     work.estado_ambiental = Obra.EstadoAmbiental.CIERRE_PENDIENTE if pending else Obra.EstadoAmbiental.CERRADA
     work.save(update_fields=["fecha_cierre_ambiental", "observaciones_cierre_ambiental", "estado_ambiental", "updated_at"])

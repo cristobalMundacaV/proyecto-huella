@@ -3,10 +3,11 @@ from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from .models import (AccionMejoraAmbiental, ActividadOperacional,
+from .models import (AccionMejoraAmbiental, ActividadOperacional, AplicabilidadCapacidadObra,
                      DiagnosticoAmbientalInicial, EventoMaterial, FuenteDatos,
                      IndicadorAmbiental, MaterialOperacional, Obra, Observacion,
                      Organizacion, ProblematicaAmbiental,
@@ -67,6 +68,40 @@ class ConstructionV1IntegrationTests(APITestCase):
             tipo="operacional", unidad="kWh", origen_numerador="consumo_energia")
         corporate.full_clean()
 
+    def test_indicator_code_uniqueness_respects_scope(self):
+        IndicadorAmbiental.objects.create(organizacion=self.org, alcance="obra", obra=self.work_a, codigo="consumo-energia",
+            nombre="Energia A", tipo="operacional", unidad="kWh", origen_numerador="consumo_energia")
+        IndicadorAmbiental.objects.create(organizacion=self.org, alcance="obra", obra=self.work_b, codigo="consumo-energia",
+            nombre="Energia B", tipo="operacional", unidad="kWh", origen_numerador="consumo_energia")
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            IndicadorAmbiental.objects.create(organizacion=self.org, alcance="obra", obra=self.work_a, codigo="consumo-energia",
+                nombre="Duplicado A", tipo="operacional", unidad="kWh", origen_numerador="consumo_energia")
+        IndicadorAmbiental.objects.create(organizacion=self.org, alcance="organizacion", codigo="corporativo",
+            nombre="Corporativo", tipo="operacional", unidad="kWh", origen_numerador="consumo_energia")
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            IndicadorAmbiental.objects.create(organizacion=self.org, alcance="organizacion", codigo="corporativo",
+                nombre="Corporativo duplicado", tipo="operacional", unidad="kWh", origen_numerador="consumo_energia")
+        IndicadorAmbiental.objects.create(organizacion=self.other, alcance="organizacion", codigo="corporativo",
+            nombre="Otro tenant", tipo="operacional", unidad="kWh", origen_numerador="consumo_energia")
+
+    def test_work_context_separates_organization_capability_from_work_diagnosis(self):
+        capabilities = inicializar_capacidades_preset(self.org)
+        noise_org = capabilities.get(capacidad__clave="ruido")
+        noise_org.estado = "operativa"; noise_org.save(update_fields=["estado"])
+        no_diagnosis = work_context(self.work_b)
+        self.assertEqual(no_diagnosis["diagnostico_obra"]["estado"], "no_determinado")
+        noise_b = next(row for row in no_diagnosis["diagnostico_obra"]["aplicabilidad"] if row["clave"] == "ruido")
+        self.assertEqual(noise_b["estado_obra"], "no_determinado")
+
+        diagnosis = DiagnosticoAmbientalInicial.objects.create(organizacion=self.org, obra=self.work_a, estado="completado")
+        AplicabilidadCapacidadObra.objects.create(obra=self.work_a, capacidad=noise_org.capacidad,
+                                                   diagnostico=diagnosis, estado="aplica")
+        diagnosed = work_context(self.work_a)
+        noise_a = next(row for row in diagnosed["diagnostico_obra"]["aplicabilidad"] if row["clave"] == "ruido")
+        self.assertEqual(noise_a["estado_obra"], "aplica")
+        organization_noise = next(row for row in diagnosed["capacidades_organizacion"] if row["clave"] == "ruido")
+        self.assertEqual(organization_noise["estado_organizacion"], "operativa")
+
     def test_specialized_records_cannot_contradict_activity_work(self):
         activity = self.activity(self.work_a, "FLOW-A", ActividadOperacional.Tipo.CONSUMO_ENERGIA)
         flow = RegistroFlujoAmbiental(organizacion=self.org, actividad=activity, flujo="energia", periodo_inicio=timezone.now(),
@@ -111,10 +146,18 @@ class ConstructionV1IntegrationTests(APITestCase):
         self.assertTrue({"obra_creada", "actividad", "problematica", "accion"}.issubset({row["tipo"] for row in timeline}))
         close_environmental_work(self.work_a, "Cierre con pendientes")
         self.assertEqual(self.work_a.estado_ambiental, "cierre_pendiente")
+        self.assertIsNone(self.work_a.fecha_cierre_ambiental)
+        self.assertNotIn("cierre_ambiental", {row["tipo"] for row in environmental_timeline(self.work_a)})
         self.assertTrue(self.work_a.actividades_operacionales.exists())
         package = work_context(self.work_a)
         self.assertEqual(package["references"]["work"], self.work_a.id)
         self.assertNotIn(self.work_b.id, [row.get("obra_id") for row in package["materiales"]])
+
+        problem.estado = ProblematicaAmbiental.Estado.CERRADA; problem.save(update_fields=["estado"])
+        close_environmental_work(self.work_a, "Cierre real")
+        self.assertEqual(self.work_a.estado_ambiental, "cerrada")
+        self.assertIsNotNone(self.work_a.fecha_cierre_ambiental)
+        self.assertIn("cierre_ambiental", {row["tipo"] for row in environmental_timeline(self.work_a)})
 
     def test_work_endpoints_are_tenant_isolated(self):
         response = self.client.get(f"{self.base}/obras/{self.work_a.id}/contexto/")

@@ -198,6 +198,36 @@ class CapacidadOrganizacion(models.Model):
         constraints = [models.UniqueConstraint(fields=["organizacion", "capacidad"], name="unique_capacidad_organizacion")]
 
 
+class AplicabilidadCapacidadObra(models.Model):
+    class Estado(models.TextChoices):
+        NO_DETERMINADO = "no_determinado", "No determinado"
+        PENDIENTE = "pendiente", "Pendiente"
+        APLICA = "aplica", "Aplica"
+        NO_APLICA = "no_aplica", "No aplica"
+        SIN_DATOS = "sin_datos", "Sin datos"
+
+    obra = models.ForeignKey("Obra", on_delete=models.CASCADE, related_name="aplicabilidades_capacidades")
+    capacidad = models.ForeignKey(CapacidadAmbiental, on_delete=models.PROTECT, related_name="aplicabilidades_obras")
+    diagnostico = models.ForeignKey(DiagnosticoAmbientalInicial, on_delete=models.CASCADE, related_name="aplicabilidades_capacidades")
+    estado = models.CharField(max_length=25, choices=Estado.choices, default=Estado.NO_DETERMINADO, db_index=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["obra", "capacidad"], name="unique_capacidad_obra")]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        errors = {}
+        if self.diagnostico_id and self.diagnostico.obra_id != self.obra_id:
+            errors["diagnostico"] = "El diagnostico debe pertenecer a la misma obra."
+        if self.diagnostico_id and self.diagnostico.organizacion_id != self.obra.organizacion_id:
+            errors["diagnostico"] = "El diagnostico debe pertenecer a la organizacion de la obra."
+        if errors: raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
 class ActivoOperacional(models.Model):
     class Tipo(models.TextChoices):
         VEHICULO = "vehiculo", "Vehiculo"
@@ -1993,7 +2023,10 @@ class IndicadorAmbiental(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=["organizacion", "codigo"], name="unique_indicador_codigo_org")]
+        constraints = [
+            models.UniqueConstraint(fields=["organizacion", "codigo"], condition=Q(alcance="organizacion"), name="unique_indicador_codigo_organizacion"),
+            models.UniqueConstraint(fields=["organizacion", "obra", "codigo"], condition=Q(alcance="obra"), name="unique_indicador_codigo_obra"),
+        ]
 
     def clean(self):
         from django.core.exceptions import ValidationError
