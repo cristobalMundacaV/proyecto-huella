@@ -522,6 +522,18 @@ Las rutas profundas conservan contexto y navegación coherentes; salvo Operació
 
 Correctivo semántico final: los conteos exitosos preservan `0` como dato real y reservan “Sin datos” para `null`/`undefined`; el KPI de Inicio se denomina “Obras registradas” porque cuenta el listado completo sin inventar una definición de obra activa. Los indicadores destacados usan selección explícita: agregados nombrados de transporte y totales aditivos tipados de flujos, con su unidad real. IDs, alcance, estrategia de agregación, flags, códigos, estados internos y metadata nunca se convierten automáticamente en KPIs.
 
+## UX-07 — Problemas, acciones y mejora verificable
+
+`features/mejora` es la única autoridad frontend para el ciclo Problema → Alcance → Indicadores → Acción → BASE → Implementación → Seguimiento → RESULT → Decisión → Historial. Las rutas organizacionales son `/inteligencia/problemas` y `/inteligencia/problemas/:problemId`; las rutas obra-scoped son `/obras/:obraId/problemas` y `/obras/:obraId/problemas/:problemId`. La URL, no un selector local, determina el problema activo.
+
+La vista de obra envía `?obra=<id>` en listado, detalle y cada recurso hijo, usando el correctivo backend PRE-UX-07. Cada recurso carga de forma independiente: una falla de historial no oculta acciones, indicadores o BASE. Un `404` específico de snapshot se representa como “BASE pendiente”; otros fallos permanecen errores.
+
+La experiencia distingue acción propuesta, seleccionada, iniciada, implementada, medición y resultado evaluado. Iniciar requiere confirmación mediante `Modal` y comunica el congelamiento de BASE. Las mediciones manuales se identifican como declaradas y el motor se presenta como datos actuales, nunca como IA. BASE y RESULT preservan ceros mediante semántica nullish; las comparaciones usan exclusivamente métricas entregadas por backend y no infieren dirección de mejora.
+
+Los ciclos y el historial permanecen inmutables y visibles. Reevaluación y escalamiento usan sus endpoints gobernados y nunca `PATCH` directo. La evidencia reutiliza `TraceabilityLink` y `TraceabilityDrawer` de UX-06 cuando el seguimiento expone una referencia. Se retiraron `ProblemWorkspaceV2`, `problematicasV2Api` y la aplicación legacy de acciones; `/inteligencia/acciones` redirige a la vista unificada.
+
+Copiloto, propuestas y feedback IA no forman parte del nuevo detalle. Permanecen en sus rutas existentes para UX-08. La gobernanza metodológica y profesional tampoco fue modificada.
+
 ## UX-06 — Datos, evidencias, importaciones y trazabilidad
 
 `features/datos` es la única autoridad frontend para alimentación y procedencia de datos. Sus rutas son `/datos`, `/datos/evidencias`, `/datos/evidencias/:evidenceId`, `/datos/importaciones`, `/datos/importaciones/:processId` y la vista reutilizada `/obras/:obraId/evidencias`. Se retiraron las páginas, aliases, componentes y servicios duplicados anteriores.

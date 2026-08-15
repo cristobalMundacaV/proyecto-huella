@@ -17,7 +17,7 @@ export const navigationGroups = [
   ] },
   { label: "Inteligencia", items: [
     { label: "Inteligencia", path: "/inteligencia", icon: ShieldCheck },
-    { label: "Acciones", path: "/inteligencia/acciones", icon: CheckCircle2 },
+    { label: "Problemas y mejora", path: "/inteligencia/problemas", icon: CheckCircle2 },
     { label: "Copiloto", path: "/inteligencia/copiloto", icon: Bot },
   ] },
   { label: "Gobernanza", items: [

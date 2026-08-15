@@ -26,7 +26,8 @@ import TransportPage from "@/features/operacion/pages/TransportPage";
 import MaterialsPage from "@/features/operacion/pages/MaterialsPage";
 import WastePage from "@/features/operacion/pages/WastePage";
 import IntelligencePage from "@/features/intelligence/pages/IntelligencePage";
-import AccionesAmbientalesPage from "@/features/acciones/pages/AccionesAmbientalesPage";
+import ProblemsPage from "@/features/mejora/pages/ProblemsPage";
+import ProblemDetailPage from "@/features/mejora/pages/ProblemDetailPage";
 import CopilotoAmbientalPage from "@/core/copiloto/pages/CopilotoAmbientalPage";
 import FactoresPage from "@/features/factores/pages/FactoresPage";
 import ReportesRegulatoriosPage from "@/core/reportes-regulatorios/pages/ReportesRegulatoriosPage";
@@ -75,7 +76,8 @@ export default function AppRouter() {
             <Route path="hidrica-suelo" element={<SectorDomainPage domain="hidrica-suelo" />} />
           </Route>
           <Route path="indicadores" element={<ObraWorkspaceSection title="Indicadores" description="Los indicadores conservan alcance de obra. La exploración profunda se completa en UX-05." />} />
-          <Route path="problemas" element={<ObraWorkspaceSection title="Problemas y acciones" description="El resumen ya muestra problemas y acciones reales; el ciclo completo se abordará en su fase específica." />} />
+          <Route path="problemas" element={<ProblemsPage workScoped />} />
+          <Route path="problemas/:problemId" element={<ProblemDetailPage workScoped />} />
           <Route path="evidencias" element={<EvidencePage workScoped />} />
           <Route path="timeline" element={<ObraWorkspaceSection title="Timeline" description="El resumen presenta los eventos recientes reales de esta obra." />} />
           <Route path="informes" element={<ObraWorkspaceSection title="Informes" description="Los informes mantendrán este alcance de obra cuando se complete su experiencia especializada." />} />
@@ -86,7 +88,11 @@ export default function AppRouter() {
         <Route path="datos/importaciones" element={<ImportsPage />} />
         <Route path="datos/importaciones/:processId" element={<ImportDetailPage />} />
         <Route path="operacion/activos" element={<ActivosPage />} /><Route path="operacion/sensores" element={<SensoresPage />} />
-        <Route path="inteligencia" element={<IntelligencePage />} /><Route path="inteligencia/acciones" element={<AccionesAmbientalesPage />} /><Route path="inteligencia/copiloto" element={<CopilotoAmbientalPage />} />
+        <Route path="inteligencia" element={<IntelligencePage />} />
+        <Route path="inteligencia/problemas" element={<ProblemsPage />} />
+        <Route path="inteligencia/problemas/:problemId" element={<ProblemDetailPage />} />
+        <Route path="inteligencia/acciones" element={<Navigate to="/inteligencia/problemas" replace />} />
+        <Route path="inteligencia/copiloto" element={<CopilotoAmbientalPage />} />
         <Route path="gobernanza/factores" element={<FactoresPage />} /><Route path="gobernanza/informes" element={<ReportesRegulatoriosPage />} />
         <Route path="administracion" element={<AdministracionPage />} /><Route path="administracion/organizacion" element={<OrganizationRoute />} /><Route path="administracion/usuarios" element={<UsuariosPage />} /><Route path="administracion/configuracion" element={<ConfiguracionPage />} /><Route path="administracion/diagnostico" element={<DiagnosticoAmbientalPage />} /><Route path="administracion/estructura" element={<EtapasPage />} />
         <Route path="operacion/recepcion-trozas" element={<RecepcionTrozasPage />} /><Route path="operacion/produccion" element={<ProduccionAserraderoPage />} /><Route path="operacion/secado" element={<SecadoAserraderoPage />} /><Route path="operacion/energia" element={<EnergiaAserraderoPage />} /><Route path="operacion/transporte-forestal" element={<TransporteForestalPage />} /><Route path="operacion/residuos-subproductos" element={<ResiduosSubproductosPage />} /><Route path="operacion/lotes-forestales" element={<LotesForestalesPage />} />
