@@ -8,7 +8,7 @@ from rest_framework.test import APITestCase
 
 from .models import (AccionMejoraAmbiental, ActivoOperacional,
                      AlcanceProblematica, IndicadorAmbiental,
-                     IndicadorProblematica, Organizacion, ProblematicaAmbiental,
+                     IndicadorProblematica, Obra, Organizacion, ProblematicaAmbiental,
                      ProcesoOperacional, ResultadoIntervencion,
                      SnapshotValorIndicador, UnidadOperacional,
                      UsuarioOrganizacion, ValorIndicador)
@@ -28,6 +28,9 @@ class InterventionV2Tests(APITestCase):
         self.unit = UnidadOperacional.objects.create(organizacion=self.org, nombre="Logistica")
         self.process = ProcesoOperacional.objects.create(organizacion=self.org, unidad=self.unit, nombre="Transporte")
         self.asset = ActivoOperacional.objects.create(organizacion=self.org, codigo="CAM-7", nombre="Camion 7")
+        self.work_a = Obra.objects.create(organizacion=self.org, nombre="Obra A", fecha_inicio=date(2026, 1, 1))
+        self.work_b = Obra.objects.create(organizacion=self.org, nombre="Obra B", fecha_inicio=date(2026, 1, 1))
+        self.foreign_work = Obra.objects.create(organizacion=self.other, nombre="Obra ajena", fecha_inicio=date(2026, 1, 1))
 
     def problem(self, title="Alta intensidad de emisiones en transporte"):
         return ProblematicaAmbiental.objects.create(
@@ -144,3 +147,54 @@ class InterventionV2Tests(APITestCase):
         self.assertEqual(self.client.post(f"{self.base}/problematicas/{problem.id}/acciones/{action.id}/iniciar/", {"confirmado": True}, format="json").status_code, 200)
         foreign = ProblematicaAmbiental.objects.create(organizacion=self.other, titulo="Foreign", descripcion="x", categoria="x", valor_inicial=1, objetivo_meta=0, fecha_deteccion=timezone.localdate())
         self.assertEqual(self.client.get(f"{self.base}/problematicas/{foreign.id}/ciclos/").status_code, 404)
+
+    def test_api_problematicas_scope_obra_listado_detalle_y_organizacional(self):
+        problem_a = self.problem("Problema A"); problem_a.obra = self.work_a; problem_a.save()
+        problem_b = self.problem("Problema B"); problem_b.obra = self.work_b; problem_b.save()
+        no_work = self.problem("Problema organizacional")
+
+        rows_a = self.client.get(f"{self.base}/problematicas/?obra={self.work_a.id}")
+        rows_b = self.client.get(f"{self.base}/problematicas/?obra={self.work_b.id}")
+        rows_org = self.client.get(f"{self.base}/problematicas/")
+        self.assertEqual([row["id"] for row in rows_a.data], [problem_a.id])
+        self.assertEqual([row["id"] for row in rows_b.data], [problem_b.id])
+        self.assertCountEqual([row["id"] for row in rows_org.data], [problem_a.id, problem_b.id, no_work.id])
+        self.assertEqual(self.client.get(f"{self.base}/problematicas/{problem_a.id}/?obra={self.work_a.id}").status_code, 200)
+        self.assertEqual(self.client.get(f"{self.base}/problematicas/{problem_b.id}/?obra={self.work_a.id}").status_code, 404)
+        self.assertEqual(self.client.get(f"{self.base}/problematicas/{no_work.id}/?obra={self.work_a.id}").status_code, 404)
+
+    def test_creacion_problematica_conserva_validacion_tenant_de_obra(self):
+        payload = {
+            "titulo": "Problema nuevo", "descripcion": "Detectado en obra", "categoria": "energia",
+            "indicador": "consumo", "unidad_indicador": "kWh", "valor_inicial": "10",
+            "objetivo_meta": "8", "fecha_deteccion": "2026-01-02", "obra": self.work_a.id,
+        }
+        own = self.client.post(f"{self.base}/problematicas/", payload, format="json")
+        self.assertEqual(own.status_code, 201)
+        payload["obra"] = self.foreign_work.id
+        foreign = self.client.post(f"{self.base}/problematicas/", payload, format="json")
+        self.assertEqual(foreign.status_code, 400)
+
+    def test_api_scope_obra_rechaza_cross_tenant_y_cross_work_en_hijos(self):
+        problem_a = self.problem("Problema A"); problem_a.obra = self.work_a; problem_a.save()
+        problem_b = self.problem("Problema B"); problem_b.obra = self.work_b; problem_b.save()
+        action_b = AccionMejoraAmbiental.objects.create(problematica=problem_b, titulo="Accion B", descripcion="Otra obra")
+        wrong_scope = f"?obra={self.work_a.id}"
+
+        self.assertEqual(self.client.get(f"{self.base}/problematicas/?obra={self.foreign_work.id}").status_code, 404)
+        self.assertEqual(self.client.get(f"{self.base}/problematicas/{problem_a.id}/?obra={self.foreign_work.id}").status_code, 404)
+        for suffix in ("acciones/", "indicadores/", "alcance/", "snapshot-base/", "ciclos/", "historial/"):
+            response = self.client.get(f"{self.base}/problematicas/{problem_b.id}/{suffix}{wrong_scope}")
+            self.assertEqual(response.status_code, 404, suffix)
+            self.assertEqual(response.data["detail"], "Recurso no encontrado.", suffix)
+        self.assertEqual(self.client.post(f"{self.base}/problematicas/{problem_b.id}/acciones/{action_b.id}/seleccionar/{wrong_scope}", {}, format="json").status_code, 404)
+
+    def test_snapshot_base_distingue_ausencia_de_base_y_scope_incorrecto(self):
+        problem_a = self.problem("Sin base"); problem_a.obra = self.work_a; problem_a.save()
+        problem_b = self.problem("Otra obra"); problem_b.obra = self.work_b; problem_b.save()
+        own = self.client.get(f"{self.base}/problematicas/{problem_a.id}/snapshot-base/?obra={self.work_a.id}")
+        foreign = self.client.get(f"{self.base}/problematicas/{problem_b.id}/snapshot-base/?obra={self.work_a.id}")
+        self.assertEqual(own.status_code, 404)
+        self.assertEqual(own.data["detail"], "Snapshot BASE no disponible.")
+        self.assertEqual(foreign.status_code, 404)
+        self.assertEqual(foreign.data["detail"], "Recurso no encontrado.")
