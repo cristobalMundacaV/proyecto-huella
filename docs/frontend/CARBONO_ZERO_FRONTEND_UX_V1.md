@@ -1,0 +1,332 @@
+# Carbono Zero — Arquitectura Frontend UX V1
+
+## 1. Alcance y estado auditado
+
+- Fase: UX-01, análisis y decisión arquitectónica. No inicia UX-02.
+- Commit auditado: `80e445aecc0494f341be4f928e70cd3d422d9906` (`correctivo fase 17`).
+- Runtime modificado: ninguno.
+- Universo: `src/app`, `core`, `domain`, `features`, `layouts`, `presets`, `shared`, `styles`, `assets`, `landing`, `main.jsx`, Vite, ESLint y `package.json`.
+- Tamaño: 187 archivos JSX; 42 archivos que representan páginas/vistas; 33 estados de pantalla alcanzables (incluye landing, login, verificación, selección inicial, 24 vistas reales de `ActiveView` y 5 placeholders).
+
+La aplicación funciona como SPA React/Vite con una selección manual de vistas, no como aplicación enrutada. `Root` sólo distingue landing (`/`), verificación pública (`/verificar/*`) y aplicación autenticada. Dentro de la aplicación, `App.jsx` mantiene `activeView`; el objeto `appRoutes` existe, pero no gobierna el render ni la URL.
+
+## 2. Problemas arquitectónicos comprobados
+
+1. `App.jsx` mezcla guardas de autenticación, resolución de organización/preset, shell responsive, navegación, transiciones y registro de páginas.
+2. La URL no expresa la pantalla, organización ni obra; refresh, deep-link, back/forward y compartir contexto no funcionan correctamente.
+3. `app/routes.jsx` es un registro parcial y desconectado, creando una segunda representación incompleta de navegación.
+4. `core/` y `features/` contienen el mismo tipo de artefactos. Evidencias, factores, importaciones y reportes tienen implementaciones paralelas.
+5. Los presets de aserradero contienen páginas completas; construcción/transporte/industrial son principalmente configuración. El comportamiento no es uniforme.
+6. La obra se abre dentro de modal/estado local de `ObrasPage`; no existe workspace direccionable aunque construcción define Obra como frontera primaria.
+7. `OperacionPage` agrega Activity Core, transporte, materiales y flujos a nivel organización; debe poder recibir scope de obra.
+8. Funciones técnicas (`factores`, `etapas`, ingesta, acciones) aparecen como destinos planos o están ocultas/desconectadas, sin jerarquía de producto.
+9. `shared/services/api.js` es un cliente y también un catálogo monolítico de endpoints, aliases legacy, simulaciones locales y stubs. Convive con servicios por feature.
+10. Hay dos accesos `fetch` directos (`RouteMapPicker`, `ImportarEvidenciaObraModal`) fuera del cliente HTTP.
+11. No existe estado global de obra activa; la selección vive localmente en Obras. Auth y organización sí tienen providers adecuados.
+12. Hay duplicación visual en KPI cards, tablas/paginación, hero/page headers, modales, badges, empty states y paneles.
+13. Tailwind utility classes, variables CSS y estilos especializados conviven con colores, sombras y radios hardcodeados.
+14. Existen páginas placeholder/desconectadas y archivos vacíos o muy parciales que aparentan funcionalidad.
+
+## 3. App.jsx: responsabilidades
+
+Responsabilidades correctas en la capa `app`: bootstrap de providers, guardas de sesión, selección de layout autenticado y boundary de carga/error. Deben salir de `App.jsx`: registro `ActiveView`, `activeView`, navegación móvil, resolución de menú preset, señal imperativa para crear organización y imports de páginas. El layout debe contener Navbar/Sidebar; el router debe resolver páginas, redirects, parámetros y transiciones. La ausencia de organización será una ruta/guarda de onboarding, no una variante profunda del componente raíz.
+
+## 4. Inventario de vistas
+
+`Backend` identifica la familia consumida; los componentes hijos pueden ampliar sus llamadas. “Desconectada” significa que no existe camino desde `Root/App/Sidebar`.
+
+| Vista actual | Archivo / feature | Propósito y scope | Backend principal | Estado | Destino y acción |
+|---|---|---|---|---|---|
+| Landing | `landing/CarbonoZeroLanding.jsx` | Comercial, público | Ninguno | Funcional | `/`; CONSERVAR y mover ownership a `features/public` o mantener landing explícita |
+| Login/bootstrap | `features/auth/pages/LoginPage.jsx` | Sesión, público | `/auth/*` | Funcional | `/login`; CONSERVAR |
+| Verificar obra | `features/obras/pages/VerificarObra.jsx` | Ficha pública de obra | `/verificar/obra/:codigo` | Funcional | `/verificar/:codigo`; CONSERVAR |
+| Dashboard | `core/dashboard/DashboardPage.jsx` | Inicio ejecutivo, organización | dashboard, KPIs, IoT, escenarios | Funcional | `/inicio`; MOVER a `features/inicio` |
+| Diagnóstico ambiental | `features/diagnostico/pages/DiagnosticoAmbientalPage.jsx` | Diagnóstico/capacidades, organización | diagnóstico, unidades, procesos | Funcional | `/administracion/diagnostico`; MOVER |
+| Operación | `features/operacion/pages/OperacionPage.jsx` | Actividades, transporte, materiales, flujos | Activity Core, calculation, transport/material/sector APIs | Funcional, scope org | `/obras/:obraId/operacion`; REESCRIBIR composición para scope obra, conservar feature panels |
+| Activos | `features/activos/pages/ActivosPage.jsx` | Activos/mantenimiento, organización | `/organizaciones/:id/activos/*` | Funcional | `/operacion/activos`; CONSERVAR/MOVER ruta |
+| Sensores | `features/sensores/pages/SensoresPage.jsx` | Dispositivos, instalaciones, calibración, lecturas | sensores V2 | Funcional | `/operacion/sensores`; CONSERVAR/MOVER ruta |
+| Inteligencia | `features/intelligence/pages/IntelligencePage.jsx` | Resumen inteligente y acciones trazables | intelligence/context/actions | Funcional | `/inteligencia`; CONSERVAR |
+| Copiloto | `core/copiloto/pages/CopilotoAmbientalPage.jsx` | Contexto/propuestas, organización/problema | Copiloto v2 | Funcional | `/inteligencia/copiloto`; MOVER a `features/copiloto` |
+| Acciones | `features/acciones/pages/AccionesAmbientalesPage.jsx` | Problemas, acciones, evidencia/cierre | problems/actions/environmental documents | Funcional | `/inteligencia/acciones`; CONSERVAR; dentro de obra filtrar scope |
+| Evidencias | `features/evidencias/pages/EvidenciasPage.jsx` | Evidencias e ingesta, organización | evidencias + ingestion V2 | Funcional | `/datos/evidencias`; CONSERVAR |
+| Administración | `features/administracion/pages/AdministracionPage.jsx` | Hub administración | composición org/users/config | Funcional | `/administracion`; CONSERVAR como índice, no duplicar páginas |
+| Organizaciones | `features/organizaciones/pages/OrganizacionesPage.jsx` | CRUD/selección organización | `/organizaciones/*` | Funcional | `/administracion/organizacion`; MOVER |
+| Obras | `features/obras/pages/ObrasPage.jsx` | Listado, creación y detalle modal | obras, registros, evidencia, transporte legacy | Funcional con detalle acoplado | `/obras`; CONSERVAR listado; REESCRIBIR detalle como workspace |
+| Detalle de obra | `features/obras/components/ObraDetailView.jsx` | Tabs de ficha, resumen, emisiones, evidencia, historia | endpoints por obra | Funcional, embebida | `/obras/:obraId/*`; MOVER y dividir por rutas hijas |
+| Etapas | `features/etapas/pages/EtapasPage.jsx` | Estructura/etapas, organización | etapas | Funcional | `/administracion/estructura`; FUSIONAR con estructura operacional |
+| Factores | `features/factores/pages/FactoresPage.jsx` | Catálogo legacy/V2 | factores/metodologías | Funcional | `/gobernanza/factores`; CONSERVAR y separar tabs gobernados |
+| Importaciones | `features/importaciones/pages/ImportacionesPage.jsx` | Importadores legacy + ingestion V2 | preview/confirm/ingestion | Funcional | `/datos/importaciones`; CONSERVAR, migrar autoridad a ingestion V2 progresivamente |
+| Usuarios | `features/usuarios/pages/UsuariosPage.jsx` | Miembros de organización | `/organizaciones/:id/usuarios` | Funcional | `/administracion/usuarios`; CONSERVAR |
+| Configuración | `features/configuracion/pages/ConfiguracionPage.jsx` | Config org/metodologías | configuración, metodologías | Funcional | `/administracion/configuracion`; FUSIONAR panel metodológico con gobernanza |
+| Reportes regulatorios | `core/reportes-regulatorios/pages/ReportesRegulatoriosPage.jsx` | Estado regulatorio/ejecutivo | reports, actions summary | Funcional | `/gobernanza/informes`; MOVER a `features/reportes` |
+| Recepción trozas | `presets/aserradero/pages/RecepcionTrozasPage.jsx` | Operación aserradero | wrapper/config compartida | Funcional sectorial | `/operacion/recepcion-trozas`; FUSIONAR en renderer operacional configurable |
+| Producción aserradero | `presets/aserradero/pages/ProduccionAserraderoPage.jsx` | Operación aserradero | wrapper/config | Funcional sectorial | `/operacion/produccion`; FUSIONAR |
+| Secado aserradero | `presets/aserradero/pages/SecadoAserraderoPage.jsx` | Operación aserradero | wrapper/config | Funcional sectorial | `/operacion/secado`; FUSIONAR |
+| Energía aserradero | `presets/aserradero/pages/EnergiaAserraderoPage.jsx` | Flujo energía | wrapper/config | Funcional sectorial | workspace/operación energía; FUSIONAR |
+| Transporte forestal | `presets/aserradero/pages/TransporteForestalPage.jsx` | Flujo transporte | wrapper/config | Funcional sectorial | workspace/operación transporte; FUSIONAR |
+| Residuos/subproductos | `presets/aserradero/pages/ResiduosSubproductosPage.jsx` | Flujo residuos | wrapper/config | Funcional sectorial | workspace/operación residuos; FUSIONAR |
+| Lotes forestales | `presets/aserradero/pages/LotesForestalesPage.jsx` | Lotes/transporte forestal | lotes forestales | Funcional sectorial real | `features/materiales-forestales`; MOVER, preset sólo registra capacidad |
+| Flota/Viajes/Combustible/Rutas/Mantenciones | inline `placeholderViews` | Promesa de módulos transporte | Ninguno | Placeholder (5) | RETIRAR_DE_NAVEGACION hasta conectar features reales; ELIMINAR_AL_FINAL |
+| Reportes features | `features/reportes/pages/ReportesPage.jsx`, `ReportesView.jsx` | Skeleton/alias | Ninguno o componentes stub | Parcial/desconectada | FUSIONAR en `features/reportes`; eliminar wrappers vacíos |
+| Reportes core | `core/reportes/pages/ReportesPage.jsx` | Reportería ejecutiva | dashboard/registros/actions | Funcional/desconectada de App | FUSIONAR con reportes regulatorios e informes de obra |
+| Evidencias core | `core/evidencias/pages/EvidenciasPage.jsx` | Experiencia documental alternativa | compliance/evidence | Duplicada/desconectada | FUSIONAR en feature evidencias; ELIMINAR_AL_FINAL |
+| EvidenciasView | `features/evidencias/pages/EvidenciasView.jsx` | Wrapper/variante | evidencia | Duplicada/desconectada | ELIMINAR_AL_FINAL tras verificar imports |
+| Factores core | `core/factores/pages/FactoresPage.jsx` | Experiencia catálogo alternativa | factores | Duplicada/desconectada | FUSIONAR en gobernanza; ELIMINAR_AL_FINAL |
+| Importaciones core | `core/importaciones/pages/ImportacionesPage.jsx` | Experiencia import alternativa | import config | Duplicada/desconectada | FUSIONAR en feature importaciones |
+| Ingesta inteligente | `core/ingesta/pages/IngestaInteligentePage.jsx` | Readiness/ingesta | readiness | Desconectada | FUSIONAR en `/datos/importaciones` como paso/estado |
+| Emisiones | `features/emisiones/EmisionesView.jsx` | Vista emisiones legacy | emisiones/RegistroEmision | Desconectada/legacy | RETIRAR; conservar sólo lectura histórica dentro de gobernanza/reportes si se requiere |
+| Emisiones stable | `features/emisiones/EmisionesStableView.jsx` | Segunda vista emisiones | emisiones/actions | Duplicada/legacy | ELIMINAR_AL_FINAL después de migrar lectura histórica |
+| Detalle etapa | `features/etapas/pages/EtapaObraDetailPage.jsx` | Placeholder | Ninguno | Placeholder/desconectada | ELIMINAR_AL_FINAL; detalle será ruta de estructura si existe necesidad real |
+| Detalle organización | `features/organizaciones/pages/OrganizacionDetailPage.jsx` | Placeholder | Ninguno | Placeholder/desconectada | ELIMINAR_AL_FINAL; integrar en administración |
+| AserraderoModulePage | `presets/aserradero/pages/AserraderoModulePage.jsx` | Renderer común sectorial | configuración + shared APIs | Funcional interno | MOVER a feature operacional compartida; preset entrega config |
+
+## 5. Navegación actual
+
+```text
+pathname /
+└─ Landing
+pathname /verificar/*
+└─ VerificarObra
+cualquier otro pathname
+└─ Providers → App
+   ├─ sin usuario → Login
+   ├─ sin organización → Organizaciones
+   └─ Navbar + Sidebar desktop/móvil
+      └─ preset.navigation → setActiveView(view)
+         └─ ActiveView (cadena de if)
+```
+
+Navbar y Sidebar reciben callbacks imperativos. El menú móvil replica Sidebar, aunque reutiliza el componente. Los presets deciden una lista plana. No hay rutas protegidas, breadcrumbs, jerarquía de obra ni persistencia de pantalla. `appRoutes` lista sólo diez vistas y no es consumido.
+
+## 6. Arquitectura de información objetivo
+
+La jerarquía propuesta se mantiene cercana al producto real, con Obra como contexto primario sólo cuando corresponde:
+
+```text
+Inicio
+Obras
+└─ Workspace de obra
+   ├─ Resumen
+   ├─ Operación ambiental
+   │  ├─ Transporte y combustible
+   │  ├─ Energía y generación
+   │  ├─ Agua
+   │  ├─ Materiales y residuos
+   │  ├─ Ruido
+   │  └─ Hídrica/suelo
+   ├─ Indicadores
+   ├─ Problemas y acciones
+   ├─ Evidencia
+   ├─ Timeline
+   └─ Informes
+Datos
+├─ Importaciones e ingesta
+├─ Evidencias
+└─ Revisión/calidad de datos
+Operación transversal
+├─ Activos
+├─ Sensores
+└─ Estructura operacional
+Inteligencia
+├─ Problemáticas y acciones
+└─ Copiloto
+Gobernanza
+├─ Metodologías
+├─ Factores
+├─ Revisión profesional
+└─ Informes regulatorios
+Administración
+├─ Organización
+├─ Usuarios
+├─ Diagnóstico y capacidades
+└─ Configuración
+```
+
+“Operación transversal” conserva activos/sensores que pueden existir antes de seleccionar obra. Dentro del workspace se muestran los mismos features filtrados, no copias.
+
+## 7. Scope de construcción
+
+| Módulo | Estado actual | Destino |
+|---|---|---|
+| Transporte | Panel Activity Core y tab obra/legacy | `obra/operacion/transporte`, usando transporte V2 |
+| Combustible | Observación/flujo y placeholder transporte | `obra/operacion/combustible`, vista configurada sobre Activity Core |
+| Energía | `SectorFlowsPanel` organización | `obra/operacion/energia`; generación como sección separada |
+| Agua | `SectorFlowsPanel` | `obra/operacion/agua` |
+| Materiales | `MaterialsOperationalPanel` | `obra/operacion/materiales` |
+| Residuos | flujo sectorial | `obra/operacion/residuos` |
+| Generación | flujo sectorial | `obra/operacion/energia/generacion`, sin netear automáticamente |
+| Ruido | flujo/puntos ambientales, sin página | `obra/operacion/ruido` como configuración del feature sectorial |
+| Hídrica/suelo | flujo/puntos ambientales, sin página | `obra/operacion/hidrica-suelo` |
+
+No se crearán nueve aplicaciones. Serán rutas/configuraciones del workspace que reutilizan Activity Core, flujos y componentes comunes.
+
+## 8. Routing objetivo y ownership
+
+| Ruta | Owner |
+|---|---|
+| `/`, `/login`, `/verificar/:codigo` | public/auth/obras |
+| `/inicio` | `features/inicio` |
+| `/obras`, `/obras/:obraId` | `features/obras` |
+| `/obras/:obraId/{operacion,indicadores,problemas,evidencias,timeline,informes}` | layout `ObraWorkspace`, feature correspondiente |
+| `/obras/:obraId/operacion/:flujo` | `features/operacion` + configuración preset |
+| `/datos/{importaciones,evidencias,revision}` | features de datos |
+| `/operacion/{activos,sensores,estructura}` | features operacionales transversales |
+| `/inteligencia`, `/inteligencia/{acciones,copiloto}` | intelligence/actions/copiloto |
+| `/gobernanza/{metodologias,factores,profesional,informes}` | features gobernanza/reportes |
+| `/administracion/{organizacion,usuarios,diagnostico,configuracion}` | features administración |
+
+Los IDs de organización provienen de membresía/provider; los IDs de obra provienen de la URL y se validan contra la organización activa. Un cambio de organización redirige a `/inicio` o una obra válida, nunca conserva una obra ajena.
+
+## 9. Arquitectura de carpetas objetivo
+
+```text
+src/
+  app/
+    router/
+    providers/
+    layouts/
+    guards/
+  features/
+    auth/ inicio/ obras/ operacion/ activos/ sensores/
+    datos/ evidencias/ calidad/ indicadores/ problematicas/
+    acciones/ copiloto/ metodologias/ factores/ professional/
+    reportes/ organizaciones/ usuarios/ diagnostico/ configuracion/
+  shared/
+    ui/ hooks/ services/ utils/
+  presets/
+    registry.js
+    construccion/ aserradero/ forestal/ transporte/ industrial/
+  assets/
+  styles/
+```
+
+| Carpeta actual | Decisión | Regla |
+|---|---|---|
+| `app` | KEEP | Bootstrap, router, providers, guards y layouts; sin páginas de dominio |
+| `features` | KEEP/autoridad | Una capacidad de producto por feature, con pages/components/hooks/api propios |
+| `shared` | KEEP | UI y utilidades sin conocimiento de negocio; cliente HTTP genérico |
+| `presets` | KEEP reducido | Datos/config/adapters pequeños; no páginas completas duplicadas |
+| `assets`, `styles` | KEEP | Recursos y tokens/globales |
+| `core` | MERGE → features/shared | No representa una capa distinta; vaciar durante UX-02–UX-09 |
+| `domain` | MOVE | Resolver/matriz sectorial a `presets/shared` o feature correspondiente |
+| `layouts` | MOVE → `app/layouts` | Única autoridad de shell/layout |
+| `landing` | MOVE o KEEP explícito | Feature público, sin arquitectura paralela |
+
+### Responsabilidad futura
+
+- `app`: composición global, rutas y lifecycle.
+- `features`: dominio visible y casos de uso; nunca importa páginas de otro feature para duplicarlas.
+- `shared/ui`: componentes presentacionales sin endpoints, organización ni modelos ambientales.
+- `shared/services`: Axios, CSRF, errores y descarga genéricos; sin reglas de negocio.
+- `presets`: capacidades, etiquetas, navegación adicional y configuración de renderers.
+- `styles`: tokens y estilos globales; las excepciones de feature permanecen locales sólo si son genuinas.
+
+## 10. Presets
+
+El registry actual y los módulos `dashboard/evidence/factors/import/intelligence/report` son configuración legítima. Las siete páginas aserradero no deben permanecer como una miniaplicación: seis son wrappers del mismo `AserraderoModulePage`; ese renderer migrará a operación compartida. `LotesForestalesPage` tiene dominio real y migrará a un feature. El preset final registra `capability`, label, icono, orden, renderer/configuración y rutas habilitadas. No importa layouts, providers ni páginas completas.
+
+## 11. Componentes duplicados
+
+| Familia | Variantes actuales | Autoridad futura |
+|---|---|---|
+| KPI card/grid | `KpiCard`, `EnvironmentalKpiCard/Grid`, `PresetKpiGrid`, `FactorKpiGrid`, `EvidenceKpiGrid`, `ReportKpiGrid`, `ObrasKpis` | `shared/ui/KpiCard` + composición de feature |
+| Tabla/paginación | `DataTable`, tablas HTML locales, `EvidenceTable` x2, `ImportPreviewTable` x2, `ReportTable`, `ObrasTable`, `Pagination`, paginación manual | `shared/ui/DataTable/Pagination`; columnas en feature |
+| Modal | `Modal`, `AnimatedModalShell`, `ConfirmationModal`, modales environmental y modales inline | `shared/ui/Modal` con variantes confirm/form/drawer |
+| Header/hero | `EvidenceHero`, `FactorHero`, `ImportHero`, `ReportHero`, headers de dashboard/obras | `shared/ui/PageHeader`; contenido en feature |
+| Badge/status | `Badge`, `EvidenceStatusBadge`, `FactorCategoryBadge`, badges inline | `shared/ui/Badge/StatusBadge` |
+| Empty/loading | `EmptyState`, `EvidenceEmptyState`, `ImportEmptyState`, loaders inline, `PlatformLoader` | `shared/ui/EmptyState/Loader` |
+| Tabs | `Tabs`, `ObraTabs`, `OrganizacionTabs`, tabs inline | `shared/ui/Tabs`; configuración por workspace |
+| Cards/panels | `ChartCard` y decenas de cards con clases repetidas | primitives `Card/Panel`; no abstraer contenido de dominio |
+| Forms/filters | filtros factores y formularios por página con inputs repetidos | primitives de UX-03; schemas permanecen por feature |
+
+La consolidación ocurrirá en UX-03 y al migrar cada pantalla; no se hará un reemplazo masivo sin validar comportamiento.
+
+## 12. Estilos
+
+`styles/theme.css` e `index.css` ya aportan variables y base, pero hay 429 coincidencias de patrones visuales repetidos y numerosos radios/sombras arbitrarios (`rounded-[...]`, `shadow-[...]`). También existen colores hexadecimales en mapas/gráficos y estilos especializados. El objetivo de UX-03 será: tokens semánticos de color/spacing/radius/shadow; componentes consumen tokens; dark mode sólo se declara si se soporta integralmente; colores de visualización se centralizan; se eliminan utilities duplicadas al migrar, no mediante reformat global.
+
+## 13. Patrón API objetivo
+
+1. `shared/services/http.js`: única instancia Axios, base URL, CSRF, credenciales, normalización de error, cancelación y descarga.
+2. Cada feature expone `api/*.js` con paths tenant-safe y DTO/mappers propios.
+3. Las páginas no usan Axios/fetch directamente.
+4. `shared/services/api.js` se vacía por extracción progresiva; aliases y stubs se retiran cuando migra su consumidor.
+5. Organización se pasa explícitamente al service. Obra se pasa desde params de ruta; ningún service la infiere de UI global.
+6. Errores conservan status/código/campos; la UI decide mensaje. No se ocultan como arrays vacíos salvo estados opcionales documentados.
+7. Cache: no introducir store global en UX-01. Una futura capa de server-state se evaluará sólo si el patrón de carga lo justifica; no se agrega librería por anticipación.
+
+## 14. Estado y contextos
+
+| Estado | Decisión |
+|---|---|
+| `AuthContext` | KEEP; sesión/roles y acciones auth |
+| `OrganizacionActivaContext` | KEEP; membresías, organización activa y persistencia |
+| `FactoresContext` | Revisar en migración de gobernanza; no debe ser provider global si sólo sirve a factores |
+| Navegación `activeView` | REMOVE al implementar router |
+| Menú móvil | Local en layout global |
+| Obra seleccionada | URL como autoridad; loader/context acotado al `ObraWorkspace`, no provider global permanente |
+| Formularios, tabs, filtros, modales | Estado local o de ruta/query string según necesidad de persistencia |
+| Datos remotos | Hooks por feature; no Context gigante |
+| Preset activo | Derivado de organización; registry puro, sin estado paralelo en localStorage |
+
+## 15. Matriz old → new y eliminación
+
+| Old | New único | Fin de migración |
+|---|---|---|
+| `App.ActiveView` + `activeView` | router declarativo | Eliminar ambos y `appRoutes` incompleto |
+| `layouts/*` | `app/layouts/*` | Mover imports; borrar carpeta vieja |
+| `core/dashboard` | `features/inicio` | Mover, no copiar |
+| `core/copiloto` | `features/copiloto` | Mover |
+| `core/{evidencias,importaciones,factores}` + variantes feature | feature existente consolidado | Elegir comportamiento válido, actualizar imports, borrar duplicado |
+| `core/reportes*` + `features/reportes` | `features/reportes` | Unificar reportes de obra/regulatorios |
+| `core/environmental` | features dueños + `shared/ui` | Distribuir por caso de uso, no crear `environmental-v2` |
+| `domain/environmental` | `presets/shared` | Mover resolver/config |
+| páginas `presets/aserradero` | renderer de operación + config preset | Borrar wrappers; mover lotes a feature |
+| detalle modal obra | rutas hijas `ObraWorkspace` | Borrar modal como navegación principal |
+| placeholders transporte | features reales existentes/rutas | Retirar de menú y eliminar placeholder |
+| `shared/services/api.js` | HTTP genérico + API por feature | Eliminar funciones al migrar último consumidor |
+| componentes duplicados | `shared/ui` | Borrar variante al migrar cada consumidor |
+| páginas skeleton desconectadas | destino real o eliminación | No quedan exports sin ruta/test/consumidor |
+
+Elementos previsiblemente eliminados: `ActiveView`, `activeView`, `placeholderViews`, `appRoutes` actual, `core/`, `domain/`, `layouts/`, wrappers sectoriales, páginas `*View` duplicadas, componentes placeholder y estilos obsoletos. Sólo se eliminan en la fase que migra y verifica su último consumidor.
+
+## 16. Estrategia de migración sin dos arquitecturas
+
+Cada fase trabaja por corte vertical:
+
+1. Seleccionar rutas/vistas concretas y declarar cuál archivo actual es autoridad.
+2. Mover con historial cuando sea posible; adaptar imports en el mismo cambio.
+3. Conectar la ruta definitiva y todos los enlaces/botones.
+4. Verificar permisos, organización/obra, carga, error, vacío, móvil y build.
+5. Eliminar registro, archivo y estilos reemplazados antes de cerrar la fase.
+6. Prohibido crear sufijos `New`, `V2`, `Legacy` o una segunda raíz/router. Si existe un nombre V2 backend, el frontend definitivo usa el nombre de producto.
+7. Un adapter temporal sólo puede vivir dentro de la fase y debe desaparecer o quedar documentado como contrato estable al cerrarla.
+
+## 17. Orden UX-02 → UX-10
+
+| Fase | Corte y salida única |
+|---|---|
+| UX-02 | Router, guards, layouts y navegación base; elimina `activeView`, `appRoutes` parcial y `layouts/` viejo |
+| UX-03 | Tokens y primitives UI; consolida componentes al migrar consumidores iniciales |
+| UX-04 | Inicio + Obras listado + `ObraWorkspace`/resumen; elimina detalle modal como navegación |
+| UX-05 | Operación de obra y flujos construcción; scope obra y presets como configuración |
+| UX-06 | Datos: importaciones, evidencias y revisión/calidad; elimina duplicados `core` |
+| UX-07 | Indicadores, problemáticas, acciones y timeline dentro/fuera de obra |
+| UX-08 | Inteligencia y Copiloto; contexto y comandos con navegación real |
+| UX-09 | Gobernanza, profesional, factores/metodologías e informes; consolida reportes |
+| UX-10 | Administración, presets restantes, accesibilidad/responsive, limpieza final de carpetas/deuda y regresión UX |
+
+## 18. Reglas de no duplicación
+
+- Una URL tiene una página autoridad.
+- Un feature tiene un único directorio autoridad.
+- Preset no crea app, layout, provider, cliente HTTP ni copia de feature.
+- No se agregan archivos `New`, `V2`, `Stable` o `Legacy` como estrategia de migración.
+- Mover implica actualizar imports y borrar origen en la misma fase.
+- Un componente entra a `shared/ui` sólo si carece de conocimiento de dominio y tiene al menos dos consumidores reales.
+- No se deja navegación visible hacia placeholder.
+- Backend y contratos Fase 17 permanecen cerrados; la UI se adapta a ellos.
+
+## 19. Decisión final UX-01
+
+La autoridad futura será `app + features + shared + presets + assets + styles`. La navegación será URL-first, con organización como contexto de sesión y obra como parámetro/contexto del workspace. El frontend actual se migrará por cortes verticales, eliminando cada autoridad antigua en la misma fase. No se crea una segunda aplicación ni se conserva indefinidamente una arquitectura paralela.
