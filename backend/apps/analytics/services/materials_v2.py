@@ -27,7 +27,7 @@ INDICATOR_TYPES = {
 }
 
 
-def _events(organization, material, *, lot=None, start=None, end=None, work=None):
+def _events(organization, material, *, lot=None, start=None, end=None, before=None, work=None):
     rows = EventoMaterial.objects.filter(
         organizacion=organization,
         material=material,
@@ -39,6 +39,8 @@ def _events(organization, material, *, lot=None, start=None, end=None, work=None
         rows = rows.filter(fecha_hora__date__gte=start)
     if end:
         rows = rows.filter(fecha_hora__date__lte=end)
+    if before:
+        rows = rows.filter(fecha_hora__date__lt=before)
     if work is not None:
         rows = rows.filter(obra=work)
     return rows.order_by("fecha_hora", "id")
@@ -53,8 +55,21 @@ def _event_value(event):
 
 def material_balance(organization, material, *, lot=None, start=None, end=None, work=None):
     totals = defaultdict(lambda: defaultdict(lambda: Decimal("0")))
+    opening = defaultdict(lambda: defaultdict(lambda: Decimal("0")))
     seen = defaultdict(set)
+    opening_seen = defaultdict(set)
     signals = []
+    if start:
+        for event in _events(organization, material, lot=lot, before=start, work=work):
+            value = _event_value(event)
+            if value is None:
+                continue
+            amount, unit = value
+            opening_seen[unit].add(event.tipo)
+            if event.tipo in INCOMING:
+                opening[unit]["ingresos"] += amount
+            elif event.tipo in OUTGOING:
+                opening[unit]["egresos"] += amount
     for event in _events(organization, material, lot=lot, start=start, end=end, work=work):
         value = _event_value(event)
         if value is None:
@@ -80,12 +95,15 @@ def material_balance(organization, material, *, lot=None, start=None, end=None, 
             signals.append({"tipo": "material_usado_sin_trazabilidad_recepcion", "evento_id": event.id})
 
     balances = []
-    for unit, values in sorted(totals.items()):
+    for unit in sorted(set(totals) | set(opening)):
+        values = totals[unit]
         received = values["cantidad_recibida"]
         outgoing = values["egresos_balance"]
-        stock = received - outgoing
-        status = "incompleto" if EventoMaterial.Tipo.RECEPCION not in seen[unit] else "completo"
-        if stock < 0:
+        opening_stock = opening[unit]["ingresos"] - opening[unit]["egresos"]
+        stock = opening_stock + values["ingresos_balance"] - outgoing
+        known_reception = EventoMaterial.Tipo.RECEPCION in opening_seen[unit] or EventoMaterial.Tipo.RECEPCION in seen[unit]
+        status = "completo" if known_reception else "incompleto"
+        if stock < 0 and known_reception:
             status = "inconsistente"
             signals.append({"tipo": "stock_negativo", "unidad": unit, "valor": stock})
         use = values["cantidad_utilizada"]
@@ -93,6 +111,9 @@ def material_balance(organization, material, *, lot=None, start=None, end=None, 
         reused = values["cantidad_reutilizada"]
         balances.append({
             "unidad": unit,
+            "saldo_inicial": opening_stock,
+            "ingresos_periodo": values["ingresos_balance"],
+            "egresos_periodo": outgoing,
             "cantidad_adquirida": values["cantidad_adquirida"],
             "cantidad_recibida": received,
             "cantidad_utilizada": use,
@@ -107,7 +128,7 @@ def material_balance(organization, material, *, lot=None, start=None, end=None, 
             "calidad_balance": status,
         })
     if not balances:
-        balances.append({"unidad": None, "calidad_balance": "incompleto", "stock_restante": None})
+        balances.append({"unidad": None, "saldo_inicial": None, "ingresos_periodo": Decimal("0"), "egresos_periodo": Decimal("0"), "calidad_balance": "incompleto", "stock_restante": None})
     return {"material_id": material.id, "lote_id": lot.id if lot else None, "obra_id": work.id if work else None, "balances": balances, "senales": signals}
 
 

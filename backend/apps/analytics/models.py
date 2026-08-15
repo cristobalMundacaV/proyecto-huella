@@ -709,6 +709,20 @@ class EventoMaterial(models.Model):
             errors["lote"] = "El lote debe pertenecer al material del evento."
         if self.evento_origen_id and (self.evento_origen.material_id != self.material_id or (self.lote_id and self.evento_origen.lote_id not in {None, self.lote_id})):
             errors["evento_origen"] = "El evento origen debe corresponder al mismo material y lote."
+        if self.evento_origen_id:
+            if self.pk and self.evento_origen_id == self.pk:
+                errors["evento_origen"] = "Un evento no puede ser su propio origen."
+            elif self.fecha_hora and self.evento_origen.fecha_hora > self.fecha_hora:
+                errors["evento_origen"] = "El evento origen no puede ocurrir despues del evento."
+            else:
+                visited = {self.pk} if self.pk else set()
+                current = self.evento_origen
+                while current:
+                    if current.pk in visited:
+                        errors["evento_origen"] = "La relacion de origen no puede formar ciclos."
+                        break
+                    visited.add(current.pk)
+                    current = current.evento_origen
         if self.observacion_cantidad_id:
             observation = self.observacion_cantidad
             if observation.actividad_id != self.actividad_id or observation.concepto != "cantidad_material":

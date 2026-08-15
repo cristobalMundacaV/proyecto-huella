@@ -37,7 +37,7 @@ class MaterialsV2Tests(APITestCase):
 
     def event(self, event_type, amount=None, unit="t", **kwargs):
         activity = kwargs.pop("actividad", None) or self.activity()
-        event = EventoMaterial.objects.create(organizacion=self.org, material=self.material, actividad=activity, tipo=event_type, fecha_hora=timezone.now(), proceso=self.process, **kwargs)
+        event = EventoMaterial.objects.create(organizacion=self.org, material=self.material, actividad=activity, tipo=event_type, fecha_hora=kwargs.pop("fecha_hora", timezone.now()), proceso=self.process, **kwargs)
         if amount is not None:
             save_event_quantity(event, amount=Decimal(str(amount)), unit=unit, source=self.source)
         return event
@@ -136,3 +136,64 @@ class MaterialsV2Tests(APITestCase):
         package = ContextGateway().activity(event.actividad, self.org)
         self.assertEqual(package["material"]["nombre"], "Acero")
         self.assertEqual(package["material"]["balance"]["balances"][0]["cantidad_recibida"], Decimal("15"))
+
+    def test_balance_periodo_incluye_saldo_apertura(self):
+        self.event("recepcion", 100, fecha_hora=timezone.datetime(2026, 1, 1, tzinfo=timezone.get_current_timezone()))
+        self.event("uso", 20, fecha_hora=timezone.datetime(2026, 2, 10, tzinfo=timezone.get_current_timezone()))
+        row = material_balance(self.org, self.material, start="2026-02-01", end="2026-02-28")["balances"][0]
+        self.assertEqual(row["saldo_inicial"], Decimal("100"))
+        self.assertEqual(row["ingresos_periodo"], Decimal("0"))
+        self.assertEqual(row["egresos_periodo"], Decimal("20"))
+        self.assertEqual(row["stock_restante"], Decimal("80"))
+        self.assertEqual(row["cantidad_recibida"], Decimal("0"))
+        self.assertNotEqual(row["calidad_balance"], "inconsistente")
+
+    def test_egreso_periodo_superior_al_saldo_real_es_inconsistente(self):
+        self.event("recepcion", 10, fecha_hora=timezone.datetime(2026, 1, 1, tzinfo=timezone.get_current_timezone()))
+        self.event("uso", 20, fecha_hora=timezone.datetime(2026, 2, 10, tzinfo=timezone.get_current_timezone()))
+        row = material_balance(self.org, self.material, start="2026-02-01")["balances"][0]
+        self.assertEqual(row["stock_restante"], Decimal("-10"))
+        self.assertEqual(row["calidad_balance"], "inconsistente")
+
+    def test_saldo_inicial_separa_unidades_y_respeta_lote(self):
+        lot_a = LoteMaterial.objects.create(organizacion=self.org, material=self.material, codigo="L-A")
+        lot_b = LoteMaterial.objects.create(organizacion=self.org, material=self.material, codigo="L-B")
+        opening = timezone.datetime(2026, 1, 1, tzinfo=timezone.get_current_timezone())
+        self.event("recepcion", 100, "kg", lote=lot_a, fecha_hora=opening)
+        self.event("recepcion", 3, "m3", lote=lot_a, fecha_hora=opening)
+        self.event("recepcion", 50, "kg", lote=lot_b, fecha_hora=opening)
+        rows = material_balance(self.org, self.material, lot=lot_a, start="2026-02-01")["balances"]
+        self.assertEqual({row["unidad"] for row in rows}, {"kg", "m3"})
+        self.assertEqual(next(row for row in rows if row["unidad"] == "kg")["saldo_inicial"], Decimal("100"))
+
+    def test_filtro_obra_limita_saldo_inicial(self):
+        other_work = Obra.objects.create(organizacion=self.org, etapa_principal=self.stage, nombre="Edificio B", fecha_inicio="2026-01-01")
+        opening = timezone.datetime(2026, 1, 1, tzinfo=timezone.get_current_timezone())
+        self.event("recepcion", 40, obra=self.work, fecha_hora=opening)
+        self.event("recepcion", 90, obra=other_work, fecha_hora=opening)
+        row = material_balance(self.org, self.material, work=self.work, start="2026-02-01")["balances"][0]
+        self.assertEqual(row["saldo_inicial"], Decimal("40"))
+
+    def test_evento_origen_posterior_es_rechazado(self):
+        later = self.event("recepcion", fecha_hora=timezone.datetime(2026, 2, 10, tzinfo=timezone.get_current_timezone()))
+        with self.assertRaises(ValidationError):
+            self.event("uso", evento_origen=later, fecha_hora=timezone.datetime(2026, 2, 1, tzinfo=timezone.get_current_timezone()))
+
+    def test_evento_no_puede_ser_su_propio_origen(self):
+        event = self.event("recepcion")
+        event.evento_origen = event
+        with self.assertRaises(ValidationError): event.save()
+
+    def test_ciclo_lineage_es_rechazado(self):
+        instant = timezone.datetime(2026, 2, 1, tzinfo=timezone.get_current_timezone())
+        first = self.event("recepcion", fecha_hora=instant)
+        second = self.event("uso", evento_origen=first, fecha_hora=instant)
+        first.evento_origen = second
+        with self.assertRaises(ValidationError): first.save()
+
+    def test_cadena_causal_y_origen_opcional_siguen_validos(self):
+        reception = self.event("recepcion")
+        use = self.event("uso", evento_origen=reception)
+        independent = self.event("sobrante")
+        self.assertEqual(use.evento_origen, reception)
+        self.assertIsNone(independent.evento_origen)
