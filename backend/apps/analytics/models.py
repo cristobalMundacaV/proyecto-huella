@@ -380,10 +380,13 @@ class ActividadOperacional(models.Model):
         CONSUMO_ENERGIA = "consumo_energia", "Consumo de energia"
         CONSUMO_AGUA = "consumo_agua", "Consumo de agua"
         CONSUMO_COMBUSTIBLE = "consumo_combustible", "Consumo de combustible"
+        CONSUMO_COMBUSTIBLE_ESTACIONARIO = "consumo_combustible_estacionario", "Consumo de combustible estacionario"
         OPERACION_MAQUINARIA = "operacion_maquinaria", "Operacion de maquinaria"
         MOVIMIENTO_MATERIAL = "movimiento_material", "Movimiento de material"
         GESTION_RESIDUO = "gestion_residuo", "Gestion de residuo"
         GENERACION_ENERGIA = "generacion_energia", "Generacion de energia"
+        MONITOREO_RUIDO = "monitoreo_ruido", "Monitoreo de ruido"
+        GESTION_HIDRICA_SUELO = "gestion_hidrica_suelo", "Gestion hidrica y suelo"
         PROCESO_PRODUCTIVO = "proceso_productivo", "Proceso productivo"
         OTRO = "otro", "Otro"
 
@@ -733,6 +736,136 @@ class EventoMaterial(models.Model):
             errors["version_evidencia"] = "La version debe pertenecer a la evidencia asociada."
         if errors:
             raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean(); super().save(*args, **kwargs)
+
+
+class PuntoAmbientalOperacional(models.Model):
+    class Tipo(models.TextChoices):
+        MEDIDOR_ENERGIA = "medidor_energia", "Medidor de energia"
+        PUNTO_AGUA = "punto_agua", "Punto de agua"
+        SISTEMA_GENERACION = "sistema_generacion", "Sistema de generacion"
+        PUNTO_DESCARGA = "punto_descarga", "Punto de descarga"
+        PUNTO_RUIDO = "punto_ruido", "Punto de ruido"
+        PUNTO_DRENAJE = "punto_drenaje", "Punto de drenaje"
+        OTRO = "otro", "Otro"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="puntos_ambientales")
+    codigo = models.CharField(max_length=100)
+    nombre = models.CharField(max_length=180)
+    tipo = models.CharField(max_length=30, choices=Tipo.choices, default=Tipo.OTRO, db_index=True)
+    activo = models.ForeignKey(ActivoOperacional, on_delete=models.SET_NULL, null=True, blank=True, related_name="puntos_ambientales")
+    unidad_operacional = models.ForeignKey(UnidadOperacional, on_delete=models.SET_NULL, null=True, blank=True, related_name="puntos_ambientales")
+    proceso_operacional = models.ForeignKey(ProcesoOperacional, on_delete=models.SET_NULL, null=True, blank=True, related_name="puntos_ambientales")
+    obra = models.ForeignKey("Obra", on_delete=models.SET_NULL, null=True, blank=True, related_name="puntos_ambientales")
+    ubicacion = models.CharField(max_length=240, blank=True)
+    descripcion = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    activo_registro = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["nombre", "codigo"]
+        constraints = [models.UniqueConstraint(fields=["organizacion", "codigo"], name="unique_punto_ambiental_codigo_org")]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        errors = {}
+        for field in ("activo", "unidad_operacional", "proceso_operacional", "obra"):
+            value = getattr(self, field, None)
+            if value and value.organizacion_id != self.organizacion_id:
+                errors[field] = "La referencia debe pertenecer a la misma organizacion."
+        if errors: raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean(); super().save(*args, **kwargs)
+
+
+class RegistroFlujoAmbiental(models.Model):
+    class Flujo(models.TextChoices):
+        ENERGIA = "energia", "Energia"
+        GENERACION_PROPIA = "generacion_propia", "Generacion propia"
+        AGUA = "agua", "Agua"
+        COMBUSTIBLE_ESTACIONARIO = "combustible_estacionario", "Combustible estacionario"
+        RESIDUO = "residuo", "Residuo"
+        RUIDO = "ruido", "Ruido"
+        GESTION_HIDRICA_SUELO = "gestion_hidrica_suelo", "Gestion hidrica y suelo"
+
+    class Granularidad(models.TextChoices):
+        ORGANIZACION = "organizacion", "Organizacion"
+        INSTALACION = "instalacion", "Instalacion"
+        OBRA = "obra", "Obra"
+        PROCESO = "proceso", "Proceso"
+        ACTIVO = "activo", "Activo"
+        PUNTO = "punto", "Punto de medicion"
+
+    class DestinoResiduo(models.TextChoices):
+        SIN_CLASIFICAR = "sin_clasificar", "Sin clasificar"
+        RESIDUO = "residuo", "Residuo"
+        REUTILIZACION = "reutilizacion", "Reutilizacion"
+        RECICLAJE = "reciclaje", "Reciclaje"
+        VALORIZACION = "valorizacion", "Valorizacion"
+        DISPOSICION = "disposicion", "Disposicion"
+        SUBPRODUCTO = "subproducto_reutilizado", "Subproducto reutilizado"
+
+    EXPECTED_ACTIVITY_TYPES = {
+        Flujo.ENERGIA: ActividadOperacional.Tipo.CONSUMO_ENERGIA,
+        Flujo.GENERACION_PROPIA: ActividadOperacional.Tipo.GENERACION_ENERGIA,
+        Flujo.AGUA: ActividadOperacional.Tipo.CONSUMO_AGUA,
+        Flujo.COMBUSTIBLE_ESTACIONARIO: ActividadOperacional.Tipo.CONSUMO_COMBUSTIBLE_ESTACIONARIO,
+        Flujo.RESIDUO: ActividadOperacional.Tipo.GESTION_RESIDUO,
+        Flujo.RUIDO: ActividadOperacional.Tipo.MONITOREO_RUIDO,
+        Flujo.GESTION_HIDRICA_SUELO: ActividadOperacional.Tipo.GESTION_HIDRICA_SUELO,
+    }
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="registros_flujos_ambientales")
+    actividad = models.OneToOneField(ActividadOperacional, on_delete=models.PROTECT, related_name="registro_flujo_ambiental")
+    flujo = models.CharField(max_length=35, choices=Flujo.choices, db_index=True)
+    periodo_inicio = models.DateTimeField()
+    periodo_fin = models.DateTimeField(null=True, blank=True)
+    granularidad = models.CharField(max_length=20, choices=Granularidad.choices, default=Granularidad.ORGANIZACION)
+    punto = models.ForeignKey(PuntoAmbientalOperacional, on_delete=models.SET_NULL, null=True, blank=True, related_name="registros")
+    unidad_operacional = models.ForeignKey(UnidadOperacional, on_delete=models.SET_NULL, null=True, blank=True, related_name="registros_flujos_ambientales")
+    proceso = models.ForeignKey(ProcesoOperacional, on_delete=models.SET_NULL, null=True, blank=True, related_name="registros_flujos_ambientales")
+    activo = models.ForeignKey(ActivoOperacional, on_delete=models.SET_NULL, null=True, blank=True, related_name="registros_flujos_ambientales")
+    obra = models.ForeignKey("Obra", on_delete=models.SET_NULL, null=True, blank=True, related_name="registros_flujos_ambientales")
+    evento_material = models.ForeignKey(EventoMaterial, on_delete=models.SET_NULL, null=True, blank=True, related_name="registros_flujos_ambientales")
+    tipo_recurso = models.CharField(max_length=120, blank=True)
+    metrica = models.CharField(max_length=80, blank=True)
+    destino_operacional = models.CharField(max_length=30, choices=DestinoResiduo.choices, default=DestinoResiduo.SIN_CLASIFICAR)
+    proveedor_gestor = models.CharField(max_length=180, blank=True)
+    ubicacion_contexto = models.CharField(max_length=240, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-periodo_inicio", "id"]
+        indexes = [models.Index(fields=["organizacion", "flujo", "periodo_inicio"])]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        errors = {}
+        for field in ("actividad", "punto", "unidad_operacional", "proceso", "activo", "obra", "evento_material"):
+            value = getattr(self, field, None)
+            if value and value.organizacion_id != self.organizacion_id:
+                errors[field] = "La referencia debe pertenecer a la misma organizacion."
+        expected = self.EXPECTED_ACTIVITY_TYPES.get(self.flujo)
+        if self.actividad_id and expected and self.actividad.tipo != expected:
+            errors["actividad"] = "La actividad no corresponde al flujo ambiental declarado."
+        required_scope = {self.Granularidad.INSTALACION: "unidad_operacional", self.Granularidad.OBRA: "obra", self.Granularidad.PROCESO: "proceso", self.Granularidad.ACTIVO: "activo", self.Granularidad.PUNTO: "punto"}
+        required = required_scope.get(self.granularidad)
+        if required and not getattr(self, f"{required}_id"):
+            errors[required] = "Debe indicar la referencia correspondiente a la granularidad."
+        if self.periodo_fin and self.periodo_fin < self.periodo_inicio:
+            errors["periodo_fin"] = "El fin del periodo no puede ser anterior al inicio."
+        if self.evento_material_id and self.flujo != self.Flujo.RESIDUO:
+            errors["evento_material"] = "Un evento material solo puede enlazarse a un flujo de residuo."
+        if self.flujo != self.Flujo.RESIDUO and self.destino_operacional != self.DestinoResiduo.SIN_CLASIFICAR:
+            errors["destino_operacional"] = "El destino operacional aplica al flujo de residuo."
+        if errors: raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
         self.full_clean(); super().save(*args, **kwargs)

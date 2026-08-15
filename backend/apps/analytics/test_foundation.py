@@ -24,10 +24,10 @@ class FoundationApiTests(APITestCase):
 
     def test_preset_es_idempotente_y_preserva_personalizacion(self):
         primera = list(inicializar_capacidades_preset(self.organizacion))
-        self.assertEqual(len(primera), 10)
+        self.assertEqual(len(primera), 12)
         capacidad = primera[0]; capacidad.estado = CapacidadOrganizacion.Estado.OPERATIVA; capacidad.save()
         segunda = list(inicializar_capacidades_preset(self.organizacion))
-        self.assertEqual(len(segunda), 10)
+        self.assertEqual(len(segunda), 12)
         capacidad.refresh_from_db(); self.assertEqual(capacidad.estado, "operativa")
 
     def test_estado_invalido_de_capacidad_es_rechazado(self):

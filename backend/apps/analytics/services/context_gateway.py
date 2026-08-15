@@ -11,6 +11,7 @@ from .comparison_v2 import compare_values
 from .environmental_context import evidence_summary
 from .knowledge_v1 import compact_knowledge
 from .materials_v2 import material_balance
+from .sector_flows_v1 import record_summary
 from .transport_v2 import journey_metrics
 
 
@@ -103,6 +104,9 @@ class ContextGateway:
                 "unidad": observation.unidad if observation else None,
                 "balance": material_balance(organization, material_event.material, lot=material_event.lote),
             }
+        sector_record = getattr(activity, "registro_flujo_ambiental", None)
+        if sector_record:
+            package["flujo_ambiental"] = record_summary(sector_record)
         return package
 
     def intervention(self, problem, organization):

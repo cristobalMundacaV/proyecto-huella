@@ -8,6 +8,7 @@ CAPACIDADES_CATALOGO = [
     ("transporte", "Transporte"), ("maquinaria", "Maquinaria"), ("mantenimiento", "Mantenimiento"),
     ("materiales", "Materiales"), ("residuos", "Residuos"),
     ("generacion_propia", "Generacion propia"), ("continuidad_operacional", "Continuidad operacional"),
+    ("ruido", "Ruido"), ("gestion_hidrica_suelo", "Gestion hidrica y suelo"),
 ]
 
 PRESET_CAPACIDADES = {Organizacion.Preset.CONSTRUCCION: [clave for clave, _ in CAPACIDADES_CATALOGO]}
