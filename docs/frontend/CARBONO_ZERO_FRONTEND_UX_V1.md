@@ -505,3 +505,17 @@ Las primitives usan flex/grid responsivo, overflow horizontal en tablas, ancho/m
 - Migrar Toast y PlatformLoader a tokens sin alterar su semántica.
 - Retirar reglas globales invasivas y aliases CSS antes de UX-10.
 - No se creó ruta/showcase ni otro design system.
+
+## UX-04 — Inicio, Obras y workspace central
+
+`/inicio` es ahora el centro de control ambiental de la organización activa. Sus KPIs, obras, pendientes y actividad reciente se construyen sólo desde obras, problemáticas, evidencias y contextos reales. La ausencia de información se presenta como “Sin datos” o mediante estados vacíos; no se generan ceros ni alertas ficticias.
+
+`/obras` usa cards accesibles, filtros por búsqueda, estado operacional, estado ambiental y perfil, y mantiene la creación con el contrato existente. La obra creada abre su URL autoritativa. El detalle modal, la tabla/dashboard anteriores y `core/dashboard` fueron eliminados al quedar sin consumidores.
+
+El workspace `/obras/:obraId/*` carga obra, contexto, indicadores y timeline una vez y los comparte mediante `Outlet`. Su header comunica obra, organización, perfil, estado y fechas; la navegación horizontal continúa gobernada por URL. Un recurso ausente o fuera del tenant produce el mismo mensaje “No se encontró la obra”.
+
+El resumen conecta estado y diagnóstico ambiental, aplicabilidad de capacidades a nivel obra, indicadores destacados, problemas, acciones, evidencia, timeline y cierre. Las capacidades de la organización permanecen separadas de la aplicabilidad de la obra.
+
+Servicios creados: `features/inicio/services/inicioApi.js` y `features/obras/services/workspaceApi.js`. Usan `/organizaciones/:id/obras/`, `/problematicas/`, `/evidencias/` y, por obra, `/contexto/`, `/timeline/` e `/indicadores/`. No se modificó backend ni se reprodujo lógica metodológica en frontend.
+
+Las rutas profundas conservan contexto y navegación coherentes; salvo Operación existente, permanecen explícitamente como bases temporales. Los dashboards sectoriales profundos quedan para UX-05 y el workflow documental para UX-06.

@@ -1,39 +1,39 @@
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
-import { NavLink, Navigate, Outlet, useParams } from "react-router-dom";
-import { getObraDetail } from "@/shared/services/api";
+import { useCallback, useEffect, useState } from "react";
+import { ArrowLeft } from "lucide-react";
+import { Link, NavLink, Outlet, useParams } from "react-router-dom";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
-import { PageHeader } from "@/shared/ui/Headers";
-import { Card, CardContent } from "@/shared/ui/Card";
+import { getWorkWorkspace } from "@/features/obras/services/workspaceApi";
+import WorkStatus from "@/features/obras/components/WorkStatus";
+import { Card, CardContent, ErrorState, LoadingState, PageHeader, ScopeBadge } from "@/shared/ui";
 
-const tabs = ["resumen", "operacion", "indicadores", "problemas", "evidencias", "timeline", "informes"];
+const tabs = [
+  ["resumen", "Resumen"], ["operacion", "Operación"], ["indicadores", "Indicadores"],
+  ["problemas", "Problemas y acciones"], ["evidencias", "Evidencia"], ["timeline", "Timeline"], ["informes", "Informes"],
+];
 
 export default function ObraWorkspaceLayout() {
   const { obraId } = useParams();
   const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
-  const [obra, setObra] = useState(null);
-  const [status, setStatus] = useState("loading");
-  useEffect(() => {
-    let active = true; setStatus("loading");
-    getObraDetail(obraId).then((data) => {
-      if (!active) return;
-      const owner = data.organizacion_id || data.organizacion?.organizacion_id || data.organizacion;
-      const allowedOwners = new Set([activeOrganizacionId, activeOrganizacion?.id, activeOrganizacion?.nombre].filter(Boolean).map(String));
-      if (owner && !allowedOwners.has(String(owner))) setStatus("foreign");
-      else { setObra(data); setStatus("ready"); }
-    }).catch(() => active && setStatus("missing"));
-    return () => { active = false; };
-  }, [activeOrganizacion, activeOrganizacionId, obraId]);
-  if (status === "foreign") return <Navigate to="/obras" replace />;
-  if (status === "missing") return <section className="rounded-2xl border p-6">No se encontró la obra en la organización activa.</section>;
-  if (status !== "ready") return <div className="flex items-center gap-3 py-12"><Loader2 className="animate-spin" /> Cargando obra...</div>;
+  const [state, setState] = useState({ status: "loading", workspace: null });
+  const load = useCallback(() => {
+    if (!activeOrganizacionId) return;
+    setState({ status: "loading", workspace: null });
+    getWorkWorkspace(activeOrganizacionId, obraId).then((workspace) => setState({ status: "ready", workspace })).catch(() => setState({ status: "missing", workspace: null }));
+  }, [activeOrganizacionId, obraId]);
+  useEffect(() => { load(); }, [load]);
+  if (state.status === "loading") return <LoadingState label="Cargando contexto de la obra" />;
+  if (state.status === "missing") return <ErrorState title="No se encontró la obra" description="La obra no existe o no está disponible en la organización activa." />;
+  const { obra, context } = state.workspace;
   return <div className="space-y-6">
-    <PageHeader eyebrow="Workspace de obra" title={obra.nombre || obra.codigo_obra} description={`Código ${obra.codigo_obra}`} />
-    <nav className="flex flex-wrap gap-2">{tabs.map((tab) => <NavLink key={tab} to={tab} className={({isActive}) => `rounded-xl border px-3 py-2 text-sm font-bold ${isActive ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-600"}`}>{tab}</NavLink>)}</nav>
-    <Outlet context={{ obra }} />
+    <Link className="inline-flex items-center gap-2 text-sm font-bold text-[var(--text-secondary)]" to="/obras"><ArrowLeft size={16} />Todas las obras</Link>
+    <PageHeader eyebrow="Workspace de obra" title={obra.nombre || obra.tipo_proyecto || obra.codigo_obra} description={`Código ${obra.codigo_obra} · ${activeOrganizacion?.nombre}`} status={<WorkStatus value={obra.estado_ambiental} />} metadata={<div className="flex flex-wrap gap-2"><ScopeBadge label={obra.perfil_ambiental || "Perfil por definir"} /><WorkStatus value={obra.estado} />{obra.fecha && <span>Inicio: {obra.fecha}</span>}{obra.fecha_cierre_ambiental && <span>Cierre ambiental: {obra.fecha_cierre_ambiental}</span>}</div>} />
+    <nav aria-label="Secciones de la obra" className="flex max-w-full gap-1 overflow-x-auto border-b border-[var(--border-default)]">
+      {tabs.map(([path, label]) => <NavLink key={path} to={path} className={({ isActive }) => `shrink-0 border-b-2 px-3 py-3 text-sm font-bold focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${isActive ? "border-[var(--brand-primary)] text-[var(--brand-primary)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}>{label}</NavLink>)}
+    </nav>
+    <Outlet context={state.workspace} />
   </div>;
 }
 
-export function ObraWorkspaceSection({ title }) {
-  return <Card><CardContent><h2 className="text-xl font-black">{title}</h2><p className="mt-2 text-sm text-[var(--text-muted)]">Base de routing del workspace preparada. La experiencia definitiva se completa en UX-04/UX-05.</p></CardContent></Card>;
+export function ObraWorkspaceSection({ title, description }) {
+  return <Card><CardContent><h2 className="text-xl font-bold">{title}</h2><p className="mt-2 text-sm text-[var(--text-muted)]">{description || "Esta sección conserva navegación y contexto de obra. Su experiencia detallada corresponde a una fase posterior."}</p></CardContent></Card>;
 }
