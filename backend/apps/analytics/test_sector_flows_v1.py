@@ -221,3 +221,33 @@ class SectorFlowsV1Tests(APITestCase):
             self.record("ruido", granularidad="punto", punto=point, obra=other_work)
         valid = self.record("ruido", granularidad="punto", punto=point, obra=self.work, proceso=self.process, activo=self.asset, unidad_operacional=self.unit)
         self.assertEqual(valid.punto, point)
+
+    def test_endpoint_puntos_filtra_por_obra_tipo_y_preserva_listado_organizacional(self):
+        work_b = Obra.objects.create(organizacion=self.org, nombre="Obra B", fecha_inicio="2026-01-01")
+        point_a = PuntoAmbientalOperacional.objects.create(
+            organizacion=self.org, obra=self.work, codigo="PA", nombre="Ruido A", tipo="punto_ruido",
+        )
+        point_a_other_type = PuntoAmbientalOperacional.objects.create(
+            organizacion=self.org, obra=self.work, codigo="PA-D", nombre="Drenaje A", tipo="punto_drenaje",
+        )
+        point_b = PuntoAmbientalOperacional.objects.create(
+            organizacion=self.org, obra=work_b, codigo="PB", nombre="Ruido B", tipo="punto_ruido",
+        )
+        endpoint = f"{self.base}/puntos-ambientales/"
+
+        response_a = self.client.get(endpoint, {"obra": self.work.id})
+        response_b = self.client.get(endpoint, {"obra": work_b.id})
+        response_type = self.client.get(endpoint, {"obra": self.work.id, "tipo": "punto_ruido"})
+        response_all = self.client.get(endpoint)
+        self.assertEqual({row["id"] for row in response_a.data}, {point_a.id, point_a_other_type.id})
+        self.assertEqual({row["id"] for row in response_b.data}, {point_b.id})
+        self.assertEqual({row["id"] for row in response_type.data}, {point_a.id})
+        self.assertTrue({point_a.id, point_a_other_type.id, point_b.id}.issubset({row["id"] for row in response_all.data}))
+
+    def test_endpoint_puntos_rechaza_obra_cross_tenant(self):
+        foreign_work = Obra.objects.create(
+            organizacion=self.other, nombre="Obra extranjera", fecha_inicio="2026-01-01",
+        )
+        response = self.client.get(f"{self.base}/puntos-ambientales/", {"obra": foreign_work.id})
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.data, {"detail": "Recurso no encontrado."})

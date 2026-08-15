@@ -143,3 +143,55 @@ class TransportV2Tests(APITestCase):
         summary = transport_indicators(self.org)
         self.assertEqual(summary["numero_viajes"], 1)
         self.assertEqual(summary["km_totales"], Decimal("30"))
+
+    def test_endpoints_filtran_viajes_e_indicadores_por_obra(self):
+        work_a = Obra.objects.create(organizacion=self.org, nombre="Obra A", fecha_inicio="2026-08-01")
+        work_b = Obra.objects.create(organizacion=self.org, nombre="Obra B", fecha_inicio="2026-08-01")
+
+        def scoped_journey(code, work, distance):
+            activity = ActividadOperacional.objects.create(
+                organizacion=self.org, obra=work, tipo="transporte", codigo=code,
+                nombre=code, timestamp_inicio=timezone.now(),
+            )
+            observation = Observacion.objects.create(
+                organizacion=self.org, actividad=activity, fuente=self.source,
+                concepto="distancia_recorrida_km", valor_numerico=distance,
+                unidad="km", timestamp_observacion=timezone.now(),
+            )
+            return ViajeOperacional.objects.create(
+                organizacion=self.org, actividad=activity, codigo=code,
+                vehiculo=self.vehicle, ruta=self.route, origen_nombre="A",
+                destino_nombre="B", fecha_salida=timezone.now(),
+                observacion_distancia=observation, estado="completado",
+            )
+
+        scoped_journey("A1", work_a, 10)
+        scoped_journey("A2", work_a, 20)
+        scoped_journey("B1", work_b, 70)
+
+        response_a = self.client.get(f"{self.base}/viajes-operacionales/?obra={work_a.id}")
+        response_b = self.client.get(f"{self.base}/viajes-operacionales/?obra={work_b.id}")
+        response_all = self.client.get(f"{self.base}/viajes-operacionales/")
+        self.assertEqual({row["codigo"] for row in response_a.data}, {"A1", "A2"})
+        self.assertEqual({row["codigo"] for row in response_b.data}, {"B1"})
+        self.assertEqual({row["codigo"] for row in response_all.data}, {"A1", "A2", "B1"})
+
+        indicators_a = self.client.get(f"{self.base}/viajes-operacionales/indicadores/?obra={work_a.id}")
+        indicators_b = self.client.get(f"{self.base}/viajes-operacionales/indicadores/?obra={work_b.id}")
+        indicators_all = self.client.get(f"{self.base}/viajes-operacionales/indicadores/")
+        self.assertEqual(indicators_a.data["numero_viajes"], 2)
+        self.assertEqual(Decimal(indicators_a.data["km_totales"]), Decimal("30"))
+        self.assertEqual(indicators_b.data["numero_viajes"], 1)
+        self.assertEqual(Decimal(indicators_b.data["km_totales"]), Decimal("70"))
+        self.assertEqual(indicators_all.data["numero_viajes"], 3)
+        self.assertEqual(Decimal(indicators_all.data["km_totales"]), Decimal("100"))
+
+    def test_endpoints_obra_rechazan_scope_cross_tenant(self):
+        foreign_work = Obra.objects.create(
+            organizacion=self.other, nombre="Obra extranjera", fecha_inicio="2026-08-01",
+        )
+        for endpoint in ("viajes-operacionales/", "viajes-operacionales/indicadores/"):
+            with self.subTest(endpoint=endpoint):
+                response = self.client.get(f"{self.base}/{endpoint}?obra={foreign_work.id}")
+                self.assertEqual(response.status_code, 404)
+                self.assertEqual(response.data, {"detail": "Recurso no encontrado."})

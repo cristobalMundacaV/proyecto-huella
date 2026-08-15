@@ -1,8 +1,9 @@
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import (Organizacion, PuntoAmbientalOperacional,
+from .models import (Obra, Organizacion, PuntoAmbientalOperacional,
                      RegistroFlujoAmbiental, UsuarioOrganizacion)
 from .serializers_sector_flows_v1 import (PuntoAmbientalSerializer,
                                           RegistroFlujoAmbientalSerializer)
@@ -15,12 +16,24 @@ def _organization(request, value):
     return organization if allowed else None
 
 
+def _requested_work(request, organization):
+    work_id = request.query_params.get("obra")
+    if not work_id:
+        return None
+    work = Obra.objects.filter(organizacion=organization, id=work_id).first()
+    if not work:
+        raise Http404("Recurso no encontrado.")
+    return work
+
+
 @api_view(["GET", "POST"])
 def environmental_points(request, organizacion_id):
     organization = _organization(request, organizacion_id)
     if not organization: return Response({"detail": "Recurso no encontrado."}, status=404)
     context = {"organizacion": organization, "request": request}
     rows = organization.puntos_ambientales.select_related("activo", "unidad_operacional", "proceso_operacional", "obra")
+    work = _requested_work(request, organization)
+    if work: rows = rows.filter(obra=work)
     if request.query_params.get("tipo"): rows = rows.filter(tipo=request.query_params["tipo"])
     if request.method == "GET": return Response(PuntoAmbientalSerializer(rows, many=True, context=context).data)
     serializer = PuntoAmbientalSerializer(data=request.data, context=context); serializer.is_valid(raise_exception=True); serializer.save()
