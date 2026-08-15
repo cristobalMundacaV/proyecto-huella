@@ -10,6 +10,7 @@ from ..models import (ActividadOperacional, ActivoOperacional, EvidenciaObra,
 from .comparison_v2 import compare_values
 from .environmental_context import evidence_summary
 from .knowledge_v1 import compact_knowledge
+from .materials_v2 import material_balance
 from .transport_v2 import journey_metrics
 
 
@@ -88,6 +89,20 @@ class ContextGateway:
         journey = getattr(activity, "viaje", None)
         if journey:
             package["transporte"] = {"trayecto": journey.tipo_trayecto, "gestion": journey.tipo_gestion, "estado_carga": journey.estado_carga, "origen": journey.origen_nombre, "destino": journey.destino_nombre, "metricas": journey_metrics(journey), "metodologia_tercerizado": journey.metodologia_tercerizado}
+        material_event = getattr(activity, "evento_material", None)
+        if material_event:
+            observation = material_event.observacion_cantidad
+            package["material"] = {
+                "id": material_event.material_id,
+                "codigo": material_event.material.codigo,
+                "nombre": material_event.material.nombre,
+                "tipo_evento": material_event.tipo,
+                "lote_id": material_event.lote_id,
+                "obra_id": material_event.obra_id,
+                "cantidad": observation.valor_numerico if observation else None,
+                "unidad": observation.unidad if observation else None,
+                "balance": material_balance(organization, material_event.material, lot=material_event.lote),
+            }
         return package
 
     def intervention(self, problem, organization):

@@ -136,8 +136,20 @@ from .views_professional_v2 import (auditoria, expediente_close, expediente_deta
                                     revisiones_profesionales)
 from .views_knowledge_v1 import knowledge_aggregate, knowledge_case_detail, knowledge_cases
 from .views_transport_v2 import journey_detail, journey_indicators, journeys, routes
+from .views_materials_v2 import (balance as material_balance_v2, event_detail,
+                                 events as material_events, lineage as material_lineage_v2,
+                                 lots as material_lots, material_detail,
+                                 material_indicators, materials as operational_materials)
 
 urlpatterns = [
+    path("organizaciones/<str:organizacion_id>/materiales-operacionales/", operational_materials),
+    path("organizaciones/<str:organizacion_id>/materiales-operacionales/indicadores/", material_indicators),
+    path("organizaciones/<str:organizacion_id>/materiales-operacionales/<int:material_id>/", material_detail),
+    path("organizaciones/<str:organizacion_id>/materiales-operacionales/<int:material_id>/balance/", material_balance_v2),
+    path("organizaciones/<str:organizacion_id>/materiales-operacionales/<int:material_id>/lineage/", material_lineage_v2),
+    path("organizaciones/<str:organizacion_id>/lotes-materiales/", material_lots),
+    path("organizaciones/<str:organizacion_id>/eventos-materiales/", material_events),
+    path("organizaciones/<str:organizacion_id>/eventos-materiales/<int:event_id>/", event_detail),
     path("organizaciones/<str:organizacion_id>/rutas-operacionales/", routes),
     path("organizaciones/<str:organizacion_id>/viajes-operacionales/", journeys),
     path("organizaciones/<str:organizacion_id>/viajes-operacionales/indicadores/", journey_indicators),

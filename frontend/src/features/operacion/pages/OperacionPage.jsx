@@ -14,6 +14,7 @@ import { getEmpresaRegistrosAmbientales } from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
 import ActivityCorePanel from "../components/ActivityCorePanel";
 import TransportJourneyPanel from "../components/TransportJourneyPanel";
+import MaterialsOperationalPanel from "../components/MaterialsOperationalPanel";
 
 const tabBaseClass = "rounded-2xl px-4 py-3 text-sm font-black transition";
 const STAGE_DONUT_SIZE = 220;
@@ -47,7 +48,7 @@ function getTabsForPreset(presetKey) {
 
   return [
     { id: "unidades", label: presetKey === "industrial" ? "Líneas" : "Obras", scope: "obra", component: <ObrasView />, insight: "Cada obra debe mostrar qué etapa, fuente y actividad explican la huella acumulada." },
-    { id: "materiales", label: "Materiales", scope: "materiales", placeholder: "Analiza materiales críticos, proveedores y partidas con mayor carbono incorporado.", insight: "Materiales debe responder qué compra o partida concentra carbono incorporado." },
+    { id: "materiales", label: "Materiales", scope: "materiales", component: <MaterialsOperationalPanel />, insight: "Materiales distingue adquisición, recepción, uso y destino con trazabilidad operacional." },
     { id: "maquinaria", label: "Maquinaria", scope: "maquinaria", placeholder: "Controla combustible, horas de uso, ralentí, mantención y desempeño por equipo.", insight: "Maquinaria debe cruzar consumo, horas encendido y avance para detectar ineficiencia." },
     { id: "transporte", label: "Transporte", scope: "transporte", placeholder: "Evalúa viajes, proveedores cercanos, kilómetros y logística asociada a la obra.", insight: "Transporte debe estimar huella por ruta y proponer consolidación de viajes." },
     { id: "energia", label: "Energía", scope: "energia", placeholder: "Revisa kWh, generadores, horarios de consumo y desviaciones por etapa.", insight: "Energía debe separar consumo por etapa para detectar generadores o horarios críticos." },
@@ -413,7 +414,7 @@ function OperacionPage() {
       {selectedTab.component ? (
         <div className="space-y-6">
           <div className={selectedTab.id === "unidades" ? "[&>div]:!space-y-0 [&>div]:flex [&>div]:flex-col [&>div]:gap-6 [&>div>header]:hidden [&>div>section:first-of-type]:hidden [&>div>section:nth-of-type(2)]:order-2 [&>div>section:nth-of-type(3)]:order-1 [&>div>div.space-y-6]:order-1" : ""}>
-            {selectedTab.component}
+            {selectedTab.id === "materiales" ? <MaterialsOperationalPanel organizacionId={activeOrganizacionId} /> : selectedTab.component}
           </div>
           {selectedTab.id === "unidades" ? <StagesInsideWorksPanel organizacionId={activeOrganizacionId} /> : null}
         </div>
