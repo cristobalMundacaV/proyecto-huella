@@ -7,7 +7,7 @@ from django.db.models import Count
 from django.utils.text import slugify
 
 from ..models import (CasoConocimientoAmbiental, EvaluacionCalidadDato,
-                      RevisionProfesionalAmbiental)
+                      HitoDecisionIA, RevisionProfesionalAmbiental)
 
 
 RESULT_MAP = {
@@ -66,14 +66,42 @@ def _payload(result, origin):
     }
 
 
+def _verified_origin(result, ia_provenance, professional_review):
+    if ia_provenance is not None:
+        valid_ia = (
+            isinstance(ia_provenance, HitoDecisionIA)
+            and ia_provenance.organizacion_id == result.problematica.organizacion_id
+            and ia_provenance.problematica_id == result.problematica_id
+            and ia_provenance.tipo == HitoDecisionIA.Tipo.RESULTADO
+        )
+        if not valid_ia:
+            raise ValidationError("La procedencia IA no es verificable para esta intervencion.")
+    if professional_review is not None:
+        valid_professional = (
+            isinstance(professional_review, RevisionProfesionalAmbiental)
+            and professional_review.organizacion_id == result.problematica.organizacion_id
+            and professional_review.tipo == RevisionProfesionalAmbiental.Tipo.INTERVENCION
+            and professional_review.intervencion_id == result.id
+            and professional_review.estado in {
+                RevisionProfesionalAmbiental.Estado.VALIDADA,
+                RevisionProfesionalAmbiental.Estado.VALIDADA_OBSERVACIONES,
+            }
+        )
+        if not valid_professional:
+            raise ValidationError("La procedencia profesional no es verificable para esta intervencion.")
+    if ia_provenance and professional_review: return CasoConocimientoAmbiental.Origen.MIXTO
+    if ia_provenance: return CasoConocimientoAmbiental.Origen.IA
+    if professional_review: return CasoConocimientoAmbiental.Origen.PROFESIONAL
+    return CasoConocimientoAmbiental.Origen.USUARIO
+
+
 @transaction.atomic
-def create_knowledge_case(result, organization, origin="usuario"):
+def create_knowledge_case(result, organization, *, ia_provenance=None, professional_review=None):
     if result.problematica.organizacion_id != organization.id:
         raise ValidationError("La intervencion pertenece a otra organizacion.")
     if result.estado not in RESULT_MAP:
         raise ValidationError("El resultado de intervencion no es clasificable.")
-    if origin not in CasoConocimientoAmbiental.Origen.values:
-        raise ValidationError("Origen de conocimiento invalido.")
+    origin = _verified_origin(result, ia_provenance, professional_review)
     payload = _payload(result, origin)
     fingerprint = hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
     latest = result.casos_conocimiento.order_by("-version").first()

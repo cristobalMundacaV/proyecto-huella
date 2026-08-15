@@ -23,7 +23,7 @@ def knowledge_cases(request, organizacion_id):
         return Response(CasoConocimientoPrivadoSerializer(rows, many=True).data)
     result = get_object_or_404(ResultadoIntervencion, problematica__organizacion=organization, id=request.data.get("intervencion"))
     try:
-        case, created = create_knowledge_case(result, organization, request.data.get("origen", "usuario"))
+        case, created = create_knowledge_case(result, organization)
     except ValidationError as exc:
         return Response({"detail": exc.messages}, status=400)
     return Response(CasoConocimientoPrivadoSerializer(case).data, status=201 if created else 200)

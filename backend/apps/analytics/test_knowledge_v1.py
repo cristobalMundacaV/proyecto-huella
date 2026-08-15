@@ -8,7 +8,8 @@ from rest_framework.test import APITestCase
 from .models import (AccionMejoraAmbiental, ActividadOperacional,
                      AlcanceProblematica, CasoConocimientoAmbiental,
                      FactorAmbiental, FormulaAmbiental, Organizacion,
-                     ProblematicaAmbiental, ResultadoIntervencion,
+                     HitoDecisionIA, ProblematicaAmbiental,
+                     ResultadoIntervencion, RevisionProfesionalAmbiental,
                      SnapshotIntervencion, UsuarioOrganizacion)
 from .services.context_gateway import ContextGateway
 from .services.knowledge_v1 import (aggregate_knowledge,
@@ -26,7 +27,7 @@ class KnowledgeV1Tests(APITestCase):
         self.result_b = self._result(self.org_b, "parcial", "consolidacion_cargas")
 
     def _result(self, organization, state, action_type):
-        activity = ActividadOperacional.objects.create(organizacion=organization, tipo="transporte", codigo=f"ACT-{organization.id}-{state}", nombre="Actividad privada", timestamp_inicio="2026-01-01T10:00:00Z")
+        activity = ActividadOperacional.objects.create(organizacion=organization, tipo="transporte", codigo=f"ACT-{organization.id}-{state}-{action_type}", nombre="Actividad privada", timestamp_inicio="2026-01-01T10:00:00Z")
         problem = ProblematicaAmbiental.objects.create(organizacion=organization, titulo=f"Problema privado {organization.nombre}", descripcion="Privada", categoria="transporte", valor_inicial=10, objetivo_meta=8, fecha_deteccion=date(2026, 1, 1), metadata={"tipo_problematica": "alta_intensidad"})
         AlcanceProblematica.objects.create(problematica=problem, actividad_operacional=activity)
         action = AccionMejoraAmbiental.objects.create(problematica=problem, titulo=f"Accion privada {organization.nombre}", descripcion="Privada", estado="evaluada", implementada_at="2026-02-01T10:00:00Z", metadata={"tipo_accion": action_type})
@@ -55,12 +56,33 @@ class KnowledgeV1Tests(APITestCase):
         self.assertNotEqual(first.resultado, "sin_efecto"); self.assertNotEqual(second.resultado, "negativo")
 
     def test_origen_ia_profesional_e_idempotencia_versionada(self):
-        ia, created = create_knowledge_case(self.result_a, self.org_a, "ia")
-        same, repeated = create_knowledge_case(self.result_a, self.org_a, "ia")
+        ia_trace = HitoDecisionIA.objects.create(organizacion=self.org_a, problematica=self.result_a.problematica, tipo="resultado_posterior", resumen="Resultado procesado por IA")
+        ia, created = create_knowledge_case(self.result_a, self.org_a, ia_provenance=ia_trace)
+        same, repeated = create_knowledge_case(self.result_a, self.org_a, ia_provenance=ia_trace)
         self.assertTrue(created); self.assertFalse(repeated); self.assertEqual(ia.id, same.id)
-        professional, changed = create_knowledge_case(self.result_a, self.org_a, "profesional")
+        review = RevisionProfesionalAmbiental.objects.create(organizacion=self.org_a, tipo="intervencion", intervencion=self.result_a, estado="validada")
+        professional, changed = create_knowledge_case(self.result_a, self.org_a, professional_review=review)
         self.assertTrue(changed); self.assertEqual(professional.version, 2)
         self.assertEqual({ia.origen_conocimiento, professional.origen_conocimiento}, {"ia", "profesional"})
+
+    def test_origen_profesional_e_ia_requieren_procedencia_real(self):
+        unrelated_result = self._result(self.org_a, "positiva", "otra_accion")
+        unrelated_review = RevisionProfesionalAmbiental.objects.create(organizacion=self.org_a, tipo="intervencion", intervencion=unrelated_result, estado="validada")
+        unrelated_ia = HitoDecisionIA.objects.create(organizacion=self.org_a, problematica=unrelated_result.problematica, tipo="resultado_posterior", resumen="Otro resultado IA")
+        with self.assertRaises(ValidationError):
+            create_knowledge_case(self.result_a, self.org_a, professional_review=unrelated_review)
+        with self.assertRaises(ValidationError):
+            create_knowledge_case(self.result_a, self.org_a, ia_provenance=unrelated_ia)
+
+    def test_endpoint_manual_ignora_origen_autodeclarado(self):
+        base = f"/api/organizaciones/{self.org_a.organizacion_id}/conocimiento/casos/"
+        professional = self.client.post(base, {"intervencion": self.result_a.id, "origen": "profesional"}, format="json")
+        self.assertEqual(professional.status_code, 201)
+        self.assertEqual(professional.data["origen_conocimiento"], "usuario")
+        other_result = self._result(self.org_a, "parcial", "accion_ia_falsa")
+        ia = self.client.post(base, {"intervencion": other_result.id, "origen": "ia"}, format="json")
+        self.assertEqual(ia.status_code, 201)
+        self.assertEqual(ia.data["origen_conocimiento"], "usuario")
 
     def test_agregado_cross_tenant_es_anonimo(self):
         create_knowledge_case(self.result_a, self.org_a)

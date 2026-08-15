@@ -24,9 +24,9 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 ("preset", models.CharField(db_index=True, max_length=40)),
-                ("tipo_problematica", models.SlugField(max_length=120)),
-                ("categoria_ambiental", models.SlugField(max_length=120)),
-                ("tipo_accion", models.SlugField(max_length=120)),
+                ("tipo_problematica", models.SlugField(db_index=True, max_length=120)),
+                ("categoria_ambiental", models.SlugField(db_index=True, max_length=120)),
+                ("tipo_accion", models.SlugField(db_index=True, max_length=120)),
                 ("contexto_operacional", models.JSONField(default=dict)),
                 ("indicadores", models.JSONField(blank=True, default=list)),
                 (
