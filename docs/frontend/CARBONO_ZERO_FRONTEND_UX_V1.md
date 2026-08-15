@@ -519,3 +519,5 @@ El resumen conecta estado y diagnóstico ambiental, aplicabilidad de capacidades
 Servicios creados: `features/inicio/services/inicioApi.js` y `features/obras/services/workspaceApi.js`. Usan `/organizaciones/:id/obras/`, `/problematicas/`, `/evidencias/` y, por obra, `/contexto/`, `/timeline/` e `/indicadores/`. No se modificó backend ni se reprodujo lógica metodológica en frontend.
 
 Las rutas profundas conservan contexto y navegación coherentes; salvo Operación existente, permanecen explícitamente como bases temporales. Los dashboards sectoriales profundos quedan para UX-05 y el workflow documental para UX-06.
+
+Correctivo semántico final: los conteos exitosos preservan `0` como dato real y reservan “Sin datos” para `null`/`undefined`; el KPI de Inicio se denomina “Obras registradas” porque cuenta el listado completo sin inventar una definición de obra activa. Los indicadores destacados usan selección explícita: agregados nombrados de transporte y totales aditivos tipados de flujos, con su unidad real. IDs, alcance, estrategia de agregación, flags, códigos, estados internos y metadata nunca se convierten automáticamente en KPIs.

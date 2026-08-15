@@ -5,14 +5,28 @@ import { Card, CardContent, KpiCard, SectionHeader, StatusBadge, Timeline, Timel
 
 const label = (value) => String(value || "No determinado").replaceAll("_", " ");
 const date = (value) => value ? new Intl.DateTimeFormat("es-CL", { dateStyle: "medium" }).format(new Date(value)) : "Fecha no disponible";
-const flattenIndicators = (indicators) => {
-  const result = [];
-  Object.entries(indicators || {}).forEach(([group, value]) => {
-    if (!value || typeof value !== "object" || ["alcance", "corporativo"].includes(group)) return;
-    Object.entries(value).forEach(([key, metric]) => {
-      if (["number", "string"].includes(typeof metric) && key !== "id") result.push({ name: `${label(group)} · ${label(key)}`, value: metric });
-    });
-  });
+const TRANSPORT_METRICS = [
+  ["numero_viajes", "Viajes completados", "viajes"],
+  ["km_totales", "Distancia recorrida", "km"],
+  ["tonelaje_transportado", "Carga transportada", "t"],
+  ["toneladas_km", "Trabajo de transporte", "t·km"],
+  ["combustible_total", "Combustible consumido", "L"],
+  ["porcentaje_km_vacios", "Distancia recorrida en vacío", "%"],
+];
+
+export const selectFeaturedIndicators = (indicators) => {
+  const transport = indicators?.transporte;
+  const result = transport && typeof transport === "object"
+    ? TRANSPORT_METRICS.flatMap(([key, name, unit]) => transport[key] === null || transport[key] === undefined
+      ? []
+      : [{ name, value: transport[key], unit, helper: "Transporte operacional" }])
+    : [];
+
+  for (const metric of Array.isArray(indicators?.flujos) ? indicators.flujos : []) {
+    if (result.length >= 6) break;
+    if (metric?.estrategia_agregacion !== "suma" || metric.total === null || metric.total === undefined) continue;
+    result.push({ name: `${label(metric.flujo)} · ${label(metric.concepto)}`, value: metric.total, unit: metric.unidad || undefined, helper: "Flujo ambiental de la obra" });
+  }
   return result.slice(0, 6);
 };
 
@@ -23,13 +37,13 @@ export default function ObraResumenPage() {
   const problems = context.problematicas_abiertas || [];
   const actions = (context.acciones_actuales || []).filter((item) => item.acciones__id);
   const evidence = context.evidencia || {};
-  const featured = flattenIndicators(indicators);
+  const featured = selectFeaturedIndicators(indicators);
   return <div className="space-y-7">
     <section aria-label="Resumen de obra" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <KpiCard icon={Gauge} label="Indicadores disponibles" value={featured.length || null} helper={!featured.length ? "Sin señales disponibles" : "Señales operacionales compactas"} />
-      <KpiCard icon={AlertTriangle} label="Problemas abiertos" value={problems.length || null} status="warning" helper={!problems.length ? "Sin problemas abiertos" : "Dentro del alcance de la obra"} />
-      <KpiCard icon={ListChecks} label="Acciones actuales" value={actions.length || null} status="info" helper={!actions.length ? "Sin acciones activas" : "Vinculadas a problemas abiertos"} />
-      <KpiCard icon={FileCheck2} label="Evidencias" value={evidence.total || null} helper={evidence.total ? `${evidence.versiones || 0} versiones documentales` : "Sin evidencia vinculada"} />
+      <KpiCard icon={Gauge} label="Indicadores disponibles" value={featured.length} helper={!featured.length ? "Sin señales disponibles" : "Señales operacionales compactas"} />
+      <KpiCard icon={AlertTriangle} label="Problemas abiertos" value={problems.length} status="warning" helper={!problems.length ? "Sin problemas abiertos" : "Dentro del alcance de la obra"} />
+      <KpiCard icon={ListChecks} label="Acciones actuales" value={actions.length} status="info" helper={!actions.length ? "Sin acciones activas" : "Vinculadas a problemas abiertos"} />
+      <KpiCard icon={FileCheck2} label="Evidencias" value={evidence.total ?? null} helper={evidence.total ? `${evidence.versiones ?? 0} versiones documentales` : evidence.total === 0 ? "Sin evidencia vinculada" : "Conteo no disponible"} />
     </section>
 
     <div className="grid gap-6 xl:grid-cols-2">
@@ -44,7 +58,7 @@ export default function ObraResumenPage() {
     </div>
 
     <section><SectionHeader title="Indicadores destacados" description="Máximo seis señales entregadas por el endpoint de esta obra." action={<Link className="text-sm font-bold text-[var(--brand-primary)]" to={`/obras/${obraId}/indicadores`}>Ver indicadores</Link>} />
-      {featured.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{featured.map((item) => <KpiCard key={item.name} label={item.name} value={item.value} icon={Activity} />)}</div> : <p className="text-sm text-[var(--text-muted)]">Sin indicadores disponibles para esta obra.</p>}
+      {featured.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{featured.map((item) => <KpiCard key={item.name} label={item.name} value={item.value} unit={item.unit} helper={item.helper} icon={Activity} />)}</div> : <p className="text-sm text-[var(--text-muted)]">Sin indicadores disponibles para esta obra.</p>}
     </section>
 
     <div className="grid gap-6 xl:grid-cols-2">

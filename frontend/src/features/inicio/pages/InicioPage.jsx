@@ -33,10 +33,10 @@ export default function InicioPage() {
   return <div className="space-y-8">
     <PageHeader eyebrow={activeOrganizacion?.nombre || "Organización activa"} title="Centro de control ambiental" description="Revisa qué obras necesitan atención y entra directamente a su contexto operacional." actions={<Link className="inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--brand-primary)] px-4 py-2.5 text-sm font-bold text-white" to="/datos/evidencias"><Plus size={18} />Agregar evidencia</Link>} />
     <section aria-label="Resumen operacional" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <KpiCard icon={Building2} label="Obras activas" value={data.works.length || null} helper={!data.works.length ? "Sin obras registradas" : "En la organización activa"} />
-      <KpiCard icon={AlertTriangle} label="Obras que requieren atención" value={attentionWorks.length || null} status="warning" helper={!attentionWorks.length ? "Sin alertas de obra disponibles" : "Incluye cierres pendientes"} />
-      <KpiCard icon={AlertTriangle} label="Problemas abiertos" value={openProblems.length || null} status="danger" helper={!openProblems.length ? "Sin problemas abiertos" : "Requieren seguimiento"} />
-      <KpiCard icon={FileCheck2} label="Evidencias por revisar" value={pendingEvidence.length || null} status="info" helper={!pendingEvidence.length ? "Sin pendientes documentales" : "Según estado documental"} />
+      <KpiCard icon={Building2} label="Obras registradas" value={data.works.length} helper={!data.works.length ? "Sin obras registradas" : "En la organización activa"} />
+      <KpiCard icon={AlertTriangle} label="Obras que requieren atención" value={attentionWorks.length} status="warning" helper={!attentionWorks.length ? "Sin alertas de obra disponibles" : "Incluye cierres pendientes"} />
+      <KpiCard icon={AlertTriangle} label="Problemas abiertos" value={openProblems.length} status="danger" helper={!openProblems.length ? "Sin problemas abiertos" : "Requieren seguimiento"} />
+      <KpiCard icon={FileCheck2} label="Evidencias por revisar" value={pendingEvidence.length} status="info" helper={!pendingEvidence.length ? "Sin pendientes documentales" : "Según estado documental"} />
     </section>
 
     <section><SectionHeader title="Estado de las obras" description="Una lectura breve para decidir dónde entrar." action={<Link className="text-sm font-bold text-[var(--brand-primary)]" to="/obras">Ver todas</Link>} />
