@@ -522,6 +522,18 @@ Las rutas profundas conservan contexto y navegación coherentes; salvo Operació
 
 Correctivo semántico final: los conteos exitosos preservan `0` como dato real y reservan “Sin datos” para `null`/`undefined`; el KPI de Inicio se denomina “Obras registradas” porque cuenta el listado completo sin inventar una definición de obra activa. Los indicadores destacados usan selección explícita: agregados nombrados de transporte y totales aditivos tipados de flujos, con su unidad real. IDs, alcance, estrategia de agregación, flags, códigos, estados internos y metadata nunca se convierten automáticamente en KPIs.
 
+## UX-08 — Inteligencia, Copiloto, activos y sensores
+
+`/inteligencia` contiene exclusivamente resultados operacionales reales: prioridades, recomendaciones determinísticas y escenarios provistos por backend. Cada recurso falla de forma independiente y una respuesta vacía produce `EmptyState`; se eliminaron `fallbackCards`, `ensureThreeCards` y la exigencia visual de tres recomendaciones. Revisión profesional y conocimiento se retiraron de esta ruta y permanecen pendientes para UX-09.
+
+`/inteligencia/copiloto` consume Context Gateway, propuestas, feedback y comandos reales sobre una problemática seleccionada. Presenta contexto estructurado, referencias, restricciones y versiones sin exponer prompts ni razonamiento interno. Aceptar sólo prepara un comando y requiere una segunda confirmación humana antes de crear la acción formal en UX-07. Un fallo del proveedor queda aislado del resto del producto.
+
+`/operacion/activos` usa primitives UX-03, filtros, CRUD en modal, condición reciente, mantenimiento real y enlaces a sensores. No convierte condición operacional en impacto ambiental. `/operacion/sensores` y `/operacion/sensores/:sensorId` separan dispositivo, activo e instalación; muestran calibraciones, lecturas y calidad técnica. La carga manual está identificada y una lectura enlazada abre la trazabilidad UX-06. No existe cálculo de CO₂e en estas vistas.
+
+Se retiraron el shell futuro de Copiloto, `IntelligencePanel`, su tablero legacy de acciones y las listas visuales core reemplazadas. Se conservaron los servicios de acciones legacy que aún alimentan reportes fuera del alcance UX-08. No se agregaron librerías ni se modificó backend.
+
+Limitaciones: el contrato de sensor entrega las últimas veinte lecturas embebidas, sin paginación para una serie histórica extensa; UX-08 no inventa esa capacidad. Los endpoints actuales permiten crear activos y sensores, pero no exponen eliminación en esta experiencia.
+
 ## UX-07 — Problemas, acciones y mejora verificable
 
 `features/mejora` es la única autoridad frontend para el ciclo Problema → Alcance → Indicadores → Acción → BASE → Implementación → Seguimiento → RESULT → Decisión → Historial. Las rutas organizacionales son `/inteligencia/problemas` y `/inteligencia/problemas/:problemId`; las rutas obra-scoped son `/obras/:obraId/problemas` y `/obras/:obraId/problemas/:problemId`. La URL, no un selector local, determina el problema activo.

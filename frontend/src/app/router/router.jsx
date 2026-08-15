@@ -19,6 +19,7 @@ import ImportsPage from "@/features/datos/pages/ImportsPage";
 import ImportDetailPage from "@/features/datos/pages/ImportDetailPage";
 import ActivosPage from "@/features/activos/pages/ActivosPage";
 import SensoresPage from "@/features/sensores/pages/SensoresPage";
+import SensorDetailPage from "@/features/sensores/pages/SensorDetailPage";
 import OperationLayout from "@/features/operacion/components/OperationLayout";
 import OperacionOverviewPage from "@/features/operacion/pages/OperacionOverviewPage";
 import SectorDomainPage from "@/features/operacion/pages/SectorDomainPage";
@@ -28,7 +29,7 @@ import WastePage from "@/features/operacion/pages/WastePage";
 import IntelligencePage from "@/features/intelligence/pages/IntelligencePage";
 import ProblemsPage from "@/features/mejora/pages/ProblemsPage";
 import ProblemDetailPage from "@/features/mejora/pages/ProblemDetailPage";
-import CopilotoAmbientalPage from "@/core/copiloto/pages/CopilotoAmbientalPage";
+import CopilotoAmbientalPage from "@/features/intelligence/pages/CopilotPage";
 import FactoresPage from "@/features/factores/pages/FactoresPage";
 import ReportesRegulatoriosPage from "@/core/reportes-regulatorios/pages/ReportesRegulatoriosPage";
 import AdministracionPage from "@/features/administracion/pages/AdministracionPage";
@@ -87,7 +88,7 @@ export default function AppRouter() {
         <Route path="datos/evidencias/:evidenceId" element={<EvidenceDetailPage />} />
         <Route path="datos/importaciones" element={<ImportsPage />} />
         <Route path="datos/importaciones/:processId" element={<ImportDetailPage />} />
-        <Route path="operacion/activos" element={<ActivosPage />} /><Route path="operacion/sensores" element={<SensoresPage />} />
+        <Route path="operacion/activos" element={<ActivosPage />} /><Route path="operacion/sensores" element={<SensoresPage />} /><Route path="operacion/sensores/:sensorId" element={<SensorDetailPage />} />
         <Route path="inteligencia" element={<IntelligencePage />} />
         <Route path="inteligencia/problemas" element={<ProblemsPage />} />
         <Route path="inteligencia/problemas/:problemId" element={<ProblemDetailPage />} />
