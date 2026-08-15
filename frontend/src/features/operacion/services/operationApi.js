@@ -4,7 +4,7 @@ const base = (organizationId) => `/organizaciones/${encodeURIComponent(organizat
 
 export async function getWorkOperation(organizationId, workId) {
   const params = { obra: workId };
-  const [records, points, journeys, transport, materials, materialEvents] = await Promise.all([
+  const results = await Promise.allSettled([
     api.get(`${base(organizationId)}/flujos-ambientales/`, { params }),
     api.get(`${base(organizationId)}/puntos-ambientales/`, { params }),
     api.get(`${base(organizationId)}/viajes-operacionales/`, { params }),
@@ -12,12 +12,9 @@ export async function getWorkOperation(organizationId, workId) {
     api.get(`${base(organizationId)}/obras/${encodeURIComponent(workId)}/materiales/`),
     api.get(`${base(organizationId)}/eventos-materiales/`, { params }),
   ]);
-  return {
-    records: records.data,
-    points: points.data,
-    journeys: journeys.data,
-    transport: transport.data,
-    materials: materials.data,
-    materialEvents: materialEvents.data,
-  };
+  const resource = (result) => result.status === "fulfilled"
+    ? { status: "ready", data: result.value.data }
+    : { status: "error", data: null, error: result.reason?.response?.data?.detail || "No fue posible cargar la información." };
+  const [records, points, journeys, transport, materials, materialEvents] = results.map(resource);
+  return { records, points, journeys, transport, materials, materialEvents };
 }

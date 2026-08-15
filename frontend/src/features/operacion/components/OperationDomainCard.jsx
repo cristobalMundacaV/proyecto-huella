@@ -7,6 +7,7 @@ const statePresentation = {
   no_aplica: ["No aplica", "neutral"], por_definir: ["Por definir", "neutral"],
   sin_datos: ["Sin datos registrados", "warning"], con_datos: ["Con datos", "success"],
   requiere_revision: ["Requiere revisión", "danger"],
+  error: ["No disponible", "danger"],
 };
 
 export default function OperationDomainCard({ icon: Icon, title, state, metric, detail, to }) {

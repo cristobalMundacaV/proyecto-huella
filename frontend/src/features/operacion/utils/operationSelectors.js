@@ -7,6 +7,9 @@ export const DOMAIN_CONFIG = {
   "hidrica-suelo": { label: "Hídrica y suelo", flows: ["gestion_hidrica_suelo"], capability: "gestion_hidrica_suelo" },
 };
 
+export const isResourceReady = (resource) => resource?.status === "ready";
+export const resourceData = (resource, fallback) => isResourceReady(resource) ? resource.data : fallback;
+
 export function domainRecords(records, domain) {
   const flows = DOMAIN_CONFIG[domain]?.flows || [];
   return (records || []).filter((record) => flows.includes(record.flujo));

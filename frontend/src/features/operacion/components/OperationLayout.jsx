@@ -23,7 +23,7 @@ export default function OperationLayout() {
       {links.map(([path, label]) => <NavLink end={!path} key={label} to={path || "."} className={({ isActive }) => `shrink-0 rounded-[var(--radius-md)] px-3 py-2 text-sm font-bold focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${isActive ? "bg-[var(--brand-primary)] text-white" : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-subtle)]"}`}>{label}</NavLink>)}
     </nav>
     {state.status === "loading" && <LoadingState label="Cargando operación de la obra" />}
-    {state.status === "error" && <ErrorState description="No fue posible cargar la operación ambiental de esta obra." onRetry={load} />}
+    {state.status === "error" && <ErrorState description="No fue posible preparar el contexto operacional básico de esta obra." onRetry={load} />}
     {state.status === "ready" && <Outlet context={{ ...workspace, operation: state.data }} />}
   </div>;
 }
