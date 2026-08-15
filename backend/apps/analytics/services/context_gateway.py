@@ -9,6 +9,7 @@ from ..models import (ActividadOperacional, ActivoOperacional, EvidenciaObra,
                       ProblematicaAmbiental, RestriccionContextual)
 from .comparison_v2 import compare_values
 from .environmental_context import evidence_summary
+from .knowledge_v1 import compact_knowledge
 
 
 class ContextGateway:
@@ -43,6 +44,7 @@ class ContextGateway:
             "restricciones": restrictions,
             "evidencia": evidence,
             "historial_resumido": [{"evento": row.evento, "estado": row.estado_nuevo, "detalle": row.detalle[:200], "fecha": row.created_at} for row in problem.historial.order_by("-created_at")[:self.MAX_HISTORY]],
+            "conocimiento_comparable": compact_knowledge(problem),
         }
 
     def organization_memory(self, organization):

@@ -134,8 +134,12 @@ from .views_professional_v2 import (auditoria, expediente_close, expediente_deta
                                     revision_decision, revision_hallazgos,
                                     revision_profesional_detail,
                                     revisiones_profesionales)
+from .views_knowledge_v1 import knowledge_aggregate, knowledge_case_detail, knowledge_cases
 
 urlpatterns = [
+    path("organizaciones/<str:organizacion_id>/conocimiento/casos/", knowledge_cases),
+    path("organizaciones/<str:organizacion_id>/conocimiento/casos/<int:case_id>/", knowledge_case_detail),
+    path("organizaciones/<str:organizacion_id>/conocimiento/agregado/", knowledge_aggregate),
     path("organizaciones/<str:organizacion_id>/revisiones-profesionales/", revisiones_profesionales),
     path("organizaciones/<str:organizacion_id>/revisiones-profesionales/<int:revision_id>/", revision_profesional_detail),
     path("organizaciones/<str:organizacion_id>/revisiones-profesionales/<int:revision_id>/hallazgos/", revision_hallazgos),

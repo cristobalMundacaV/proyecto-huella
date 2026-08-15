@@ -2685,3 +2685,64 @@ class SnapshotInformeAmbiental(models.Model):
             from django.core.exceptions import ValidationError
             raise ValidationError("El snapshot de informe es inmutable.")
         super().save(*args, **kwargs)
+
+
+class CasoConocimientoAmbiental(models.Model):
+    class Resultado(models.TextChoices):
+        EXITOSO = "exitoso", "Exitoso"
+        PARCIAL = "parcialmente_exitoso", "Parcialmente exitoso"
+        SIN_EFECTO = "sin_efecto", "Sin efecto"
+        NEGATIVO = "negativo", "Negativo"
+        NO_VIABLE = "no_viable", "No viable"
+        NO_IMPLEMENTADO = "no_implementado", "No implementado"
+        INCONCLUSO = "inconcluso", "Inconcluso"
+    class Fuerza(models.TextChoices):
+        BAJA = "baja", "Baja"
+        MEDIA = "media", "Media"
+        ALTA = "alta", "Alta"
+    class Origen(models.TextChoices):
+        IA = "ia", "IA"
+        PROFESIONAL = "profesional", "Profesional"
+        USUARIO = "usuario", "Usuario"
+        MIXTO = "mixto", "Mixto"
+    class Estado(models.TextChoices):
+        CANDIDATO = "candidato", "Candidato"
+        UTILIZABLE = "utilizable", "Utilizable"
+        DESCARTADO = "descartado", "Descartado"
+        INVALIDADO = "invalidado", "Invalidado"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="casos_conocimiento")
+    resultado_origen = models.ForeignKey(ResultadoIntervencion, on_delete=models.PROTECT, related_name="casos_conocimiento")
+    preset = models.CharField(max_length=40, db_index=True)
+    tipo_problematica = models.SlugField(max_length=120, db_index=True)
+    categoria_ambiental = models.SlugField(max_length=120, db_index=True)
+    tipo_accion = models.SlugField(max_length=120, db_index=True)
+    contexto_operacional = models.JSONField(default=dict)
+    indicadores = models.JSONField(default=list, blank=True)
+    resultado = models.CharField(max_length=30, choices=Resultado.choices, db_index=True)
+    metricas_comparadas = models.JSONField(default=list)
+    grado_implementacion = models.CharField(max_length=30)
+    viabilidad = models.CharField(max_length=30)
+    fuerza_evidencia = models.CharField(max_length=10, choices=Fuerza.choices, db_index=True)
+    fundamento_evidencia = models.JSONField(default=list)
+    origen_conocimiento = models.CharField(max_length=20, choices=Origen.choices)
+    fecha_caso = models.DateField()
+    version = models.PositiveIntegerField(default=1)
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.CANDIDATO, db_index=True)
+    fingerprint = models.CharField(max_length=64)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-fecha_caso", "-version"]
+        constraints = [models.UniqueConstraint(fields=["resultado_origen", "version"], name="unique_caso_conocimiento_version")]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.resultado_origen_id and self.resultado_origen.problematica.organizacion_id != self.organizacion_id:
+            raise ValidationError({"resultado_origen": "La intervencion pertenece a otra organizacion."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
