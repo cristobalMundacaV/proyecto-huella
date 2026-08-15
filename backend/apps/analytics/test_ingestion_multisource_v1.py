@@ -2,10 +2,11 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
+from unittest.mock import patch
 
 from .models import (ActividadOperacional, ActivoOperacional, CalculoAmbiental, EventoMaterial,
                      ImpactoAmbiental, MaterialOperacional, Observacion, Organizacion, PlantillaMapeo,
-                     ProcesoIngesta, PuntoAmbientalOperacional, RegistroExtraido, RegistroFlujoAmbiental,
+                     ProcesoIngesta, PuntoAmbientalOperacional, RegistroExtraido, RegistroFlujoAmbiental, FuenteDatos,
                      UsuarioOrganizacion, Vehiculo, ViajeOperacional)
 
 
@@ -17,6 +18,8 @@ class MultisourceIngestionV1Tests(APITestCase):
         UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.org)
         self.client.force_login(self.user)
         self.base = f"/api/organizaciones/{self.org.organizacion_id}"
+        asset = ActivoOperacional.objects.create(organizacion=self.org, codigo="DEFAULT-15", nombre="Vehículo base", tipo="vehiculo")
+        Vehiculo.objects.create(activo=asset, patente="DEFAULT-15")
 
     def prepare(self, content, *, destination="flujo_ambiental", flow="energia", name="datos.csv", context=None):
         file = SimpleUploadedFile(name, content.encode(), content_type="text/csv")
@@ -38,6 +41,23 @@ class MultisourceIngestionV1Tests(APITestCase):
     def confirm(self, process_id):
         return self.client.post(f"{self.base}/ingestas/{process_id}/confirmar/", {}, format="json")
 
+    def prepare_structured(self, payload, ingestion_type, *, source_id=None):
+        created = self.client.post(f"{self.base}/ingestas/", {
+            "payload": payload, "tipo_ingesta": ingestion_type, "fuente_nombre": f"Fuente {ingestion_type}",
+            "fuente_datos": source_id, "destino_operacional": "actividad_generica",
+        }, format="json")
+        self.assertEqual(created.status_code, 201, created.data)
+        process_id = created.data["id"]
+        analysis = self.client.post(f"{self.base}/ingestas/{process_id}/analizar/", {}, format="json")
+        mappings = analysis.data["columnas"]
+        for item in mappings:
+            if not item["concepto_normalizado"]: item["concepto_normalizado"] = item["columna_normalizada"]
+        saved = self.client.post(f"{self.base}/ingestas/{process_id}/mapeo/", {
+            "mapeos": mappings, "destino_operacional": "actividad_generica", "contexto": {},
+        }, format="json")
+        self.assertEqual(saved.status_code, 200, saved.data)
+        return process_id
+
     def test_raw_normalized_multiple_rows_and_provenance(self):
         process_id = self.prepare('fecha_inicio,kwh\n2026-01-01,"1.250,50"\n2026-02-01,800\n')
         preview = self.client.get(f"{self.base}/ingestas/{process_id}/preview/")
@@ -48,6 +68,8 @@ class MultisourceIngestionV1Tests(APITestCase):
         result = self.confirm(process_id)
         self.assertEqual(result.data["actividades_creadas"], 2)
         observation = Observacion.objects.first()
+        self.assertEqual(observation.metodo_captura, Observacion.MetodoCaptura.IMPORTADO)
+        self.assertEqual(observation.naturaleza, Observacion.Naturaleza.DOCUMENTAL)
         self.assertEqual(observation.registro_extraido.proceso_ingesta_id, process_id)
         self.assertEqual(observation.version_evidencia_id, ProcesoIngesta.objects.get(id=process_id).version_evidencia_id)
 
@@ -122,14 +144,14 @@ class MultisourceIngestionV1Tests(APITestCase):
         process_id = self.prepare("viaje_id,km\nV-1,mal\n", destination="transporte", flow="")
         first = self.confirm(process_id); self.assertEqual(first.data["filas_con_error"], 1)
         record = RegistroExtraido.objects.get(); self.assertIsInstance(record.errores[0], dict)
-        good_id = self.prepare("viaje_id,km\nV-2,10\n", destination="transporte", flow="")
+        good_id = self.prepare("viaje_id,patente,km\nV-2,DEFAULT-15,10\n", destination="transporte", flow="")
         self.confirm(good_id); second = self.confirm(good_id)
         self.assertTrue(second.data["idempotente"]); self.assertEqual(ActividadOperacional.objects.count(), 1)
         confirmed = RegistroExtraido.objects.get(proceso_ingesta_id=good_id); confirmed.datos_originales = {"alterado": True}
         with self.assertRaises(ValidationError): confirmed.save()
 
     def test_schema_alias_template_tenant_and_ambiguous_context(self):
-        process_id = self.prepare("viaje_id,distancia_km\nV-1,10\n", destination="transporte", flow="")
+        process_id = self.prepare("viaje_id,patente,distancia_km\nV-1,DEFAULT-15,10\n", destination="transporte", flow="")
         preview = self.client.get(f"{self.base}/ingestas/{process_id}/preview/")
         self.assertEqual(preview.data["filas_validas"], 1)
         template = PlantillaMapeo.objects.get()
@@ -150,3 +172,62 @@ class MultisourceIngestionV1Tests(APITestCase):
         self.assertEqual(ActividadOperacional.objects.count(), 0); self.assertEqual(Observacion.objects.count(), 0)
         result = self.confirm(process_id); self.assertEqual(result.data["filas_con_error"], 0)
         self.assertEqual(CalculoAmbiental.objects.count(), 0)
+
+    def test_structured_channels_share_core_and_have_real_provenance(self):
+        expected = {
+            "manual_estructurado": (FuenteDatos.Tipo.MANUAL, Observacion.MetodoCaptura.MANUAL, Observacion.Naturaleza.DECLARATIVO),
+            "api": (FuenteDatos.Tipo.API, Observacion.MetodoCaptura.API, Observacion.Naturaleza.EXTRAIDO),
+            "sensor": (FuenteDatos.Tipo.SENSOR, Observacion.MetodoCaptura.INSTRUMENTAL, Observacion.Naturaleza.INSTRUMENTAL),
+            "telemetria": (FuenteDatos.Tipo.TELEMETRIA, Observacion.MetodoCaptura.INSTRUMENTAL, Observacion.Naturaleza.INSTRUMENTAL),
+        }
+        for index, (channel, provenance) in enumerate(expected.items(), start=1):
+            process_id = self.prepare_structured({"fecha": f"2026-01-0{index}", "kwh": index}, channel)
+            preview = self.client.get(f"{self.base}/ingestas/{process_id}/preview/")
+            self.assertEqual(preview.data["filas_validas"], 1)
+            result = self.confirm(process_id); self.assertEqual(result.data["filas_con_error"], 0)
+            process = ProcesoIngesta.objects.get(id=process_id)
+            observation = Observacion.objects.get(registro_extraido__proceso_ingesta=process)
+            self.assertIsNone(process.version_evidencia_id); self.assertEqual(process.fuente_datos.tipo, provenance[0])
+            self.assertEqual((observation.metodo_captura, observation.naturaleza), provenance[1:])
+            self.assertIsNone(observation.evidencia_id); self.assertIsNone(observation.version_evidencia_id)
+            self.assertEqual(observation.registro_extraido.proceso_ingesta.fuente_datos_id, observation.fuente_id)
+
+    def test_explicit_source_is_preserved_for_structured_input(self):
+        source = FuenteDatos.objects.create(organizacion=self.org, nombre="API gobernada", tipo=FuenteDatos.Tipo.SISTEMA)
+        process_id = self.prepare_structured({"fecha": "2026-01-01", "kwh": 2}, "api", source_id=source.id)
+        self.confirm(process_id); source.refresh_from_db()
+        self.assertEqual(source.tipo, FuenteDatos.Tipo.SISTEMA)
+        self.assertEqual(ProcesoIngesta.objects.get(id=process_id).fuente_datos, source)
+
+    def test_transport_requires_unambiguous_vehicle_and_rolls_back(self):
+        missing = self.prepare("viaje_id,km\nMISSING,10\n", destination="transporte", flow="")
+        missing_preview = self.client.get(f"{self.base}/ingestas/{missing}/preview/")
+        self.assertEqual(missing_preview.data["filas"][0]["problemas"][0]["campo"], "vehiculo")
+        self.confirm(missing); self.assertEqual(ActividadOperacional.objects.count(), 0)
+
+        unknown = self.prepare("viaje_id,patente,km\nUNKNOWN,NO-EXISTE,10\n", destination="transporte", flow="")
+        unknown_preview = self.client.get(f"{self.base}/ingestas/{unknown}/preview/")
+        self.assertEqual(unknown_preview.data["filas"][0]["estado"], "requiere_revision")
+        self.confirm(unknown); self.assertEqual(ActividadOperacional.objects.count(), 0); self.assertEqual(Observacion.objects.count(), 0)
+
+        first = ActivoOperacional.objects.create(organizacion=self.org, codigo="AMB-1", nombre="Ambiguo 1", tipo="vehiculo")
+        second = ActivoOperacional.objects.create(organizacion=self.org, codigo="AMB-2", nombre="Ambiguo 2", tipo="vehiculo")
+        Vehiculo.objects.create(activo=first, patente="AMB-15"); Vehiculo.objects.create(activo=second, patente="AMB-15")
+        ambiguous = self.prepare("viaje_id,patente,km\nAMB,AMB-15,10\n", destination="transporte", flow="")
+        row = self.client.get(f"{self.base}/ingestas/{ambiguous}/preview/").data["filas"][0]
+        self.assertEqual(row["problemas"][0]["codigo"], "contexto_ambiguo")
+        self.confirm(ambiguous); self.assertEqual(ActividadOperacional.objects.count(), 0)
+
+        valid = self.prepare("viaje_id,patente,km\nROLLBACK,DEFAULT-15,10\n", destination="transporte", flow="")
+        with patch("apps.analytics.services.ingestion_handlers.ViajeOperacional.objects.create", side_effect=RuntimeError("fallo viaje")):
+            result = self.confirm(valid)
+        self.assertEqual(result.data["filas_con_error"], 1)
+        self.assertFalse(ActividadOperacional.objects.exists())
+        self.assertFalse(Observacion.objects.exists())
+        self.assertFalse(ViajeOperacional.objects.exists())
+
+    def test_new_default_is_neutral(self):
+        file = SimpleUploadedFile("neutral.csv", b"fecha,kwh\n2026-01-01,10\n", content_type="text/csv")
+        response = self.client.post(f"{self.base}/ingestas/", {"archivo": file, "fuente_nombre": "Neutral"}, format="multipart")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["destino_operacional"], "actividad_generica")

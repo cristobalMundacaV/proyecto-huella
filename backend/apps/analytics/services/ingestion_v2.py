@@ -10,7 +10,7 @@ from ..models import (ActivoOperacional, EvidenciaObra, FuenteDatos, MapeoColumn
                       RegistroExtraido, UnidadOperacional, VersionEvidencia)
 from .ingestion_concepts import (CONCEPT_ALIASES, classify_document, normalize_column,
                                  normalize_unit, normalize_value)
-from .ingestion_handlers import INGESTION_HANDLERS
+from .ingestion_handlers import INGESTION_HANDLERS, resolve_transport_vehicle
 
 
 ALIASES = CONCEPT_ALIASES
@@ -50,20 +50,37 @@ def _document_evidence_type(destination):
     return EvidenciaObra.TipoEvidencia.DOCUMENTO_TRANSPORTE if destination == ProcesoIngesta.DestinoOperacional.TRANSPORTE else EvidenciaObra.TipoEvidencia.OTRO
 
 
+SOURCE_TYPE_BY_INGESTION = {
+    "tabular": FuenteDatos.Tipo.EXCEL_CSV, "documental": FuenteDatos.Tipo.DOCUMENTO,
+    "manual_estructurado": FuenteDatos.Tipo.MANUAL, "api": FuenteDatos.Tipo.API,
+    "telemetria": FuenteDatos.Tipo.TELEMETRIA, "sensor": FuenteDatos.Tipo.SENSOR,
+}
+
+
+def _source_for(organization, ingestion_type, source_id=None, source_name="Fuente de ingesta"):
+    source = FuenteDatos.objects.filter(organizacion=organization, id=source_id).first() if source_id else None
+    if source_id and not source: raise ValueError("La fuente de datos no pertenece a la organizacion.")
+    if source: return source
+    resolved_name = source_name.strip() or "Fuente de ingesta"
+    expected_type = SOURCE_TYPE_BY_INGESTION[ingestion_type]
+    existing = FuenteDatos.objects.filter(organizacion=organization, nombre=resolved_name).first()
+    if existing and existing.tipo != expected_type:
+        resolved_name = f"{resolved_name} ({ingestion_type})"
+    source, _ = FuenteDatos.objects.get_or_create(
+        organizacion=organization, nombre=resolved_name,
+        defaults={"tipo": expected_type},
+    )
+    return source
+
+
 @transaction.atomic
 def crear_ingesta(organizacion, upload, *, fuente_id=None, fuente_nombre="Fuente de ingesta", evidencia_id=None,
-                   tipo_ingesta="tabular", destino_operacional="transporte", flujo="",
+                   tipo_ingesta="tabular", destino_operacional="actividad_generica", flujo="",
                    clasificacion_confirmada="", contexto_confirmado=None):
     if tipo_ingesta not in ProcesoIngesta.TipoIngesta.values: raise ValueError("Tipo de ingesta no soportado.")
     if destino_operacional not in ProcesoIngesta.DestinoOperacional.values: raise ValueError("Destino operacional no soportado.")
     content = upload.read(); checksum = hashlib.sha256(content).hexdigest()
-    fuente = FuenteDatos.objects.filter(organizacion=organizacion, id=fuente_id).first() if fuente_id else None
-    if fuente_id and not fuente: raise ValueError("La fuente de datos no pertenece a la organizacion.")
-    if not fuente:
-        fuente, _ = FuenteDatos.objects.get_or_create(
-            organizacion=organizacion, nombre=fuente_nombre.strip() or "Fuente de ingesta",
-            defaults={"tipo": FuenteDatos.Tipo.EXCEL_CSV if tipo_ingesta == "tabular" else FuenteDatos.Tipo.DOCUMENTO},
-        )
+    fuente = _source_for(organizacion, tipo_ingesta, fuente_id, fuente_nombre)
     evidencia = EvidenciaObra.objects.filter(organizacion=organizacion, id=evidencia_id).first() if evidencia_id else None
     if evidencia_id and not evidencia: raise ValueError("La evidencia no pertenece a la organizacion.")
     suggested = classify_document(upload.name)
@@ -85,6 +102,30 @@ def crear_ingesta(organizacion, upload, *, fuente_id=None, fuente_nombre="Fuente
         clasificacion_confirmada=clasificacion_confirmada, contexto_confirmado=contexto_confirmado or {},
     )
     process.full_clean(); process.save()
+    return process
+
+
+@transaction.atomic
+def crear_ingesta_estructurada(organizacion, payload, *, fuente_id=None, fuente_nombre="Fuente estructurada",
+                               tipo_ingesta="api", destino_operacional="actividad_generica", flujo="",
+                               contexto_confirmado=None):
+    allowed = {ProcesoIngesta.TipoIngesta.MANUAL_ESTRUCTURADO, ProcesoIngesta.TipoIngesta.API,
+               ProcesoIngesta.TipoIngesta.TELEMETRIA, ProcesoIngesta.TipoIngesta.SENSOR}
+    if tipo_ingesta not in allowed: raise ValueError("El contrato estructurado requiere un canal no documental.")
+    if destino_operacional not in ProcesoIngesta.DestinoOperacional.values: raise ValueError("Destino operacional no soportado.")
+    rows = payload if isinstance(payload, list) else [payload]
+    if not rows or not all(isinstance(row, dict) for row in rows): raise ValueError("El payload debe ser un objeto o lista de objetos.")
+    source = _source_for(organizacion, tipo_ingesta, fuente_id, fuente_nombre)
+    process = ProcesoIngesta(
+        organizacion=organizacion, version_evidencia=None, fuente_datos=source, tipo_ingesta=tipo_ingesta,
+        destino_operacional=destino_operacional, flujo=flujo, contexto_confirmado=contexto_confirmado or {},
+        estado=ProcesoIngesta.Estado.RECIBIDO, filas_detectadas=len(rows),
+    )
+    process.full_clean(); process.save()
+    RegistroExtraido.objects.bulk_create([
+        RegistroExtraido(proceso_ingesta=process, numero_fila=index, origen=f"payload:{index}", datos_originales=row)
+        for index, row in enumerate(rows, start=1)
+    ])
     return process
 
 
@@ -112,15 +153,20 @@ def analizar_ingesta(proceso):
         raise ValueError("Una ingesta confirmada no puede analizarse nuevamente; cree un nuevo proceso.")
     proceso.estado = ProcesoIngesta.Estado.ANALIZANDO; proceso.fecha_inicio = proceso.fecha_inicio or timezone.now()
     proceso.save(update_fields=["estado", "fecha_inicio", "updated_at"])
-    if proceso.tipo_ingesta != ProcesoIngesta.TipoIngesta.TABULAR:
+    if proceso.tipo_ingesta == ProcesoIngesta.TipoIngesta.DOCUMENTAL:
         proceso.estado = ProcesoIngesta.Estado.REQUIERE_MAPEO; proceso.save(update_fields=["estado", "updated_at"])
         return {"columnas": [], "filas_detectadas": 0, "estado": proceso.estado,
                 "problemas": [{"codigo": "extraccion_no_disponible", "campo": "archivo", "detalle": "No existe extracción estructurada para este documento."}]}
-    columns, rows = _leer_archivo(proceso.version_evidencia)
-    proceso.registros_extraidos.all().delete()
-    RegistroExtraido.objects.bulk_create([RegistroExtraido(
-        proceso_ingesta=proceso, numero_fila=number, origen=f"fila:{number}", datos_originales=data,
-    ) for number, data in rows])
+    if proceso.tipo_ingesta == ProcesoIngesta.TipoIngesta.TABULAR:
+        columns, rows = _leer_archivo(proceso.version_evidencia)
+        proceso.registros_extraidos.all().delete()
+        RegistroExtraido.objects.bulk_create([RegistroExtraido(
+            proceso_ingesta=proceso, numero_fila=number, origen=f"fila:{number}", datos_originales=data,
+        ) for number, data in rows])
+    else:
+        existing = list(proceso.registros_extraidos.all())
+        rows = [(record.numero_fila, record.datos_originales) for record in existing]
+        columns = list(dict.fromkeys(column for _, row in rows for column in row))
     latest = _template_for(proceso)
     previous = {item.columna_normalizada: (item.concepto_normalizado, item.unidad_esperada) for item in latest.mapeos.all()} if latest else {}
     mappings = []
@@ -132,8 +178,10 @@ def analizar_ingesta(proceso):
     proceso.filas_detectadas = len(rows); all_known = all(item["reconocida"] for item in mappings)
     proceso.plantilla_mapeo = latest if latest and all_known else None
     proceso.estado = ProcesoIngesta.Estado.LISTO_CONFIRMAR if all_known else ProcesoIngesta.Estado.REQUIERE_MAPEO
-    proceso.version_evidencia.estado_procesamiento = VersionEvidencia.EstadoProcesamiento.LISTA
-    proceso.version_evidencia.save(update_fields=["estado_procesamiento", "updated_at"]); proceso.save()
+    if proceso.version_evidencia_id:
+        proceso.version_evidencia.estado_procesamiento = VersionEvidencia.EstadoProcesamiento.LISTA
+        proceso.version_evidencia.save(update_fields=["estado_procesamiento", "updated_at"])
+    proceso.save()
     return {"columnas": mappings, "filas_detectadas": len(rows), "estado": proceso.estado,
             "clasificacion_sugerida": proceso.clasificacion_sugerida, "destino_operacional": proceso.destino_operacional, "flujo": proceso.flujo}
 
@@ -211,6 +259,9 @@ def _capture_errors(process, data):
     errors = []
     if process.destino_operacional == "transporte" and not data.get("identificador_actividad"):
         errors.append({"codigo": "campo_critico_faltante", "campo": "identificador_actividad", "detalle": "Falta el identificador del viaje."})
+    if process.destino_operacional == "transporte":
+        vehicle, code, detail = resolve_transport_vehicle(process, data)
+        if not vehicle: errors.append({"codigo": code, "campo": "vehiculo", "detalle": detail})
     if process.destino_operacional == "material":
         if not data.get("material"): errors.append({"codigo": "campo_critico_faltante", "campo": "material", "detalle": "Falta el material."})
         if not data.get("tipo_evento_material"): errors.append({"codigo": "evento_material_ambiguo", "campo": "tipo_evento_material", "detalle": "El tipo de evento debe declararse explícitamente."})
@@ -237,7 +288,7 @@ def preview_ingesta(proceso):
                      "auto_confirmable": not errors, "problemas": errors, "errores": errors})
     proceso.contexto_sugerido = rows[0]["datos_normalizados"].get("contexto_sugerido", {}) if len(rows) == 1 else {}
     proceso.save(update_fields=["contexto_sugerido", "updated_at"])
-    return {"ingesta_id": proceso.id, "archivo": proceso.version_evidencia.nombre_original, "estado": proceso.estado,
+    return {"ingesta_id": proceso.id, "archivo": proceso.version_evidencia.nombre_original if proceso.version_evidencia_id else None, "estado": proceso.estado,
             "destino": proceso.destino_operacional, "flujo": proceso.flujo, "filas_detectadas": proceso.filas_detectadas,
             "filas_validas": sum(not row["problemas"] for row in rows), "filas_problematicas": sum(bool(row["problemas"]) for row in rows),
             "filas_error": 0, "filas": rows}
@@ -284,6 +335,8 @@ def confirmar_ingesta(proceso):
     proceso.filas_procesadas = processed; proceso.filas_con_error = errors; proceso.fecha_fin = timezone.now()
     proceso.estado = ProcesoIngesta.Estado.COMPLETADO_OBSERVACIONES if errors else ProcesoIngesta.Estado.COMPLETADO
     proceso.resumen_errores = f"{errors} filas con error" if errors else ""
-    proceso.version_evidencia.estado_procesamiento = VersionEvidencia.EstadoProcesamiento.PROCESADA
-    proceso.version_evidencia.save(update_fields=["estado_procesamiento", "updated_at"]); proceso.save()
+    if proceso.version_evidencia_id:
+        proceso.version_evidencia.estado_procesamiento = VersionEvidencia.EstadoProcesamiento.PROCESADA
+        proceso.version_evidencia.save(update_fields=["estado_procesamiento", "updated_at"])
+    proceso.save()
     return {"actividades_creadas": processed, "observaciones_creadas": observations, "filas_con_error": errors, "idempotente": False}

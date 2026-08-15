@@ -1478,11 +1478,11 @@ class ProcesoIngesta(models.Model):
         FALLIDO = "fallido", "Fallido"
 
     organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="procesos_ingesta")
-    version_evidencia = models.ForeignKey(VersionEvidencia, on_delete=models.PROTECT, related_name="procesos_ingesta")
+    version_evidencia = models.ForeignKey(VersionEvidencia, on_delete=models.PROTECT, null=True, blank=True, related_name="procesos_ingesta")
     fuente_datos = models.ForeignKey(FuenteDatos, on_delete=models.PROTECT, related_name="procesos_ingesta")
     plantilla_mapeo = models.ForeignKey(PlantillaMapeo, on_delete=models.SET_NULL, null=True, blank=True, related_name="procesos_ingesta")
     tipo_ingesta = models.CharField(max_length=30, choices=TipoIngesta.choices, default=TipoIngesta.TABULAR)
-    destino_operacional = models.CharField(max_length=30, choices=DestinoOperacional.choices, default=DestinoOperacional.TRANSPORTE)
+    destino_operacional = models.CharField(max_length=30, choices=DestinoOperacional.choices, default=DestinoOperacional.ACTIVIDAD_GENERICA)
     flujo = models.CharField(max_length=35, blank=True)
     clasificacion_sugerida = models.CharField(max_length=80, blank=True)
     clasificacion_confirmada = models.CharField(max_length=80, blank=True)
@@ -1505,6 +1505,8 @@ class ProcesoIngesta(models.Model):
         from django.core.exceptions import ValidationError
         if self.version_evidencia_id and self.version_evidencia.organizacion_id != self.organizacion_id:
             raise ValidationError({"version_evidencia": "La evidencia pertenece a otra organizacion."})
+        if self.tipo_ingesta in {self.TipoIngesta.TABULAR, self.TipoIngesta.DOCUMENTAL} and not self.version_evidencia_id:
+            raise ValidationError({"version_evidencia": "La ingesta tabular o documental requiere una versión de evidencia."})
         if self.fuente_datos_id and self.fuente_datos.organizacion_id != self.organizacion_id:
             raise ValidationError({"fuente_datos": "La fuente pertenece a otra organizacion."})
         if self.plantilla_mapeo_id and self.plantilla_mapeo.organizacion_id != self.organizacion_id:

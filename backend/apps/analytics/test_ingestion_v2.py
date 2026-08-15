@@ -3,8 +3,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from .models import (ActividadOperacional, EvidenciaObra, FuenteDatos, Observacion, Organizacion,
-                     PlantillaMapeo, ProcesoIngesta, RegistroEmision, UsuarioOrganizacion, VersionEvidencia)
+from .models import (ActividadOperacional, ActivoOperacional, EvidenciaObra, FuenteDatos, Observacion, Organizacion,
+                     PlantillaMapeo, ProcesoIngesta, RegistroEmision, UsuarioOrganizacion, Vehiculo, VersionEvidencia)
 
 
 class IngestionV2ApiTests(APITestCase):
@@ -15,10 +15,17 @@ class IngestionV2ApiTests(APITestCase):
         UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.organizacion)
         self.client.force_login(self.user)
         self.base = f"/api/organizaciones/{self.organizacion.organizacion_id}"
+        asset = ActivoOperacional.objects.create(organizacion=self.organizacion, codigo="LEG-15", nombre="Vehiculo legacy", tipo="vehiculo")
+        Vehiculo.objects.create(activo=asset, patente="LEG-15")
 
     def upload(self, content="viaje_id,km,toneladas\nV-001,132,18\nV-002,98,12\n", name="viajes.csv", fuente_nombre="Planilla logistica"):
+        lines = content.strip().splitlines()
+        if lines and "patente" not in lines[0].lower():
+            lines = [f"{lines[0]},patente", *[f"{line},LEG-15" for line in lines[1:]]]
+            content = "\n".join(lines) + "\n"
         file = SimpleUploadedFile(name, content.encode("utf-8"), content_type="text/csv")
-        return self.client.post(f"{self.base}/ingestas/", {"archivo": file, "fuente_nombre": fuente_nombre}, format="multipart")
+        return self.client.post(f"{self.base}/ingestas/", {"archivo": file, "fuente_nombre": fuente_nombre,
+                                                                  "destino_operacional": "transporte"}, format="multipart")
 
     def analyze_and_map(self, ingesta_id):
         analysis = self.client.post(f"{self.base}/ingestas/{ingesta_id}/analizar/", {}, format="json")
@@ -121,9 +128,10 @@ class IngestionV2ApiTests(APITestCase):
         self.client.post(f"{self.base}/ingestas/{first['id']}/confirmar/", {}, format="json")
         evidencia = ProcesoIngesta.objects.get(id=first["id"]).version_evidencia.evidencia
 
-        file = SimpleUploadedFile("viajes_julio_corregido.csv", b"viaje_id,km\nV-002,12\n", content_type="text/csv")
+        file = SimpleUploadedFile("viajes_julio_corregido.csv", b"viaje_id,km,patente\nV-002,12,LEG-15\n", content_type="text/csv")
         second = self.client.post(
-            f"{self.base}/ingestas/", {"archivo": file, "fuente_nombre": "Planilla logistica", "evidencia": evidencia.id}, format="multipart"
+            f"{self.base}/ingestas/", {"archivo": file, "fuente_nombre": "Planilla logistica", "evidencia": evidencia.id,
+                                        "destino_operacional": "transporte"}, format="multipart"
         ).data
         analysis = self.client.post(f"{self.base}/ingestas/{second['id']}/analizar/", {}, format="json")
         if analysis.data["estado"] != "listo_para_confirmar":

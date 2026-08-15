@@ -14,6 +14,14 @@ NUMERIC_CONCEPTS = {"distancia_recorrida_km", "masa_transportada_t", "combustibl
                     "combustible_consumido",
                     "energia_generada", "energia_autoconsumida", "energia_exportada", "cantidad_material", "cantidad_residuo",
                     "nivel_ruido", "superficie_intervenida", "superficie_impermeabilizada", "precipitacion_observada"}
+PROVENANCE_BY_INGESTION = {
+    "tabular": (Observacion.MetodoCaptura.IMPORTADO, Observacion.Naturaleza.DOCUMENTAL),
+    "documental": (Observacion.MetodoCaptura.IMPORTADO, Observacion.Naturaleza.DOCUMENTAL),
+    "manual_estructurado": (Observacion.MetodoCaptura.MANUAL, Observacion.Naturaleza.DECLARATIVO),
+    "api": (Observacion.MetodoCaptura.API, Observacion.Naturaleza.EXTRAIDO),
+    "telemetria": (Observacion.MetodoCaptura.INSTRUMENTAL, Observacion.Naturaleza.INSTRUMENTAL),
+    "sensor": (Observacion.MetodoCaptura.INSTRUMENTAL, Observacion.Naturaleza.INSTRUMENTAL),
+}
 
 
 def _timestamp(value, fallback):
@@ -48,6 +56,7 @@ def _activity(record, data, activity_type, name, timestamp):
 
 def _observations(record, activity, data, units, timestamp):
     process = record.proceso_ingesta
+    capture_method, nature = PROVENANCE_BY_INGESTION[process.tipo_ingesta]
     created = {}
     for concept, raw_value in data.items():
         if concept in CONTEXT_FIELDS or raw_value in (None, ""): continue
@@ -57,8 +66,9 @@ def _observations(record, activity, data, units, timestamp):
         observation = Observacion(
             organizacion=process.organizacion, actividad=activity, fuente=process.fuente_datos, concepto=concept,
             valor_numerico=numeric, valor_texto=textual, unidad=units.get(concept, ""), timestamp_observacion=timestamp,
-            metodo_captura=Observacion.MetodoCaptura.IMPORTADO, naturaleza=Observacion.Naturaleza.DOCUMENTAL,
-            evidencia=process.version_evidencia.evidencia, version_evidencia=process.version_evidencia,
+            metodo_captura=capture_method, naturaleza=nature,
+            evidencia=process.version_evidencia.evidencia if process.version_evidencia_id else None,
+            version_evidencia=process.version_evidencia if process.version_evidencia_id else None,
             registro_extraido=record,
         )
         observation.full_clean(); observation.save(); created[concept] = observation
@@ -72,26 +82,29 @@ def generic_handler(record, data, units):
     return activity, None, observations
 
 
+def resolve_transport_vehicle(process, data):
+    reference = str(data.get("vehiculo") or "").strip()
+    if not reference: return None, "campo_critico_faltante", "Debe identificar el vehículo del viaje."
+    candidates = Vehiculo.objects.filter(activo__organizacion=process.organizacion, patente__iexact=reference).select_related("activo")
+    if candidates.count() == 0: return None, "contexto_no_resuelto", f"No existe un vehículo para '{reference}'."
+    if candidates.count() > 1: return None, "contexto_ambiguo", f"Existen múltiples vehículos para '{reference}'."
+    return candidates.first(), "", ""
+
+
 def transport_handler(record, data, units):
     if not data.get("identificador_actividad"): raise ValueError("campo_critico_faltante|identificador_actividad|Falta el identificador del viaje.")
+    vehicle, code, detail = resolve_transport_vehicle(record.proceso_ingesta, data)
+    if not vehicle: raise ValueError(f"{code}|vehiculo|{detail}")
     timestamp = _timestamp(data.get("fecha_actividad"), record.proceso_ingesta.created_at)
     activity = _activity(record, data, ActividadOperacional.Tipo.TRANSPORTE, f"Viaje {data['identificador_actividad']}", timestamp)
     observations = _observations(record, activity, data, units, timestamp)
-    vehicle = None
-    if data.get("vehiculo"):
-        candidates = Vehiculo.objects.filter(activo__organizacion=record.proceso_ingesta.organizacion).filter(
-            patente__iexact=str(data["vehiculo"])).select_related("activo")
-        if candidates.count() == 1: vehicle = candidates.first()
-        elif candidates.count() > 1: raise ValueError("contexto_ambiguo|vehiculo|Existen múltiples vehículos candidatos.")
-    journey = None
-    if vehicle:
-        journey = ViajeOperacional.objects.create(
-            organizacion=record.proceso_ingesta.organizacion, actividad=activity, codigo=activity.codigo, vehiculo=vehicle,
-            origen_nombre=str(data.get("origen") or "No informado"), destino_nombre=str(data.get("destino_operacional") or "No informado"),
-            fecha_salida=timestamp, observacion_distancia=observations.get("distancia_recorrida_km"),
-            observacion_carga=observations.get("masa_transportada_t"), observacion_combustible=observations.get("combustible_consumido_l"),
-            metadata_tecnica={"registro_extraido_id": record.id},
-        )
+    journey = ViajeOperacional.objects.create(
+        organizacion=record.proceso_ingesta.organizacion, actividad=activity, codigo=activity.codigo, vehiculo=vehicle,
+        origen_nombre=str(data.get("origen") or "No informado"), destino_nombre=str(data.get("destino_operacional") or "No informado"),
+        fecha_salida=timestamp, observacion_distancia=observations.get("distancia_recorrida_km"),
+        observacion_carga=observations.get("masa_transportada_t"), observacion_combustible=observations.get("combustible_consumido_l"),
+        metadata_tecnica={"registro_extraido_id": record.id},
+    )
     return activity, journey, observations
 
 

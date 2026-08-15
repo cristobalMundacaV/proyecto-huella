@@ -1,13 +1,13 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
 from .models import Organizacion, PlantillaMapeo, ProcesoIngesta, UsuarioOrganizacion
 from .serializers_ingestion_v2 import PlantillaMapeoSerializer, ProcesoIngestaSerializer
 from .services.ingestion_v2 import (analizar_ingesta, confirmar_ingesta, crear_ingesta,
-                                    guardar_mapeo, preview_ingesta)
+                                    crear_ingesta_estructurada, guardar_mapeo, preview_ingesta)
 
 
 def _organizacion(request, organizacion_id):
@@ -23,7 +23,7 @@ def _proceso(organizacion, ingesta_id):
 
 
 @api_view(["GET", "POST"])
-@parser_classes([MultiPartParser, FormParser])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def ingestas(request, organizacion_id):
     organizacion = _organizacion(request, organizacion_id)
     if not organizacion: return Response({"detail": "Recurso no encontrado."}, status=404)
@@ -32,7 +32,17 @@ def ingestas(request, organizacion_id):
         return Response(ProcesoIngestaSerializer(queryset, many=True).data)
     upload = request.FILES.get("archivo") or request.FILES.get("file")
     if not upload:
-        return Response({"error": "Debe adjuntar un archivo CSV o XLSX."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            proceso = crear_ingesta_estructurada(
+                organizacion, request.data.get("payload"), fuente_id=request.data.get("fuente_datos"),
+                fuente_nombre=request.data.get("fuente_nombre", "Fuente estructurada"),
+                tipo_ingesta=request.data.get("tipo_ingesta", ""),
+                destino_operacional=request.data.get("destino_operacional", "actividad_generica"),
+                flujo=request.data.get("flujo", ""), contexto_confirmado=request.data.get("contexto", {}),
+            )
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(ProcesoIngestaSerializer(proceso).data, status=status.HTTP_201_CREATED)
     ingestion_type = request.data.get("tipo_ingesta", "tabular")
     tabular_extensions = (".csv", ".xlsx", ".xls")
     documentary_extensions = tabular_extensions + (".pdf", ".doc", ".docx", ".txt", ".png", ".jpg", ".jpeg")
@@ -43,7 +53,7 @@ def ingestas(request, organizacion_id):
             organizacion, upload, fuente_id=request.data.get("fuente_datos"),
             fuente_nombre=request.data.get("fuente_nombre", ""), evidencia_id=request.data.get("evidencia"),
             tipo_ingesta=request.data.get("tipo_ingesta", "tabular"),
-            destino_operacional=request.data.get("destino_operacional", "transporte"), flujo=request.data.get("flujo", ""),
+            destino_operacional=request.data.get("destino_operacional", "actividad_generica"), flujo=request.data.get("flujo", ""),
             clasificacion_confirmada=request.data.get("clasificacion_confirmada", ""),
         )
     except ValueError as exc:

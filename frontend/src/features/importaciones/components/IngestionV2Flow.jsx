@@ -14,7 +14,7 @@ export default function IngestionV2Flow({ organizacionId }) {
   const [preview, setPreview] = useState(null);
   const [result, setResult] = useState(null);
   const [sourceName, setSourceName] = useState("Fuente operacional");
-  const [destination, setDestination] = useState("transporte");
+  const [destination, setDestination] = useState("actividad_generica");
   const [flow, setFlow] = useState("energia");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
