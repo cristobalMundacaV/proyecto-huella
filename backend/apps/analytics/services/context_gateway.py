@@ -50,6 +50,11 @@ class ContextGateway:
             "conocimiento_comparable": compact_knowledge(problem),
         }
 
+    def work(self, work, organization):
+        self._tenant(work, organization)
+        from .construction_v1 import work_context
+        return work_context(work)
+
     def organization_memory(self, organization):
         now = timezone.now()
         rows = MemoriaOrganizacion.objects.filter(organizacion=organization, vigente_desde__lte=now).filter(Q(vigente_hasta__isnull=True) | Q(vigente_hasta__gte=now))

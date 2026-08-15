@@ -28,10 +28,11 @@ def journey_metrics(journey):
     return {"distancia_km": distance, "carga_t": load, "combustible_l": fuel, "toneladas_km": tkm, "utilizacion_carga_pct": utilization}
 
 
-def transport_indicators(organization, start=None, end=None):
+def transport_indicators(organization, start=None, end=None, work=None):
     rows = ViajeOperacional.objects.filter(organizacion=organization, estado=ViajeOperacional.Estado.COMPLETADO).select_related("vehiculo", "observacion_distancia", "observacion_carga", "observacion_combustible", "ruta")
     if start: rows = rows.filter(fecha_salida__date__gte=start)
     if end: rows = rows.filter(fecha_salida__date__lte=end)
+    if work is not None: rows = rows.filter(actividad__obra=work)
     total_km = loaded_km = empty_km = tonnes = tkm = fuel = Decimal("0")
     utilizations = []; count = empty_count = 0; route_empty = {}
     for journey in rows:

@@ -1,4 +1,4 @@
-import { Activity, BarChart3, Boxes, FileCheck2, Gauge, Layers3 } from "lucide-react";
+import { Activity, BarChart3, Boxes, Building2, FileCheck2, Gauge, Layers3 } from "lucide-react";
 import { formatNumber } from "@/shared/utils/formatters";
 import {
   constructionCategories,
@@ -29,6 +29,7 @@ const topSourceTones = ["danger", "warning", "info", "violet", "success"];
 const sourceDonutColors = ["#E11D48", "#EA580C", "#2563EB", "#7C3AED", "#059669", "#0891B2", "#65A30D", "#475569", "#DB2777", "#0F766E"];
 
 function ResumenTab({ balanceData, selectedObra }) {
+  const workContext = selectedObra.contexto_ambiental_v1 || {};
   const registros = selectedObra.registros_emision || [];
   const documents = selectedObra.evidencias || [];
   const totalEmissions = Number(
@@ -127,6 +128,9 @@ function ResumenTab({ balanceData, selectedObra }) {
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <WorkSummaryKpi icon={<Building2 />} label="Estás viendo" tone="success" value={workContext.obra?.nombre || selectedObra.nombre} />
+          <WorkSummaryKpi icon={<Layers3 />} label="Perfil de obra" tone="info" value={workContext.obra?.perfil || selectedObra.perfil_ambiental || "otro"} />
+          <WorkSummaryKpi icon={<Activity />} label="Ciclo ambiental" tone="warning" value={workContext.obra?.estado_ambiental || selectedObra.estado_ambiental || "configuración"} />
           <WorkSummaryKpi icon={<Gauge />} label="Emisiones de la obra" tone="danger" value={`${formatNumber(totalEmissions, 1)} kg CO2e`} />
           <WorkSummaryKpi icon={<BarChart3 />} label="kg CO2e/m²" tone="info" value={carbonIntensity != null ? `${formatNumber(carbonIntensity, 2)} kg CO2e/m²` : "Pendiente de superficie"} />
           <WorkSummaryKpi icon={<Boxes />} label="Categoría crítica" tone="warning" value={criticalCategory} />

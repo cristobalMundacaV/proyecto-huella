@@ -32,7 +32,7 @@ def inicializar_capacidades_preset(organizacion):
 
 
 def resumen_preparacion_ambiental(organizacion):
-    diagnostico = DiagnosticoAmbientalInicial.objects.filter(organizacion=organizacion).first()
+    diagnostico = DiagnosticoAmbientalInicial.objects.filter(organizacion=organizacion, obra__isnull=True).first()
     capacidades = CapacidadOrganizacion.objects.filter(organizacion=organizacion)
     configuradas = capacidades.exclude(estado=CapacidadOrganizacion.Estado.PENDIENTE_DIAGNOSTICO).count()
     aplicables = capacidades.exclude(estado__in=[CapacidadOrganizacion.Estado.PENDIENTE_DIAGNOSTICO, CapacidadOrganizacion.Estado.NO_APLICA])

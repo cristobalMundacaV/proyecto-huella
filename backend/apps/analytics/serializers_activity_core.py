@@ -95,7 +95,7 @@ class ActividadOperacionalSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ActividadOperacional
-        fields = ["id", "tipo", "codigo", "nombre", "timestamp_inicio", "timestamp_fin", "unidad_operacional",
+        fields = ["id", "obra", "tipo", "codigo", "nombre", "timestamp_inicio", "timestamp_fin", "unidad_operacional",
                   "unidad_nombre", "proceso_operacional", "proceso_nombre", "activos", "estado", "referencia_externa", "metadata",
                   "observaciones_count", "observaciones", "registros_emision_legacy_count", "created_at", "updated_at"]
         read_only_fields = ["id", "observaciones_count", "observaciones", "registros_emision_legacy_count", "created_at", "updated_at"]
@@ -104,10 +104,13 @@ class ActividadOperacionalSerializer(serializers.ModelSerializer):
         organizacion = self.context["organizacion"]
         unidad = attrs.get("unidad_operacional", getattr(self.instance, "unidad_operacional", None))
         proceso = attrs.get("proceso_operacional", getattr(self.instance, "proceso_operacional", None))
+        obra = attrs.get("obra", getattr(self.instance, "obra", None))
         if unidad and unidad.organizacion_id != organizacion.id:
             raise serializers.ValidationError({"unidad_operacional": "La unidad pertenece a otra organizacion."})
         if proceso and proceso.organizacion_id != organizacion.id:
             raise serializers.ValidationError({"proceso_operacional": "El proceso pertenece a otra organizacion."})
+        if obra and obra.organizacion_id != organizacion.id:
+            raise serializers.ValidationError({"obra": "La obra pertenece a otra organizacion."})
         if any(activo.organizacion_id != organizacion.id for activo in attrs.get("activos", [])):
             raise serializers.ValidationError({"activos": "Todos los activos deben pertenecer a la organizacion."})
         return attrs

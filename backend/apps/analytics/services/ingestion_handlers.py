@@ -46,6 +46,7 @@ def _activity(record, data, activity_type, name, timestamp):
         organizacion=process.organizacion, tipo=activity_type, codigo=f"ING-{process.id}-{record.numero_fila}"[:100],
         nombre=name, timestamp_inicio=timestamp, timestamp_fin=_timestamp(data["periodo_fin"], timestamp) if data.get("periodo_fin") else None,
         estado=ActividadOperacional.Estado.REGISTRADA, referencia_externa=reference,
+        obra_id=context.get("obra_id"),
         unidad_operacional_id=context.get("unidad_operacional_id"), proceso_operacional_id=context.get("proceso_operacional_id"),
         metadata={"proceso_ingesta_id": process.id, "registro_extraido_id": record.id},
     )
@@ -126,7 +127,8 @@ def material_handler(record, data, units):
     event = EventoMaterial.objects.create(
         organizacion=process.organizacion, material=material, lote=lot, actividad=activity, tipo=event_type,
         fecha_hora=timestamp, observacion_cantidad=observations.get("cantidad_material"), fuente=process.fuente_datos,
-        evidencia=process.version_evidencia.evidencia, version_evidencia=process.version_evidencia,
+        obra=activity.obra, evidencia=process.version_evidencia.evidencia if process.version_evidencia_id else None,
+        version_evidencia=process.version_evidencia if process.version_evidencia_id else None,
         metadata={"registro_extraido_id": record.id},
     )
     return activity, event, observations

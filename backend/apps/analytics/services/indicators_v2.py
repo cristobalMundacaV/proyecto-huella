@@ -9,26 +9,27 @@ def generate_indicator_value(indicator, start, end):
     impacts = ImpactoAmbiental.objects.filter(
         organizacion=indicator.organizacion, timestamp__date__gte=start, timestamp__date__lte=end,
     )
+    observations = Observacion.objects.filter(
+        organizacion=indicator.organizacion, timestamp_observacion__date__gte=start, timestamp_observacion__date__lte=end,
+    )
+    if indicator.alcance == indicator.Alcance.OBRA:
+        impacts = impacts.filter(actividad__obra=indicator.obra)
+        observations = observations.filter(actividad__obra=indicator.obra)
     numerator = impacts.aggregate(total=Sum("valor"))["total"] or Decimal("0")
     if indicator.tipo == "intensidad":
-        denominator = Observacion.objects.filter(
-            organizacion=indicator.organizacion, concepto=indicator.origen_denominador,
-            timestamp_observacion__date__gte=start, timestamp_observacion__date__lte=end,
-        ).aggregate(total=Sum("valor_numerico"))["total"] or Decimal("0")
+        denominator = observations.filter(concepto=indicator.origen_denominador).aggregate(total=Sum("valor_numerico"))["total"] or Decimal("0")
         if not denominator:
             raise ValueError("No existe denominador para el periodo.")
         result = numerator / denominator
     elif indicator.origen_numerador == "impactos_ambientales":
         result = numerator
     else:
-        result = Observacion.objects.filter(
-            organizacion=indicator.organizacion, concepto=indicator.origen_numerador,
-            timestamp_observacion__date__gte=start, timestamp_observacion__date__lte=end,
-        ).aggregate(total=Sum("valor_numerico"))["total"] or Decimal("0")
+        result = observations.filter(concepto=indicator.origen_numerador).aggregate(total=Sum("valor_numerico"))["total"] or Decimal("0")
     version = ValorIndicador.objects.filter(indicador=indicator, periodo_inicio=start, periodo_fin=end).count() + 1
     return ValorIndicador.objects.create(
         indicador=indicator, periodo_inicio=start, periodo_fin=end, valor=result, unidad=indicator.unidad,
         fuente_calculo="impactos_y_observaciones_v2", version=version,
+        metadata={"alcance": indicator.alcance, "obra_id": indicator.obra_id},
     )
 
 

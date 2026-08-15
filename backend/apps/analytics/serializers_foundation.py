@@ -22,7 +22,7 @@ class DiagnosticoAmbientalSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DiagnosticoAmbientalInicial
-        fields = ["id", "estado", "fecha_inicio", "fecha_finalizacion", "objetivo_principal",
+        fields = ["id", "obra", "estado", "fecha_inicio", "fecha_finalizacion", "objetivo_principal",
                   "descripcion_contexto", "observaciones", "responsable", "elementos", "created_at", "updated_at"]
         read_only_fields = ["id", "created_at", "updated_at"]
 
@@ -31,6 +31,11 @@ class DiagnosticoAmbientalSerializer(serializers.ModelSerializer):
         if responsable and not responsable.organizaciones_perfil.filter(organizacion=organizacion, activo=True).exists():
             raise serializers.ValidationError("El responsable debe pertenecer a la organizacion.")
         return responsable
+
+    def validate_obra(self, obra):
+        if obra and obra.organizacion_id != self.context["organizacion"].id:
+            raise serializers.ValidationError("La obra debe pertenecer a la organizacion.")
+        return obra
 
     def _guardar_elementos(self, diagnostico, elementos):
         if elementos is None:

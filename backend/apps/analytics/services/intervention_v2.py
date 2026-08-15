@@ -12,6 +12,7 @@ from ..models import (AccionMejoraAmbiental, CicloReevaluacionProblematica,
 def _scope_snapshot(problem):
     scopes = problem.alcances_v2.all()
     return {
+        "obra_id": problem.obra_id,
         "unidades": list(scopes.exclude(unidad_operacional=None).values_list("unidad_operacional_id", flat=True)),
         "procesos": list(scopes.exclude(proceso_operacional=None).values_list("proceso_operacional_id", flat=True)),
         "activos": list(scopes.exclude(activo_operacional=None).values_list("activo_operacional_id", flat=True)),
@@ -22,6 +23,9 @@ def _scope_snapshot(problem):
 
 def _snapshot(problem, action, cycle_number, kind, frozen=False):
     links = list(problem.indicadores_v2.select_related("indicador"))
+    incompatible = [link.indicador.codigo for link in links if link.indicador.obra_id != problem.obra_id]
+    if incompatible:
+        raise ValidationError(f"Los indicadores no comparten el alcance de obra de la problematica: {', '.join(incompatible)}.")
     snapshot = SnapshotIntervencion.objects.create(
         problematica=problem, accion=action, ciclo=cycle_number, tipo=kind, fecha=timezone.localdate(),
         alcance_congelado=_scope_snapshot(problem),

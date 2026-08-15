@@ -76,6 +76,8 @@ def build_dossier_references(problem):
     observation_rows = problem.organizacion.observaciones_operacionales.filter(actividad_id__in=activity_ids)
     return {
         "problematica": problem.id,
+        "obra": ({"id": problem.obra_id, "codigo": problem.obra.codigo_obra,
+                  "nombre": problem.obra.nombre, "perfil": problem.obra.perfil_ambiental} if problem.obra_id else None),
         "alcance": list(problem.alcances_v2.values_list("id", flat=True)),
         "indicadores": list(problem.indicadores_v2.values_list("indicador_id", flat=True)),
         "actividades": activity_ids,

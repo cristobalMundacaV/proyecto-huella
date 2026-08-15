@@ -23,16 +23,18 @@ def capacidades_disponibles(request):
 @api_view(["GET", "POST", "PATCH"])
 def diagnostico_ambiental(request, organizacion_id):
     organizacion = _organizacion(organizacion_id)
-    diagnostico = DiagnosticoAmbientalInicial.objects.filter(organizacion=organizacion).first()
+    obra_id = request.query_params.get("obra") or request.data.get("obra")
+    obra = get_object_or_404(organizacion.obras, id=obra_id) if obra_id else None
+    diagnostico = DiagnosticoAmbientalInicial.objects.filter(organizacion=organizacion, obra=obra).first()
     if request.method == "GET":
         return Response(DiagnosticoAmbientalSerializer(diagnostico).data if diagnostico else None)
     if request.method == "POST" and diagnostico:
-        return Response({"error": "La organizacion ya tiene un diagnostico."}, status=status.HTTP_409_CONFLICT)
+        return Response({"error": "El alcance ya tiene un diagnostico."}, status=status.HTTP_409_CONFLICT)
     if request.method == "PATCH" and not diagnostico:
         return Response({"error": "Diagnostico no encontrado."}, status=status.HTTP_404_NOT_FOUND)
     serializer = DiagnosticoAmbientalSerializer(diagnostico, data=request.data, partial=request.method == "PATCH", context={"organizacion": organizacion})
     serializer.is_valid(raise_exception=True)
-    serializer.save(organizacion=organizacion)
+    serializer.save(organizacion=organizacion, obra=obra)
     return Response(serializer.data, status=status.HTTP_201_CREATED if request.method == "POST" else status.HTTP_200_OK)
 
 

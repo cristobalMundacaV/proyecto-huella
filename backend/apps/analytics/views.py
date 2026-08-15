@@ -623,6 +623,8 @@ def obra_detail(request, codigo_obra):
             obras=Obra.objects.filter(pk=obra.pk),
             evidencias=obra.evidencias.all(),
         )
+        from .services.construction_v1 import work_context
+        payload["contexto_ambiental_v1"] = work_context(obra)
         return Response(payload)
     if request.method == "DELETE":
         obra.delete()

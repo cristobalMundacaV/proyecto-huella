@@ -45,7 +45,7 @@ class IndicadorSerializer(serializers.ModelSerializer):
         return ValorIndicadorSerializer(value).data if value else None
     class Meta:
         model = IndicadorAmbiental
-        fields = ["id", "codigo", "nombre", "tipo", "unidad", "descripcion", "origen_numerador", "origen_denominador", "direccion_deseable", "activo", "valor_actual", "created_at", "updated_at"]
+        fields = ["id", "codigo", "nombre", "tipo", "alcance", "obra", "unidad", "descripcion", "origen_numerador", "origen_denominador", "direccion_deseable", "activo", "valor_actual", "created_at", "updated_at"]
 
 
 class LineaBaseSerializer(serializers.ModelSerializer):

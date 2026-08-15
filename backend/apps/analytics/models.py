@@ -123,7 +123,8 @@ class DiagnosticoAmbientalInicial(models.Model):
         COMPLETADO = "completado", "Completado"
         REQUIERE_ACTUALIZACION = "requiere_actualizacion", "Requiere actualizacion"
 
-    organizacion = models.OneToOneField(Organizacion, on_delete=models.CASCADE, related_name="diagnostico_ambiental")
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="diagnosticos_ambientales")
+    obra = models.ForeignKey("Obra", on_delete=models.CASCADE, null=True, blank=True, related_name="diagnosticos_ambientales")
     estado = models.CharField(max_length=30, choices=Estado.choices, default=Estado.PENDIENTE, db_index=True)
     fecha_inicio = models.DateField(null=True, blank=True)
     fecha_finalizacion = models.DateField(null=True, blank=True)
@@ -133,6 +134,17 @@ class DiagnosticoAmbientalInicial(models.Model):
     responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="diagnosticos_ambientales")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organizacion"], condition=models.Q(obra__isnull=True), name="unique_diagnostico_general_org"),
+            models.UniqueConstraint(fields=["organizacion", "obra"], condition=models.Q(obra__isnull=False), name="unique_diagnostico_obra_org"),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.obra_id and self.obra.organizacion_id != self.organizacion_id:
+            raise ValidationError({"obra": "La obra debe pertenecer a la misma organizacion."})
 
 
 class ElementoDiagnosticoAmbiental(models.Model):
@@ -398,6 +410,7 @@ class ActividadOperacional(models.Model):
         ANULADA = "anulada", "Anulada"
 
     organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="actividades_operacionales")
+    obra = models.ForeignKey("Obra", on_delete=models.SET_NULL, null=True, blank=True, related_name="actividades_operacionales")
     tipo = models.CharField(max_length=40, choices=Tipo.choices, default=Tipo.OTRO, db_index=True)
     codigo = models.CharField(max_length=100)
     nombre = models.CharField(max_length=180)
@@ -424,6 +437,8 @@ class ActividadOperacional(models.Model):
             errors["unidad_operacional"] = "La unidad debe pertenecer a la misma organizacion."
         if self.proceso_operacional_id and self.proceso_operacional.organizacion_id != self.organizacion_id:
             errors["proceso_operacional"] = "El proceso debe pertenecer a la misma organizacion."
+        if self.obra_id and self.obra.organizacion_id != self.organizacion_id:
+            errors["obra"] = "La obra debe pertenecer a la misma organizacion."
         if self.timestamp_fin and self.timestamp_inicio and self.timestamp_fin < self.timestamp_inicio:
             errors["timestamp_fin"] = "El fin no puede ser anterior al inicio."
         if errors:
@@ -707,6 +722,10 @@ class EventoMaterial(models.Model):
                 errors[field] = "La referencia debe pertenecer a la misma organizacion."
         if self.actividad_id and self.actividad.tipo != ActividadOperacional.Tipo.MOVIMIENTO_MATERIAL:
             errors["actividad"] = "La actividad debe ser un movimiento de material."
+        if self.actividad_id and self.obra_id and self.actividad.obra_id not in {None, self.obra_id}:
+            errors["obra"] = "La obra debe coincidir con el contexto de la actividad."
+        if self.actividad_id and self.actividad.obra_id and not self.obra_id:
+            errors["obra"] = "El evento debe heredar la obra de la actividad."
         if self.proceso_id and self.actividad_id and self.actividad.proceso_operacional_id not in {None, self.proceso_id}:
             errors["proceso"] = "El proceso debe coincidir con el contexto de la actividad."
         if self.lote_id and self.lote.material_id != self.material_id:
@@ -856,6 +875,10 @@ class RegistroFlujoAmbiental(models.Model):
         expected = self.EXPECTED_ACTIVITY_TYPES.get(self.flujo)
         if self.actividad_id and expected and self.actividad.tipo != expected:
             errors["actividad"] = "La actividad no corresponde al flujo ambiental declarado."
+        if self.actividad_id and self.obra_id and self.actividad.obra_id not in {None, self.obra_id}:
+            errors["obra"] = "La obra debe coincidir con el contexto de la actividad."
+        if self.actividad_id and self.actividad.obra_id and not self.obra_id:
+            errors["obra"] = "El registro debe heredar la obra de la actividad."
         required_scope = {self.Granularidad.INSTALACION: "unidad_operacional", self.Granularidad.OBRA: "obra", self.Granularidad.PROCESO: "proceso", self.Granularidad.ACTIVO: "activo", self.Granularidad.PUNTO: "punto"}
         required = required_scope.get(self.granularidad)
         if required and not getattr(self, f"{required}_id"):
@@ -1013,11 +1036,28 @@ class Obra(models.Model):
         PAUSADA = "pausada", "Pausada"
         FINALIZADA = "finalizada", "Finalizada"
 
+    class PerfilAmbiental(models.TextChoices):
+        EDIFICACION = "edificacion", "Edificacion"
+        VIAL = "vial", "Vial"
+        PUENTE_INFRAESTRUCTURA = "puente_infraestructura", "Puente o infraestructura"
+        URBANIZACION = "urbanizacion", "Urbanizacion"
+        INDUSTRIAL = "industrial", "Industrial"
+        OTRO = "otro", "Otro"
+
+    class EstadoAmbiental(models.TextChoices):
+        CONFIGURACION = "configuracion", "Configuracion"
+        MONITOREO = "monitoreo", "Monitoreo"
+        REQUIERE_ATENCION = "requiere_atencion", "Requiere atencion"
+        MEJORA_EN_CURSO = "mejora_en_curso", "Mejora en curso"
+        CIERRE_PENDIENTE = "cierre_pendiente", "Cierre pendiente"
+        CERRADA = "cerrada", "Cerrada"
+
     codigo_obra = models.CharField(max_length=80, unique=True, blank=True)
     organizacion = models.ForeignKey(Organizacion, on_delete=models.PROTECT, related_name="obras")
     etapa_principal = models.ForeignKey(EtapaObra, on_delete=models.PROTECT, related_name="obras", null=True, blank=True)
     nombre = models.CharField(max_length=180)
     tipo_proyecto = models.CharField(max_length=40, choices=TipoProyecto.choices, default=TipoProyecto.OTRO)
+    perfil_ambiental = models.CharField(max_length=40, choices=PerfilAmbiental.choices, default=PerfilAmbiental.OTRO, db_index=True)
     fecha_inicio = models.DateField()
     fecha_termino_estimada = models.DateField(null=True, blank=True)
     superficie_m2 = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
@@ -1026,6 +1066,9 @@ class Obra(models.Model):
     comuna = models.CharField(max_length=120, blank=True)
     mandante = models.CharField(max_length=180, blank=True)
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.EN_EJECUCION)
+    estado_ambiental = models.CharField(max_length=30, choices=EstadoAmbiental.choices, default=EstadoAmbiental.CONFIGURACION, db_index=True)
+    fecha_cierre_ambiental = models.DateField(null=True, blank=True)
+    observaciones_cierre_ambiental = models.TextField(blank=True)
     descripcion = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1930,8 +1973,13 @@ class IndicadorAmbiental(models.Model):
         MENOR = "menor_es_mejor", "Menor es mejor"
         MAYOR = "mayor_es_mejor", "Mayor es mejor"
         NEUTRAL = "neutral", "Neutral"
+    class Alcance(models.TextChoices):
+        ORGANIZACION = "organizacion", "Organizacion"
+        OBRA = "obra", "Obra"
 
     organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="indicadores_ambientales_v2")
+    alcance = models.CharField(max_length=20, choices=Alcance.choices, default=Alcance.ORGANIZACION, db_index=True)
+    obra = models.ForeignKey(Obra, on_delete=models.PROTECT, null=True, blank=True, related_name="indicadores_ambientales")
     codigo = models.SlugField(max_length=120)
     nombre = models.CharField(max_length=200)
     tipo = models.CharField(max_length=20, choices=Tipo.choices)
@@ -1946,6 +1994,17 @@ class IndicadorAmbiental(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["organizacion", "codigo"], name="unique_indicador_codigo_org")]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        errors = {}
+        if self.alcance == self.Alcance.OBRA and not self.obra_id:
+            errors["obra"] = "El indicador con alcance obra requiere una obra."
+        if self.alcance == self.Alcance.ORGANIZACION and self.obra_id:
+            errors["obra"] = "Un indicador corporativo no puede quedar asociado a una obra."
+        if self.obra_id and self.obra.organizacion_id != self.organizacion_id:
+            errors["obra"] = "La obra debe pertenecer a la organizacion."
+        if errors: raise ValidationError(errors)
 
 
 class ValorIndicador(models.Model):

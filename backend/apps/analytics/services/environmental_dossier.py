@@ -26,6 +26,8 @@ def build_processed_dossier(problem):
     gap = current - problem.objetivo_meta if current is not None else None
     return {
         "organizacion": {"id": problem.organizacion.organizacion_id, "nombre": problem.organizacion.nombre, "preset": problem.organizacion.preset},
+        "obra": ({"id": problem.obra_id, "codigo": problem.obra.codigo_obra, "nombre": problem.obra.nombre,
+                  "perfil": problem.obra.perfil_ambiental} if problem.obra_id else None),
         "problema": {"id": problem.id, "titulo": problem.titulo, "descripcion": problem.descripcion[:1000], "area": problem.area_operacional, "unidad_operacional": problem.unidad_operacional, "estado": problem.estado},
         "evaluacion": {"riesgo": problem.nivel_riesgo, "indicador": problem.indicador, "unidad": problem.unidad_indicador, "valor_inicial": problem.valor_inicial, "valor_actual": current, "meta": problem.objetivo_meta, "brecha": gap, "mejora_absoluta": problem.mejora_absoluta, "mejora_porcentaje": problem.mejora_porcentaje, "resultado": problem.resultado_evaluacion},
         "escalamiento": {"requiere_evaluacion_profesional": problem.requiere_evaluacion_profesional, "criterios": problem.criterios_escalamiento, "fecha": problem.escalada_at},
