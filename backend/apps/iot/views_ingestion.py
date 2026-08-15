@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from django.db.models import Avg, Sum
+from django.db.models import Avg, Count
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -31,11 +31,11 @@ def resolve_organizacion(request):
     )
 
 
-def top_emisiones(queryset, group_field):
+def top_lecturas(queryset, group_field):
     return (
         queryset.values(group_field)
-        .annotate(emisiones=Sum("co2e_estimado"))
-        .order_by("-emisiones", group_field)
+        .annotate(lecturas=Count("id"))
+        .order_by("-lecturas", group_field)
         .first()
     )
 
@@ -157,21 +157,20 @@ def kpis_operacionales(request):
         queryset = queryset.filter(organizacion=organizacion)
 
     ultimas_24h = queryset.filter(timestamp_sensor__gte=timezone.now() - timedelta(hours=24))
-    agregados = ultimas_24h.aggregate(emisiones_totales=Sum("co2e_estimado"), consumo_promedio=Avg("valor"))
-    tipo_top = top_emisiones(ultimas_24h, "tipo")
-    dispositivo_top = top_emisiones(ultimas_24h, "dispositivo__dispositivo_id")
+    agregados = ultimas_24h.aggregate(valor_promedio=Avg("valor"))
+    tipo_top = top_lecturas(ultimas_24h, "tipo")
+    dispositivo_top = top_lecturas(ultimas_24h, "dispositivo__dispositivo_id")
     ultima = ultimas_24h.order_by("-timestamp_sensor").first()
 
     return Response(
         {
             "total_registros_24h": ultimas_24h.count(),
-            "emisiones_24h_kg_co2e": float(agregados["emisiones_totales"] or 0),
-            "consumo_promedio_24h": float(agregados["consumo_promedio"] or 0),
+            "valor_promedio_24h": float(agregados["valor_promedio"] or 0),
             "dispositivos_activos_24h": ultimas_24h.values("dispositivo").distinct().count(),
-            "tipo_mayor_emision_24h": tipo_top["tipo"] if tipo_top else None,
-            "tipo_mayor_emision_24h_kg_co2e": float(tipo_top["emisiones"] or 0) if tipo_top else 0,
-            "dispositivo_mayor_emision_24h": dispositivo_top["dispositivo__dispositivo_id"] if dispositivo_top else None,
-            "dispositivo_mayor_emision_24h_kg_co2e": float(dispositivo_top["emisiones"] or 0) if dispositivo_top else 0,
+            "tipo_mas_frecuente_24h": tipo_top["tipo"] if tipo_top else None,
+            "tipo_mas_frecuente_24h_lecturas": tipo_top["lecturas"] if tipo_top else 0,
+            "dispositivo_mas_activo_24h": dispositivo_top["dispositivo__dispositivo_id"] if dispositivo_top else None,
+            "dispositivo_mas_activo_24h_lecturas": dispositivo_top["lecturas"] if dispositivo_top else 0,
             "ultima_actualizacion": ultima.timestamp_sensor.isoformat() if ultima else None,
         }
     )

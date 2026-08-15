@@ -5,7 +5,8 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from apps.iot.models import LecturaSensorV2
+from apps.iot.models import DispositivoSensor, LecturaSensorV2
+from apps.iot.services_v2 import registrar_lectura
 
 from .models import (ActividadOperacional, ActivoOperacional, CalculoAmbiental, FactorAmbiental,
                      FormulaAmbiental, ImpactoAmbiental, InputCalculoAmbiental, MetodologiaAmbiental,
@@ -199,3 +200,20 @@ class CalculationV2Tests(APITestCase):
 
     def test_iot_v2_no_contiene_calculo_ambiental(self):
         self.assertFalse(hasattr(LecturaSensorV2, "co2e_estimado"))
+
+    def test_observacion_sensor_puede_alimentar_calculo_gobernado_posterior(self):
+        sensor = DispositivoSensor.objects.create(
+            dispositivo_id="FUEL-GOV-01", nombre="Caudalimetro de prueba",
+            organizacion=self.org, tipo_sensor=DispositivoSensor.TipoSensor.COMBUSTIBLE,
+        )
+        lectura = registrar_lectura(sensor, {
+            "actividad": self.activity,
+            "concepto": "combustible_consumido_l",
+            "valor_numerico": Decimal("42"),
+            "unidad": "L",
+            "timestamp": timezone.now(),
+        })
+        calculo, _ = calculate_activity(self.activity)
+        self.assertEqual(calculo.resultado, Decimal("84.0000000000"))
+        self.assertEqual(calculo.inputs.get().observacion, lectura.observacion)
+        self.assertEqual(RegistroEmision.objects.count(), 0)

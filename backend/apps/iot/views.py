@@ -1,6 +1,6 @@
 from datetime import datetime, time, timedelta
 
-from django.db.models import Avg, Sum
+from django.db.models import Avg, Count
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -53,11 +53,11 @@ def lecturas_organizacion_hoy_queryset(organizacion=None, request=None):
     return queryset
 
 
-def top_emisiones(queryset, group_field):
+def top_lecturas(queryset, group_field):
     return (
         queryset.values(group_field)
-        .annotate(emisiones=Sum("co2e_estimado"))
-        .order_by("-emisiones", group_field)
+        .annotate(lecturas=Count("id"))
+        .order_by("-lecturas", group_field)
         .first()
     )
 
@@ -81,30 +81,28 @@ def kpis(request):
     organizacion = resolve_organizacion(request)
     queryset = lecturas_organizacion_hoy_queryset(organizacion, request)
     agregados = queryset.aggregate(
-        emisiones_totales=Sum("co2e_estimado"),
-        consumo_promedio=Avg("valor"),
+        valor_promedio=Avg("valor"),
     )
-    etapa_top = top_emisiones(queryset, "etapa_obra")
-    fuente_top = top_emisiones(queryset, "tipo")
+    etapa_top = top_lecturas(queryset, "etapa_obra")
+    fuente_top = top_lecturas(queryset, "tipo")
     ultima = queryset.order_by("-fecha_registro").first()
 
     return Response(
         {
             "total_lecturas": queryset.count(),
-            "emisiones_totales_kg_co2e": float(agregados["emisiones_totales"] or 0),
-            "consumo_promedio": float(agregados["consumo_promedio"] or 0),
+            "valor_promedio": float(agregados["valor_promedio"] or 0),
             "sensores_activos": queryset.values("sensor").distinct().count(),
-            "etapa_mayor_emision_hoy": (
+            "etapa_mas_lecturas_hoy": (
                 etapa_top["etapa_obra"] if etapa_top else None
             ),
-            "etapa_mayor_emision_hoy_kg_co2e": (
-                float(etapa_top["emisiones"] or 0) if etapa_top else 0
+            "etapa_mas_lecturas_hoy_total": (
+                etapa_top["lecturas"] if etapa_top else 0
             ),
-            "fuente_emision_mayor_emision_hoy": (
+            "tipo_mas_frecuente_hoy": (
                 fuente_top["tipo"] if fuente_top else None
             ),
-            "fuente_emision_mayor_emision_hoy_kg_co2e": (
-                float(fuente_top["emisiones"] or 0) if fuente_top else 0
+            "tipo_mas_frecuente_hoy_total": (
+                fuente_top["lecturas"] if fuente_top else 0
             ),
             "ultima_actualizacion": (
                 ultima.fecha_registro.isoformat() if ultima else None

@@ -33,25 +33,14 @@ class LecturaSensor(models.Model):
         Tipo.HUMEDAD: "%",
     }
 
-    FACTORES_CO2E = {
-        Tipo.DIESEL_LITROS: Decimal("2.68"),
-        Tipo.GASOLINA_LITROS: Decimal("2.31"),
-        Tipo.ELECTRICIDAD_KWH: Decimal("0.39"),
-        Tipo.HORAS_MAQUINARIA: Decimal("5.50"),
-        Tipo.HORAS_ENCENDIDO: Decimal("5.50"),
-        Tipo.AGUA_LITROS: Decimal("0"),
-        Tipo.GPS_EVENTO: Decimal("0"),
-        Tipo.TEMPERATURA: Decimal("0"),
-        Tipo.HUMEDAD: Decimal("0"),
-    }
-
     organizacion = models.CharField(max_length=180)
     etapa_obra = models.CharField(max_length=180)
     sensor = models.CharField(max_length=120)
     tipo = models.CharField(max_length=40, choices=Tipo.choices)
     valor = models.DecimalField(max_digits=12, decimal_places=3)
     unidad = models.CharField(max_length=40)
-    co2e_estimado = models.DecimalField(max_digits=14, decimal_places=3)
+    # Campo legacy: se conserva para leer historia, pero nuevas lecturas no calculan CO2e.
+    co2e_estimado = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     fecha_registro = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -65,8 +54,6 @@ class LecturaSensor(models.Model):
 
     def save(self, *args, **kwargs):
         self.unidad = self.UNIDADES_POR_TIPO.get(self.tipo, "")
-        factor = self.FACTORES_CO2E.get(self.tipo, Decimal("0"))
-        self.co2e_estimado = (self.valor or Decimal("0")) * factor
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -261,6 +248,7 @@ class RegistroSensor(models.Model):
         RECIBIDO = "recibido", "Recibido"
         CONSOLIDADO = "consolidado", "Consolidado como emision"
         SOLO_TELEMETRIA = "solo_telemetria", "Solo telemetria"
+        HECHO_OPERACIONAL = "hecho_operacional", "Hecho operacional V2"
         ERROR = "error", "Error"
 
     external_id = models.CharField(max_length=120, blank=True)
@@ -301,9 +289,11 @@ class RegistroSensor(models.Model):
     factor_emision_usado = models.DecimalField(
         max_digits=12,
         decimal_places=6,
-        default=Decimal("0"),
+        null=True,
+        blank=True,
     )
-    co2e_estimado = models.DecimalField(max_digits=14, decimal_places=3, editable=False)
+    # Campos legacy: sólo preservan valores históricos; el pipeline V2 no los calcula.
+    co2e_estimado = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True, editable=False)
     timestamp_sensor = models.DateTimeField(default=timezone.now, db_index=True)
     received_at = models.DateTimeField(auto_now_add=True)
     estado_procesamiento = models.CharField(
@@ -316,6 +306,13 @@ class RegistroSensor(models.Model):
         RegistroEmision,
         on_delete=models.SET_NULL,
         related_name="registros_iot_origen",
+        null=True,
+        blank=True,
+    )
+    lectura_v2 = models.OneToOneField(
+        LecturaSensorV2,
+        on_delete=models.SET_NULL,
+        related_name="registro_ingesta",
         null=True,
         blank=True,
     )
@@ -341,26 +338,13 @@ class RegistroSensor(models.Model):
                 self.obra = self.dispositivo.obra
             if not self.etapa_id:
                 self.etapa = self.dispositivo.etapa
-            if not self.factor_catalogo_id and self.dispositivo.factor_emision_default_id:
-                self.factor_catalogo = self.dispositivo.factor_emision_default
-
         if not self.unidad:
             self.unidad = LecturaSensor.UNIDADES_POR_TIPO.get(self.tipo, "")
-        if self.factor_catalogo_id:
-            self.factor_emision_usado = self.factor_catalogo.factor_emision
-        elif not self.factor_emision_usado:
-            self.factor_emision_usado = LecturaSensor.FACTORES_CO2E.get(self.tipo, Decimal("0"))
-
-        self.co2e_estimado = (self.valor or Decimal("0")) * (self.factor_emision_usado or Decimal("0"))
         super().save(*args, **kwargs)
 
     @property
     def es_emision_consolidable(self):
-        return self.factor_emision_usado > 0 and self.tipo not in {
-            LecturaSensor.Tipo.TEMPERATURA,
-            LecturaSensor.Tipo.HUMEDAD,
-            LecturaSensor.Tipo.GPS_EVENTO,
-        }
+        return False
 
     def __str__(self):
         return f"{self.dispositivo.dispositivo_id} - {self.tipo} - {self.valor} {self.unidad}"

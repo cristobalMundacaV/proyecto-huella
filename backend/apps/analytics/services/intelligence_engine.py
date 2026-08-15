@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from django.db.models import Q, Sum
+from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
 from apps.iot.models import RegistroSensor
@@ -30,27 +30,25 @@ def build_iot_context(organizacion_id=None, hours=24):
             | Q(organizacion__nombre__iexact=organizacion_id)
         ).distinct()
 
-    total = queryset.aggregate(total=Sum("co2e_estimado"))["total"]
     por_tipo = {
-        item["tipo"]: to_float(item["total"])
-        for item in queryset.values("tipo").annotate(total=Sum("co2e_estimado")).order_by("-total")
+        item["tipo"]: item["total"]
+        for item in queryset.values("tipo").annotate(total=Count("id")).order_by("-total")
     }
     top_dispositivos = [
         {
             "dispositivo_id": item["dispositivo__dispositivo_id"],
             "nombre": item["dispositivo__nombre"],
-            "emisiones_kg_co2e": round(to_float(item["total"]), 3),
+            "lecturas": item["total"],
         }
         for item in queryset.values("dispositivo__dispositivo_id", "dispositivo__nombre")
-        .annotate(total=Sum("co2e_estimado"))
+        .annotate(total=Count("id"))
         .order_by("-total")[:5]
     ]
     ultimo = queryset.order_by("-timestamp_sensor").first()
     return {
         "ventana_horas": hours,
         "registros_iot": queryset.count(),
-        "emisiones_iot_kg_co2e": round(to_float(total), 3),
-        "emisiones_iot_por_tipo": por_tipo,
+        "lecturas_iot_por_tipo": por_tipo,
         "top_dispositivos_iot": top_dispositivos,
         "ultima_lectura_iot": ultimo.timestamp_sensor.isoformat() if ultimo else None,
     }

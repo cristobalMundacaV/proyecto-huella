@@ -164,10 +164,32 @@ Auditoría realizada sobre `5ff2765` y el estado de trabajo de Fase 17. La clasi
 - Conviven nombres legacy (`RegistroEmision`, `TransporteObra`, `MaterialConstruccion`) por compatibilidad; no son autoridad del core nuevo.
 - Algunos contextos especializados se exponen como secciones de paquetes mayores en vez de endpoints individuales.
 
+## Correctivo final IoT y reauditoría dirigida
+
+El defecto que permitía al stack IoT legacy calcular CO2e con factores locales y crear `RegistroEmision` validado quedó corregido. La ruta productiva es ahora:
+
+`DispositivoSensor → RegistroSensor/raw → LecturaSensorV2 → Observacion → FuenteDatos/ActividadOperacional`.
+
+`RegistroSensor.lectura_v2` conserva el enlace inequívoco entre el mensaje recibido y el hecho operacional. La observación registra método y naturaleza instrumentales, tenant, obra mediante el dispositivo, timestamp, concepto, valor, unidad y calidad técnica. Los campos `co2e_estimado`, `factor_emision_usado`, `factor_catalogo` y `registro_emision` permanecen únicamente para leer historia legacy; son nullable y no se completan en nuevas ingestas. Los KPI IoT nuevos informan lecturas, valores, dispositivos y frecuencia, no emisiones legacy.
+
+Reauditoría específica:
+
+- RF-021/RF-022: CUMPLIDO. Provenance sensor navegable y clasificación instrumental explícita.
+- RF-026/RF-027: CUMPLIDO. La ausencia de metodología no genera CO2e ni estimación silenciosa.
+- RF-039–RF-041: CUMPLIDO. Ingesta, dispositivo, calibración y calidad llegan a Activity Core.
+- RF-042–RF-050: CUMPLIDO. IoT no actúa como autoridad científica; una observación puede alimentar posteriormente el motor gobernado.
+- RF-100: CUMPLIDO. La automatización IoT produce hechos, no resultados científicos paralelos.
+- RNF explicabilidad/trazabilidad: CUMPLIDO mediante el enlace raw–lectura–observación–fuente–dispositivo.
+- RNF seguridad IA/metodología: CUMPLIDO; ni IA ni IoT inventan factores o cálculos.
+
+### Compatibilidad de la migración histórica analytics.0012
+
+Fase 17 modificó expresamente `analytics.0012` para reparar el nombre de columna antes de sus operaciones de estado. Django no reejecuta una migración que ya figure aplicada. Esto es seguro para entornos persistentes donde `0012` ya se aplicó correctamente, pues esos entornos necesariamente superaron las operaciones que requieren `organizacion_id`; el `RunPython` beneficia instalaciones que aún deben atravesar la cadena. El PostgreSQL local falló antes de registrar `0012` y posteriormente ejecutó la migración completa con la reparación. No se modificó producción.
+
 ## Evidencia de cierre
 
-- PostgreSQL del proyecto: PostgreSQL 16, `127.0.0.1:5433`, migraciones analytics 0001–0042 e IoT 0001–0005 aplicadas.
-- Regresión final `apps.analytics`: 281 pruebas aprobadas después de los fixes de seguridad.
-- IoT final: 6 pruebas aprobadas; 3 pruebas transversales adicionales de cierre/tenant aprobadas.
+- PostgreSQL del proyecto: PostgreSQL 16.13, `127.0.0.1:5433`, migraciones analytics 0001–0042 e IoT 0001–0006 aplicadas.
+- Regresión final `apps.analytics`: 282 pruebas aprobadas en PostgreSQL después del correctivo IoT.
+- IoT final: 10 pruebas aprobadas; además pasó el caso de cálculo gobernado posterior que consume una observación sensor.
 - Frontend: build aprobado; lint sin errores después del correctivo, con 19 warnings.
 - Búsqueda estática: no se encontraron llamadas Python a `eval()` o `exec()` en backend productivo.

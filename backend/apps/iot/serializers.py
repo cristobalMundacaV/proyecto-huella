@@ -14,10 +14,9 @@ class LecturaSensorSerializer(serializers.ModelSerializer):
             "tipo",
             "valor",
             "unidad",
-            "co2e_estimado",
             "fecha_registro",
         ]
-        read_only_fields = ["id", "unidad", "co2e_estimado", "fecha_registro"]
+        read_only_fields = ["id", "unidad", "fecha_registro"]
 
     def validate_valor(self, value):
         if value is None:
@@ -35,7 +34,6 @@ class DispositivoSensorSerializer(serializers.ModelSerializer):
     obra_nombre = serializers.CharField(source="obra.nombre", read_only=True)
     etapa_codigo = serializers.CharField(source="etapa.etapa_id", read_only=True)
     etapa_nombre = serializers.CharField(source="etapa.nombre", read_only=True)
-    factor_label = serializers.CharField(source="factor_emision_default.actividad", read_only=True)
 
     class Meta:
         model = DispositivoSensor
@@ -55,8 +53,6 @@ class DispositivoSensorSerializer(serializers.ModelSerializer):
             "tipo_sensor",
             "ubicacion",
             "descripcion",
-            "factor_emision_default",
-            "factor_label",
             "api_key",
             "activo",
             "metadata",
@@ -72,7 +68,6 @@ class DispositivoSensorSerializer(serializers.ModelSerializer):
             "obra_nombre",
             "etapa_codigo",
             "etapa_nombre",
-            "factor_label",
             "last_seen_at",
             "created_at",
             "updated_at",
@@ -105,7 +100,8 @@ class RegistroSensorSerializer(serializers.ModelSerializer):
     obra_nombre = serializers.CharField(source="obra.nombre", read_only=True)
     etapa_codigo = serializers.CharField(source="etapa.etapa_id", read_only=True)
     etapa_nombre = serializers.CharField(source="etapa.nombre", read_only=True)
-    registro_emision_id = serializers.IntegerField(source="registro_emision.id", read_only=True)
+    lectura_v2_id = serializers.IntegerField(source="lectura_v2.id", read_only=True)
+    observacion_id = serializers.IntegerField(source="lectura_v2.observacion_id", read_only=True)
 
     class Meta:
         model = RegistroSensor
@@ -127,14 +123,12 @@ class RegistroSensorSerializer(serializers.ModelSerializer):
             "tipo",
             "valor",
             "unidad",
-            "factor_catalogo",
-            "factor_emision_usado",
-            "co2e_estimado",
             "timestamp_sensor",
             "received_at",
             "estado_procesamiento",
-            "registro_emision",
-            "registro_emision_id",
+            "lectura_v2",
+            "lectura_v2_id",
+            "observacion_id",
             "metadata",
             "raw_payload",
             "error_procesamiento",
@@ -149,10 +143,9 @@ class RegistroSensorSerializer(serializers.ModelSerializer):
             "obra_nombre",
             "etapa_codigo",
             "etapa_nombre",
-            "factor_emision_usado",
-            "co2e_estimado",
             "received_at",
             "estado_procesamiento",
-            "registro_emision_id",
+            "lectura_v2_id",
+            "observacion_id",
             "error_procesamiento",
         ]
