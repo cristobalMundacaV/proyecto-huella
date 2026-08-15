@@ -574,6 +574,12 @@ class ViajeOperacional(models.Model):
                 errors[field] = "La observacion no corresponde al viaje, tenant o concepto esperado."
             elif observation and observation.valor_numerico is not None and observation.valor_numerico < 0:
                 errors[field] = "El valor operacional seleccionado no puede ser negativo."
+        if self.observacion_carga and self.observacion_carga.valor_numerico is not None:
+            load = self.observacion_carga.valor_numerico
+            if self.estado_carga == self.EstadoCarga.VACIO and load > 0:
+                errors["observacion_carga"] = "Un viaje vacio no puede tener carga mayor que cero."
+            elif self.estado_carga in {self.EstadoCarga.CARGADO, self.EstadoCarga.PARCIAL} and load == 0:
+                errors["observacion_carga"] = "Un viaje cargado no puede tener carga igual a cero."
         if self.fecha_llegada and self.fecha_llegada < self.fecha_salida:
             errors["fecha_llegada"] = "La llegada no puede ser anterior a la salida."
         if self.tipo_gestion == self.TipoGestion.TERCERIZADO:

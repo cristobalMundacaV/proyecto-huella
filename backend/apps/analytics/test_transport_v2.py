@@ -10,7 +10,8 @@ from .models import (ActividadOperacional, ActivoOperacional, CalculoAmbiental,
                      RutaOperacional, TransporteObra, UsuarioOrganizacion,
                      Vehiculo, ViajeOperacional)
 from .services.context_gateway import ContextGateway
-from .services.transport_v2 import journey_metrics, transport_indicators
+from .services.transport_v2 import (journey_metrics, save_journey_observations,
+                                    transport_indicators)
 
 
 class TransportV2Tests(APITestCase):
@@ -65,7 +66,7 @@ class TransportV2Tests(APITestCase):
         self.journey(observacion_distancia=loaded_distance, estado_carga="cargado")
         activity_two = ActividadOperacional.objects.create(organizacion=self.org, tipo="transporte", codigo="V-002", nombre="Retorno", timestamp_inicio=timezone.now())
         empty_distance = Observacion.objects.create(organizacion=self.org, actividad=activity_two, fuente=self.source, concepto="distancia_recorrida_km", valor_numerico=50, unidad="km", timestamp_observacion=timezone.now())
-        ViajeOperacional.objects.create(organizacion=self.org, actividad=activity_two, codigo="V-002", vehiculo=self.vehicle, ruta=self.route, origen_nombre="Obra", destino_nombre="Planta", fecha_salida=timezone.now(), tipo_trayecto="retorno", estado_carga="vacio", observacion_distancia=empty_distance)
+        ViajeOperacional.objects.create(organizacion=self.org, actividad=activity_two, codigo="V-002", vehiculo=self.vehicle, ruta=self.route, origen_nombre="Obra", destino_nombre="Planta", fecha_salida=timezone.now(), tipo_trayecto="retorno", estado_carga="vacio", observacion_distancia=empty_distance, estado="completado")
         summary = transport_indicators(self.org)
         self.assertEqual(summary["km_sin_carga"], Decimal("50")); self.assertEqual(summary["retornos_vacios"], 1)
         self.assertEqual(summary["porcentaje_km_vacios"], Decimal("50") / Decimal("150") * 100)
@@ -97,3 +98,48 @@ class TransportV2Tests(APITestCase):
         work = Obra.objects.create(organizacion=self.org, etapa_principal=stage, nombre="Obra legacy", fecha_inicio="2026-01-01")
         legacy = TransporteObra.objects.create(obra=work, etapa=stage, vehiculo="Camion legacy", distancia_km=10, consumo_estimado_litro_km=Decimal("0.3"), fecha_hora=timezone.now())
         self.assertEqual(legacy.distancia_km, Decimal("10")); self.assertEqual(ViajeOperacional.objects.count(), 0)
+
+    def test_viajes_vacios_no_son_retornos_si_no_tienen_tipo_retorno(self):
+        for index, trip_type in enumerate(("ida", "interno"), start=1):
+            activity = ActividadOperacional.objects.create(organizacion=self.org, tipo="transporte", codigo=f"V-E{index}", nombre="Vacio", timestamp_inicio=timezone.now())
+            distance = Observacion.objects.create(organizacion=self.org, actividad=activity, fuente=self.source, concepto="distancia_recorrida_km", valor_numerico=10, unidad="km", timestamp_observacion=timezone.now())
+            ViajeOperacional.objects.create(organizacion=self.org, actividad=activity, codigo=f"V-E{index}", vehiculo=self.vehicle, ruta=self.route, origen_nombre="A", destino_nombre="B", fecha_salida=timezone.now(), tipo_trayecto=trip_type, estado_carga="vacio", observacion_distancia=distance, estado="completado")
+        summary = transport_indicators(self.org)
+        self.assertEqual(summary["km_sin_carga"], Decimal("20"))
+        self.assertEqual(summary["retornos_vacios"], 0)
+
+    def test_retorno_vacio_cuenta_y_senal_repetida_excluye_otros_vacios(self):
+        for index, trip_type in enumerate(("ida", "retorno", "retorno"), start=1):
+            activity = ActividadOperacional.objects.create(organizacion=self.org, tipo="transporte", codigo=f"V-R{index}", nombre="Viaje", timestamp_inicio=timezone.now())
+            ViajeOperacional.objects.create(organizacion=self.org, actividad=activity, codigo=f"V-R{index}", vehiculo=self.vehicle, ruta=self.route, origen_nombre="A", destino_nombre="B", fecha_salida=timezone.now(), tipo_trayecto=trip_type, estado_carga="vacio", estado="completado")
+        summary = transport_indicators(self.org)
+        self.assertEqual(summary["retornos_vacios"], 2)
+        repeated = [item for item in summary["oportunidades"] if item["tipo"] == "ruta_repetida_retorno_vacio"]
+        self.assertEqual(len(repeated), 1)
+        self.assertEqual(repeated[0]["valor"], 2)
+
+    def test_vacio_con_carga_positiva_es_rechazado_tambien_por_servicio(self):
+        journey = self.journey(estado_carga="vacio")
+        with self.assertRaises(ValidationError):
+            save_journey_observations(journey, self.source, {"carga": Decimal("18")})
+        self.assertIsNone(ViajeOperacional.objects.get(pk=journey.pk).observacion_carga_id)
+        self.assertFalse(Observacion.objects.filter(concepto="masa_transportada_t").exists())
+
+    def test_cargado_y_parcialmente_cargado_rechazan_carga_cero(self):
+        zero_load = self.observation("masa_transportada_t", 0, "t")
+        for state in ("cargado", "parcialmente_cargado"):
+            with self.subTest(state=state), self.assertRaises(ValidationError):
+                self.journey(observacion_carga=zero_load, estado_carga=state)
+
+    def test_cargado_sin_observacion_de_carga_es_valido(self):
+        journey = self.journey(estado_carga="cargado")
+        self.assertIsNone(journey.observacion_carga_id)
+
+    def test_indicadores_solo_incluyen_viajes_completados(self):
+        for index, state in enumerate(("planificado", "cancelado", "completado"), start=1):
+            activity = ActividadOperacional.objects.create(organizacion=self.org, tipo="transporte", codigo=f"V-S{index}", nombre="Viaje", timestamp_inicio=timezone.now())
+            distance = Observacion.objects.create(organizacion=self.org, actividad=activity, fuente=self.source, concepto="distancia_recorrida_km", valor_numerico=index * 10, unidad="km", timestamp_observacion=timezone.now())
+            ViajeOperacional.objects.create(organizacion=self.org, actividad=activity, codigo=f"V-S{index}", vehiculo=self.vehicle, ruta=self.route, origen_nombre="A", destino_nombre="B", fecha_salida=timezone.now(), observacion_distancia=distance, estado=state)
+        summary = transport_indicators(self.org)
+        self.assertEqual(summary["numero_viajes"], 1)
+        self.assertEqual(summary["km_totales"], Decimal("30"))

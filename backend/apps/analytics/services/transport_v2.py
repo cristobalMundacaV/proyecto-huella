@@ -29,7 +29,7 @@ def journey_metrics(journey):
 
 
 def transport_indicators(organization, start=None, end=None):
-    rows = ViajeOperacional.objects.filter(organizacion=organization).select_related("vehiculo", "observacion_distancia", "observacion_carga", "observacion_combustible", "ruta")
+    rows = ViajeOperacional.objects.filter(organizacion=organization, estado=ViajeOperacional.Estado.COMPLETADO).select_related("vehiculo", "observacion_distancia", "observacion_carga", "observacion_combustible", "ruta")
     if start: rows = rows.filter(fecha_salida__date__gte=start)
     if end: rows = rows.filter(fecha_salida__date__lte=end)
     total_km = loaded_km = empty_km = tonnes = tkm = fuel = Decimal("0")
@@ -39,10 +39,11 @@ def transport_indicators(organization, start=None, end=None):
         if distance is not None:
             total_km += distance
             if journey.estado_carga == "vacio":
-                empty_km += distance; empty_count += 1
-                if journey.ruta_id: route_empty[journey.ruta.codigo] = route_empty.get(journey.ruta.codigo, 0) + 1
+                empty_km += distance
             elif journey.estado_carga in {"cargado", "parcialmente_cargado"}: loaded_km += distance
-        elif journey.estado_carga == "vacio": empty_count += 1
+        if journey.estado_carga == "vacio" and journey.tipo_trayecto == "retorno":
+            empty_count += 1
+            if journey.ruta_id: route_empty[journey.ruta.codigo] = route_empty.get(journey.ruta.codigo, 0) + 1
         if values["carga_t"] is not None: tonnes += values["carga_t"]
         if values["toneladas_km"] is not None: tkm += values["toneladas_km"]
         if values["combustible_l"] is not None: fuel += values["combustible_l"]
@@ -50,7 +51,7 @@ def transport_indicators(organization, start=None, end=None):
     empty_pct = empty_km / total_km * Decimal("100") if total_km else None
     average = sum(utilizations, Decimal("0")) / len(utilizations) if utilizations else None
     opportunities = []
-    if empty_km: opportunities.append({"tipo": "retornos_vacios", "severidad": "informativa", "valor": empty_pct, "unidad": "%"})
+    if empty_count: opportunities.append({"tipo": "retornos_vacios", "severidad": "informativa", "valor": empty_count, "unidad": "viajes"})
     if average is not None: opportunities.append({"tipo": "utilizacion_capacidad", "severidad": "informativa", "valor": average, "unidad": "%"})
     for route, occurrences in route_empty.items():
         if occurrences > 1: opportunities.append({"tipo": "ruta_repetida_retorno_vacio", "severidad": "informativa", "ruta": route, "valor": occurrences, "unidad": "viajes"})
