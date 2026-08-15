@@ -32,13 +32,13 @@ class CalculationV2Tests(APITestCase):
         Vehiculo.objects.create(activo=self.asset, tipo_vehiculo="camion", combustible="diesel")
         self.activity.activos.add(self.asset)
         self._create_method("MET-TKM", "Transporte t.km", "transporte_tkm", "transporte_tkm", "FACTOR-TKM", "kgCO2e/t.km", Decimal("0.10"), [
-            ("distancia", "distancia_recorrida_km", "km"), ("masa", "masa_transportada_t", "t")])
+            ("distancia", "distancia_recorrida_km", "km"), ("masa", "masa_transportada_t", "t")], priority=10)
         self._create_method("MET-KM", "Transporte vehiculo.km", "transporte_vehiculo_km", "transporte_vehiculo_km", "FACTOR-KM", "kgCO2e/km", Decimal("0.50"), [
-            ("distancia", "distancia_recorrida_km", "km")], {"tipo_vehiculo": "camion"})
+            ("distancia", "distancia_recorrida_km", "km")], {"tipo_vehiculo": "camion"}, priority=20)
         self._create_method("MET-FUEL", "Transporte combustible", "transporte_combustible", "transporte_combustible", "FACTOR-FUEL", "kgCO2e/L", Decimal("2.00"), [
-            ("combustible", "combustible_consumido_l", "L")], {"combustible": "diesel"})
+            ("combustible", "combustible_consumido_l", "L")], {"combustible": "diesel"}, priority=30)
 
-    def _create_method(self, code, name, flow, formula_type, factor_code, factor_unit, value, variables, context=None, organization="own"):
+    def _create_method(self, code, name, flow, formula_type, factor_code, factor_unit, value, variables, context=None, organization="own", priority=100):
         organization = self.org if organization == "own" else organization
         factor = FactorAmbiental.objects.create(
             organizacion=organization, codigo=factor_code.lower(), nombre=f"Factor de prueba / demostracion {factor_code}",
@@ -46,7 +46,7 @@ class CalculationV2Tests(APITestCase):
         )
         VersionFactorAmbiental.objects.create(factor=factor, version=1, valor=value, fuente="FACTOR DE PRUEBA / DEMOSTRACION", estado="activo")
         method = MetodologiaAmbiental.objects.create(organizacion=organization, codigo=code.lower(), nombre=name, categoria="transporte", flujo=flow)
-        version = VersionMetodologia.objects.create(metodologia=method, version=1, estado="borrador", fuente_referencia="DEMO")
+        version = VersionMetodologia.objects.create(metodologia=method, version=1, estado="borrador", fuente_referencia="DEMO", prioridad=priority)
         formula = FormulaAmbiental.objects.create(
             version_metodologia=version, factor_ambiental=factor, codigo=f"formula-{code.lower()}", tipo=formula_type,
             expresion_legible={"transporte_tkm":"masa x distancia x factor", "transporte_vehiculo_km":"distancia x factor", "transporte_combustible":"combustible x factor"}[formula_type],

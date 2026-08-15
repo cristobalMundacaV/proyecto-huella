@@ -2957,6 +2957,7 @@ class RevisionProfesionalAmbiental(models.Model):
         PROBLEMATICA = "problematica", "Problematica"
         INTERVENCION = "intervencion", "Intervencion"
         EXPEDIENTE = "expediente", "Expediente"
+        METODOLOGIA = "metodologia", "Version metodologica"
     class Estado(models.TextChoices):
         PENDIENTE = "pendiente", "Pendiente"
         VALIDADA = "validada", "Validada"
@@ -2973,6 +2974,7 @@ class RevisionProfesionalAmbiental(models.Model):
     problematica = models.ForeignKey(ProblematicaAmbiental, on_delete=models.PROTECT, null=True, blank=True, related_name="revisiones_profesionales")
     intervencion = models.ForeignKey(ResultadoIntervencion, on_delete=models.PROTECT, null=True, blank=True, related_name="revisiones_profesionales")
     expediente = models.ForeignKey(ExpedienteAmbiental, on_delete=models.PROTECT, null=True, blank=True, related_name="revisiones_profesionales")
+    version_metodologia = models.ForeignKey(VersionMetodologia, on_delete=models.PROTECT, null=True, blank=True, related_name="revisiones_profesionales")
     estado = models.CharField(max_length=35, choices=Estado.choices, default=Estado.PENDIENTE, db_index=True)
     profesional = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name="revisiones_profesionales")
     profesional_nombre = models.CharField(max_length=180, blank=True)
@@ -2992,6 +2994,7 @@ class RevisionProfesionalAmbiental(models.Model):
         Tipo.PROBLEMATICA: "problematica",
         Tipo.INTERVENCION: "intervencion",
         Tipo.EXPEDIENTE: "expediente",
+        Tipo.METODOLOGIA: "version_metodologia",
     }
 
     def clean(self):
@@ -3008,8 +3011,12 @@ class RevisionProfesionalAmbiental(models.Model):
         if not expected or populated[0] != expected:
             raise ValidationError({"tipo": "El tipo de revision no corresponde al objeto revisado."})
         item = getattr(self, expected)
-        owner_id = getattr(item, "organizacion_id", None) or item.problematica.organizacion_id
-        if self.organizacion_id and owner_id != self.organizacion_id:
+        owner_id = getattr(item, "organizacion_id", None)
+        if isinstance(item, VersionMetodologia):
+            owner_id = item.metodologia.organizacion_id
+        elif owner_id is None:
+            owner_id = item.problematica.organizacion_id
+        if self.organizacion_id and owner_id is not None and owner_id != self.organizacion_id:
             raise ValidationError("El objeto revisado pertenece a otra organizacion.")
 
     def save(self, *args, **kwargs):

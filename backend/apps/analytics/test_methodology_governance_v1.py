@@ -7,7 +7,7 @@ from rest_framework.test import APITestCase
 
 from .models import (ActividadOperacional, CalculoAmbiental, CompatibilidadVersionMetodologia,
                      FactorAmbiental, FormulaAmbiental, FuenteDatos, MetodologiaAmbiental,
-                     Observacion, Organizacion, UsuarioOrganizacion, VariableFormula,
+                     Observacion, Organizacion, RevisionProfesionalAmbiental, UsuarioOrganizacion, VariableFormula,
                      VersionFactorAmbiental, VersionMetodologia)
 from .services.calculation_v2 import calculate_activity, recalculate
 from .services.methodology_governance import structural_errors, transition_version
@@ -20,7 +20,7 @@ class MethodologyGovernanceV1Tests(APITestCase):
         self.member = User.objects.create_user("method-member", password="test")
         self.org = Organizacion.objects.create(nombre="Gobernanza Uno")
         self.other = Organizacion.objects.create(nombre="Gobernanza Dos")
-        UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.org)
+        UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.org, rol=UsuarioOrganizacion.Rol.ADMIN)
         UsuarioOrganizacion.objects.create(user=self.member, organizacion=self.org)
         self.client.force_login(self.user)
         self.base = f"/api/organizaciones/{self.org.organizacion_id}"
@@ -31,8 +31,8 @@ class MethodologyGovernanceV1Tests(APITestCase):
         )
 
     def method(self, *, state="borrador", organization=None, applicability=None, priority=10,
-               result_type="emision", source="Referencia técnica de prueba"):
-        organization = self.org if organization is None else organization
+               result_type="emision", source="Referencia técnica de prueba", professional=False):
+        organization = None if organization == "global" else (self.org if organization is None else organization)
         factor = FactorAmbiental.objects.create(
             organizacion=organization, codigo=f"factor-{FactorAmbiental.objects.count()}", nombre="Factor de prueba",
             categoria="transporte", unidad_entrada="t.km", unidad_resultado="kgCO2e",
@@ -47,7 +47,7 @@ class MethodologyGovernanceV1Tests(APITestCase):
         version = VersionMetodologia.objects.create(
             metodologia=method, version=1, fuente_referencia=source,
             aplicabilidad=applicability or {"tipos_actividad": ["transporte"]}, prioridad=priority,
-            tipo_resultado=result_type,
+            tipo_resultado=result_type, requiere_revision_profesional=professional,
         )
         formula = FormulaAmbiental.objects.create(
             version_metodologia=version, factor_ambiental=factor, codigo="producto-transporte",
@@ -73,6 +73,31 @@ class MethodologyGovernanceV1Tests(APITestCase):
         transition_version(version, "obsoleta", self.user)
         self.assertEqual(version.estado, "obsoleta")
 
+    def test_staff_is_not_professional_evidence(self):
+        version = self.method(professional=True)
+        transition_version(version, "pruebas", self.user)
+        with self.assertRaises(ValidationError):
+            transition_version(version, "validada", self.user)
+
+    def test_valid_professional_review_allows_validation_and_preserves_actor(self):
+        version = self.method(professional=True)
+        transition_version(version, "pruebas", self.user)
+        professional = User.objects.create_user("environmental-professional")
+        review = RevisionProfesionalAmbiental.objects.create(
+            organizacion=self.org, tipo="metodologia", version_metodologia=version,
+            estado="validada", profesional=professional, profesional_nombre="Profesional ambiental",
+            profesional_cargo="Revisor técnico", fecha=timezone.now(), conclusion="Metodología validada.",
+        )
+        transition_version(version, "validada", self.user, review)
+        self.assertEqual(version.validado_por, self.user)
+        self.assertEqual(review.profesional, professional)
+
+    def test_normal_lifecycle_does_not_require_professional_review(self):
+        version = self.method(professional=False)
+        transition_version(version, "pruebas", self.member)
+        transition_version(version, "validada", self.member)
+        self.assertEqual(version.validado_por, self.member)
+
     def test_activation_requires_formula_variables_reference_and_factor(self):
         version = self.method(source="")
         self.assertTrue(any("referencia" in row.lower() for row in structural_errors(version)))
@@ -94,6 +119,17 @@ class MethodologyGovernanceV1Tests(APITestCase):
         self.observe("masa_transportada_t", "2", "t"); self.observe("distancia_recorrida_km", "5", "km")
         selected = select_methodology(self.activity)["seleccion"]["version_metodologia"]
         self.assertEqual(selected, preferred); self.assertNotEqual(selected, lower)
+
+    def test_equal_priority_requires_review_and_does_not_calculate(self):
+        self.method(state="activa", priority=10)
+        self.method(state="activa", priority=10)
+        self.observe("masa_transportada_t", "2", "t"); self.observe("distancia_recorrida_km", "5", "km")
+        selection = select_methodology(self.activity)
+        self.assertIsNone(selection["seleccion"])
+        self.assertEqual(selection["estado"], "requiere_revision")
+        self.assertEqual(len(selection["alternativos"]), 2)
+        with self.assertRaises(ValueError): calculate_activity(self.activity)
+        self.assertEqual(CalculoAmbiental.objects.count(), 0)
 
     def test_non_applicable_and_missing_method_are_explicit(self):
         self.method(state="activa", applicability={"tipos_actividad": ["energia"]})
@@ -149,6 +185,29 @@ class MethodologyGovernanceV1Tests(APITestCase):
         self.assertEqual(response.status_code, 403)
         foreign_base = f"/api/organizaciones/{self.other.organizacion_id}"
         self.assertEqual(self.client.get(f"{foreign_base}/metodologias/").status_code, 404)
+
+    def test_tenant_rbac_and_global_protection(self):
+        roles = [UsuarioOrganizacion.Rol.ANALISTA, UsuarioOrganizacion.Rol.OPERADOR, UsuarioOrganizacion.Rol.LECTOR]
+        own = self.method()
+        for index, role in enumerate(roles):
+            user = User.objects.create_user(f"role-{index}", is_staff=(role == UsuarioOrganizacion.Rol.LECTOR))
+            UsuarioOrganizacion.objects.create(user=user, organizacion=self.org, rol=role)
+            self.client.force_login(user)
+            response = self.client.post(f"{self.base}/metodologias/{own.metodologia_id}/versiones/{own.id}/transicion/", {"estado": "pruebas"}, format="json")
+            self.assertEqual(response.status_code, 403)
+        admin = User.objects.create_user("tenant-admin")
+        UsuarioOrganizacion.objects.create(user=admin, organizacion=self.org, rol=UsuarioOrganizacion.Rol.ADMIN)
+        self.client.force_login(admin)
+        response = self.client.post(f"{self.base}/metodologias/{own.metodologia_id}/versiones/{own.id}/transicion/", {"estado": "pruebas"}, format="json")
+        self.assertEqual(response.status_code, 200)
+
+        global_version = self.method(organization="global")
+        response = self.client.post(f"{self.base}/metodologias/{global_version.metodologia_id}/versiones/{global_version.id}/transicion/", {"estado": "pruebas"}, format="json")
+        self.assertEqual(response.status_code, 403)
+        root = User.objects.create_superuser("method-root", password="test", email="root@example.com")
+        self.client.force_login(root)
+        response = self.client.post(f"{self.base}/metodologias/{global_version.metodologia_id}/versiones/{global_version.id}/transicion/", {"estado": "pruebas"}, format="json")
+        self.assertEqual(response.status_code, 200)
 
     def test_recalculation_and_snapshot_endpoints(self):
         self.method(state="activa")

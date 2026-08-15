@@ -30,14 +30,16 @@ def _activity(org, value):
     return get_object_or_404(org.actividades_operacionales, id=value)
 
 
-def _admin(request):
-    return request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser)
+def _tenant_admin(request, organization):
+    return request.user.is_authenticated and (request.user.is_superuser or UsuarioOrganizacion.objects.filter(
+        user=request.user, organizacion=organization, activo=True, rol=UsuarioOrganizacion.Rol.ADMIN,
+    ).exists())
 
 
 def _serialize_selection(selection):
     selected = selection["seleccion"]
     return {
-        "estado": selected["elegibilidad"]["estado"] if selected else "no_calculable",
+        "estado": selection["estado"],
         "metodologia_seleccionada": ({"id": selected["version_metodologia"].metodologia_id,
                                       "nombre": selected["version_metodologia"].metodologia.nombre,
                                       "version": selected["version_metodologia"].version,
@@ -66,7 +68,7 @@ def metodologia_detail(request, organizacion_id, metodologia_id):
     if not org: return Response({"detail": "Recurso no encontrado."}, status=404)
     item = get_object_or_404(MetodologiaAmbiental.objects.prefetch_related("versiones__formula__variables"), Q(organizacion=org) | Q(organizacion__isnull=True), id=metodologia_id)
     if request.method == "GET": return Response(MetodologiaSerializer(item).data)
-    if not _admin(request): return Response({"detail": "Permiso insuficiente."}, status=403)
+    if not _tenant_admin(request, org): return Response({"detail": "Permiso insuficiente."}, status=403)
     if item.organizacion_id is None and not request.user.is_superuser:
         return Response({"detail": "Solo un superusuario puede modificar metodologías globales."}, status=403)
     payload = request.data.copy()
@@ -96,13 +98,19 @@ def metodologia_detail(request, organizacion_id, metodologia_id):
 def metodologia_transition(request, organizacion_id, metodologia_id, version_id):
     org = _org(request, organizacion_id)
     if not org: return Response({"detail": "Recurso no encontrado."}, status=404)
-    if not _admin(request): return Response({"detail": "Permiso insuficiente."}, status=403)
+    if not _tenant_admin(request, org): return Response({"detail": "Permiso insuficiente."}, status=403)
     version = get_object_or_404(VersionMetodologia.objects.filter(
         Q(metodologia__organizacion=org) | Q(metodologia__organizacion__isnull=True)),
         id=version_id, metodologia_id=metodologia_id)
     if version.metodologia.organizacion_id is None and not request.user.is_superuser:
         return Response({"detail": "Solo un superusuario puede modificar metodologías globales."}, status=403)
-    try: transition_version(version, request.data.get("estado"), request.user)
+    professional_review = None
+    if request.data.get("revision_profesional_id"):
+        from .models import RevisionProfesionalAmbiental
+        professional_review = get_object_or_404(
+            RevisionProfesionalAmbiental, id=request.data["revision_profesional_id"], organizacion=org,
+        )
+    try: transition_version(version, request.data.get("estado"), request.user, professional_review)
     except DjangoValidationError as exc: return Response({"detail": exc.messages}, status=400)
     return Response(VersionMetodologiaSerializer(version).data)
 
@@ -111,7 +119,7 @@ def metodologia_transition(request, organizacion_id, metodologia_id, version_id)
 def metodologia_variables(request, organizacion_id, metodologia_id, version_id, variable_id=None):
     org = _org(request, organizacion_id)
     if not org: return Response({"detail": "Recurso no encontrado."}, status=404)
-    if not _admin(request): return Response({"detail": "Permiso insuficiente."}, status=403)
+    if not _tenant_admin(request, org): return Response({"detail": "Permiso insuficiente."}, status=403)
     version = get_object_or_404(VersionMetodologia, id=version_id, metodologia_id=metodologia_id, metodologia__organizacion=org)
     if version.estado != VersionMetodologia.Estado.BORRADOR:
         return Response({"detail": "Solo una versión borrador puede editarse."}, status=400)

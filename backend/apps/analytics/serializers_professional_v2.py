@@ -2,7 +2,8 @@ from rest_framework import serializers
 
 from .models import (EventoAuditoriaAmbiental, ExpedienteAmbiental,
                      HallazgoRevisionProfesional, InformeAmbiental,
-                     RevisionProfesionalAmbiental, SnapshotInformeAmbiental)
+                     RevisionProfesionalAmbiental, SnapshotInformeAmbiental,
+                     VersionMetodologia)
 
 
 class HallazgoSerializer(serializers.ModelSerializer):
@@ -32,8 +33,12 @@ class RevisionProfesionalSerializer(serializers.ModelSerializer):
         if not expected or populated != expected:
             raise serializers.ValidationError({"tipo": "El tipo de revision no corresponde al objeto revisado."})
         item = references[0]
-        owner_id = getattr(item, "organizacion_id", None) or item.problematica.organizacion_id
-        if owner_id != organization.id:
+        owner_id = getattr(item, "organizacion_id", None)
+        if isinstance(item, VersionMetodologia):
+            owner_id = item.metodologia.organizacion_id
+        elif owner_id is None:
+            owner_id = item.problematica.organizacion_id
+        if owner_id is not None and owner_id != organization.id:
             raise serializers.ValidationError("El objeto revisado pertenece a otra organizacion.")
         return attrs
 

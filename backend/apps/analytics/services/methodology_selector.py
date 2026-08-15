@@ -5,9 +5,6 @@ from ..models import VersionMetodologia
 from .eligibility_v2 import evaluate_formula
 
 
-TRANSPORT_PRIORITY = ["transporte_tkm", "transporte_vehiculo_km", "transporte_combustible"]
-
-
 def _applicability_reasons(version, activity):
     rules = version.aplicabilidad or {}
     reasons = []
@@ -47,8 +44,7 @@ def select_methodology(actividad):
     candidates = []
     for version in versions:
         applicability_reasons = _applicability_reasons(version, actividad)
-        legacy_match = actividad.tipo == "transporte" and version.metodologia.flujo in TRANSPORT_PRIORITY
-        configured_match = bool(version.aplicabilidad) and not applicability_reasons
+        legacy_match = actividad.tipo == "transporte" and version.formula.tipo.startswith("transporte_")
         if (version.aplicabilidad and applicability_reasons) or (not version.aplicabilidad and not legacy_match):
             candidates.append({"metodo": version.metodologia.flujo, "version_metodologia": version,
                                "estado": "no_aplicable", "motivos": applicability_reasons or ["Flujo no aplicable a la actividad."]})
@@ -60,19 +56,21 @@ def select_methodology(actividad):
 
     def rank(item):
         version = item["version_metodologia"]
-        flow_rank = TRANSPORT_PRIORITY.index(item["metodo"]) if item["metodo"] in TRANSPORT_PRIORITY else 999
-        tenant_rank = 0 if version.metodologia.organizacion_id == actividad.organizacion_id else 1
-        return (version.prioridad, flow_rank, tenant_rank, -version.version, version.pk)
+        return (version.prioridad, version.pk)
 
     candidates.sort(key=rank)
     available = [item for item in candidates if item["estado"] == "aplicable"]
-    selected = available[0] if available else None
+    best = [item for item in available if item["version_metodologia"].prioridad == available[0]["version_metodologia"].prioridad] if available else []
+    ambiguous = len(best) > 1
+    selected = best[0] if len(best) == 1 else None
     discarded = [{"metodo": item["metodo"], "estado": item["estado"], "motivos": item["motivos"]}
                  for item in candidates if item is not selected and item["estado"] != "aplicable"]
     return {
         "seleccion": selected,
         "razon": (f"Seleccionado {selected['metodo']} por aplicabilidad y prioridad explícita."
-                  if selected else "Ningún método aplicable es calculable."),
+                  if selected else ("Existen múltiples metodologías aplicables con igual prioridad."
+                                    if ambiguous else "Ningún método aplicable es calculable.")),
+        "estado": "requiere_revision" if ambiguous else (selected["elegibilidad"]["estado"] if selected else "no_calculable"),
         "alternativos": [item for item in available if item is not selected],
         "descartados": discarded,
         "candidatos": candidates,

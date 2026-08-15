@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from ..models import VersionFactorAmbiental, VersionMetodologia
+from ..models import RevisionProfesionalAmbiental, VersionFactorAmbiental, VersionMetodologia
 from .eligibility_v2 import active_factor_version
 
 
@@ -62,7 +62,7 @@ def structural_errors(version):
 
 
 @transaction.atomic
-def transition_version(version, target, user=None):
+def transition_version(version, target, user=None, professional_review=None):
     if target not in TRANSITIONS.get(version.estado, set()):
         raise ValidationError(f"Transición no permitida: {version.estado} -> {target}.")
     if target in {VersionMetodologia.Estado.VALIDADA, VersionMetodologia.Estado.ACTIVA}:
@@ -70,8 +70,22 @@ def transition_version(version, target, user=None):
         if errors:
             raise ValidationError(errors)
     if target == VersionMetodologia.Estado.VALIDADA:
-        if version.requiere_revision_profesional and not (user and (user.is_staff or user.is_superuser)):
-            raise ValidationError("Esta metodología requiere validación profesional.")
+        if version.requiere_revision_profesional:
+            valid_states = {
+                RevisionProfesionalAmbiental.Estado.VALIDADA,
+                RevisionProfesionalAmbiental.Estado.VALIDADA_OBSERVACIONES,
+            }
+            valid_review = (
+                isinstance(professional_review, RevisionProfesionalAmbiental)
+                and professional_review.tipo == RevisionProfesionalAmbiental.Tipo.METODOLOGIA
+                and professional_review.version_metodologia_id == version.id
+                and (version.metodologia.organizacion_id is None or professional_review.organizacion_id == version.metodologia.organizacion_id)
+                and professional_review.estado in valid_states
+                and professional_review.profesional_id is not None
+                and professional_review.fecha is not None
+            )
+            if not valid_review:
+                raise ValidationError("Esta metodología requiere una revisión profesional válida y trazable.")
         version.validado_por = user
         version.fecha_validacion = timezone.now()
     if target == VersionMetodologia.Estado.ACTIVA:
