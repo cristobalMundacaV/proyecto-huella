@@ -8,7 +8,12 @@ from .models import (CalculoAmbiental, FactorAmbiental, FormulaAmbiental, Impact
 class VariableFormulaSerializer(serializers.ModelSerializer):
     class Meta:
         model = VariableFormula
-        fields = ["id", "clave", "concepto_observacion", "unidad_esperada", "obligatoria", "rol", "descripcion"]
+        fields = ["id", "clave", "concepto_observacion", "unidad_esperada", "obligatoria", "criticidad", "rol", "descripcion"]
+
+    def validate(self, attrs):
+        criticality = attrs.get("criticidad", getattr(self.instance, "criticidad", "critica"))
+        attrs["obligatoria"] = criticality == "critica"
+        return attrs
 
 
 class FormulaAmbientalSerializer(serializers.ModelSerializer):
@@ -23,7 +28,10 @@ class VersionMetodologiaSerializer(serializers.ModelSerializer):
     formula = FormulaAmbientalSerializer(read_only=True)
     class Meta:
         model = VersionMetodologia
-        fields = ["id", "version", "estado", "descripcion_tecnica", "fuente_referencia", "vigencia_desde", "vigencia_hasta", "fecha_validacion", "formula", "created_at"]
+        fields = ["id", "version", "estado", "descripcion_tecnica", "fuente_referencia", "vigencia_desde", "vigencia_hasta",
+                  "aplicabilidad", "prioridad", "requiere_revision_profesional", "tipo_resultado",
+                  "validado_por", "fecha_validacion", "formula", "created_at"]
+        read_only_fields = ["estado", "validado_por", "fecha_validacion"]
 
 
 class MetodologiaSerializer(serializers.ModelSerializer):
@@ -68,7 +76,9 @@ class CalculoAmbientalSerializer(serializers.ModelSerializer):
         model = CalculoAmbiental
         fields = ["id", "actividad", "metodologia", "metodologia_version", "version_metodologia", "formula", "formula_detalle",
                   "version_factor", "factor_nombre", "factor_version", "factor_valor", "resultado", "unidad_resultado", "estado",
-                  "fecha_calculo", "version_interna", "formula_aplicada", "advertencias", "completitud", "inputs"]
+                  "fecha_calculo", "version_interna", "formula_aplicada", "advertencias", "completitud", "tipo_resultado",
+                  "recalculo_de", "motivo_recalculo", "snapshot_tecnico", "inputs"]
+        read_only_fields = fields
 
 
 class ImpactoAmbientalSerializer(serializers.ModelSerializer):

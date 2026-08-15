@@ -21,6 +21,7 @@ import FactorCreateModal from "../components/FactorCreateModal";
 import FactorHero from "../components/FactorHero";
 import FactorKpiGrid from "../components/FactorKpiGrid";
 import PendingFactorRecords from "../components/PendingFactorRecords";
+import MethodologyGovernancePanel from "../components/MethodologyGovernancePanel";
 
 const configByPreset = {
   construccion: construccionFactors,
@@ -182,6 +183,12 @@ function FactoresPage({ onSetActiveView }) {
       )}
 
       <FactorKpiGrid kpis={kpis} />
+
+      <MethodologyGovernancePanel
+        organizacionId={activeOrganizacionId}
+        onError={setError}
+        onMessage={setMessage}
+      />
 
       <FactorCatalog
         config={config}

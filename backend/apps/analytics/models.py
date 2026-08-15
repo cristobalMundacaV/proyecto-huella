@@ -1537,6 +1537,10 @@ class VersionMetodologia(models.Model):
     vigencia_hasta = models.DateField(null=True, blank=True)
     validado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="metodologias_validadas")
     fecha_validacion = models.DateTimeField(null=True, blank=True)
+    aplicabilidad = models.JSONField(default=dict, blank=True)
+    prioridad = models.PositiveIntegerField(default=100, db_index=True)
+    requiere_revision_profesional = models.BooleanField(default=False)
+    tipo_resultado = models.CharField(max_length=30, default="emision")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -1549,7 +1553,16 @@ class VersionMetodologia(models.Model):
             if previous and previous.estado == self.Estado.ACTIVA:
                 from django.core.exceptions import ValidationError
                 raise ValidationError("Una version activa es inmutable; cree una nueva version.")
+            if previous and previous.estado != self.estado:
+                from django.core.exceptions import ValidationError
+                raise ValidationError("Use la transición metodológica explícita para cambiar el estado.")
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.estado in {self.Estado.VALIDADA, self.Estado.ACTIVA, self.Estado.OBSOLETA}:
+            from django.core.exceptions import ValidationError
+            raise ValidationError("Una versión metodológica gobernada no puede eliminarse.")
+        return super().delete(*args, **kwargs)
 
 
 class FactorAmbiental(models.Model):
@@ -1601,6 +1614,12 @@ class VersionFactorAmbiental(models.Model):
                 raise ValidationError("Una version activa es inmutable; cree una nueva version.")
         super().save(*args, **kwargs)
 
+    def delete(self, *args, **kwargs):
+        if self.estado in {self.Estado.VALIDADO, self.Estado.ACTIVO, self.Estado.OBSOLETO}:
+            from django.core.exceptions import ValidationError
+            raise ValidationError("Una versión gobernada del factor no puede eliminarse.")
+        return super().delete(*args, **kwargs)
+
 
 class FormulaAmbiental(models.Model):
     class Tipo(models.TextChoices):
@@ -1617,19 +1636,24 @@ class FormulaAmbiental(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
-        if self.pk and self.version_metodologia.estado == VersionMetodologia.Estado.ACTIVA:
+        if self.pk and self.version_metodologia.estado != VersionMetodologia.Estado.BORRADOR:
             from django.core.exceptions import ValidationError
             raise ValidationError("La formula de una metodologia activa es inmutable; cree una nueva version.")
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.version_metodologia.estado == VersionMetodologia.Estado.ACTIVA:
+        if self.version_metodologia.estado != VersionMetodologia.Estado.BORRADOR:
             from django.core.exceptions import ValidationError
             raise ValidationError("La formula de una metodologia activa no puede eliminarse.")
         return super().delete(*args, **kwargs)
 
 
 class VariableFormula(models.Model):
+    class Criticidad(models.TextChoices):
+        CRITICA = "critica", "Crítica"
+        COMPLEMENTARIA = "complementaria", "Complementaria"
+        OPCIONAL = "opcional", "Opcional"
+
     class Rol(models.TextChoices):
         ACTIVIDAD = "actividad", "Actividad"
         COMPLEMENTARIA = "complementaria", "Complementaria"
@@ -1639,6 +1663,7 @@ class VariableFormula(models.Model):
     concepto_observacion = models.SlugField(max_length=120)
     unidad_esperada = models.CharField(max_length=40)
     obligatoria = models.BooleanField(default=True)
+    criticidad = models.CharField(max_length=20, choices=Criticidad.choices, default=Criticidad.CRITICA)
     rol = models.CharField(max_length=20, choices=Rol.choices, default=Rol.ACTIVIDAD)
     descripcion = models.TextField(blank=True)
 
@@ -1646,13 +1671,13 @@ class VariableFormula(models.Model):
         constraints = [models.UniqueConstraint(fields=["formula", "clave"], name="unique_variable_formula")]
 
     def save(self, *args, **kwargs):
-        if self.formula.version_metodologia.estado == VersionMetodologia.Estado.ACTIVA:
+        if self.formula.version_metodologia.estado != VersionMetodologia.Estado.BORRADOR:
             from django.core.exceptions import ValidationError
             raise ValidationError("Las variables de una metodologia activa son inmutables; cree una nueva version.")
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.formula.version_metodologia.estado == VersionMetodologia.Estado.ACTIVA:
+        if self.formula.version_metodologia.estado != VersionMetodologia.Estado.BORRADOR:
             from django.core.exceptions import ValidationError
             raise ValidationError("Las variables de una metodologia activa no pueden eliminarse.")
         return super().delete(*args, **kwargs)
@@ -1660,16 +1685,30 @@ class VariableFormula(models.Model):
 
 @receiver(pre_delete, sender=FormulaAmbiental)
 def proteger_eliminacion_formula_activa(sender, instance, **kwargs):
-    if instance.version_metodologia.estado == VersionMetodologia.Estado.ACTIVA:
+    if instance.version_metodologia.estado != VersionMetodologia.Estado.BORRADOR:
         from django.core.exceptions import ValidationError
         raise ValidationError("La formula de una metodologia activa no puede eliminarse.")
 
 
 @receiver(pre_delete, sender=VariableFormula)
 def proteger_eliminacion_variable_activa(sender, instance, **kwargs):
-    if instance.formula.version_metodologia.estado == VersionMetodologia.Estado.ACTIVA:
+    if instance.formula.version_metodologia.estado != VersionMetodologia.Estado.BORRADOR:
         from django.core.exceptions import ValidationError
         raise ValidationError("Las variables de una metodologia activa no pueden eliminarse.")
+
+
+@receiver(pre_delete, sender=VersionMetodologia)
+def proteger_eliminacion_version_metodologia(sender, instance, **kwargs):
+    if instance.estado in {instance.Estado.VALIDADA, instance.Estado.ACTIVA, instance.Estado.OBSOLETA}:
+        from django.core.exceptions import ValidationError
+        raise ValidationError("Una versión metodológica gobernada no puede eliminarse.")
+
+
+@receiver(pre_delete, sender=VersionFactorAmbiental)
+def proteger_eliminacion_version_factor(sender, instance, **kwargs):
+    if instance.estado in {instance.Estado.VALIDADO, instance.Estado.ACTIVO, instance.Estado.OBSOLETO}:
+        from django.core.exceptions import ValidationError
+        raise ValidationError("Una versión gobernada del factor no puede eliminarse.")
 
 
 class CalculoAmbiental(models.Model):
@@ -1692,6 +1731,9 @@ class CalculoAmbiental(models.Model):
     advertencias = models.JSONField(default=list, blank=True)
     completitud = models.CharField(max_length=30)
     snapshot_tecnico = models.JSONField(default=dict, blank=True)
+    tipo_resultado = models.CharField(max_length=30, default="emision")
+    recalculo_de = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="recalculos")
+    motivo_recalculo = models.TextField(blank=True)
 
     class Meta:
         ordering = ["-fecha_calculo"]
@@ -1701,6 +1743,22 @@ class CalculoAmbiental(models.Model):
             from django.core.exceptions import ValidationError
             raise ValidationError("Un calculo finalizado es inmutable; cree uno nuevo.")
         super().save(*args, **kwargs)
+
+
+class CompatibilidadVersionMetodologia(models.Model):
+    class Estado(models.TextChoices):
+        COMPATIBLE = "compatible", "Compatible"
+        INCOMPATIBLE = "incompatible", "Incompatible"
+        REQUIERE_REVISION = "requiere_revision", "Requiere revisión"
+
+    version_origen = models.ForeignKey(VersionMetodologia, on_delete=models.CASCADE, related_name="compatibilidades_origen")
+    version_destino = models.ForeignKey(VersionMetodologia, on_delete=models.CASCADE, related_name="compatibilidades_destino")
+    estado = models.CharField(max_length=30, choices=Estado.choices)
+    detalle = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["version_origen", "version_destino"], name="unique_compatibilidad_version_metodologia")]
 
 
 class InputCalculoAmbiental(models.Model):
@@ -1722,6 +1780,7 @@ class ImpactoAmbiental(models.Model):
         EVITADO = "evitado", "Evitado"
         CAPTURA_REMOCION = "captura_remocion", "Captura/remocion"
         COMPENSACION = "compensacion", "Compensacion"
+        OTRO = "otro", "Otro"
 
     organizacion = models.ForeignKey(Organizacion, on_delete=models.PROTECT, related_name="impactos_ambientales_v2")
     actividad = models.ForeignKey(ActividadOperacional, on_delete=models.PROTECT, related_name="impactos_ambientales")

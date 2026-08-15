@@ -113,6 +113,10 @@ export async function getFactoresEmision(params = {}) { return (await api.get("/
 export async function createFactorEmision(payload) { return (await api.post("/factores-emision/", payload)).data; }
 export async function updateFactorEmision(id, payload) { return (await api.patch(`/factores-emision/${encodeURIComponent(id)}/`, payload)).data; }
 export async function aplicarFactorRegistroEmision(organizacionId, registroId, payload) { return (await api.post(organizacionPath(organizacionId, `/registros-emision/${encodeURIComponent(registroId)}/aplicar-factor/`), payload)).data; }
+export async function getMetodologiasAmbientales(id) { return (await api.get(organizacionPath(id, "/metodologias/"))).data; }
+export async function getFactoresAmbientalesV2(id) { return (await api.get(organizacionPath(id, "/factores-ambientales/"))).data; }
+export async function createVersionMetodologia(id, metodologiaId, payload) { return (await api.post(organizacionPath(id, `/metodologias/${encodeURIComponent(metodologiaId)}/`), payload)).data; }
+export async function transitionVersionMetodologia(id, metodologiaId, versionId, estado) { return (await api.post(organizacionPath(id, `/metodologias/${encodeURIComponent(metodologiaId)}/versiones/${encodeURIComponent(versionId)}/transicion/`), { estado })).data; }
 export async function getMaterialesConstruccion() { return (await api.get("/materiales-construccion/")).data; }
 export async function calculateRouteDistance(payload) { return (await api.post("/rutas/calcular-distancia/", payload)).data; }
 export async function getAiAdvisor(payload) { return (await api.post("/ai-advisor/", payload)).data; }

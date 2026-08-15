@@ -115,9 +115,11 @@ from .views_assets import (activo_detail, activos, condiciones_activo, mantenimi
                            mantenimientos_activo)
 from .views_sensors_v2 import (calibraciones, instalaciones, lecturas_sensor_v2, sensor_detail,
                                sensores)
-from .views_calculation_v2 import (calcular_actividad, calculo_detail, calculos_actividad,
+from .views_calculation_v2 import (calcular_actividad, calculo_compare, calculo_detail, calculos_actividad,
+                                   calculo_recalculate, calculo_snapshot,
                                    elegibilidad_actividad, factores_ambientales, impactos_ambientales,
-                                   metodologia_detail, metodologias)
+                                   metodologia_detail, metodologia_transition, metodologia_variables,
+                                   metodologias)
 from .views_quality_v2 import (calidad_observaciones, comparacion_indicador,
                                discrepancia_detail, discrepancias, indicadores,
                                lineas_base, politicas_fuente, resumen_ambiental_v2,
@@ -229,11 +231,17 @@ urlpatterns = [
     path("organizaciones/<str:organizacion_id>/sensores/<int:sensor_id>/lecturas/", lecturas_sensor_v2),
     path("organizaciones/<str:organizacion_id>/metodologias/", metodologias),
     path("organizaciones/<str:organizacion_id>/metodologias/<int:metodologia_id>/", metodologia_detail),
+    path("organizaciones/<str:organizacion_id>/metodologias/<int:metodologia_id>/versiones/<int:version_id>/transicion/", metodologia_transition),
+    path("organizaciones/<str:organizacion_id>/metodologias/<int:metodologia_id>/versiones/<int:version_id>/variables/", metodologia_variables),
+    path("organizaciones/<str:organizacion_id>/metodologias/<int:metodologia_id>/versiones/<int:version_id>/variables/<int:variable_id>/", metodologia_variables),
     path("organizaciones/<str:organizacion_id>/factores-ambientales/", factores_ambientales),
     path("organizaciones/<str:organizacion_id>/actividades-operacionales/<int:actividad_id>/elegibilidad/", elegibilidad_actividad),
     path("organizaciones/<str:organizacion_id>/actividades-operacionales/<int:actividad_id>/calcular/", calcular_actividad),
     path("organizaciones/<str:organizacion_id>/actividades-operacionales/<int:actividad_id>/calculos/", calculos_actividad),
     path("organizaciones/<str:organizacion_id>/calculos/<int:calculo_id>/", calculo_detail),
+    path("organizaciones/<str:organizacion_id>/calculos/<int:calculo_id>/recalcular/", calculo_recalculate),
+    path("organizaciones/<str:organizacion_id>/calculos/<int:calculo_id>/snapshot/", calculo_snapshot),
+    path("organizaciones/<str:organizacion_id>/calculos/<int:calculo_id>/comparar/<int:other_id>/", calculo_compare),
     path("organizaciones/<str:organizacion_id>/impactos-ambientales/", impactos_ambientales),
     path("organizaciones/<str:organizacion_id>/calidad/observaciones/", calidad_observaciones),
     path("organizaciones/<str:organizacion_id>/discrepancias/", discrepancias),
