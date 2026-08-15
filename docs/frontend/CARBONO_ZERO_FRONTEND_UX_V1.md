@@ -522,6 +522,16 @@ Las rutas profundas conservan contexto y navegación coherentes; salvo Operació
 
 Correctivo semántico final: los conteos exitosos preservan `0` como dato real y reservan “Sin datos” para `null`/`undefined`; el KPI de Inicio se denomina “Obras registradas” porque cuenta el listado completo sin inventar una definición de obra activa. Los indicadores destacados usan selección explícita: agregados nombrados de transporte y totales aditivos tipados de flujos, con su unidad real. IDs, alcance, estrategia de agregación, flags, códigos, estados internos y metadata nunca se convierten automáticamente en KPIs.
 
+## UX-06 — Datos, evidencias, importaciones y trazabilidad
+
+`features/datos` es la única autoridad frontend para alimentación y procedencia de datos. Sus rutas son `/datos`, `/datos/evidencias`, `/datos/evidencias/:evidenceId`, `/datos/importaciones`, `/datos/importaciones/:processId` y la vista reutilizada `/obras/:obraId/evidencias`. Se retiraron las páginas, aliases, componentes y servicios duplicados anteriores.
+
+El centro Datos combina evidencias e importaciones con tolerancia a fallos parciales. Evidencia lista metadata, carga el archivo original sin fingir extracción automática y obtiene versiones desde ContextGateway. La ruta de obra consume exclusivamente el endpoint obra-scoped. Importaciones representa origen → archivo → contexto → mapping → preview → revisión por excepción → confirmación → resultado; sólo promete CSV/XLS/XLSX para procesamiento tabular.
+
+El `Drawer` compartido aporta Escape, restauración de foco, overlay y comportamiento responsive. `TraceabilityDrawer` separa valor/calidad, fuente de datos, evidencia, versión concreta e ingesta. `TraceabilityLink` abre el panel desde los dominios UX-05.
+
+Limitación: no todas las vistas entregan un grafo unificado de cálculo histórico hasta metodología/factor. UX-06 no reconstruye ese tramo con recursos activos ni lo inventa. El ciclo Problema → BASE → Acción → RESULT permanece para UX-07.
+
 ## UX-05 — Operación ambiental de obra
 
 `/obras/:obraId/operacion` es el resumen operacional obra-scoped y contiene navegación URL hacia Energía, Agua, Combustibles, Transporte, Materiales, Residuos, Ruido e Hídrica/suelo. Energía integra generación propia. Cada dominio distingue aplicabilidad (`No aplica`, `Por definir`), ausencia, datos disponibles y revisión requerida.

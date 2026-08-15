@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Building2, DatabaseZap, Settings, UsersRound } from "lucide-react";
 
 import OrganizacionesView from "@/features/organizaciones/pages/OrganizacionesPage";
-import ImportacionesView from "@/features/importaciones/pages/ImportacionesPage";
+import ImportacionesView from "@/features/datos/pages/ImportsPage";
 import ConfiguracionPage from "@/features/configuracion/pages/ConfiguracionPage";
 import UsuariosPage from "@/features/usuarios/pages/UsuariosPage";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";

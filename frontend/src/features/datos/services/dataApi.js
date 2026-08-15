@@ -1,0 +1,15 @@
+import { api } from "@/shared/services/api";
+const orgRoot = (id) => `/organizaciones/${encodeURIComponent(id)}`;
+const importRoot = (id) => `${orgRoot(id)}/ingestas`;
+export const listEvidence = async (organizationId) => (await api.get(`${orgRoot(organizationId)}/evidencias/`)).data;
+export const listWorkEvidence = async (workCode) => (await api.get(`/obras/${encodeURIComponent(workCode)}/evidencias/`)).data;
+export const uploadEvidence = async (organizationId, data) => (await api.post(`${orgRoot(organizationId)}/evidencias/`, data)).data;
+export const uploadWorkEvidence = async (workCode, data) => (await api.post(`/obras/${encodeURIComponent(workCode)}/evidencias/`, data)).data;
+export const evidenceContext = async (id) => (await api.get(`/context/evidence/${encodeURIComponent(id)}/`)).data;
+export const listImports = async (organizationId) => (await api.get(`${importRoot(organizationId)}/`)).data;
+export const getImport = async (organizationId, id) => (await api.get(`${importRoot(organizationId)}/${encodeURIComponent(id)}/`)).data;
+export const createImport = async (organizationId, file, source, options = {}) => { const data = new FormData(); data.append("archivo", file); data.append("fuente_nombre", source); data.append("tipo_ingesta", "tabular"); data.append("destino_operacional", options.destination || "actividad_generica"); if (options.flow) data.append("flujo", options.flow); return (await api.post(`${importRoot(organizationId)}/`, data)).data; };
+export const analyzeImport = async (organizationId, id) => (await api.post(`${importRoot(organizationId)}/${id}/analizar/`)).data;
+export const saveImportMapping = async (organizationId, id, mappings, options = {}) => (await api.post(`${importRoot(organizationId)}/${id}/mapeo/`, { nombre: "Mapeo ambiental", mapeos: mappings, destino_operacional: options.destination, flujo: options.flow, contexto: options.context || {} })).data;
+export const previewImport = async (organizationId, id) => (await api.get(`${importRoot(organizationId)}/${id}/preview/`)).data;
+export const confirmImport = async (organizationId, id) => (await api.post(`${importRoot(organizationId)}/${id}/confirmar/`)).data;

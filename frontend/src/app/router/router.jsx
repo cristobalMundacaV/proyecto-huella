@@ -12,8 +12,11 @@ import VerificarObra from "@/features/obras/pages/VerificarObra";
 import InicioPage from "@/features/inicio/pages/InicioPage";
 import ObrasPage from "@/features/obras/pages/ObrasPage";
 import ObraResumenPage from "@/features/obras/pages/ObraResumenPage";
-import ImportacionesPage from "@/features/importaciones/pages/ImportacionesPage";
-import EvidenciasPage from "@/features/evidencias/pages/EvidenciasPage";
+import DataOverviewPage from "@/features/datos/pages/DataOverviewPage";
+import EvidencePage from "@/features/datos/pages/EvidencePage";
+import EvidenceDetailPage from "@/features/datos/pages/EvidenceDetailPage";
+import ImportsPage from "@/features/datos/pages/ImportsPage";
+import ImportDetailPage from "@/features/datos/pages/ImportDetailPage";
 import ActivosPage from "@/features/activos/pages/ActivosPage";
 import SensoresPage from "@/features/sensores/pages/SensoresPage";
 import OperationLayout from "@/features/operacion/components/OperationLayout";
@@ -73,11 +76,15 @@ export default function AppRouter() {
           </Route>
           <Route path="indicadores" element={<ObraWorkspaceSection title="Indicadores" description="Los indicadores conservan alcance de obra. La exploración profunda se completa en UX-05." />} />
           <Route path="problemas" element={<ObraWorkspaceSection title="Problemas y acciones" description="El resumen ya muestra problemas y acciones reales; el ciclo completo se abordará en su fase específica." />} />
-          <Route path="evidencias" element={<ObraWorkspaceSection title="Evidencia" description="La evidencia permanece vinculada al contexto de esta obra. El flujo documental completo corresponde a UX-06." />} />
+          <Route path="evidencias" element={<EvidencePage workScoped />} />
           <Route path="timeline" element={<ObraWorkspaceSection title="Timeline" description="El resumen presenta los eventos recientes reales de esta obra." />} />
           <Route path="informes" element={<ObraWorkspaceSection title="Informes" description="Los informes mantendrán este alcance de obra cuando se complete su experiencia especializada." />} />
         </Route>
-        <Route path="datos/importaciones" element={<ImportacionesPage />} /><Route path="datos/evidencias" element={<EvidenciasPage />} />
+        <Route path="datos" element={<DataOverviewPage />} />
+        <Route path="datos/evidencias" element={<EvidencePage />} />
+        <Route path="datos/evidencias/:evidenceId" element={<EvidenceDetailPage />} />
+        <Route path="datos/importaciones" element={<ImportsPage />} />
+        <Route path="datos/importaciones/:processId" element={<ImportDetailPage />} />
         <Route path="operacion/activos" element={<ActivosPage />} /><Route path="operacion/sensores" element={<SensoresPage />} />
         <Route path="inteligencia" element={<IntelligencePage />} /><Route path="inteligencia/acciones" element={<AccionesAmbientalesPage />} /><Route path="inteligencia/copiloto" element={<CopilotoAmbientalPage />} />
         <Route path="gobernanza/factores" element={<FactoresPage />} /><Route path="gobernanza/informes" element={<ReportesRegulatoriosPage />} />
