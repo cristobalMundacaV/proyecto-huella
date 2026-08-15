@@ -13,6 +13,7 @@ import LotesForestalesPage from "@/presets/aserradero/pages/LotesForestalesPage"
 import { getEmpresaRegistrosAmbientales } from "@/shared/services/api";
 import { formatNumber } from "@/shared/utils/formatters";
 import ActivityCorePanel from "../components/ActivityCorePanel";
+import TransportJourneyPanel from "../components/TransportJourneyPanel";
 
 const tabBaseClass = "rounded-2xl px-4 py-3 text-sm font-black transition";
 const STAGE_DONUT_SIZE = 220;
@@ -389,6 +390,7 @@ function OperacionPage() {
       </section>
 
       <ActivityCorePanel organizacionId={activeOrganizacionId} />
+      <TransportJourneyPanel organizacionId={activeOrganizacionId} />
 
       <div className="overflow-x-auto rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-2 shadow-[var(--shadow-card)]">
         <div className="flex min-w-max gap-2">

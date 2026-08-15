@@ -10,6 +10,7 @@ from ..models import (ActividadOperacional, ActivoOperacional, EvidenciaObra,
 from .comparison_v2 import compare_values
 from .environmental_context import evidence_summary
 from .knowledge_v1 import compact_knowledge
+from .transport_v2 import journey_metrics
 
 
 class ContextGateway:
@@ -83,7 +84,11 @@ class ContextGateway:
 
     def activity(self, activity, organization):
         self._tenant(activity, organization)
-        return {"context_type": "activity", "references": {"organization": organization.organizacion_id, "activity": activity.id}, "actividad": {"codigo": activity.codigo, "nombre": activity.nombre, "tipo": activity.tipo, "estado": activity.estado, "inicio": activity.timestamp_inicio}, "observaciones": list(activity.observaciones.values("id", "concepto", "valor_numerico", "unidad", "fuente__tipo", "estado").order_by("-timestamp_observacion")[:20])}
+        package = {"context_type": "activity", "references": {"organization": organization.organizacion_id, "activity": activity.id}, "actividad": {"codigo": activity.codigo, "nombre": activity.nombre, "tipo": activity.tipo, "estado": activity.estado, "inicio": activity.timestamp_inicio}, "observaciones": list(activity.observaciones.values("id", "concepto", "valor_numerico", "unidad", "fuente__tipo", "estado").order_by("-timestamp_observacion")[:20])}
+        journey = getattr(activity, "viaje", None)
+        if journey:
+            package["transporte"] = {"trayecto": journey.tipo_trayecto, "gestion": journey.tipo_gestion, "estado_carga": journey.estado_carga, "origen": journey.origen_nombre, "destino": journey.destino_nombre, "metricas": journey_metrics(journey), "metodologia_tercerizado": journey.metodologia_tercerizado}
+        return package
 
     def intervention(self, problem, organization):
         self._tenant(problem, organization)
