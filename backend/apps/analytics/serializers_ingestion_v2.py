@@ -15,13 +15,14 @@ class PlantillaMapeoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PlantillaMapeo
-        fields = ["id", "nombre", "formato", "version", "activa", "fuente_datos", "fuente_nombre", "mapeos", "created_at"]
+        fields = ["id", "nombre", "formato", "tipo_ingesta", "destino_operacional", "flujo", "version", "activa", "fuente_datos", "fuente_nombre", "mapeos", "created_at"]
 
 
 class RegistroExtraidoSerializer(serializers.ModelSerializer):
     class Meta:
         model = RegistroExtraido
-        fields = ["id", "numero_fila", "origen", "datos_originales", "estado", "errores", "actividad_creada"]
+        fields = ["id", "numero_fila", "origen", "datos_originales", "datos_normalizados", "auto_confirmable", "estado", "errores",
+                  "actividad_creada", "resultado_procesamiento", "procesado_at"]
 
 
 class VersionEvidenciaSerializer(serializers.ModelSerializer):
@@ -41,6 +42,8 @@ class ProcesoIngestaSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProcesoIngesta
         fields = ["id", "version_evidencia", "version_evidencia_detalle", "fuente_datos", "fuente_nombre",
-                  "plantilla_mapeo", "plantilla", "tipo_ingesta", "estado", "fecha_inicio", "fecha_fin",
+                  "plantilla_mapeo", "plantilla", "tipo_ingesta", "destino_operacional", "flujo",
+                  "clasificacion_sugerida", "clasificacion_confirmada", "contexto_sugerido", "contexto_confirmado",
+                  "estado", "fecha_inicio", "fecha_fin",
                   "filas_detectadas", "filas_procesadas", "filas_con_error", "resumen_errores",
                   "registros_extraidos", "created_at", "updated_at"]
