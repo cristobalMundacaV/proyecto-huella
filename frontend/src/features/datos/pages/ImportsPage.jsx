@@ -1,16 +1,59 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
-import { ErrorState, LoadingState, PageHeader, StatusBadge, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
+import { EmptyState, ErrorState, LoadingState, PageHeader, SectionHeader, StatusBadge, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
 import { formatDateTime } from "@/shared/utils/formatters";
 import ImportWorkflow from "../components/ImportWorkflow";
 import { listImports } from "../services/dataApi";
+import { destinationLabel, importDisplayName, importResultLabel, importStatusInfo } from "../utils/dataPresentation";
 
 export default function ImportsPage() {
-  const { activeOrganizacionId } = useOrganizacionActiva(); const [state, setState] = useState({ loading: true, rows: [], error: "" });
-  const load = useCallback(() => { setState((current) => ({ ...current, loading: true, error: "" })); listImports(activeOrganizacionId).then((rows) => setState({ loading: false, rows, error: "" })).catch(() => setState((current) => ({ ...current, loading: false, error: "No fue posible cargar el historial. Puedes iniciar una nueva importación igualmente." }))); }, [activeOrganizacionId]);
-  useEffect(() => { load(); }, [load]);
-  return <main className="space-y-6"><PageHeader eyebrow="Datos · Importaciones" title="Importaciones" description="Inicia un proceso o revisa el historial sin perder el archivo, el mapping ni sus excepciones." /><ImportWorkflow organizationId={activeOrganizacionId} />
-    <section><h2 className="mb-3 text-xl font-bold">Historial de procesos</h2>{state.loading ? <LoadingState label="Cargando historial" /> : state.error ? <ErrorState description={state.error} onRetry={load} /> : <TableShell><TableHead><tr><TableCell as="th">Archivo o fuente</TableCell><TableCell as="th">Canal</TableCell><TableCell as="th">Estado</TableCell><TableCell as="th">Registros</TableCell><TableCell as="th">Fecha</TableCell><TableCell as="th">Acción</TableCell></tr></TableHead><TableBody columns={6} empty={!state.rows.length}>{state.rows.map((row) => <tr key={row.id}><TableCell><b>{row.version_evidencia_detalle?.nombre_original || row.fuente_nombre || "Importación"}</b><span className="block text-xs text-[var(--text-muted)]">{row.destino_operacional?.replaceAll("_", " ")}</span></TableCell><TableCell>{row.tipo_ingesta}</TableCell><TableCell><StatusBadge label={row.estado?.replaceAll("_", " ")} /></TableCell><TableCell>{row.filas_procesadas ?? 0} procesados · {row.filas_con_error ?? 0} errores</TableCell><TableCell>{formatDateTime(row.created_at)}</TableCell><TableCell><Link className="font-bold text-[var(--brand-primary)]" to={`/datos/importaciones/${row.id}`}>Ver detalle</Link></TableCell></tr>)}</TableBody></TableShell>}</section>
+  const { activeOrganizacionId } = useOrganizacionActiva();
+  const scope = String(activeOrganizacionId || "");
+  const [state, setState] = useState({ scope: null, loading: true, rows: [], error: "" });
+  const requestRef = useRef(0);
+
+  const load = useCallback(async () => {
+    if (!activeOrganizacionId) return;
+    const requestId = ++requestRef.current;
+    const organizationAtStart = String(activeOrganizacionId);
+    setState((current) => ({ ...current, scope: organizationAtStart, loading: true, error: "" }));
+    try {
+      const rows = await listImports(activeOrganizacionId);
+      if (requestRef.current === requestId) setState({ scope: organizationAtStart, loading: false, rows, error: "" });
+    } catch {
+      if (requestRef.current === requestId) setState((current) => ({ ...current, scope: organizationAtStart, loading: false, error: "No fue posible cargar el historial. Puedes iniciar una nueva importación igualmente." }));
+    }
+  }, [activeOrganizacionId]);
+
+  useEffect(() => {
+    setState({ scope, loading: true, rows: [], error: "" });
+    load();
+    return () => { requestRef.current += 1; };
+  }, [load, scope]);
+
+  if (state.scope !== scope) return <LoadingState label="Preparando importaciones" />;
+
+  return <main className="space-y-7">
+    <PageHeader title="Importaciones" description="Carga información nueva o revisa una carga anterior." />
+
+    <ImportWorkflow key={activeOrganizacionId} organizationId={activeOrganizacionId} onCompleted={load} />
+
+    <section>
+      <SectionHeader title="Historial" description="Cargas anteriores, su estado y el resultado disponible." />
+      {state.loading ? <LoadingState label="Cargando historial" /> : state.error ? <ErrorState description={state.error} onRetry={load} /> : !state.rows.length ? <EmptyState title="No hay importaciones anteriores." description="La nueva carga está disponible arriba cuando quieras comenzar." /> : <TableShell>
+        <TableHead><tr><TableCell as="th">Archivo / fuente</TableCell><TableCell as="th">Estado</TableCell><TableCell as="th">Resultado</TableCell><TableCell as="th">Fecha</TableCell><TableCell as="th">Acción</TableCell></tr></TableHead>
+        <TableBody columns={5}>{state.rows.map((row) => {
+          const status = importStatusInfo(row.estado);
+          return <tr key={row.id}>
+            <TableCell><b>{importDisplayName(row)}</b><span className="block text-xs text-[var(--text-muted)]">{destinationLabel(row.destino_operacional)}</span></TableCell>
+            <TableCell><StatusBadge tone={status.tone}>{status.label}</StatusBadge></TableCell>
+            <TableCell>{importResultLabel(row)}</TableCell>
+            <TableCell>{formatDateTime(row.created_at)}</TableCell>
+            <TableCell><Link className="font-bold text-[var(--brand-primary)]" to={`/datos/importaciones/${row.id}`}>Ver</Link></TableCell>
+          </tr>;
+        })}</TableBody>
+      </TableShell>}
+    </section>
   </main>;
 }

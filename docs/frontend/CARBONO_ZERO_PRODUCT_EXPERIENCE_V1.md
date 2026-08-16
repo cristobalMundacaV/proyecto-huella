@@ -88,3 +88,51 @@ Las páginas internas de Problemas, Evidencias, Indicadores e Historial ya no re
 ### Decisiones pospuestas
 
 PX-03 no rediseña profundamente Operación, Indicadores, Problemas, Evidencias ni Historial. Sus experiencias internas permanecen para fases posteriores de Product Experience. Tampoco inicia PX-04 ni PX-05 y no modifica backend.
+
+## PX-04 — Datos, evidencias e importaciones
+
+### Pregunta central y flujo mental
+
+Datos responde “¿qué información tengo, qué falta y qué debo hacer con ella?”. La experiencia visible prioriza el flujo Subir → Entender → Revisar → Confirmar → Resultado. Los nombres internos de ingesta, mapeo y payload permanecen fuera del copy principal cuando existe una expresión de cliente equivalente.
+
+### Evidencia e importación siguen siendo entidades distintas
+
+SOURCE != EVIDENCE se mantiene. Una fuente de datos describe el origen operacional de la información; una evidencia representa un documento o archivo de respaldo y puede tener versiones. Una importación puede referenciar explícitamente una versión de evidencia, pero la interfaz no fusiona ambas entidades ni usa la confiabilidad de una fuente como calidad del documento.
+
+### /datos y prioridades
+
+`/datos` deja de ser un hub de navegación y presenta sólo tres bloques: Requiere atención, Evidencias e Importaciones recientes. Evidencias e importaciones cargan de manera independiente y conservan protección frente a respuestas tardías al cambiar de organización. Un error de un recurso se representa como No disponible sin convertirlo en cero ni ocultar el otro.
+
+Las prioridades no usan score. Para evidencias sólo `pendiente` y `observada` se presentan automáticamente como revisión pendiente. Para importaciones se elevan estados cuyo contrato expresa acción o fallo: `requiere_mapeo`, `listo_para_confirmar`, `fallido` y `completado_con_observaciones`. Estados automáticos como `recibido`, `analizando` y `procesando` se muestran neutrales y no se convierten en falsos pendientes humanos.
+
+### Evidencias y carga documental
+
+La lista de evidencias conserva búsqueda y un único filtro visible por estado. Los estados internos se traducen a copy humano: Pendiente de revisión, Validada, Requiere revisión, Rechazada, Vinculada y Sin vincular. Cada fila se limita a documento, contexto, estado, fecha de ingreso y acción.
+
+Agregar documento mantiene el contrato existente: el frontend envía el archivo con tipo `otro` y estado inicial `pendiente`, sin presentar esos defaults como clasificación automática. La variante organizacional no inventa obra; la variante del workspace usa el endpoint scoped existente y no vuelve a pedir unidad. Carga, error y éxito tienen feedback local independiente; el error de upload no reemplaza la lista. El EmptyState usa un `ref` React para abrir el selector de archivo y elimina `document.querySelector`.
+
+### Detalle de evidencia, versiones y trazabilidad
+
+El detalle responde “¿qué es este documento y qué información produjo?” mediante Documento, Contexto, Versiones y Trazabilidad. El header se limita a nombre, estado, contexto y fecha. El archivo original sólo ofrece acceso cuando `archivo_url` existe en el contrato. Las versiones muestran número, fecha y nombre; checksum queda bajo progressive disclosure en “Detalles de trazabilidad”.
+
+El contrato `/context/evidence/:id` no entrega observaciones individuales, por lo que la interfaz no las reconstruye ni inventa. Cuando la lista de importaciones entrega una relación explícita mediante `version_evidencia_detalle.evidencia`, el detalle ofrece “Ver importación”.
+
+### Import workflow y estados
+
+La nueva importación mantiene soporte tabular auditado para CSV, XLS y XLSX. El stepper visible usa cinco pasos de cliente: Subir, Entender, Revisar, Confirmar y Resultado, con `aria-current` para comunicar el paso actual sin depender sólo del color. “Entender” explica “Indica qué significa cada columna”; el usuario puede omitir columnas no aplicables y la revisión posterior conserva la autoridad para informar faltantes.
+
+Antes de confirmar se muestran filas preparadas, filas con observaciones, destino, fuente y contexto. Los errores de fila se resumen primero por cantidad y se despliegan bajo “Ver detalles”, con límite visual. Confirmar importación es una acción explícita y no existe reintento automático. El resultado usa únicamente los campos reales devueltos por confirmación.
+
+### Historial, detalle y zero/null/error
+
+El historial se simplifica a Archivo/fuente, Estado, Resultado, Fecha y Ver. Los estados se traducen a copy humano y nunca se imprime snake_case como estado principal. Antes de existir un resultado se muestra “Aún sin resultado”; sólo estados completados muestran conteos de procesados y errores.
+
+En el detalle, el estado gobierna cuándo un conteo puede considerarse resultado. `0` permanece `0` cuando el resultado existe; ausencia semántica se presenta como “Sin datos”; error de recurso se presenta como “No disponible”. El detalle separa Estado, Resumen, Errores/revisión, Origen y destino y Trazabilidad. Fuente de datos y evidencia documental permanecen visualmente separadas, con enlace al documento sólo cuando la relación explícita existe.
+
+### Work-scoped, responsive y accesibilidad
+
+`/obras/:obraId/evidencias` conserva el header del workspace y usa `SectionHeader`; sólo consulta el endpoint scoped de la obra y no filtra datos organizacionales en frontend para simular alcance. Las tablas mantienen overflow local, controles hacen wrap y los bloques pasan a una columna en móvil sin crear una segunda vista. File inputs tienen label accesible, stepper usa `aria-current`, enlaces y botones son elementos semánticos y errores locales usan Alert/ErrorState existentes.
+
+### Decisiones pospuestas
+
+PX-04 no modifica Operación, Inteligencia ni Gobernanza, no crea una experiencia de extracción documental inexistente y no expone observaciones que el contrato de evidencia no entrega. TraceabilityDrawer se conserva sin alterar su semántica. Backend permanece cerrado y PX-05 no se inicia.
