@@ -11,3 +11,6 @@ export const generateDossierReport=async(id,dossierId)=>(await api.post(`${base(
 export const validateProfessionalReport=async(id,reportId)=>(await api.post(`${base(id)}/informes/${reportId}/validar/`)).data;
 export const reportPdfUrl=(id,reportId)=>`${api.defaults.baseURL || "/api"}/organizaciones/${encodeURIComponent(id)}/informes/${reportId}/pdf/`;
 export const getEnvironmentalAudit=async(id)=>(await api.get(`${base(id)}/auditoria/`)).data;
+export const getQualityEvaluations=async(id)=>(await api.get(`${base(id)}/calidad/observaciones/`)).data;
+export const getDiscrepancies=async(id)=>(await api.get(`${base(id)}/discrepancias/`)).data;
+export const getSourcePolicies=async(id)=>(await api.get(`${base(id)}/politicas-fuente/`)).data;

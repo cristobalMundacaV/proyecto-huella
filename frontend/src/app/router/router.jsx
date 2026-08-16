@@ -30,8 +30,14 @@ import IntelligencePage from "@/features/intelligence/pages/IntelligencePage";
 import ProblemsPage from "@/features/mejora/pages/ProblemsPage";
 import ProblemDetailPage from "@/features/mejora/pages/ProblemDetailPage";
 import CopilotoAmbientalPage from "@/features/intelligence/pages/CopilotPage";
-import FactoresPage from "@/features/factores/pages/FactoresPage";
-import ReportesRegulatoriosPage from "@/core/reportes-regulatorios/pages/ReportesRegulatoriosPage";
+import FactoresPage from "@/core/factores/pages/FactoresPage";
+import GovernanceOverviewPage from "@/features/professional/pages/GovernanceOverviewPage";
+import ReviewQueuePage from "@/features/professional/pages/ReviewQueuePage";
+import DossiersPage from "@/features/professional/pages/DossiersPage";
+import DossierDetailPage from "@/features/professional/pages/DossierDetailPage";
+import QualityGovernancePage from "@/features/professional/pages/QualityGovernancePage";
+import AuditPage from "@/features/professional/pages/AuditPage";
+import KnowledgePage from "@/features/professional/pages/KnowledgePage";
 import AdministracionPage from "@/features/administracion/pages/AdministracionPage";
 import OrganizacionesPage from "@/features/organizaciones/pages/OrganizacionesPage";
 import UsuariosPage from "@/features/usuarios/pages/UsuariosPage";
@@ -94,7 +100,15 @@ export default function AppRouter() {
         <Route path="inteligencia/problemas/:problemId" element={<ProblemDetailPage />} />
         <Route path="inteligencia/acciones" element={<Navigate to="/inteligencia/problemas" replace />} />
         <Route path="inteligencia/copiloto" element={<CopilotoAmbientalPage />} />
-        <Route path="gobernanza/factores" element={<FactoresPage />} /><Route path="gobernanza/informes" element={<ReportesRegulatoriosPage />} />
+        <Route path="gobernanza" element={<GovernanceOverviewPage />} />
+        <Route path="gobernanza/revision" element={<ReviewQueuePage />} />
+        <Route path="gobernanza/expedientes" element={<DossiersPage />} />
+        <Route path="gobernanza/expedientes/:dossierId" element={<DossierDetailPage />} />
+        <Route path="gobernanza/factores" element={<FactoresPage />} />
+        <Route path="gobernanza/calidad" element={<QualityGovernancePage />} />
+        <Route path="gobernanza/auditoria" element={<AuditPage />} />
+        <Route path="gobernanza/conocimiento" element={<KnowledgePage />} />
+        <Route path="gobernanza/informes" element={<DossiersPage />} />
         <Route path="administracion" element={<AdministracionPage />} /><Route path="administracion/organizacion" element={<OrganizationRoute />} /><Route path="administracion/usuarios" element={<UsuariosPage />} /><Route path="administracion/configuracion" element={<ConfiguracionPage />} /><Route path="administracion/diagnostico" element={<DiagnosticoAmbientalPage />} /><Route path="administracion/estructura" element={<EtapasPage />} />
         <Route path="operacion/recepcion-trozas" element={<RecepcionTrozasPage />} /><Route path="operacion/produccion" element={<ProduccionAserraderoPage />} /><Route path="operacion/secado" element={<SecadoAserraderoPage />} /><Route path="operacion/energia" element={<EnergiaAserraderoPage />} /><Route path="operacion/transporte-forestal" element={<TransporteForestalPage />} /><Route path="operacion/residuos-subproductos" element={<ResiduosSubproductosPage />} /><Route path="operacion/lotes-forestales" element={<LotesForestalesPage />} />
         <Route path="*" element={<NotFoundPage authenticated />} />

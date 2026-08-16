@@ -571,3 +571,17 @@ Los selectors son explícitos. Sólo `estrategia_agregacion=suma` permite mostra
 Los registros presentan fecha, concepto, valor, unidad, contexto, calidad y enlace al origen cuando existe. Los CTA sin datos dirigen a Evidencia o Importaciones; el workflow documental completo continúa pendiente para UX-06. Se eliminó `OperacionPage` organizacional legacy junto con sus paneles stateful de Activity Core, transporte, materiales y flujos. Las rutas específicas de aserradero permanecen intactas.
 
 Correctivo final UX-05: la operación usa carga parcial por recurso. Cada request conserva un estado discriminado `ready/error` y `data`; un error de endpoint nunca se transforma en una colección vacía. Transporte aísla viajes de indicadores, Materiales aísla balance de eventos, Residuos conserva sus dos fuentes separadas y los dominios sectoriales continúan mostrando registros cuando sólo fallan los puntos ambientales. El overview representa una falla como “No disponible”, distinta de “Sin datos”.
+
+## UX-09 — Gobernanza, revisión profesional y administración
+
+`/gobernanza` responde qué requiere control mediante conteos reales y carga parcial. Revisión profesional, expedientes, calidad, auditoría, factores y conocimiento tienen rutas propias. Las decisiones usan el endpoint `decision`, los hallazgos son estructurados y no quedan acciones basadas en `window.prompt`.
+
+Los expedientes se identifican por `/gobernanza/expedientes/:dossierId` y ofrecen secciones enlazables para resumen, antecedentes, cálculos, intervenciones, revisiones, informes y auditoría. Las referencias se presentan en lenguaje humano. Cuando el contrato no entrega un snapshot científico se indica “No disponible en este contrato”; nunca se sustituye por metodología o factor vigente. Generar y validar informes son acciones explícitas, el checksum se resume y cerrar/reabrir usan diálogos con motivo obligatorio.
+
+`/gobernanza/calidad` mantiene separadas evaluación de dato, discrepancia y política de confianza de fuente. `/gobernanza/auditoria` representa eventos profesionales sin exponer payloads técnicos. `/gobernanza/conocimiento` aloja la biblioteca de casos fuera de Inteligencia y conserva el carácter no prescriptivo de los agregados anónimos.
+
+Factores conserva una sola página autoritativa en `core/factores`; la página alias duplicada fue retirada. La configuración organizacional se presenta como preferencia operativa, no como autoridad científica. `/administracion` es una entrada basada en rutas para organización, usuarios, configuración, diagnóstico y estructura; no duplica Datos ni la operación ambiental.
+
+Se eliminaron `ProfessionalReviewWorkspace`, `EnvironmentalKnowledge` embebido y el reporte regulatorio legacy basado en un score calculado por frontend. La experiencia respeta el modo demo de sólo lectura, scope de organización, estados reales, formateadores compartidos y fallos parciales.
+
+Limitaciones: el contrato actual sólo expone el informe vigente dentro del expediente y no ofrece listado histórico de todas las versiones; UX-09 no fabrica ese historial. Los cálculos se muestran únicamente cuando las referencias concretas existen. UX-10 deberá completar el barrido visual de páginas administrativas internas legacy y la auditoría WCAG integral.

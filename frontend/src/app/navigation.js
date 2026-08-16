@@ -21,8 +21,12 @@ export const navigationGroups = [
     { label: "Copiloto", path: "/inteligencia/copiloto", icon: Bot },
   ] },
   { label: "Gobernanza", items: [
+    { label: "Gobernanza", path: "/gobernanza", icon: ShieldCheck },
+    { label: "Revisión profesional", path: "/gobernanza/revision", icon: ClipboardCheck },
+    { label: "Expedientes", path: "/gobernanza/expedientes", icon: FileCheck2 },
+    { label: "Calidad", path: "/gobernanza/calidad", icon: CheckCircle2 },
     { label: "Factores", path: "/gobernanza/factores", icon: Database },
-    { label: "Informes", path: "/gobernanza/informes", icon: BarChart3 },
+    { label: "Auditoría", path: "/gobernanza/auditoria", icon: BarChart3 },
   ] },
   { label: "Administración", items: [
     { label: "Administración", path: "/administracion", icon: Settings },
