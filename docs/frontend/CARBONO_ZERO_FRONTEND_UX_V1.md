@@ -524,6 +524,10 @@ Correctivo semántico final: los conteos exitosos preservan `0` como dato real y
 
 ## UX-08 — Inteligencia, Copiloto, activos y sensores
 
+Correctivo de procedencia: una lectura digitada desde la UI conserva `metadata_tecnica.origen_ingreso = "manual"` después de recargar. La medición continúa siendo instrumental; la forma de ingreso se presenta por separado. La ausencia de metadata se muestra como “Ingreso no informado” y nunca se interpreta automáticamente como telemetría. Calidad técnica de lectura no se reutiliza como estado o calidad ambiental de la observación.
+
+La trazabilidad de sensor usa una representación parcial explícita de `LecturaSensorV2`: valor, concepto, timestamp, calidad técnica, fuente y existencia del vínculo con observación. No reconstruye método, naturaleza, estado ambiental, actividad, evidencia o confiabilidad ausentes. La confirmación de comandos del Copiloto conserva el modal y muestra el error cuando el endpoint falla.
+
 `/inteligencia` contiene exclusivamente resultados operacionales reales: prioridades, recomendaciones determinísticas y escenarios provistos por backend. Cada recurso falla de forma independiente y una respuesta vacía produce `EmptyState`; se eliminaron `fallbackCards`, `ensureThreeCards` y la exigencia visual de tres recomendaciones. Revisión profesional y conocimiento se retiraron de esta ruta y permanecen pendientes para UX-09.
 
 `/inteligencia/copiloto` consume Context Gateway, propuestas, feedback y comandos reales sobre una problemática seleccionada. Presenta contexto estructurado, referencias, restricciones y versiones sin exponer prompts ni razonamiento interno. Aceptar sólo prepara un comando y requiere una segunda confirmación humana antes de crear la acción formal en UX-07. Un fallo del proveedor queda aislado del resto del producto.

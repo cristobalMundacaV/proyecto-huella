@@ -4,6 +4,14 @@ import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
 
 function Row({ label, value }) { return value === undefined || value === null || value === "" ? null : <div className="grid grid-cols-[130px_1fr] gap-3 border-b border-[var(--border-default)] py-2 text-sm"><dt className="text-[var(--text-muted)]">{label}</dt><dd className="break-words font-medium">{value}</dd></div>; }
 export default function TraceabilityDrawer({ observation, open, onClose, workId }) {
+  if (observation?.provenance_type === "sensor_reading") {
+    const reading = observation.reading;
+    return <Drawer open={open} onClose={onClose} title="Origen del dato"><div className="space-y-6">
+      <section><h3 className="font-bold">Lectura vinculada</h3><p className="mt-1 text-sm text-[var(--text-muted)]">Esta es la procedencia disponible desde el contrato de lectura. La observación asociada existe, pero su detalle completo no fue recuperado.</p><dl><Row label="Valor" value={`${formatNumber(reading.valor_numerico)} ${reading.unidad || ""}`} /><Row label="Concepto" value={reading.concepto?.replaceAll("_", " ")} /><Row label="Fecha" value={formatDateTime(reading.timestamp)} /><Row label="Medición" value="Instrumental" /><Row label="Ingreso" value={reading.metadata_tecnica?.origen_ingreso === "manual" ? "Manual" : undefined} /><Row label="Calidad técnica" value={reading.calidad_tecnica} /></dl></section>
+      <section><h3 className="font-bold">Fuente de datos</h3><dl><Row label="Nombre" value={reading.fuente_nombre || observation.sensor_name} /><Row label="Tipo" value="Sensor" /></dl></section>
+      <p className="text-xs text-[var(--text-muted)]">No se infieren estado ambiental, método de captura de la observación, naturaleza, actividad, evidencia ni confiabilidad.</p>
+    </div></Drawer>;
+  }
   const source = observation?.fuente_detalle || observation?.fuente;
   const evidence = observation?.evidencia_detalle || observation?.evidencia;
   const version = observation?.version_evidencia_detalle || observation?.version_evidencia;
