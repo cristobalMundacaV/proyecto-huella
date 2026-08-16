@@ -138,3 +138,39 @@ En el detalle, el estado gobierna cuándo un conteo puede considerarse resultado
 ### Decisiones pospuestas
 
 PX-04 no modifica Operación, Inteligencia ni Gobernanza, no crea una experiencia de extracción documental inexistente y no expone observaciones que el contrato de evidencia no entrega. TraceabilityDrawer se conserva sin alterar su semántica. Backend permanece cerrado y PX-05 no se inicia.
+
+## PX-05 — Operación
+
+### Pregunta y jerarquía
+
+Operación responde “¿qué está ocurriendo físicamente en esta unidad?” y conecta actividad real, dato observado, contexto y trazabilidad. Dentro del workspace no repite el header de la unidad: presenta sólo “Operación” y el subtexto “Revisa lo que está ocurriendo en esta unidad.”
+
+El overview deja de representar los ocho dominios con el mismo peso. La jerarquía visible es Resumen, Requiere atención / Actividad reciente cuando existen, Dominios activos y Otros dominios. Los dominios activos son los que tienen actividad real o información que requiere revisión y se ordenan por actividad reciente cuando existe fecha comparable; no se usa score. Los dominios sin actividad, no aplicables, pendientes de configuración o no disponibles se mantienen accesibles en una presentación compacta.
+
+### Estados y semántica
+
+La presentación se centraliza en seis estados: Con actividad, Sin información, No aplica, Sin configurar, Requiere revisión y No disponible. Un endpoint fallido nunca se convierte en “Sin información”; una aplicabilidad `no_aplica` nunca se expresa como cero; la ambigüedad declarada por indicadores se mantiene como Requiere revisión. `0` conserva su valor real y `null` conserva ausencia de dato.
+
+### Magnitudes y dominios sectoriales
+
+Las magnitudes heterogéneas nunca se suman entre sí. Los dominios genéricos sólo presentan total cuando `estrategia_agregacion` es `suma`; las métricas `serie_no_aditiva` se muestran mediante cantidad de mediciones y rango cuando existe. Ruido nunca suma dB y Hídrica y suelo no fuerza totales para condiciones no aditivas. Energía, Agua, Combustibles y Residuos mantienen sus preguntas de operación y siempre presentan unidad cuando el número depende de ella.
+
+Transporte prioriza viajes, ruta origen → destino, distancia y carga. El resumen se limita a viajes, distancia y masa transportada; combustible, vehículo, trayecto y metodología tercerizada quedan como contexto progresivo cuando el contrato los entrega. No se calculan ni infieren emisiones y no se suman métodos alternativos.
+
+Materiales responde por entradas, usos y salidas. Los balances backend se muestran por material y unidad; el frontend deja de sumar balances de materiales distintos para crear un total artificial. Los movimientos muestran material, tipo, cantidad + unidad, lote y origen del dato sin usar IDs como información principal. Los residuos provenientes de materiales permanecen separados del flujo sectorial para evitar doble conteo visual.
+
+### Fallos parciales, trazabilidad y alcance
+
+`getWorkOperation` conserva `Promise.allSettled`: Transporte, Materiales y los registros sectoriales pueden fallar de forma independiente. Un fallo de una señal complementaria no invalida la actividad real que sí pudo cargarse. `OperationLayout` incorpora identidad de request para impedir que una respuesta tardía de otra obra u organización sobrescriba el scope actual.
+
+Fuente y dato permanecen separados. Los registros ofrecen trazabilidad sólo cuando el contrato entrega fuente, evidencia o sensor; los documentos enlazan a la evidencia explícita y un origen sensor enlaza al módulo de sensores sin inferir impacto ambiental. Las rutas work-scoped existentes se mantienen y no se filtran recursos organizacionales en frontend para simular seguridad.
+
+### Presets, responsive y accesibilidad
+
+La prioridad del overview no se hardcodea por sector: la actividad real y la aplicabilidad gobernan la jerarquía. Las rutas especializadas de Aserradero —Recepción, Producción, Secado, Energía, Transporte forestal, Residuos/subproductos y Lotes— permanecen intactas y pueden coexistir con el workspace de unidad. Los deep links existentes no cambian.
+
+Las cards activas reducen densidad y los otros dominios usan filas compactas; las tablas mantienen overflow horizontal local y un máximo de seis columnas visibles. Mobile apila dominios y acciones sin crear una vista paralela. Estados tienen texto, las cards navegan con `Link`, las tablas usan `th`, los detalles técnicos usan `details/summary` y el estado nunca depende sólo del color.
+
+### Decisiones pospuestas
+
+PX-05 no rediseña profundamente Activos ni el módulo completo de Sensores, no profundiza Indicadores, no crea ProblemáticaAmbiental automáticamente y no introduce recomendaciones, predicciones o inteligencia. Esas superficies quedan fuera de esta fase. Backend permanece cerrado y PX-06 no se inicia.

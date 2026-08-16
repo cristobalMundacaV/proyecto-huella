@@ -1,10 +1,73 @@
 export const DOMAIN_CONFIG = {
-  energia: { label: "Energía", flows: ["energia", "generacion_propia"], capability: "energia" },
-  agua: { label: "Agua", flows: ["agua"], capability: "agua" },
-  combustibles: { label: "Combustibles", flows: ["combustible_estacionario"], capability: "combustibles" },
-  residuos: { label: "Residuos", flows: ["residuo"], capability: "residuos" },
-  ruido: { label: "Ruido", flows: ["ruido"], capability: "ruido" },
-  "hidrica-suelo": { label: "Hídrica y suelo", flows: ["gestion_hidrica_suelo"], capability: "gestion_hidrica_suelo" },
+  energia: {
+    label: "Energía",
+    flows: ["energia", "generacion_propia"],
+    capability: "energia",
+    question: "¿Cuánta energía se está utilizando y cuándo?",
+  },
+  agua: {
+    label: "Agua",
+    flows: ["agua"],
+    capability: "agua",
+    question: "¿Qué consumo o registro hídrico existe?",
+  },
+  combustibles: {
+    label: "Combustibles",
+    flows: ["combustible_estacionario"],
+    capability: "combustibles",
+    question: "¿Qué combustible se está utilizando?",
+  },
+  residuos: {
+    label: "Residuos",
+    flows: ["residuo"],
+    capability: "residuos",
+    question: "¿Qué residuos se están registrando?",
+  },
+  ruido: {
+    label: "Ruido",
+    flows: ["ruido"],
+    capability: "ruido",
+    question: "¿Qué mediciones acústicas se están registrando?",
+  },
+  "hidrica-suelo": {
+    label: "Hídrica y suelo",
+    flows: ["gestion_hidrica_suelo"],
+    capability: "gestion_hidrica_suelo",
+    question: "¿Qué condiciones hídricas o de suelo se están registrando?",
+  },
+};
+
+const statePresentation = {
+  con_datos: {
+    label: "Con actividad",
+    tone: "success",
+    description: "Hay actividad registrada.",
+  },
+  sin_datos: {
+    label: "Sin información",
+    tone: "neutral",
+    description: "Sin información registrada.",
+  },
+  no_aplica: {
+    label: "No aplica",
+    tone: "neutral",
+    description: "No aplica a esta unidad.",
+  },
+  por_definir: {
+    label: "Sin configurar",
+    tone: "warning",
+    description: "La aplicabilidad aún está por definir.",
+  },
+  requiere_revision: {
+    label: "Requiere revisión",
+    tone: "warning",
+    description: "Hay información que requiere revisión.",
+  },
+  error: {
+    label: "No disponible",
+    tone: "danger",
+    description: "La información no está disponible.",
+  },
 };
 
 export const isResourceReady = (resource) => resource?.status === "ready";
@@ -16,7 +79,7 @@ export function domainRecords(records, domain) {
 }
 
 export function recordMeasurements(records) {
-  return records.flatMap((record) => (record.observaciones || []).map((observation) => ({ record, observation })));
+  return (records || []).flatMap((record) => (record.observaciones || []).map((observation) => ({ record, observation })));
 }
 
 export function domainMetrics(indicators, domain) {
@@ -32,16 +95,40 @@ export function nonAdditiveMetrics(indicators, domain) {
   return domainMetrics(indicators, domain).filter((metric) => metric.estrategia_agregacion === "serie_no_aditiva");
 }
 
+export function primaryAdditiveMetric(indicators, domain) {
+  return additiveMetrics(indicators, domain)
+    .filter((metric) => metric.total !== null && metric.total !== undefined && metric.unidad)
+    .toSorted((left, right) => `${left.concepto}:${left.unidad}`.localeCompare(`${right.concepto}:${right.unidad}`))[0] || null;
+}
+
 export function applicability(context, capability) {
   const item = context?.diagnostico_obra?.aplicabilidad?.find((row) => row.clave === capability);
   return item?.estado_obra || "no_determinado";
 }
 
-export function domainState({ applicabilityState, records, ambiguous = false }) {
+export function domainState({ applicabilityState, records = [], ambiguous = false, available = true }) {
+  if (!available) return "error";
   if (applicabilityState === "no_aplica") return "no_aplica";
-  if (["no_determinado", "pendiente"].includes(applicabilityState)) return "por_definir";
   if (ambiguous) return "requiere_revision";
-  return records.length ? "con_datos" : "sin_datos";
+  if (records.length) return "con_datos";
+  if (["no_determinado", "pendiente"].includes(applicabilityState)) return "por_definir";
+  return "sin_datos";
+}
+
+export function domainStateInfo(state) {
+  return statePresentation[state] || statePresentation.por_definir;
+}
+
+export function latestRecord(records, field) {
+  return (records || [])
+    .filter((row) => row?.[field])
+    .toSorted((left, right) => String(right[field]).localeCompare(String(left[field])))[0] || null;
+}
+
+export function latestMeasurement(records) {
+  return recordMeasurements(records)
+    .filter(({ observation }) => observation?.timestamp_observacion)
+    .toSorted((left, right) => String(right.observation.timestamp_observacion).localeCompare(String(left.observation.timestamp_observacion)))[0] || null;
 }
 
 export const transportMetrics = (transport) => [
