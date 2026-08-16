@@ -6,9 +6,11 @@ import WorkStatus from "./WorkStatus";
 export default function WorkCard({ work, context, contextError = false, unitLabel = "Obra" }) {
   const routeId = work.id || work.obra_id || work.codigo_obra;
   const problems = context?.problematicas_abiertas?.length;
-  const environmentalStatus = contextError ? "no_disponible" : (context?.obra?.estado_ambiental ?? work.estado_ambiental ?? "no_determinado");
+  const environmentalStatus = context?.obra?.estado_ambiental
+    ?? work.estado_ambiental
+    ?? (contextError ? "no_disponible" : "no_determinado");
   const signal = contextError
-    ? "Información de seguimiento no disponible"
+    ? "Seguimiento no disponible"
     : problems === undefined
       ? "Estado de problemas no disponible"
       : problems > 0

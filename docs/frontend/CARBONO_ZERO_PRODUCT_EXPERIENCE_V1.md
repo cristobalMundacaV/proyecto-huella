@@ -51,9 +51,9 @@ El listado de unidades responde “¿qué unidades tengo y cuál necesita atenci
 
 ### Listado, orden y filtros
 
-El listado prioriza `requiere_atencion`, luego `cierre_pendiente`, después el resto de estados conocidos y finalmente los contextos no disponibles. No existe un score sintético. La búsqueda es el único filtro permanentemente visible: los estados operacional y ambiental provienen de dimensiones distintas y no se fusionan en un estado cliente sin un contrato determinístico que lo respalde.
+El listado prioriza `requiere_atencion`, luego `cierre_pendiente`, después el resto de estados conocidos y finalmente los estados ambientales desconocidos o no disponibles. No existe un score sintético. La búsqueda es el único filtro permanentemente visible: los estados operacional y ambiental provienen de dimensiones distintas y no se fusionan en un estado cliente sin un contrato determinístico que lo respalde.
 
-Cada tarjeta muestra nombre, código, estado ambiental, una única siñal de gestión y ubicación sólo cuando aporta contexto. La señal usa problemas abiertos cuando el contexto está disponible; si la consulta secundaria falla se muestra “Estado no disponible” y nunca se interpreta como saludable. El acceso sigue siendo un enlace semántico y el listado no limita la cantidad de unidades.
+Cada tarjeta muestra nombre, código, estado ambiental, una única siñal de gestión y ubicación sólo cuando aporta contexto. La resolución del estado prioriza el contexto exitoso y luego `work.estado_ambiental`; un fallo del contexto secundario no invalida un estado ambiental autoritativo ya presente en la unidad. Si el contexto falla, la señal de seguimiento se muestra por separado como “Seguimiento no disponible”; sólo cuando tampoco existe estado en la unidad se presenta “Estado no disponible”. El acceso sigue siendo un enlace semántico y el listado no limita la cantidad de unidades.
 
 ### Creación progresiva
 
@@ -76,6 +76,8 @@ El conteo de evidencias respeta `0` como cero real y `null`/ausencia como “Sin
 ### Fallos parciales y estado desconocido
 
 La carga del listado conserva explícitamente los IDs cuyos contextos fallaron y usa una identidad de request para impedir que una respuesta tardía de otra organización sobrescriba el estado actual. La lista de unidades es esencial; el contexto individual es secundario.
+
+Un fallo del contexto secundario no invalida un estado ambiental autoritativo ya presente en la unidad. Por eso una unidad puede conservar, por ejemplo, estado `estable` o `requiere_atencion` mientras comunica de forma independiente que su seguimiento no está disponible. Sólo la ausencia simultánea de estado en contexto y en la unidad convierte el estado ambiental en desconocido/no disponible.
 
 En el workspace, contexto, historial e indicadores se separan: el contexto sigue siendo esencial para gobernar la unidad, mientras que Historial e Indicadores pueden fallar de forma aislada y mostrar “No disponible” en su superficie. Un error secundario no convierte el estado ambiental en sano ni derriba el resto del workspace.
 

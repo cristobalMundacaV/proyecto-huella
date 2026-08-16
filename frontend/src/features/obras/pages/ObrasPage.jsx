@@ -9,10 +9,10 @@ import { Button, EmptyState, ErrorState, Input, LoadingState, Modal, PageHeader,
 
 const initialForm = { codigo_obra: "", nombre: "", fecha_inicio: "", tipo_proyecto: "Otro", superficie_m2: "", ubicacion: "" };
 const workId = (work) => String(work?.id || work?.obra_id || work?.codigo_obra || "");
-const attentionRank = (status, unknown) => {
+const attentionRank = (status) => {
   if (status === "requiere_atencion") return 0;
   if (status === "cierre_pendiente") return 1;
-  if (unknown || !status || status === "no_determinado") return 3;
+  if (!status || status === "no_determinado" || status === "no_disponible") return 3;
   return 2;
 };
 
@@ -70,11 +70,15 @@ export default function ObrasPage() {
       .sort((a, b) => {
         const aId = workId(a);
         const bId = workId(b);
-        const aStatus = contexts.get(aId)?.obra?.estado_ambiental ?? a.estado_ambiental;
-        const bStatus = contexts.get(bId)?.obra?.estado_ambiental ?? b.estado_ambiental;
-        const aUnknown = contextErrorIds.has(aId);
-        const bUnknown = contextErrorIds.has(bId);
-        return attentionRank(aStatus, aUnknown) - attentionRank(bStatus, bUnknown);
+        const aContextError = contextErrorIds.has(aId);
+        const bContextError = contextErrorIds.has(bId);
+        const aStatus = contexts.get(aId)?.obra?.estado_ambiental
+          ?? a.estado_ambiental
+          ?? (aContextError ? "no_disponible" : "no_determinado");
+        const bStatus = contexts.get(bId)?.obra?.estado_ambiental
+          ?? b.estado_ambiental
+          ?? (bContextError ? "no_disponible" : "no_determinado");
+        return attentionRank(aStatus) - attentionRank(bStatus);
       });
   }, [contextErrorIds, contexts, search, works]);
 
