@@ -204,3 +204,7 @@ Las tarjetas muestran título, explicación, estado y restricciones; requisitos,
 La trazabilidad se mantiene sólo donde existe relación explícita. Inteligencia no inventa un origen; Problemas sólo ofrece evidencia en mediciones cuando el contrato la entrega; Copiloto muestra contexto estructurado de bajo peso y no expone razonamiento interno. Los fallos parciales no derriban recursos hermanos y `0` sólo se muestra cuando proviene de un recurso cargado correctamente.
 
 PX-06 mantiene responsive con stacks y disclosures en móvil, estados textuales, botones/enlaces reales, modales etiquetados, textarea con label, tablas con `th` y navegación por anchors semánticos. No rediseña Gobernanza ni la experiencia de revisión profesional; PX-07 permanece fuera de alcance. Backend continúa cerrado.
+
+### Correctivo — siguiente paso y recursos conocidos
+
+El listado de problemas no infiere mediciones, acciones o ciclos que no ha cargado. El detalle puede mostrar un siguiente paso más preciso porque sí dispone de esos recursos. Un recurso no informado permanece desconocido; una colección vacía sólo significa cero cuando fue entregada explícitamente.

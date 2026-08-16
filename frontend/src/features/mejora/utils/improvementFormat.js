@@ -81,25 +81,34 @@ export const currentAction = (actions = [], cycle = null) => {
 export const currentCycle = (cycles = []) =>
   cycles.length ? [...cycles].sort((a, b) => Number(b.numero) - Number(a.numero))[0] : null;
 
-export function problemNextStep({ problem, action, measurements = [], cycles = [] }) {
+export function problemNextStep({ problem, action, measurements, cycles }) {
   const state = problem?.estado;
+  const actionKnown = action !== undefined;
+  const measurementsKnown = Array.isArray(measurements);
+  const cyclesKnown = Array.isArray(cycles);
+
   if (["cerrada", "resuelta"].includes(state)) {
     return { type: "result", title: "Revisar resultado", description: "El ciclo ya cuenta con una evaluación registrada." };
   }
   if (["escalada_profesional", "escalada"].includes(state)) {
     return { type: "professional", title: "Seguir revisión profesional", description: "El problema está en una instancia de revisión especializada." };
   }
-  const closedCycles = cycles.filter((cycle) => cycle.fecha_cierre).length;
-  if (closedCycles >= 3 && ["no_resuelta", "mejora_insuficiente"].includes(state)) {
-    return { type: "professional", title: "Solicitar revisión profesional", description: "Ya existen tres ciclos cerrados y el flujo permite escalar el problema." };
+  if (cyclesKnown) {
+    const closedCycles = cycles.filter((cycle) => cycle.fecha_cierre).length;
+    if (closedCycles >= 3 && ["no_resuelta", "mejora_insuficiente"].includes(state)) {
+      return { type: "professional", title: "Solicitar revisión profesional", description: "Ya existen tres ciclos cerrados y el flujo permite escalar el problema." };
+    }
   }
-  if (state === "accion_seleccionada" || action?.estado === "seleccionada") {
+  if (state === "accion_seleccionada" || (actionKnown && action?.estado === "seleccionada")) {
     return { type: "start", title: "Iniciar acción", description: "Confirma el inicio para congelar la situación BASE del ciclo." };
   }
-  if (["implementando", "en_implementacion"].includes(state) || action?.estado === "en_implementacion") {
+  if (["implementando", "en_implementacion"].includes(state) || (actionKnown && action?.estado === "en_implementacion")) {
     return { type: "measurement", title: "Registrar seguimiento", description: "Incorpora una medición posterior para verificar lo que ocurrió después de la intervención." };
   }
   if (["seguimiento", "en_seguimiento"].includes(state)) {
+    if (!measurementsKnown) {
+      return { type: "followup", title: "Revisar seguimiento", description: "Abre el problema para revisar sus mediciones y definir el siguiente paso." };
+    }
     return measurements.length
       ? { type: "evaluate", title: "Evaluar resultado", description: "Ya existen mediciones de seguimiento para contrastar el resultado." }
       : { type: "measurement", title: "Agregar medición", description: "Se necesita seguimiento antes de evaluar el resultado." };
