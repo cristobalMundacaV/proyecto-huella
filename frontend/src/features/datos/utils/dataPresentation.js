@@ -90,10 +90,11 @@ export function evidenceTypeLabel(value) {
 }
 
 export function importProgressStep(state) {
+  if (state === "fallido") return null;
   if (state === "recibido") return 1;
   if (["analizando", "requiere_mapeo"].includes(state)) return 2;
   if (state === "listo_para_confirmar") return 3;
   if (state === "procesando") return 4;
-  if (["completado", "completado_con_observaciones", "fallido"].includes(state)) return 5;
+  if (["completado", "completado_con_observaciones"].includes(state)) return 5;
   return 1;
 }

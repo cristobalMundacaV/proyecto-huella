@@ -35,6 +35,7 @@ export default function ImportDetailPage() {
   const records = item.registros_extraidos || [];
   const status = importStatusInfo(item.estado);
   const currentStep = importProgressStep(item.estado);
+  const failed = item.estado === "fallido";
   const reviewRows = records.filter((record) => record.estado === "requiere_revision" || record.estado === "error" || record.errores?.length);
   const resultAvailable = terminalStates.includes(item.estado);
   const analysisAvailable = ["requiere_mapeo", "listo_para_confirmar", "procesando", "completado", "completado_con_observaciones"].includes(item.estado);
@@ -51,10 +52,11 @@ export default function ImportDetailPage() {
         <ol aria-label="Progreso de la importación" className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">{steps.map((label, index) => {
           const step = index + 1;
           const current = currentStep === step;
-          const complete = currentStep > step;
+          const complete = currentStep !== null && currentStep > step;
           return <li key={label} aria-current={current ? "step" : undefined} className={`rounded-[var(--radius-md)] border p-2 text-center font-bold ${current ? "border-[var(--brand-primary)] bg-[var(--info-bg)] text-[var(--brand-primary)]" : complete ? "border-[var(--border-default)] bg-[var(--bg-surface-subtle)] text-[var(--text-primary)]" : "border-[var(--border-default)] text-[var(--text-muted)]"}`}><span className="block text-xs font-normal">Paso {step}{current ? " · actual" : ""}</span>{label}</li>;
         })}</ol>
-        <p className="mt-4 text-sm text-[var(--text-secondary)]">Resultado actual: <b>{importResultLabel(item)}</b></p>
+        {failed && <div className="mt-4"><Alert tone="danger" title="Importación fallida">El proceso no llegó a completarse. No es posible determinar con precisión qué pasos anteriores alcanzó.</Alert></div>}
+        <p className="mt-4 text-sm text-[var(--text-secondary)]">{failed ? "Estado del proceso" : "Resultado actual"}: <b>{importResultLabel(item)}</b></p>
       </CardContent></Card>
     </section>
 

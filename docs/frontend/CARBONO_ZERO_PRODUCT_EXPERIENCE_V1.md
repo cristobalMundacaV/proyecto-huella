@@ -121,6 +121,8 @@ El contrato `/context/evidence/:id` no entrega observaciones individuales, por l
 
 La nueva importación mantiene soporte tabular auditado para CSV, XLS y XLSX. El stepper visible usa cinco pasos de cliente: Subir, Entender, Revisar, Confirmar y Resultado, con `aria-current` para comunicar el paso actual sin depender sólo del color. “Entender” explica “Indica qué significa cada columna”; el usuario puede omitir columnas no aplicables y la revisión posterior conserva la autoridad para informar faltantes.
 
+`fallido` comunica que la importación no se completó, pero no implica que todos los pasos anteriores hayan sido completados; el contrato actual no entrega `failure stage`. En un proceso histórico fallido el stepper queda neutral y el fallo se comunica aparte, sin inventar el último paso alcanzado.
+
 Antes de confirmar se muestran filas preparadas, filas con observaciones, destino, fuente y contexto. Los errores de fila se resumen primero por cantidad y se despliegan bajo “Ver detalles”, con límite visual. Confirmar importación es una acción explícita y no existe reintento automático. El resultado usa únicamente los campos reales devueltos por confirmación.
 
 ### Historial, detalle y zero/null/error
