@@ -174,3 +174,33 @@ Las cards activas reducen densidad y los otros dominios usan filas compactas; la
 ### Decisiones pospuestas
 
 PX-05 no rediseña profundamente Activos ni el módulo completo de Sensores, no profundiza Indicadores, no crea ProblemáticaAmbiental automáticamente y no introduce recomendaciones, predicciones o inteligencia. Esas superficies quedan fuera de esta fase. Backend permanece cerrado y PX-06 no se inicia.
+
+## PX-06 — Inteligencia, problemas y Copiloto
+
+### Fronteras y pregunta de producto
+
+Operación describe hechos; Inteligencia interpreta señales determinísticas ya producidas; Problemas gestiona una resolución verificable; Copiloto interpreta contexto preparado y propone alternativas bajo confirmación humana. Inteligencia responde “¿qué encontró el sistema que merece mi atención?”, Problemas responde “¿qué problemas estoy gestionando y en qué estado están?” y Copiloto responde “¿qué necesito entender para tomar una mejor decisión?”. Ninguna superficie autoriza a la IA a calcular CO2e, alterar resultados, seleccionar acciones, cerrar problemas o sustituir evaluaciones determinísticas.
+
+### Inteligencia priorities-first
+
+`/inteligencia` prioriza hasta cinco señales principales y desplaza recomendaciones y escenarios a un segundo nivel visual. Los tres recursos conservan estados independientes y una identidad de request impide mostrar contenido de una organización anterior. El frontend consume las colecciones reales `priorities`, `recommendations` y `scenarios`; no usa score cliente ni inventa urgencia. La procedencia sólo se muestra cuando el contrato la entrega, por ejemplo `source.label` en recomendaciones. Si los tres recursos están disponibles pero vacíos, la interfaz comunica “No hay señales nuevas con los datos disponibles”, sin convertir ausencia de señal en salud certificada.
+
+### Problemas y ciclo verificable
+
+La lista usa lenguaje operativo: Problemas, estado, riesgo, contexto y siguiente paso. Mantiene sólo búsqueda y estado como filtros visibles, separa errores de carga de errores al registrar y protege cambios de organización/obra mediante scope y request identity. La creación conserva los campos exigidos por el contrato y los agrupa en Problema y Medición inicial; en contexto de obra no vuelve a solicitar la unidad.
+
+El detalle prioriza Siguiente paso, acción actual y resultado antes del resto de entidades. Alcance e indicadores quedan bajo disclosure. La secuencia visible es BASE → Acción → Medición → RESULT. BASE ausente nunca se convierte en cero; una acción iniciada o implementada nunca se presenta como mejora demostrada; RESULT sólo se interpreta cuando existe evaluación del servidor y las conclusiones por indicador usan el estado gobernado (`mejoro`, `empeoro`, `sin_cambio`) en vez de inferir dirección por el signo en frontend. Los ciclos anteriores permanecen en historial y una reevaluación crea un ciclo nuevo sin sobrescribir el anterior.
+
+El flujo V2 soporta selección de acción, inicio con confirmación humana, seguimiento y evaluación. La mutación legacy de “registrar implementación” no se presenta como siguiente paso del flujo V2 porque su precondición de estado no coincide con el estado generado al iniciar una acción V2; después de iniciar, la siguiente interacción visible es seguimiento mediante una mutación que sí acepta el estado actual. La revisión profesional sólo se ofrece cuando el contrato de escalamiento puede aceptarla.
+
+### Copiloto y confirmación humana
+
+Copiloto trabaja sobre un único problema seleccionado. Carga de problemas, contexto y propuestas mantienen estados independientes: error de lista no equivale a cero problemas y error de contexto no produce contadores ficticios en cero. Las propuestas históricas pueden seguir visibles si falla contexto, pero no se permite preparar una nueva propuesta hasta recuperar el contexto necesario. Cambiar organización o problema invalida visualmente los recursos anteriores antes de cargar los nuevos.
+
+Las tarjetas muestran título, explicación, estado y restricciones; requisitos, riesgos, indicadores y referencias quedan bajo “Detalles considerados”. Aceptar una propuesta se expresa como “Preparar acción”: sólo prepara una acción para confirmación posterior. La creación formal ocurre después de una confirmación humana explícita. Refutar se expresa como “Indicar por qué no aplica” y conserva la restricción/corrección como contexto; rechazar no crea una acción.
+
+### Trazabilidad, fallos parciales y decisiones pospuestas
+
+La trazabilidad se mantiene sólo donde existe relación explícita. Inteligencia no inventa un origen; Problemas sólo ofrece evidencia en mediciones cuando el contrato la entrega; Copiloto muestra contexto estructurado de bajo peso y no expone razonamiento interno. Los fallos parciales no derriban recursos hermanos y `0` sólo se muestra cuando proviene de un recurso cargado correctamente.
+
+PX-06 mantiene responsive con stacks y disclosures en móvil, estados textuales, botones/enlaces reales, modales etiquetados, textarea con label, tablas con `th` y navegación por anchors semánticos. No rediseña Gobernanza ni la experiencia de revisión profesional; PX-07 permanece fuera de alcance. Backend continúa cerrado.
