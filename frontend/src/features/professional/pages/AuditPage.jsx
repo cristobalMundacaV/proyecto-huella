@@ -1,2 +1,50 @@
-import { useEffect,useState } from "react";import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";import { getEnvironmentalAudit } from "../api/professionalV2Api";import { EmptyState,ErrorState,PageHeader,TableBody,TableCell,TableHead,TableShell } from "@/shared/ui";import { formatDateTime } from "@/shared/utils/formatters";import { human } from "../components/GovernanceShared";
-export default function AuditPage(){const {activeOrganizacionId}=useOrganizacionActiva();const [rows,setRows]=useState([]);const [error,setError]=useState("");useEffect(()=>{if(activeOrganizacionId)getEnvironmentalAudit(activeOrganizacionId).then(setRows).catch(()=>setError("No se pudo cargar la auditoría ambiental."));},[activeOrganizacionId]);return <main className="space-y-6"><PageHeader eyebrow="Gobernanza" title="Auditoría ambiental" description="Decisiones y cambios de negocio registrados; no se muestran payloads internos ni logs técnicos."/>{error?<ErrorState description={error}/>:!rows.length?<EmptyState title="Sin eventos de auditoría" description="Los eventos gobernados aparecerán aquí."/>:<TableShell><TableHead><tr><TableCell as="th">Fecha</TableCell><TableCell as="th">Actor</TableCell><TableCell as="th">Evento</TableCell><TableCell as="th">Objeto y versión</TableCell><TableCell as="th">Detalle</TableCell></tr></TableHead><TableBody columns={5}>{rows.map(x=><tr key={x.id}><TableCell>{formatDateTime(x.timestamp)}</TableCell><TableCell>{x.actor_nombre||"Sistema"}</TableCell><TableCell>{human(x.tipo)}</TableCell><TableCell>{human(x.entidad)} #{x.referencia}<span className="block text-xs">{x.metadata_auditable?.version?`v${x.metadata_auditable.version}`:"Versión no informada"}</span></TableCell><TableCell>{x.resumen||"Sin detalle"}</TableCell></tr>)}</TableBody></TableShell>}</main>}
+import { useEffect, useRef, useState } from "react";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
+import { getEnvironmentalAudit } from "../api/professionalV2Api";
+import { EmptyState, ErrorState, LoadingState, PageHeader, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
+import { formatDateTime } from "@/shared/utils/formatters";
+import { auditEntityLabel, human } from "../components/GovernanceShared";
+
+export default function AuditPage() {
+  const { activeOrganizacionId } = useOrganizacionActiva();
+  const [state, setState] = useState({ scopeKey: "", status: "loading", rows: [], error: "" });
+  const requestRef = useRef(0);
+
+  useEffect(() => {
+    if (!activeOrganizacionId) return undefined;
+    const scopeKey = String(activeOrganizacionId);
+    const requestId = ++requestRef.current;
+    setState({ scopeKey, status: "loading", rows: [], error: "" });
+    getEnvironmentalAudit(activeOrganizacionId)
+      .then((rows) => {
+        if (requestRef.current === requestId) setState({ scopeKey, status: "ready", rows, error: "" });
+      })
+      .catch(() => {
+        if (requestRef.current === requestId) setState({ scopeKey, status: "error", rows: [], error: "No se pudo cargar la auditoría ambiental." });
+      });
+    return () => { requestRef.current += 1; };
+  }, [activeOrganizacionId]);
+
+  const requestedScopeKey = activeOrganizacionId ? String(activeOrganizacionId) : "";
+  if (state.scopeKey !== requestedScopeKey || state.status === "loading") return <LoadingState label="Cargando auditoría" />;
+
+  return <main className="space-y-6">
+    <PageHeader
+      eyebrow="Gobernanza"
+      title="Auditoría"
+      description="Revisa qué decisiones o cambios gobernados quedaron registrados."
+    />
+    {state.status === "error" ? <ErrorState description={state.error} /> : !state.rows.length ? (
+      <EmptyState title="Sin eventos de auditoría" description="No hay decisiones o cambios gobernados registrados todavía." />
+    ) : <TableShell>
+      <TableHead><tr><TableCell as="th">Fecha</TableCell><TableCell as="th">Actor</TableCell><TableCell as="th">Acción</TableCell><TableCell as="th">Elemento</TableCell><TableCell as="th">Resultado / contexto</TableCell></tr></TableHead>
+      <TableBody columns={5}>{state.rows.map((event) => <tr key={event.id}>
+        <TableCell>{formatDateTime(event.timestamp)}</TableCell>
+        <TableCell>{event.actor_nombre || "Sistema"}</TableCell>
+        <TableCell>{human(event.tipo)}</TableCell>
+        <TableCell>{auditEntityLabel(event.entidad)}{event.referencia ? <span className="block text-xs text-[var(--text-muted)]">Referencia {event.referencia}</span> : null}</TableCell>
+        <TableCell>{event.resumen || "Sin contexto adicional"}</TableCell>
+      </tr>)}</TableBody>
+    </TableShell>}
+  </main>;
+}

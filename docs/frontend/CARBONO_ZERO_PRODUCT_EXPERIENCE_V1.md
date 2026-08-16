@@ -208,3 +208,35 @@ PX-06 mantiene responsive con stacks y disclosures en móvil, estados textuales,
 ### Correctivo — siguiente paso y recursos conocidos
 
 El listado de problemas no infiere mediciones, acciones o ciclos que no ha cargado. El detalle puede mostrar un siguiente paso más preciso porque sí dispone de esos recursos. Un recurso no informado permanece desconocido; una colección vacía sólo significa cero cuando fue entregada explícitamente.
+
+## PX-07 — Gobernanza y revisión profesional
+
+### Pregunta y jerarquía
+
+Gobernanza responde “¿qué necesita validación profesional y qué decisiones formales ya quedaron registradas?”. La superficie deja de comportarse como un menú de herramientas: prioriza revisiones pendientes, discrepancias abiertas y expedientes que requieren antecedentes. Factores y metodologías, auditoría, conocimiento e informes permanecen accesibles como Herramientas de control secundarias.
+
+Los tres recursos principales conservan estados independientes de carga, error y resultado. `0` sólo se muestra cuando el recurso fue cargado correctamente; un error se presenta como “No disponible” y una identidad de request evita mostrar información de otra organización.
+
+### Revisión profesional
+
+La cola responde “¿qué debo revisar y decidir?”. Mantiene únicamente Tipo y Estado como filtros, usa los tipos y estados reales del contrato y reduce cada fila a elemento, estado, fecha, hallazgos, profesional y siguiente acción. Cuando el contrato no entrega un nombre humano del objeto revisado, la UI usa un fallback honesto por tipo e ID técnico secundario.
+
+Hallazgo y decisión permanecen separados. Registrar un hallazgo no cambia automáticamente el estado de la revisión. Una decisión formal exige una confirmación explícita y comunica que quedará registrada sin sobrescribir antecedentes históricos. Revisiones decididas son de solo lectura; el modo demo mantiene toda la cola en solo lectura y lo comunica al usuario. Los errores de mutación son locales y no reemplazan el listado cargado.
+
+### Expedientes y validación
+
+Un expediente se presenta como un paquete gobernado de antecedentes de un problema, no como una carpeta genérica. El listado prioriza problema, estado, revisión profesional, informe vigente, fecha y acceso. El detalle usa el snapshot real de `referencias` y resume antecedentes por sus relaciones explícitas; no reconstruye objetos ni nombres que el contrato no entrega.
+
+El estado del expediente y la validación profesional son dimensiones distintas. Un expediente cerrado, completo según su flujo o con informe vigente no se presenta automáticamente como validado por un profesional. La validación profesional sólo se comunica cuando existe una revisión cuyo estado contractual es `validada` o `validada_con_observaciones`. La creación, cierre, reapertura, generación de informes y eventos de auditoría permanecen versionados/históricos.
+
+### Calidad, discrepancias y responsabilidad
+
+Calidad del dato y confiabilidad de fuente permanecen separadas. Una política de prioridad de fuente no convierte automáticamente un dato en válido. Las discrepancias abiertas son únicamente las que el contrato representa como `detectada` o `requiere_revision`; el frontend no trata toda discrepancia recibida como abierta ni resuelve contradicciones por su cuenta.
+
+Auditoría se presenta como historial verificable de fecha, actor, acción, elemento y contexto, sin ofrecer edición o borrado. Conocimiento usa los casos reales y su procedencia verificable; los estados `utilizable` y `candidato`, la fuerza de evidencia y el origen permanecen explícitos. La IA nunca aparece como validador profesional ni una propuesta de IA se transforma visualmente en decisión humana.
+
+### Partial failures, stale guards y decisiones pospuestas
+
+Overview, calidad y conocimiento preservan fallos parciales; una fuente secundaria que falla no derriba las demás. ReviewQueue, expedientes, detalle, auditoría y conocimiento invalidan visualmente el scope anterior durante cambios de organización, objeto o filtros. Las rutas y navegación existentes permanecen como autoridad y Factores y metodologías continúa integrado bajo Gobernanza sin rediseño profundo.
+
+PX-07 no rediseña Administración, usuarios ni configuración profunda. Backend permanece cerrado y PX-08 no se inicia.
