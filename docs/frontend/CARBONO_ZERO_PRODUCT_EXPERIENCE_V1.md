@@ -39,4 +39,6 @@ Las unidades usan una tarjeta compacta feature-local con estado, principal seña
 
 Sin unidades, Inicio se transforma en onboarding y no muestra paneles de ceros. Sin pendientes, presenta “Todo al día”. Problemas y evidencias cargan de forma independiente; su error se representa como “No disponible” sin ocultar las unidades. Obras es el recurso esencial. Una identidad de request evita que una respuesta tardía de la organización anterior reemplace la actual.
 
+Los fallos de contexto se conservan por ID de unidad: estado no disponible no se presenta como estado saludable. `estado_ambiental` incluido en la unidad es el único fallback autoritativo; sin ese campo, el KPI, la lista de atención y la tarjeta compacta comunican que la verificación está incompleta.
+
 Pendiente para PX-03: renovación visible del listado y creación de unidades operacionales. PX-02 no modifica `/obras`, sus contratos ni el backend.
