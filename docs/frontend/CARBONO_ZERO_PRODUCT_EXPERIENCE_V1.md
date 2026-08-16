@@ -28,3 +28,15 @@ La navegación de obra permanece gobernada exclusivamente por `ObraWorkspaceLayo
 Gobernanza abre la superficie que contiene revisión, expedientes, calidad, factores, auditoría e informes. Administración abre organización, usuarios, configuración, diagnóstico y estructura. La subnavegación sectorial usa botón real con `aria-expanded`; el nav tiene nombre accesible, los iconos son decorativos y el selector de organización posee label.
 
 Pendiente para PX-02: rediseño visible del contenido de Inicio. PX-01 no modifica páginas funcionales ni contratos backend.
+
+## PX-02 — Inicio ejecutivo
+
+Inicio responde “¿qué necesita mi atención ahora y dónde debo entrar?”. La pantalla se limita a contexto humano, tres KPIs de priorización, hasta cinco pendientes, un máximo de cuatro unidades operacionales y hasta tres eventos recientes cuando existen. No contiene gráficos, escenarios, recomendaciones extensas ni accesos rápidos redundantes.
+
+Las prioridades se ordenan sin score: primero unidades con estado `requiere_atencion` o `cierre_pendiente`, luego problemas abiertos y finalmente evidencias documentales pendientes. Si una unidad ya representa la atención, sus problemas no se repiten en la lista principal. Los enlaces de problema usan la ruta scoped cuando el payload entrega obra; nunca se infiere una asociación.
+
+Las unidades usan una tarjeta compacta feature-local con estado, principal señal disponible y enlace semántico. Se muestran primero las que requieren atención. Una sola unidad no fuerza una grilla sobredimensionada; diez unidades se resumen en cuatro y mantienen “Ver todas”. El vocabulario usa `unitLabel` y `unitPluralLabel`: Obras, Plantas, Líneas o Rutas según la organización.
+
+Sin unidades, Inicio se transforma en onboarding y no muestra paneles de ceros. Sin pendientes, presenta “Todo al día”. Problemas y evidencias cargan de forma independiente; su error se representa como “No disponible” sin ocultar las unidades. Obras es el recurso esencial. Una identidad de request evita que una respuesta tardía de la organización anterior reemplace la actual.
+
+Pendiente para PX-03: renovación visible del listado y creación de unidades operacionales. PX-02 no modifica `/obras`, sus contratos ni el backend.
