@@ -42,3 +42,47 @@ Sin unidades, Inicio se transforma en onboarding y no muestra paneles de ceros. 
 Los fallos de contexto se conservan por ID de unidad: estado no disponible no se presenta como estado saludable. `estado_ambiental` incluido en la unidad es el único fallback autoritativo; sin ese campo, el KPI, la lista de atención y la tarjeta compacta comunican que la verificación está incompleta.
 
 Pendiente para PX-03: renovación visible del listado y creación de unidades operacionales. PX-02 no modifica `/obras`, sus contratos ni el backend.
+
+## PX-03 — Obras y workspace
+
+### Preguntas de producto
+
+El listado de unidades responde “¿qué unidades tengo y cuál necesita atención?”. El workspace responde “¿qué está pasando en esta unidad y dónde entro para gestionarlo?”. Ninguna de las dos superficies intenta convertirse en un dashboard analítico completo.
+
+### Listado, orden y filtros
+
+El listado prioriza `requiere_atencion`, luego `cierre_pendiente`, después el resto de estados conocidos y finalmente los contextos no disponibles. No existe un score sintético. La búsqueda es el único filtro permanentemente visible: los estados operacional y ambiental provienen de dimensiones distintas y no se fusionan en un estado cliente sin un contrato determinístico que lo respalde.
+
+Cada tarjeta muestra nombre, código, estado ambiental, una única siñal de gestión y ubicación sólo cuando aporta contexto. La señal usa problemas abiertos cuando el contexto está disponible; si la consulta secundaria falla se muestra “Estado no disponible” y nunca se interpreta como saludable. El acceso sigue siendo un enlace semántico y el listado no limita la cantidad de unidades.
+
+### Creación progresiva
+
+El contrato de Obra exige nombre y fecha de inicio; el código puede generarse automáticamente y superficie, ubicación y tipo tienen defaults u opcionalidad en backend. Por eso la primera vista del formulario solicita únicamente lo necesario para comenzar y desplaza datos secundarios a un bloque de detalles. En Construcción, `superficie_m2` se presenta al cliente como “Superficie” con unidad m². Los campos específicos de Construcción no se exponen como si fueran universales para Plantas, Líneas o Rutas.
+
+Después de crear, se conserva la navegación directa al resumen de la nueva unidad.
+
+### Workspace y vocabulario por preset
+
+El header elimina “Workspace de obra” y presenta nombre, código, ubicación opcional y estado. La metadata secundaria se limita a estado operacional, inicio y perfil. El enlace de retorno y los CTA consumen `unitLabel` / `unitPluralLabel`, por lo que Construcción muestra Obras, Aserradero Plantas, Industrial Líneas y Transporte Rutas sin cambiar las rutas React ni duplicar aplicación.
+
+La navegación interna mantiene las seis rutas existentes, pero usa copy de cliente: Resumen, Operación, Indicadores, Problemas, Evidencias e Historial. `/timeline` permanece como ruta interna. El `Outlet` sigue siendo la autoridad de contexto del workspace.
+
+### Resumen de unidad
+
+El resumen jerarquiza primero el estado general y su explicación determinística. Después muestra tres KPIs compactos: problemas abiertos, acciones en curso y evidencias. Los problemas se limitan a tres y son la prioridad operativa; las acciones no duplican una lista completa. Los indicadores destacados se limitan a tres siñales obtenidas del contrato existente, sin ranking arbitrario ni mezcla de unidades. La cobertura ambiental queda como contexto secundario y la actividad reciente se limita a tres eventos con acceso a Historial.
+
+El conteo de evidencias respeta `0` como cero real y `null`/ausencia como “Sin datos”. No se duplica el mismo conteo en otra tarjeta de evidencia.
+
+### Fallos parciales y estado desconocido
+
+La carga del listado conserva explícitamente los IDs cuyos contextos fallaron y usa una identidad de request para impedir que una respuesta tardía de otra organización sobrescriba el estado actual. La lista de unidades es esencial; el contexto individual es secundario.
+
+En el workspace, contexto, historial e indicadores se separan: el contexto sigue siendo esencial para gobernar la unidad, mientras que Historial e Indicadores pueden fallar de forma aislada y mostrar “No disponible” en su superficie. Un error secundario no convierte el estado ambiental en sano ni derriba el resto del workspace.
+
+### Integración visual, responsive y accesibilidad
+
+Las páginas internas de Problemas, Evidencias, Indicadores e Historial ya no repiten un segundo header de workspace; conservan su funcionalidad y sólo ajustan integración y copy. La navegación horizontal mantiene overflow local en pantallas estrechas; cards y acciones hacen wrap y no se introduce scroll horizontal del body. Se reutilizan primitives existentes, links/botones semánticos, labels y estados textuales. Los fondos de controles usan tokens para conservar dark mode.
+
+### Decisiones pospuestas
+
+PX-03 no rediseña profundamente Operación, Indicadores, Problemas, Evidencias ni Historial. Sus experiencias internas permanecen para fases posteriores de Product Experience. Tampoco inicia PX-04 ni PX-05 y no modifica backend.

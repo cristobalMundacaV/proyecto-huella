@@ -1,63 +1,114 @@
-import { Activity, AlertTriangle, FileCheck2, Gauge, ListChecks } from "lucide-react";
+import { Activity, AlertTriangle, FileCheck2, ListChecks } from "lucide-react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
-import { statusLabel, statusTone } from "../components/WorkStatus";
+import WorkStatus from "../components/WorkStatus";
 import { Card, CardContent, KpiCard, SectionHeader, StatusBadge, Timeline, TimelineItem } from "@/shared/ui";
 import { transportMetrics } from "@/features/operacion/utils/operationSelectors";
 
-const label = (value) => String(value || "No determinado").replaceAll("_", " ");
+const label = (value) => String(value ?? "Sin información").replaceAll("_", " ");
 const date = (value) => value ? new Intl.DateTimeFormat("es-CL", { dateStyle: "medium" }).format(new Date(value)) : "Fecha no disponible";
+
 export const selectFeaturedIndicators = (indicators) => {
   const result = transportMetrics(indicators?.transporte)
-    .filter((metric) => metric.value !== null)
+    .filter((metric) => metric.value !== null && metric.value !== undefined)
     .map((metric) => ({ name: metric.label, value: metric.value, unit: metric.unit, helper: "Transporte operacional" }));
 
   for (const metric of Array.isArray(indicators?.flujos) ? indicators.flujos : []) {
-    if (result.length >= 6) break;
+    if (result.length >= 3) break;
     if (metric?.estrategia_agregacion !== "suma" || metric.total === null || metric.total === undefined) continue;
-    result.push({ name: `${label(metric.flujo)} · ${label(metric.concepto)}`, value: metric.total, unit: metric.unidad || undefined, helper: "Flujo ambiental de la obra" });
+    result.push({ name: `${label(metric.flujo)} · ${label(metric.concepto)}`, value: metric.total, unit: metric.unidad || undefined, helper: "Flujo ambiental" });
   }
-  return result.slice(0, 6);
+  return result.slice(0, 3);
 };
 
 export default function ObraResumenPage() {
   const { obraId } = useParams();
-  const { obra, context, indicators, timeline } = useOutletContext();
-  const diagnosis = context.diagnostico_obra || {};
-  const problems = context.problematicas_abiertas || [];
-  const actions = (context.acciones_actuales || []).filter((item) => item.acciones__id);
-  const evidence = context.evidencia || {};
-  const featured = selectFeaturedIndicators(indicators);
+  const { obra, context, indicators, timeline, resourceErrors = {} } = useOutletContext();
+  const diagnosis = context?.diagnostico_obra || {};
+  const problems = Array.isArray(context?.problematicas_abiertas) ? context.problematicas_abiertas : [];
+  const actions = (Array.isArray(context?.acciones_actuales) ? context.acciones_actuales : []).filter((item) => item.acciones__id);
+  const evidence = context?.evidencia || {};
+  const evidenceTotal = evidence.total ?? null;
+  const featured = resourceErrors.indicators ? [] : selectFeaturedIndicators(indicators);
+  const recentEvents = Array.isArray(timeline) ? timeline.slice(-3).reverse() : [];
+  const coverage = Array.isArray(diagnosis.aplicabilidad) ? diagnosis.aplicabilidad : [];
+  const stateSummary = problems.length
+    ? `Hay ${problems.length} ${problems.length === 1 ? "problema abierto" : "problemas abiertos"}${actions.length ? ` y ${actions.length} ${actions.length === 1 ? "acción en seguimiento" : "acciones en seguimiento"}` : ""}.`
+    : "No hay problemas abiertos registrados en la información disponible.";
+
   return <div className="space-y-7">
-    <section aria-label="Resumen de obra" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <KpiCard icon={Gauge} label="Indicadores disponibles" value={featured.length} helper={!featured.length ? "Sin señales disponibles" : "Señales operacionales compactas"} />
-      <KpiCard icon={AlertTriangle} label="Problemas abiertos" value={problems.length} status="warning" helper={!problems.length ? "Sin problemas abiertos" : "Dentro del alcance de la obra"} />
-      <KpiCard icon={ListChecks} label="Acciones actuales" value={actions.length} status="info" helper={!actions.length ? "Sin acciones activas" : "Vinculadas a problemas abiertos"} />
-      <KpiCard icon={FileCheck2} label="Evidencias" value={evidence.total ?? null} helper={evidence.total ? `${evidence.versiones ?? 0} versiones documentales` : evidence.total === 0 ? "Sin evidencia vinculada" : "Conteo no disponible"} />
+    <Card>
+      <CardContent className="space-y-4">
+        <SectionHeader title="Estado general" description="La señal ambiental principal de esta unidad." />
+        <div className="flex flex-wrap items-center gap-3">
+          <WorkStatus value={obra.estado_ambiental} />
+          {obra.estado_ambiental === "cierre_pendiente" && <span className="text-sm font-semibold text-[var(--status-warning)]">El cierre ambiental sigue pendiente.</span>}
+          {obra.estado_ambiental === "cerrada" && <span className="text-sm text-[var(--text-secondary)]">Cierre ambiental: {date(obra.fecha_cierre_ambiental)}</span>}
+        </div>
+        <p className="text-sm text-[var(--text-secondary)]">{stateSummary}</p>
+      </CardContent>
+    </Card>
+
+    <section aria-label="Señales de gestión" className="grid gap-3 sm:grid-cols-3">
+      <KpiCard
+        icon={AlertTriangle}
+        label="Problemas abiertos"
+        value={problems.length}
+        helper={problems.length ? "Requieren seguimiento" : "Sin problemas abiertos"}
+        status={problems.length ? "warning" : "success"}
+      />
+      <KpiCard
+        icon={ListChecks}
+        label="Acciones en curso"
+        value={actions.length}
+        helper={actions.length ? "Gestionadas desde Problemas" : "Sin acciones activas"}
+        status={actions.length ? "info" : undefined}
+      />
+      <KpiCard
+        icon={FileCheck2}
+        label="Evidencias"
+        value={evidenceTotal ?? "No disponible"}
+        helper={evidenceTotal === null ? "Conteo no disponible" : evidenceTotal === 0 ? "Sin evidencia vinculada" : `${evidence.versiones ?? 0} versiones documentales`}
+      />
     </section>
 
-    <div className="grid gap-6 xl:grid-cols-2">
-      <Card><CardContent><SectionHeader title="Estado ambiental" description="Estado propio de la obra, separado de las capacidades organizacionales." />
-        <div className="flex flex-wrap gap-2"><StatusBadge tone={statusTone(obra.estado_ambiental)}>{statusLabel(obra.estado_ambiental)}</StatusBadge><StatusBadge tone="info">Perfil: {obra.perfil_ambiental || "No determinado"}</StatusBadge><StatusBadge tone="neutral">Diagnóstico: {label(diagnosis.estado)}</StatusBadge></div>
-        {obra.estado_ambiental === "cierre_pendiente" && <p className="mt-4 text-sm text-[var(--status-warning)]">El cierre ambiental continúa pendiente; no se presenta como obra cerrada.</p>}
-        {obra.estado_ambiental === "cerrada" && <p className="mt-4 text-sm text-[var(--text-secondary)]">Cierre ambiental: {obra.fecha_cierre_ambiental || "Fecha no disponible"}</p>}
+    {problems.length > 0 && <section>
+      <SectionHeader title="Requiere atención" description="Problemas abiertos que necesitan seguimiento." action={<Link className="text-sm font-bold text-[var(--brand-primary)]" to={`/obras/${obraId}/problemas`}>Ver todos</Link>} />
+      <Card><CardContent>
+        <ul className="divide-y divide-[var(--border-subtle)]">
+          {problems.slice(0, 3).map((problem) => <li key={problem.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+            <div className="min-w-0">
+              <p className="font-bold text-[var(--text-primary)]">{problem.titulo}</p>
+              {problem.categoria && <p className="text-sm text-[var(--text-muted)]">{label(problem.categoria)}</p>}
+            </div>
+            <div className="flex items-center gap-3">
+              <StatusBadge tone="warning">{label(problem.estado)}</StatusBadge>
+              <Link className="text-sm font-bold text-[var(--brand-primary)]" to={`/obras/${obraId}/problemas/${problem.id}`}>Ver problema</Link>
+            </div>
+          </li>)}
+        </ul>
       </CardContent></Card>
-      <Card><CardContent><SectionHeader title="Cobertura ambiental" description="Aplicabilidad determinada para esta obra." />
-        {diagnosis.aplicabilidad?.length ? <ul className="grid gap-2 sm:grid-cols-2">{diagnosis.aplicabilidad.map((item) => <li key={item.clave} className="flex items-center justify-between gap-2 rounded-[var(--radius-md)] bg-[var(--bg-surface-subtle)] p-3 text-sm"><span className="font-bold">{label(item.clave)}</span><StatusBadge tone={item.estado_obra === "aplica" ? "success" : "neutral"}>{label(item.estado_obra)}</StatusBadge></li>)}</ul> : <p className="text-sm text-[var(--text-muted)]">No hay capacidades determinadas para esta obra.</p>}
-      </CardContent></Card>
-    </div>
+    </section>}
 
-    <section><SectionHeader title="Indicadores destacados" description="Máximo seis señales entregadas por el endpoint de esta obra." action={<Link className="text-sm font-bold text-[var(--brand-primary)]" to={`/obras/${obraId}/indicadores`}>Ver indicadores</Link>} />
-      {featured.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{featured.map((item) => <KpiCard key={item.name} label={item.name} value={item.value} unit={item.unit} helper={item.helper} icon={Activity} />)}</div> : <p className="text-sm text-[var(--text-muted)]">Sin indicadores disponibles para esta obra.</p>}
+    <section>
+      <SectionHeader title="Indicadores destacados" description="Señales principales disponibles para esta unidad." action={<Link className="text-sm font-bold text-[var(--brand-primary)]" to={`/obras/${obraId}/indicadores`}>Ver indicadores</Link>} />
+      {resourceErrors.indicators ? <p className="text-sm text-[var(--text-muted)]">Indicadores no disponibles en este momento.</p> : featured.length ? <div className="grid gap-3 md:grid-cols-3">
+        {featured.map((item) => <KpiCard key={item.name} label={item.name} value={item.value} unit={item.unit} helper={item.helper} icon={Activity} />)}
+      </div> : <p className="text-sm text-[var(--text-muted)]">Sin indicadores disponibles para esta unidad.</p>}
     </section>
 
-    <div className="grid gap-6 xl:grid-cols-2">
-      <Card><CardContent><SectionHeader title="Problemas abiertos" action={<Link className="text-sm font-bold text-[var(--brand-primary)]" to={`/obras/${obraId}/problemas`}>Ver problemas</Link>} />{problems.length ? <ul className="space-y-3">{problems.slice(0, 5).map((problem) => <li key={problem.id} className="border-b border-[var(--border-subtle)] pb-3"><div className="flex justify-between gap-3"><Link className="font-bold text-[var(--brand-primary)]" to={`/obras/${obraId}/problemas/${problem.id}`}>{problem.titulo}</Link><StatusBadge tone="warning">{label(problem.estado)}</StatusBadge></div><p className="text-sm text-[var(--text-muted)]">{label(problem.categoria)}</p></li>)}</ul> : <p className="text-sm text-[var(--text-muted)]">Sin problemas abiertos.</p>}</CardContent></Card>
-      <Card><CardContent><SectionHeader title="Acciones activas" description="Una acción existente no se presenta como resultado comprobado." />{actions.length ? <ul className="space-y-3">{actions.slice(0, 5).map((action) => <li key={action.acciones__id} className="flex justify-between gap-3"><span className="font-bold">{action.acciones__titulo}</span><StatusBadge tone="info">{label(action.acciones__estado)}</StatusBadge></li>)}</ul> : <p className="text-sm text-[var(--text-muted)]">No hay acciones activas vinculadas.</p>}</CardContent></Card>
-    </div>
+    <Card><CardContent>
+      <SectionHeader title="Cobertura ambiental" description="Contexto secundario de aplicabilidad." />
+      {coverage.length ? <div className="flex flex-wrap gap-2">
+        {coverage.slice(0, 4).map((item) => <StatusBadge key={item.clave} tone={item.estado_obra === "aplica" ? "success" : "neutral"}>{label(item.clave)} · {label(item.estado_obra)}</StatusBadge>)}
+        {coverage.length > 4 && <span className="self-center text-sm text-[var(--text-muted)]">+{coverage.length - 4} más</span>}
+      </div> : <p className="text-sm text-[var(--text-muted)]">Sin información de cobertura disponible.</p>}
+    </CardContent></Card>
 
-    <div className="grid gap-6 xl:grid-cols-2">
-      <Card><CardContent><SectionHeader title="Datos y evidencia" action={<Link className="text-sm font-bold text-[var(--brand-primary)]" to={`/obras/${obraId}/evidencias`}>Ver evidencia</Link>} /><p className="text-3xl font-black">{evidence.total || 0}</p><p className="mt-1 text-sm text-[var(--text-muted)]">evidencias · {evidence.versiones || 0} versiones</p>{!evidence.total && <p className="mt-4 text-sm text-[var(--text-muted)]">Aún no hay respaldo documental vinculado.</p>}</CardContent></Card>
-      <Card><CardContent><SectionHeader title="Actividad reciente" action={<Link className="text-sm font-bold text-[var(--brand-primary)]" to={`/obras/${obraId}/timeline`}>Ver timeline</Link>} />{timeline.length ? <Timeline>{timeline.slice(-5).reverse().map((event, index) => <TimelineItem key={`${event.tipo}-${event.referencia_id}-${index}`} timestamp={date(event.fecha)} title={event.titulo} description={label(event.tipo)} />)}</Timeline> : <p className="text-sm text-[var(--text-muted)]">Sin eventos registrados.</p>}</CardContent></Card>
-    </div>
+    <section>
+      <SectionHeader title="Actividad reciente" action={<Link className="text-sm font-bold text-[var(--brand-primary)]" to={`/obras/${obraId}/timeline`}>Ver historial</Link>} />
+      {resourceErrors.timeline ? <p className="text-sm text-[var(--text-muted)]">Historial no disponible en este momento.</p> : recentEvents.length ? <Timeline>
+        {recentEvents.map((event, index) => <TimelineItem key={`${event.tipo}-${event.referencia_id}-${index}`} timestamp={date(event.fecha)} title={event.titulo || "Actividad registrada"} description={label(event.tipo)} />)}
+      </Timeline> : <p className="text-sm text-[var(--text-muted)]">Sin eventos registrados.</p>}
+    </section>
   </div>;
 }
