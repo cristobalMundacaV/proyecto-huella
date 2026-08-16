@@ -1,11 +1,12 @@
 from django.db.models import Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from .models import (DiscrepanciaDato, EvaluacionCalidadDato, IndicadorAmbiental,
                      LineaBaseAmbiental, Organizacion, PeriodoComparable,
-                     PoliticaConfianzaFuente)
+                     PoliticaConfianzaFuente, UsuarioOrganizacion)
 from .serializers_quality_v2 import (DiscrepanciaSerializer, EvaluacionCalidadSerializer,
                                      IndicadorSerializer, LineaBaseSerializer,
                                      PoliticaFuenteSerializer, ValorIndicadorSerializer)
@@ -14,13 +15,22 @@ from .services.indicators_v2 import build_baseline
 from .services.quality_v2 import evaluate_observation_quality
 
 
-def _org(value):
-    return get_object_or_404(Organizacion, organizacion_id=value)
+def _org(request, value):
+    organization = get_object_or_404(Organizacion, organizacion_id=value)
+    allowed = request.user.is_authenticated and (
+        request.user.is_superuser
+        or UsuarioOrganizacion.objects.filter(
+            user=request.user, organizacion=organization, activo=True,
+        ).exists()
+    )
+    if not allowed:
+        raise Http404("Recurso no encontrado.")
+    return organization
 
 
 @api_view(["GET"])
 def calidad_observaciones(request, organizacion_id):
-    org = _org(organizacion_id)
+    org = _org(request, organizacion_id)
     for observation in org.observaciones_operacionales.select_related("fuente"):
         if not observation.evaluaciones_calidad.exists():
             evaluate_observation_quality(observation)
@@ -30,13 +40,14 @@ def calidad_observaciones(request, organizacion_id):
 
 @api_view(["GET"])
 def discrepancias(request, organizacion_id):
-    org = _org(organizacion_id)
+    org = _org(request, organizacion_id)
     return Response(DiscrepanciaSerializer(org.discrepancias_dato.prefetch_related("observaciones"), many=True).data)
 
 
 @api_view(["PATCH"])
 def discrepancia_detail(request, organizacion_id, discrepancia_id):
-    item = get_object_or_404(DiscrepanciaDato, organizacion=_org(organizacion_id), id=discrepancia_id)
+    org = _org(request, organizacion_id)
+    item = get_object_or_404(DiscrepanciaDato, organizacion=org, id=discrepancia_id)
     serializer = DiscrepanciaSerializer(item, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True); serializer.save()
     return Response(serializer.data)
@@ -44,26 +55,28 @@ def discrepancia_detail(request, organizacion_id, discrepancia_id):
 
 @api_view(["GET"])
 def politicas_fuente(request, organizacion_id):
-    org = _org(organizacion_id)
+    org = _org(request, organizacion_id)
     queryset = PoliticaConfianzaFuente.objects.filter(Q(organizacion=org) | Q(organizacion__isnull=True), activa=True).order_by("concepto", "prioridad")
     return Response(PoliticaFuenteSerializer(queryset, many=True).data)
 
 
 @api_view(["GET"])
 def indicadores(request, organizacion_id):
-    org = _org(organizacion_id)
+    org = _org(request, organizacion_id)
     return Response(IndicadorSerializer(org.indicadores_ambientales_v2.prefetch_related("valores"), many=True).data)
 
 
 @api_view(["GET"])
 def serie_indicador(request, organizacion_id, indicador_id):
-    indicator = get_object_or_404(IndicadorAmbiental, organizacion=_org(organizacion_id), id=indicador_id)
+    org = _org(request, organizacion_id)
+    indicator = get_object_or_404(IndicadorAmbiental, organizacion=org, id=indicador_id)
     return Response(ValorIndicadorSerializer(indicator.valores.all(), many=True).data)
 
 
 @api_view(["GET"])
 def comparacion_indicador(request, organizacion_id, indicador_id):
-    indicator = get_object_or_404(IndicadorAmbiental, organizacion=_org(organizacion_id), id=indicador_id)
+    org = _org(request, organizacion_id)
+    indicator = get_object_or_404(IndicadorAmbiental, organizacion=org, id=indicador_id)
     current = indicator.valores.order_by("-periodo_fin", "-version").first()
     if not current:
         return Response({"estado": "sin_base", "calidad_comparacion": "sin_datos"})
@@ -77,7 +90,7 @@ def comparacion_indicador(request, organizacion_id, indicador_id):
 
 @api_view(["GET", "POST"])
 def lineas_base(request, organizacion_id):
-    org = _org(organizacion_id)
+    org = _org(request, organizacion_id)
     if request.method == "POST":
         indicator = get_object_or_404(IndicadorAmbiental, organizacion=org, id=request.data.get("indicador"))
         return Response(LineaBaseSerializer(build_baseline(indicator)).data, status=201)
@@ -86,7 +99,7 @@ def lineas_base(request, organizacion_id):
 
 @api_view(["GET"])
 def resumen_ambiental_v2(request, organizacion_id):
-    org = _org(organizacion_id)
+    org = _org(request, organizacion_id)
     indicators = org.indicadores_ambientales_v2.prefetch_related("valores")
     baselines = org.lineas_base_ambientales.select_related("indicador")
     return Response({

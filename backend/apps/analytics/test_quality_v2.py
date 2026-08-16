@@ -7,7 +7,7 @@ from rest_framework.test import APITestCase
 
 from apps.iot.models import DispositivoSensor, LecturaSensorV2
 
-from .models import (ActividadOperacional, DiscrepanciaDato, FuenteDatos,
+from .models import (ActividadOperacional, DiscrepanciaDato, EvaluacionCalidadDato, FuenteDatos,
                      IndicadorAmbiental, LineaBaseAmbiental, Observacion,
                      Organizacion, PeriodoComparable, PoliticaConfianzaFuente,
                      UsuarioOrganizacion, ValorIndicador)
@@ -160,3 +160,120 @@ class QualityIndicatorsV2Tests(APITestCase):
         foreign = Observacion.objects.create(organizacion=self.other, fuente=foreign_source, concepto="distancia_recorrida_km", valor_numerico=1, unidad="km", timestamp_observacion=timezone.now())
         response = self.client.patch(f"{self.base}/discrepancias/{discrepancy.id}/", {"observacion_seleccionada": foreign.id}, format="json")
         self.assertEqual(response.status_code, 400)
+
+
+class QualityV2TenantAuthorizationTests(APITestCase):
+    def setUp(self):
+        self.user_a = User.objects.create_user("quality-tenant-a", password="test-pass")
+        self.user_b = User.objects.create_user("quality-tenant-b", password="test-pass")
+        self.inactive_user = User.objects.create_user("quality-inactive", password="test-pass")
+        self.superuser = User.objects.create_superuser("quality-root", "root@example.com", "test-pass")
+        self.org_a = Organizacion.objects.create(nombre="Tenant quality A")
+        self.org_b = Organizacion.objects.create(nombre="Tenant quality B")
+        UsuarioOrganizacion.objects.create(user=self.user_a, organizacion=self.org_a, activo=True)
+        UsuarioOrganizacion.objects.create(user=self.user_b, organizacion=self.org_b, activo=True)
+        UsuarioOrganizacion.objects.create(user=self.inactive_user, organizacion=self.org_a, activo=False)
+        self.base_a = f"/api/organizaciones/{self.org_a.organizacion_id}"
+        self.base_b = f"/api/organizaciones/{self.org_b.organizacion_id}"
+
+        self.activity_a = ActividadOperacional.objects.create(
+            organizacion=self.org_a, codigo="QA-A", nombre="Quality A",
+            tipo="transporte", timestamp_inicio=timezone.now(),
+        )
+        self.activity_b = ActividadOperacional.objects.create(
+            organizacion=self.org_b, codigo="QA-B", nombre="Quality B",
+            tipo="transporte", timestamp_inicio=timezone.now(),
+        )
+        source_a = FuenteDatos.objects.create(organizacion=self.org_a, nombre="Fuente A", tipo="manual")
+        source_b = FuenteDatos.objects.create(organizacion=self.org_b, nombre="Fuente B", tipo="manual")
+        self.observation_a = Observacion.objects.create(
+            organizacion=self.org_a, actividad=self.activity_a, fuente=source_a,
+            concepto="distancia", valor_numerico=10, unidad="km", timestamp_observacion=timezone.now(),
+        )
+        self.observation_b = Observacion.objects.create(
+            organizacion=self.org_b, actividad=self.activity_b, fuente=source_b,
+            concepto="distancia", valor_numerico=20, unidad="km", timestamp_observacion=timezone.now(),
+        )
+        self.discrepancy_a = DiscrepanciaDato.objects.create(
+            organizacion=self.org_a, actividad=self.activity_a, concepto="distancia",
+        )
+        self.discrepancy_b = DiscrepanciaDato.objects.create(
+            organizacion=self.org_b, actividad=self.activity_b, concepto="distancia",
+        )
+        self.indicator_a = IndicadorAmbiental.objects.create(
+            organizacion=self.org_a, codigo="quality-a", nombre="Indicador A", tipo="absoluto",
+            unidad="kg", origen_numerador="impactos_ambientales",
+        )
+        self.indicator_b = IndicadorAmbiental.objects.create(
+            organizacion=self.org_b, codigo="quality-b", nombre="Indicador B", tipo="absoluto",
+            unidad="kg", origen_numerador="impactos_ambientales",
+        )
+        for indicator, value in ((self.indicator_a, 10), (self.indicator_b, 20)):
+            ValorIndicador.objects.create(
+                indicador=indicator, periodo_inicio=date(2026, 1, 1), periodo_fin=date(2026, 1, 31),
+                valor=value, unidad="kg", fuente_calculo="test",
+            )
+        self.client.force_login(self.user_a)
+
+    def test_calidad_autorizada_y_ajena_no_muta(self):
+        self.assertEqual(self.client.get(f"{self.base_a}/calidad/observaciones/").status_code, 200)
+        EvaluacionCalidadDato.objects.filter(organizacion=self.org_b).delete()
+        self.assertEqual(self.client.get(f"{self.base_b}/calidad/observaciones/").status_code, 404)
+        self.assertFalse(EvaluacionCalidadDato.objects.filter(organizacion=self.org_b).exists())
+
+    def test_discrepancias_lectura_y_patch_respetan_tenant(self):
+        self.assertEqual(self.client.get(f"{self.base_a}/discrepancias/").status_code, 200)
+        response = self.client.patch(
+            f"{self.base_a}/discrepancias/{self.discrepancy_a.id}/",
+            {"estado": "resuelta", "resolucion": "Revisada"}, format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.get(f"{self.base_b}/discrepancias/").status_code, 404)
+        for url in (
+            f"{self.base_b}/discrepancias/{self.discrepancy_b.id}/",
+            f"{self.base_a}/discrepancias/{self.discrepancy_b.id}/",
+        ):
+            self.assertEqual(self.client.patch(url, {"estado": "resuelta"}, format="json").status_code, 404)
+        self.discrepancy_b.refresh_from_db()
+        self.assertNotEqual(self.discrepancy_b.estado, "resuelta")
+
+    def test_politicas_globales_requieren_organizacion_autorizada(self):
+        policy = PoliticaConfianzaFuente.objects.create(
+            organizacion=None, concepto="distancia", tipo_fuente="gps", prioridad=1,
+        )
+        response = self.client.get(f"{self.base_a}/politicas-fuente/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(policy.id, [item["id"] for item in response.data])
+        self.assertEqual(self.client.get(f"{self.base_b}/politicas-fuente/").status_code, 404)
+
+    def test_indicadores_series_y_comparacion_respetan_tenant(self):
+        self.assertEqual(self.client.get(f"{self.base_a}/indicadores/").status_code, 200)
+        self.assertEqual(self.client.get(f"{self.base_b}/indicadores/").status_code, 404)
+        self.assertEqual(self.client.get(f"{self.base_a}/indicadores/{self.indicator_a.id}/serie/").status_code, 200)
+        self.assertEqual(self.client.get(f"{self.base_b}/indicadores/{self.indicator_b.id}/serie/").status_code, 404)
+        self.assertEqual(self.client.get(f"{self.base_a}/indicadores/{self.indicator_b.id}/serie/").status_code, 404)
+        self.assertEqual(self.client.get(f"{self.base_a}/indicadores/{self.indicator_a.id}/comparacion/").status_code, 200)
+        self.assertEqual(self.client.get(f"{self.base_b}/indicadores/{self.indicator_b.id}/comparacion/").status_code, 404)
+
+    def test_lineas_base_y_resumen_respetan_tenant(self):
+        self.assertEqual(self.client.get(f"{self.base_a}/lineas-base/").status_code, 200)
+        self.assertEqual(self.client.get(f"{self.base_b}/lineas-base/").status_code, 404)
+        self.assertEqual(self.client.post(f"{self.base_a}/lineas-base/", {"indicador": self.indicator_a.id}, format="json").status_code, 201)
+        self.assertEqual(self.client.post(f"{self.base_a}/lineas-base/", {"indicador": self.indicator_b.id}, format="json").status_code, 404)
+        self.assertEqual(self.client.post(f"{self.base_b}/lineas-base/", {"indicador": self.indicator_b.id}, format="json").status_code, 404)
+        self.assertEqual(self.client.get(f"{self.base_a}/resumen-ambiental-v2/").status_code, 200)
+        self.assertEqual(self.client.get(f"{self.base_b}/resumen-ambiental-v2/").status_code, 404)
+
+    def test_superuser_conserva_acceso_y_membresia_inactiva_no(self):
+        self.client.force_login(self.superuser)
+        self.assertEqual(self.client.get(f"{self.base_b}/indicadores/").status_code, 200)
+        self.client.force_login(self.inactive_user)
+        response = self.client.get(f"{self.base_a}/indicadores/")
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("Tenant quality A", response.content.decode())
+
+    def test_usuario_no_autenticado_no_recibe_datos(self):
+        self.client.logout()
+        response = self.client.get(f"{self.base_a}/indicadores/")
+        self.assertIn(response.status_code, {401, 403, 404})
+        self.assertNotIn("Indicador A", response.content.decode())
