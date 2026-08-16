@@ -585,3 +585,5 @@ Factores conserva una sola página autoritativa en `core/factores`; la página a
 Se eliminaron `ProfessionalReviewWorkspace`, `EnvironmentalKnowledge` embebido y el reporte regulatorio legacy basado en un score calculado por frontend. La experiencia respeta el modo demo de sólo lectura, scope de organización, estados reales, formateadores compartidos y fallos parciales.
 
 Limitaciones: el contrato actual sólo expone el informe vigente dentro del expediente y no ofrece listado histórico de todas las versiones; UX-09 no fabrica ese historial. Los cálculos se muestran únicamente cuando las referencias concretas existen. UX-10 deberá completar el barrido visual de páginas administrativas internas legacy y la auditoría WCAG integral.
+
+Correctivo final UX-09: la auditoría embebida en un expediente se limita a eventos `ExpedienteAmbiental` cuya referencia coincide explícitamente con el expediente actual. Una respuesta exitosa sin eventos se distingue de un fallo del recurso de auditoría, y ninguno de ambos bloquea las demás secciones.
