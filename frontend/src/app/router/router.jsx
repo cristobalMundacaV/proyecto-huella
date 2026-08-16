@@ -1,56 +1,60 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import Providers from "@/app/providers";
 import AuthenticatedLayout from "@/app/layouts/AuthenticatedLayout";
-import ObraWorkspaceLayout, { ObraWorkspaceSection } from "@/app/layouts/ObraWorkspaceLayout";
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import NotFoundPage from "@/shared/components/NotFoundPage";
-import CarbonoZeroLanding from "@/landing/CarbonoZeroLanding";
-import LoginPage from "@/features/auth/pages/LoginPage";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
-import VerificarObra from "@/features/obras/pages/VerificarObra";
-import InicioPage from "@/features/inicio/pages/InicioPage";
-import ObrasPage from "@/features/obras/pages/ObrasPage";
-import ObraResumenPage from "@/features/obras/pages/ObraResumenPage";
-import DataOverviewPage from "@/features/datos/pages/DataOverviewPage";
-import EvidencePage from "@/features/datos/pages/EvidencePage";
-import EvidenceDetailPage from "@/features/datos/pages/EvidenceDetailPage";
-import ImportsPage from "@/features/datos/pages/ImportsPage";
-import ImportDetailPage from "@/features/datos/pages/ImportDetailPage";
-import ActivosPage from "@/features/activos/pages/ActivosPage";
-import SensoresPage from "@/features/sensores/pages/SensoresPage";
-import SensorDetailPage from "@/features/sensores/pages/SensorDetailPage";
-import OperationLayout from "@/features/operacion/components/OperationLayout";
-import OperacionOverviewPage from "@/features/operacion/pages/OperacionOverviewPage";
-import SectorDomainPage from "@/features/operacion/pages/SectorDomainPage";
-import TransportPage from "@/features/operacion/pages/TransportPage";
-import MaterialsPage from "@/features/operacion/pages/MaterialsPage";
-import WastePage from "@/features/operacion/pages/WastePage";
-import IntelligencePage from "@/features/intelligence/pages/IntelligencePage";
-import ProblemsPage from "@/features/mejora/pages/ProblemsPage";
-import ProblemDetailPage from "@/features/mejora/pages/ProblemDetailPage";
-import CopilotoAmbientalPage from "@/features/intelligence/pages/CopilotPage";
-import FactoresPage from "@/core/factores/pages/FactoresPage";
-import GovernanceOverviewPage from "@/features/professional/pages/GovernanceOverviewPage";
-import ReviewQueuePage from "@/features/professional/pages/ReviewQueuePage";
-import DossiersPage from "@/features/professional/pages/DossiersPage";
-import DossierDetailPage from "@/features/professional/pages/DossierDetailPage";
-import QualityGovernancePage from "@/features/professional/pages/QualityGovernancePage";
-import AuditPage from "@/features/professional/pages/AuditPage";
-import KnowledgePage from "@/features/professional/pages/KnowledgePage";
-import AdministracionPage from "@/features/administracion/pages/AdministracionPage";
-import OrganizacionesPage from "@/features/organizaciones/pages/OrganizacionesPage";
-import UsuariosPage from "@/features/usuarios/pages/UsuariosPage";
-import ConfiguracionPage from "@/features/configuracion/pages/ConfiguracionPage";
-import DiagnosticoAmbientalPage from "@/features/diagnostico/pages/DiagnosticoAmbientalPage";
-import EtapasPage from "@/features/etapas/pages/EtapasPage";
-import RecepcionTrozasPage from "@/presets/aserradero/pages/RecepcionTrozasPage";
-import ProduccionAserraderoPage from "@/presets/aserradero/pages/ProduccionAserraderoPage";
-import SecadoAserraderoPage from "@/presets/aserradero/pages/SecadoAserraderoPage";
-import EnergiaAserraderoPage from "@/presets/aserradero/pages/EnergiaAserraderoPage";
-import TransporteForestalPage from "@/presets/aserradero/pages/TransporteForestalPage";
-import ResiduosSubproductosPage from "@/presets/aserradero/pages/ResiduosSubproductosPage";
-import LotesForestalesPage from "@/presets/aserradero/pages/LotesForestalesPage";
+
+const IntelligencePage=lazy(()=>import("@/features/intelligence/pages/IntelligencePage"));
+const CopilotoAmbientalPage=lazy(()=>import("@/features/intelligence/pages/CopilotPage"));
+const FactoresPage=lazy(()=>import("@/core/factores/pages/FactoresPage"));
+const GovernanceOverviewPage=lazy(()=>import("@/features/professional/pages/GovernanceOverviewPage"));
+const ReviewQueuePage=lazy(()=>import("@/features/professional/pages/ReviewQueuePage"));
+const DossiersPage=lazy(()=>import("@/features/professional/pages/DossiersPage"));
+const DossierDetailPage=lazy(()=>import("@/features/professional/pages/DossierDetailPage"));
+const QualityGovernancePage=lazy(()=>import("@/features/professional/pages/QualityGovernancePage"));
+const AuditPage=lazy(()=>import("@/features/professional/pages/AuditPage"));
+const KnowledgePage=lazy(()=>import("@/features/professional/pages/KnowledgePage"));
+const CarbonoZeroLanding=lazy(()=>import("@/landing/CarbonoZeroLanding"));
+const LoginPage=lazy(()=>import("@/features/auth/pages/LoginPage"));
+const VerificarObra=lazy(()=>import("@/features/obras/pages/VerificarObra"));
+const InicioPage=lazy(()=>import("@/features/inicio/pages/InicioPage"));
+const ObrasPage=lazy(()=>import("@/features/obras/pages/ObrasPage"));
+const ObraWorkspaceLayout=lazy(()=>import("@/app/layouts/ObraWorkspaceLayout"));
+const ObraResumenPage=lazy(()=>import("@/features/obras/pages/ObraResumenPage"));
+const ObraIndicatorsPage=lazy(()=>import("@/features/obras/pages/ObraIndicatorsPage"));
+const ObraTimelinePage=lazy(()=>import("@/features/obras/pages/ObraTimelinePage"));
+const DataOverviewPage=lazy(()=>import("@/features/datos/pages/DataOverviewPage"));
+const EvidencePage=lazy(()=>import("@/features/datos/pages/EvidencePage"));
+const EvidenceDetailPage=lazy(()=>import("@/features/datos/pages/EvidenceDetailPage"));
+const ImportsPage=lazy(()=>import("@/features/datos/pages/ImportsPage"));
+const ImportDetailPage=lazy(()=>import("@/features/datos/pages/ImportDetailPage"));
+const ActivosPage=lazy(()=>import("@/features/activos/pages/ActivosPage"));
+const SensoresPage=lazy(()=>import("@/features/sensores/pages/SensoresPage"));
+const SensorDetailPage=lazy(()=>import("@/features/sensores/pages/SensorDetailPage"));
+const OperationLayout=lazy(()=>import("@/features/operacion/components/OperationLayout"));
+const OperacionOverviewPage=lazy(()=>import("@/features/operacion/pages/OperacionOverviewPage"));
+const SectorDomainPage=lazy(()=>import("@/features/operacion/pages/SectorDomainPage"));
+const TransportPage=lazy(()=>import("@/features/operacion/pages/TransportPage"));
+const MaterialsPage=lazy(()=>import("@/features/operacion/pages/MaterialsPage"));
+const WastePage=lazy(()=>import("@/features/operacion/pages/WastePage"));
+const ProblemsPage=lazy(()=>import("@/features/mejora/pages/ProblemsPage"));
+const ProblemDetailPage=lazy(()=>import("@/features/mejora/pages/ProblemDetailPage"));
+const AdministracionPage=lazy(()=>import("@/features/administracion/pages/AdministracionPage"));
+const OrganizacionesPage=lazy(()=>import("@/features/organizaciones/pages/OrganizacionesPage"));
+const UsuariosPage=lazy(()=>import("@/features/usuarios/pages/UsuariosPage"));
+const ConfiguracionPage=lazy(()=>import("@/features/configuracion/pages/ConfiguracionPage"));
+const DiagnosticoAmbientalPage=lazy(()=>import("@/features/diagnostico/pages/DiagnosticoAmbientalPage"));
+const EtapasPage=lazy(()=>import("@/features/etapas/pages/EtapasPage"));
+const RecepcionTrozasPage=lazy(()=>import("@/presets/aserradero/pages/RecepcionTrozasPage"));
+const ProduccionAserraderoPage=lazy(()=>import("@/presets/aserradero/pages/ProduccionAserraderoPage"));
+const SecadoAserraderoPage=lazy(()=>import("@/presets/aserradero/pages/SecadoAserraderoPage"));
+const EnergiaAserraderoPage=lazy(()=>import("@/presets/aserradero/pages/EnergiaAserraderoPage"));
+const TransporteForestalPage=lazy(()=>import("@/presets/aserradero/pages/TransporteForestalPage"));
+const ResiduosSubproductosPage=lazy(()=>import("@/presets/aserradero/pages/ResiduosSubproductosPage"));
+const LotesForestalesPage=lazy(()=>import("@/presets/aserradero/pages/LotesForestalesPage"));
 
 function ProviderBoundary() { return <Providers><Outlet /></Providers>; }
 function RequireAuth() { const { loadingAuth, user } = useAuth(); const location = useLocation(); if (loadingAuth) return <PlatformLoader fullScreen title="Iniciando sesión" />; return user ? <Outlet /> : <Navigate to="/login" replace state={{ returnTo: location.pathname + location.search }} />; }
@@ -59,7 +63,7 @@ function RequireOrganization() { const { activeOrganizacion, loadingOrganizacion
 function OrganizationRoute() { const { activeOrganizacion } = useOrganizacionActiva(); return <OrganizacionesPage initialOpenCreate={!activeOrganizacion} />; }
 
 export default function AppRouter() {
-  return <Routes>
+  return <Suspense fallback={<PlatformLoader fullScreen title="Cargando módulo" />}><Routes>
     <Route path="/" element={<CarbonoZeroLanding />} />
     <Route path="/verificar/:codigo" element={<VerificarObra />} />
     <Route element={<ProviderBoundary />}>
@@ -82,12 +86,11 @@ export default function AppRouter() {
             <Route path="ruido" element={<SectorDomainPage domain="ruido" />} />
             <Route path="hidrica-suelo" element={<SectorDomainPage domain="hidrica-suelo" />} />
           </Route>
-          <Route path="indicadores" element={<ObraWorkspaceSection title="Indicadores" description="Los indicadores conservan alcance de obra. La exploración profunda se completa en UX-05." />} />
+          <Route path="indicadores" element={<ObraIndicatorsPage />} />
           <Route path="problemas" element={<ProblemsPage workScoped />} />
           <Route path="problemas/:problemId" element={<ProblemDetailPage workScoped />} />
           <Route path="evidencias" element={<EvidencePage workScoped />} />
-          <Route path="timeline" element={<ObraWorkspaceSection title="Timeline" description="El resumen presenta los eventos recientes reales de esta obra." />} />
-          <Route path="informes" element={<ObraWorkspaceSection title="Informes" description="Los informes mantendrán este alcance de obra cuando se complete su experiencia especializada." />} />
+          <Route path="timeline" element={<ObraTimelinePage />} />
         </Route>
         <Route path="datos" element={<DataOverviewPage />} />
         <Route path="datos/evidencias" element={<EvidencePage />} />
@@ -115,5 +118,5 @@ export default function AppRouter() {
       </Route></Route></Route>
     </Route>
     <Route path="*" element={<NotFoundPage />} />
-  </Routes>;
+  </Routes></Suspense>;
 }

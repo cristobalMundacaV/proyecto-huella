@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import OrganizacionForm from "../components/OrganizacionForm";
 import Pagination from "@/shared/components/Pagination";
 import Toast from "@/shared/components/Toast";
+import ConfirmationModal from "@/shared/components/ConfirmationModal";
 import { getPresetLabel } from "@/presets/registry";
 import {
   createEmpresa,
@@ -97,6 +98,7 @@ function OrganizacionesView({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [deleteCandidate, setDeleteCandidate] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [modalOpen, setModalOpen] = useState(initialOpenCreate);
   const [editingEmpresa, setEditingEmpresa] = useState(null);
@@ -132,7 +134,6 @@ function OrganizacionesView({
     if (openCreateSignal > 0) {
       openCreateModal();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openCreateSignal]);
 
   const stats = useMemo(() => {
@@ -256,12 +257,6 @@ function OrganizacionesView({
 
   async function handleDeleteEmpresa(empresa) {
     const empresaId = normalizeEmpresaId(empresa);
-    const accepted = window.confirm(
-      `¿Eliminar la empresa "${empresa.nombre}"? Esta acción eliminará sus datos relacionados.`
-    );
-
-    if (!accepted) return;
-
     try {
       await deleteEmpresa(empresaId);
       const nextEmpresas = empresas.filter(
@@ -281,6 +276,7 @@ function OrganizacionesView({
       }
 
       await refreshOrganizaciones();
+      setDeleteCandidate(null);
       showToast("Empresa eliminada correctamente.");
     } catch (requestError) {
       showToast(
@@ -410,7 +406,7 @@ function OrganizacionesView({
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDeleteEmpresa(empresa)}
+                          onClick={() => setDeleteCandidate(empresa)}
                           className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-black text-rose-700"
                         >
                           <Trash2 size={13} />
@@ -452,6 +448,15 @@ function OrganizacionesView({
           onSubmit={handleSubmit}
           onUpdateForm={updateForm}
           onClearError={() => { }}
+        />
+      )}
+      {deleteCandidate && (
+        <ConfirmationModal
+          title="Eliminar organización"
+          description={`Se eliminará “${deleteCandidate.nombre}” y sus datos relacionados según el contrato backend. Esta acción no se puede deshacer desde la interfaz.`}
+          confirmLabel="Eliminar organización"
+          onCancel={() => setDeleteCandidate(null)}
+          onConfirm={() => handleDeleteEmpresa(deleteCandidate)}
         />
       )}
     </div>

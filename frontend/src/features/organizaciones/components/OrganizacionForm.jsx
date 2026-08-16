@@ -23,6 +23,8 @@ function OrganizacionForm({
 }) {
   useEffect(() => {
     onClearError?.();
+    // Sólo limpia el error al montar el formulario.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const comunas = getComunasByRegion(form.region);

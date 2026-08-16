@@ -10,7 +10,7 @@ function Toast({ message, subtitle, onClose, toastKey, loading = false }) {
     const timeoutId = window.setTimeout(onClose, 2800);
 
     return () => window.clearTimeout(timeoutId);
-  }, [message, onClose, toastKey]);
+  }, [loading, message, onClose, toastKey]);
 
   if (!message) {
     return null;

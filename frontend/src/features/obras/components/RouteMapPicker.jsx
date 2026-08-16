@@ -259,6 +259,8 @@ function RouteMapPicker({
     return () => {
       isCancelled = true;
     };
+    // Los valores textuales y callback no participan en la identidad de la ruta calculada.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [originLatLng, destinationLatLng, routeLatLngs]);
 
   const handleSearch = async (type) => {

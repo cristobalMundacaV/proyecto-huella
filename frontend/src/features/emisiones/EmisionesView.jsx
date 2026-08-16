@@ -366,7 +366,7 @@ function EmisionesView() {
     };
   }, [activeOrganizacionId]);
 
-  const rows = Array.isArray(data?.rows)
+  const rows = useMemo(() => Array.isArray(data?.rows)
     ? data.rows
     : Array.isArray(data?.results)
       ? data.results
@@ -374,7 +374,7 @@ function EmisionesView() {
         ? data.datos
         : Array.isArray(data)
           ? data
-          : [];
+          : [], [data]);
 
   const kpis = data?.kpis ?? {
     emisiones_totales: data?.total_emisiones ?? 0,
@@ -535,8 +535,7 @@ function EmisionesView() {
     try {
       const result = await optimizeScenarioApi(decisionData.datos || []);
       setOptimizedScenario(result);
-    } catch (requestError) {
-      console.error(requestError);
+    } catch {
       setOptimizedScenario(optimizeScenario(decisionData.datos || []));
     }
   };
@@ -558,7 +557,6 @@ function EmisionesView() {
       setAiAnalysis(response.analisis);
       setAiSource(response.fuente);
     } catch (requestError) {
-      console.error(requestError);
       setAiAnalysis(
         requestError.response?.data?.error || "No se pudo generar el análisis IA."
       );

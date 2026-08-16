@@ -1,24 +1,26 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link, NavLink, Outlet, useParams } from "react-router-dom";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { getWorkWorkspace } from "@/features/obras/services/workspaceApi";
 import WorkStatus from "@/features/obras/components/WorkStatus";
-import { Card, CardContent, ErrorState, LoadingState, PageHeader, ScopeBadge } from "@/shared/ui";
+import { ErrorState, LoadingState, PageHeader, ScopeBadge } from "@/shared/ui";
 
 const tabs = [
   ["resumen", "Resumen"], ["operacion", "Operación"], ["indicadores", "Indicadores"],
-  ["problemas", "Problemas y acciones"], ["evidencias", "Evidencia"], ["timeline", "Timeline"], ["informes", "Informes"],
+  ["problemas", "Problemas y acciones"], ["evidencias", "Evidencia"], ["timeline", "Timeline"],
 ];
 
 export default function ObraWorkspaceLayout() {
   const { obraId } = useParams();
   const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
   const [state, setState] = useState({ status: "loading", workspace: null });
+  const requestRef = useRef(0);
   const load = useCallback(() => {
     if (!activeOrganizacionId) return;
+    const requestId = ++requestRef.current;
     setState({ status: "loading", workspace: null });
-    getWorkWorkspace(activeOrganizacionId, obraId).then((workspace) => setState({ status: "ready", workspace })).catch(() => setState({ status: "missing", workspace: null }));
+    getWorkWorkspace(activeOrganizacionId, obraId).then((workspace) => { if(requestRef.current===requestId)setState({ status: "ready", workspace }); }).catch(() => { if(requestRef.current===requestId)setState({ status: "missing", workspace: null }); });
   }, [activeOrganizacionId, obraId]);
   useEffect(() => { load(); }, [load]);
   if (state.status === "loading") return <LoadingState label="Cargando contexto de la obra" />;
@@ -32,8 +34,4 @@ export default function ObraWorkspaceLayout() {
     </nav>
     <Outlet context={state.workspace} />
   </div>;
-}
-
-export function ObraWorkspaceSection({ title, description }) {
-  return <Card><CardContent><h2 className="text-xl font-bold">{title}</h2><p className="mt-2 text-sm text-[var(--text-muted)]">{description || "Esta sección conserva navegación y contexto de obra. Su experiencia detallada corresponde a una fase posterior."}</p></CardContent></Card>;
 }

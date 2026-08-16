@@ -161,6 +161,8 @@ function RegistrosEmisionTab({
 
     onUpdateregistroForm({ target: { name: "origen_transporte", value: routeOrigin.address } });
     onUpdateregistroForm({ target: { name: "origen_coords", value: routeOrigin.coords } });
+    // El callback del formulario es provisto por el contenedor y no define el cambio de origen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeOrigin.address, routeOrigin.coords, shouldShowRouteMap]);
 
   useEffect(() => {
@@ -168,6 +170,8 @@ function RegistrosEmisionTab({
 
     onUpdateregistroForm({ target: { name: "destino_transporte", value: routeDestination.address } });
     onUpdateregistroForm({ target: { name: "destino_coords", value: routeDestination.coords } });
+    // El callback del formulario es provisto por el contenedor y no define el cambio de destino.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeDestination.address, routeDestination.coords, shouldShowRouteMap]);
 
   const closeModal = () => {
@@ -226,6 +230,8 @@ function RegistrosEmisionTab({
       );
       return category === selectedCategory;
     });
+    // resolveRegistroCategory deriva únicamente de factorCategoriesBySource.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [factorCategoriesBySource, selectedCategory, selectedObra?.registros_emision]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRegistros.length / registrosPageSize));

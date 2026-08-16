@@ -80,10 +80,11 @@ export function OrganizacionActivaProvider({ children }) {
 
   useEffect(() => {
     refreshOrganizaciones().catch(() => undefined);
+    // La carga inicial se ejecuta una vez; refresh usa el ID persistido vigente.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const value = useMemo(
-    () => ({
+  const value = {
       activeOrganizacion,
       activeOrganizacionId,
       clearActiveOrganizacion,
@@ -93,9 +94,7 @@ export function OrganizacionActivaProvider({ children }) {
       refreshOrganizaciones,
       setActiveOrganizacion,
       setOrganizaciones,
-    }),
-    [activeOrganizacion, activeOrganizacionId, organizaciones, errorOrganizaciones, loadingOrganizaciones]
-  );
+  };
 
   return <OrganizacionActivaContext.Provider value={value}>{children}</OrganizacionActivaContext.Provider>;
 }

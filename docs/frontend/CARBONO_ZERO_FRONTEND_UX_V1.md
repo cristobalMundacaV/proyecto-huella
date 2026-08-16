@@ -587,3 +587,15 @@ Se eliminaron `ProfessionalReviewWorkspace`, `EnvironmentalKnowledge` embebido y
 Limitaciones: el contrato actual sólo expone el informe vigente dentro del expediente y no ofrece listado histórico de todas las versiones; UX-09 no fabrica ese historial. Los cálculos se muestran únicamente cuando las referencias concretas existen. UX-10 deberá completar el barrido visual de páginas administrativas internas legacy y la auditoría WCAG integral.
 
 Correctivo final UX-09: la auditoría embebida en un expediente se limita a eventos `ExpedienteAmbiental` cuya referencia coincide explícitamente con el expediente actual. Una respuesta exitosa sin eventos se distingue de un fallo del recurso de auditoría, y ninguno de ambos bloquea las demás secciones.
+
+## UX-10 — Consolidación final
+
+La arquitectura autoritativa queda concentrada en `app`, `features`, `shared`, `presets`, `assets` y `styles`. `core` conserva únicamente Factores como superficie científica gobernada; se retiraron reportes, ingesta, environmental core, Quality V2 y `domain/environmental` sin consumidores. El router único usa carga diferida por página y `Suspense` con loading accesible.
+
+La matriz pública comprende `/`, `/login` y `/verificar/:codigo`. La matriz autenticada comprende Inicio, Obras y su workspace, Datos, Operación, Activos, Sensores, Inteligencia, Mejora, Copiloto, Gobernanza, Administración y extensiones Aserradero. Los placeholders de indicadores y timeline de obra se reemplazaron con lecturas reales del contexto scoped; la ruta placeholder de informes de obra fue retirada.
+
+El QA final verificó lint sin errores ni warnings, build, rutas profundas, 404 público/autenticado, estados loading/error/empty, semántica nullish, trazabilidad, diálogos, navegación responsive y aislamiento visual al cambiar organización u obra. El workspace invalida respuestas tardías mediante identidad de request. Los diálogos nativos restantes fueron migrados al primitive compartido.
+
+La auditoría UX de accesibilidad cubrió navegación por teclado, foco de modales/drawers, encabezados de tabla, links semánticos, labels y estados no dependientes sólo de color. Esto no constituye certificación WCAG formal. El modo demo conserva lectura sin autoridad de mutación; backend continúa siendo autoridad de permisos, tenant, cálculo y versionado.
+
+Deuda posterior a V1: auditoría WCAG formal con tecnología asistiva, pruebas E2E en navegador real y mayor partición del bundle compartido si las métricas reales lo justifican. No se agregaron capacidades de producto ni se modificó backend.
