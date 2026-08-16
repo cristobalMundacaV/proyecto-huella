@@ -244,3 +244,29 @@ PX-07 no rediseña Administración, usuarios ni configuración profunda. Backend
 ### Correctivo — conteos y alcance de filtros
 
 Los conteos mostrados en Revisión profesional respetan el alcance de los filtros activos; un subconjunto filtrado no se presenta como total global de revisiones pendientes. Sin filtro de tipo y con Estado = Pendiente se muestra el total del conjunto pendiente consultado; con Tipo activo o con un Estado específico distinto de Pendiente la metadata se expresa como resultados del subconjunto. Con Tipo = Todos y Estado = Todos, la colección contiene todos los estados y permite calcular localmente cuántas revisiones están pendientes. Un error de consulta no muestra conteos.
+
+## PX-08 — Administración
+
+### Alcance y frontera con Gobernanza
+
+Administración responde “¿Cómo está configurada mi organización y quién puede hacer qué?” y agrupa Organización, Usuarios y roles, Preferencias, Estructura y Diagnóstico. Organización, personas y opciones operativas permanecen aquí; factores, metodologías y decisiones profesionales continúan en Gobernanza y sólo se enlazan cuando aporta contexto.
+
+### Organización y usuarios
+
+Organización es la autoridad visual para identidad y perfil de operación. Seleccionar una organización cambia el contexto de trabajo y permanece separado de editar sus datos. El alta solicita una identidad mínima y no expone identificadores técnicos. El perfil de operación puede modificarse porque el contrato lo permite, pero la UI comunica que reorganiza vocabulario y composición antes de guardar. La eliminación usa confirmación explícita y comunica su alcance destructivo real.
+
+Usuarios y roles responde quién tiene acceso. Usa únicamente los roles contractuales Administrador, Analista, Operador y Lector; no transforma el rol en una lista inventada de permisos. Agregar usuario crea el acceso inmediatamente según el contrato actual, por eso no se presenta como invitación. El usuario actual se identifica como “Tú” cuando coincide de forma verificable. Carga y mutación conservan errores separados y los cambios de organización invalidan la lista anterior.
+
+### Preferencias operativas y configuración científica
+
+`/administracion/configuracion` se presenta como Preferencias y consume directamente la configuración confirmada de la organización. La superficie principal conserva preferencias contractuales de importación, documentos y presentación de reportes. Parámetros científicamente sensibles como factor eléctrico, unidad de cálculo o reglas metodológicas no se presentan como preferencias administrativas; los defaults históricos de carbono, densidad, scores y umbrales que sólo existían en frontend se retiran de la experiencia visible sin borrar almacenamiento del servidor.
+
+La configuración remota es la única autoridad. Una copia en `localStorage` puede conservarse como respaldo, pero ante fallo de la carga remota sólo se comunica como copia local no confirmada y no habilita edición ni guardado. “Preferencias guardadas” aparece únicamente después de una respuesta exitosa del servidor. “Cargar valores sugeridos” modifica sólo campos administrativos visibles y no se presenta como restauración de valores oficiales. Los cambios sin guardar se hacen visibles.
+
+### Diagnóstico, estructura y seguridad de contexto
+
+Diagnóstico se limita a contexto organizacional, información disponible o pendiente, aplicabilidad y la preparación que entrega el servidor; deja de crear unidades y procesos dentro de la misma pantalla. Sus recursos principales cargan de forma independiente y nunca completan ausencias con supuestos.
+
+Estructura deja de funcionar como dashboard ambiental y presenta la organización operacional registrada. Construcción puede crear etapas usando el contrato existente; otros perfiles no reciben una taxonomía de etapas de obra por defecto. Usuarios, Preferencias, Diagnóstico y Estructura invalidan el scope anterior al cambiar de organización. El modo demo mantiene las mutaciones administrativas en sólo lectura.
+
+PX-08 conserva las rutas existentes, reutiliza el design system compartido, mantiene tablas con overflow local y stacks en móvil. Backend permanece cerrado. PX-09 no se inicia.

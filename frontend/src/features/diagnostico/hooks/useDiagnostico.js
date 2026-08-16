@@ -1,21 +1,37 @@
-import { useCallback, useEffect, useState } from "react";
-import { getCapacidades, getDiagnostico, getPreparacion, getProcesos, getUnidades } from "../api/diagnosticoApi";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getCapacidades, getDiagnostico, getPreparacion } from "../api/diagnosticoApi";
+
+const resource = (status = "loading", data = null, error = "") => ({ status, data, error });
 
 export function useDiagnostico(organizacionId) {
-  const [data, setData] = useState({ diagnostico: null, capacidades: [], unidades: [], procesos: [], preparacion: null });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [state, setState] = useState({ scopeKey: "", diagnostico: resource(), capacidades: resource("loading", []), preparacion: resource() });
+  const requestRef = useRef(0);
+
   const reload = useCallback(async () => {
     if (!organizacionId) return;
-    setLoading(true); setError("");
-    try {
-      const [diagnostico, capacidades, unidades, procesos, preparacion] = await Promise.all([
-        getDiagnostico(organizacionId), getCapacidades(organizacionId), getUnidades(organizacionId), getProcesos(organizacionId), getPreparacion(organizacionId),
-      ]);
-      setData({ diagnostico, capacidades, unidades, procesos, preparacion });
-    } catch (e) { setError(e?.response?.data?.error || "No se pudo cargar la preparación ambiental."); }
-    finally { setLoading(false); }
+    const scopeKey = String(organizacionId);
+    const requestId = ++requestRef.current;
+    setState({ scopeKey, diagnostico: resource(), capacidades: resource("loading", []), preparacion: resource() });
+
+    const [diagnostico, capacidades, preparacion] = await Promise.allSettled([
+      getDiagnostico(organizacionId),
+      getCapacidades(organizacionId),
+      getPreparacion(organizacionId),
+    ]);
+    if (requestRef.current !== requestId) return;
+
+    setState({
+      scopeKey,
+      diagnostico: diagnostico.status === "fulfilled" ? resource("ready", diagnostico.value) : resource("error", null, diagnostico.reason?.response?.data?.error || "No se pudo cargar el diagnóstico."),
+      capacidades: capacidades.status === "fulfilled" ? resource("ready", capacidades.value || []) : resource("error", [], capacidades.reason?.response?.data?.error || "No se pudieron cargar las capacidades."),
+      preparacion: preparacion.status === "fulfilled" ? resource("ready", preparacion.value) : resource("error", null, preparacion.reason?.response?.data?.error || "No se pudo cargar el estado de preparación."),
+    });
   }, [organizacionId]);
-  useEffect(() => { reload(); }, [reload]);
-  return { ...data, loading, error, reload };
+
+  useEffect(() => {
+    reload();
+    return () => { requestRef.current += 1; };
+  }, [reload]);
+
+  return { ...state, reload };
 }

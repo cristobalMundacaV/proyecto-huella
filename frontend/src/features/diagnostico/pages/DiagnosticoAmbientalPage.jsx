@@ -1,109 +1,140 @@
-import { useEffect, useState } from "react";
-import { ClipboardCheck, Factory, Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
+
+import { useAuth } from "@/features/auth/context/AuthContext";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
+import { Alert, Button, Card, CardContent, EmptyState, ErrorState, Input, LoadingState, PageHeader, Select, StatusBadge, Textarea } from "@/shared/ui";
 import CapacidadesAmbientales from "../components/CapacidadesAmbientales";
-import { createProceso, createUnidad, saveDiagnostico } from "../api/diagnosticoApi";
+import { saveDiagnostico } from "../api/diagnosticoApi";
 import { useDiagnostico } from "../hooks/useDiagnostico";
 
-const ESTADOS = ["pendiente", "en_progreso", "completado", "requiere_actualizacion"];
-const GRUPOS = [
+const STATES = [
+  ["pendiente", "Pendiente"],
+  ["en_progreso", "En progreso"],
+  ["completado", "Completado"],
+  ["requiere_actualizacion", "Requiere actualización"],
+];
+const GROUPS = [
   ["proceso", "Procesos identificados"],
   ["informacion_disponible", "Información disponible"],
-  ["informacion_faltante", "Información faltante"],
+  ["informacion_faltante", "Información pendiente"],
   ["fuente", "Fuentes conocidas"],
-  ["brecha", "Brechas ambientales"],
+  ["brecha", "Brechas de contexto"],
 ];
 const emptyForm = { estado: "pendiente", objetivo_principal: "", descripcion_contexto: "", observaciones: "" };
 const keyFor = (item) => item.id ? `id-${item.id}` : item.localId;
+const statusTone = (value) => value === "completado" ? "success" : value === "requiere_actualizacion" ? "warning" : "neutral";
+const PROFILE_LABELS = { construccion: "Construcción", forestal: "Forestal", aserradero: "Aserradero", transporte: "Transporte", industrial: "Industrial" };
 
 export default function DiagnosticoAmbientalPage() {
-  const { activeOrganizacionId } = useOrganizacionActiva();
+  const { user } = useAuth();
+  const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
   const state = useDiagnostico(activeOrganizacionId);
   const [form, setForm] = useState(emptyForm);
   const [elementos, setElementos] = useState([]);
-  const [dirty, setDirty] = useState(() => new Set());
-  const [eliminados, setEliminados] = useState([]);
-  const [unidad, setUnidad] = useState("");
-  const [proceso, setProceso] = useState("");
+  const [dirtyItems, setDirtyItems] = useState(() => new Set());
+  const [deletedIds, setDeletedIds] = useState([]);
+  const [formDirty, setFormDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [mutationError, setMutationError] = useState("");
+  const [success, setSuccess] = useState("");
+  const activeScopeRef = useRef(activeOrganizacionId);
+  activeScopeRef.current = activeOrganizacionId;
 
   useEffect(() => {
-    if (state.loading) return;
-    setForm(state.diagnostico ? {
-      estado: state.diagnostico.estado,
-      objetivo_principal: state.diagnostico.objetivo_principal || "",
-      descripcion_contexto: state.diagnostico.descripcion_contexto || "",
-      observaciones: state.diagnostico.observaciones || "",
+    if (state.diagnostico.status !== "ready") return;
+    const diagnostic = state.diagnostico.data;
+    setForm(diagnostic ? {
+      estado: diagnostic.estado,
+      objetivo_principal: diagnostic.objetivo_principal || "",
+      descripcion_contexto: diagnostic.descripcion_contexto || "",
+      observaciones: diagnostic.observaciones || "",
     } : emptyForm);
-    setElementos(state.diagnostico?.elementos || []);
-    setDirty(new Set());
-    setEliminados([]);
-  }, [state.diagnostico, state.loading]);
+    setElementos(diagnostic?.elementos || []);
+    setDirtyItems(new Set());
+    setDeletedIds([]);
+    setFormDirty(false);
+  }, [state.diagnostico.data, state.diagnostico.status]);
 
-  function addElemento(tipo) {
-    const localId = `new-${Date.now()}-${Math.random()}`;
-    setElementos((actuales) => [...actuales, { localId, tipo, nombre: "", descripcion: "" }]);
-    setDirty((actuales) => new Set(actuales).add(localId));
-  }
+  const setField = (field, value) => { setForm((current) => ({ ...current, [field]: value })); setFormDirty(true); setSuccess(""); };
+  function addElement(tipo) { const localId = `new-${Date.now()}-${Math.random()}`; setElementos((items) => [...items, { localId, tipo, nombre: "", descripcion: "" }]); setDirtyItems((current) => new Set(current).add(localId)); }
+  function updateElement(item, field, value) { const key = keyFor(item); setElementos((items) => items.map((current) => keyFor(current) === key ? { ...current, [field]: value } : current)); setDirtyItems((current) => new Set(current).add(key)); setSuccess(""); }
+  function removeElement(item) { setElementos((items) => items.filter((current) => keyFor(current) !== keyFor(item))); if (item.id) setDeletedIds((ids) => [...ids, item.id]); setSuccess(""); }
 
-  function updateElemento(item, field, value) {
-    const key = keyFor(item);
-    setElementos((actuales) => actuales.map((actual) => keyFor(actual) === key ? { ...actual, [field]: value } : actual));
-    setDirty((actuales) => new Set(actuales).add(key));
-  }
-
-  function removeElemento(item) {
-    setElementos((actuales) => actuales.filter((actual) => keyFor(actual) !== keyFor(item)));
-    if (item.id) setEliminados((actuales) => [...actuales, item.id]);
-  }
-
-  async function handleSave() {
-    setSaving(true);
+  async function save() {
+    const organizationId = activeOrganizacionId;
+    setSaving(true); setMutationError(""); setSuccess("");
     try {
-      const modificados = elementos
-        .filter((item) => dirty.has(keyFor(item)))
-        .map(({ id, tipo, nombre, descripcion }) => ({ ...(id ? { id } : {}), tipo, nombre, descripcion }));
-      const payload = { ...form, elementos: [...modificados, ...eliminados.map((id) => ({ id, eliminar: true }))] };
-      await saveDiagnostico(activeOrganizacionId, payload, Boolean(state.diagnostico));
+      const changed = elementos.filter((item) => dirtyItems.has(keyFor(item))).map(({ id, tipo, nombre, descripcion }) => ({ ...(id ? { id } : {}), tipo, nombre, descripcion }));
+      const payload = { ...form, elementos: [...changed, ...deletedIds.map((id) => ({ id, eliminar: true }))] };
+      await saveDiagnostico(organizationId, payload, Boolean(state.diagnostico.data));
+      if (String(activeScopeRef.current) !== String(organizationId)) return;
       await state.reload();
-    } finally {
-      setSaving(false);
-    }
+      setSuccess("Contexto guardado.");
+    } catch (error) {
+      setMutationError(error.response?.data?.error || error.response?.data?.detail || "No se pudo guardar el diagnóstico.");
+    } finally { setSaving(false); }
   }
 
-  if (state.loading) return <p className="p-8 text-slate-500">Cargando diagnóstico ambiental...</p>;
+  const scopeKey = activeOrganizacionId ? String(activeOrganizacionId) : "";
+  if (!activeOrganizacionId) return <EmptyState title="Sin organización activa" description="Selecciona una organización para revisar su contexto." />;
+  if (state.scopeKey !== scopeKey || state.diagnostico.status === "loading") return <LoadingState label="Cargando diagnóstico" />;
 
-  return <div className="mx-auto max-w-7xl space-y-6">
-    <header className="rounded-[28px] border border-emerald-200 bg-emerald-50 p-6">
-      <div className="flex items-center gap-3"><ClipboardCheck className="text-emerald-700" size={32}/><div><p className="text-xs font-black uppercase tracking-widest text-emerald-700">Fundación ambiental</p><h1 className="text-3xl font-black text-slate-900">Diagnóstico Ambiental</h1></div></div>
-      <p className="mt-3 text-slate-600">Estado: <b>{form.estado.replaceAll("_", " ")}</b> · Siguiente paso: <b>{state.preparacion?.siguiente_paso}</b></p>
-    </header>
-    {state.error && <p className="rounded-2xl bg-red-50 p-4 text-red-700">{state.error}</p>}
+  const diagnostic = state.diagnostico.data;
+  const canSave = !user?.is_demo && (formDirty || dirtyItems.size > 0 || deletedIds.length > 0);
 
-    <section className="rounded-[28px] border border-slate-200 bg-white p-6">
-      <h2 className="text-xl font-black">{state.diagnostico ? "Actualizar diagnóstico" : "Iniciar diagnóstico"}</h2>
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <label className="text-sm font-bold text-slate-700">Estado<select value={form.estado} onChange={(e) => setForm({...form, estado: e.target.value})} className="mt-1 w-full rounded-xl border p-3 font-normal">{ESTADOS.map((estado) => <option key={estado} value={estado}>{estado.replaceAll("_", " ")}</option>)}</select></label>
-        <label className="text-sm font-bold text-slate-700">Objetivo o necesidad principal<input value={form.objetivo_principal} onChange={(e) => setForm({...form, objetivo_principal:e.target.value})} className="mt-1 w-full rounded-xl border p-3 font-normal"/></label>
-        <label className="text-sm font-bold text-slate-700">Contexto<textarea value={form.descripcion_contexto} onChange={(e) => setForm({...form, descripcion_contexto:e.target.value})} className="mt-1 min-h-24 w-full rounded-xl border p-3 font-normal"/></label>
-        <label className="text-sm font-bold text-slate-700">Observaciones<textarea value={form.observaciones} onChange={(e) => setForm({...form, observaciones:e.target.value})} className="mt-1 min-h-24 w-full rounded-xl border p-3 font-normal"/></label>
-      </div>
-    </section>
+  return (
+    <main className="space-y-7">
+      <PageHeader
+        eyebrow="Administración · Diagnóstico"
+        title="Diagnóstico de contexto"
+        description="Define el contexto organizacional que ayuda a determinar qué aplica y qué información falta."
+        metadata={activeOrganizacion?.nombre || undefined}
+        status={diagnostic ? <StatusBadge tone={statusTone(diagnostic.estado)}>{STATES.find(([value]) => value === diagnostic.estado)?.[1] || diagnostic.estado}</StatusBadge> : undefined}
+      />
 
-    <section className="grid gap-4 lg:grid-cols-2">
-      {GRUPOS.map(([tipo, title]) => <ElementGroup key={tipo} tipo={tipo} title={title} items={elementos.filter((item) => item.tipo === tipo)} onAdd={addElemento} onUpdate={updateElemento} onRemove={removeElemento}/>) }
-    </section>
+      {user?.is_demo && <Alert title="Solo lectura en modo demo">Puedes revisar el contexto, pero no modificarlo.</Alert>}
+      {mutationError && <Alert tone="danger">{mutationError}</Alert>}
+      {success && <Alert tone="success">{success}</Alert>}
 
-    <button disabled={saving} onClick={handleSave} className="rounded-xl bg-emerald-700 px-5 py-3 font-bold text-white disabled:opacity-60">{saving ? "Guardando..." : "Guardar diagnóstico"}</button>
-    <section><h2 className="mb-3 text-xl font-black">Capacidades detectadas y configuradas</h2><CapacidadesAmbientales organizacionId={activeOrganizacionId} capacidades={state.capacidades} onChange={state.reload}/></section>
-    <section className="rounded-[28px] border border-slate-200 bg-white p-6"><div className="flex items-center gap-2"><Factory className="text-emerald-700"/><h2 className="text-xl font-black">Estructura operacional</h2></div><div className="mt-4 grid gap-5 md:grid-cols-2"><Structure title="Unidades" items={state.unidades} value={unidad} setValue={setUnidad} onAdd={async()=>{if(unidad){await createUnidad(activeOrganizacionId,{nombre:unidad,tipo:"otro"});setUnidad("");state.reload();}}}/><Structure title="Procesos" items={state.procesos} value={proceso} setValue={setProceso} onAdd={async()=>{if(proceso){await createProceso(activeOrganizacionId,{nombre:proceso,estado:"activo"});setProceso("");state.reload();}}}/></div></section>
-  </div>;
+      <section className="grid gap-3 md:grid-cols-3">
+        <Info label="Sector" value={activeOrganizacion?.rubro || "Sin datos"} />
+        <Info label="Perfil de operación" value={PROFILE_LABELS[activeOrganizacion?.preset] || activeOrganizacion?.preset || "Sin datos"} />
+        <Info label="Siguiente paso" value={state.preparacion.status === "ready" ? state.preparacion.data?.siguiente_paso || "Sin datos" : state.preparacion.status === "error" ? "No disponible" : "Cargando…"} />
+      </section>
+
+      {state.diagnostico.status === "error" ? <ErrorState description={state.diagnostico.error} onRetry={state.reload} /> : (
+        <section className="space-y-4">
+          <div><h2 className="text-lg font-black">Contexto organizacional</h2><p className="text-sm text-[var(--text-muted)]">Estas respuestas describen el contexto actual; pueden actualizarse cuando cambie la operación.</p></div>
+          <Card><CardContent>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Select label="Estado" value={form.estado} disabled={user?.is_demo} onChange={(event) => setField("estado", event.target.value)}>{STATES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>
+              <Input label="Objetivo o necesidad principal" value={form.objetivo_principal} disabled={user?.is_demo} onChange={(event) => setField("objetivo_principal", event.target.value)} />
+              <Textarea label="Contexto" rows={4} value={form.descripcion_contexto} disabled={user?.is_demo} onChange={(event) => setField("descripcion_contexto", event.target.value)} />
+              <Textarea label="Observaciones" rows={4} value={form.observaciones} disabled={user?.is_demo} onChange={(event) => setField("observaciones", event.target.value)} />
+            </div>
+          </CardContent></Card>
+        </section>
+      )}
+
+      {state.diagnostico.status === "ready" && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-black">Información disponible y pendiente</h2>
+          <div className="grid gap-4 lg:grid-cols-2">{GROUPS.map(([type, title]) => <ElementGroup key={type} type={type} title={title} items={elementos.filter((item) => item.tipo === type)} readOnly={user?.is_demo} onAdd={addElement} onUpdate={updateElement} onRemove={removeElement} />)}</div>
+        </section>
+      )}
+
+      <section className="space-y-4">
+        <div><h2 className="text-lg font-black">Aplicabilidad</h2><p className="text-sm text-[var(--text-muted)]">Indica qué capacidades aplican al contexto de esta organización. Un estado pendiente no se completa con supuestos.</p></div>
+        {state.capacidades.status === "loading" ? <LoadingState inline label="Cargando aplicabilidad" /> : state.capacidades.status === "error" ? <ErrorState description={state.capacidades.error} /> : !state.capacidades.data.length ? <EmptyState title="Sin capacidades registradas" description="No hay aplicabilidad disponible para mostrar." /> : <CapacidadesAmbientales organizacionId={activeOrganizacionId} capacidades={state.capacidades.data} onChange={state.reload} readOnly={user?.is_demo} />}
+      </section>
+
+      {!user?.is_demo && state.diagnostico.status === "ready" && <div className="flex justify-end"><Button loading={saving} disabled={!canSave} onClick={save}>{diagnostic ? "Guardar cambios" : "Guardar contexto"}</Button></div>}
+    </main>
+  );
 }
 
-function ElementGroup({ tipo, title, items, onAdd, onUpdate, onRemove }) {
-  return <div className="rounded-2xl border border-slate-200 bg-white p-5"><div className="flex items-center justify-between"><h2 className="font-black">{title}</h2><button type="button" onClick={() => onAdd(tipo)} className="flex items-center gap-1 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white"><Plus size={15}/>Agregar</button></div>
-    <div className="mt-3 space-y-3">{items.length === 0 && <p className="text-sm text-slate-500">Aún no se ha registrado información.</p>}{items.map((item) => <div key={keyFor(item)} className="rounded-xl border border-slate-200 p-3"><div className="flex gap-2"><input value={item.nombre} onChange={(e) => onUpdate(item, "nombre", e.target.value)} placeholder="Nombre" className="min-w-0 flex-1 rounded-lg border p-2"/><button type="button" aria-label={`Eliminar ${item.nombre || title}`} onClick={() => onRemove(item)} className="rounded-lg border border-red-200 p-2 text-red-600"><Trash2 size={17}/></button></div><textarea value={item.descripcion || ""} onChange={(e) => onUpdate(item, "descripcion", e.target.value)} placeholder="Descripción opcional" className="mt-2 min-h-16 w-full rounded-lg border p-2"/></div>)}</div>
-  </div>;
+function Info({ label, value }) { return <Card><CardContent><p className="text-xs font-bold uppercase text-[var(--text-muted)]">{label}</p><p className="mt-1 font-semibold">{value ?? "Sin datos"}</p></CardContent></Card>; }
+function ElementGroup({ type, title, items, readOnly, onAdd, onUpdate, onRemove }) {
+  return <Card><CardContent><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-black">{title}</h3>{!readOnly && <Button size="sm" variant="secondary" onClick={() => onAdd(type)}><Plus size={15} aria-hidden="true" />Agregar</Button>}</div><div className="mt-4 space-y-3">{!items.length && <p className="text-sm text-[var(--text-muted)]">Sin información registrada.</p>}{items.map((item) => <div key={keyFor(item)} className="rounded-[var(--radius-md)] border border-[var(--border-default)] p-3"><div className="flex gap-2"><input aria-label={`Nombre en ${title}`} value={item.nombre || ""} disabled={readOnly} onChange={(event) => onUpdate(item, "nombre", event.target.value)} className="min-w-0 flex-1 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 text-sm focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50" />{!readOnly && <Button variant="danger" size="sm" aria-label={`Eliminar ${item.nombre || title}`} onClick={() => onRemove(item)}><Trash2 size={16} aria-hidden="true" /></Button>}</div><textarea aria-label={`Descripción en ${title}`} rows={2} value={item.descripcion || ""} disabled={readOnly} onChange={(event) => onUpdate(item, "descripcion", event.target.value)} className="mt-2 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 text-sm focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50" /></div>)}</div></CardContent></Card>;
 }
-
-function Structure({title,items,value,setValue,onAdd}) { return <div><h3 className="font-black">{title}</h3><div className="my-2 flex gap-2"><input value={value} onChange={e=>setValue(e.target.value)} placeholder={`Nueva ${title.toLowerCase()}`} className="min-w-0 flex-1 rounded-xl border p-3"/><button onClick={onAdd} className="rounded-xl bg-slate-900 p-3 text-white"><Plus size={18}/></button></div>{items.map(i=><p key={i.id} className="border-b py-2 text-sm">{i.nombre}</p>)}</div>}
