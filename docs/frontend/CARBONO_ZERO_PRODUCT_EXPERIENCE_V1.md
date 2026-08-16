@@ -240,3 +240,7 @@ Auditoría se presenta como historial verificable de fecha, actor, acción, elem
 Overview, calidad y conocimiento preservan fallos parciales; una fuente secundaria que falla no derriba las demás. ReviewQueue, expedientes, detalle, auditoría y conocimiento invalidan visualmente el scope anterior durante cambios de organización, objeto o filtros. Las rutas y navegación existentes permanecen como autoridad y Factores y metodologías continúa integrado bajo Gobernanza sin rediseño profundo.
 
 PX-07 no rediseña Administración, usuarios ni configuración profunda. Backend permanece cerrado y PX-08 no se inicia.
+
+### Correctivo — conteos y alcance de filtros
+
+Los conteos mostrados en Revisión profesional respetan el alcance de los filtros activos; un subconjunto filtrado no se presenta como total global de revisiones pendientes. Sin filtro de tipo y con Estado = Pendiente se muestra el total del conjunto pendiente consultado; con Tipo activo o con un Estado específico distinto de Pendiente la metadata se expresa como resultados del subconjunto. Con Tipo = Todos y Estado = Todos, la colección contiene todos los estados y permite calcular localmente cuántas revisiones están pendientes. Un error de consulta no muestra conteos.
