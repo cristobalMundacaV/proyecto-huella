@@ -5,6 +5,7 @@ const forestalPreset = {
   key: "forestal",
   name: "Forestal",
   dashboardTitle: "Dashboard forestal",
+  navigationProfile: { ...aserraderoPreset.navigationProfile, processesLabel: "Procesos forestales" },
   navigationExtensions: aserraderoPreset.navigationExtensions,
 };
 

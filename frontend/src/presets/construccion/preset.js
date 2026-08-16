@@ -2,7 +2,7 @@ import { constructionIntelligence } from "./intelligence";
 
 const construccionPreset = {
   key: "construccion",
-  name: "Construccion",
+  name: "Construcción",
   entityLabel: "Empresa",
   entityPluralLabel: "Empresas",
   unitLabel: "Obra",
@@ -13,6 +13,7 @@ const construccionPreset = {
   primaryKpi: "Emisiones totales",
   categories: ["Materiales", "Residuos", "Maquinaria", "Energia", "Transporte", "Agua", "Otros"],
   intelligence: constructionIntelligence,
+  navigationProfile: { operation: ["primaryUnit", "assets", "sensors"] },
   navigationExtensions: [],
 };
 

@@ -5,14 +5,15 @@ const industrialPreset = {
   name: "Industrial",
   entityLabel: "Empresa",
   entityPluralLabel: "Empresas",
-  unitLabel: "Linea",
-  unitPluralLabel: "Lineas",
+  unitLabel: "Línea",
+  unitPluralLabel: "Líneas",
   processLabel: "Proceso",
   processPluralLabel: "Procesos",
   dashboardTitle: "Dashboard industrial",
   primaryKpi: "Emisiones por produccion",
   categories: ["Energia", "Combustibles", "Procesos", "Insumos", "Residuos", "Transporte", "Otros"],
   intelligence: industrialIntelligence,
+  navigationProfile: { operation: ["primaryUnit", "assets", "sensors"] },
   navigationExtensions: [],
 };
 

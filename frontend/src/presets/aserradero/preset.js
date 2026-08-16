@@ -13,6 +13,7 @@ const aserraderoPreset = {
   primaryKpi: "Emisiones por produccion",
   categories: ["Materia prima", "Produccion", "Secado", "Energia", "Transporte", "Residuos", "Otros"],
   intelligence: sawmillIntelligence,
+  navigationProfile: { operation: ["primaryUnit", "sectorOperations", "assets", "sensors"], processesLabel: "Procesos de planta" },
   navigationExtensions: [
     { path: "/operacion/recepcion-trozas", label: "Recepción de trozas" },
     { path: "/operacion/produccion", label: "Producción" },
