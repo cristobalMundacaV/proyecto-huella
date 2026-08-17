@@ -1,6 +1,5 @@
 import {
   ChevronDown,
-  Leaf,
   LogOut,
   Menu,
   UserRound,
@@ -72,22 +71,11 @@ export default function Navbar({
             to="/inicio"
             className="flex items-center gap-3 rounded-[var(--radius-md)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           >
-            <div className="rounded-[var(--radius-md)] bg-[var(--brand-primary)] p-2.5 text-white shadow-sm">
-              <Leaf
-                aria-hidden="true"
-                size={22}
-              />
-            </div>
-
-            <div className="hidden sm:block">
-              <p className="text-lg font-black leading-tight text-[var(--text-primary)]">
-                Carbono Zero
-              </p>
-
-              <p className="mt-0.5 text-[11px] font-medium text-[var(--text-muted)]">
-                Inteligencia ambiental por rubro
-              </p>
-            </div>
+            <img
+              src="/brand/carbono-zero-logo.png"
+              alt="Carbono Zero"
+              className="h-10 w-auto object-contain sm:h-11"
+            />
           </Link>
         </div>
 
@@ -127,8 +115,8 @@ export default function Navbar({
               aria-hidden="true"
               size={16}
               className={`transition-transform duration-200 ${open
-                  ? "rotate-180"
-                  : ""
+                ? "rotate-180"
+                : ""
                 }`}
             />
           </button>

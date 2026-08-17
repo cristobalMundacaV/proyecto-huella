@@ -508,6 +508,7 @@ export default function InicioPage() {
                                     (event, index) => (
                                         <TimelineItem
                                             key={`${event.tipo}-${event.referencia_id}-${index}`}
+                                            type={event.tipo}
                                             timestamp={formatDateTime(
                                                 event.fecha
                                             )}
