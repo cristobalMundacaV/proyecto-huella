@@ -257,7 +257,6 @@ export default function InicioPage() {
             </main>
         );
     }
-
     const evidenceByWork = countByWork(
         pendingEvidence
     );
@@ -300,194 +299,268 @@ export default function InicioPage() {
                 : "unidades sin información"
             }`
             : "Todas al día";
-
-    const totalWorks = Array.isArray(data?.works) ? data.works.length : 0
-    const worksWithAttention = Array.isArray(data?.attentionItems)
-        ? data.attentionItems.filter((item) => item.kind === 'work').length
-        : 0
-
-    const openProblems = Number(data?.kpis?.openProblems ?? 0)
-    const pendingEvidence = Number(data?.kpis?.pendingEvidence ?? 0)
-
-    const executiveSummary = {
-        worksWithAttention,
-        openProblems,
-        pendingEvidence,
-    }
-
-    const hasHealthyState =
-        worksWithAttention === 0 &&
-        openProblems === 0 &&
-        pendingEvidence === 0
-
-    const heroMessage = hasHealthyState
-        ? 'Tu operación ambiental se encuentra estable. No hay señales urgentes en este momento.'
-        : 'Hoy existen señales que requieren seguimiento para mantener la trazabilidad y el control ambiental.'
-
-    const nextRecommendation = worksWithAttention > 0
-        ? 'Revisar primero las unidades con atención para evitar que el seguimiento operacional quede desactualizado.'
-        : pendingEvidence > 0
-            ? 'Revisar primero las evidencias pendientes para sostener la trazabilidad documental.'
-            : openProblems > 0
-                ? 'Revisar primero los problemas abiertos para confirmar su siguiente acción.'
-                : 'Todo está al día. Puedes continuar con seguimiento operativo o carga de nuevos datos.'
     return (
-        <div className="inicio-page">
-            <section className="inicio-hero">
-                <div className="inicio-hero__main">
-                    <div className="inicio-hero__eyebrow">Inicio</div>
-                    <h1 className="inicio-hero__title">{organizationName}</h1>
-                    <p className="inicio-hero__description">
-                        {heroMessage}
-                    </p>
+        <main className="space-y-7">
+            <section className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-6 shadow-sm">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="max-w-3xl">
+                        <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-700">
+                            Resumen ambiental
+                        </p>
 
-                    <div className="inicio-hero__chips">
-                        <span className="inicio-chip inicio-chip--soft">
-                            {totalWorks} {totalWorks === 1 ? 'unidad activa' : 'unidades activas'}
-                        </span>
-                        <span className="inicio-chip inicio-chip--soft">
-                            {worksWithAttention} con atención
-                        </span>
-                        <span className="inicio-chip inicio-chip--soft">
-                            {pendingEvidence} evidencias pendientes
-                        </span>
+                        <h1 className="mt-2 text-3xl font-black text-[var(--text-primary)]">
+                            {activeOrganizacion?.nombre || "Resumen de hoy"}
+                        </h1>
+
+                        <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
+                            Esto es lo que requiere tu atención hoy y el estado general de tu operación ambiental.
+                        </p>
+
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            <span className="rounded-full border border-emerald-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-emerald-800">
+                                {data.works.length}{" "}
+                                {data.works.length === 1
+                                    ? preset.unitLabel.toLowerCase()
+                                    : preset.unitPluralLabel.toLowerCase()}
+                            </span>
+
+                            <span className="rounded-full border border-amber-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-amber-800">
+                                {attentionWorks.length} con atención
+                            </span>
+
+                            <span className="rounded-full border border-sky-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-sky-800">
+                                {pendingEvidence.length} evidencias pendientes
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="w-full rounded-2xl border border-emerald-100 bg-white/80 p-4 lg:max-w-sm">
+                        <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                            Lectura rápida
+                        </p>
+
+                        <p className="mt-2 text-xl font-black text-[var(--text-primary)]">
+                            {attentionWorks.length ||
+                                openProblems.length ||
+                                pendingEvidence.length ||
+                                incompleteCount
+                                ? "Requiere seguimiento"
+                                : "Operación estable"}
+                        </p>
+
+                        <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
+                            {attentionWorks.length
+                                ? "Revisa primero las unidades que presentan señales de atención."
+                                : pendingEvidence.length
+                                    ? "Revisa primero las evidencias pendientes para mantener la trazabilidad."
+                                    : openProblems.length
+                                        ? "Continúa con el seguimiento de los problemas abiertos."
+                                        : incompleteCount
+                                            ? "Parte de la información no pudo verificarse completamente."
+                                            : "No hay pendientes detectados con la información disponible."}
+                        </p>
                     </div>
                 </div>
-
-                <aside className="inicio-hero__aside">
-                    <div className="inicio-health">
-                        <div className="inicio-health__label">Lectura rápida</div>
-                        <div className="inicio-health__value">
-                            {hasHealthyState ? 'Estable' : 'Requiere seguimiento'}
-                        </div>
-                        <p className="inicio-health__text">{nextRecommendation}</p>
-                    </div>
-                </aside>
             </section>
 
-            <section className="inicio-kpis">
-                <div className="inicio-kpi-card">
-                    <div className="inicio-kpi-card__label">Obras con atención</div>
-                    <div className="inicio-kpi-card__value">{worksWithAttention}</div>
-                    <div className="inicio-kpi-card__meta">
-                        {worksWithAttention === 0 ? 'Todas al día' : 'Revisar seguimiento'}
-                    </div>
-                </div>
+            <section
+                aria-label="Resumen"
+                className="grid gap-3 md:grid-cols-3"
+            >
+                <KpiCard
+                    icon={AlertTriangle}
+                    label={`${preset.unitPluralLabel} con atención`}
+                    value={attentionWorks.length}
+                    helper={attentionHelper}
+                    status={
+                        attentionWorks.length
+                            ? "warning"
+                            : incompleteCount
+                                ? "info"
+                                : "success"
+                    }
+                />
 
-                <div className="inicio-kpi-card">
-                    <div className="inicio-kpi-card__label">Problemas abiertos</div>
-                    <div className="inicio-kpi-card__value">{openProblems}</div>
-                    <div className="inicio-kpi-card__meta">
-                        {openProblems === 0 ? 'Sin problemas abiertos' : 'Acciones por revisar'}
-                    </div>
-                </div>
+                <KpiCard
+                    icon={AlertTriangle}
+                    label="Problemas abiertos"
+                    value={
+                        data.resourceErrors.problems
+                            ? "No disponible"
+                            : openProblems.length
+                    }
+                    helper={
+                        data.resourceErrors.problems
+                            ? "No fue posible consultarlos"
+                            : openProblems.length
+                                ? "Requieren seguimiento"
+                                : "Sin problemas abiertos"
+                    }
+                    status={
+                        openProblems.length
+                            ? "danger"
+                            : "success"
+                    }
+                />
 
-                <div className="inicio-kpi-card">
-                    <div className="inicio-kpi-card__label">Evidencias pendientes</div>
-                    <div className="inicio-kpi-card__value">{pendingEvidence}</div>
-                    <div className="inicio-kpi-card__meta">
-                        {pendingEvidence === 0 ? 'Sin pendientes documentales' : 'Documentos por revisar'}
-                    </div>
-                </div>
+                <KpiCard
+                    icon={FileCheck2}
+                    label="Evidencias pendientes"
+                    value={
+                        data.resourceErrors.evidence
+                            ? "No disponible"
+                            : pendingEvidence.length
+                    }
+                    helper={
+                        data.resourceErrors.evidence
+                            ? "No fue posible consultarlas"
+                            : pendingEvidence.length
+                                ? "Requieren revisión"
+                                : "Sin pendientes documentales"
+                    }
+                    status={
+                        pendingEvidence.length
+                            ? "warning"
+                            : "success"
+                    }
+                />
             </section>
 
-            <section className="inicio-content-grid">
-                <div className="inicio-main-column">
-                    <div className="inicio-section-card">
-                        <div className="inicio-section-card__header">
-                            <div>
-                                <div className="inicio-section-card__eyebrow">Prioridad</div>
-                                <h2 className="inicio-section-card__title">Requiere tu atención</h2>
-                                <p className="inicio-section-card__description">
-                                    Señales prioritarias que deberías revisar hoy.
-                                </p>
-                            </div>
-                        </div>
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.7fr)]">
+                <div className="space-y-6">
+                    <section
+                        id="priorities"
+                        className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 shadow-sm"
+                    >
+                        <SectionHeader
+                            title="Requiere tu atención"
+                            description={
+                                priorities.length
+                                    ? "Los pendientes más importantes y su siguiente paso."
+                                    : incompleteCount
+                                        ? "No hay pendientes detectados en la información disponible."
+                                        : "No hay pendientes disponibles."
+                            }
+                        />
 
                         <AttentionList
-                            items={data?.attentionItems ?? []}
-                            partiallyUnavailable={Boolean(data?.workContextErrors?.length)}
+                            contextIncomplete={incompleteCount > 0}
+                            items={priorities}
+                            unitPluralLabel={preset.unitPluralLabel}
                         />
-                    </div>
+                    </section>
 
-                    <div className="inicio-section-card">
-                        <div className="inicio-section-card__header inicio-section-card__header--between">
-                            <div>
-                                <div className="inicio-section-card__eyebrow">Operación</div>
-                                <h2 className="inicio-section-card__title">Mis obras</h2>
-                                <p className="inicio-section-card__description">
-                                    Estado breve de tus unidades activas.
-                                </p>
-                            </div>
+                    <section className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 shadow-sm">
+                        <SectionHeader
+                            title={`Mis ${preset.unitPluralLabel.toLowerCase()}`}
+                            description={`Estado breve de tus ${preset.unitPluralLabel.toLowerCase()}.`}
+                            action={
+                                <Link
+                                    className="text-sm font-bold text-[var(--brand-primary)]"
+                                    to="/obras"
+                                >
+                                    Ver todas
+                                </Link>
+                            }
+                        />
 
-                            <a href="/obras" className="inicio-inline-link">
-                                Ver todas
-                            </a>
-                        </div>
-
-                        <div className="inicio-work-grid">
-                            {(data?.works ?? []).slice(0, 4).map((work) => (
+                        <div
+                            className={`grid gap-3 ${orderedWorks.length === 1
+                                ? "max-w-2xl"
+                                : "md:grid-cols-2"
+                                }`}
+                        >
+                            {orderedWorks.map(work => (
                                 <CompactWorkCard
-                                    key={work.id}
+                                    context={
+                                        contextByWork.get(workId(work))
+                                    }
+                                    contextError={contextErrorIds.has(
+                                        workId(work)
+                                    )}
+                                    evidenceCount={
+                                        evidenceByWork.get(workId(work)) || 0
+                                    }
+                                    key={
+                                        workId(work) || work.codigo_obra
+                                    }
+                                    unitLabel={preset.unitLabel}
                                     work={work}
-                                    contextError={Boolean((data?.workContextErrors ?? []).includes(work.id))}
                                 />
                             ))}
                         </div>
-                    </div>
+                    </section>
                 </div>
 
-                <aside className="inicio-side-column">
-                    <div className="inicio-side-panel">
-                        <div className="inicio-side-panel__eyebrow">Seguimiento</div>
-                        <h3 className="inicio-side-panel__title">Actividad reciente</h3>
-                        <p className="inicio-side-panel__description">
-                            Últimos movimientos relevantes cargados en la organización.
+                <aside className="space-y-6">
+                    {recentEvents.length > 0 && (
+                        <section className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 shadow-sm">
+                            <SectionHeader
+                                title="Actividad reciente"
+                                description="Últimos movimientos registrados."
+                            />
+
+                            <Timeline>
+                                {recentEvents.map(
+                                    (event, index) => (
+                                        <TimelineItem
+                                            key={`${event.tipo}-${event.referencia_id}-${index}`}
+                                            timestamp={formatDateTime(
+                                                event.fecha
+                                            )}
+                                            title={
+                                                event.titulo ||
+                                                "Actividad registrada"
+                                            }
+                                            description={String(
+                                                event.tipo || ""
+                                            ).replaceAll("_", " ")}
+                                        />
+                                    )
+                                )}
+                            </Timeline>
+                        </section>
+                    )}
+
+                    <section className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-5">
+                        <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">
+                            Siguiente paso
                         </p>
 
-                        <div className="inicio-activity-list">
-                            {(data?.recentActivity ?? []).slice(0, 3).map((item, index) => (
-                                <div className="inicio-activity-item" key={item.id ?? index}>
-                                    <div className="inicio-activity-item__date">
-                                        {item.dateLabel}
-                                    </div>
-                                    <div className="inicio-activity-item__title">
-                                        {item.title}
-                                    </div>
-                                    <div className="inicio-activity-item__type">
-                                        {item.typeLabel}
-                                    </div>
-                                </div>
-                            ))}
+                        <h2 className="mt-2 text-lg font-black text-[var(--text-primary)]">
+                            Mantén el control ambiental al día
+                        </h2>
 
-                            {(!data?.recentActivity || data.recentActivity.length === 0) && (
-                                <div className="inicio-empty-inline">
-                                    Aún no hay actividad reciente registrada.
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="inicio-side-panel inicio-side-panel--accent">
-                        <div className="inicio-side-panel__eyebrow">Siguiente paso</div>
-                        <h3 className="inicio-side-panel__title">Qué haría ahora</h3>
-                        <p className="inicio-side-panel__description">
-                            {nextRecommendation}
+                        <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
+                            {attentionWorks.length
+                                ? "Revisa las unidades con atención antes de continuar con nuevas cargas."
+                                : pendingEvidence.length
+                                    ? "Completa la revisión documental pendiente."
+                                    : openProblems.length
+                                        ? "Continúa el seguimiento de los problemas ambientales abiertos."
+                                        : "Puedes continuar con nuevas evidencias, importaciones o seguimiento operacional."}
                         </p>
 
-                        <div className="inicio-side-actions">
-                            <a href="/datos/evidencias" className="inicio-cta inicio-cta--secondary">
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            <Link
+                                className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-bold text-emerald-800"
+                                to="/datos/evidencias"
+                            >
                                 Ver evidencias
-                            </a>
-                            <a href="/inteligencia/problemas" className="inicio-cta">
+                            </Link>
+
+                            <Link
+                                className="rounded-xl bg-emerald-700 px-3 py-2 text-sm font-bold text-white"
+                                to="/inteligencia/problemas"
+                            >
                                 Revisar problemas
-                            </a>
+                            </Link>
                         </div>
-                    </div>
+                    </section>
                 </aside>
-            </section>
-        </div>
-    )
+            </div>
+        </main>
+    );
 }
 
 function buildPriorities({
