@@ -453,13 +453,13 @@ export default function InicioPage() {
                         />
                     </section>
 
-                    <section className="rounded-2xl border border-teal-200/80 bg-[linear-gradient(135deg,rgba(240,253,250,0.96)_0%,rgba(204,251,241,0.58)_100%)] p-5 shadow-[0_12px_30px_rgba(15,118,110,0.08)]">
+                    <section className="rounded-[28px] border border-emerald-200/80 bg-white px-6 py-6 shadow-[0_12px_36px_rgba(15,23,42,0.05)]">
                         <SectionHeader
                             title={`Mis ${preset.unitPluralLabel.toLowerCase()}`}
                             description={`Estado breve de tus ${preset.unitPluralLabel.toLowerCase()}.`}
                             action={
                                 <Link
-                                    className="text-sm font-bold text-[var(--brand-primary)]"
+                                    className="inline-flex items-center gap-2 text-sm font-black text-emerald-700 transition hover:text-emerald-800"
                                     to="/obras"
                                 >
                                     Ver todas
@@ -468,102 +468,119 @@ export default function InicioPage() {
                         />
 
                         <div
-                            className={`grid gap-3 ${orderedWorks.length === 1
-                                ? "max-w-2xl"
-                                : "md:grid-cols-2"
+                            className={`mt-5 grid gap-4 ${orderedWorks.length > 1 ? "xl:grid-cols-2" : ""
                                 }`}
                         >
                             {orderedWorks.map(work => (
                                 <CompactWorkCard
-                                    context={
-                                        contextByWork.get(workId(work))
-                                    }
-                                    contextError={contextErrorIds.has(
-                                        workId(work)
-                                    )}
-                                    evidenceCount={
-                                        evidenceByWork.get(workId(work)) || 0
-                                    }
-                                    key={
-                                        workId(work) || work.codigo_obra
-                                    }
+                                    context={contextByWork.get(workId(work))}
+                                    contextError={contextErrorIds.has(workId(work))}
+                                    evidenceCount={evidenceByWork.get(workId(work)) || 0}
+                                    key={workId(work) || work.codigo_obra}
                                     unitLabel={preset.unitLabel}
                                     work={work}
                                 />
                             ))}
                         </div>
                     </section>
-                </div>
 
-                <aside className="space-y-6">
-                    {recentEvents.length > 0 && (
-                        <section className="rounded-2xl border border-emerald-900/10 bg-[#f8fbf9]/95 p-5 shadow-[0_10px_30px_rgba(6,78,59,0.06)]">
-                            <SectionHeader
-                                title="Actividad reciente"
-                                description="Últimos movimientos registrados."
-                            />
-
-                            <Timeline>
-                                {recentEvents.map(
-                                    (event, index) => (
-                                        <TimelineItem
-                                            key={`${event.tipo}-${event.referencia_id}-${index}`}
-                                            type={event.tipo}
-                                            timestamp={formatDateTime(
-                                                event.fecha
-                                            )}
-                                            title={
-                                                event.titulo ||
-                                                "Actividad registrada"
-                                            }
-                                            description={String(
-                                                event.tipo || ""
-                                            ).replaceAll("_", " ")}
-                                        />
-                                    )
+                    <div
+                        className={`grid gap-3 ${orderedWorks.length === 1
+                            ? "max-w-2xl"
+                            : "md:grid-cols-2"
+                            }`}
+                    >
+                        {orderedWorks.map(work => (
+                            <CompactWorkCard
+                                context={
+                                    contextByWork.get(workId(work))
+                                }
+                                contextError={contextErrorIds.has(
+                                    workId(work)
                                 )}
-                            </Timeline>
-                        </section>
-                    )}
-
-                    <section className="rounded-2xl border border-emerald-700/20 bg-[linear-gradient(145deg,#dff7ea_0%,#ecfdf5_55%,#f0fdfa_100%)] p-5 shadow-[0_10px_30px_rgba(6,78,59,0.08)]">
-                        <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">
-                            Siguiente paso
-                        </p>
-
-                        <h2 className="mt-2 text-lg font-black text-[var(--text-primary)]">
-                            Mantén el control ambiental al día
-                        </h2>
-
-                        <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
-                            {attentionWorks.length
-                                ? "Revisa las unidades con atención antes de continuar con nuevas cargas."
-                                : pendingEvidence.length
-                                    ? "Completa la revisión documental pendiente."
-                                    : openProblems.length
-                                        ? "Continúa el seguimiento de los problemas ambientales abiertos."
-                                        : "Puedes continuar con nuevas evidencias, importaciones o seguimiento operacional."}
-                        </p>
-
-                        <div className="mt-4 flex flex-wrap gap-2">
-                            <Link
-                                className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-bold text-emerald-800"
-                                to="/datos/evidencias"
-                            >
-                                Ver evidencias
-                            </Link>
-
-                            <Link
-                                className="rounded-xl bg-emerald-800 px-3 py-2 text-sm font-bold text-white transition hover:bg-emerald-900"
-                                to="/inteligencia/problemas"
-                            >
-                                Revisar problemas
-                            </Link>
-                        </div>
-                    </section>
-                </aside>
+                                evidenceCount={
+                                    evidenceByWork.get(workId(work)) || 0
+                                }
+                                key={
+                                    workId(work) || work.codigo_obra
+                                }
+                                unitLabel={preset.unitLabel}
+                                work={work}
+                            />
+                        ))}
+                    </div>
+                </section>
             </div>
-        </main>
+
+            <aside className="space-y-6">
+                {recentEvents.length > 0 && (
+                    <section className="rounded-2xl border border-emerald-900/10 bg-[#f8fbf9]/95 p-5 shadow-[0_10px_30px_rgba(6,78,59,0.06)]">
+                        <SectionHeader
+                            title="Actividad reciente"
+                            description="Últimos movimientos registrados."
+                        />
+
+                        <Timeline>
+                            {recentEvents.map(
+                                (event, index) => (
+                                    <TimelineItem
+                                        key={`${event.tipo}-${event.referencia_id}-${index}`}
+                                        type={event.tipo}
+                                        timestamp={formatDateTime(
+                                            event.fecha
+                                        )}
+                                        title={
+                                            event.titulo ||
+                                            "Actividad registrada"
+                                        }
+                                        description={String(
+                                            event.tipo || ""
+                                        ).replaceAll("_", " ")}
+                                    />
+                                )
+                            )}
+                        </Timeline>
+                    </section>
+                )}
+
+                <section className="rounded-2xl border border-emerald-700/20 bg-[linear-gradient(145deg,#dff7ea_0%,#ecfdf5_55%,#f0fdfa_100%)] p-5 shadow-[0_10px_30px_rgba(6,78,59,0.08)]">
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">
+                        Siguiente paso
+                    </p>
+
+                    <h2 className="mt-2 text-lg font-black text-[var(--text-primary)]">
+                        Mantén el control ambiental al día
+                    </h2>
+
+                    <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
+                        {attentionWorks.length
+                            ? "Revisa las unidades con atención antes de continuar con nuevas cargas."
+                            : pendingEvidence.length
+                                ? "Completa la revisión documental pendiente."
+                                : openProblems.length
+                                    ? "Continúa el seguimiento de los problemas ambientales abiertos."
+                                    : "Puedes continuar con nuevas evidencias, importaciones o seguimiento operacional."}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        <Link
+                            className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-bold text-emerald-800"
+                            to="/datos/evidencias"
+                        >
+                            Ver evidencias
+                        </Link>
+
+                        <Link
+                            className="rounded-xl bg-emerald-800 px-3 py-2 text-sm font-bold text-white transition hover:bg-emerald-900"
+                            to="/inteligencia/problemas"
+                        >
+                            Revisar problemas
+                        </Link>
+                    </div>
+                </section>
+            </aside>
+        </div>
+        </main >
     );
 }
 
