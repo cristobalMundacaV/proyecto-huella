@@ -5,8 +5,8 @@ import { useOrganizacionActiva } from "@/features/organizaciones/context/Organiz
 import { getActivePreset } from "@/presets/registry";
 import WorkCard from "../components/WorkCard";
 import { createOrganizationWork, getOrganizationWorks, getWorkContext } from "../services/workspaceApi";
-import { Button, EmptyState, ErrorState, Input, LoadingState, Modal, PageHeader, SearchInput, Select } from "@/shared/ui";
-
+import { Button, EmptyState, ErrorState, Input, Modal, SearchInput, Select } from "@/shared/ui";
+import PlatformLoader from "@/shared/components/PlatformLoader";
 const initialForm = { codigo_obra: "", nombre: "", fecha_inicio: "", tipo_proyecto: "Otro", superficie_m2: "", ubicacion: "" };
 const workId = (work) => String(work?.id || work?.obra_id || work?.codigo_obra || "");
 const attentionRank = (status) => {
@@ -115,15 +115,77 @@ export default function ObrasPage() {
     setFormError("");
   };
 
-  if (status === "loading") return <LoadingState label={`Cargando ${preset.unitPluralLabel.toLowerCase()}`} />;
+  if (status === "loading") {
+    return (
+      <PlatformLoader
+        compact
+        title={`Cargando ${preset.unitPluralLabel.toLowerCase()}`}
+        description={`Estamos preparando el estado y seguimiento de tus ${preset.unitPluralLabel.toLowerCase()}.`}
+      />
+    );
+  }
   if (status === "error") return <ErrorState description={`No fue posible cargar las ${preset.unitPluralLabel.toLowerCase()} de la organización activa.`} onRetry={load} />;
 
   return <main className="space-y-6">
-    <PageHeader
-      title={preset.unitPluralLabel}
-      description={`Revisa el estado de tus ${preset.unitPluralLabel.toLowerCase()} y entra a la que necesitas gestionar.`}
-      actions={<Button leftIcon={Plus} onClick={() => setOpen(true)}>Nueva {preset.unitLabel.toLowerCase()}</Button>}
-    />
+    <section className="overflow-hidden rounded-[28px] border border-emerald-700/20 bg-[linear-gradient(135deg,rgba(6,78,59,0.97)_0%,rgba(6,95,70,0.93)_48%,rgba(15,118,110,0.84)_100%)] p-6 text-white shadow-[0_18px_45px_rgba(6,78,59,0.16)]">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-3xl">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-100">
+            Mi operación
+          </p>
+
+          <h1 className="mt-2 text-3xl font-black">
+            {preset.unitPluralLabel}
+          </h1>
+
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50/80">
+            Revisa el estado de tus {preset.unitPluralLabel.toLowerCase()},
+            identifica cuáles requieren atención y entra directamente a gestionarlas.
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-white">
+              {works.length} {works.length === 1
+                ? preset.unitLabel.toLowerCase()
+                : preset.unitPluralLabel.toLowerCase()}
+            </span>
+
+            <span className="rounded-full border border-amber-300/40 bg-amber-300/15 px-3 py-1.5 text-xs font-bold text-amber-100">
+              {
+                works.filter(work => {
+                  const id = workId(work);
+                  const current =
+                    contexts.get(id)?.obra?.estado_ambiental ??
+                    work.estado_ambiental;
+
+                  return current === "requiere_atencion" ||
+                    current === "cierre_pendiente";
+                }).length
+              } con atención
+            </span>
+          </div>
+        </div>
+
+        <Button
+          leftIcon={Plus}
+          onClick={() => setOpen(true)}
+          className="self-start border border-white/20 bg-white text-emerald-800 hover:bg-emerald-50 lg:self-auto"
+        >
+          Nueva {preset.unitLabel.toLowerCase()}
+        </Button>
+      </div>
+    </section>
+
+    {works.length > 0 && (
+      <section className="rounded-2xl border border-[var(--border-subtle)] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+
+          <p className="text-sm font-medium text-[var(--text-muted)]">
+            {filtered.length} de {works.length} visibles
+          </p>
+        </div>
+      </section>
+    )}
 
     {works.length ? <>
       <div className="max-w-xl">
