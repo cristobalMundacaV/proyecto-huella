@@ -176,14 +176,29 @@ export default function ObrasPage() {
         </Button>
       </div>
     </section>
+    {works.length > 0 && (
+      <section className="rounded-2xl border border-[var(--border-subtle)] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+        <SearchInput
+          label={`Buscar ${preset.unitPluralLabel.toLowerCase()}`}
+          placeholder="Nombre, código o ubicación"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
 
+        {search.trim() && (
+          <p className="mt-2 text-right text-xs font-semibold text-[var(--text-muted)]">
+            {filtered.length} resultado{filtered.length === 1 ? "" : "s"}
+          </p>
+        )}
+      </section>
+    )}
     {works.length ? (
       <>
         {filtered.length ? (
           <div
             className={`grid gap-4 ${filtered.length === 1
-                ? "max-w-3xl"
-                : "md:grid-cols-2 xl:grid-cols-3"
+              ? "max-w-3xl"
+              : "md:grid-cols-2 xl:grid-cols-3"
               }`}
           >
             {filtered.map((work) => {

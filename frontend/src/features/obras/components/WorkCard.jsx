@@ -59,7 +59,16 @@ function workPresentation(status) {
       };
   }
 }
+function humanizeWorkCode(value) {
+  if (!value) return "";
 
+  return String(value)
+    .replace(/^OBRA[_-]?/i, "")
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .trim()
+    .replace(/\b\w/g, letter => letter.toUpperCase());
+}
 export default function WorkCard({
   work,
   context,
@@ -88,7 +97,8 @@ export default function WorkCard({
     workPresentation(environmentalStatus);
 
   const StatusIcon = presentation.Icon;
-
+  const displayCode =
+    humanizeWorkCode(work.codigo_obra);
   const problemLabel = contextError
     ? "Seguimiento no disponible"
     : problems === undefined
@@ -104,8 +114,7 @@ export default function WorkCard({
         work.codigo_obra ||
         "seleccionada"
         }`}
-      className="group relative block h-full overflow-hidden rounded-[24px] border border-[var(--border-subtle)] bg-white p-5 shadow-[0_10px_28px_rgba(15,23,42,0.05)] transition duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_18px_40px_rgba(16,185,129,0.10)]"
-    >
+      className="group relative block h-full overflow-hidden rounded-[24px] border border-[var(--border-subtle)] bg-white p-6 shadow-[0_10px_28px_rgba(15,23,42,0.05)] transition duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_18px_40px_rgba(16,185,129,0.10)]">
       <div
         className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${presentation.accent}`}
       />
@@ -126,9 +135,9 @@ export default function WorkCard({
               {unitLabel}
             </span>
 
-            {work.codigo_obra && (
+            {displayCode && (
               <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-600">
-                {work.codigo_obra}
+                {displayCode}
               </span>
             )}
           </div>
