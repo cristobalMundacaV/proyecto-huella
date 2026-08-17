@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import { Alert, Select, StatusBadge } from "@/shared/ui";
 import { updateCapacidad } from "../api/diagnosticoApi";
@@ -17,7 +17,10 @@ export default function CapacidadesAmbientales({ organizacionId, capacidades = [
   const [error, setError] = useState("");
   const [savingId, setSavingId] = useState(null);
   const organizationRef = useRef(organizacionId);
-  organizationRef.current = organizacionId;
+
+  useLayoutEffect(() => {
+    organizationRef.current = organizacionId;
+  }, [organizacionId]);
 
   async function change(item, estado) {
     const organizationId = organizacionId;

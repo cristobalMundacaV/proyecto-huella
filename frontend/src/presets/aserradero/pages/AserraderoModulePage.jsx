@@ -128,7 +128,7 @@ function AserraderoModulePage({ moduleKey }) {
     return (
       <PresetComingSoon
         title="Módulo no configurado"
-        description="Este módulo todavía no tiene configuración operativa para el preset aserradero."
+        description="Este módulo no tiene una configuración operativa disponible para el perfil Aserradero."
         presetName="Aserradero / Forestal"
       />
     );
@@ -138,7 +138,7 @@ function AserraderoModulePage({ moduleKey }) {
     return (
       <PresetComingSoon
         title={config.title}
-        description="Selecciona una empresa activa para registrar operaciones del preset aserradero."
+        description="Selecciona una organización activa para registrar operaciones del perfil Aserradero."
         presetName="Aserradero / Forestal"
         items={["Empresa activa", "Registros operativos", "KPIs del módulo"]}
       />

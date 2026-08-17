@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 import { useAuth } from "@/features/auth/context/AuthContext";
@@ -39,7 +39,10 @@ export default function DiagnosticoAmbientalPage() {
   const [mutationError, setMutationError] = useState("");
   const [success, setSuccess] = useState("");
   const activeScopeRef = useRef(activeOrganizacionId);
-  activeScopeRef.current = activeOrganizacionId;
+
+  useLayoutEffect(() => {
+    activeScopeRef.current = activeOrganizacionId;
+  }, [activeOrganizacionId]);
 
   useEffect(() => {
     if (state.diagnostico.status !== "ready") return;

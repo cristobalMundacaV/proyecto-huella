@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Building2, CheckCircle2, Pencil, Plus, Trash2 } from "lucide-react";
 
 import ConfirmationModal from "@/shared/components/ConfirmationModal";
@@ -22,20 +22,27 @@ export default function OrganizacionesPage({ initialOpenCreate = false }) {
     refreshOrganizaciones,
     setActiveOrganizacion,
   } = useOrganizacionActiva();
-  const [dialog, setDialog] = useState(initialOpenCreate ? { mode: "create" } : null);
+  const [dialog, setDialog] = useState(null);
   const [form, setForm] = useState(emptyOrganizationForm);
   const [saving, setSaving] = useState(false);
   const [mutationError, setMutationError] = useState("");
   const [deleteCandidate, setDeleteCandidate] = useState(null);
   const requestRef = useRef(0);
   const activeOrgRef = useRef(activeOrganizacionId);
-  activeOrgRef.current = activeOrganizacionId;
+
+  useLayoutEffect(() => {
+    activeOrgRef.current = activeOrganizacionId;
+  }, [activeOrganizacionId]);
 
   useEffect(() => {
-    if (initialOpenCreate && !activeOrganizacion && !loadingOrganizaciones && !user?.is_demo) {
+    if (initialOpenCreate && user?.is_demo === false && !activeOrganizacion && !loadingOrganizaciones) {
       setDialog((current) => current || { mode: "create" });
     }
   }, [activeOrganizacion, initialOpenCreate, loadingOrganizaciones, user?.is_demo]);
+
+  useEffect(() => {
+    if (user?.is_demo) setDialog(null);
+  }, [user?.is_demo]);
 
   function openCreate() {
     setForm(emptyOrganizationForm);
@@ -50,11 +57,41 @@ export default function OrganizacionesPage({ initialOpenCreate = false }) {
   }
 
   async function submit() {
+    if (user?.is_demo) {
+      setMutationError("El modo demo es de solo lectura.");
+      return;
+    }
+
     setSaving(true);
     setMutationError("");
     const requestId = ++requestRef.current;
     try {
       const payload = Object.fromEntries(Object.entries(form).filter(([key]) => key !== "id" && key !== "organizacion_id" && !key.endsWith("_count") && !["created_at", "updated_at"].includes(key)));
+
+      payload.nombre = String(payload.nombre || "").trim();
+      payload.email = String(payload.email || "").trim();
+      payload.contacto = String(payload.contacto || "").trim();
+
+      const phoneDigits = String(payload.telefono || "").replace(/\D/g, "");
+      const localPhoneDigits = phoneDigits.startsWith("56")
+        ? phoneDigits.slice(2)
+        : phoneDigits;
+
+      payload.telefono = localPhoneDigits
+        ? `+56${localPhoneDigits}`
+        : "";
+
+      if (
+        payload.telefono &&
+        (
+          payload.telefono.trim().length !== 12 ||
+          !/^\+56\d{9}$/.test(payload.telefono.trim())
+        )
+      ) {
+        setMutationError("El telefono debe contener 9 digitos ademas de +56.");
+        setSaving(false);
+        return;
+      }
       const saved = dialog.mode === "edit" ? await updateEmpresa(dialog.item.organizacion_id, payload) : await createEmpresa(payload);
       if (requestRef.current !== requestId) return;
       const currentActiveId = activeOrgRef.current;

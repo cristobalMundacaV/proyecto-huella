@@ -4,9 +4,9 @@ function PresetComingSoon({ title, description, presetName, items = [] }) {
   const visibleItems = items.length
     ? items
     : [
-        "Definir datos operativos del modulo",
-        "Conectar importaciones y evidencias",
-        "Preparar KPIs y reportes por preset",
+        "Informaci?n operacional",
+        "Importaciones y evidencias",
+        "Indicadores y reportes",
       ];
 
   return (
@@ -27,7 +27,7 @@ function PresetComingSoon({ title, description, presetName, items = [] }) {
           </div>
 
           <div className="rounded-2xl border border-[var(--primary)]/20 bg-white/80 p-4 text-sm font-bold text-[var(--primary-dark)] shadow-[0_14px_30px_rgba(14,124,102,0.10)]">
-            Modulo preparado para el preset, pendiente de conectar flujo operativo.
+            Esta capacidad no est? disponible para la configuraci?n activa.
           </div>
         </div>
       </section>
@@ -42,7 +42,7 @@ function PresetComingSoon({ title, description, presetName, items = [] }) {
               <Boxes size={20} />
             </div>
             <p className="mt-4 text-sm font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">
-              Permitira gestionar
+              Informaci?n relacionada
             </p>
             <h2 className="mt-2 text-lg font-black text-[var(--text-main)]">{item}</h2>
           </article>

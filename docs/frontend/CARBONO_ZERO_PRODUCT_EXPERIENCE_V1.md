@@ -270,3 +270,62 @@ Diagnóstico se limita a contexto organizacional, información disponible o pend
 Estructura deja de funcionar como dashboard ambiental y presenta la organización operacional registrada. Construcción puede crear etapas usando el contrato existente; otros perfiles no reciben una taxonomía de etapas de obra por defecto. Usuarios, Preferencias, Diagnóstico y Estructura invalidan el scope anterior al cambiar de organización. El modo demo mantiene las mutaciones administrativas en sólo lectura.
 
 PX-08 conserva las rutas existentes, reutiliza el design system compartido, mantiene tablas con overflow local y stacks en móvil. Backend permanece cerrado. PX-09 no se inicia.
+
+## PX-09 — Cierre Product Experience V1
+
+### Objetivo de cierre
+
+PX-09 consolida la experiencia construida en PX-01 a PX-08 sin rediseñar sus decisiones de producto ni modificar contratos backend. El cierre se concentra en consistencia visual global, responsive, navegación activa, estados, copy residual, accesibilidad y validación técnica acumulada.
+
+### Navegación y chrome global
+
+El sidebar mantiene una sola autoridad de navegación por perfil operacional y corrige la resolución de rutas padre e hijas para evitar más de un elemento activo simultáneamente. Las rutas con destinos más específicos usan coincidencia exacta cuando corresponde, mientras que superficies contenedoras como Obras y Administración conservan navegación profunda.
+
+El drawer móvil se cierra después de navegar, responde a Escape y bloquea el scroll del body mientras está abierto. El aviso de modo demo deja de superponerse como elemento flotante y se integra al flujo normal de la aplicación.
+
+Breadcrumbs y workspace conservan vocabulario de cliente. `/timeline` se muestra como Historial y `/administracion/configuracion` como Preferencias. El workspace mantiene Resumen, Operación, Indicadores, Problemas, Evidencias e Historial sin duplicar headers.
+
+### Estados y seguridad de scope
+
+Los guards de organización de Preferencias, Diagnóstico, Estructura, Organización y Usuarios mantienen sus referencias de scope fuera del render y conservan la protección frente a respuestas o mutaciones tardías de otra organización.
+
+Los recursos desconocidos, fallidos o todavía no cargados no se transforman en ceros saludables. Los estados internos continúan siendo traducidos antes de mostrarse y el frontend no reconstruye progreso, trazabilidad ni contexto que el backend no entregue.
+
+### Copy y perfiles operacionales
+
+Se retiró copy residual de desarrollo o roadmap en superficies alcanzables de Aserradero. Los módulos operacionales no se presentan como pendientes de conexión cuando ya poseen carga y registro reales, y la interfaz utiliza lenguaje de perfil operacional en lugar del término interno preset cuando habla con el usuario.
+
+Construcción, Aserradero, Forestal, Industrial y Transporte conservan su vocabulario y composición declarativa sin crear aplicaciones separadas ni alterar rutas backend.
+
+### Responsive y accesibilidad
+
+El body mantiene overflow horizontal bloqueado y las superficies que necesitan desplazamiento conservan overflow local. Navegación horizontal, tablas, cards, formularios y acciones mantienen composición responsive sin introducir una segunda experiencia móvil.
+
+Los controles principales continúan usando elementos semánticos, labels, headings y estados textuales. El drawer móvil dispone de cierre por Escape y los estados no dependen exclusivamente del color.
+
+La infraestructura visual contiene tokens preparados para variantes de tema, pero Product Experience V1 no declara dark mode como capacidad activa porque la aplicación no dispone actualmente de un activador de tema.
+
+### QA estático global
+
+Se auditó `app`, `features`, `shared` y `presets` buscando copy de fase, términos técnicos visibles, estados internos, mensajes absolutos de salud, fallbacks numéricos, hardcodes visuales, rutas, vocabulario específico de Construcción, refs y elementos interactivos no semánticos.
+
+Los resultados se evaluaron por alcance y semántica. No se realizó limpieza masiva de código legacy ni refactors ajenos a PX-09.
+
+### Validación técnica
+
+La validación se ejecutó sobre un checkout real de `main` con dependencias instaladas.
+
+- `npm run lint`: PASS, 0 errores y 0 warnings.
+- `npm run build`: PASS.
+- `git diff --check`: PASS, exit code 0.
+- No existe un script adicional de tests frontend en `package.json`.
+- Los avisos LF → CRLF observados en Windows corresponden a line endings y no a errores de diff.
+- Backend no fue modificado.
+
+La revisión visual automatizada mediante navegador no estuvo disponible en el entorno del agente. La comprobación visual final de resoluciones y estados queda como revisión manual, sin sustituir la validación técnica ejecutada.
+
+### Resultado
+
+PX-09 completa la implementación de Product Experience V1 y deja el producto listo para revisión final humana. La fase no constituye autoaprobación funcional ni profesional.
+
+PRODUCT EXPERIENCE V1 — CERRADA

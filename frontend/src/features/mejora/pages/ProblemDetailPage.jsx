@@ -118,7 +118,7 @@ export default function ProblemDetailPage({ workScoped = false }) {
 
   const problem = state.problem.data;
   const actions = state.actions.data || [];
-  const measurements = state.measurements.data || [];
+  const measurements = useMemo(() => state.measurements.data || [], [state.measurements.data]);
   const cycles = state.cycles.data || [];
   const base = state.base.data;
   const cycle = currentCycle(cycles);

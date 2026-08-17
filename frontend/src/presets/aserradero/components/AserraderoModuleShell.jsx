@@ -19,7 +19,7 @@ function AserraderoModuleShell({
                 {presetName}
               </span>
               <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-sky-700">
-                Modulo operativo
+                M?dulo operativo
               </span>
             </div>
 
@@ -38,13 +38,13 @@ function AserraderoModuleShell({
               </span>
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">
-                  Categoria operativa
+                  Categor?a operativa
                 </p>
                 <p className="mt-1 text-lg font-black text-[var(--text-main)]">{config.category}</p>
               </div>
             </div>
             <p className="mt-3 text-xs font-semibold leading-5 text-[var(--text-muted)]">
-              Modulo preparado para el preset, pendiente de conectar flujo operativo.
+              Registros operativos vinculados a esta categor?a y a la organizaci?n activa.
             </p>
           </div>
         </div>

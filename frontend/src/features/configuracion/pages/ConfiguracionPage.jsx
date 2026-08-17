@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { useAuth } from "@/features/auth/context/AuthContext";
@@ -63,7 +63,10 @@ export default function ConfiguracionPage() {
   const [feedback, setFeedback] = useState({ type: "", text: "" });
   const requestRef = useRef(0);
   const activeScopeRef = useRef(activeOrganizacionId);
-  activeScopeRef.current = activeOrganizacionId;
+
+  useLayoutEffect(() => {
+    activeScopeRef.current = activeOrganizacionId;
+  }, [activeOrganizacionId]);
 
   useEffect(() => {
     if (!activeOrganizacionId) return undefined;
@@ -81,7 +84,7 @@ export default function ConfiguracionPage() {
       .catch(() => {
         if (requestRef.current !== requestId) return;
         let hasLocalCopy = false;
-        try { hasLocalCopy = Boolean(window.localStorage.getItem(storageKey(activeOrganizacionId))); } catch { hasLocalCopy = false; }
+        try { hasLocalCopy = Boolean(window.localStorage.getItem(storageKey(activeOrganizacionId))); } catch { /* localStorage no disponible */ }
         setState({ scopeKey, status: "error", data: null, saved: null, error: "No se pudieron verificar las preferencias de esta organización.", hasLocalCopy });
       });
 

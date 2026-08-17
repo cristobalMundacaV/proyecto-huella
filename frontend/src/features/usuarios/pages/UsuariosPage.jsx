@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Plus, UsersRound } from "lucide-react";
 
 import { useAuth } from "@/features/auth/context/AuthContext";
@@ -19,7 +19,10 @@ export default function UsuariosPage() {
   const [mutationError, setMutationError] = useState("");
   const requestRef = useRef(0);
   const activeScopeRef = useRef(activeOrganizacionId);
-  activeScopeRef.current = activeOrganizacionId;
+
+  useLayoutEffect(() => {
+    activeScopeRef.current = activeOrganizacionId;
+  }, [activeOrganizacionId]);
 
   async function load() {
     if (!activeOrganizacionId) return;

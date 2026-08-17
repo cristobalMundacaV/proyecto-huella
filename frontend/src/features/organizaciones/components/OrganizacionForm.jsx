@@ -8,6 +8,89 @@ const PRESETS = [
   ["industrial", "Industrial"],
 ];
 
+function normalizeRut(value = "") {
+  return String(value)
+    .replace(/[^0-9kK]/g, "")
+    .slice(0, 9)
+    .toUpperCase();
+}
+
+function formatRut(value = "") {
+  const normalized = normalizeRut(value);
+
+  if (normalized.length <= 1) return normalized;
+
+  const body = normalized.slice(0, -1);
+  const verifier = normalized.slice(-1);
+  const formattedBody = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+  return `${formattedBody}-${verifier}`;
+}
+
+function isValidRut(value = "") {
+  const normalized = normalizeRut(value);
+
+  if (normalized.length < 2) return false;
+
+  const body = normalized.slice(0, -1);
+  const verifier = normalized.slice(-1);
+
+  let sum = 0;
+  let multiplier = 2;
+
+  for (let index = body.length - 1; index >= 0; index -= 1) {
+    sum += Number(body[index]) * multiplier;
+    multiplier = multiplier === 7 ? 2 : multiplier + 1;
+  }
+
+  const result = 11 - (sum % 11);
+  const expected =
+    result === 11 ? "0" :
+    result === 10 ? "K" :
+    String(result);
+
+  return verifier === expected;
+}
+
+function isValidEmail(value = "") {
+  const trimmed = String(value).trim();
+
+  if (!trimmed) return true;
+
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+}
+
+function phoneLocalDigits(value = "") {
+  const digits = String(value).replace(/\D/g, "");
+
+  return digits.startsWith("56") ? digits.slice(2) : digits;
+}
+
+function normalizePhoneLocal(value = "") {
+  return phoneLocalDigits(value).slice(0, 9);
+}
+
+function toCanonicalPhone(value = "") {
+  const local = normalizePhoneLocal(value);
+
+  return local ? `+56${local}` : "";
+}
+
+function isValidPhone(value = "") {
+  const trimmed = String(value).trim();
+
+  if (!trimmed) return true;
+
+  const local = phoneLocalDigits(value);
+  const canonical = `+56${local}`.trim();
+
+  return (
+    local.length === 9 &&
+    canonical.length === 12 &&
+    /^\+56\d{9}$/.test(canonical)
+  );
+}
+
 export const emptyOrganizationForm = {
   nombre: "",
   rut: "",
@@ -25,7 +108,27 @@ export const emptyOrganizationForm = {
 
 export default function OrganizacionForm({ value, onChange, onSubmit, onCancel, saving = false, mode = "create", error = "", initialPreset = "" }) {
   const editing = mode === "edit";
-  const set = (field) => (event) => onChange({ ...value, [field]: event.target.type === "checkbox" ? event.target.checked : event.target.value });
+  const set = (field) => (event) => {
+    const rawValue = event.target.value;
+
+    const nextValue =
+      event.target.type === "checkbox"
+        ? event.target.checked
+        : field === "rut"
+          ? formatRut(rawValue)
+          : field === "email"
+            ? rawValue.replace(/\s/g, "")
+            : field === "telefono"
+              ? toCanonicalPhone(rawValue)
+              : rawValue;
+
+    onChange({ ...value, [field]: nextValue });
+  };
+
+  const rutInvalid = Boolean(value.rut) && !isValidRut(value.rut);
+  const emailInvalid = !isValidEmail(value.email);
+  const phoneInvalid = !isValidPhone(value.telefono);
+  const phoneLocalValue = normalizePhoneLocal(value.telefono);
 
   return (
     <form className="space-y-5" onSubmit={(event) => { event.preventDefault(); onSubmit(); }}>
@@ -46,14 +149,85 @@ export default function OrganizacionForm({ value, onChange, onSubmit, onCancel, 
       <details className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface-subtle)] p-4" open={editing}>
         <summary className="cursor-pointer font-bold">Datos de identificación y contacto</summary>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Input label="RUT" value={value.rut} onChange={set("rut")} />
+          <div>
+            <Input
+              label="RUT"
+              value={value.rut}
+              onChange={set("rut")}
+              inputMode="text"
+              autoComplete="off"
+              maxLength={12}
+              aria-invalid={rutInvalid || undefined}
+            />
+            {rutInvalid && (
+              <p className="mt-1 text-xs font-semibold text-[var(--status-danger)]">
+                Revisa el RUT y su dígito verificador.
+              </p>
+            )}
+          </div>
           <Input label="Rubro o sector" value={value.rubro} onChange={set("rubro")} />
           <Input label="Región" value={value.region} onChange={set("region")} />
           <Input label="Comuna" value={value.comuna} onChange={set("comuna")} />
           <Input label="Dirección" value={value.direccion} onChange={set("direccion")} />
-          <Input label="Contacto" value={value.contacto} onChange={set("contacto")} />
-          <Input label="Correo" type="email" value={value.email} onChange={set("email")} />
-          <Input label="Teléfono" value={value.telefono} onChange={set("telefono")} />
+          <Input label="Nombre contacto" value={value.contacto} onChange={set("contacto")} autoComplete="name" />
+          <Input
+            label="Correo"
+            type="email"
+            value={value.email}
+            onChange={set("email")}
+            autoComplete="email"
+            error={emailInvalid ? "Ingresa un correo v\u00e1lido." : undefined}
+          />
+          <div>
+            <label
+              htmlFor="organization-phone"
+              className="text-sm font-semibold text-[var(--text-secondary)]"
+            >
+              {"Tel\u00e9fono"}
+            </label>
+
+            <div
+              className={`mt-1 flex overflow-hidden rounded-[var(--radius-md)] border bg-[var(--bg-elevated)] transition ${
+                phoneInvalid
+                  ? "border-[var(--status-danger)]"
+                  : "border-[var(--border-default)] focus-within:border-[var(--brand-primary)] focus-within:shadow-[var(--focus-ring)]"
+              }`}
+            >
+              <span
+                className="flex shrink-0 items-center border-r border-[var(--border-default)] bg-[var(--bg-surface-subtle)] px-3 font-semibold text-[var(--text-secondary)]"
+                aria-hidden="true"
+              >
+                +56
+              </span>
+
+              <input
+                id="organization-phone"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel-national"
+                aria-label={"N\u00famero de tel\u00e9fono"}
+                aria-invalid={phoneInvalid || undefined}
+                aria-describedby={
+                  phoneInvalid ? "organization-phone-error" : undefined
+                }
+                maxLength={9}
+                value={phoneLocalValue}
+                onChange={set("telefono")}
+                placeholder="966635509"
+                className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-[var(--text-primary)] outline-none"
+              />
+            </div>
+
+            {phoneInvalid && (
+              <span
+                id="organization-phone-error"
+                role="alert"
+                className="mt-1 block text-xs font-semibold text-[var(--status-danger)]"
+              >
+                {"Ingresa 9 d\u00edgitos. Se guardar\u00e1 con +56."}
+              </span>
+            )}
+          </div>
         </div>
         <div className="mt-4"><Textarea label="Observaciones" rows={3} value={value.observaciones} onChange={set("observaciones")} /></div>
       </details>
@@ -67,7 +241,7 @@ export default function OrganizacionForm({ value, onChange, onSubmit, onCancel, 
 
       <div className="flex flex-wrap justify-end gap-2">
         <Button type="button" variant="secondary" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" loading={saving} disabled={!value.nombre.trim()}>{editing ? "Guardar cambios" : "Crear organización"}</Button>
+        <Button type="submit" loading={saving} disabled={!value.nombre.trim() || rutInvalid || emailInvalid || phoneInvalid}>{editing ? "Guardar cambios" : "Crear organización"}</Button>
       </div>
     </form>
   );

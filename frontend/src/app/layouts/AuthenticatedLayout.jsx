@@ -15,13 +15,28 @@ export default function AuthenticatedLayout() {
   const { user } = useAuth();
 
   useEffect(() => { setMobileMenuOpen(false); }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [mobileMenuOpen]);
+
   useEffect(() => {
     if (!pathname.startsWith("/obras/")) window.scrollTo({ top: 0, behavior: "auto" });
   }, [pathname]);
 
   return <main className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)]">
     <Navbar onOpenMobileMenu={() => setMobileMenuOpen(true)} />
-    {user?.is_demo && <div className="fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-amber-100 shadow-xl backdrop-blur">Modo demo: solo lectura</div>}
+    {user?.is_demo && <div className="border-b border-[var(--status-warning)]/25 bg-[var(--warning-bg)] px-4 py-2 text-center text-xs font-bold uppercase tracking-wide text-[var(--status-warning)]">Modo demo: solo lectura</div>}
     <div className="flex min-h-[calc(100vh-72px)] flex-col lg:flex-row">
       <div className="hidden lg:block"><Sidebar /></div>
       <AnimatePresence>{mobileMenuOpen && <motion.div className="fixed inset-0 z-50 lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
