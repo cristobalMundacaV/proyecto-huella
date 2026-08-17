@@ -11,7 +11,7 @@ import {
     Plus,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-
+import PlatformLoader from "@/shared/components/PlatformLoader";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { getActivePreset } from "@/presets/registry";
 import {
@@ -205,7 +205,11 @@ export default function InicioPage() {
 
     if (state.status === "loading") {
         return (
-            <LoadingState label="Preparando tu resumen" />
+            <PlatformLoader
+                compact
+                title="Preparando tu resumen"
+                description="Estamos reuniendo el estado de tus obras, evidencias y pendientes."
+            />
         );
     }
 
