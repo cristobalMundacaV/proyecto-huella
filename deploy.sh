@@ -73,9 +73,11 @@ fi
 npm run build
 [[ -f dist/index.html ]] || fail "El build no generó frontend/dist/index.html"
 
-log "Publicando frontend en $WEB_ROOT"
+log "Publicando frontend versionado en $WEB_ROOT"
 sudo mkdir -p "$WEB_ROOT"
-sudo rsync -a --delete dist/ "$WEB_ROOT/"
+# Conserva assets de versiones anteriores para que clientes con HTML cacheado
+# no queden apuntando a chunks eliminados durante un despliegue.
+sudo rsync -a dist/ "$WEB_ROOT/"
 
 log "Validando y recargando Nginx"
 sudo nginx -t
