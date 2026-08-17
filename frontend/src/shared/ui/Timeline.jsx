@@ -119,9 +119,9 @@ export function TimelineItem({
                 className={`rounded-xl border border-[var(--border-subtle)] border-l-4 ${presentation.borderClass} ${presentation.surfaceClass} ${compact ? "p-3" : "p-3.5"
                     } transition hover:-translate-y-0.5 hover:shadow-sm`}
             >
-                <div className="flex items-start gap-3">
+                <div className="flex items-center gap-3">
                     <div
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${presentation.iconClass}`}
+                        className={`flex h-10 w-10 shrink-0 self-center items-center justify-center rounded-xl ${presentation.iconClass}`}
                     >
                         <Icon
                             aria-hidden="true"
