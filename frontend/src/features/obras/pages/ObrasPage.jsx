@@ -128,7 +128,7 @@ export default function ObrasPage() {
 
   return <main className="space-y-6">
     <section className="overflow-hidden rounded-[28px] border border-emerald-700/20 bg-[linear-gradient(135deg,rgba(6,78,59,0.97)_0%,rgba(6,95,70,0.93)_48%,rgba(15,118,110,0.84)_100%)] p-6 text-white shadow-[0_18px_45px_rgba(6,78,59,0.16)]">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="max-w-3xl">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-100">
             Mi operación
@@ -167,53 +167,61 @@ export default function ObrasPage() {
         </div>
 
         <Button
+          variant="secondary"
           leftIcon={Plus}
           onClick={() => setOpen(true)}
-          className="self-start border border-white/20 bg-white text-emerald-800 hover:bg-emerald-50 lg:self-auto"
+          className="self-start border-white/30 bg-white text-emerald-900 shadow-[0_8px_24px_rgba(0,0,0,0.12)] hover:bg-emerald-50 lg:self-center"
         >
           Nueva {preset.unitLabel.toLowerCase()}
         </Button>
       </div>
     </section>
 
-    {works.length > 0 && (
-      <section className="rounded-2xl border border-[var(--border-subtle)] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    {works.length ? (
+      <>
+        {filtered.length ? (
+          <div
+            className={`grid gap-4 ${filtered.length === 1
+                ? "max-w-3xl"
+                : "md:grid-cols-2 xl:grid-cols-3"
+              }`}
+          >
+            {filtered.map((work) => {
+              const id = workId(work);
 
-          <p className="text-sm font-medium text-[var(--text-muted)]">
-            {filtered.length} de {works.length} visibles
-          </p>
-        </div>
-      </section>
+              return (
+                <WorkCard
+                  key={id}
+                  work={work}
+                  context={contexts.get(id)}
+                  contextError={contextErrorIds.has(id)}
+                  unitLabel={preset.unitLabel}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState
+            title={`No encontramos ${preset.unitPluralLabel.toLowerCase()}`}
+            description="Prueba con otro nombre, código o ubicación."
+          />
+        )}
+      </>
+    ) : (
+      <EmptyState
+        icon={Building2}
+        title={`Aún no tienes ${preset.unitPluralLabel.toLowerCase()}.`}
+        description={`Agrega tu primera ${preset.unitLabel.toLowerCase()} para comenzar el seguimiento ambiental.`}
+        primaryAction={
+          <Button
+            leftIcon={Plus}
+            onClick={() => setOpen(true)}
+          >
+            Crear primera {preset.unitLabel.toLowerCase()}
+          </Button>
+        }
+      />
     )}
-
-    {works.length ? <>
-      <div className="max-w-xl">
-        <SearchInput
-          label="Buscar"
-          placeholder={`Nombre, código o ubicación`}
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
-      </div>
-      {filtered.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((work) => {
-          const id = workId(work);
-          return <WorkCard
-            key={id}
-            work={work}
-            context={contexts.get(id)}
-            contextError={contextErrorIds.has(id)}
-            unitLabel={preset.unitLabel}
-          />;
-        })}
-      </div> : <EmptyState title={`No encontramos ${preset.unitPluralLabel.toLowerCase()}`} description="Prueba con otro nombre, código o ubicación." />}
-    </> : <EmptyState
-      icon={Building2}
-      title={`Aún no tienes ${preset.unitPluralLabel.toLowerCase()}.`}
-      description={`Agrega tu primera ${preset.unitLabel.toLowerCase()} para comenzar el seguimiento ambiental.`}
-      primaryAction={<Button leftIcon={Plus} onClick={() => setOpen(true)}>Crear primera {preset.unitLabel.toLowerCase()}</Button>}
-    />}
 
     <Modal
       open={open}
