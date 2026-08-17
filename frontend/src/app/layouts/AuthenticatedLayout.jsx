@@ -5,7 +5,6 @@ import { Outlet, useLocation } from "react-router-dom";
 
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
-import Breadcrumbs from "@/shared/components/Breadcrumbs";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { IconButton } from "@/shared/ui/Button";
 
@@ -104,7 +103,6 @@ export default function AuthenticatedLayout() {
           </AnimatePresence>
 
           <section className="min-w-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
-            <Breadcrumbs />
             <Outlet />
           </section>
         </div>

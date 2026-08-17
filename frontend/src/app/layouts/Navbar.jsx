@@ -1,12 +1,192 @@
-import { ChevronDown, Leaf, LogOut, Menu, UserRound } from "lucide-react";
+import {
+  ChevronDown,
+  Leaf,
+  LogOut,
+  Menu,
+  UserRound,
+} from "lucide-react";
+
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+
+import { getPageContext } from "@/app/navigation";
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
+import { getActivePreset } from "@/presets/registry";
 import { IconButton } from "@/shared/ui/Button";
 
-export default function Navbar({ onOpenMobileMenu }) {
-  const { logout, user } = useAuth(); const navigate=useNavigate(); const [open,setOpen]=useState(false);
-  const displayName=user?.first_name||user?.nombre||user?.username||"Usuario";
-  const handleLogout=async()=>{await logout();navigate("/login",{replace:true});};
-  return <header className="sticky top-0 z-40 border-b border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-[var(--page-padding)] py-3 shadow-[var(--shadow-sm)]"><div className="flex items-center justify-between gap-4"><div className="flex items-center gap-3"><IconButton aria-label="Abrir menú" icon={Menu} onClick={onOpenMobileMenu} className="lg:hidden"/><Link to="/inicio" className="flex items-center gap-3 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"><div className="rounded-[var(--radius-md)] bg-[var(--brand-primary)] p-2.5 text-white"><Leaf size={22}/></div><div className="hidden sm:block"><p className="text-lg font-black text-[var(--text-primary)]">Carbono Zero</p><p className="text-xs text-[var(--text-muted)]">Inteligencia ambiental por rubro</p></div></Link></div><div className="relative"><button type="button" onClick={()=>setOpen(!open)} className="inline-flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm font-bold focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"><UserRound size={18}/><span className="hidden sm:inline">{displayName}</span><ChevronDown size={16}/></button>{open&&<div className="absolute right-0 mt-3 w-72 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-elevated)] shadow-[var(--shadow-lg)]"><div className="border-b border-[var(--border-subtle)] p-4"><p className="font-black">{displayName}</p><p className="text-xs text-[var(--text-muted)]">{user?.email||"Sin correo registrado"}</p></div><Link to="/administracion/usuarios" onClick={()=>setOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm font-bold"><UserRound size={17}/>Ver información de usuario</Link><button type="button" onClick={handleLogout} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-bold text-[var(--status-danger)]"><LogOut size={17}/>Cerrar sesión</button></div>}</div></div></header>;
+export default function Navbar({
+  onOpenMobileMenu,
+}) {
+  const { logout, user } = useAuth();
+
+  const {
+    activeOrganizacion,
+  } = useOrganizacionActiva();
+
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+
+  const [open, setOpen] = useState(false);
+
+  const displayName =
+    user?.first_name ||
+    user?.nombre ||
+    user?.username ||
+    "Usuario";
+
+  const preset = getActivePreset(
+    activeOrganizacion?.preset ||
+    "construccion"
+  );
+
+  const pageContext = getPageContext(
+    pathname,
+    preset
+  );
+
+  const handleLogout = async () => {
+    await logout();
+
+    navigate("/login", {
+      replace: true,
+    });
+  };
+
+  return (
+    <header className="sticky top-0 z-40 border-b border-[var(--border-subtle)] bg-[var(--bg-elevated)]/95 px-[var(--page-padding)] py-3 shadow-[var(--shadow-sm)] backdrop-blur-xl">
+      <div className="flex items-center gap-5">
+        <div className="flex shrink-0 items-center gap-3">
+          <IconButton
+            aria-label="Abrir menú"
+            icon={Menu}
+            onClick={onOpenMobileMenu}
+            className="lg:hidden"
+          />
+
+          <Link
+            to="/inicio"
+            className="flex items-center gap-3 rounded-[var(--radius-md)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          >
+            <div className="rounded-[var(--radius-md)] bg-[var(--brand-primary)] p-2.5 text-white shadow-sm">
+              <Leaf
+                aria-hidden="true"
+                size={22}
+              />
+            </div>
+
+            <div className="hidden sm:block">
+              <p className="text-lg font-black leading-tight text-[var(--text-primary)]">
+                Carbono Zero
+              </p>
+
+              <p className="mt-0.5 text-[11px] font-medium text-[var(--text-muted)]">
+                Inteligencia ambiental por rubro
+              </p>
+            </div>
+          </Link>
+        </div>
+
+        <div
+          aria-hidden="true"
+          className="hidden h-9 w-px bg-[var(--border-default)] md:block"
+        />
+
+        <div className="hidden min-w-0 flex-1 md:block">
+          <p className="truncate text-[15px] font-black leading-tight text-[var(--text-primary)]">
+            {pageContext.title}
+          </p>
+
+          <p className="mt-1 truncate text-xs text-[var(--text-muted)]">
+            {pageContext.description}
+          </p>
+        </div>
+
+        <div className="relative ml-auto">
+          <button
+            type="button"
+            onClick={() =>
+              setOpen(current => !current)
+            }
+            className="inline-flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm font-bold shadow-sm transition hover:border-emerald-700/20 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          >
+            <UserRound
+              aria-hidden="true"
+              size={18}
+            />
+
+            <span className="hidden sm:inline">
+              {displayName}
+            </span>
+
+            <ChevronDown
+              aria-hidden="true"
+              size={16}
+              className={`transition-transform duration-200 ${open
+                  ? "rotate-180"
+                  : ""
+                }`}
+            />
+          </button>
+
+          {open && (
+            <div className="absolute right-0 mt-3 w-72 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-elevated)] shadow-[var(--shadow-lg)]">
+              <div className="border-b border-[var(--border-subtle)] p-4">
+                <p className="font-black text-[var(--text-primary)]">
+                  {displayName}
+                </p>
+
+                <p className="mt-1 truncate text-xs text-[var(--text-muted)]">
+                  {user?.email ||
+                    "Sin correo registrado"}
+                </p>
+              </div>
+
+              <Link
+                to="/administracion/usuarios"
+                onClick={() =>
+                  setOpen(false)
+                }
+                className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--text-primary)] transition hover:bg-[var(--bg-subtle)]"
+              >
+                <UserRound
+                  aria-hidden="true"
+                  size={17}
+                />
+
+                Ver información de usuario
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-bold text-[var(--status-danger)] transition hover:bg-[var(--danger-bg)]"
+              >
+                <LogOut
+                  aria-hidden="true"
+                  size={17}
+                />
+
+                Cerrar sesión
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-2 md:hidden">
+        <p className="truncate text-sm font-black text-[var(--text-primary)]">
+          {pageContext.title}
+        </p>
+
+        <p className="mt-0.5 truncate text-[11px] text-[var(--text-muted)]">
+          {pageContext.description}
+        </p>
+      </div>
+    </header>
+  );
 }
