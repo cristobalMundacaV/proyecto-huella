@@ -301,138 +301,141 @@ export default function InicioPage() {
             : "Todas al día";
     return (
         <main className="space-y-7">
-            <section className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-6 shadow-sm">
-                <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="max-w-3xl">
-                        <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-700">
-                            Resumen ambiental
-                        </p>
+            <section className="rounded-3xl border border-emerald-700/20 bg-[linear-gradient(135deg,rgba(6,78,59,0.96)_0%,rgba(6,95,70,0.92)_45%,rgba(15,118,110,0.82)_100%)] p-6 text-white shadow-[0_18px_45px_rgba(6,78,59,0.18)]">                <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                <div className="max-w-3xl">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-100">
+                        Resumen ambiental
+                    </p>
 
-                        <h1 className="mt-2 text-3xl font-black text-[var(--text-primary)]">
-                            {activeOrganizacion?.nombre || "Resumen de hoy"}
-                        </h1>
+                    <h1 className="mt-2 text-3xl font-black text-white">
+                        {activeOrganizacion?.nombre || "Resumen de hoy"}
+                    </h1>
 
-                        <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
-                            Esto es lo que requiere tu atención hoy y el estado general de tu operación ambiental.
-                        </p>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50/80">
+                        Esto es lo que requiere tu atención hoy y el estado general de tu operación ambiental.
+                    </p>
 
-                        <div className="mt-4 flex flex-wrap gap-2">
-                            <span className="rounded-full border border-emerald-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-emerald-800">
-                                {data.works.length}{" "}
-                                {data.works.length === 1
-                                    ? preset.unitLabel.toLowerCase()
-                                    : preset.unitPluralLabel.toLowerCase()}
-                            </span>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">
+                            {data.works.length}{" "}
+                            {data.works.length === 1
+                                ? preset.unitLabel.toLowerCase()
+                                : preset.unitPluralLabel.toLowerCase()}
+                        </span>
 
-                            <span className="rounded-full border border-amber-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-amber-800">
-                                {attentionWorks.length} con atención
-                            </span>
+                        <span className="rounded-full border border-amber-300/40 bg-amber-300/15 px-3 py-1.5 text-xs font-bold text-amber-100">
+                            {attentionWorks.length} con atención
+                        </span>
 
-                            <span className="rounded-full border border-sky-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-sky-800">
-                                {pendingEvidence.length} evidencias pendientes
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="w-full rounded-2xl border border-emerald-100 bg-white/80 p-4 lg:max-w-sm">
-                        <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                            Lectura rápida
-                        </p>
-
-                        <p className="mt-2 text-xl font-black text-[var(--text-primary)]">
-                            {attentionWorks.length ||
-                                openProblems.length ||
-                                pendingEvidence.length ||
-                                incompleteCount
-                                ? "Requiere seguimiento"
-                                : "Operación estable"}
-                        </p>
-
-                        <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
-                            {attentionWorks.length
-                                ? "Revisa primero las unidades que presentan señales de atención."
-                                : pendingEvidence.length
-                                    ? "Revisa primero las evidencias pendientes para mantener la trazabilidad."
-                                    : openProblems.length
-                                        ? "Continúa con el seguimiento de los problemas abiertos."
-                                        : incompleteCount
-                                            ? "Parte de la información no pudo verificarse completamente."
-                                            : "No hay pendientes detectados con la información disponible."}
-                        </p>
+                        <span className="rounded-full border border-teal-200/30 bg-teal-200/10 px-3 py-1.5 text-xs font-bold text-teal-50">
+                            {pendingEvidence.length} evidencias pendientes
+                        </span>
                     </div>
                 </div>
+
+                <div className="w-full rounded-2xl border border-white/15 bg-black/10 p-4 backdrop-blur-sm lg:max-w-sm">
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-100/70">
+                        Lectura rápida
+                    </p>
+
+                    <p className="mt-2 text-xl font-black text-white">
+                        {attentionWorks.length ||
+                            openProblems.length ||
+                            pendingEvidence.length ||
+                            incompleteCount
+                            ? "Requiere seguimiento"
+                            : "Operación estable"}
+                    </p>
+
+                    <p className="mt-2 text-sm leading-6 text-emerald-50/80">
+                        {attentionWorks.length
+                            ? "Revisa primero las unidades que presentan señales de atención."
+                            : pendingEvidence.length
+                                ? "Revisa primero las evidencias pendientes para mantener la trazabilidad."
+                                : openProblems.length
+                                    ? "Continúa con el seguimiento de los problemas abiertos."
+                                    : incompleteCount
+                                        ? "Parte de la información no pudo verificarse completamente."
+                                        : "No hay pendientes detectados con la información disponible."}
+                    </p>
+                </div>
+            </div>
             </section>
 
             <section
                 aria-label="Resumen"
                 className="grid gap-3 md:grid-cols-3"
             >
-                <KpiCard
-                    icon={AlertTriangle}
-                    label={`${preset.unitPluralLabel} con atención`}
-                    value={attentionWorks.length}
-                    helper={attentionHelper}
-                    status={
-                        attentionWorks.length
-                            ? "warning"
-                            : incompleteCount
-                                ? "info"
+                <div className="overflow-hidden rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-100 to-emerald-50 shadow-[0_8px_24px_rgba(6,78,59,0.08)]">
+                    <KpiCard
+                        icon={AlertTriangle}
+                        label={`${preset.unitPluralLabel} con atención`}
+                        value={attentionWorks.length}
+                        helper={attentionHelper}
+                        status={
+                            attentionWorks.length
+                                ? "warning"
+                                : incompleteCount
+                                    ? "info"
+                                    : "success"
+                        }
+                    />
+                </div>
+                <div className="overflow-hidden rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-100 to-amber-50 shadow-[0_8px_24px_rgba(120,53,15,0.07)]">
+                    <KpiCard
+                        icon={AlertTriangle}
+                        label="Problemas abiertos"
+                        value={
+                            data.resourceErrors.problems
+                                ? "No disponible"
+                                : openProblems.length
+                        }
+                        helper={
+                            data.resourceErrors.problems
+                                ? "No fue posible consultarlos"
+                                : openProblems.length
+                                    ? "Requieren seguimiento"
+                                    : "Sin problemas abiertos"
+                        }
+                        status={
+                            openProblems.length
+                                ? "danger"
                                 : "success"
-                    }
-                />
+                        }
+                    />
+                </div>
 
-                <KpiCard
-                    icon={AlertTriangle}
-                    label="Problemas abiertos"
-                    value={
-                        data.resourceErrors.problems
-                            ? "No disponible"
-                            : openProblems.length
-                    }
-                    helper={
-                        data.resourceErrors.problems
-                            ? "No fue posible consultarlos"
-                            : openProblems.length
-                                ? "Requieren seguimiento"
-                                : "Sin problemas abiertos"
-                    }
-                    status={
-                        openProblems.length
-                            ? "danger"
-                            : "success"
-                    }
-                />
+                <div className="overflow-hidden rounded-2xl border border-teal-200/70 bg-gradient-to-br from-teal-100 to-teal-50 shadow-[0_8px_24px_rgba(15,118,110,0.07)]">
 
-                <KpiCard
-                    icon={FileCheck2}
-                    label="Evidencias pendientes"
-                    value={
-                        data.resourceErrors.evidence
-                            ? "No disponible"
-                            : pendingEvidence.length
-                    }
-                    helper={
-                        data.resourceErrors.evidence
-                            ? "No fue posible consultarlas"
-                            : pendingEvidence.length
-                                ? "Requieren revisión"
-                                : "Sin pendientes documentales"
-                    }
-                    status={
-                        pendingEvidence.length
-                            ? "warning"
-                            : "success"
-                    }
-                />
+                    <KpiCard
+                        icon={FileCheck2}
+                        label="Evidencias pendientes"
+                        value={
+                            data.resourceErrors.evidence
+                                ? "No disponible"
+                                : pendingEvidence.length
+                        }
+                        helper={
+                            data.resourceErrors.evidence
+                                ? "No fue posible consultarlas"
+                                : pendingEvidence.length
+                                    ? "Requieren revisión"
+                                    : "Sin pendientes documentales"
+                        }
+                        status={
+                            pendingEvidence.length
+                                ? "warning"
+                                : "success"
+                        }
+                    />
+                </div>
             </section>
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.7fr)]">
                 <div className="space-y-6">
                     <section
                         id="priorities"
-                        className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 shadow-sm"
-                    >
-                        <SectionHeader
+                        className="rounded-2xl border border-emerald-200/80 bg-[linear-gradient(135deg,rgba(236,253,245,0.96)_0%,rgba(209,250,229,0.72)_100%)] p-5 shadow-[0_12px_30px_rgba(6,78,59,0.08)]">                   <SectionHeader
                             title="Requiere tu atención"
                             description={
                                 priorities.length
@@ -450,7 +453,7 @@ export default function InicioPage() {
                         />
                     </section>
 
-                    <section className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 shadow-sm">
+                    <section className="rounded-2xl border border-teal-200/80 bg-[linear-gradient(135deg,rgba(240,253,250,0.96)_0%,rgba(204,251,241,0.58)_100%)] p-5 shadow-[0_12px_30px_rgba(15,118,110,0.08)]">
                         <SectionHeader
                             title={`Mis ${preset.unitPluralLabel.toLowerCase()}`}
                             description={`Estado breve de tus ${preset.unitPluralLabel.toLowerCase()}.`}
@@ -494,7 +497,7 @@ export default function InicioPage() {
 
                 <aside className="space-y-6">
                     {recentEvents.length > 0 && (
-                        <section className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 shadow-sm">
+                        <section className="rounded-2xl border border-emerald-900/10 bg-[#f8fbf9]/95 p-5 shadow-[0_10px_30px_rgba(6,78,59,0.06)]">
                             <SectionHeader
                                 title="Actividad reciente"
                                 description="Últimos movimientos registrados."
@@ -522,7 +525,7 @@ export default function InicioPage() {
                         </section>
                     )}
 
-                    <section className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-5">
+                    <section className="rounded-2xl border border-emerald-700/20 bg-[linear-gradient(145deg,#dff7ea_0%,#ecfdf5_55%,#f0fdfa_100%)] p-5 shadow-[0_10px_30px_rgba(6,78,59,0.08)]">
                         <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">
                             Siguiente paso
                         </p>
@@ -550,7 +553,7 @@ export default function InicioPage() {
                             </Link>
 
                             <Link
-                                className="rounded-xl bg-emerald-700 px-3 py-2 text-sm font-bold text-white"
+                                className="rounded-xl bg-emerald-800 px-3 py-2 text-sm font-bold text-white transition hover:bg-emerald-900"
                                 to="/inteligencia/problemas"
                             >
                                 Revisar problemas
