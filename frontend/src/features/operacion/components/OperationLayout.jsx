@@ -43,13 +43,47 @@ export default function OperationLayout() {
 
   return <div className="space-y-6">
     <SectionHeader title="Operación" description="Revisa lo que está ocurriendo en esta unidad." />
-    <nav aria-label="Dominios operacionales" className="flex max-w-full gap-1 overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-1">
-      {links.map(([path, label]) => <NavLink
-        end={!path}
-        key={label}
-        to={path || "."}
-        className={({ isActive }) => `shrink-0 rounded-[var(--radius-md)] px-3 py-2 text-sm font-bold focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${isActive ? "bg-[var(--brand-primary)] text-white" : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-subtle)]"}`}
-      >{label}</NavLink>)}
+    <nav
+      aria-label="Dominios operacionales"
+      className="
+    overflow-hidden
+    rounded-[18px]
+    border
+    border-slate-200
+    bg-white
+    p-1.5
+    shadow-[0_8px_24px_rgba(15,23,42,0.04)]
+  "
+    >
+      <div className="flex max-w-full gap-1 overflow-x-auto">
+        {links.map(([path, label]) => (
+          <NavLink
+            end={!path}
+            key={label}
+            to={path || "."}
+            className={({ isActive }) =>
+              `
+            shrink-0
+            rounded-[12px]
+            px-4
+            py-2.5
+            text-sm
+            font-black
+            transition
+            duration-150
+            focus-visible:outline-none
+            focus-visible:shadow-[var(--focus-ring)]
+            ${isActive
+                ? "bg-emerald-700 text-white shadow-sm"
+                : "text-[var(--text-secondary)] hover:bg-emerald-50 hover:text-emerald-800"
+              }
+          `
+            }
+          >
+            {label}
+          </NavLink>
+        ))}
+      </div>
     </nav>
     {state.status === "loading" && <LoadingState label="Cargando información operacional" />}
     {state.status === "error" && <ErrorState description="No fue posible preparar la información operacional de esta unidad." onRetry={load} />}

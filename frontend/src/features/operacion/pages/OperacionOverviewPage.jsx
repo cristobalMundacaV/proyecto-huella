@@ -1,4 +1,14 @@
-import { Droplets, Fuel, LandPlot, Package, Trash2, Truck, Volume2, Zap } from "lucide-react";
+import {
+  Activity,
+  Droplets,
+  Fuel,
+  LandPlot,
+  Package,
+  Trash2,
+  Truck,
+  Volume2,
+  Zap,
+} from "lucide-react";
 import { Link, useOutletContext } from "react-router-dom";
 import { Alert, Card, CardContent, SectionHeader } from "@/shared/ui";
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
@@ -208,7 +218,49 @@ export default function OperacionOverviewPage() {
           detail={domain.latestAt ? `Último registro: ${formatDateTime(domain.latestAt)}` : undefined}
           to={domain.to}
         />)}</div>
-        : <p className="text-sm text-[var(--text-muted)]">No hay dominios con actividad disponible en este momento.</p>}
+        : (
+          <div
+            className="
+      overflow-hidden
+      rounded-[22px]
+      border
+      border-emerald-200/80
+      bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.13),transparent_42%),linear-gradient(135deg,rgba(236,253,245,0.96),rgba(255,255,255,0.98))]
+      px-6
+      py-9
+      text-center
+      shadow-[0_10px_30px_rgba(15,23,42,0.04)]
+    "
+          >
+            <div
+              className="
+        mx-auto
+        flex
+        h-12
+        w-12
+        items-center
+        justify-center
+        rounded-full
+        bg-emerald-100
+        text-emerald-700
+      "
+            >
+              <Activity
+                aria-hidden="true"
+                size={21}
+              />
+            </div>
+
+            <h3 className="mt-4 text-lg font-black text-[var(--text-primary)]">
+              Aún no hay actividad operacional registrada
+            </h3>
+
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--text-muted)]">
+              Los dominios comenzarán a mostrar actividad cuando existan registros,
+              mediciones, viajes, materiales u otras observaciones vinculadas a esta obra.
+            </p>
+          </div>
+        )}
     </section>
 
     {otherDomains.length > 0 && <section>
