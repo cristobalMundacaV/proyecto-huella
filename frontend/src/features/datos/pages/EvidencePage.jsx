@@ -625,13 +625,16 @@ export default function EvidencePage({
 
       {!!rows.length && (
         <section className="rounded-2xl border border-[var(--border-subtle)] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-          <div className="grid w-full gap-4 md:grid-cols-[minmax(0,2fr)_minmax(220px,1fr)]">
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[var(--text-primary)]">
+          <div className="grid w-full gap-4 md:grid-cols-2">
+            <div>
+              <label
+                htmlFor="evidence-search"
+                className="mb-2 block text-sm font-bold text-[var(--text-primary)]"
+              >
                 Buscar evidencias
-              </span>
+              </label>
 
-              <div className="flex h-12 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-600/10">
+              <div className="flex h-12 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 transition focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-600/10">
                 <Search
                   aria-hidden="true"
                   size={18}
@@ -639,45 +642,37 @@ export default function EvidencePage({
                 />
 
                 <input
-                  className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+                  id="evidence-search"
+                  type="search"
+                  className="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-sm text-[var(--text-primary)] outline-none ring-0 placeholder:text-[var(--text-muted)] focus:border-0 focus:outline-none focus:ring-0"
                   placeholder="Documento, tipo o contexto"
                   value={query}
                   onChange={(event) =>
-                    setQuery(
-                      event.target.value
-                    )
+                    setQuery(event.target.value)
                   }
                 />
               </div>
-            </label>
+            </div>
 
             <Select
               label="Estado documental"
               value={status}
               onChange={(event) =>
-                setStatus(
-                  event.target.value
-                )
+                setStatus(event.target.value)
               }
             >
               <option value="">
                 Todos los estados
               </option>
 
-              {EVIDENCE_STATES.map(
-                (value) => (
-                  <option
-                    key={value}
-                    value={value}
-                  >
-                    {
-                      evidenceStatusInfo(
-                        value
-                      ).label
-                    }
-                  </option>
-                )
-              )}
+              {EVIDENCE_STATES.map((value) => (
+                <option
+                  key={value}
+                  value={value}
+                >
+                  {evidenceStatusInfo(value).label}
+                </option>
+              ))}
             </Select>
           </div>
         </section>
