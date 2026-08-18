@@ -6,11 +6,14 @@ import {
 } from "react";
 
 import {
-  Activity,
+  Eye,
   Plus,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  Wrench,
   Radio,
 } from "lucide-react";
-
 import { Link } from "react-router-dom";
 
 import PlatformLoader from "@/shared/components/PlatformLoader";
@@ -40,6 +43,8 @@ import {
   getSensors,
 } from "../api/sensorsApi";
 
+
+
 const SENSOR_TYPE_OPTIONS = [
   { value: "gps", label: "GPS" },
   { value: "combustible", label: "Combustible" },
@@ -51,18 +56,25 @@ const SENSOR_TYPE_OPTIONS = [
 ];
 
 const SENSOR_STATUS_OPTIONS = [
-  { value: "operativo", label: "Operativo" },
+  {
+    value: "operativo",
+    label: "Operativo",
+    tone: "success",
+  },
   {
     value: "requiere_revision",
     label: "Requiere revisión",
+    tone: "warning",
   },
   {
     value: "fuera_servicio",
     label: "Fuera de servicio",
+    tone: "danger",
   },
   {
     value: "calibracion_vencida",
     label: "Calibración vencida",
+    tone: "warning",
   },
 ];
 
@@ -84,6 +96,21 @@ function optionLabel(options, value) {
       .replace(/\b\w/g, (character) =>
         character.toUpperCase()
       )
+  );
+}
+
+function sensorStatusInfo(value) {
+  return (
+    SENSOR_STATUS_OPTIONS.find(
+      (option) => option.value === value
+    ) || {
+      value,
+      label: optionLabel(
+        SENSOR_STATUS_OPTIONS,
+        value
+      ),
+      tone: "neutral",
+    }
   );
 }
 
@@ -377,95 +404,126 @@ export default function SensoresPage() {
           description="Prueba cambiando el nombre, tipo de variable o estado técnico."
         />
       ) : (
-        <TableShell>
-          <TableHead>
-            <tr>
-              <TableCell as="th">
-                Sensor
-              </TableCell>
-
-              <TableCell as="th">
-                Variable
-              </TableCell>
-
-              <TableCell as="th">
-                Activo asociado
-              </TableCell>
-
-              <TableCell as="th">
-                Estado técnico
-              </TableCell>
-
-              <TableCell as="th">
-                Última comunicación
-              </TableCell>
-
-              <TableCell as="th">
-                Calibración
-              </TableCell>
-
-              <TableCell as="th">
-                Acción
-              </TableCell>
-            </tr>
-          </TableHead>
-
-          <TableBody columns={7}>
-            {sensors.map((sensor) => (
-              <tr key={sensor.id}>
-                <TableCell>
-                  <b>{sensor.nombre}</b>
-
-                  <span className="block text-xs text-[var(--text-muted)]">
-                    {sensor.dispositivo_id}
-                  </span>
+        <div className="overflow-hidden rounded-[22px] border border-emerald-100 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+          <TableShell>
+            <TableHead>
+              <tr>
+                <TableCell as="th">
+                  Sensor
                 </TableCell>
 
-                <TableCell>
-                  {optionLabel(
-                    SENSOR_TYPE_OPTIONS,
-                    sensor.tipo_sensor
-                  )}
+                <TableCell as="th">
+                  Variable
                 </TableCell>
 
-                <TableCell>
-                  {sensor.activo_nombre ||
-                    "Sin activo asociado"}
+                <TableCell as="th">
+                  Activo asociado
                 </TableCell>
 
-                <TableCell>
-                  <StatusBadge>
-                    {optionLabel(
-                      SENSOR_STATUS_OPTIONS,
-                      sensor.estado
-                    )}
-                  </StatusBadge>
+                <TableCell as="th">
+                  Estado técnico
                 </TableCell>
 
-                <TableCell>
-                  {sensor.last_seen_at
-                    ? formatDateTime(
-                      sensor.last_seen_at
-                    )
-                    : "Sin comunicación registrada"}
+                <TableCell as="th">
+                  Última comunicación
                 </TableCell>
 
-                <TableCell>
-                  {calibrationLabel(sensor)}
+                <TableCell as="th">
+                  Calibración
                 </TableCell>
 
-                <TableCell>
-                  <Link
-                    className="font-bold text-[var(--brand-primary)]"
-                    to={`/operacion/sensores/${sensor.id}`}
-                  >
-                    Ver detalle
-                  </Link>
+                <TableCell as="th">
+                  Acción
                 </TableCell>
               </tr>
-            ))}
-          </TableBody>
-        </TableShell>
+            </TableHead>
+
+            <TableBody columns={7}>
+              {sensors.map((sensor) => {
+                const status =
+                  sensorStatusInfo(sensor.estado);
+
+                return (
+                  <tr
+                    key={sensor.id}
+                    className="transition-colors hover:bg-emerald-50/30"
+                  >
+                    <TableCell>
+                      <div className="min-w-[200px]">
+                        <b className="block text-[var(--text-primary)]">
+                          {sensor.nombre}
+                        </b>
+
+                        <span className="mt-0.5 block text-xs text-[var(--text-muted)]">
+                          {sensor.dispositivo_id}
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <span className="font-semibold text-[var(--text-secondary)]">
+                        {optionLabel(
+                          SENSOR_TYPE_OPTIONS,
+                          sensor.tipo_sensor
+                        )}
+                      </span>
+                    </TableCell>
+
+                    <TableCell>
+                      {sensor.activo_nombre ? (
+                        <span className="font-medium text-[var(--text-primary)]">
+                          {sensor.activo_nombre}
+                        </span>
+                      ) : (
+                        <span className="text-[var(--text-muted)]">
+                          Sin activo asociado
+                        </span>
+                      )}
+                    </TableCell>
+
+                    <TableCell>
+                      <StatusBadge
+                        tone={status.tone}
+                      >
+                        {status.label}
+                      </StatusBadge>
+                    </TableCell>
+
+                    <TableCell>
+                      <span className="text-sm text-[var(--text-secondary)]">
+                        {sensor.last_seen_at
+                          ? formatDateTime(
+                            sensor.last_seen_at
+                          )
+                          : "Sin comunicación registrada"}
+                      </span>
+                    </TableCell>
+
+                    <TableCell>
+                      <span className="text-sm text-[var(--text-secondary)]">
+                        {calibrationLabel(sensor)}
+                      </span>
+                    </TableCell>
+
+                    <TableCell>
+                      <Link
+                        to={`/operacion/sensores/${sensor.id}`}
+                        aria-label={`Ver detalle de ${sensor.nombre}`}
+                        title="Ver detalle"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-700 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+                      >
+                        <Eye
+                          aria-hidden="true"
+                          size={18}
+                        />
+                      </Link>
+                    </TableCell>
+                  </tr>
+                );
+              })}
+            </TableBody>
+          </TableShell>
+        </div>
       )}
 
       <Modal
