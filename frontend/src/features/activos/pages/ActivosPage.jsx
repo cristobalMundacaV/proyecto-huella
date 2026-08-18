@@ -312,23 +312,22 @@ export default function ActivosPage() {
           description="Estamos preparando los equipos y su estado operacional."
         />
       ) : !rows.length ? (
-        <div className="overflow-hidden rounded-[26px] border border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.12),transparent_38%),linear-gradient(135deg,rgba(236,253,245,0.92),rgba(255,255,255,0.98))] p-2 shadow-[0_12px_36px_rgba(6,78,59,0.06)]">
-          <EmptyState
-            icon={Boxes}
-            title="Aún no hay activos registrados"
-            description="Incorpora maquinaria, vehículos, equipos, medidores o infraestructura cuando formen parte real de tu operación."
-            primaryAction={
-              <Button
-                leftIcon={Plus}
-                onClick={() =>
-                  setDialog({ ...blank })
-                }
-              >
-                Crear primer activo
-              </Button>
-            }
-          />
-        </div>
+        <EmptyState
+          icon={Boxes}
+          title="Aún no hay activos registrados"
+          description="Incorpora maquinaria, vehículos, equipos, medidores o infraestructura cuando formen parte real de tu operación."
+          className="border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_40%),linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98))] shadow-[0_12px_36px_rgba(6,78,59,0.07)]"
+          primaryAction={
+            <Button
+              leftIcon={Plus}
+              onClick={() =>
+                setDialog({ ...blank })
+              }
+            >
+              Crear primer activo
+            </Button>
+          }
+        />
       ) : (
         <TableShell>
           <TableHead>
@@ -584,9 +583,7 @@ export default function ActivosPage() {
 
             <Select
               label="Tipo"
-              value={
-                dialog?.tipo || "vehiculo"
-              }
+              value={dialog?.tipo || "vehiculo"}
               onChange={(e) =>
                 setDialog({
                   ...dialog,
@@ -594,26 +591,19 @@ export default function ActivosPage() {
                 })
               }
             >
-              {[
-                "vehiculo",
-                "maquinaria",
-                "equipo",
-                "medidor",
-                "infraestructura",
-                "otro",
-              ].map((v) => (
-                <option key={v}>
-                  {v}
+              {ASSET_TYPE_OPTIONS.map((option) => (
+                <option
+                  key={option.value}
+                  value={option.value}
+                >
+                  {option.label}
                 </option>
               ))}
             </Select>
 
             <Select
               label="Estado"
-              value={
-                dialog?.estado ||
-                "operativo"
-              }
+              value={dialog?.estado || "operativo"}
               onChange={(e) =>
                 setDialog({
                   ...dialog,
@@ -621,14 +611,12 @@ export default function ActivosPage() {
                 })
               }
             >
-              {[
-                "operativo",
-                "requiere_revision",
-                "fuera_servicio",
-                "retirado",
-              ].map((v) => (
-                <option key={v}>
-                  {v}
+              {ASSET_STATUS_OPTIONS.map((option) => (
+                <option
+                  key={option.value}
+                  value={option.value}
+                >
+                  {option.label}
                 </option>
               ))}
             </Select>
