@@ -399,9 +399,10 @@ export default function SensoresPage() {
         />
       ) : !sensors.length ? (
         <EmptyState
-          icon={Activity}
+          icon={Radio}
           title="No encontramos sensores"
           description="Prueba cambiando el nombre, tipo de variable o estado técnico."
+          className="border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_40%),linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98))] shadow-[0_12px_36px_rgba(6,78,59,0.06)]"
         />
       ) : (
         <div className="overflow-hidden rounded-[22px] border border-emerald-100 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.05)]">

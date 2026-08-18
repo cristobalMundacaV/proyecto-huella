@@ -31,6 +31,7 @@ import {
   ErrorState,
   Input,
   Modal,
+  SearchInput,
   SectionHeader,
   Select,
   StatusBadge,
@@ -626,33 +627,14 @@ export default function EvidencePage({
       {!!rows.length && (
         <section className="rounded-2xl border border-[var(--border-subtle)] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
           <div className="grid w-full gap-4 md:grid-cols-2">
-            <div>
-              <label
-                htmlFor="evidence-search"
-                className="mb-2 block text-sm font-bold text-[var(--text-primary)]"
-              >
-                Buscar evidencias
-              </label>
-
-              <div className="flex h-12 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 transition focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-600/10">
-                <Search
-                  aria-hidden="true"
-                  size={18}
-                  className="shrink-0 text-[var(--text-muted)]"
-                />
-
-                <input
-                  id="evidence-search"
-                  type="search"
-                  className="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-sm text-[var(--text-primary)] outline-none ring-0 placeholder:text-[var(--text-muted)] focus:border-0 focus:outline-none focus:ring-0"
-                  placeholder="Documento, tipo o contexto"
-                  value={query}
-                  onChange={(event) =>
-                    setQuery(event.target.value)
-                  }
-                />
-              </div>
-            </div>
+            <SearchInput
+              label="Buscar evidencias"
+              placeholder="Documento, tipo o contexto"
+              value={query}
+              onChange={(event) =>
+                setQuery(event.target.value)
+              }
+            />
 
             <Select
               label="Estado documental"
@@ -720,6 +702,7 @@ export default function EvidencePage({
           icon={Search}
           title="No encontramos evidencias"
           description="Prueba con otro término o cambia el estado documental seleccionado."
+          className="border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_40%),linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98))] shadow-[0_12px_36px_rgba(6,78,59,0.06)]"
         />
       ) : (
         !!visible.length && (
