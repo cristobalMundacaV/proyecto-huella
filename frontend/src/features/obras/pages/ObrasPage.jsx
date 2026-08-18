@@ -7,7 +7,13 @@ import WorkCard from "../components/WorkCard";
 import { createOrganizationWork, getOrganizationWorks, getWorkContext } from "../services/workspaceApi";
 import { Button, EmptyState, ErrorState, Input, Modal, SearchInput, Select } from "@/shared/ui";
 import PlatformLoader from "@/shared/components/PlatformLoader";
-const initialForm = { codigo_obra: "", nombre: "", fecha_inicio: "", tipo_proyecto: "Otro", superficie_m2: "", ubicacion: "" };
+const initialForm = {
+  nombre: "",
+  fecha_inicio: "",
+  tipo_proyecto: "Otro",
+  superficie_m2: "",
+  ubicacion: "",
+};
 const workId = (work) => String(work?.id || work?.obra_id || work?.codigo_obra || "");
 const attentionRank = (status) => {
   if (status === "requiere_atencion") return 0;
@@ -90,7 +96,6 @@ export default function ObrasPage() {
       nombre: form.nombre.trim(),
       fecha_inicio: form.fecha_inicio,
     };
-    if (form.codigo_obra.trim()) payload.codigo_obra = form.codigo_obra.trim();
     if (form.ubicacion.trim()) payload.ubicacion = form.ubicacion.trim();
     if (preset.key === "construccion") {
       payload.tipo_proyecto = form.tipo_proyecto;
@@ -250,17 +255,60 @@ export default function ObrasPage() {
           <Input required type="date" label="Fecha de inicio" value={form.fecha_inicio} onChange={(event) => setForm((value) => ({ ...value, fecha_inicio: event.target.value }))} />
         </div>
 
-        <details className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface-subtle)] p-4">
-          <summary className="cursor-pointer font-bold text-[var(--text-primary)]">Agregar detalles opcionales</summary>
+        <details className="group rounded-2xl border border-emerald-900/10 bg-emerald-50/40 p-4 transition open:bg-emerald-50/70">
+          <summary className="cursor-pointer font-black text-slate-900 marker:text-emerald-700">
+            Agregar detalles opcionales
+          </summary>
+
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Input label="Código" value={form.codigo_obra} onChange={(event) => setForm((value) => ({ ...value, codigo_obra: event.target.value }))} />
-            <Input label="Ubicación" value={form.ubicacion} onChange={(event) => setForm((value) => ({ ...value, ubicacion: event.target.value }))} />
-            {preset.key === "construccion" && <>
-              <Select label="Tipo de proyecto" value={form.tipo_proyecto} onChange={(event) => setForm((value) => ({ ...value, tipo_proyecto: event.target.value }))}>
-                <option>Vivienda</option><option>Edificio habitacional</option><option>Infraestructura</option><option>Industrial</option><option>Comercial</option><option>Obra publica</option><option>Urbanizacion</option><option>Otro</option>
-              </Select>
-              <Input min="0" step="0.001" type="number" label="Superficie (m²)" value={form.superficie_m2} onChange={(event) => setForm((value) => ({ ...value, superficie_m2: event.target.value }))} />
-            </>}
+            <Input
+              label="Ubicación"
+              value={form.ubicacion}
+              onChange={(event) =>
+                setForm((value) => ({
+                  ...value,
+                  ubicacion: event.target.value,
+                }))
+              }
+            />
+
+            {preset.key === "construccion" && (
+              <>
+                <Select
+                  label="Tipo de proyecto"
+                  value={form.tipo_proyecto}
+                  onChange={(event) =>
+                    setForm((value) => ({
+                      ...value,
+                      tipo_proyecto: event.target.value,
+                    }))
+                  }
+                >
+                  <option>Vivienda</option>
+                  <option>Edificio habitacional</option>
+                  <option>Infraestructura</option>
+                  <option>Industrial</option>
+                  <option>Comercial</option>
+                  <option>Obra publica</option>
+                  <option>Urbanizacion</option>
+                  <option>Otro</option>
+                </Select>
+
+                <Input
+                  min="0"
+                  step="0.001"
+                  type="number"
+                  label="Superficie (m²)"
+                  value={form.superficie_m2}
+                  onChange={(event) =>
+                    setForm((value) => ({
+                      ...value,
+                      superficie_m2: event.target.value,
+                    }))
+                  }
+                />
+              </>
+            )}
           </div>
         </details>
 
