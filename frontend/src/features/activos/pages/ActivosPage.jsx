@@ -13,15 +13,11 @@ import PlatformLoader from "@/shared/components/PlatformLoader";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import {
   Button,
-  Card,
-  CardContent,
   EmptyState,
   ErrorState,
   FilterBar,
   Input,
-  LoadingState,
   Modal,
-  PageHeader,
   SearchInput,
   Select,
   StatusBadge,
@@ -403,10 +399,13 @@ export default function ActivosPage() {
                 </TableCell>
 
                 <TableCell>
-                  {item.condiciones?.[0]?.estado?.replaceAll(
-                    "_",
-                    " "
-                  ) || "Sin registro"}
+                  {item.condiciones?.[0]?.estado
+                    ? String(item.condiciones[0].estado)
+                      .replaceAll("_", " ")
+                      .replace(/\b\w/g, (character) =>
+                        character.toUpperCase()
+                      )
+                    : "Sin registro"}
                 </TableCell>
 
                 <TableCell>
@@ -545,13 +544,12 @@ export default function ActivosPage() {
                 })
               }
             >
-              {[
-                "programado",
-                "realizado",
-                "vencido",
-              ].map((v) => (
-                <option key={v}>
-                  {v}
+              {MAINTENANCE_STATUS_OPTIONS.map((option) => (
+                <option
+                  key={option.value}
+                  value={option.value}
+                >
+                  {option.label}
                 </option>
               ))}
             </Select>
