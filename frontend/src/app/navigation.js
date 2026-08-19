@@ -169,6 +169,7 @@ const PAGE_CONTEXTS = [
     description: "Estado ambiental y señales principales de esta unidad.",
   },
 
+
   {
     pattern: "/obras/:obraId/operacion",
     title: "Operación",
@@ -513,6 +514,10 @@ export function getWorkNavigation({
             label: "Resumen",
             path: `${base}/resumen`,
             icon: Gauge,
+          },
+          {
+            label: "Diagnóstico ambiental",
+            path: `/obras/${obraId}/diagnostico`,
           },
         ],
       },

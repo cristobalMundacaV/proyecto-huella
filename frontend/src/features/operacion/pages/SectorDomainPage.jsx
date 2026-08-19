@@ -136,7 +136,7 @@ export default function SectorDomainPage({ domain }) {
                 primaryAction={
                   <Link
                     className="font-bold text-[var(--brand-primary)]"
-                    to="/administracion/diagnostico"
+                    to={`/obras/${obraId}/diagnostico`}
                   >
                     Revisar diagnóstico
                   </Link>
