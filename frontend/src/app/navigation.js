@@ -516,8 +516,10 @@ export function getWorkNavigation({
             icon: Gauge,
           },
           {
+            id: "diagnostic",
             label: "Diagnóstico ambiental",
-            path: `/obras/${obraId}/diagnostico`,
+            path: `${base}/diagnostico`,
+            icon: ClipboardCheck,
           },
         ],
       },

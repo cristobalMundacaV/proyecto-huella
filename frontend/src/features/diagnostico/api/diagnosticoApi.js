@@ -35,3 +35,16 @@ export const createUnidad = async (id, data) => (await api.post(`${base(id)}/uni
 export const getProcesos = async (id) => (await api.get(`${base(id)}/procesos-operacionales/`)).data;
 export const createProceso = async (id, data) => (await api.post(`${base(id)}/procesos-operacionales/`, data)).data;
 export const getPreparacion = async (id) => (await api.get(`${base(id)}/preparacion-ambiental/`)).data;
+
+export const updateWorkApplicability = async (
+    organizationId,
+    workId,
+    capabilityId,
+    estado,
+) =>
+    (
+        await api.patch(
+            `${base(organizationId)}/obras/${encodeURIComponent(workId)}/aplicabilidades/${encodeURIComponent(capabilityId)}/`,
+            { estado },
+        )
+    ).data;

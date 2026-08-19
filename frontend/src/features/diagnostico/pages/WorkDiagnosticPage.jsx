@@ -34,7 +34,7 @@ import {
     Textarea,
 } from "@/shared/ui";
 
-import CapacidadesAmbientales from "../components/CapacidadesAmbientales";
+import WorkApplicability from "../components/WorkApplicability";
 
 import {
     saveDiagnostico,
@@ -688,16 +688,22 @@ export default function WorkDiagnosticPage() {
                         description="No hay aplicabilidad disponible para mostrar."
                     />
                 ) : (
-                    <CapacidadesAmbientales
-                        organizacionId={
+                    <WorkApplicability
+                        organizationId={
                             activeOrganizacionId
                         }
-                        capacidades={
-                            state.capacidades
-                                .data
+                        workId={obraId}
+                        capabilities={
+                            state.capacidades.data
                         }
-                        onChange={
-                            state.reload
+                        applicability={
+                            workspace?.context
+                                ?.diagnostico_obra
+                                ?.aplicabilidad ||
+                            []
+                        }
+                        diagnosticExists={
+                            Boolean(diagnostic)
                         }
                         readOnly={
                             user?.is_demo
