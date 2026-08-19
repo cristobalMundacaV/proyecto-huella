@@ -1,0 +1,309 @@
+﻿
+frontend\src\features\activos\api\assetsApi.js:3:export const getAssets = async (id, params={}) => (await 
+api.get(`${base(id)}/activos/`, {params})).data;
+frontend\src\features\activos\api\assetsApi.js:4:export const createAsset = async (id, data) => (await 
+api.post(`${base(id)}/activos/`, data)).data;
+frontend\src\features\activos\api\assetsApi.js:5:export const updateAsset = async (id, assetId, data) => 
+(await api.patch(`${base(id)}/activos/${assetId}/`, data)).data;
+frontend\src\features\activos\api\assetsApi.js:6:export const createMaintenance = async (id, assetId, 
+data) => (await api.post(`${base(id)}/activos/${assetId}/mantenimientos/`, data)).data;
+frontend\src\features\activos\api\assetsApi.js:7:export const createCondition = async (id, assetId, data) 
+=> (await api.post(`${base(id)}/activos/${assetId}/condiciones/`, data)).data;
+frontend\src\features\datos\services\dataApi.js:4:export const listEvidence = async (organizationId) => 
+(await api.get(`${orgRoot(organizationId)}/evidencias/`)).data;
+frontend\src\features\datos\services\dataApi.js:5:export const listWorkEvidence = async (workCode) => 
+(await api.get(`/obras/${encodeURIComponent(workCode)}/evidencias/`)).data;
+frontend\src\features\datos\services\dataApi.js:6:export const uploadEvidence = async (organizationId, 
+data) => (await api.post(`${orgRoot(organizationId)}/evidencias/`, data)).data;
+frontend\src\features\datos\services\dataApi.js:7:export const uploadWorkEvidence = async (workCode, data) 
+=> (await api.post(`/obras/${encodeURIComponent(workCode)}/evidencias/`, data)).data;
+frontend\src\features\datos\services\dataApi.js:8:export const evidenceContext = async (id) => (await 
+api.get(`/context/evidence/${encodeURIComponent(id)}/`)).data;
+frontend\src\features\datos\services\dataApi.js:9:export const listImports = async (organizationId) => 
+(await api.get(`${importRoot(organizationId)}/`)).data;
+frontend\src\features\datos\services\dataApi.js:10:export const getImport = async (organizationId, id) => 
+(await api.get(`${importRoot(organizationId)}/${encodeURIComponent(id)}/`)).data;
+frontend\src\features\datos\services\dataApi.js:11:export const createImport = async (organizationId, 
+file, source, options = {}) => { const data = new FormData(); data.append("archivo", file); 
+data.append("fuente_nombre", source); data.append("tipo_ingesta", "tabular"); 
+data.append("destino_operacional", options.destination || "actividad_generica"); if (options.flow) 
+data.append("flujo", options.flow); return (await api.post(`${importRoot(organizationId)}/`, data)).data; 
+};
+frontend\src\features\datos\services\dataApi.js:12:export const analyzeImport = async (organizationId, id) 
+=> (await api.post(`${importRoot(organizationId)}/${id}/analizar/`)).data;
+frontend\src\features\datos\services\dataApi.js:13:export const saveImportMapping = async (organizationId, 
+id, mappings, options = {}) => (await api.post(`${importRoot(organizationId)}/${id}/mapeo/`, { nombre: 
+"Mapeo ambiental", mapeos: mappings, destino_operacional: options.destination, flujo: options.flow, 
+contexto: options.context || {} })).data;
+frontend\src\features\datos\services\dataApi.js:14:export const previewImport = async (organizationId, id) 
+=> (await api.get(`${importRoot(organizationId)}/${id}/preview/`)).data;
+frontend\src\features\datos\services\dataApi.js:15:export const confirmImport = async (organizationId, id) 
+=> (await api.post(`${importRoot(organizationId)}/${id}/confirmar/`)).data;
+frontend\src\features\diagnostico\api\diagnosticoApi.js:6:        await api.get(
+frontend\src\features\diagnostico\api\diagnosticoApi.js:31:export const getCapacidades = async (id) => 
+(await api.get(`${base(id)}/capacidades-ambientales/`)).data;
+frontend\src\features\diagnostico\api\diagnosticoApi.js:32:export const updateCapacidad = async (id, 
+capacidadId, data) => (await api.patch(`${base(id)}/capacidades-ambientales/${capacidadId}/`, data)).data;
+frontend\src\features\diagnostico\api\diagnosticoApi.js:33:export const getUnidades = async (id) => (await 
+api.get(`${base(id)}/unidades-operacionales/`)).data;
+frontend\src\features\diagnostico\api\diagnosticoApi.js:34:export const createUnidad = async (id, data) => 
+(await api.post(`${base(id)}/unidades-operacionales/`, data)).data;
+frontend\src\features\diagnostico\api\diagnosticoApi.js:35:export const getProcesos = async (id) => (await 
+api.get(`${base(id)}/procesos-operacionales/`)).data;
+frontend\src\features\diagnostico\api\diagnosticoApi.js:36:export const createProceso = async (id, data) 
+=> (await api.post(`${base(id)}/procesos-operacionales/`, data)).data;
+frontend\src\features\diagnostico\api\diagnosticoApi.js:37:export const getPreparacion = async (id) => 
+(await api.get(`${base(id)}/preparacion-ambiental/`)).data;
+frontend\src\features\environmental\services\environmentalActionClosureApi.js:8:  return (await 
+api.get(actionPath(actionId, "closure-status"))).data;
+frontend\src\features\environmental\services\environmentalActionClosureApi.js:12:  return (await 
+api.post(actionPath(actionId, "attach-evidence"), payload)).data;
+frontend\src\features\environmental\services\environmentalActionClosureApi.js:16:  return (await 
+api.post(actionPath(actionId, "close"), payload)).data;
+frontend\src\features\environmental\services\environmentalComplianceApi.js:8:  return (await 
+api.get(organizacionPath(organizacionId, "/documentos-ambientales/"))).data;
+frontend\src\features\environmental\services\environmentalComplianceApi.js:12:  return (await 
+api.post(organizacionPath(organizacionId, "/documentos-ambientales/"), payload)).data;
+frontend\src\features\environmental\services\environmentalComplianceApi.js:16:  return (await 
+api.patch(organizacionPath(organizacionId, `/documentos-ambientales/${encodeURIComponent(documentId)}/`), 
+payload)).data;
+frontend\src\features\environmental\services\environmentalComplianceApi.js:20:  await 
+api.delete(organizacionPath(organizacionId, `/documentos-ambientales/${encodeURIComponent(documentId)}/`));
+frontend\src\features\environmental\services\environmentalComplianceApi.js:24:  return (await 
+api.get(organizacionPath(organizacionId, "/variables-ambientales/"))).data;
+frontend\src\features\environmental\services\environmentalComplianceApi.js:28:  return (await 
+api.post(organizacionPath(organizacionId, "/variables-ambientales/"), payload)).data;
+frontend\src\features\environmental\services\environmentalComplianceApi.js:32:  return (await 
+api.patch(organizacionPath(organizacionId, `/variables-ambientales/${encodeURIComponent(variableId)}/`), 
+payload)).data;
+frontend\src\features\environmental\services\environmentalComplianceApi.js:36:  return (await 
+api.get(organizacionPath(organizacionId, "/limites-ambientales/"))).data;
+frontend\src\features\environmental\services\environmentalComplianceApi.js:40:  return (await 
+api.post(organizacionPath(organizacionId, "/limites-ambientales/"), payload)).data;
+frontend\src\features\environmental\services\environmentalComplianceApi.js:44:  return (await 
+api.patch(organizacionPath(organizacionId, `/limites-ambientales/${encodeURIComponent(limitId)}/`), 
+payload)).data;
+frontend\src\features\environmental\services\environmentalComplianceApi.js:48:  return (await 
+api.get(organizacionPath(organizacionId, "/alertas-cumplimiento/"))).data;
+frontend\src\features\environmental\services\environmentalComplianceApi.js:52:  return (await 
+api.patch(organizacionPath(organizacionId, `/alertas-cumplimiento/${encodeURIComponent(alertId)}/`), 
+payload)).data;
+frontend\src\features\environmental\services\environmentalComplianceApi.js:56:  return (await 
+api.get(organizacionPath(organizacionId, "/cumplimiento-ambiental/resumen/"))).data;
+frontend\src\features\environmental\services\environmentalDecisionActionApi.js:8:  return (await 
+api.get(priorityPath(organizacionId, priorityId, "action-preview"))).data;
+frontend\src\features\environmental\services\environmentalDecisionActionApi.js:12:  return (await 
+api.post(priorityPath(organizacionId, priorityId, "create-action"), payload)).data;
+frontend\src\features\environmental\services\environmentalDecisionPriorityApi.js:4:  return (await 
+api.get(`/environmental/decisions/priorities/${encodeURIComponent(organizacionId)}/`)).data;
+frontend\src\features\environmental\services\environmentalExecutiveReportApi.js:4:  const response = await 
+api.get(`/environmental/executive-report/${encodeURIComponent(organizacionId)}/`);
+frontend\src\features\environmental\services\environmentalIngestionReadinessApi.js:4:  const response = 
+await api.get(`/environmental/ingestion-readiness/${encodeURIComponent(organizacionId)}/`);
+frontend\src\features\environmental\services\environmentalKpiApi.js:4:  return (await 
+api.get(`/environmental/kpis/${encodeURIComponent(organizacionId)}/`)).data;
+frontend\src\features\environmental\services\environmentalRecommendationApi.js:4:  return (await 
+api.get(`/environmental/recommendations/${encodeURIComponent(organizacionId)}/`)).data;
+frontend\src\features\environmental\services\environmentalScenarioApi.js:4:  return (await 
+api.get(`/environmental/scenarios/${encodeURIComponent(organizacionId)}/`)).data;
+frontend\src\features\inicio\services\inicioApi.js:9:    
+api.get(`/organizaciones/${encodeURIComponent(organizationId)}/problematicas/`).then((result) => 
+rows(result.data)),
+frontend\src\features\inicio\services\inicioApi.js:10:    
+api.get(`/organizaciones/${encodeURIComponent(organizationId)}/evidencias/`).then((result) => 
+rows(result.data)),
+frontend\src\features\inicio\services\inicioApi.js:11:    ...works.map((work) => 
+api.get(`/organizaciones/${encodeURIComponent(organizationId)}/obras/${work.id || 
+work.obra_id}/contexto/`)),
+frontend\src\features\intelligence\services\copilotApi.js:2:export const getProblemContext = async 
+(problemId) => (await api.get(`/context/problems/${problemId}/`)).data;
+frontend\src\features\intelligence\services\copilotApi.js:3:export const getProposals = async (problemId) 
+=> (await api.get(`/agent/problems/${problemId}/proposals/`)).data;
+frontend\src\features\intelligence\services\copilotApi.js:4:export const createProposal = async 
+(problemId, message, references = []) => (await api.post(`/agent/problems/${problemId}/proposals/`, { 
+mensaje: message, referencias_contextuales: references })).data;
+frontend\src\features\intelligence\services\copilotApi.js:5:export const sendFeedback = async (problemId, 
+proposalId, decision, message = "") => (await 
+api.post(`/agent/problems/${problemId}/proposals/${proposalId}/feedback/`, { decision, mensaje: message 
+})).data;
+frontend\src\features\intelligence\services\copilotApi.js:6:export const confirmCommand = async 
+(commandId) => (await api.post(`/agent/commands/${commandId}/confirm/`, { confirmado: true })).data;
+frontend\src\features\intelligence\services\traceableActionsApi.js:8:  return (await 
+api.get(organizacionPath(organizacionId, "/acciones-ambientales/resumen/"))).data;
+frontend\src\features\intelligence\services\traceableActionsApi.js:12:  return (await 
+api.get(organizacionPath(organizacionId, "/acciones-ambientales/"))).data;
+frontend\src\features\intelligence\services\traceableActionsApi.js:16:  return (await 
+api.post(organizacionPath(organizacionId, "/acciones-ambientales/"), payload)).data;
+frontend\src\features\intelligence\services\traceableActionsApi.js:20:  return (await 
+api.patch(organizacionPath(organizacionId, `/acciones-ambientales/${encodeURIComponent(actionId)}/`), 
+payload)).data;
+frontend\src\features\intelligence\services\traceableActionsApi.js:24:  await 
+api.delete(organizacionPath(organizacionId, `/acciones-ambientales/${encodeURIComponent(actionId)}/`));
+frontend\src\features\knowledge\api\knowledgeApi.js:4:export const getKnowledgeCases = async (id) => 
+(await api.get(`${base(id)}/casos/`)).data;
+frontend\src\features\knowledge\api\knowledgeApi.js:5:export const getKnowledgeAggregate = async (id, 
+params = {}) => (await api.get(`${base(id)}/agregado/`, { params })).data;
+frontend\src\features\mejora\services\improvementApi.js:7:export const listProblems = async 
+(organizationId, workId) => (await api.get(`${root(organizationId)}/`, options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:8:export const createProblem = async 
+(organizationId, payload) => (await api.post(`${root(organizationId)}/`, payload)).data;
+frontend\src\features\mejora\services\improvementApi.js:9:export const getProblem = async (organizationId, 
+problemId, workId) => (await api.get(detail(organizationId, problemId), options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:10:export const getProblemScope = async 
+(organizationId, problemId, workId) => (await api.get(detail(organizationId, problemId, "alcance/"), 
+options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:11:export const getProblemIndicators = async 
+(organizationId, problemId, workId) => (await api.get(detail(organizationId, problemId, "indicadores/"), 
+options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:12:export const getProblemActions = async 
+(organizationId, problemId, workId) => (await api.get(detail(organizationId, problemId, "acciones/"), 
+options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:13:export const createProblemAction = async 
+(organizationId, problemId, payload, workId) => (await api.post(detail(organizationId, problemId, 
+"acciones/"), payload, options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:14:export const selectProblemAction = async 
+(organizationId, problemId, actionId, workId) => (await api.post(detail(organizationId, problemId, 
+`acciones/${actionId}/seleccionar/`), {}, options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:15:export const startProblemAction = async 
+(organizationId, problemId, actionId, workId) => (await api.post(detail(organizationId, problemId, 
+`acciones/${actionId}/iniciar/`), { confirmado: true }, options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:16:export const implementProblemAction = async 
+(organizationId, problemId, actionId, workId) => (await api.post(detail(organizationId, problemId, 
+`acciones/${actionId}/implementar/`), {}, options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:17:export const getMeasurements = async 
+(organizationId, problemId, workId) => (await api.get(detail(organizationId, problemId, "seguimientos/"), 
+options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:18:export const createMeasurement = async 
+(organizationId, problemId, payload, workId) => (await api.post(detail(organizationId, problemId, 
+"seguimientos/"), payload, options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:19:export const measureFromEngine = async 
+(organizationId, problemId, workId) => (await api.post(detail(organizationId, problemId, 
+"seguimientos/motor/"), {}, options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:20:export const evaluateProblem = async 
+(organizationId, problemId, workId) => (await api.post(detail(organizationId, problemId, "evaluar/"), {}, 
+options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:21:export const getBaseSnapshot = async 
+(organizationId, problemId, workId) => (await api.get(detail(organizationId, problemId, "snapshot-base/"), 
+options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:22:export const getCycles = async (organizationId, 
+problemId, workId) => (await api.get(detail(organizationId, problemId, "ciclos/"), options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:23:export const reevaluateProblem = async 
+(organizationId, problemId, actionId, workId) => (await api.post(detail(organizationId, problemId, 
+"reevaluar/"), { accion: actionId }, options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:24:export const escalateProblem = async 
+(organizationId, problemId, reason, workId) => (await api.post(detail(organizationId, problemId, 
+"escalar/"), { motivo: reason }, options(workId))).data;
+frontend\src\features\mejora\services\improvementApi.js:25:export const getHistory = async 
+(organizationId, problemId, workId) => (await api.get(detail(organizationId, problemId, "historial/"), 
+options(workId))).data;
+frontend\src\features\obras\services\workspaceApi.js:25:  return rows((await 
+api.get(`/organizaciones/${encodeURIComponent(organizationId)}/obras/`)).data);
+frontend\src\features\obras\services\workspaceApi.js:29:  return (await 
+api.post(`/organizaciones/${encodeURIComponent(organizationId)}/obras/`, {
+frontend\src\features\obras\services\workspaceApi.js:38:  const context = await 
+api.get(`${base(organizationId, workId)}/contexto/`);
+frontend\src\features\obras\services\workspaceApi.js:46:    api.get(`${base(organizationId, 
+workId)}/contexto/`),
+frontend\src\features\obras\services\workspaceApi.js:47:    api.get(`${base(organizationId, 
+workId)}/timeline/`),
+frontend\src\features\obras\services\workspaceApi.js:48:    api.get(`${base(organizationId, 
+workId)}/indicadores/`),
+frontend\src\features\operacion\api\calculationV2Api.js:3:export const 
+getEligibility=async(id,activityId)=>(await 
+api.get(`${base(id)}/actividades-operacionales/${activityId}/elegibilidad/`)).data;
+frontend\src\features\operacion\api\calculationV2Api.js:4:export const 
+calculateImpact=async(id,activityId)=>(await 
+api.post(`${base(id)}/actividades-operacionales/${activityId}/calcular/`)).data;
+frontend\src\features\operacion\api\calculationV2Api.js:5:export const 
+getCalculations=async(id,activityId)=>(await 
+api.get(`${base(id)}/actividades-operacionales/${activityId}/calculos/`)).data;
+frontend\src\features\operacion\api\calculationV2Api.js:6:export const getMethodologies=async(id)=>(await 
+api.get(`${base(id)}/metodologias/`)).data;
+frontend\src\features\operacion\api\materialsApi.js:8:        await api.get(
+frontend\src\features\operacion\api\materialsApi.js:18:        await api.post(
+frontend\src\features\operacion\api\materialsApi.js:29:        await api.get(
+frontend\src\features\operacion\api\materialsApi.js:40:        await api.patch(
+frontend\src\features\operacion\api\materialsApi.js:51:        await api.get(
+frontend\src\features\operacion\api\materialsApi.js:62:        await api.post(
+frontend\src\features\operacion\api\materialsApi.js:73:        await api.get(
+frontend\src\features\operacion\api\materialsApi.js:84:        await api.post(
+frontend\src\features\operacion\api\materialsApi.js:95:        await api.get(
+frontend\src\features\operacion\api\materialsApi.js:106:        await api.patch(
+frontend\src\features\operacion\api\materialsApi.js:118:        await api.get(
+frontend\src\features\operacion\api\materialsApi.js:130:        await api.get(
+frontend\src\features\operacion\api\materialsApi.js:138:        await api.get(
+frontend\src\features\operacion\api\sectorFlowsApi.js:11:        await api.get(
+frontend\src\features\operacion\api\sectorFlowsApi.js:22:        await api.post(
+frontend\src\features\operacion\api\sectorFlowsApi.js:33:        await api.get(
+frontend\src\features\operacion\api\sectorFlowsApi.js:44:        await api.post(
+frontend\src\features\operacion\api\sectorFlowsApi.js:55:        await api.get(
+frontend\src\features\operacion\api\sectorFlowsApi.js:66:        await api.patch(
+frontend\src\features\operacion\api\sectorFlowsApi.js:77:        await api.get(
+frontend\src\features\operacion\api\transportApi.js:8:        await api.get(
+frontend\src\features\operacion\api\transportApi.js:18:        await api.post(
+frontend\src\features\operacion\api\transportApi.js:29:        await api.get(
+frontend\src\features\operacion\api\transportApi.js:42:        await api.post(
+frontend\src\features\operacion\api\transportApi.js:53:        await api.get(
+frontend\src\features\operacion\api\transportApi.js:64:        await api.patch(
+frontend\src\features\operacion\api\transportApi.js:76:        await api.get(
+frontend\src\features\operacion\services\operationApi.js:8:    
+api.get(`${base(organizationId)}/flujos-ambientales/`, { params }),
+frontend\src\features\operacion\services\operationApi.js:9:    
+api.get(`${base(organizationId)}/puntos-ambientales/`, { params }),
+frontend\src\features\operacion\services\operationApi.js:10:    
+api.get(`${base(organizationId)}/viajes-operacionales/`, { params }),
+frontend\src\features\operacion\services\operationApi.js:11:    
+api.get(`${base(organizationId)}/viajes-operacionales/indicadores/`, { params }),
+frontend\src\features\operacion\services\operationApi.js:12:    
+api.get(`${base(organizationId)}/obras/${encodeURIComponent(workId)}/materiales/`),
+frontend\src\features\operacion\services\operationApi.js:13:    
+api.get(`${base(organizationId)}/eventos-materiales/`, { params }),
+frontend\src\features\professional\api\professionalV2Api.js:3:export const 
+getProfessionalReviews=async(id,params={})=>(await 
+api.get(`${base(id)}/revisiones-profesionales/`,{params})).data;
+frontend\src\features\professional\api\professionalV2Api.js:4:export const 
+addReviewFinding=async(id,reviewId,payload)=>(await 
+api.post(`${base(id)}/revisiones-profesionales/${reviewId}/hallazgos/`,payload)).data;
+frontend\src\features\professional\api\professionalV2Api.js:5:export const 
+decideReview=async(id,reviewId,payload)=>(await 
+api.post(`${base(id)}/revisiones-profesionales/${reviewId}/decision/`,payload)).data;
+frontend\src\features\professional\api\professionalV2Api.js:6:export const getDossiers=async(id)=>(await 
+api.get(`${base(id)}/expedientes/`)).data;
+frontend\src\features\professional\api\professionalV2Api.js:7:export const 
+getDossier=async(id,dossierId)=>(await api.get(`${base(id)}/expedientes/${dossierId}/`)).data;
+frontend\src\features\professional\api\professionalV2Api.js:8:export const 
+closeDossier=async(id,dossierId)=>(await api.post(`${base(id)}/expedientes/${dossierId}/cerrar/`)).data;
+frontend\src\features\professional\api\professionalV2Api.js:9:export const 
+reopenDossier=async(id,dossierId,motivo)=>(await 
+api.post(`${base(id)}/expedientes/${dossierId}/reabrir/`,{motivo})).data;
+frontend\src\features\professional\api\professionalV2Api.js:10:export const 
+generateDossierReport=async(id,dossierId)=>(await 
+api.post(`${base(id)}/informes/`,{tipo:"expediente",expediente:dossierId})).data;
+frontend\src\features\professional\api\professionalV2Api.js:11:export const 
+validateProfessionalReport=async(id,reportId)=>(await 
+api.post(`${base(id)}/informes/${reportId}/validar/`)).data;
+frontend\src\features\professional\api\professionalV2Api.js:13:export const 
+getEnvironmentalAudit=async(id)=>(await api.get(`${base(id)}/auditoria/`)).data;
+frontend\src\features\professional\api\professionalV2Api.js:14:export const 
+getQualityEvaluations=async(id)=>(await api.get(`${base(id)}/calidad/observaciones/`)).data;
+frontend\src\features\professional\api\professionalV2Api.js:15:export const 
+getDiscrepancies=async(id)=>(await api.get(`${base(id)}/discrepancias/`)).data;
+frontend\src\features\professional\api\professionalV2Api.js:16:export const 
+getSourcePolicies=async(id)=>(await api.get(`${base(id)}/politicas-fuente/`)).data;
+frontend\src\features\sensores\api\sensorsApi.js:2:export const getSensors=async id=>(await 
+api.get(`${base(id)}/sensores/`)).data;
+frontend\src\features\sensores\api\sensorsApi.js:3:export const getSensor=async(id,sensorId)=>(await 
+api.get(`${base(id)}/sensores/${sensorId}/`)).data;
+frontend\src\features\sensores\api\sensorsApi.js:4:export const createSensor=async(id,data)=>(await 
+api.post(`${base(id)}/sensores/`,data)).data;
+frontend\src\features\sensores\api\sensorsApi.js:5:export const 
+createInstallation=async(id,sensorId,data)=>(await 
+api.post(`${base(id)}/sensores/${sensorId}/instalaciones/`,data)).data;
+frontend\src\features\sensores\api\sensorsApi.js:6:export const 
+createCalibration=async(id,sensorId,data)=>(await 
+api.post(`${base(id)}/sensores/${sensorId}/calibraciones/`,data)).data;
+frontend\src\features\sensores\api\sensorsApi.js:7:export const 
+createReading=async(id,sensorId,data)=>(await 
+api.post(`${base(id)}/sensores/${sensorId}/lecturas/`,data)).data;
+
+

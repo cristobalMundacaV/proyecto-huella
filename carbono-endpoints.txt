@@ -1,0 +1,429 @@
+﻿
+backend\apps\analytics\urls.py:152:    path("organizaciones/<str:organizacion_id>/puntos-ambientales/", 
+environmental_points),
+backend\apps\analytics\urls.py:153:    path("organizaciones/<str:organizacion_id>/flujos-ambientales/", 
+sector_records),
+backend\apps\analytics\urls.py:154:    
+path("organizaciones/<str:organizacion_id>/flujos-ambientales/indicadores/", sector_indicators),
+backend\apps\analytics\urls.py:155:    
+path("organizaciones/<str:organizacion_id>/flujos-ambientales/<int:record_id>/", sector_record_detail),
+backend\apps\analytics\urls.py:156:    
+path("organizaciones/<str:organizacion_id>/materiales-operacionales/", operational_materials),
+backend\apps\analytics\urls.py:157:    
+path("organizaciones/<str:organizacion_id>/materiales-operacionales/indicadores/", material_indicators),
+backend\apps\analytics\urls.py:158:    
+path("organizaciones/<str:organizacion_id>/materiales-operacionales/<int:material_id>/", material_detail),
+backend\apps\analytics\urls.py:159:    
+path("organizaciones/<str:organizacion_id>/materiales-operacionales/<int:material_id>/balance/", 
+material_balance_v2),
+backend\apps\analytics\urls.py:160:    
+path("organizaciones/<str:organizacion_id>/materiales-operacionales/<int:material_id>/lineage/", 
+material_lineage_v2),
+backend\apps\analytics\urls.py:161:    path("organizaciones/<str:organizacion_id>/lotes-materiales/", 
+material_lots),
+backend\apps\analytics\urls.py:162:    path("organizaciones/<str:organizacion_id>/eventos-materiales/", 
+material_events),
+backend\apps\analytics\urls.py:163:    
+path("organizaciones/<str:organizacion_id>/eventos-materiales/<int:event_id>/", event_detail),
+backend\apps\analytics\urls.py:164:    path("organizaciones/<str:organizacion_id>/rutas-operacionales/", 
+routes),
+backend\apps\analytics\urls.py:165:    path("organizaciones/<str:organizacion_id>/viajes-operacionales/", 
+journeys),
+backend\apps\analytics\urls.py:166:    
+path("organizaciones/<str:organizacion_id>/viajes-operacionales/indicadores/", journey_indicators),
+backend\apps\analytics\urls.py:167:    
+path("organizaciones/<str:organizacion_id>/viajes-operacionales/<int:journey_id>/", journey_detail),
+backend\apps\analytics\urls.py:168:    path("organizaciones/<str:organizacion_id>/conocimiento/casos/", 
+knowledge_cases),
+backend\apps\analytics\urls.py:169:    
+path("organizaciones/<str:organizacion_id>/conocimiento/casos/<int:case_id>/", knowledge_case_detail),
+backend\apps\analytics\urls.py:170:    path("organizaciones/<str:organizacion_id>/conocimiento/agregado/", 
+knowledge_aggregate),
+backend\apps\analytics\urls.py:171:    
+path("organizaciones/<str:organizacion_id>/revisiones-profesionales/", revisiones_profesionales),
+backend\apps\analytics\urls.py:172:    
+path("organizaciones/<str:organizacion_id>/revisiones-profesionales/<int:revision_id>/", 
+revision_profesional_detail),
+backend\apps\analytics\urls.py:173:    
+path("organizaciones/<str:organizacion_id>/revisiones-profesionales/<int:revision_id>/hallazgos/", 
+revision_hallazgos),
+backend\apps\analytics\urls.py:174:    
+path("organizaciones/<str:organizacion_id>/revisiones-profesionales/<int:revision_id>/decision/", 
+revision_decision),
+backend\apps\analytics\urls.py:175:    path("organizaciones/<str:organizacion_id>/auditoria/", auditoria),
+backend\apps\analytics\urls.py:176:    path("organizaciones/<str:organizacion_id>/expedientes/", 
+expedientes),
+backend\apps\analytics\urls.py:177:    
+path("organizaciones/<str:organizacion_id>/expedientes/<int:expediente_id>/", expediente_detail),
+backend\apps\analytics\urls.py:178:    
+path("organizaciones/<str:organizacion_id>/expedientes/<int:expediente_id>/cerrar/", expediente_close),
+backend\apps\analytics\urls.py:179:    
+path("organizaciones/<str:organizacion_id>/expedientes/<int:expediente_id>/reabrir/", expediente_reopen),
+backend\apps\analytics\urls.py:180:    path("organizaciones/<str:organizacion_id>/informes/", informes),
+backend\apps\analytics\urls.py:181:    
+path("organizaciones/<str:organizacion_id>/informes/<int:informe_id>/", informe_detail),
+backend\apps\analytics\urls.py:182:    
+path("organizaciones/<str:organizacion_id>/informes/<int:informe_id>/pdf/", informe_pdf),
+backend\apps\analytics\urls.py:183:    
+path("organizaciones/<str:organizacion_id>/informes/<int:informe_id>/validar/", informe_validate),
+backend\apps\analytics\urls.py:184:    path("context/problems/<int:problem_id>/", context_problem),
+backend\apps\analytics\urls.py:185:    path("context/assets/<int:asset_id>/", context_asset),
+backend\apps\analytics\urls.py:186:    path("context/assets/<int:asset_id>/maintenance/", 
+context_asset_maintenance),
+backend\apps\analytics\urls.py:187:    path("context/sensors/<int:sensor_id>/health/", 
+context_sensor_health),
+backend\apps\analytics\urls.py:188:    path("context/indicators/<int:indicator_id>/history/", 
+context_indicator_history),
+backend\apps\analytics\urls.py:189:    path("context/evidence/<int:evidence_id>/", context_evidence),
+backend\apps\analytics\urls.py:190:    path("context/organizations/<str:organization_id>/memory/", 
+context_organization_memory),
+backend\apps\analytics\urls.py:191:    path("agent/problems/<int:problem_id>/proposals/", 
+agent_problem_proposals),
+backend\apps\analytics\urls.py:192:    
+path("agent/problems/<int:problem_id>/proposals/<int:proposal_id>/feedback/", agent_proposal_feedback),
+backend\apps\analytics\urls.py:193:    path("agent/problems/<int:problem_id>/reevaluation-draft/", 
+agent_reevaluation_draft),
+backend\apps\analytics\urls.py:194:    path("agent/commands/<int:command_id>/confirm/", 
+confirm_copilot_command),
+backend\apps\analytics\urls.py:195:    path("capacidades-ambientales/", capacidades_disponibles),
+backend\apps\analytics\urls.py:196:    path("auth/me/", auth_me),
+backend\apps\analytics\urls.py:197:    path("auth/csrf-token/", auth_csrf_token),
+backend\apps\analytics\urls.py:198:    path("auth/login/", auth_login),
+backend\apps\analytics\urls.py:199:    path("auth/logout/", auth_logout),
+backend\apps\analytics\urls.py:200:    path("auth/bootstrap/", auth_bootstrap),
+backend\apps\analytics\urls.py:201:    path("dashboard/", dashboard_data),
+backend\apps\analytics\urls.py:202:    path("organizaciones/", organizaciones),
+backend\apps\analytics\urls.py:203:    path("organizaciones/<str:organizacion_id>/", 
+organizacion_detail_safe),
+backend\apps\analytics\urls.py:204:    path("organizaciones/<str:organizacion_id>/diagnostico-ambiental/", 
+diagnostico_ambiental),
+backend\apps\analytics\urls.py:205:    
+path("organizaciones/<str:organizacion_id>/capacidades-ambientales/", capacidades_organizacion),
+backend\apps\analytics\urls.py:206:    
+path("organizaciones/<str:organizacion_id>/capacidades-ambientales/<int:capacidad_id>/", 
+capacidad_organizacion_detail),
+backend\apps\analytics\urls.py:207:    
+path("organizaciones/<str:organizacion_id>/unidades-operacionales/", unidades_operacionales),
+backend\apps\analytics\urls.py:208:    
+path("organizaciones/<str:organizacion_id>/unidades-operacionales/<int:unidad_id>/", 
+unidad_operacional_detail),
+backend\apps\analytics\urls.py:209:    
+path("organizaciones/<str:organizacion_id>/procesos-operacionales/", procesos_operacionales),
+backend\apps\analytics\urls.py:210:    
+path("organizaciones/<str:organizacion_id>/procesos-operacionales/<int:proceso_id>/", 
+proceso_operacional_detail),
+backend\apps\analytics\urls.py:211:    path("organizaciones/<str:organizacion_id>/preparacion-ambiental/", 
+preparacion_ambiental),
+backend\apps\analytics\urls.py:212:    
+path("organizaciones/<str:organizacion_id>/obras/<int:obra_id>/ambiental/", environmental_work),
+backend\apps\analytics\urls.py:213:    
+path("organizaciones/<str:organizacion_id>/obras/<int:obra_id>/timeline/", work_timeline),
+backend\apps\analytics\urls.py:214:    
+path("organizaciones/<str:organizacion_id>/obras/<int:obra_id>/indicadores/", work_indicators),
+backend\apps\analytics\urls.py:215:    
+path("organizaciones/<str:organizacion_id>/obras/<int:obra_id>/materiales/", work_materials),
+backend\apps\analytics\urls.py:216:    
+path("organizaciones/<str:organizacion_id>/obras/<int:obra_id>/contexto/", work_context_view),
+backend\apps\analytics\urls.py:217:    path("organizaciones/<str:organizacion_id>/fuentes-datos/", 
+fuentes_datos),
+backend\apps\analytics\urls.py:218:    
+path("organizaciones/<str:organizacion_id>/fuentes-datos/<int:fuente_id>/", fuente_datos_detail),
+backend\apps\analytics\urls.py:219:    
+path("organizaciones/<str:organizacion_id>/actividades-operacionales/", actividades_operacionales),
+backend\apps\analytics\urls.py:220:    
+path("organizaciones/<str:organizacion_id>/actividades-operacionales/<int:actividad_id>/", 
+actividad_operacional_detail),
+backend\apps\analytics\urls.py:221:    
+path("organizaciones/<str:organizacion_id>/actividades-operacionales/<int:actividad_id>/observaciones/", 
+observaciones_actividad),
+backend\apps\analytics\urls.py:222:    
+path("organizaciones/<str:organizacion_id>/observaciones/<int:observacion_id>/", observacion_detail),
+backend\apps\analytics\urls.py:223:    path("organizaciones/<str:organizacion_id>/ingestas/", ingestas),
+backend\apps\analytics\urls.py:224:    
+path("organizaciones/<str:organizacion_id>/ingestas/<int:ingesta_id>/", ingesta_detail),
+backend\apps\analytics\urls.py:225:    
+path("organizaciones/<str:organizacion_id>/ingestas/<int:ingesta_id>/analizar/", ingesta_analizar),
+backend\apps\analytics\urls.py:226:    
+path("organizaciones/<str:organizacion_id>/ingestas/<int:ingesta_id>/mapeo/", ingesta_mapeo),
+backend\apps\analytics\urls.py:227:    
+path("organizaciones/<str:organizacion_id>/ingestas/<int:ingesta_id>/preview/", ingesta_preview),
+backend\apps\analytics\urls.py:228:    
+path("organizaciones/<str:organizacion_id>/ingestas/<int:ingesta_id>/confirmar/", ingesta_confirmar),
+backend\apps\analytics\urls.py:229:    path("organizaciones/<str:organizacion_id>/plantillas-mapeo/", 
+plantillas_mapeo),
+backend\apps\analytics\urls.py:230:    path("organizaciones/<str:organizacion_id>/activos/", activos),
+backend\apps\analytics\urls.py:231:    
+path("organizaciones/<str:organizacion_id>/activos/<int:activo_id>/", activo_detail),
+backend\apps\analytics\urls.py:232:    
+path("organizaciones/<str:organizacion_id>/activos/<int:activo_id>/mantenimientos/", 
+mantenimientos_activo),
+backend\apps\analytics\urls.py:233:    
+path("organizaciones/<str:organizacion_id>/mantenimientos/<int:mantenimiento_id>/", mantenimiento_detail),
+backend\apps\analytics\urls.py:234:    
+path("organizaciones/<str:organizacion_id>/activos/<int:activo_id>/condiciones/", condiciones_activo),
+backend\apps\analytics\urls.py:235:    path("organizaciones/<str:organizacion_id>/sensores/", sensores),
+backend\apps\analytics\urls.py:236:    
+path("organizaciones/<str:organizacion_id>/sensores/<int:sensor_id>/", sensor_detail),
+backend\apps\analytics\urls.py:237:    
+path("organizaciones/<str:organizacion_id>/sensores/<int:sensor_id>/instalaciones/", instalaciones),
+backend\apps\analytics\urls.py:238:    
+path("organizaciones/<str:organizacion_id>/sensores/<int:sensor_id>/calibraciones/", calibraciones),
+backend\apps\analytics\urls.py:239:    
+path("organizaciones/<str:organizacion_id>/sensores/<int:sensor_id>/lecturas/", lecturas_sensor_v2),
+backend\apps\analytics\urls.py:240:    path("organizaciones/<str:organizacion_id>/metodologias/", 
+metodologias),
+backend\apps\analytics\urls.py:241:    
+path("organizaciones/<str:organizacion_id>/metodologias/<int:metodologia_id>/", metodologia_detail),
+backend\apps\analytics\urls.py:242:    path("organizaciones/<str:organizacion_id>/metodologias/<int:metodol
+ogia_id>/versiones/<int:version_id>/transicion/", metodologia_transition),
+backend\apps\analytics\urls.py:243:    path("organizaciones/<str:organizacion_id>/metodologias/<int:metodol
+ogia_id>/versiones/<int:version_id>/variables/", metodologia_variables),
+backend\apps\analytics\urls.py:244:    path("organizaciones/<str:organizacion_id>/metodologias/<int:metodol
+ogia_id>/versiones/<int:version_id>/variables/<int:variable_id>/", metodologia_variables),
+backend\apps\analytics\urls.py:245:    path("organizaciones/<str:organizacion_id>/factores-ambientales/", 
+factores_ambientales),
+backend\apps\analytics\urls.py:246:    
+path("organizaciones/<str:organizacion_id>/actividades-operacionales/<int:actividad_id>/elegibilidad/", 
+elegibilidad_actividad),
+backend\apps\analytics\urls.py:247:    
+path("organizaciones/<str:organizacion_id>/actividades-operacionales/<int:actividad_id>/calcular/", 
+calcular_actividad),
+backend\apps\analytics\urls.py:248:    
+path("organizaciones/<str:organizacion_id>/actividades-operacionales/<int:actividad_id>/calculos/", 
+calculos_actividad),
+backend\apps\analytics\urls.py:249:    
+path("organizaciones/<str:organizacion_id>/calculos/<int:calculo_id>/", calculo_detail),
+backend\apps\analytics\urls.py:250:    
+path("organizaciones/<str:organizacion_id>/calculos/<int:calculo_id>/recalcular/", calculo_recalculate),
+backend\apps\analytics\urls.py:251:    
+path("organizaciones/<str:organizacion_id>/calculos/<int:calculo_id>/snapshot/", calculo_snapshot),
+backend\apps\analytics\urls.py:252:    
+path("organizaciones/<str:organizacion_id>/calculos/<int:calculo_id>/comparar/<int:other_id>/", 
+calculo_compare),
+backend\apps\analytics\urls.py:253:    path("organizaciones/<str:organizacion_id>/impactos-ambientales/", 
+impactos_ambientales),
+backend\apps\analytics\urls.py:254:    path("organizaciones/<str:organizacion_id>/calidad/observaciones/", 
+calidad_observaciones),
+backend\apps\analytics\urls.py:255:    path("organizaciones/<str:organizacion_id>/discrepancias/", 
+discrepancias),
+backend\apps\analytics\urls.py:256:    
+path("organizaciones/<str:organizacion_id>/discrepancias/<int:discrepancia_id>/", discrepancia_detail),
+backend\apps\analytics\urls.py:257:    path("organizaciones/<str:organizacion_id>/politicas-fuente/", 
+politicas_fuente),
+backend\apps\analytics\urls.py:258:    path("organizaciones/<str:organizacion_id>/indicadores/", 
+indicadores),
+backend\apps\analytics\urls.py:259:    
+path("organizaciones/<str:organizacion_id>/indicadores/<int:indicador_id>/serie/", serie_indicador),
+backend\apps\analytics\urls.py:260:    
+path("organizaciones/<str:organizacion_id>/indicadores/<int:indicador_id>/comparacion/", 
+comparacion_indicador),
+backend\apps\analytics\urls.py:261:    path("organizaciones/<str:organizacion_id>/lineas-base/", 
+lineas_base),
+backend\apps\analytics\urls.py:262:    path("organizaciones/<str:organizacion_id>/resumen-ambiental-v2/", 
+resumen_ambiental_v2),
+backend\apps\analytics\urls.py:263:    path("organizaciones/<str:organizacion_id>/estado/", 
+organizacion_estado),
+backend\apps\analytics\urls.py:264:    path("organizaciones/<str:organizacion_id>/configuracion/", 
+organizacion_configuracion),
+backend\apps\analytics\urls.py:265:    path("organizaciones/<str:organizacion_id>/dashboard/", 
+organizacion_dashboard),
+backend\apps\analytics\urls.py:266:    path("organizaciones/<str:organizacion_id>/etapas/", 
+organizacion_etapas),
+backend\apps\analytics\urls.py:267:    path("organizaciones/<str:organizacion_id>/usuarios/", 
+organizacion_usuarios),
+backend\apps\analytics\urls.py:268:    path("organizaciones/<str:organizacion_id>/obras/", 
+organizacion_obras),
+backend\apps\analytics\urls.py:269:    path("organizaciones/<str:organizacion_id>/registros-emision/", 
+organizacion_registros_emision),
+backend\apps\analytics\urls.py:270:    
+path("organizaciones/<str:organizacion_id>/registros-emision/<int:registro_id>/aplicar-factor/", 
+organizacion_registro_aplicar_factor),
+backend\apps\analytics\urls.py:271:    path("organizaciones/<str:organizacion_id>/emisiones/", 
+organizacion_emisiones),
+backend\apps\analytics\urls.py:272:    
+path("organizaciones/<str:organizacion_id>/acciones-ambientales/resumen/", 
+organizacion_acciones_ambientales_resumen),
+backend\apps\analytics\urls.py:273:    path("organizaciones/<str:organizacion_id>/acciones-ambientales/", 
+organizacion_acciones_ambientales),
+backend\apps\analytics\urls.py:274:    
+path("organizaciones/<str:organizacion_id>/acciones-ambientales/<int:action_id>/", 
+organizacion_accion_ambiental_detail),
+backend\apps\analytics\urls.py:275:    path("organizaciones/<str:organizacion_id>/lotes-forestales/", 
+organizacion_lotes_forestales),
+backend\apps\analytics\urls.py:276:    
+path("organizaciones/<str:organizacion_id>/lotes-forestales/resumen/", 
+organizacion_lotes_forestales_resumen),
+backend\apps\analytics\urls.py:277:    
+path("organizaciones/<str:organizacion_id>/lotes-forestales/<str:lote_id>/transportes/", 
+organizacion_lote_forestal_transportes),
+backend\apps\analytics\urls.py:278:    
+path("organizaciones/<str:organizacion_id>/lotes-forestales/<str:lote_id>/", 
+organizacion_lote_forestal_detail),
+backend\apps\analytics\urls.py:279:    path("organizaciones/<str:organizacion_id>/evidencias/", 
+organizacion_evidencias),
+backend\apps\analytics\urls.py:280:    path("organizaciones/<str:organizacion_id>/evidencias/extraer/", 
+organizacion_evidencia_extraer),
+backend\apps\analytics\urls.py:281:    path("organizaciones/<str:organizacion_id>/reportes/", 
+organizacion_reportes),
+backend\apps\analytics\urls.py:282:    
+path("organizaciones/<str:organizacion_id>/documentos-ambientales/", documentos_ambientales),
+backend\apps\analytics\urls.py:283:    
+path("organizaciones/<str:organizacion_id>/documentos-ambientales/<int:documento_id>/", 
+documento_ambiental_detail),
+backend\apps\analytics\urls.py:284:    path("organizaciones/<str:organizacion_id>/variables-ambientales/", 
+variables_ambientales),
+backend\apps\analytics\urls.py:285:    
+path("organizaciones/<str:organizacion_id>/variables-ambientales/<int:variable_id>/", 
+variable_ambiental_detail),
+backend\apps\analytics\urls.py:286:    path("organizaciones/<str:organizacion_id>/limites-ambientales/", 
+limites_ambientales),
+backend\apps\analytics\urls.py:287:    
+path("organizaciones/<str:organizacion_id>/limites-ambientales/<int:limite_id>/", limite_ambiental_detail),
+backend\apps\analytics\urls.py:288:    path("organizaciones/<str:organizacion_id>/alertas-cumplimiento/", 
+alertas_cumplimiento),
+backend\apps\analytics\urls.py:289:    
+path("organizaciones/<str:organizacion_id>/alertas-cumplimiento/<int:alerta_id>/", 
+alerta_cumplimiento_detail),
+backend\apps\analytics\urls.py:290:    
+path("organizaciones/<str:organizacion_id>/cumplimiento-ambiental/resumen/", 
+cumplimiento_ambiental_resumen),
+backend\apps\analytics\urls.py:291:    path("organizaciones/<str:organizacion_id>/motor-ambiental/", 
+environmental_engine_results),
+backend\apps\analytics\urls.py:292:    path("organizaciones/<str:organizacion_id>/acv/", 
+environmental_lca_results),
+backend\apps\analytics\urls.py:293:    path("organizaciones/<str:organizacion_id>/contexto/", 
+organization_context_view),
+backend\apps\analytics\urls.py:294:    path("organizaciones/<str:organizacion_id>/kpis/", 
+organization_kpis_view),
+backend\apps\analytics\urls.py:295:    path("problemas/<int:problem_id>/contexto/", problem_context_view),
+backend\apps\analytics\urls.py:296:    path("problemas/<int:problem_id>/historial/", problem_history_view),
+backend\apps\analytics\urls.py:297:    path("problemas/<int:problem_id>/fuentes/", problem_sources_view),
+backend\apps\analytics\urls.py:298:    path("problemas/<int:problem_id>/acciones-previas/", 
+problem_actions_view),
+backend\apps\analytics\urls.py:299:    path("problemas/<int:problem_id>/evidencias-resumen/", 
+problem_evidence_view),
+backend\apps\analytics\urls.py:300:    path("problemas/<int:problem_id>/contexto-normativo/", 
+problem_normative_view),
+backend\apps\analytics\urls.py:301:    path("problemas/<int:problem_id>/recomendaciones/", 
+problem_recommendations_view),
+backend\apps\analytics\urls.py:302:    path("problemas/<int:problem_id>/escalamiento/", 
+problem_escalation_view),
+backend\apps\analytics\urls.py:303:    path("problemas/<int:problem_id>/expediente/", 
+problem_dossier_view),
+backend\apps\analytics\urls.py:304:    path("materiales/<int:material_id>/ciclo-vida/", 
+material_lifecycle_view),
+backend\apps\analytics\urls.py:305:    path("organizaciones/<str:organizacion_id>/problematicas/", 
+problematicas),
+backend\apps\analytics\urls.py:306:    
+path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/", problematica_detail),
+backend\apps\analytics\urls.py:307:    
+path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/transicion/", 
+problematica_transition),
+backend\apps\analytics\urls.py:308:    
+path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/acciones/", 
+problematica_actions),
+backend\apps\analytics\urls.py:309:    
+path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/alcance/", 
+problematica_scope),
+backend\apps\analytics\urls.py:310:    
+path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/indicadores/", 
+problematica_indicators),
+backend\apps\analytics\urls.py:311:    path("organizaciones/<str:organizacion_id>/problematicas/<int:proble
+matica_id>/acciones/<int:action_id>/seleccionar/", problematica_action_select),
+backend\apps\analytics\urls.py:312:    path("organizaciones/<str:organizacion_id>/problematicas/<int:proble
+matica_id>/acciones/<int:action_id>/iniciar/", problematica_action_start),
+backend\apps\analytics\urls.py:313:    path("organizaciones/<str:organizacion_id>/problematicas/<int:proble
+matica_id>/acciones/<int:action_id>/implementar/", problematica_action_implement),
+backend\apps\analytics\urls.py:314:    
+path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/seguimientos/", 
+problematica_measurements),
+backend\apps\analytics\urls.py:315:    
+path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/seguimientos/motor/", 
+problematica_measure_engine),
+backend\apps\analytics\urls.py:316:    
+path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/evaluar/", 
+problematica_evaluate),
+backend\apps\analytics\urls.py:317:    
+path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/snapshot-base/", 
+problematica_snapshot_base),
+backend\apps\analytics\urls.py:318:    
+path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/ciclos/", 
+problematica_cycles),
+backend\apps\analytics\urls.py:319:    
+path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/reevaluar/", 
+problematica_reevaluate),
+backend\apps\analytics\urls.py:320:    
+path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/escalar/", 
+problematica_escalate),
+backend\apps\analytics\urls.py:321:    
+path("organizaciones/<str:organizacion_id>/problematicas/<int:problematica_id>/historial/", 
+problematica_history),
+backend\apps\analytics\urls.py:322:    path("environmental/kpis/<str:organizacion_id>/", 
+environmental_kpis),
+backend\apps\analytics\urls.py:323:    path("environmental/recommendations/<str:organizacion_id>/", 
+environmental_recommendations),
+backend\apps\analytics\urls.py:324:    path("environmental/scenarios/<str:organizacion_id>/", 
+environmental_scenarios),
+backend\apps\analytics\urls.py:325:    path("environmental/decisions/priorities/<str:organizacion_id>/", 
+environmental_decision_priorities),
+backend\apps\analytics\urls.py:326:    path("environmental/executive-report/<str:organizacion_id>/", 
+environmental_executive_report),
+backend\apps\analytics\urls.py:327:    path("environmental/ingestion-readiness/<str:organizacion_id>/", 
+environmental_ingestion_readiness),
+backend\apps\analytics\urls.py:328:    
+path("environmental/decisions/priorities/<str:organizacion_id>/<str:priority_id>/action-preview/", 
+environmental_decision_action_preview),
+backend\apps\analytics\urls.py:329:    
+path("environmental/decisions/priorities/<str:organizacion_id>/<str:priority_id>/create-action/", 
+environmental_decision_create_action),
+backend\apps\analytics\urls.py:330:    path("environmental/actions/<int:action_id>/closure-status/", 
+environmental_action_closure_status),
+backend\apps\analytics\urls.py:331:    path("environmental/actions/<int:action_id>/attach-evidence/", 
+environmental_action_attach_evidence),
+backend\apps\analytics\urls.py:332:    path("environmental/actions/<int:action_id>/close/", 
+environmental_action_close),
+backend\apps\analytics\urls.py:333:    path("importaciones/completa/preview/", 
+importacion_completa_preview),
+backend\apps\analytics\urls.py:334:    path("importaciones/completa/confirm/", 
+importacion_completa_confirm),
+backend\apps\analytics\urls.py:335:    path("importaciones/plantilla-construccion/", 
+plantilla_importacion_construccion),
+backend\apps\analytics\urls.py:336:    path("importaciones/plantilla-generica/", 
+plantilla_importacion_generica),
+backend\apps\analytics\urls.py:337:    path("importaciones/generica/preview/", 
+importacion_generica_preview),
+backend\apps\analytics\urls.py:338:    
+path("organizaciones/<str:organizacion_id>/importaciones/<str:kind>/preview/", importacion_preview),
+backend\apps\analytics\urls.py:339:    
+path("organizaciones/<str:organizacion_id>/importaciones/<str:kind>/confirm/", importacion_confirm),
+backend\apps\analytics\urls.py:340:    path("importaciones/<str:kind>/preview/", importacion_preview),
+backend\apps\analytics\urls.py:341:    path("importaciones/<str:kind>/confirm/", importacion_confirm),
+backend\apps\analytics\urls.py:342:    path("obras/", obras),
+backend\apps\analytics\urls.py:343:    path("obras/<str:codigo_obra>/", obra_detail),
+backend\apps\analytics\urls.py:344:    path("obras/<str:codigo_obra>/registros-emision/", 
+obra_registros_emision),
+backend\apps\analytics\urls.py:345:    path("obras/<str:codigo_obra>/evidencias/", obra_evidencias),
+backend\apps\analytics\urls.py:346:    path("obras/<str:codigo_obra>/transportes/", obra_transportes),
+backend\apps\analytics\urls.py:347:    path("verificar/obra/<str:codigo_obra>/", verificar_obra),
+backend\apps\analytics\urls.py:348:    path("factores-emision/", factores_emision),
+backend\apps\analytics\urls.py:349:    path("factores-emision/<int:factor_id>/", factores_emision_detail),
+backend\apps\analytics\urls.py:350:    path("factores/catalogo/", factores_catalogo),
+backend\apps\analytics\urls.py:351:    path("materiales-construccion/", materiales_construccion),
+backend\apps\analytics\urls.py:352:    path("rutas/calcular-distancia/", calcular_distancia_ruta),
+backend\apps\analytics\urls.py:353:    path("sistema/estado/", sistema_estado),
+backend\apps\analytics\urls.py:354:    path("ai-advisor/", ai_advisor),
+backend\apps\analytics\urls.py:355:    path("intelligence/context/", recommendation_context),
+backend\apps\analytics\urls.py:356:    path("intelligence/recommendations/", recomendaciones),
+
+
+
+backend\apps\iot\urls.py:14:    path("lecturas/", lecturas),
+backend\apps\iot\urls.py:15:    path("kpis/", kpis),
+backend\apps\iot\urls.py:16:    path("lecturas/ultimas/", ultimas_lecturas),
+backend\apps\iot\urls.py:17:    path("dispositivos/", dispositivos),
+backend\apps\iot\urls.py:18:    path("dispositivos/<str:dispositivo_id>/", dispositivo_detail),
+backend\apps\iot\urls.py:19:    path("ingesta/", ingesta),
+backend\apps\iot\urls.py:20:    path("registros/", registros_sensor),
+backend\apps\iot\urls.py:21:    path("operacion/kpis/", kpis_operacionales),
+
+
