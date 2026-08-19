@@ -12,7 +12,6 @@ import {
   ClipboardCheck,
   DatabaseZap,
   Factory,
-  FileCheck2,
   Flame,
   Layers3,
   LayoutDashboard,
