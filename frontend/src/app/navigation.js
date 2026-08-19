@@ -2,6 +2,12 @@ import {
   Activity,
   Bot,
   Boxes,
+  ArrowLeft,
+  BarChart3,
+  Clock3,
+  FileCheck2,
+  Gauge,
+  TriangleAlert,
   CheckCircle2,
   ClipboardCheck,
   DatabaseZap,
@@ -467,6 +473,91 @@ export function getNavigationForPreset(preset) {
   return {
     home: NAV_ITEMS.home,
     groups,
+  };
+}
+
+export function getWorkNavigation({
+  obraId,
+}) {
+  const base =
+    `/obras/${obraId}`;
+
+  return {
+    exit: {
+      id: "generalView",
+      label: "Visión general",
+      path: "/inicio",
+      icon: ArrowLeft,
+    },
+
+    switchWork: {
+      id: "switchWork",
+      label: "Cambiar obra",
+      path: "/obras",
+      icon: Boxes,
+    },
+
+    groups: [
+      {
+        id: "work",
+        label: "Obra",
+        items: [
+          {
+            id: "workSummary",
+            label: "Resumen",
+            path: `${base}/resumen`,
+            icon: Gauge,
+          },
+        ],
+      },
+
+      {
+        id: "workOperation",
+        label: "Operación",
+        items: [
+          {
+            id: "workOperationOverview",
+            label: "Operación",
+            path: `${base}/operacion`,
+            icon: Activity,
+          },
+
+          {
+            id: "workIndicators",
+            label: "Indicadores",
+            path: `${base}/indicadores`,
+            icon: BarChart3,
+          },
+        ],
+      },
+
+      {
+        id: "workManagement",
+        label: "Gestión ambiental",
+        items: [
+          {
+            id: "workProblems",
+            label: "Problemas",
+            path: `${base}/problemas`,
+            icon: TriangleAlert,
+          },
+
+          {
+            id: "workEvidence",
+            label: "Evidencias",
+            path: `${base}/evidencias`,
+            icon: FileCheck2,
+          },
+
+          {
+            id: "workHistory",
+            label: "Historial",
+            path: `${base}/timeline`,
+            icon: Clock3,
+          },
+        ],
+      },
+    ],
   };
 }
 

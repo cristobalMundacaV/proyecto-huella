@@ -13,7 +13,6 @@ import {
 
 import {
   Link,
-  NavLink,
   Outlet,
   useParams,
 } from "react-router-dom";
@@ -38,17 +37,6 @@ import {
 import {
   formatDate,
 } from "@/shared/utils/formatters";
-
-
-const tabs = [
-  ["resumen", "Resumen"],
-  ["operacion", "Operación"],
-  ["indicadores", "Indicadores"],
-  ["problemas", "Problemas"],
-  ["evidencias", "Evidencias"],
-  ["timeline", "Historial"],
-];
-
 
 function environmentalDescription(
   value
@@ -361,51 +349,6 @@ export default function ObraWorkspaceLayout() {
           </div>
         </div>
       </section>
-
-
-      {/* NAVEGACIÓN INTERNA */}
-      <nav
-        aria-label={`Secciones de la ${preset.unitLabel.toLowerCase()}`}
-        className="overflow-hidden rounded-[18px] border border-slate-200 bg-white px-2 shadow-[0_8px_24px_rgba(15,23,42,0.04)]"
-      >
-        <div className="flex max-w-full gap-1 overflow-x-auto">
-          {tabs.map(
-            ([
-              path,
-              label,
-            ]) => (
-              <NavLink
-                key={path}
-                to={path}
-                className={({
-                  isActive,
-                }) =>
-                  `relative shrink-0 px-4 py-4 text-sm font-black transition focus-visible:outline-none ${isActive
-                    ? "text-emerald-800"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                  }`
-                }
-              >
-                {({
-                  isActive,
-                }) => (
-                  <>
-                    {label}
-
-                    {isActive && (
-                      <span
-                        aria-hidden="true"
-                        className="absolute inset-x-3 bottom-0 h-[3px] rounded-full bg-emerald-600"
-                      />
-                    )}
-                  </>
-                )}
-              </NavLink>
-            )
-          )}
-        </div>
-      </nav>
-
 
       <Outlet
         context={
