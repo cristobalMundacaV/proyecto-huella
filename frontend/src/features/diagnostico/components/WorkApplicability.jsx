@@ -70,6 +70,26 @@ export default function WorkApplicability({
         ),
     );
 
+    useEffect(() => {
+        setLocalState(
+            Object.fromEntries(
+                applicability.map(
+                    (item) => [
+                        item.clave,
+                        item.estado_obra,
+                    ],
+                ),
+            ),
+        );
+
+        setError("");
+        setSavingId(null);
+    }, [
+        applicability,
+        organizationId,
+        workId,
+    ]);
+
     const [
         savingId,
         setSavingId,
