@@ -63,7 +63,11 @@ export default function MaterialsPage() {
       </Alert>}
 
       {balancesReady && balanceRows.length > 0 && <section>
-        <SectionHeader title="Balances disponibles" description="Cada material conserva su propia unidad; no se suman materiales distintos para crear un total artificial." />
+        <SectionHeader
+          eyebrow="BALANCE OPERACIONAL"
+          title="Balances disponibles"
+          description="Cada material conserva su propia unidad; no se suman materiales distintos para crear un total artificial."
+        />
         <TableShell>
           <TableHead><tr>
             <TableCell as="th">Material</TableCell>
@@ -93,6 +97,22 @@ export default function MaterialsPage() {
               ? <EmptyState
                 title="Aplicabilidad por definir"
                 description="Aún no existe información suficiente para determinar si materiales aplica a esta obra."
+                primaryAction={
+                  <Link
+                    className="font-bold text-[var(--brand-primary)]"
+                    to="/administracion/diagnostico"
+                  >
+                    Revisar diagnóstico
+                  </Link>
+                }
+                secondaryAction={
+                  <Link
+                    className="font-bold text-[var(--text-secondary)]"
+                    to={`/obras/${obraId}/evidencias`}
+                  >
+                    Agregar evidencia
+                  </Link>
+                }
               />
               : <EmptyState
                 title="Sin información registrada"
@@ -101,7 +121,12 @@ export default function MaterialsPage() {
                 secondaryAction={<Link className="font-bold text-[var(--text-secondary)]" to={`/obras/${obraId}/evidencias`}>Agregar documento</Link>}
               />
           : <section>
-            <SectionHeader title="Movimientos de materiales" description="Material, movimiento, cantidad y origen del dato sin exponer identificadores técnicos como información principal." count={events.length} />
+            <SectionHeader
+              eyebrow="ACTIVIDAD REGISTRADA"
+              title="Movimientos de materiales"
+              description="Material, movimiento, cantidad y origen del dato sin exponer identificadores técnicos como información principal."
+              count={events.length}
+            />
             <TableShell>
               <TableHead><tr>
                 <TableCell as="th">Fecha</TableCell>

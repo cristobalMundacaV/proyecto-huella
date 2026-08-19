@@ -20,7 +20,12 @@ export default function WastePage() {
     {!eventsReady && <ErrorState title="No fue posible cargar los residuos provenientes de materiales" description="Los registros de residuos del dominio principal permanecen disponibles si pudieron cargarse." />}
 
     {materialWaste.length > 0 && <section>
-      <SectionHeader title="Residuos provenientes de materiales" description="Se muestran separados de los otros registros de residuos para no presentar una suma duplicada." count={materialWaste.length} />
+      <SectionHeader
+        eyebrow="TRAZABILIDAD DE RESIDUOS"
+        title="Residuos provenientes de materiales"
+        description="Se muestran separados de los otros registros de residuos para no presentar una suma duplicada."
+        count={materialWaste.length}
+      />
       <TableShell>
         <TableHead><tr>
           <TableCell as="th">Fecha</TableCell>

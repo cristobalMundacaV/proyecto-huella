@@ -110,7 +110,10 @@ export default function SectorDomainPage({ domain }) {
         </Alert>}
 
         {metricCards.length > 0 && <section>
-          <SectionHeader title="Resumen" description={domain === "ruido" || domain === "hidrica-suelo" ? "Las mediciones no aditivas se muestran como serie o rango, nunca como total acumulado." : "Sólo se agregan magnitudes que el contrato declara como sumables."} />
+          <SectionHeader
+            eyebrow="LECTURA DEL ÁMBITO"
+            title="Resumen"
+            description={domain === "ruido" || domain === "hidrica-suelo" ? "Las mediciones no aditivas se muestran como serie o rango, nunca como total acumulado." : "Sólo se agregan magnitudes que el contrato declara como sumables."} />
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{metricCards.map((metric) => <KpiCard
             key={metric.key}
             label={metric.label}
@@ -130,6 +133,22 @@ export default function SectorDomainPage({ domain }) {
               ? <EmptyState
                 title="Aplicabilidad por definir"
                 description="Aún no existe información suficiente para determinar si este ámbito aplica a la obra."
+                primaryAction={
+                  <Link
+                    className="font-bold text-[var(--brand-primary)]"
+                    to="/administracion/diagnostico"
+                  >
+                    Revisar diagnóstico
+                  </Link>
+                }
+                secondaryAction={
+                  <Link
+                    className="font-bold text-[var(--text-secondary)]"
+                    to={`/obras/${obraId}/evidencias`}
+                  >
+                    Agregar evidencia
+                  </Link>
+                }
               />
               : <EmptyState
                 title="Sin información registrada"
@@ -139,7 +158,14 @@ export default function SectorDomainPage({ domain }) {
               />
           : <section>
             <SectionHeader
-              title={domain === "ruido" ? "Mediciones acústicas" : domain === "hidrica-suelo" ? "Condiciones registradas" : "Registros recientes"}
+              eyebrow="ACTIVIDAD REGISTRADA"
+              title={
+                domain === "ruido"
+                  ? "Mediciones acústicas"
+                  : domain === "hidrica-suelo"
+                    ? "Condiciones registradas"
+                    : "Registros recientes"
+              }
               description="Valor observado, contexto y origen se mantienen separados."
               count={measurements.length}
             />

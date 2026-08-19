@@ -49,7 +49,11 @@ export default function TransportPage() {
 
       {indicatorsReady
         ? summaryMetrics.length > 0 && <section>
-          <SectionHeader title="Resumen" description="Viajes, distancia y carga se mantienen como magnitudes operacionales separadas." />
+          <SectionHeader
+            eyebrow="LECTURA DEL ÁMBITO"
+            title="Resumen"
+            description="Viajes, distancia y carga se mantienen como magnitudes operacionales separadas."
+          />
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{summaryMetrics.map((metric) => <KpiCard
             key={metric.key}
             label={metric.label}
@@ -68,6 +72,22 @@ export default function TransportPage() {
               ? <EmptyState
                 title="Aplicabilidad por definir"
                 description="Aún no existe información suficiente para determinar si transporte aplica a esta obra."
+                primaryAction={
+                  <Link
+                    className="font-bold text-[var(--brand-primary)]"
+                    to="/administracion/diagnostico"
+                  >
+                    Revisar diagnóstico
+                  </Link>
+                }
+                secondaryAction={
+                  <Link
+                    className="font-bold text-[var(--text-secondary)]"
+                    to={`/obras/${obraId}/evidencias`}
+                  >
+                    Agregar evidencia
+                  </Link>
+                }
               />
               : <EmptyState
                 title="Sin viajes registrados"
@@ -76,7 +96,12 @@ export default function TransportPage() {
                 secondaryAction={<Link className="font-bold text-[var(--text-secondary)]" to={`/obras/${obraId}/evidencias`}>Agregar documento</Link>}
               />
           : <section>
-            <SectionHeader title="Viajes" description="Origen y destino primero; el detalle técnico queda disponible cuando aporta contexto." count={journeys.length} />
+            <SectionHeader
+              eyebrow="ACTIVIDAD REGISTRADA"
+              title="Viajes"
+              description="Origen y destino primero; el detalle técnico queda disponible cuando aporta contexto."
+              count={journeys.length}
+            />
             <TableShell>
               <TableHead><tr>
                 <TableCell as="th">Fecha</TableCell>
