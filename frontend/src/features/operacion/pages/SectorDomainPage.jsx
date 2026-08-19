@@ -28,7 +28,8 @@ import {
 } from "../utils/operationSelectors";
 import DomainApplicability from "../components/DomainApplicability";
 import OperationDomainShell from "../components/OperationDomainShell";
-
+import ManualFlowRecordModal from "../components/ManualFlowRecordModal";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 
 const qualityTone = (state) => state === "validada" ? "success" : state === "rechazada" ? "danger" : "warning";
 const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
@@ -51,7 +52,11 @@ function rangeHelper(metric) {
 
 export default function SectorDomainPage({ domain }) {
   const [trace, setTrace] = useState(null);
+  const [captureOpen, setCaptureOpen] = useState(false);
   const { obraId } = useParams();
+  const {
+    activeOrganizacionId,
+  } = useOrganizacionActiva();
   const { context, indicators, operation, resourceErrors } = useOutletContext();
   const config = DOMAIN_CONFIG[domain];
   const applicabilityState = applicability(context, config.capability);
@@ -95,6 +100,19 @@ export default function SectorDomainPage({ domain }) {
         />
       }
     >
+      {!noApplicable && !unresolved && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            className="rounded-[var(--radius-md)] bg-[var(--brand-primary)] px-4 py-2 text-sm font-bold text-white"
+            onClick={() =>
+              setCaptureOpen(true)
+            }
+          >
+            Registrar información
+          </button>
+        </div>
+      )}
 
       {!recordsReady && <ErrorState
         title={`No fue posible cargar ${config.label.toLowerCase()}`}
@@ -207,6 +225,20 @@ export default function SectorDomainPage({ domain }) {
         open={Boolean(trace)}
         onClose={() => setTrace(null)}
         workId={obraId}
+      />
+      <ManualFlowRecordModal
+        open={captureOpen}
+        onClose={() =>
+          setCaptureOpen(false)
+        }
+        organizationId={
+          activeOrganizacionId
+        }
+        workId={obraId}
+        domain={domain}
+        onCreated={() =>
+          window.location.reload()
+        }
       />
     </OperationDomainShell>
   );
