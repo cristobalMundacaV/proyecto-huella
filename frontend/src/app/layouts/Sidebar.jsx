@@ -262,109 +262,90 @@ export default function Sidebar({
     );
 }
 
-
 function WorkSidebar({
     navigation,
     preset,
-    workId,
     onNavigate,
 }) {
     return (
         <>
             <NavLink
-                to={
-                    navigation.exit.path
-                }
-                onClick={
-                    onNavigate
-                }
-                className="mb-4 flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-2 text-sm font-black text-[var(--brand-primary)] transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                to={navigation.exit.path}
+                onClick={onNavigate}
+                className="
+                    mb-5 flex items-center gap-2
+                    rounded-[var(--radius-md)]
+                    border border-emerald-200/80
+                    bg-white
+                    px-3 py-2.5
+                    text-sm font-black
+                    text-[var(--brand-primary)]
+                    shadow-sm
+                    transition
+                    hover:border-emerald-300
+                    hover:bg-emerald-50
+                    focus-visible:outline-none
+                    focus-visible:shadow-[var(--focus-ring)]
+                "
             >
                 <navigation.exit.icon
                     aria-hidden="true"
                     size={17}
                 />
 
-                {navigation.exit.label}
+                Volver a visión general
             </NavLink>
 
-
-            <section className="mb-5 rounded-[18px] border border-emerald-200/70 bg-[linear-gradient(135deg,rgba(236,253,245,0.90),rgba(255,255,255,0.95))] p-4">
-
-                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-emerald-700">
+            <div className="mb-5 px-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">
                     {preset.unitLabel}
                 </p>
 
-                <p className="mt-1 truncate text-sm font-black text-[var(--text-primary)]">
-                    Contexto activo
+                <p className="mt-1 text-sm font-black text-[var(--text-primary)]">
+                    Navegación de la obra
                 </p>
 
-                <p className="mt-1 truncate text-xs text-[var(--text-muted)]">
-                    ID {workId}
+                <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
+                    Estás trabajando únicamente con la información de esta {preset.unitLabel.toLowerCase()}.
                 </p>
-
-                <NavLink
-                    to={
-                        navigation
-                            .switchWork
-                            .path
-                    }
-                    onClick={
-                        onNavigate
-                    }
-                    className="mt-3 inline-flex items-center gap-2 text-xs font-black text-emerald-700 hover:text-emerald-900"
-                >
-                    <navigation.switchWork.icon
-                        aria-hidden="true"
-                        size={14}
-                    />
-
-                    Cambiar{" "}
-                    {preset.unitLabel.toLowerCase()}
-                </NavLink>
-            </section>
-
+            </div>
 
             <nav
                 aria-label="Navegación de obra"
                 className="min-h-0 flex-1 space-y-4 overflow-y-auto px-1 pb-2"
             >
-                {navigation.groups.map(
-                    group => (
-                        <section
-                            key={
-                                group.id
-                            }
-                            aria-labelledby={`work-nav-${group.id}`}
+                {navigation.groups.map(group => (
+                    <section
+                        key={group.id}
+                        aria-labelledby={`work-nav-${group.id}`}
+                    >
+                        <p
+                            id={`work-nav-${group.id}`}
+                            className="
+                                mb-1
+                                px-2
+                                text-[10px]
+                                font-black
+                                uppercase
+                                tracking-[0.15em]
+                                text-[var(--text-muted)]
+                            "
                         >
-                            <p
-                                id={`work-nav-${group.id}`}
-                                className="mb-1 px-2 text-[10px] font-black uppercase tracking-[0.15em] text-[var(--text-muted)]"
-                            >
-                                {group.label}
-                            </p>
+                            {group.label}
+                        </p>
 
-                            <div className="space-y-0.5">
-                                {group.items.map(
-                                    item => (
-                                        <NavItem
-                                            exact
-                                            item={
-                                                item
-                                            }
-                                            key={
-                                                item.path
-                                            }
-                                            onNavigate={
-                                                onNavigate
-                                            }
-                                        />
-                                    )
-                                )}
-                            </div>
-                        </section>
-                    )
-                )}
+                        <div className="space-y-0.5">
+                            {group.items.map(item => (
+                                <NavItem
+                                    exact
+                                    item={item}
+                                    key={item.path}
+                                    onNavigate={onNavigate}
+                                />
+                            ))}
+                        </div>
+                    </section>
+                ))}
             </nav>
         </>
     );
@@ -524,10 +505,10 @@ function GeneralNavigation({
                                                     aria-hidden="true"
                                                     size={15}
                                                     className={`transition ${expanded[
-                                                            item.id
-                                                        ]
-                                                            ? "rotate-180"
-                                                            : ""
+                                                        item.id
+                                                    ]
+                                                        ? "rotate-180"
+                                                        : ""
                                                         }`}
                                                 />
                                             </button>
