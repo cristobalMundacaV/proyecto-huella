@@ -70,6 +70,16 @@ export default function WorkApplicability({
         ),
     );
 
+    const [
+        savingId,
+        setSavingId,
+    ] = useState(null);
+
+    const [
+        error,
+        setError,
+    ] = useState("");
+
     useEffect(() => {
         setLocalState(
             Object.fromEntries(
@@ -89,16 +99,6 @@ export default function WorkApplicability({
         organizationId,
         workId,
     ]);
-
-    const [
-        savingId,
-        setSavingId,
-    ] = useState(null);
-
-    const [
-        error,
-        setError,
-    ] = useState("");
 
     const rows = useMemo(
         () =>
