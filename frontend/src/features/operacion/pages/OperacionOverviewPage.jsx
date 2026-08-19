@@ -172,18 +172,38 @@ export default function OperacionOverviewPage() {
 
   return <div className="space-y-6">
     <section>
-      <SectionHeader title="Resumen" description="Actividad registrada, cambios recientes y dominios que necesitan revisión." />
-      <div className="grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
-        <Card><CardContent>
-          <p className="text-sm text-[var(--text-muted)]">Dominios con actividad</p>
-          <p className="mt-1 text-2xl font-black">{activityCount}</p>
-        </CardContent></Card>
-        {(attention.length > 0 || unavailableCount > 0) && <Card><CardContent>
-          <p className="text-sm text-[var(--text-muted)]">{attention.length > 0 ? "Dominios por revisar" : "Dominios no disponibles"}</p>
-          <p className="mt-1 text-2xl font-black">{attention.length > 0 ? attention.length : unavailableCount}</p>
-        </CardContent></Card>}
+      <SectionHeader
+        eyebrow="OPERACIÓN DE LA OBRA"
+        title="¿Qué quieres revisar?"
+        description="Selecciona un ámbito para revisar su actividad, registros y estado operacional."
+      />
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {descriptors.map((domain) => (
+          <OperationDomainCard
+            compact
+            key={domain.key}
+            icon={domain.icon}
+            title={domain.title}
+            state={domain.state}
+            signal={domain.signal}
+            detail={
+              domain.latestAt
+                ? `Último registro: ${formatDateTime(domain.latestAt)}`
+                : undefined
+            }
+            to={domain.to}
+          />
+        ))}
       </div>
-      {secondaryUnavailable && <div className="mt-3"><Alert tone="warning">Algunas señales complementarias no están disponibles. La actividad que sí pudo cargarse se mantiene visible.</Alert></div>}
+
+      {secondaryUnavailable && (
+        <div className="mt-3">
+          <Alert tone="warning">
+            Algunas señales complementarias no están disponibles. La actividad que sí pudo cargarse se mantiene visible.
+          </Alert>
+        </div>
+      )}
     </section>
 
     {(attention.length > 0 || recent.length > 0) && <section className="grid gap-4 lg:grid-cols-2">
@@ -207,7 +227,11 @@ export default function OperacionOverviewPage() {
     </section>}
 
     <section>
-      <SectionHeader title="Dominios activos" description="Primero, los ámbitos donde existe actividad registrada." />
+      <SectionHeader
+        eyebrow="ACTIVIDAD OPERACIONAL"
+        title="Actividad registrada"
+        description="Ámbitos donde ya existen registros o mediciones asociadas a esta obra."
+      />
       {activeDomains.length
         ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{activeDomains.map((domain) => <OperationDomainCard
           key={domain.key}
@@ -256,15 +280,19 @@ export default function OperacionOverviewPage() {
             </h3>
 
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--text-muted)]">
-              Los dominios comenzarán a mostrar actividad cuando existan registros,
-              mediciones, viajes, materiales u otras observaciones vinculadas a esta obra.
+              Cuando registres mediciones, viajes, consumos, materiales u otras actividades,
+              Carbono Zero las organizará dentro de su ámbito operacional correspondiente.
             </p>
           </div>
         )}
     </section>
 
     {otherDomains.length > 0 && <section>
-      <SectionHeader title="Otros dominios" description="Ámbitos sin información, no aplicables, pendientes de configuración o temporalmente no disponibles." />
+      <SectionHeader
+        eyebrow="COBERTURA OPERACIONAL"
+        title="Ámbitos pendientes"
+        description="Dominios que todavía necesitan información, configuración o definición de aplicabilidad."
+      />
       <div className="grid gap-3 md:grid-cols-2">{otherDomains.map((domain) => <OperationDomainCard
         compact
         key={domain.key}
