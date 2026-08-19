@@ -15,6 +15,13 @@ import {
   Flame,
   Layers3,
   LayoutDashboard,
+  Droplets,
+  Fuel,
+  LandPlot,
+  Package,
+  Trash2,
+  Volume2,
+  Zap,
   Recycle,
   Settings,
   ShieldCheck,
@@ -502,7 +509,7 @@ export function getWorkNavigation({
         label: "Obra",
         items: [
           {
-            id: "workSummary",
+            id: "summary",
             label: "Resumen",
             path: `${base}/resumen`,
             icon: Gauge,
@@ -511,18 +518,74 @@ export function getWorkNavigation({
       },
 
       {
-        id: "workOperation",
+        id: "operation",
         label: "Operación",
         items: [
           {
-            id: "workOperationOverview",
-            label: "Operación",
+            id: "operationOverview",
+            label: "Resumen operacional",
             path: `${base}/operacion`,
             icon: Activity,
           },
 
           {
-            id: "workIndicators",
+            id: "energy",
+            label: "Energía",
+            path: `${base}/operacion/energia`,
+            icon: Zap,
+          },
+
+          {
+            id: "water",
+            label: "Agua",
+            path: `${base}/operacion/agua`,
+            icon: Droplets,
+          },
+
+          {
+            id: "fuel",
+            label: "Combustibles",
+            path: `${base}/operacion/combustibles`,
+            icon: Fuel,
+          },
+
+          {
+            id: "transport",
+            label: "Transporte",
+            path: `${base}/operacion/transporte`,
+            icon: Truck,
+          },
+
+          {
+            id: "materials",
+            label: "Materiales",
+            path: `${base}/operacion/materiales`,
+            icon: Package,
+          },
+
+          {
+            id: "waste",
+            label: "Residuos",
+            path: `${base}/operacion/residuos`,
+            icon: Trash2,
+          },
+
+          {
+            id: "noise",
+            label: "Ruido",
+            path: `${base}/operacion/ruido`,
+            icon: Volume2,
+          },
+
+          {
+            id: "waterSoil",
+            label: "Hídrica y suelo",
+            path: `${base}/operacion/hidrica-suelo`,
+            icon: LandPlot,
+          },
+
+          {
+            id: "indicators",
             label: "Indicadores",
             path: `${base}/indicadores`,
             icon: BarChart3,
@@ -531,25 +594,25 @@ export function getWorkNavigation({
       },
 
       {
-        id: "workManagement",
+        id: "environmental",
         label: "Gestión ambiental",
         items: [
           {
-            id: "workProblems",
+            id: "problems",
             label: "Problemas",
             path: `${base}/problemas`,
             icon: TriangleAlert,
           },
 
           {
-            id: "workEvidence",
+            id: "evidence",
             label: "Evidencias",
             path: `${base}/evidencias`,
             icon: FileCheck2,
           },
 
           {
-            id: "workHistory",
+            id: "history",
             label: "Historial",
             path: `${base}/timeline`,
             icon: Clock3,

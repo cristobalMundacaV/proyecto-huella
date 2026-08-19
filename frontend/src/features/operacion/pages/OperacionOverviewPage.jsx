@@ -173,28 +173,41 @@ export default function OperacionOverviewPage() {
   return <div className="space-y-6">
     <section>
       <SectionHeader
-        eyebrow="OPERACIÓN DE LA OBRA"
-        title="¿Qué quieres revisar?"
-        description="Selecciona un ámbito para revisar su actividad, registros y estado operacional."
+        eyebrow="ESTADO OPERACIONAL"
+        title="Resumen de operación"
+        description="Actividad registrada, cambios recientes y ámbitos que necesitan revisión."
       />
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {descriptors.map((domain) => (
-          <OperationDomainCard
-            compact
-            key={domain.key}
-            icon={domain.icon}
-            title={domain.title}
-            state={domain.state}
-            signal={domain.signal}
-            detail={
-              domain.latestAt
-                ? `Último registro: ${formatDateTime(domain.latestAt)}`
-                : undefined
-            }
-            to={domain.to}
-          />
-        ))}
+      <div className="grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
+        <Card>
+          <CardContent>
+            <p className="text-sm text-[var(--text-muted)]">
+              Ámbitos con actividad
+            </p>
+
+            <p className="mt-1 text-2xl font-black">
+              {activityCount}
+            </p>
+          </CardContent>
+        </Card>
+
+        {(attention.length > 0 || unavailableCount > 0) && (
+          <Card>
+            <CardContent>
+              <p className="text-sm text-[var(--text-muted)]">
+                {attention.length > 0
+                  ? "Ámbitos por revisar"
+                  : "Ámbitos no disponibles"}
+              </p>
+
+              <p className="mt-1 text-2xl font-black">
+                {attention.length > 0
+                  ? attention.length
+                  : unavailableCount}
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {secondaryUnavailable && (
@@ -205,7 +218,6 @@ export default function OperacionOverviewPage() {
         </div>
       )}
     </section>
-
     {(attention.length > 0 || recent.length > 0) && <section className="grid gap-4 lg:grid-cols-2">
       {attention.length > 0 && <Card><CardContent>
         <SectionHeader title="Requiere atención" description="Información que necesita revisión antes de interpretarse como normal." />
