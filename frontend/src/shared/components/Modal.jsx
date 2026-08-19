@@ -1,6 +1,23 @@
-﻿import AnimatedModalShell from "./AnimatedModalShell";
+﻿import { useEffect, useRef } from "react";
+import { X } from "lucide-react";
 
-function Modal({ children, onClose }) {
+import IconButton from "./IconButton";
+
+function Modal({
+  children,
+  title,
+  description,
+  footer,
+  onClose,
+  closeOnBackdrop = true,
+  size = "md",
+}) {
+  const dialogRef = useRef(null);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/55 p-4 backdrop-blur-[3px]"
