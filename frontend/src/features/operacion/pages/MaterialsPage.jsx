@@ -90,7 +90,10 @@ export default function MaterialsPage() {
           ? noApplicable
             ? <EmptyState title="No aplica a esta unidad" description="Materiales está marcado como no aplicable. La ausencia de eventos no se presenta como cero." />
             : unresolved
-              ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para afirmar si materiales aplica a esta unidad." />
+              ? <EmptyState
+                title="Aplicabilidad por definir"
+                description="Aún no existe información suficiente para determinar si materiales aplica a esta obra."
+              />
               : <EmptyState
                 title="Sin información registrada"
                 description="Aún no hay entradas, usos o salidas de materiales registradas para esta unidad."

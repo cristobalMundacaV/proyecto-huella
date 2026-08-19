@@ -38,7 +38,7 @@ export default function TransportPage() {
   return (
     <OperationDomainShell
       title="Transporte"
-      description="¿Cómo se está moviendo carga o personas en esta unidad?"
+      description="¿Cómo se está moviendo carga o personas en esta obra?"
       applicability={
         <DomainApplicability
           context={context}
@@ -65,7 +65,10 @@ export default function TransportPage() {
           ? noApplicable
             ? <EmptyState title="No aplica a esta unidad" description="Transporte está marcado como no aplicable. La ausencia de viajes no se presenta como cero operacional." />
             : unresolved
-              ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para afirmar si transporte aplica a esta unidad." />
+              ? <EmptyState
+                title="Aplicabilidad por definir"
+                description="Aún no existe información suficiente para determinar si transporte aplica a esta obra."
+              />
               : <EmptyState
                 title="Sin viajes registrados"
                 description="Aún no hay movimientos de transporte registrados para esta unidad."

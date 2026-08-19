@@ -495,7 +495,7 @@ export default function EvidencePage({
 
       setUploadFeedback(
         workScoped
-          ? "El documento quedó agregado a esta unidad y pendiente de revisión."
+          ? "El documento quedó agregado a esta obra y pendiente de revisión."
           : "El documento fue agregado y quedó pendiente de revisión."
       );
 
@@ -547,8 +547,9 @@ export default function EvidencePage({
     <main className="space-y-6">
       {workScoped ? (
         <SectionHeader
+          eyebrow="TRAZABILIDAD DOCUMENTAL"
           title="Evidencias"
-          description="Documentos vinculados a esta unidad y su estado de revisión."
+          description="Consulta y agrega los documentos que respaldan la información ambiental de esta obra."
           action={uploadAction}
         />
       ) : (
@@ -666,12 +667,12 @@ export default function EvidencePage({
           icon={FileCheck2}
           title={
             workScoped
-              ? "Aún no hay evidencias en esta unidad"
+              ? "Aún no hay evidencias en esta obra"
               : "Aún no hay evidencias registradas"
           }
           description={
             workScoped
-              ? "Agrega facturas, certificados, respaldos u otros documentos que permitan reconstruir y verificar la información de esta unidad."
+              ? "Agrega facturas, certificados, respaldos u otros documentos que permitan reconstruir y verificar la información de esta obra."
               : "Incorpora documentos que respalden y permitan verificar la información ambiental de tu operación."
           }
           className="border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_40%),linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98))] shadow-[0_12px_36px_rgba(6,78,59,0.07)]"

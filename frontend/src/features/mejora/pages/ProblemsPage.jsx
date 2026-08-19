@@ -450,8 +450,9 @@ export default function ProblemsPage({
       {/* HEADER / HERO */}
       {workScoped ? (
         <SectionHeader
+          eyebrow="GESTIÓN AMBIENTAL"
           title="Problemas"
-          description="Gestiona situaciones ambientales desde su detección hasta verificar el resultado."
+          description="Gestiona las situaciones ambientales detectadas en esta obra hasta verificar su resultado."
           action={createAction}
         />
       ) : (

@@ -19,10 +19,19 @@ export default function ObraIndicatorsPage() {
   const { indicators, resourceErrors = {} } = useOutletContext();
   const rows = resourceErrors.indicators ? [] : indicatorRows(indicators);
 
-  return <section className="space-y-4">
-    <SectionHeader title="Indicadores" description="Señales disponibles para esta unidad, sin recalcular resultados en la interfaz." />
+  return <section className="space-y-6">
+    <SectionHeader
+      eyebrow="LECTURA AMBIENTAL"
+      title="Indicadores"
+      description="Consulta las señales ambientales y operacionales disponibles para esta obra."
+    />
     {resourceErrors.indicators ? <p className="text-sm text-[var(--text-muted)]">Indicadores no disponibles en este momento.</p> : rows.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {rows.map((item, index) => <KpiCard key={`${item.name}-${index}`} label={item.name} value={item.value} unit={item.unit} helper={item.helper} icon={Activity} />)}
-    </div> : <EmptyState title="Sin indicadores disponibles" description="Esta unidad todavía no tiene señales disponibles." />}
+    </div> : <EmptyState
+      icon={Activity}
+      title="Aún no hay indicadores disponibles"
+      description="Los indicadores aparecerán cuando existan datos suficientes y resultados gobernados para esta obra."
+      className="border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_40%),linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98))] shadow-[0_12px_36px_rgba(6,78,59,0.06)]"
+    />}
   </section>;
 }

@@ -122,12 +122,18 @@ export default function SectorDomainPage({ domain }) {
 
         {!records.length
           ? noApplicable
-            ? <EmptyState title="No aplica a esta unidad" description="Este dominio está marcado como no aplicable. No se interpreta la ausencia de registros como cero." />
+            ? <EmptyState
+              title="No aplica a esta obra"
+              description="Este ámbito está marcado como no aplicable. La ausencia de registros no se interpreta como cero."
+            />
             : unresolved
-              ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para afirmar que este dominio aplica o no aplica a la unidad." />
+              ? <EmptyState
+                title="Aplicabilidad por definir"
+                description="Aún no existe información suficiente para determinar si este ámbito aplica a la obra."
+              />
               : <EmptyState
                 title="Sin información registrada"
-                description={`Aún no hay registros de ${config.label.toLowerCase()} para esta unidad.`}
+                description={`Aún no hay registros de ${config.label.toLowerCase()} para esta obra.`}
                 primaryAction={<Link className="font-bold text-[var(--brand-primary)]" to="/datos/importaciones">Importar información</Link>}
                 secondaryAction={<Link className="font-bold text-[var(--text-secondary)]" to={`/obras/${obraId}/evidencias`}>Agregar documento</Link>}
               />
