@@ -12,7 +12,6 @@ import {
 import { Link, useOutletContext } from "react-router-dom";
 import { Alert, Card, CardContent, SectionHeader } from "@/shared/ui";
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
-import OperationDomainCard from "../components/OperationDomainCard";
 import {
   applicability,
   domainMetrics,
@@ -156,7 +155,6 @@ export default function OperacionOverviewPage() {
   const activeDomains = descriptors
     .filter((domain) => ["con_datos", "requiere_revision"].includes(domain.state))
     .toSorted((left, right) => String(right.latestAt || "").localeCompare(String(left.latestAt || "")));
-  const otherDomains = descriptors.filter((domain) => !["con_datos", "requiere_revision"].includes(domain.state));
   const attention = descriptors.filter((domain) => domain.state === "requiere_revision").slice(0, 5);
   const recent = activeDomains
     .filter((domain) => domain.latestAt)
@@ -244,77 +242,50 @@ export default function OperacionOverviewPage() {
         title="Actividad registrada"
         description="Ámbitos donde ya existen registros o mediciones asociadas a esta obra."
       />
-      {activeDomains.length
-        ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{activeDomains.map((domain) => <OperationDomainCard
-          key={domain.key}
-          icon={domain.icon}
-          title={domain.title}
-          state={domain.state}
-          signal={domain.signal}
-          detail={domain.latestAt ? `Último registro: ${formatDateTime(domain.latestAt)}` : undefined}
-          to={domain.to}
-        />)}</div>
-        : (
+
+      {activeDomains.length === 0 && (
+        <div
+          className="
+        overflow-hidden
+        rounded-[22px]
+        border
+        border-emerald-200/80
+        bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.13),transparent_42%),linear-gradient(135deg,rgba(236,253,245,0.96),rgba(255,255,255,0.98))]
+        px-6
+        py-9
+        text-center
+        shadow-[0_10px_30px_rgba(15,23,42,0.04)]
+      "
+        >
           <div
             className="
-      overflow-hidden
-      rounded-[22px]
-      border
-      border-emerald-200/80
-      bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.13),transparent_42%),linear-gradient(135deg,rgba(236,253,245,0.96),rgba(255,255,255,0.98))]
-      px-6
-      py-9
-      text-center
-      shadow-[0_10px_30px_rgba(15,23,42,0.04)]
-    "
+          mx-auto
+          flex
+          h-12
+          w-12
+          items-center
+          justify-center
+          rounded-full
+          bg-emerald-100
+          text-emerald-700
+        "
           >
-            <div
-              className="
-        mx-auto
-        flex
-        h-12
-        w-12
-        items-center
-        justify-center
-        rounded-full
-        bg-emerald-100
-        text-emerald-700
-      "
-            >
-              <Activity
-                aria-hidden="true"
-                size={21}
-              />
-            </div>
-
-            <h3 className="mt-4 text-lg font-black text-[var(--text-primary)]">
-              Aún no hay actividad operacional registrada
-            </h3>
-
-            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--text-muted)]">
-              Cuando registres mediciones, viajes, consumos, materiales u otras actividades,
-              Carbono Zero las organizará dentro de su ámbito operacional correspondiente.
-            </p>
+            <Activity
+              aria-hidden="true"
+              size={21}
+            />
           </div>
-        )}
-    </section>
 
-    {otherDomains.length > 0 && <section>
-      <SectionHeader
-        eyebrow="COBERTURA OPERACIONAL"
-        title="Ámbitos pendientes"
-        description="Dominios que todavía necesitan información, configuración o definición de aplicabilidad."
-      />
-      <div className="grid gap-3 md:grid-cols-2">{otherDomains.map((domain) => <OperationDomainCard
-        compact
-        key={domain.key}
-        icon={domain.icon}
-        title={domain.title}
-        state={domain.state}
-        signal={domain.signal}
-        detail={domain.latestAt ? `Último registro: ${formatDateTime(domain.latestAt)}` : undefined}
-        to={domain.to}
-      />)}</div>
-    </section>}
+          <h3 className="mt-4 text-lg font-black text-[var(--text-primary)]">
+            Aún no hay actividad operacional registrada
+          </h3>
+
+          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--text-muted)]">
+            Cuando registres mediciones, viajes, consumos, materiales u otras actividades,
+            Carbono Zero las organizará dentro de su ámbito operacional correspondiente.
+          </p>
+        </div>
+      )}
+    </section>
   </div>;
 }

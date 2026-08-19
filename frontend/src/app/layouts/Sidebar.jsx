@@ -210,14 +210,9 @@ export default function Sidebar({
 
             {workNavigation ? (
                 <WorkSidebar
-                    navigation={
-                        workNavigation
-                    }
+                    navigation={workNavigation}
                     preset={preset}
-                    workId={workId}
-                    onNavigate={
-                        onNavigate
-                    }
+                    onNavigate={onNavigate}
                 />
             ) : (
                 <>

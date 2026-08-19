@@ -27,6 +27,8 @@ import {
   resourceData,
 } from "../utils/operationSelectors";
 import DomainApplicability from "../components/DomainApplicability";
+import OperationDomainShell from "../components/OperationDomainShell";
+
 
 const qualityTone = (state) => state === "validada" ? "success" : state === "rechazada" ? "danger" : "warning";
 const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
@@ -82,84 +84,98 @@ export default function SectorDomainPage({ domain }) {
   const noApplicable = applicabilityState === "no_aplica";
   const unresolved = ["pendiente", "no_determinado"].includes(applicabilityState);
 
-  return <div className="space-y-6">
-    <SectionHeader title={config.label} description={config.question} />
-    <DomainApplicability context={context} capability={config.capability} />
+  return (
+    <OperationDomainShell
+      title={config.label}
+      description={config.question}
+      applicability={
+        <DomainApplicability
+          context={context}
+          capability={config.capability}
+        />
+      }
+    >
 
-    {!recordsReady && <ErrorState
-      title={`No fue posible cargar ${config.label.toLowerCase()}`}
-      description="Los demás dominios operacionales continúan disponibles."
-    />}
+      {!recordsReady && <ErrorState
+        title={`No fue posible cargar ${config.label.toLowerCase()}`}
+        description="Los demás dominios operacionales continúan disponibles."
+      />}
 
-    {recordsReady && !pointsReady && <Alert tone="warning">No fue posible cargar los puntos de medición. Los registros disponibles se mantienen visibles sin ese nombre de contexto.</Alert>}
-    {recordsReady && resourceErrors?.indicators && <Alert tone="warning">No fue posible cargar el resumen de mediciones. Los registros disponibles se mantienen visibles, pero no se infiere agregación ni ausencia de ambigüedades.</Alert>}
+      {recordsReady && !pointsReady && <Alert tone="warning">No fue posible cargar los puntos de medición. Los registros disponibles se mantienen visibles sin ese nombre de contexto.</Alert>}
+      {recordsReady && resourceErrors?.indicators && <Alert tone="warning">No fue posible cargar el resumen de mediciones. Los registros disponibles se mantienen visibles, pero no se infiere agregación ni ausencia de ambigüedades.</Alert>}
 
-    {recordsReady && <>
-      {ambiguous.length > 0 && <Alert tone="warning" title="Requiere revisión">
-        Hay registros con múltiples mediciones que el sistema marca como ambiguos. No se agregaron automáticamente.
-      </Alert>}
+      {recordsReady && <>
+        {ambiguous.length > 0 && <Alert tone="warning" title="Requiere revisión">
+          Hay registros con múltiples mediciones que el sistema marca como ambiguos. No se agregaron automáticamente.
+        </Alert>}
 
-      {metricCards.length > 0 && <section>
-        <SectionHeader title="Resumen" description={domain === "ruido" || domain === "hidrica-suelo" ? "Las mediciones no aditivas se muestran como serie o rango, nunca como total acumulado." : "Sólo se agregan magnitudes que el contrato declara como sumables."} />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{metricCards.map((metric) => <KpiCard
-          key={metric.key}
-          label={metric.label}
-          value={metric.value}
-          unit={metric.unit}
-          helper={metric.helper}
-        />)}</div>
-      </section>}
-
-      {!records.length
-        ? noApplicable
-          ? <EmptyState title="No aplica a esta unidad" description="Este dominio está marcado como no aplicable. No se interpreta la ausencia de registros como cero." />
-          : unresolved
-            ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para afirmar que este dominio aplica o no aplica a la unidad." />
-            : <EmptyState
-              title="Sin información registrada"
-              description={`Aún no hay registros de ${config.label.toLowerCase()} para esta unidad.`}
-              primaryAction={<Link className="font-bold text-[var(--brand-primary)]" to="/datos/importaciones">Importar información</Link>}
-              secondaryAction={<Link className="font-bold text-[var(--text-secondary)]" to={`/obras/${obraId}/evidencias`}>Agregar documento</Link>}
-            />
-        : <section>
-          <SectionHeader
-            title={domain === "ruido" ? "Mediciones acústicas" : domain === "hidrica-suelo" ? "Condiciones registradas" : "Registros recientes"}
-            description="Valor observado, contexto y origen se mantienen separados."
-            count={measurements.length}
-          />
-          {!measurements.length
-            ? <EmptyState title="Sin mediciones disponibles" description="Existen registros del dominio, pero no contienen observaciones visibles en el contrato actual." />
-            : <TableShell>
-              <TableHead><tr>
-                <TableCell as="th">Fecha</TableCell>
-                <TableCell as="th">Concepto</TableCell>
-                <TableCell as="th">Valor</TableCell>
-                <TableCell as="th">Contexto</TableCell>
-                <TableCell as="th">Calidad</TableCell>
-                <TableCell as="th">Origen</TableCell>
-              </tr></TableHead>
-              <TableBody columns={6}>{measurements.map(({ record, observation }) => {
-                const contextLabel = pointNames.get(String(record.punto))
-                  || record.ubicacion_contexto
-                  || humanize(record.granularidad);
-                const hasTrace = observation.evidencia || observation.fuente_detalle;
-                return <tr key={observation.id}>
-                  <TableCell>{formatDateTime(observation.timestamp_observacion || record.periodo_inicio)}</TableCell>
-                  <TableCell><span className="font-bold">{humanize(observation.concepto)}</span>{(record.tipo_recurso || record.metrica) && <span className="block text-xs text-[var(--text-muted)]">{record.tipo_recurso || record.metrica}</span>}</TableCell>
-                  <TableCell>{measurementValue(observation)}</TableCell>
-                  <TableCell>{contextLabel}</TableCell>
-                  <TableCell><DataQualityBadge label={humanize(observation.estado)} tone={qualityTone(observation.estado)} /></TableCell>
-                  <TableCell>{observation.sensor_detalle
-                    ? <Link className="font-bold text-[var(--brand-primary)]" to={`/operacion/sensores/${observation.sensor_detalle.id}`}>Sensor</Link>
-                    : hasTrace
-                      ? <TraceabilityLink onClick={() => setTrace(observation)} />
-                      : "Sin origen identificable"}</TableCell>
-                </tr>;
-              })}</TableBody>
-            </TableShell>}
+        {metricCards.length > 0 && <section>
+          <SectionHeader title="Resumen" description={domain === "ruido" || domain === "hidrica-suelo" ? "Las mediciones no aditivas se muestran como serie o rango, nunca como total acumulado." : "Sólo se agregan magnitudes que el contrato declara como sumables."} />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{metricCards.map((metric) => <KpiCard
+            key={metric.key}
+            label={metric.label}
+            value={metric.value}
+            unit={metric.unit}
+            helper={metric.helper}
+          />)}</div>
         </section>}
-    </>}
 
-    <TraceabilityDrawer observation={trace} open={Boolean(trace)} onClose={() => setTrace(null)} workId={obraId} />
-  </div>;
+        {!records.length
+          ? noApplicable
+            ? <EmptyState title="No aplica a esta unidad" description="Este dominio está marcado como no aplicable. No se interpreta la ausencia de registros como cero." />
+            : unresolved
+              ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para afirmar que este dominio aplica o no aplica a la unidad." />
+              : <EmptyState
+                title="Sin información registrada"
+                description={`Aún no hay registros de ${config.label.toLowerCase()} para esta unidad.`}
+                primaryAction={<Link className="font-bold text-[var(--brand-primary)]" to="/datos/importaciones">Importar información</Link>}
+                secondaryAction={<Link className="font-bold text-[var(--text-secondary)]" to={`/obras/${obraId}/evidencias`}>Agregar documento</Link>}
+              />
+          : <section>
+            <SectionHeader
+              title={domain === "ruido" ? "Mediciones acústicas" : domain === "hidrica-suelo" ? "Condiciones registradas" : "Registros recientes"}
+              description="Valor observado, contexto y origen se mantienen separados."
+              count={measurements.length}
+            />
+            {!measurements.length
+              ? <EmptyState title="Sin mediciones disponibles" description="Existen registros del dominio, pero no contienen observaciones visibles en el contrato actual." />
+              : <TableShell>
+                <TableHead><tr>
+                  <TableCell as="th">Fecha</TableCell>
+                  <TableCell as="th">Concepto</TableCell>
+                  <TableCell as="th">Valor</TableCell>
+                  <TableCell as="th">Contexto</TableCell>
+                  <TableCell as="th">Calidad</TableCell>
+                  <TableCell as="th">Origen</TableCell>
+                </tr></TableHead>
+                <TableBody columns={6}>{measurements.map(({ record, observation }) => {
+                  const contextLabel = pointNames.get(String(record.punto))
+                    || record.ubicacion_contexto
+                    || humanize(record.granularidad);
+                  const hasTrace = observation.evidencia || observation.fuente_detalle;
+                  return <tr key={observation.id}>
+                    <TableCell>{formatDateTime(observation.timestamp_observacion || record.periodo_inicio)}</TableCell>
+                    <TableCell><span className="font-bold">{humanize(observation.concepto)}</span>{(record.tipo_recurso || record.metrica) && <span className="block text-xs text-[var(--text-muted)]">{record.tipo_recurso || record.metrica}</span>}</TableCell>
+                    <TableCell>{measurementValue(observation)}</TableCell>
+                    <TableCell>{contextLabel}</TableCell>
+                    <TableCell><DataQualityBadge label={humanize(observation.estado)} tone={qualityTone(observation.estado)} /></TableCell>
+                    <TableCell>{observation.sensor_detalle
+                      ? <Link className="font-bold text-[var(--brand-primary)]" to={`/operacion/sensores/${observation.sensor_detalle.id}`}>Sensor</Link>
+                      : hasTrace
+                        ? <TraceabilityLink onClick={() => setTrace(observation)} />
+                        : "Sin origen identificable"}</TableCell>
+                  </tr>;
+                })}</TableBody>
+              </TableShell>}
+          </section>}
+      </>}
+
+      <TraceabilityDrawer
+        observation={trace}
+        open={Boolean(trace)}
+        onClose={() => setTrace(null)}
+        workId={obraId}
+      />
+    </OperationDomainShell>
+  );
 }
