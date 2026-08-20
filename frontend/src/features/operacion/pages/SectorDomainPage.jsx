@@ -57,7 +57,17 @@ export default function SectorDomainPage({ domain }) {
   const {
     activeOrganizacionId,
   } = useOrganizacionActiva();
-  const { context, indicators, operation, resourceErrors } = useOutletContext();
+  const {
+    obra,
+    context,
+    indicators,
+    operation,
+    resourceErrors,
+  } = useOutletContext();
+
+  const persistedWorkId =
+    obra?.id ||
+    obra?.obra_id;
   const config = DOMAIN_CONFIG[domain];
   const applicabilityState = applicability(context, config.capability);
   const recordsReady = isResourceReady(operation.records);
@@ -234,7 +244,9 @@ export default function SectorDomainPage({ domain }) {
         organizationId={
           activeOrganizacionId
         }
-        workId={obraId}
+        workId={
+          persistedWorkId
+        }
         domain={domain}
         onCreated={() =>
           window.location.reload()
