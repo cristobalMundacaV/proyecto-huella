@@ -14,11 +14,17 @@ import {
 import {
     createOperationalActivity,
     listDataSources,
+    createDataSource,
 } from "../api/activityApi";
+
+import {
+    uploadEvidence,
+} from "@/features/datos/services/dataApi";
 
 import {
     createSectorRecord,
 } from "../api/sectorFlowsApi";
+
 
 const FLOW_CONFIG = {
     energia: {
@@ -82,6 +88,13 @@ const initialForm = {
     source: "",
     resourceType: "",
     metric: "",
+
+    newSourceName: "",
+    newSourceType: "manual",
+
+    evidenceFile: null,
+    evidenceName: "",
+    evidenceType: "otro",
 };
 
 export default function ManualFlowRecordModal({
@@ -108,6 +121,11 @@ export default function ManualFlowRecordModal({
     const [
         loadingSources,
         setLoadingSources,
+    ] = useState(false);
+
+    const [
+        creatingSource,
+        setCreatingSource,
     ] = useState(false);
 
     const [
@@ -160,6 +178,67 @@ export default function ManualFlowRecordModal({
         organizationId,
     ]);
 
+    async function createSource() {
+        const name =
+            form.newSourceName.trim();
+
+        if (!name) {
+            setError(
+                "Ingresa un nombre para la nueva fuente.",
+            );
+            return;
+        }
+
+        setCreatingSource(true);
+        setError("");
+
+        try {
+            const created =
+                await createDataSource(
+                    organizationId,
+                    {
+                        nombre: name,
+                        tipo:
+                            form.newSourceType,
+                        descripcion:
+                            `Fuente creada durante captura manual de ${domain}.`,
+                        activa: true,
+                    },
+                );
+
+            setSources(
+                (current) => [
+                    ...current,
+                    created,
+                ],
+            );
+
+            setForm(
+                (current) => ({
+                    ...current,
+                    source:
+                        String(
+                            created.id,
+                        ),
+                    newSourceName:
+                        "",
+                }),
+            );
+        } catch (requestError) {
+            setError(
+                requestError
+                    .response?.data
+                    ?.detail ||
+                requestError
+                    .response?.data
+                    ?.error ||
+                "No fue posible crear la fuente.",
+            );
+        } finally {
+            setCreatingSource(false);
+        }
+    }
+
     const canSubmit = useMemo(
         () =>
             Boolean(
@@ -189,7 +268,47 @@ export default function ManualFlowRecordModal({
         try {
             const now =
                 new Date().toISOString();
+            let evidenceId = null;
 
+            if (form.evidenceFile) {
+                const evidenceData =
+                    new FormData();
+
+                evidenceData.append(
+                    "archivo",
+                    form.evidenceFile,
+                );
+
+                evidenceData.append(
+                    "nombre",
+                    form.evidenceName.trim() ||
+                    form.evidenceFile.name,
+                );
+
+                evidenceData.append(
+                    "tipo_evidencia",
+                    form.evidenceType,
+                );
+
+                evidenceData.append(
+                    "estado_documental",
+                    "pendiente",
+                );
+
+                evidenceData.append(
+                    "obra",
+                    workId,
+                );
+
+                const evidence =
+                    await uploadEvidence(
+                        organizationId,
+                        evidenceData,
+                    );
+
+                evidenceId =
+                    evidence.id;
+            }
             const activity =
                 await createOperationalActivity(
                     organizationId,
@@ -228,6 +347,8 @@ export default function ManualFlowRecordModal({
                     form.unit,
                 fuente:
                     form.source,
+                evidencia:
+                    evidenceId,
             };
 
             if (
@@ -367,7 +488,164 @@ export default function ManualFlowRecordModal({
                         ),
                     )}
                 </Select>
+                <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] p-4">
+                    <p className="text-sm font-black">
+                        ¿La fuente no existe?
+                    </p>
 
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <Input
+                            label="Nombre de nueva fuente"
+                            value={
+                                form.newSourceName
+                            }
+                            onChange={(
+                                event,
+                            ) =>
+                                setForm(
+                                    (current) => ({
+                                        ...current,
+                                        newSourceName:
+                                            event.target.value,
+                                    }),
+                                )
+                            }
+                        />
+
+                        <Select
+                            label="Tipo de fuente"
+                            value={
+                                form.newSourceType
+                            }
+                            onChange={(
+                                event,
+                            ) =>
+                                setForm(
+                                    (current) => ({
+                                        ...current,
+                                        newSourceType:
+                                            event.target.value,
+                                    }),
+                                )
+                            }
+                        >
+                            <option value="manual">
+                                Registro manual
+                            </option>
+
+                            <option value="documento">
+                                Documento
+                            </option>
+
+                            <option value="sensor">
+                                Sensor
+                            </option>
+
+                            <option value="integracion">
+                                Integración
+                            </option>
+                        </Select>
+                    </div>
+
+                    <div className="mt-3">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            loading={
+                                creatingSource
+                            }
+                            onClick={
+                                createSource
+                            }
+                        >
+                            Crear fuente
+                        </Button>
+                    </div>
+                </div>
+                <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] p-4">
+                    <p className="text-sm font-black">
+                        Evidencia opcional
+                    </p>
+
+                    <div className="mt-3 space-y-3">
+                        <Input
+                            label="Nombre del documento"
+                            value={
+                                form.evidenceName
+                            }
+                            onChange={(
+                                event,
+                            ) =>
+                                setForm(
+                                    (current) => ({
+                                        ...current,
+                                        evidenceName:
+                                            event.target.value,
+                                    }),
+                                )
+                            }
+                        />
+
+                        <Select
+                            label="Tipo de evidencia"
+                            value={
+                                form.evidenceType
+                            }
+                            onChange={(
+                                event,
+                            ) =>
+                                setForm(
+                                    (current) => ({
+                                        ...current,
+                                        evidenceType:
+                                            event.target.value,
+                                    }),
+                                )
+                            }
+                        >
+                            <option value="otro">
+                                Otro documento
+                            </option>
+
+                            <option value="boleta_electrica">
+                                Boleta eléctrica
+                            </option>
+
+                            <option value="factura_combustible">
+                                Factura de combustible
+                            </option>
+
+                            <option value="registro_retiro_residuos">
+                                Retiro de residuos
+                            </option>
+
+                            <option value="ticket_pesaje">
+                                Ticket de pesaje
+                            </option>
+
+                            <option value="documento_transporte">
+                                Documento de transporte
+                            </option>
+                        </Select>
+
+                        <Input
+                            type="file"
+                            label="Archivo"
+                            onChange={(
+                                event,
+                            ) =>
+                                setForm(
+                                    (current) => ({
+                                        ...current,
+                                        evidenceFile:
+                                            event.target.files?.[0] ||
+                                            null,
+                                    }),
+                                )
+                            }
+                        />
+                    </div>
+                </div>
                 <Input
                     label="Tipo o recurso"
                     value={
