@@ -31,6 +31,7 @@ import OperationDomainShell from "../components/OperationDomainShell";
 import ManualFlowRecordModal from "../components/ManualFlowRecordModal";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import DomainSensorsPanel from "../components/DomainSensorsPanel";
+import DomainQualityPanel from "../components/DomainQualityPanel";
 
 const qualityTone = (state) => state === "validada" ? "success" : state === "rechazada" ? "danger" : "warning";
 const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
@@ -242,6 +243,16 @@ export default function SectorDomainPage({ domain }) {
         }
         onCreated={
           reloadOperation
+        }
+      />
+
+      <DomainQualityPanel
+        domain={domain}
+        organizationId={
+          activeOrganizacionId
+        }
+        workId={
+          persistedWorkId
         }
       />
 

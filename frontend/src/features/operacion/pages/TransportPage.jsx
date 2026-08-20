@@ -196,6 +196,15 @@ export default function TransportPage() {
           reloadOperation
         }
       />
+      <DomainQualityPanel
+        domain="transporte"
+        organizationId={
+          context?.references?.organization
+        }
+        workId={
+          persistedWorkId
+        }
+      />
       <TransportRecordModal
         open={recordOpen}
         onClose={() =>

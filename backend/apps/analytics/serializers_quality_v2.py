@@ -1,56 +1,294 @@
 from rest_framework import serializers
 
-from .models import (DiscrepanciaDato, EvaluacionCalidadDato, IndicadorAmbiental,
-                     LineaBaseAmbiental, PoliticaConfianzaFuente, ValorIndicador)
+from .models import (
+    DiscrepanciaDato,
+    EvaluacionCalidadDato,
+    IndicadorAmbiental,
+    LineaBaseAmbiental,
+    PoliticaConfianzaFuente,
+    ValorIndicador,
+)
 
 
 class EvaluacionCalidadSerializer(serializers.ModelSerializer):
     observacion_detalle = serializers.SerializerMethodField()
-    def get_observacion_detalle(self, obj):
+
+    def get_observacion_detalle(
+        self,
+        obj,
+    ):
         item = obj.observacion
-        return {"id": item.id, "concepto": item.concepto, "valor": item.valor_numerico, "unidad": item.unidad, "fuente": item.fuente.nombre}
+        actividad = item.actividad
+        obra = actividad.obra if actividad else None
+
+        return {
+            "id": item.id,
+            "concepto": item.concepto,
+            "valor": item.valor_numerico,
+            "valor_texto": item.valor_texto,
+            "unidad": item.unidad,
+            "timestamp": item.timestamp_observacion,
+            "estado": item.estado,
+            "metodo_captura": item.metodo_captura,
+            "naturaleza": item.naturaleza,
+            "fuente": {
+                "id": item.fuente_id,
+                "nombre": item.fuente.nombre,
+                "tipo": item.fuente.tipo,
+            },
+            "evidencia": (
+                {
+                    "id": item.evidencia_id,
+                    "nombre": item.evidencia.nombre,
+                }
+                if item.evidencia_id
+                else None
+            ),
+            "actividad": (
+                {
+                    "id": actividad.id,
+                    "nombre": actividad.nombre,
+                    "tipo": actividad.tipo,
+                }
+                if actividad
+                else None
+            ),
+            "obra": (
+                {
+                    "id": obra.id,
+                    "nombre": obra.nombre,
+                }
+                if obra
+                else None
+            ),
+        }
+
     class Meta:
         model = EvaluacionCalidadDato
-        fields = ["id", "observacion", "observacion_detalle", "estado", "motivos", "dimensiones", "fecha_evaluacion", "version_reglas", "automatica", "evaluado_por"]
+
+        fields = [
+            "id",
+            "observacion",
+            "observacion_detalle",
+            "estado",
+            "motivos",
+            "dimensiones",
+            "fecha_evaluacion",
+            "version_reglas",
+            "automatica",
+            "evaluado_por",
+        ]
 
 
 class DiscrepanciaSerializer(serializers.ModelSerializer):
+    observaciones_detalle = serializers.SerializerMethodField()
+
+    actividad_detalle = serializers.SerializerMethodField()
+
+    def get_actividad_detalle(
+        self,
+        obj,
+    ):
+        activity = obj.actividad
+
+        if not activity:
+            return None
+
+        return {
+            "id": activity.id,
+            "nombre": activity.nombre,
+            "tipo": activity.tipo,
+            "obra": activity.obra_id,
+        }
+
+    def get_observaciones_detalle(
+        self,
+        obj,
+    ):
+        return [
+            {
+                "id": observation.id,
+                "concepto": observation.concepto,
+                "valor": observation.valor_numerico,
+                "valor_texto": observation.valor_texto,
+                "unidad": observation.unidad,
+                "timestamp": observation.timestamp_observacion,
+                "fuente": {
+                    "id": observation.fuente_id,
+                    "nombre": observation.fuente.nombre,
+                    "tipo": observation.fuente.tipo,
+                },
+                "metodo_captura": observation.metodo_captura,
+                "estado": observation.estado,
+            }
+            for observation in obj.observaciones.all()
+        ]
+
     class Meta:
         model = DiscrepanciaDato
-        fields = ["id", "actividad", "concepto", "observaciones", "estado", "diferencia_absoluta", "diferencia_relativa", "severidad", "resolucion", "observacion_seleccionada", "motivo", "responsable", "created_at", "updated_at"]
-        read_only_fields = ["actividad", "concepto", "observaciones", "diferencia_absoluta", "diferencia_relativa", "severidad", "created_at", "updated_at"]
 
-    def validate_observacion_seleccionada(self, value):
+        fields = [
+            "id",
+            "actividad",
+            "actividad_detalle",
+            "concepto",
+            "observaciones",
+            "observaciones_detalle",
+            "estado",
+            "diferencia_absoluta",
+            "diferencia_relativa",
+            "severidad",
+            "resolucion",
+            "observacion_seleccionada",
+            "motivo",
+            "responsable",
+            "created_at",
+            "updated_at",
+        ]
+
+        read_only_fields = [
+            "actividad",
+            "concepto",
+            "observaciones",
+            "observaciones_detalle",
+            "actividad_detalle",
+            "diferencia_absoluta",
+            "diferencia_relativa",
+            "severidad",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate_observacion_seleccionada(
+        self,
+        value,
+    ):
         if value and value.organizacion_id != self.instance.organizacion_id:
-            raise serializers.ValidationError("La observacion pertenece a otra organizacion.")
+            raise serializers.ValidationError(
+                "La observacion pertenece a otra organizacion."
+            )
+
+        if value and not self.instance.observaciones.filter(pk=value.pk).exists():
+            raise serializers.ValidationError(
+                "La observacion no pertenece a esta discrepancia."
+            )
+
         return value
+
+    def validate(self, attrs):
+        estado = attrs.get(
+            "estado",
+            self.instance.estado,
+        )
+
+        selected = attrs.get(
+            "observacion_seleccionada",
+            self.instance.observacion_seleccionada,
+        )
+
+        resolucion = attrs.get(
+            "resolucion",
+            self.instance.resolucion,
+        )
+
+        if estado == "resuelta":
+            if not selected:
+                raise serializers.ValidationError(
+                    {
+                        "observacion_seleccionada": "Debe seleccionar la observacion que resuelve la discrepancia."
+                    }
+                )
+
+            if not str(resolucion or "").strip():
+                raise serializers.ValidationError(
+                    {"resolucion": "Debe documentar la resolucion."}
+                )
+
+        return attrs
 
 
 class PoliticaFuenteSerializer(serializers.ModelSerializer):
     class Meta:
         model = PoliticaConfianzaFuente
-        fields = ["id", "organizacion", "concepto", "tipo_fuente", "prioridad", "activa", "descripcion"]
+        fields = [
+            "id",
+            "organizacion",
+            "concepto",
+            "tipo_fuente",
+            "prioridad",
+            "activa",
+            "descripcion",
+        ]
 
 
 class ValorIndicadorSerializer(serializers.ModelSerializer):
     class Meta:
         model = ValorIndicador
-        fields = ["id", "periodo_inicio", "periodo_fin", "valor", "unidad", "fuente_calculo", "version", "metadata", "created_at"]
+        fields = [
+            "id",
+            "periodo_inicio",
+            "periodo_fin",
+            "valor",
+            "unidad",
+            "fuente_calculo",
+            "version",
+            "metadata",
+            "created_at",
+        ]
 
 
 class IndicadorSerializer(serializers.ModelSerializer):
     valor_actual = serializers.SerializerMethodField()
+
     def get_valor_actual(self, obj):
         value = obj.valores.order_by("-periodo_fin", "-version").first()
         return ValorIndicadorSerializer(value).data if value else None
+
     class Meta:
         model = IndicadorAmbiental
-        fields = ["id", "codigo", "nombre", "tipo", "alcance", "obra", "unidad", "descripcion", "origen_numerador", "origen_denominador", "direccion_deseable", "activo", "valor_actual", "created_at", "updated_at"]
+        fields = [
+            "id",
+            "codigo",
+            "nombre",
+            "tipo",
+            "alcance",
+            "obra",
+            "unidad",
+            "descripcion",
+            "origen_numerador",
+            "origen_denominador",
+            "direccion_deseable",
+            "activo",
+            "valor_actual",
+            "created_at",
+            "updated_at",
+        ]
 
 
 class LineaBaseSerializer(serializers.ModelSerializer):
     indicador_nombre = serializers.CharField(source="indicador.nombre", read_only=True)
+
     class Meta:
         model = LineaBaseAmbiental
-        fields = ["id", "indicador", "indicador_nombre", "periodo_inicio", "periodo_fin", "metodo", "estado", "valor_base", "cantidad_periodos", "observaciones", "created_at"]
-        read_only_fields = ["periodo_inicio", "periodo_fin", "estado", "valor_base", "cantidad_periodos", "observaciones", "created_at"]
+        fields = [
+            "id",
+            "indicador",
+            "indicador_nombre",
+            "periodo_inicio",
+            "periodo_fin",
+            "metodo",
+            "estado",
+            "valor_base",
+            "cantidad_periodos",
+            "observaciones",
+            "created_at",
+        ]
+        read_only_fields = [
+            "periodo_inicio",
+            "periodo_fin",
+            "estado",
+            "valor_base",
+            "cantidad_periodos",
+            "observaciones",
+            "created_at",
+        ]

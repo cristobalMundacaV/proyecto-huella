@@ -1,16 +1,50 @@
 import { api } from "@/shared/services/api";
-const base=(id)=>`/organizaciones/${encodeURIComponent(id)}`;
-export const getProfessionalReviews=async(id,params={})=>(await api.get(`${base(id)}/revisiones-profesionales/`,{params})).data;
-export const addReviewFinding=async(id,reviewId,payload)=>(await api.post(`${base(id)}/revisiones-profesionales/${reviewId}/hallazgos/`,payload)).data;
-export const decideReview=async(id,reviewId,payload)=>(await api.post(`${base(id)}/revisiones-profesionales/${reviewId}/decision/`,payload)).data;
-export const getDossiers=async(id)=>(await api.get(`${base(id)}/expedientes/`)).data;
-export const getDossier=async(id,dossierId)=>(await api.get(`${base(id)}/expedientes/${dossierId}/`)).data;
-export const closeDossier=async(id,dossierId)=>(await api.post(`${base(id)}/expedientes/${dossierId}/cerrar/`)).data;
-export const reopenDossier=async(id,dossierId,motivo)=>(await api.post(`${base(id)}/expedientes/${dossierId}/reabrir/`,{motivo})).data;
-export const generateDossierReport=async(id,dossierId)=>(await api.post(`${base(id)}/informes/`,{tipo:"expediente",expediente:dossierId})).data;
-export const validateProfessionalReport=async(id,reportId)=>(await api.post(`${base(id)}/informes/${reportId}/validar/`)).data;
-export const reportPdfUrl=(id,reportId)=>`${api.defaults.baseURL || "/api"}/organizaciones/${encodeURIComponent(id)}/informes/${reportId}/pdf/`;
-export const getEnvironmentalAudit=async(id)=>(await api.get(`${base(id)}/auditoria/`)).data;
-export const getQualityEvaluations=async(id)=>(await api.get(`${base(id)}/calidad/observaciones/`)).data;
-export const getDiscrepancies=async(id)=>(await api.get(`${base(id)}/discrepancias/`)).data;
-export const getSourcePolicies=async(id)=>(await api.get(`${base(id)}/politicas-fuente/`)).data;
+const base = (id) => `/organizaciones/${encodeURIComponent(id)}`;
+export const getProfessionalReviews = async (id, params = {}) => (await api.get(`${base(id)}/revisiones-profesionales/`, { params })).data;
+export const addReviewFinding = async (id, reviewId, payload) => (await api.post(`${base(id)}/revisiones-profesionales/${reviewId}/hallazgos/`, payload)).data;
+export const decideReview = async (id, reviewId, payload) => (await api.post(`${base(id)}/revisiones-profesionales/${reviewId}/decision/`, payload)).data;
+export const getDossiers = async (id) => (await api.get(`${base(id)}/expedientes/`)).data;
+export const getDossier = async (id, dossierId) => (await api.get(`${base(id)}/expedientes/${dossierId}/`)).data;
+export const closeDossier = async (id, dossierId) => (await api.post(`${base(id)}/expedientes/${dossierId}/cerrar/`)).data;
+export const reopenDossier = async (id, dossierId, motivo) => (await api.post(`${base(id)}/expedientes/${dossierId}/reabrir/`, { motivo })).data;
+export const generateDossierReport = async (id, dossierId) => (await api.post(`${base(id)}/informes/`, { tipo: "expediente", expediente: dossierId })).data;
+export const validateProfessionalReport = async (id, reportId) => (await api.post(`${base(id)}/informes/${reportId}/validar/`)).data;
+export const reportPdfUrl = (id, reportId) => `${api.defaults.baseURL || "/api"}/organizaciones/${encodeURIComponent(id)}/informes/${reportId}/pdf/`;
+export const getEnvironmentalAudit = async (id) => (await api.get(`${base(id)}/auditoria/`)).data;
+export const getQualityEvaluations =
+    async (
+        id,
+        params = {},
+    ) =>
+        (
+            await api.get(
+                `${base(id)}/calidad/observaciones/`,
+                { params },
+            )
+        ).data;
+
+export const getDiscrepancies =
+    async (
+        id,
+        params = {},
+    ) =>
+        (
+            await api.get(
+                `${base(id)}/discrepancias/`,
+                { params },
+            )
+        ).data;
+
+export const updateDiscrepancy =
+    async (
+        id,
+        discrepancyId,
+        payload,
+    ) =>
+        (
+            await api.patch(
+                `${base(id)}/discrepancias/${discrepancyId}/`,
+                payload,
+            )
+        ).data;
+export const getSourcePolicies = async (id) => (await api.get(`${base(id)}/politicas-fuente/`)).data;

@@ -16,6 +16,8 @@ import { applicability, isResourceReady, resourceData } from "../utils/operation
 import { useState } from "react";
 import MaterialEventModal from "../components/MaterialEventModal";
 import DomainSensorsPanel from "../components/DomainSensorsPanel";
+import DomainQualityPanel from "../components/DomainQualityPanel";
+
 
 const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
 
@@ -192,6 +194,15 @@ export default function MaterialsPage() {
         workId={persistedWorkId}
         onCreated={
           reloadOperation
+        }
+      />
+      <DomainQualityPanel
+        domain="materiales"
+        organizationId={
+          context?.references?.organization
+        }
+        workId={
+          persistedWorkId
         }
       />
       <MaterialEventModal
