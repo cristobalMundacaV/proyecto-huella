@@ -200,6 +200,26 @@ const FLOW_CONFIG = {
             "nivel_ruido",
         defaultUnit:
             "dB(A)",
+        requiresMetric:
+            true,
+        defaultMetric:
+            "Leq",
+        defaultPointType:
+            "punto_ruido",
+        metrics: [
+            {
+                value: "Leq",
+                label: "Leq",
+            },
+            {
+                value: "Lmax",
+                label: "Lmax",
+            },
+            {
+                value: "Lmin",
+                label: "Lmin",
+            },
+        ],
     },
 
     "hidrica-suelo": {
@@ -300,6 +320,9 @@ export default function ManualFlowRecordModal({
             ...initialForm,
             unit:
                 config?.defaultUnit ||
+                "",
+            metric:
+                config?.defaultMetric ||
                 "",
         });
 
@@ -496,11 +519,16 @@ export default function ManualFlowRecordModal({
                 (
                     !config.requiresDestination ||
                     form.destination
+                ) &&
+                (
+                    !config.requiresMetric ||
+                    form.metric
                 ),
             ),
         [
             config,
             form.destination,
+            form.metric,
             form.resourceType,
             form.source,
             form.value,
@@ -1205,29 +1233,63 @@ export default function ManualFlowRecordModal({
                     />
                 )}
 
-                {(domain ===
-                    "ruido" ||
-                    domain ===
-                    "hidrica-suelo") && (
-                        <Input
-                            label="Métrica"
-                            value={
-                                form.metric
-                            }
-                            onChange={(
-                                event,
-                            ) =>
-                                setForm(
-                                    (current) => ({
-                                        ...current,
-                                        metric:
-                                            event.target
-                                                .value,
-                                    }),
-                                )
-                            }
-                        />
-                    )}
+                {config.metrics ? (
+                    <Select
+                        required={
+                            config.requiresMetric
+                        }
+                        label="Métrica acústica"
+                        value={
+                            form.metric
+                        }
+                        onChange={(
+                            event,
+                        ) =>
+                            setForm(
+                                (current) => ({
+                                    ...current,
+                                    metric:
+                                        event.target.value,
+                                }),
+                            )
+                        }
+                    >
+                        {config.metrics.map(
+                            (metric) => (
+                                <option
+                                    key={
+                                        metric.value
+                                    }
+                                    value={
+                                        metric.value
+                                    }
+                                >
+                                    {
+                                        metric.label
+                                    }
+                                </option>
+                            ),
+                        )}
+                    </Select>
+                ) : domain === "hidrica-suelo" ? (
+                    <Input
+                        label="Métrica"
+                        value={
+                            form.metric
+                        }
+                        onChange={(
+                            event,
+                        ) =>
+                            setForm(
+                                (current) => ({
+                                    ...current,
+                                    metric:
+                                        event.target.value,
+                                }),
+                            )
+                        }
+                    />
+                ) : null}
 
                 {error && (
                     <p
