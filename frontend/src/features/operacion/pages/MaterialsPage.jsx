@@ -15,6 +15,8 @@ import OperationDomainShell from "../components/OperationDomainShell";
 import { applicability, isResourceReady, resourceData } from "../utils/operationSelectors";
 import { useState } from "react";
 import MaterialEventModal from "../components/MaterialEventModal";
+import DomainSensorsPanel from "../components/DomainSensorsPanel";
+
 const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
 
 function measurement(value, unit) {
@@ -181,6 +183,17 @@ export default function MaterialsPage() {
               })}</TableBody>
             </TableShell>
           </section>}
+      <DomainSensorsPanel
+        domain="materiales"
+        operation={operation}
+        organizationId={
+          context?.references?.organization
+        }
+        workId={persistedWorkId}
+        onCreated={
+          reloadOperation
+        }
+      />
       <MaterialEventModal
         open={recordOpen}
         onClose={() =>

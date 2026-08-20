@@ -30,6 +30,7 @@ import DomainApplicability from "../components/DomainApplicability";
 import OperationDomainShell from "../components/OperationDomainShell";
 import ManualFlowRecordModal from "../components/ManualFlowRecordModal";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
+import DomainSensorsPanel from "../components/DomainSensorsPanel";
 
 const qualityTone = (state) => state === "validada" ? "success" : state === "rechazada" ? "danger" : "warning";
 const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
@@ -230,6 +231,19 @@ export default function SectorDomainPage({ domain }) {
               </TableShell>}
           </section>}
       </>}
+      <DomainSensorsPanel
+        domain={domain}
+        operation={operation}
+        organizationId={
+          activeOrganizacionId
+        }
+        workId={
+          persistedWorkId
+        }
+        onCreated={
+          reloadOperation
+        }
+      />
 
       <TraceabilityDrawer
         observation={trace}

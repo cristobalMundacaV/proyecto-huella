@@ -6,6 +6,8 @@ import DomainApplicability from "../components/DomainApplicability";
 import { useState } from "react";
 import TransportRecordModal from "../components/TransportRecordModal";
 import OperationDomainShell from "../components/OperationDomainShell";
+import DomainSensorsPanel from "../components/DomainSensorsPanel";
+
 const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
 
 function measurement(value, unit) {
@@ -183,6 +185,17 @@ export default function TransportPage() {
               })}</TableBody>
             </TableShell>
           </section>}
+      <DomainSensorsPanel
+        domain="transporte"
+        operation={operation}
+        organizationId={
+          context?.references?.organization
+        }
+        workId={persistedWorkId}
+        onCreated={
+          reloadOperation
+        }
+      />
       <TransportRecordModal
         open={recordOpen}
         onClose={() =>
