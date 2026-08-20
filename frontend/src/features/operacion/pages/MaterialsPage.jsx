@@ -187,7 +187,7 @@ export default function MaterialsPage() {
           setRecordOpen(false)
         }
         organizationId={
-          context?.organizacion?.organizacion_id
+          context?.references?.organization
         }
         workId={persistedWorkId}
         onCreated={reloadOperation}

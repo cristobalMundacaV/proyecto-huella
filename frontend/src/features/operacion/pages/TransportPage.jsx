@@ -189,7 +189,7 @@ export default function TransportPage() {
           setRecordOpen(false)
         }
         organizationId={
-          context?.organizacion?.organizacion_id
+          context?.references?.organization
         }
         workId={persistedWorkId}
         onCreated={reloadOperation}
