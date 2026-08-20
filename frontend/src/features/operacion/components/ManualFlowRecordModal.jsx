@@ -22,7 +22,9 @@ import {
 } from "@/features/datos/services/dataApi";
 
 import {
+    createEnvironmentalPoint,
     createSectorRecord,
+    listEnvironmentalPoints,
 } from "../api/sectorFlowsApi";
 
 
@@ -89,6 +91,12 @@ const initialForm = {
     resourceType: "",
     metric: "",
 
+    point: "",
+    newPointName: "",
+    newPointCode: "",
+    newPointType: "",
+    newPointLocation: "",
+
     newSourceName: "",
     newSourceType: "manual",
 
@@ -119,13 +127,28 @@ export default function ManualFlowRecordModal({
     ] = useState([]);
 
     const [
+        points,
+        setPoints,
+    ] = useState([]);
+
+    const [
         loadingSources,
         setLoadingSources,
     ] = useState(false);
 
     const [
+        loadingPoints,
+        setLoadingPoints,
+    ] = useState(false);
+
+    const [
         creatingSource,
         setCreatingSource,
+    ] = useState(false);
+
+    const [
+        creatingPoint,
+        setCreatingPoint,
     ] = useState(false);
 
     const [
@@ -152,6 +175,7 @@ export default function ManualFlowRecordModal({
 
         setError("");
         setLoadingSources(true);
+        setLoadingPoints(true);
 
         listDataSources(
             organizationId,
@@ -172,11 +196,100 @@ export default function ManualFlowRecordModal({
             .finally(() => {
                 setLoadingSources(false);
             });
+        listEnvironmentalPoints(
+            organizationId,
+            {
+                obra: workId,
+            },
+        )
+            .then((data) => {
+                setPoints(
+                    Array.isArray(data)
+                        ? data
+                        : data?.results ||
+                        [],
+                );
+            })
+            .catch(() => {
+                setError(
+                    "No fue posible cargar los puntos ambientales.",
+                );
+            })
+            .finally(() => {
+                setLoadingPoints(false);
+            });
     }, [
         config?.defaultUnit,
         open,
         organizationId,
+        workId,
     ]);
+
+    async function createPoint() {
+        const name =
+            form.newPointName.trim();
+
+        const code =
+            form.newPointCode.trim();
+
+        if (!name || !code) {
+            setError(
+                "Ingresa nombre y código para el punto ambiental.",
+            );
+            return;
+        }
+
+        setCreatingPoint(true);
+        setError("");
+
+        try {
+            const created =
+                await createEnvironmentalPoint(
+                    organizationId,
+                    {
+                        obra: workId,
+                        nombre: name,
+                        codigo: code,
+                        tipo:
+                            form.newPointType.trim() ||
+                            "punto_medicion",
+                        ubicacion:
+                            form.newPointLocation.trim(),
+                    },
+                );
+
+            setPoints(
+                (current) => [
+                    ...current,
+                    created,
+                ],
+            );
+
+            setForm(
+                (current) => ({
+                    ...current,
+                    point:
+                        String(created.id),
+                    newPointName: "",
+                    newPointCode: "",
+                    newPointType: "",
+                    newPointLocation: "",
+                }),
+            );
+        } catch (requestError) {
+            setError(
+                requestError
+                    .response?.data
+                    ?.detail ||
+                requestError
+                    .response?.data
+                    ?.error ||
+                "No fue posible crear el punto ambiental.",
+            );
+        } finally {
+            setCreatingPoint(false);
+        }
+    }
 
     async function createSource() {
         const name =
@@ -327,6 +440,8 @@ export default function ManualFlowRecordModal({
                 actividad:
                     activity.id,
                 obra: workId,
+                punto:
+                    form.point || null,
                 flujo:
                     domain ===
                         "combustibles"
@@ -338,7 +453,9 @@ export default function ManualFlowRecordModal({
                 periodo_inicio:
                     now,
                 granularidad:
-                    "obra",
+                    form.point
+                        ? "punto"
+                        : "obra",
                 concepto:
                     config.concept,
                 valor_numerico:
@@ -404,6 +521,137 @@ export default function ManualFlowRecordModal({
                 className="space-y-4"
                 onSubmit={submit}
             >
+                <Select
+                    label="Punto ambiental"
+                    value={
+                        form.point
+                    }
+                    disabled={
+                        loadingPoints
+                    }
+                    onChange={(
+                        event,
+                    ) =>
+                        setForm(
+                            (current) => ({
+                                ...current,
+                                point:
+                                    event.target.value,
+                            }),
+                        )
+                    }
+                >
+                    <option value="">
+                        Registro general de la obra
+                    </option>
+
+                    {points.map(
+                        (point) => (
+                            <option
+                                key={point.id}
+                                value={point.id}
+                            >
+                                {point.nombre}
+                            </option>
+                        ),
+                    )}
+                </Select>
+                <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] p-4">
+                    <p className="text-sm font-black">
+                        ¿El punto no existe?
+                    </p>
+
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <Input
+                            label="Nombre del punto"
+                            value={
+                                form.newPointName
+                            }
+                            onChange={(
+                                event,
+                            ) =>
+                                setForm(
+                                    (current) => ({
+                                        ...current,
+                                        newPointName:
+                                            event.target.value,
+                                    }),
+                                )
+                            }
+                        />
+
+                        <Input
+                            label="Código"
+                            value={
+                                form.newPointCode
+                            }
+                            onChange={(
+                                event,
+                            ) =>
+                                setForm(
+                                    (current) => ({
+                                        ...current,
+                                        newPointCode:
+                                            event.target.value,
+                                    }),
+                                )
+                            }
+                        />
+
+                        <Input
+                            label="Tipo"
+                            placeholder="Ej: medidor_agua"
+                            value={
+                                form.newPointType
+                            }
+                            onChange={(
+                                event,
+                            ) =>
+                                setForm(
+                                    (current) => ({
+                                        ...current,
+                                        newPointType:
+                                            event.target.value,
+                                    }),
+                                )
+                            }
+                        />
+
+                        <Input
+                            label="Ubicación"
+                            placeholder="Ej: acceso norte"
+                            value={
+                                form.newPointLocation
+                            }
+                            onChange={(
+                                event,
+                            ) =>
+                                setForm(
+                                    (current) => ({
+                                        ...current,
+                                        newPointLocation:
+                                            event.target.value,
+                                    }),
+                                )
+                            }
+                        />
+                    </div>
+
+                    <div className="mt-3">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            loading={
+                                creatingPoint
+                            }
+                            onClick={
+                                createPoint
+                            }
+                        >
+                            Crear punto
+                        </Button>
+                    </div>
+                </div>
                 <Input
                     required
                     type="number"
