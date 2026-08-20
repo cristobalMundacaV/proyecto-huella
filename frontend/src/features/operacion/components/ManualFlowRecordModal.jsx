@@ -163,6 +163,34 @@ const FLOW_CONFIG = {
             "cantidad_residuo",
         defaultUnit:
             "kg",
+        requiresDestination:
+            true,
+        destinations: [
+            {
+                value: "residuo",
+                label: "Residuo sin destino definido",
+            },
+            {
+                value: "reutilizacion",
+                label: "Reutilización",
+            },
+            {
+                value: "reciclaje",
+                label: "Reciclaje",
+            },
+            {
+                value: "valorizacion",
+                label: "Valorización",
+            },
+            {
+                value: "disposicion",
+                label: "Disposición final",
+            },
+            {
+                value: "subproducto_reutilizado",
+                label: "Subproducto reutilizado",
+            },
+        ],
     },
 
     ruido: {
@@ -191,6 +219,7 @@ const initialForm = {
     source: "",
     resourceType: "",
     metric: "",
+    destination: "",
 
     point: "",
     newPointName: "",
@@ -463,10 +492,15 @@ export default function ManualFlowRecordModal({
                 (
                     !config.requiresResourceType ||
                     form.resourceType
+                ) &&
+                (
+                    !config.requiresDestination ||
+                    form.destination
                 ),
             ),
         [
             config,
+            form.destination,
             form.resourceType,
             form.source,
             form.value,
@@ -584,6 +618,8 @@ export default function ManualFlowRecordModal({
                     form.source,
                 evidencia:
                     evidenceId,
+                destino_operacional:
+                    form.destination || "",
             };
 
             if (
@@ -808,6 +844,49 @@ export default function ManualFlowRecordModal({
                                 >
                                     {
                                         mode.label
+                                    }
+                                </option>
+                            ),
+                        )}
+                    </Select>
+                )}
+                {config.destinations && (
+                    <Select
+                        required={
+                            config.requiresDestination
+                        }
+                        label="Destino del residuo"
+                        value={
+                            form.destination
+                        }
+                        onChange={(
+                            event,
+                        ) =>
+                            setForm(
+                                (current) => ({
+                                    ...current,
+                                    destination:
+                                        event.target.value,
+                                }),
+                            )
+                        }
+                    >
+                        <option value="">
+                            Selecciona un destino
+                        </option>
+
+                        {config.destinations.map(
+                            (destination) => (
+                                <option
+                                    key={
+                                        destination.value
+                                    }
+                                    value={
+                                        destination.value
+                                    }
+                                >
+                                    {
+                                        destination.label
                                     }
                                 </option>
                             ),
