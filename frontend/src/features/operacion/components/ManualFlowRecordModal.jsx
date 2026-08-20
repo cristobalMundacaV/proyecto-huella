@@ -47,6 +47,8 @@ const FLOW_CONFIG = {
             "m3",
         requiresResourceType:
             true,
+        defaultPointType:
+            "punto_agua",
         resourceTypes: [
             {
                 value: "red_publica",
@@ -280,6 +282,7 @@ export default function ManualFlowRecordModal({
                         codigo: code,
                         tipo:
                             form.newPointType.trim() ||
+                            config?.defaultPointType ||
                             "punto_medicion",
                         ubicacion:
                             form.newPointLocation.trim(),
@@ -633,7 +636,11 @@ export default function ManualFlowRecordModal({
 
                         <Input
                             label="Tipo"
-                            placeholder="Ej: medidor_agua"
+                            placeholder={
+                                domain === "agua"
+                                    ? "Ej: medidor_agua"
+                                    : "Ej: punto_monitoreo"
+                            }
                             value={
                                 form.newPointType
                             }
