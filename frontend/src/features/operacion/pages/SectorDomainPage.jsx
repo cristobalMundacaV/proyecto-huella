@@ -63,6 +63,7 @@ export default function SectorDomainPage({ domain }) {
     indicators,
     operation,
     resourceErrors,
+    reloadOperation,
   } = useOutletContext();
 
   const persistedWorkId =
@@ -248,8 +249,8 @@ export default function SectorDomainPage({ domain }) {
           persistedWorkId
         }
         domain={domain}
-        onCreated={() =>
-          window.location.reload()
+        onCreated={
+          reloadOperation
         }
       />
     </OperationDomainShell>

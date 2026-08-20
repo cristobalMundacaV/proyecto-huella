@@ -131,6 +131,8 @@ export default function OperationLayout() {
         ...workspace,
         operation:
           state.data,
+        reloadOperation:
+          load,
       }}
     />
   );
