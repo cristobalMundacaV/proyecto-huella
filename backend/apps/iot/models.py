@@ -241,6 +241,9 @@ class DispositivoSensor(models.Model):
         ):
             errors["punto_ambiental"] = "El punto ambiental pertenece a otra obra."
 
+        if errors:
+            raise ValidationError(errors)
+
 
 class InstalacionSensor(models.Model):
     class Estado(models.TextChoices):
