@@ -128,6 +128,32 @@ const FLOW_CONFIG = {
             "combustible_consumido",
         defaultUnit:
             "L",
+        requiresResourceType:
+            true,
+        defaultPointType:
+            "punto_combustible",
+        resourceTypes: [
+            {
+                value: "diesel",
+                label: "Diésel",
+            },
+            {
+                value: "gasolina",
+                label: "Gasolina",
+            },
+            {
+                value: "gas_licuado",
+                label: "Gas licuado",
+            },
+            {
+                value: "gas_natural",
+                label: "Gas natural",
+            },
+            {
+                value: "otro",
+                label: "Otro combustible",
+            },
+        ],
     },
 
     residuos: {
@@ -697,7 +723,9 @@ export default function ManualFlowRecordModal({
                                     ? "Ej: medidor_agua"
                                     : domain === "energia"
                                         ? "Ej: medidor_tablero_principal"
-                                        : "Ej: punto_monitoreo"
+                                        : domain === "combustibles"
+                                            ? "Ej: estanque_generador_01"
+                                            : "Ej: punto_monitoreo"
                             }
                             value={
                                 form.newPointType
@@ -1038,7 +1066,9 @@ export default function ManualFlowRecordModal({
                                 ? "Fuente de abastecimiento"
                                 : domain === "energia"
                                     ? "Origen de la energía"
-                                    : "Tipo de recurso"
+                                    : domain === "combustibles"
+                                        ? "Tipo de combustible"
+                                        : "Tipo de recurso"
                         }
                         value={
                             form.resourceType
