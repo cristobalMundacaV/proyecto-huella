@@ -36,6 +36,28 @@ const FLOW_CONFIG = {
             "consumo_energia",
         defaultUnit:
             "kWh",
+        requiresResourceType:
+            true,
+        defaultPointType:
+            "punto_energia",
+        resourceTypes: [
+            {
+                value: "red_electrica",
+                label: "Red eléctrica",
+            },
+            {
+                value: "generador",
+                label: "Generador",
+            },
+            {
+                value: "solar_fotovoltaica",
+                label: "Solar fotovoltaica",
+            },
+            {
+                value: "otra",
+                label: "Otra fuente",
+            },
+        ],
     },
 
     agua: {
@@ -639,7 +661,9 @@ export default function ManualFlowRecordModal({
                             placeholder={
                                 domain === "agua"
                                     ? "Ej: medidor_agua"
-                                    : "Ej: punto_monitoreo"
+                                    : domain === "energia"
+                                        ? "Ej: medidor_tablero_principal"
+                                        : "Ej: punto_monitoreo"
                             }
                             value={
                                 form.newPointType
@@ -942,7 +966,9 @@ export default function ManualFlowRecordModal({
                         label={
                             domain === "agua"
                                 ? "Fuente de abastecimiento"
-                                : "Tipo de recurso"
+                                : domain === "energia"
+                                    ? "Origen de la energía"
+                                    : "Tipo de recurso"
                         }
                         value={
                             form.resourceType
