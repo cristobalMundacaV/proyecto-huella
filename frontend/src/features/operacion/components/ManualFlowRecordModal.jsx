@@ -45,6 +45,32 @@ const FLOW_CONFIG = {
             "consumo_agua",
         defaultUnit:
             "m3",
+        resourceTypes: [
+            {
+                value: "red_publica",
+                label: "Red pública",
+            },
+            {
+                value: "pozo",
+                label: "Pozo",
+            },
+            {
+                value: "camion_aljibe",
+                label: "Camión aljibe",
+            },
+            {
+                value: "agua_lluvia",
+                label: "Agua lluvia",
+            },
+            {
+                value: "agua_reutilizada",
+                label: "Agua reutilizada",
+            },
+            {
+                value: "otra",
+                label: "Otra fuente de agua",
+            },
+        ],
     },
 
     combustibles: {
@@ -894,24 +920,64 @@ export default function ManualFlowRecordModal({
                         />
                     </div>
                 </div>
-                <Input
-                    label="Tipo o recurso"
-                    value={
-                        form.resourceType
-                    }
-                    onChange={(
-                        event,
-                    ) =>
-                        setForm(
-                            (current) => ({
-                                ...current,
-                                resourceType:
-                                    event.target
-                                        .value,
-                            }),
-                        )
-                    }
-                />
+                {config.resourceTypes ? (
+                    <Select
+                        label="Tipo de recurso"
+                        value={
+                            form.resourceType
+                        }
+                        onChange={(
+                            event,
+                        ) =>
+                            setForm(
+                                (current) => ({
+                                    ...current,
+                                    resourceType:
+                                        event.target.value,
+                                }),
+                            )
+                        }
+                    >
+                        <option value="">
+                            Selecciona un tipo
+                        </option>
+
+                        {config.resourceTypes.map(
+                            (resource) => (
+                                <option
+                                    key={
+                                        resource.value
+                                    }
+                                    value={
+                                        resource.value
+                                    }
+                                >
+                                    {
+                                        resource.label
+                                    }
+                                </option>
+                            ),
+                        )}
+                    </Select>
+                ) : (
+                    <Input
+                        label="Tipo o recurso"
+                        value={
+                            form.resourceType
+                        }
+                        onChange={(
+                            event,
+                        ) =>
+                            setForm(
+                                (current) => ({
+                                    ...current,
+                                    resourceType:
+                                        event.target.value,
+                                }),
+                            )
+                        }
+                    />
+                )}
 
                 {(domain ===
                     "ruido" ||
