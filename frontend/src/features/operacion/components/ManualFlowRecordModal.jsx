@@ -45,6 +45,8 @@ const FLOW_CONFIG = {
             "consumo_agua",
         defaultUnit:
             "m3",
+        requiresResourceType:
+            true,
         resourceTypes: [
             {
                 value: "red_publica",
@@ -383,10 +385,15 @@ export default function ManualFlowRecordModal({
             Boolean(
                 config &&
                 form.value !== "" &&
-                form.source,
+                form.source &&
+                (
+                    !config.requiresResourceType ||
+                    form.resourceType
+                ),
             ),
         [
             config,
+            form.resourceType,
             form.source,
             form.value,
         ],
@@ -922,7 +929,14 @@ export default function ManualFlowRecordModal({
                 </div>
                 {config.resourceTypes ? (
                     <Select
-                        label="Tipo de recurso"
+                        required={
+                            config.requiresResourceType
+                        }
+                        label={
+                            domain === "agua"
+                                ? "Fuente de abastecimiento"
+                                : "Tipo de recurso"
+                        }
                         value={
                             form.resourceType
                         }
