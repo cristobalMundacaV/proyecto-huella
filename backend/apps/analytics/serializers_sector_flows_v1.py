@@ -160,58 +160,7 @@ class RegistroFlujoAmbientalSerializer(serializers.ModelSerializer):
                     "evidencia": "La evidencia pertenece a otra obra.",
                 }
             )
-        obra = attrs.get(
-            "obra",
-            getattr(
-                self.instance,
-                "obra",
-                None,
-            ),
-        )
 
-        actividad = attrs.get(
-            "actividad",
-            getattr(
-                self.instance,
-                "actividad",
-                None,
-            ),
-        )
-
-        punto = attrs.get(
-            "punto",
-            getattr(
-                self.instance,
-                "punto",
-                None,
-            ),
-        )
-
-        evidencia = attrs.get(
-            "evidencia",
-            None,
-        )
-
-        if obra and actividad and actividad.obra_id and actividad.obra_id != obra.id:
-            raise serializers.ValidationError(
-                {
-                    "actividad": "La actividad pertenece a otra obra.",
-                }
-            )
-
-        if obra and punto and punto.obra_id and punto.obra_id != obra.id:
-            raise serializers.ValidationError(
-                {
-                    "punto": "El punto ambiental pertenece a otra obra.",
-                }
-            )
-
-        if obra and evidencia and evidencia.obra_id and evidencia.obra_id != obra.id:
-            raise serializers.ValidationError(
-                {
-                    "evidencia": "La evidencia pertenece a otra obra.",
-                }
-            )
         number, text = attrs.get("valor_numerico"), attrs.get("valor_texto", "")
         if number is not None and text:
             raise serializers.ValidationError("Use solo un valor numerico o textual.")
