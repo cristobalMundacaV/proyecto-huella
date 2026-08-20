@@ -34,6 +34,28 @@ const FLOW_CONFIG = {
             "consumo_energia",
         concept:
             "consumo_energia",
+        modes: [
+            {
+                value: "consumo",
+                label: "Consumo de energía",
+                activityType:
+                    "consumo_energia",
+                flow:
+                    "energia",
+                concept:
+                    "consumo_energia",
+            },
+            {
+                value: "generacion",
+                label: "Generación propia",
+                activityType:
+                    "generacion_energia",
+                flow:
+                    "generacion_propia",
+                concept:
+                    "energia_generada",
+            },
+        ],
         defaultUnit:
             "kWh",
         requiresResourceType:
@@ -137,6 +159,7 @@ const FLOW_CONFIG = {
 };
 
 const initialForm = {
+    mode: "consumo",
     value: "",
     unit: "",
     source: "",
@@ -480,12 +503,19 @@ export default function ManualFlowRecordModal({
                 evidenceId =
                     evidence.id;
             }
+            const selectedMode =
+                config.modes?.find(
+                    (mode) =>
+                        mode.value ===
+                        form.mode,
+                );
             const activity =
                 await createOperationalActivity(
                     organizationId,
                     {
                         obra: workId,
                         tipo:
+                            selectedMode?.activityType ||
                             config.activityType,
                         nombre:
                             `Registro manual · ${domain}`,
@@ -501,13 +531,16 @@ export default function ManualFlowRecordModal({
                 punto:
                     form.point || null,
                 flujo:
-                    domain ===
-                        "combustibles"
-                        ? "combustible_estacionario"
-                        : domain ===
-                            "hidrica-suelo"
-                            ? "gestion_hidrica_suelo"
-                            : domain,
+                    selectedMode?.flow ||
+                    (
+                        domain ===
+                            "combustibles"
+                            ? "combustible_estacionario"
+                            : domain ===
+                                "hidrica-suelo"
+                                ? "gestion_hidrica_suelo"
+                                : domain
+                    ),
                 periodo_inicio:
                     now,
                 granularidad:
@@ -515,6 +548,7 @@ export default function ManualFlowRecordModal({
                         ? "punto"
                         : "obra",
                 concepto:
+                    selectedMode?.concept ||
                     config.concept,
                 valor_numerico:
                     form.value,
@@ -716,6 +750,42 @@ export default function ManualFlowRecordModal({
                         </Button>
                     </div>
                 </div>
+                {config.modes && (
+                    <Select
+                        label="Tipo de registro"
+                        value={
+                            form.mode
+                        }
+                        onChange={(
+                            event,
+                        ) =>
+                            setForm(
+                                (current) => ({
+                                    ...current,
+                                    mode:
+                                        event.target.value,
+                                }),
+                            )
+                        }
+                    >
+                        {config.modes.map(
+                            (mode) => (
+                                <option
+                                    key={
+                                        mode.value
+                                    }
+                                    value={
+                                        mode.value
+                                    }
+                                >
+                                    {
+                                        mode.label
+                                    }
+                                </option>
+                            ),
+                        )}
+                    </Select>
+                )}
                 <Input
                     required
                     type="number"
