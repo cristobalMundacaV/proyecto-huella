@@ -3,6 +3,8 @@ import { EmptyState, ErrorState, KpiCard, SectionHeader, TableBody, TableCell, T
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
 import { applicability, isResourceReady, resourceData, transportMetrics } from "../utils/operationSelectors";
 import DomainApplicability from "../components/DomainApplicability";
+import { useState } from "react";
+import TransportRecordModal from "../components/TransportRecordModal";
 import OperationDomainShell from "../components/OperationDomainShell";
 const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
 
@@ -22,7 +24,19 @@ function observationOrigin(label, observation) {
 
 export default function TransportPage() {
   const { obraId } = useParams();
-  const { context, operation } = useOutletContext();
+  const {
+    obra,
+    context,
+    operation,
+    reloadOperation,
+  } = useOutletContext();
+
+  const [recordOpen, setRecordOpen] =
+    useState(false);
+
+  const persistedWorkId =
+    obra?.id ||
+    obra?.obra_id;
   const applicabilityState = applicability(context, "transporte");
   const indicatorsReady = isResourceReady(operation.transport);
   const journeysReady = isResourceReady(operation.journeys);
@@ -46,6 +60,17 @@ export default function TransportPage() {
         />
       }
     >
+      <div className="flex justify-end">
+        <button
+          type="button"
+          className="font-bold text-[var(--brand-primary)]"
+          onClick={() =>
+            setRecordOpen(true)
+          }
+        >
+          Registrar viaje
+        </button>
+      </div>
 
       {indicatorsReady
         ? summaryMetrics.length > 0 && <section>
@@ -158,7 +183,17 @@ export default function TransportPage() {
               })}</TableBody>
             </TableShell>
           </section>}
-
+      <TransportRecordModal
+        open={recordOpen}
+        onClose={() =>
+          setRecordOpen(false)
+        }
+        organizationId={
+          context?.organizacion?.organizacion_id
+        }
+        workId={persistedWorkId}
+        onCreated={reloadOperation}
+      />
     </OperationDomainShell>
   );
 }

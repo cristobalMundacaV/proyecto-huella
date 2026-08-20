@@ -13,7 +13,8 @@ import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
 import DomainApplicability from "../components/DomainApplicability";
 import OperationDomainShell from "../components/OperationDomainShell";
 import { applicability, isResourceReady, resourceData } from "../utils/operationSelectors";
-
+import { useState } from "react";
+import MaterialEventModal from "../components/MaterialEventModal";
 const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
 
 function measurement(value, unit) {
@@ -23,7 +24,19 @@ function measurement(value, unit) {
 
 export default function MaterialsPage() {
   const { obraId } = useParams();
-  const { context, operation } = useOutletContext();
+  const {
+    obra,
+    context,
+    operation,
+    reloadOperation,
+  } = useOutletContext();
+
+  const [recordOpen, setRecordOpen] =
+    useState(false);
+
+  const persistedWorkId =
+    obra?.id ||
+    obra?.obra_id;
   const applicabilityState = applicability(context, "materiales");
   const balancesReady = isResourceReady(operation.materials);
   const eventsReady = isResourceReady(operation.materialEvents);
@@ -52,6 +65,17 @@ export default function MaterialsPage() {
         />
       }
     >
+      <div className="flex justify-end">
+        <button
+          type="button"
+          className="font-bold text-[var(--brand-primary)]"
+          onClick={() =>
+            setRecordOpen(true)
+          }
+        >
+          Registrar movimiento
+        </button>
+      </div>
       {!balancesReady && <ErrorState title="No fue posible cargar los balances de materiales" description="Los eventos continúan disponibles si pudieron cargarse." />}
 
       {balancesReady && signals.length > 0 && <Alert tone="warning" title="Requiere revisión">
@@ -157,7 +181,17 @@ export default function MaterialsPage() {
               })}</TableBody>
             </TableShell>
           </section>}
-
+      <MaterialEventModal
+        open={recordOpen}
+        onClose={() =>
+          setRecordOpen(false)
+        }
+        organizationId={
+          context?.organizacion?.organizacion_id
+        }
+        workId={persistedWorkId}
+        onCreated={reloadOperation}
+      />
     </OperationDomainShell>
   );
 }

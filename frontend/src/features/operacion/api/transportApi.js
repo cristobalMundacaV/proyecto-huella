@@ -83,3 +83,17 @@ export const getJourneyIndicators = async (
             },
         )
     ).data;
+
+export const listVehicleAssets = async (
+    organizationId,
+) =>
+    (
+        await api.get(
+            `${base(organizationId)}/activos/`,
+            {
+                params: {
+                    tipo: "vehiculo",
+                },
+            },
+        )
+    ).data;
