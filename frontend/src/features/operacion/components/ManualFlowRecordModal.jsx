@@ -226,9 +226,55 @@ const FLOW_CONFIG = {
         activityType:
             "gestion_hidrica_suelo",
         concept:
-            "condicion_ambiental",
+            "superficie_intervenida",
         defaultUnit:
-            "",
+            "m2",
+        defaultPointType:
+            "punto_drenaje",
+        modes: [
+            {
+                value: "superficie",
+                label: "Superficie intervenida",
+                activityType:
+                    "gestion_hidrica_suelo",
+                flow:
+                    "gestion_hidrica_suelo",
+                concept:
+                    "superficie_intervenida",
+                valueType:
+                    "number",
+                unit:
+                    "m2",
+            },
+            {
+                value: "desborde",
+                label: "Desborde observado",
+                activityType:
+                    "gestion_hidrica_suelo",
+                flow:
+                    "gestion_hidrica_suelo",
+                concept:
+                    "desborde",
+                valueType:
+                    "text",
+                unit:
+                    "",
+            },
+            {
+                value: "erosion",
+                label: "Erosión observada",
+                activityType:
+                    "gestion_hidrica_suelo",
+                flow:
+                    "gestion_hidrica_suelo",
+                concept:
+                    "erosion_observada",
+                valueType:
+                    "text",
+                unit:
+                    "",
+            },
+        ],
     },
 };
 
@@ -597,6 +643,9 @@ export default function ManualFlowRecordModal({
                         mode.value ===
                         form.mode,
                 );
+            const valueType =
+                selectedMode?.valueType ||
+                "number";
             const activity =
                 await createOperationalActivity(
                     organizationId,
@@ -639,7 +688,13 @@ export default function ManualFlowRecordModal({
                     selectedMode?.concept ||
                     config.concept,
                 valor_numerico:
-                    form.value,
+                    valueType === "number"
+                        ? form.value
+                        : null,
+                valor_texto:
+                    valueType === "text"
+                        ? form.value
+                        : "",
                 unidad:
                     form.unit,
                 fuente:
@@ -850,15 +905,28 @@ export default function ManualFlowRecordModal({
                         }
                         onChange={(
                             event,
-                        ) =>
+                        ) => {
+                            const nextMode =
+                                config.modes.find(
+                                    (mode) =>
+                                        mode.value ===
+                                        event.target.value,
+                                );
+
                             setForm(
                                 (current) => ({
                                     ...current,
                                     mode:
                                         event.target.value,
+                                    value:
+                                        "",
+                                    unit:
+                                        nextMode?.unit ??
+                                        config.defaultUnit ??
+                                        "",
                                 }),
-                            )
-                        }
+                            );
+                        }}
                     >
                         {config.modes.map(
                             (mode) => (
@@ -923,9 +991,25 @@ export default function ManualFlowRecordModal({
                 )}
                 <Input
                     required
-                    type="number"
+                    type={
+                        config.modes?.find(
+                            (mode) =>
+                                mode.value ===
+                                form.mode,
+                        )?.valueType === "text"
+                            ? "text"
+                            : "number"
+                    }
                     step="any"
-                    label="Valor"
+                    label={
+                        config.modes?.find(
+                            (mode) =>
+                                mode.value ===
+                                form.mode,
+                        )?.valueType === "text"
+                            ? "Observación"
+                            : "Valor"
+                    }
                     value={
                         form.value
                     }
