@@ -730,11 +730,19 @@ class QualityV2TenantAuthorizationTests(APITestCase):
 
     def test_discrepancias_lectura_y_patch_respetan_tenant(self):
         self.assertEqual(
-            self.client.get(f"{self.base_a}/discrepancias/").status_code, 200
+            self.client.get(f"{self.base_a}/discrepancias/").status_code,
+            200,
         )
+
+        self.discrepancy_a.observaciones.add(self.observation_a)
+
         response = self.client.patch(
             f"{self.base_a}/discrepancias/{self.discrepancy_a.id}/",
-            {"estado": "resuelta", "resolucion": "Revisada"},
+            {
+                "estado": "resuelta",
+                "observacion_seleccionada": self.observation_a.id,
+                "resolucion": "Revisada",
+            },
             format="json",
         )
         self.assertEqual(response.status_code, 200)

@@ -7,6 +7,7 @@ import { useState } from "react";
 import TransportRecordModal from "../components/TransportRecordModal";
 import OperationDomainShell from "../components/OperationDomainShell";
 import DomainSensorsPanel from "../components/DomainSensorsPanel";
+import DomainQualityPanel from "../components/DomainQualityPanel";
 
 const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
 
