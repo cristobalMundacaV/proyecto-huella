@@ -346,7 +346,7 @@ class SectorFlowsV1Tests(APITestCase):
             obra=second_work,
             codigo="P-B",
             nombre="Punto Obra B",
-            tipo="punto_medicion",
+            tipo="otro",
         )
 
         foreign_evidence = EvidenciaObra.objects.create(
