@@ -35,36 +35,19 @@ class InstalacionSensorSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         org = self.context["sensor"].organizacion
+
         for field in (
-            "obra",
-            "punto_ambiental",
-            "activo_operacional",
+            "activo",
             "unidad_operacional",
             "proceso_operacional",
         ):
             relation = attrs.get(field)
+
             if relation and relation.organizacion_id != org.id:
                 raise serializers.ValidationError(
                     {field: "La relacion pertenece a otra organizacion."}
                 )
 
-        obra = attrs.get(
-            "obra",
-            getattr(self.instance, "obra", None),
-        )
-        punto = attrs.get(
-            "punto_ambiental",
-            getattr(
-                self.instance,
-                "punto_ambiental",
-                None,
-            ),
-        )
-
-        if obra and punto and punto.obra_id and punto.obra_id != obra.id:
-            raise serializers.ValidationError(
-                {"punto_ambiental": "El punto ambiental pertenece a otra obra."}
-            )
         return attrs
 
     def create(self, data):
