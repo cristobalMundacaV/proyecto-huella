@@ -370,7 +370,10 @@ export default function ProblemsPage({
             workScoped
               ? workId
               : null,
-        }
+        },
+        workScoped
+          ? workId
+          : undefined,
       );
 
       setForm(null);

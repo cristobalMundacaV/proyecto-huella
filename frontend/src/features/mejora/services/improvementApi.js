@@ -5,7 +5,21 @@ const options = (workId) => workId ? { params: { obra: workId } } : {};
 const detail = (organizationId, problemId, suffix = "") => `${root(organizationId)}/${encodeURIComponent(problemId)}/${suffix}`;
 
 export const listProblems = async (organizationId, workId) => (await api.get(`${root(organizationId)}/`, options(workId))).data;
-export const createProblem = async (organizationId, payload) => (await api.post(`${root(organizationId)}/`, payload)).data;
+export const createProblem =
+    async (
+        organizationId,
+        payload,
+        workId,
+    ) =>
+        (
+            await api.post(
+                `${root(
+                    organizationId
+                )}/`,
+                payload,
+                options(workId),
+            )
+        ).data;
 export const getProblem = async (organizationId, problemId, workId) => (await api.get(detail(organizationId, problemId), options(workId))).data;
 export const getProblemScope = async (organizationId, problemId, workId) => (await api.get(detail(organizationId, problemId, "alcance/"), options(workId))).data;
 export const getProblemIndicators = async (organizationId, problemId, workId) => (await api.get(detail(organizationId, problemId, "indicadores/"), options(workId))).data;
