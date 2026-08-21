@@ -25,6 +25,12 @@ const ObrasPage = lazy(() => import("@/features/obras/pages/ObrasPage"));
 const ObraWorkspaceLayout = lazy(() => import("@/app/layouts/ObraWorkspaceLayout"));
 const ObraResumenPage = lazy(() => import("@/features/obras/pages/ObraResumenPage"));
 const ObraIndicatorsPage = lazy(() => import("@/features/obras/pages/ObraIndicatorsPage"));
+const WorkCompliancePage = lazy(
+  () =>
+    import(
+      "@/features/compliance/pages/WorkCompliancePage"
+    )
+);
 const ObraTimelinePage = lazy(() => import("@/features/obras/pages/ObraTimelinePage"));
 const DataOverviewPage = lazy(() => import("@/features/datos/pages/DataOverviewPage"));
 const EvidencePage = lazy(() => import("@/features/datos/pages/EvidencePage"));
@@ -92,8 +98,20 @@ export default function AppRouter() {
             <Route path="ruido" element={<SectorDomainPage domain="ruido" />} />
             <Route path="hidrica-suelo" element={<SectorDomainPage domain="hidrica-suelo" />} />
           </Route>
-          <Route path="indicadores" element={<ObraIndicatorsPage />} />
-          <Route path="problemas" element={<ProblemsPage workScoped />} />
+          <Route
+            path="indicadores"
+            element={<ObraIndicatorsPage />}
+          />
+
+          <Route
+            path="cumplimiento"
+            element={<WorkCompliancePage />}
+          />
+
+          <Route
+            path="problemas"
+            element={<ProblemsPage workScoped />}
+          />
           <Route path="problemas/:problemId" element={<ProblemDetailPage workScoped />} />
           <Route path="evidencias" element={<EvidencePage workScoped />} />
           <Route path="timeline" element={<ObraTimelinePage />} />

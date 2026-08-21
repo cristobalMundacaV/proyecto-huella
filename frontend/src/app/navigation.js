@@ -597,6 +597,12 @@ export function getWorkNavigation({
             path: `${base}/indicadores`,
             icon: BarChart3,
           },
+          {
+            id: "compliance",
+            label: "Cumplimiento",
+            path: `${base}/cumplimiento`,
+            icon: BarChart3,
+          },
         ],
       },
 

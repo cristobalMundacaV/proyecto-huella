@@ -3,8 +3,33 @@ const base = (id) => `/organizaciones/${encodeURIComponent(id)}`;
 export const getProfessionalReviews = async (id, params = {}) => (await api.get(`${base(id)}/revisiones-profesionales/`, { params })).data;
 export const addReviewFinding = async (id, reviewId, payload) => (await api.post(`${base(id)}/revisiones-profesionales/${reviewId}/hallazgos/`, payload)).data;
 export const decideReview = async (id, reviewId, payload) => (await api.post(`${base(id)}/revisiones-profesionales/${reviewId}/decision/`, payload)).data;
-export const getDossiers = async (id) => (await api.get(`${base(id)}/expedientes/`)).data;
-export const getDossier = async (id, dossierId) => (await api.get(`${base(id)}/expedientes/${dossierId}/`)).data;
+export const getDossiers =
+    async (
+        id,
+        params = {},
+    ) =>
+        (
+            await api.get(
+                `${base(id)}/expedientes/`,
+                {
+                    params,
+                },
+            )
+        ).data;
+export const getDossier =
+    async (
+        id,
+        dossierId,
+        params = {},
+    ) =>
+        (
+            await api.get(
+                `${base(id)}/expedientes/${dossierId}/`,
+                {
+                    params,
+                },
+            )
+        ).data;
 export const closeDossier = async (id, dossierId) => (await api.post(`${base(id)}/expedientes/${dossierId}/cerrar/`)).data;
 export const reopenDossier = async (id, dossierId, motivo) => (await api.post(`${base(id)}/expedientes/${dossierId}/reabrir/`, { motivo })).data;
 export const generateDossierReport = async (id, dossierId) => (await api.post(`${base(id)}/informes/`, { tipo: "expediente", expediente: dossierId })).data;

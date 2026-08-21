@@ -47,6 +47,22 @@ def get_organizacion_or_404(
     return organization
 
 
+def requested_work(
+    request,
+    organization,
+):
+    work_id = request.query_params.get("obra")
+
+    if not work_id:
+        return None
+
+    return get_object_or_404(
+        Obra,
+        organizacion=organization,
+        id=work_id,
+    )
+
+
 def serialize(serializer_class, instance, request=None, many=False):
     return serializer_class(instance, many=many, context={"request": request}).data
 
@@ -61,9 +77,22 @@ def documentos_ambientales(request, organizacion_id):
     if request.method == "GET":
         queryset = (
             DocumentoAmbiental.objects.filter(organizacion=organizacion)
-            .select_related("organizacion", "obra", "etapa")
+            .select_related(
+                "organizacion",
+                "obra",
+                "etapa",
+            )
             .prefetch_related("registros_emision")
         )
+
+        work = requested_work(
+            request,
+            organizacion,
+        )
+
+        if work is not None:
+            queryset = queryset.filter(obra=work)
+
         return Response(
             serialize(
                 DocumentoAmbientalSerializer, queryset, request=request, many=True
@@ -71,6 +100,23 @@ def documentos_ambientales(request, organizacion_id):
         )
 
     data = request.data.copy()
+
+    work = requested_work(
+        request,
+        organizacion,
+    )
+
+    if work is not None:
+        supplied_work = data.get("obra")
+
+        if supplied_work and str(supplied_work) != str(work.id):
+            return Response(
+                {"obra": ["La obra no coincide con el contexto solicitado."]},
+                status=400,
+            )
+
+        data["obra"] = work.id
+
     data["organizacion"] = organizacion.id
     data.setdefault("industria", organizacion.preset)
     serializer = DocumentoAmbientalSerializer(
@@ -121,7 +167,19 @@ def variables_ambientales(request, organizacion_id):
     if request.method == "GET":
         queryset = VariableAmbientalExtraida.objects.filter(
             organizacion=organizacion
-        ).select_related("organizacion", "documento")
+        ).select_related(
+            "organizacion",
+            "documento",
+        )
+
+        work = requested_work(
+            request,
+            organizacion,
+        )
+
+        if work is not None:
+            queryset = queryset.filter(documento__obra=work)
+
         estado = request.query_params.get("estado")
         if estado:
             queryset = queryset.filter(estado_cumplimiento=estado)
@@ -221,7 +279,21 @@ def alertas_cumplimiento(request, organizacion_id):
     )
     queryset = AlertaCumplimientoAmbiental.objects.filter(
         organizacion=organizacion
-    ).select_related("documento", "variable")
+    ).select_related(
+        "documento",
+        "variable",
+    )
+
+    work = requested_work(
+        request,
+        organizacion,
+    )
+
+    if work is not None:
+        queryset = queryset.filter(
+            Q(documento__obra=work) | Q(variable__documento__obra=work)
+        ).distinct()
+
     estado = request.query_params.get("estado")
     if estado:
         queryset = queryset.filter(estado=estado)
@@ -254,6 +326,19 @@ def cumplimiento_ambiental_resumen(request, organizacion_id):
     documentos = DocumentoAmbiental.objects.filter(organizacion=organizacion)
     variables = VariableAmbientalExtraida.objects.filter(organizacion=organizacion)
     alertas = AlertaCumplimientoAmbiental.objects.filter(organizacion=organizacion)
+    work = requested_work(
+        request,
+        organizacion,
+    )
+
+    if work is not None:
+        documentos = documentos.filter(obra=work)
+
+        variables = variables.filter(documento__obra=work)
+
+        alertas = alertas.filter(
+            Q(documento__obra=work) | Q(variable__documento__obra=work)
+        ).distinct()
     alertas_abiertas_q = Q(
         estado__in=[
             AlertaCumplimientoAmbiental.Estado.ABIERTA,
@@ -279,6 +364,7 @@ def cumplimiento_ambiental_resumen(request, organizacion_id):
     return Response(
         {
             "organizacion_id": organizacion.organizacion_id,
+            "obra_id": work.id if work else None,
             "industria": organizacion.preset,
             "total_documentos": documentos.count(),
             "documentos_pendientes": documentos.filter(
