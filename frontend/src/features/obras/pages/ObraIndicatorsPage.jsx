@@ -1,37 +1,348 @@
-import { Activity } from "lucide-react";
-import { useOutletContext } from "react-router-dom";
-import { transportMetrics } from "@/features/operacion/utils/operationSelectors";
-import { EmptyState, KpiCard, SectionHeader } from "@/shared/ui";
+import {
+  useEffect,
+  useState,
+} from "react";
 
-const label = (value) => String(value ?? "Sin información").replaceAll("_", " ");
+import {
+  Activity,
+  History,
+  TrendingUp,
+} from "lucide-react";
 
-function indicatorRows(indicators) {
-  const transport = transportMetrics(indicators?.transporte)
-    .filter((metric) => metric.value !== null && metric.value !== undefined)
-    .map((metric) => ({ name: metric.label, value: metric.value, unit: metric.unit, helper: "Transporte operacional" }));
-  const flows = (Array.isArray(indicators?.flujos) ? indicators.flujos : [])
-    .filter((metric) => metric?.estrategia_agregacion === "suma" && metric.total !== null && metric.total !== undefined)
-    .map((metric) => ({ name: `${label(metric.flujo)} · ${label(metric.concepto)}`, value: metric.total, unit: metric.unidad || undefined, helper: "Flujo ambiental" }));
-  return [...transport, ...flows];
-}
+import {
+  useOutletContext,
+} from "react-router-dom";
+
+import {
+  EmptyState,
+  KpiCard,
+  SectionHeader,
+  StatusBadge,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableShell,
+} from "@/shared/ui";
+
+import {
+  formatDateTime,
+  formatNumber,
+} from "@/shared/utils/formatters";
+
+import {
+  getBaselines,
+  getEnvironmentalImpacts,
+  getIndicators,
+} from "@/features/operacion/api/calculationApi";
+
+
+const human = (value) =>
+  String(
+    value || "",
+  ).replaceAll(
+    "_",
+    " ",
+  );
+
 
 export default function ObraIndicatorsPage() {
-  const { indicators, resourceErrors = {} } = useOutletContext();
-  const rows = resourceErrors.indicators ? [] : indicatorRows(indicators);
+  const {
+    obra,
+    context,
+  } = useOutletContext();
 
-  return <section className="space-y-6">
-    <SectionHeader
-      eyebrow="LECTURA AMBIENTAL"
-      title="Indicadores"
-      description="Consulta las señales ambientales y operacionales disponibles para esta obra."
-    />
-    {resourceErrors.indicators ? <p className="text-sm text-[var(--text-muted)]">Indicadores no disponibles en este momento.</p> : rows.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {rows.map((item, index) => <KpiCard key={`${item.name}-${index}`} label={item.name} value={item.value} unit={item.unit} helper={item.helper} icon={Activity} />)}
-    </div> : <EmptyState
-      icon={Activity}
-      title="Aún no hay indicadores disponibles"
-      description="Los indicadores aparecerán cuando existan datos suficientes y resultados gobernados para esta obra."
-      className="border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_40%),linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98))] shadow-[0_12px_36px_rgba(6,78,59,0.06)]"
-    />}
-  </section>;
+  const workId =
+    obra?.id ||
+    obra?.obra_id;
+
+  const organizationId =
+    context
+      ?.references
+      ?.organization;
+
+  const [
+    state,
+    setState,
+  ] = useState({
+    loading: true,
+    indicators: [],
+    baselines: [],
+    impacts: [],
+  });
+
+  useEffect(
+    () => {
+      if (
+        !organizationId ||
+        !workId
+      ) {
+        return;
+      }
+
+      Promise.all([
+        getIndicators(
+          organizationId,
+          {
+            obra: workId,
+          },
+        ),
+
+        getBaselines(
+          organizationId,
+          {
+            obra: workId,
+          },
+        ),
+
+        getEnvironmentalImpacts(
+          organizationId,
+          {
+            obra: workId,
+          },
+        ),
+      ]).then(
+        ([
+          indicators,
+          baselines,
+          impacts,
+        ]) => {
+          setState({
+            loading: false,
+            indicators,
+            baselines,
+            impacts,
+          });
+        },
+      );
+    },
+    [
+      organizationId,
+      workId,
+    ],
+  );
+
+  if (
+    state.loading
+  ) {
+    return (
+      <p className="text-sm text-[var(--text-muted)]">
+        Cargando indicadores...
+      </p>
+    );
+  }
+
+  return (
+    <section className="space-y-6">
+      <SectionHeader
+        eyebrow="LECTURA AMBIENTAL"
+        title="Indicadores"
+        description="Resultados ambientales versionados y scoped exclusivamente a esta obra."
+      />
+
+      {state.indicators.length ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {state.indicators.map(
+            (indicator) => (
+              <KpiCard
+                key={
+                  indicator.id
+                }
+                label={
+                  indicator.nombre
+                }
+                value={
+                  indicator
+                    .valor_actual
+                    ?.valor
+                }
+                unit={
+                  indicator.unidad
+                }
+                helper={
+                  human(
+                    indicator.tipo,
+                  )
+                }
+                icon={
+                  Activity
+                }
+              />
+            ),
+          )}
+        </div>
+      ) : (
+        <EmptyState
+          icon={Activity}
+          title="Aún no hay indicadores"
+          description="Los indicadores aparecerán cuando existan resultados gobernados suficientes."
+        />
+      )}
+
+      <div className="space-y-3">
+        <SectionHeader
+          eyebrow="LÍNEA BASE"
+          title="Bases comparables"
+          description="Una línea base se construye con historia real; no se inventa cuando faltan períodos."
+        />
+
+        {!state.baselines.length ? (
+          <EmptyState
+            icon={History}
+            title="Línea base en construcción"
+            description="Todavía no existe historia suficiente para establecer una referencia."
+          />
+        ) : (
+          <TableShell>
+            <TableHead>
+              <tr>
+                <TableCell as="th">
+                  Indicador
+                </TableCell>
+
+                <TableCell as="th">
+                  Estado
+                </TableCell>
+
+                <TableCell as="th">
+                  Valor base
+                </TableCell>
+
+                <TableCell as="th">
+                  Períodos
+                </TableCell>
+              </tr>
+            </TableHead>
+
+            <TableBody
+              columns={4}
+            >
+              {state.baselines.map(
+                (
+                  baseline,
+                ) => (
+                  <tr
+                    key={
+                      baseline.id
+                    }
+                  >
+                    <TableCell>
+                      {
+                        baseline.indicador_nombre
+                      }
+                    </TableCell>
+
+                    <TableCell>
+                      <StatusBadge>
+                        {human(
+                          baseline.estado,
+                        )}
+                      </StatusBadge>
+                    </TableCell>
+
+                    <TableCell>
+                      {baseline.valor_base ===
+                        null
+                        ? "Sin base"
+                        : formatNumber(
+                          baseline.valor_base,
+                        )}
+                    </TableCell>
+
+                    <TableCell>
+                      {
+                        baseline.cantidad_periodos
+                      }
+                    </TableCell>
+                  </tr>
+                ),
+              )}
+            </TableBody>
+          </TableShell>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <SectionHeader
+          eyebrow="IMPACTOS"
+          title="Resultados calculados"
+          description="Cada resultado mantiene referencia al cálculo y actividad que lo originaron."
+        />
+
+        {!state.impacts.length ? (
+          <EmptyState
+            icon={TrendingUp}
+            title="Sin impactos calculados"
+            description="Aún no existen resultados de cálculo para esta obra."
+          />
+        ) : (
+          <TableShell>
+            <TableHead>
+              <tr>
+                <TableCell as="th">
+                  Actividad
+                </TableCell>
+
+                <TableCell as="th">
+                  Categoría
+                </TableCell>
+
+                <TableCell as="th">
+                  Resultado
+                </TableCell>
+
+                <TableCell as="th">
+                  Fecha
+                </TableCell>
+              </tr>
+            </TableHead>
+
+            <TableBody
+              columns={4}
+            >
+              {state.impacts.map(
+                (
+                  impact,
+                ) => (
+                  <tr
+                    key={
+                      impact.id
+                    }
+                  >
+                    <TableCell>
+                      {
+                        impact.actividad_nombre
+                      }
+                    </TableCell>
+
+                    <TableCell>
+                      {human(
+                        impact.categoria,
+                      )}
+                    </TableCell>
+
+                    <TableCell>
+                      <b>
+                        {formatNumber(
+                          impact.valor,
+                        )}{" "}
+                        {
+                          impact.unidad
+                        }
+                      </b>
+                    </TableCell>
+
+                    <TableCell>
+                      {formatDateTime(
+                        impact.timestamp,
+                      )}
+                    </TableCell>
+                  </tr>
+                ),
+              )}
+            </TableBody>
+          </TableShell>
+        )}
+      </div>
+    </section>
+  );
 }

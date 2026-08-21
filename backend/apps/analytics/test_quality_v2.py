@@ -616,6 +616,111 @@ class QualityIndicatorsV2Tests(APITestCase):
             200,
         )
 
+    def test_indicadores_y_lineas_base_filtran_por_obra(
+        self,
+    ):
+        obra_a = Obra.objects.create(
+            organizacion=self.org,
+            nombre="Obra Indicadores A",
+            fecha_inicio=date(
+                2026,
+                8,
+                1,
+            ),
+        )
+
+        obra_b = Obra.objects.create(
+            organizacion=self.org,
+            nombre="Obra Indicadores B",
+            fecha_inicio=date(
+                2026,
+                8,
+                1,
+            ),
+        )
+
+        indicator_a = IndicadorAmbiental.objects.create(
+            organizacion=self.org,
+            obra=obra_a,
+            codigo="agua-a",
+            nombre="Agua A",
+            tipo="operacional",
+            unidad="m3",
+            origen_numerador="consumo_agua",
+        )
+
+        indicator_b = IndicadorAmbiental.objects.create(
+            organizacion=self.org,
+            obra=obra_b,
+            codigo="agua-b",
+            nombre="Agua B",
+            tipo="operacional",
+            unidad="m3",
+            origen_numerador="consumo_agua",
+        )
+
+        ValorIndicador.objects.create(
+            indicador=indicator_a,
+            periodo_inicio=date(
+                2026,
+                8,
+                1,
+            ),
+            periodo_fin=date(
+                2026,
+                8,
+                31,
+            ),
+            valor=10,
+            unidad="m3",
+            fuente_calculo="test",
+        )
+
+        ValorIndicador.objects.create(
+            indicador=indicator_b,
+            periodo_inicio=date(
+                2026,
+                8,
+                1,
+            ),
+            periodo_fin=date(
+                2026,
+                8,
+                31,
+            ),
+            valor=20,
+            unidad="m3",
+            fuente_calculo="test",
+        )
+
+        build_baseline(indicator_a)
+
+        build_baseline(indicator_b)
+
+        response = self.client.get(f"{self.base}/indicadores/" f"?obra={obra_a.id}")
+
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+
+        self.assertEqual(
+            [item["id"] for item in response.data],
+            [indicator_a.id],
+        )
+
+        baselines = self.client.get(f"{self.base}/lineas-base/" f"?obra={obra_a.id}")
+
+        self.assertEqual(
+            baselines.status_code,
+            200,
+        )
+
+        self.assertEqual(
+            [item["indicador"] for item in baselines.data],
+            [indicator_a.id],
+        )
+
 
 class QualityV2TenantAuthorizationTests(APITestCase):
     def setUp(self):

@@ -15,6 +15,7 @@ import {
 } from "@/shared/ui";
 import TraceabilityDrawer from "@/features/datos/components/TraceabilityDrawer";
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
+import DomainCalculationPanel from "../components/DomainCalculationPanel";
 import {
   additiveMetrics,
   applicability,
@@ -253,6 +254,17 @@ export default function SectorDomainPage({ domain }) {
         }
         workId={
           persistedWorkId
+        }
+      />
+
+      <DomainCalculationPanel
+        domain={domain}
+        operation={operation}
+        organizationId={
+          activeOrganizacionId
+        }
+        onCalculated={
+          reloadOperation
         }
       />
 

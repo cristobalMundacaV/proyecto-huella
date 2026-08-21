@@ -142,20 +142,53 @@ def politicas_fuente(request, organizacion_id):
 
 
 @api_view(["GET"])
-def indicadores(request, organizacion_id):
-    org = _org(request, organizacion_id)
+def indicadores(
+    request,
+    organizacion_id,
+):
+    org = _org(
+        request,
+        organizacion_id,
+    )
+
+    queryset = org.indicadores_ambientales_v2.prefetch_related("valores")
+
+    obra_id = request.query_params.get("obra")
+
+    if obra_id:
+        queryset = queryset.filter(obra_id=obra_id)
+
     return Response(
         IndicadorSerializer(
-            org.indicadores_ambientales_v2.prefetch_related("valores"), many=True
+            queryset,
+            many=True,
         ).data
     )
 
 
 @api_view(["GET"])
-def serie_indicador(request, organizacion_id, indicador_id):
-    org = _org(request, organizacion_id)
-    indicator = get_object_or_404(IndicadorAmbiental, organizacion=org, id=indicador_id)
-    return Response(ValorIndicadorSerializer(indicator.valores.all(), many=True).data)
+def serie_indicador(
+    request,
+    organizacion_id,
+    indicador_id,
+):
+    org = _org(
+        request,
+        organizacion_id,
+    )
+
+    indicator = get_object_or_404(
+        IndicadorAmbiental,
+        organizacion=org,
+        id=indicador_id,
+    )
+
+    return Response(
+        ValorIndicadorSerializer(
+            indicator.valores.all(),
+            many=True,
+        ).data
+    )
 
 
 @api_view(["GET"])
@@ -193,16 +226,40 @@ def comparacion_indicador(request, organizacion_id, indicador_id):
 
 
 @api_view(["GET", "POST"])
-def lineas_base(request, organizacion_id):
-    org = _org(request, organizacion_id)
+def lineas_base(
+    request,
+    organizacion_id,
+):
+    org = _org(
+        request,
+        organizacion_id,
+    )
+
+    obra_id = request.query_params.get("obra")
+
     if request.method == "POST":
         indicator = get_object_or_404(
-            IndicadorAmbiental, organizacion=org, id=request.data.get("indicador")
+            IndicadorAmbiental,
+            organizacion=org,
+            id=request.data.get("indicador"),
         )
-        return Response(LineaBaseSerializer(build_baseline(indicator)).data, status=201)
+
+        baseline = build_baseline(indicator)
+
+        return Response(
+            LineaBaseSerializer(baseline).data,
+            status=201,
+        )
+
+    queryset = org.lineas_base_ambientales.select_related("indicador")
+
+    if obra_id:
+        queryset = queryset.filter(indicador__obra_id=obra_id)
+
     return Response(
         LineaBaseSerializer(
-            org.lineas_base_ambientales.select_related("indicador"), many=True
+            queryset,
+            many=True,
         ).data
     )
 

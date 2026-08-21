@@ -8,6 +8,7 @@ import TransportRecordModal from "../components/TransportRecordModal";
 import OperationDomainShell from "../components/OperationDomainShell";
 import DomainSensorsPanel from "../components/DomainSensorsPanel";
 import DomainQualityPanel from "../components/DomainQualityPanel";
+import DomainCalculationPanel from "../components/DomainCalculationPanel";
 
 const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
 
@@ -204,6 +205,16 @@ export default function TransportPage() {
         }
         workId={
           persistedWorkId
+        }
+      />
+      <DomainCalculationPanel
+        domain="transporte"
+        operation={operation}
+        organizationId={
+          context?.references?.organization
+        }
+        onCalculated={
+          reloadOperation
         }
       />
       <TransportRecordModal
