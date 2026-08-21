@@ -1,4 +1,13 @@
 import { api } from "@/shared/services/api";
+import {
+  getBaselines,
+  getEnvironmentalImpacts,
+  getIndicators,
+} from "@/features/operacion/api/calculationApi";
+
+import {
+  getComplianceSummary,
+} from "@/features/compliance/api/complianceApi";
 
 const rows = (value) => (Array.isArray(value) ? value : value?.results || []);
 const base = (organizationId, workId) =>
@@ -39,29 +48,155 @@ export async function getWorkContext(organizationId, workOrRouteId) {
   return { obra: { ...work, ...context.data?.obra }, context: context.data };
 }
 
-export async function getWorkWorkspace(organizationId, workRouteId) {
-  const work = await resolveWork(organizationId, workRouteId);
-  const workId = work.id || work.obra_id;
-  const [contextResult, timelineResult, indicatorsResult] = await Promise.allSettled([
-    api.get(`${base(organizationId, workId)}/contexto/`),
-    api.get(`${base(organizationId, workId)}/timeline/`),
-    api.get(`${base(organizationId, workId)}/indicadores/`),
+export async function getWorkWorkspace(
+  organizationId,
+  workRouteId,
+) {
+  const work = await resolveWork(
+    organizationId,
+    workRouteId,
+  );
+
+  const workId =
+    work.id ||
+    work.obra_id;
+
+  const params = {
+    obra: workId,
+  };
+
+  const [
+    contextResult,
+    timelineResult,
+    indicatorsResult,
+    governedIndicatorsResult,
+    baselinesResult,
+    impactsResult,
+    complianceResult,
+  ] = await Promise.allSettled([
+    api.get(
+      `${base(
+        organizationId,
+        workId,
+      )}/contexto/`,
+    ),
+
+    api.get(
+      `${base(
+        organizationId,
+        workId,
+      )}/timeline/`,
+    ),
+
+    api.get(
+      `${base(
+        organizationId,
+        workId,
+      )}/indicadores/`,
+    ),
+
+    getIndicators(
+      organizationId,
+      params,
+    ),
+
+    getBaselines(
+      organizationId,
+      params,
+    ),
+
+    getEnvironmentalImpacts(
+      organizationId,
+      params,
+    ),
+
+    getComplianceSummary(
+      organizationId,
+      params,
+    ),
   ]);
 
-  if (contextResult.status === "rejected") {
+  if (
+    contextResult.status ===
+    "rejected"
+  ) {
     throw contextResult.reason;
   }
 
-  const context = contextResult.value.data;
+  const context =
+    contextResult.value.data;
+
   return {
-    obra: { ...work, ...context?.obra },
-    context,
-    timeline: timelineResult.status === "fulfilled" ? timelineResult.value.data : null,
-    indicators: indicatorsResult.status === "fulfilled" ? indicatorsResult.value.data : null,
-    resourceErrors: {
-      timeline: timelineResult.status === "rejected",
-      indicators: indicatorsResult.status === "rejected",
+    obra: {
+      ...work,
+      ...context?.obra,
     },
-    routeId: routeId(work),
+
+    context,
+
+    timeline:
+      timelineResult.status ===
+        "fulfilled"
+        ? timelineResult.value.data
+        : null,
+
+    indicators:
+      indicatorsResult.status ===
+        "fulfilled"
+        ? indicatorsResult.value.data
+        : null,
+
+    governedIndicators:
+      governedIndicatorsResult.status ===
+        "fulfilled"
+        ? governedIndicatorsResult.value
+        : [],
+
+    baselines:
+      baselinesResult.status ===
+        "fulfilled"
+        ? baselinesResult.value
+        : [],
+
+    impacts:
+      impactsResult.status ===
+        "fulfilled"
+        ? impactsResult.value
+        : [],
+
+    compliance:
+      complianceResult.status ===
+        "fulfilled"
+        ? complianceResult.value
+        : null,
+
+    resourceErrors: {
+      timeline:
+        timelineResult.status ===
+        "rejected",
+
+      indicators:
+        indicatorsResult.status ===
+        "rejected",
+
+      governedIndicators:
+        governedIndicatorsResult.status ===
+        "rejected",
+
+      baselines:
+        baselinesResult.status ===
+        "rejected",
+
+      impacts:
+        impactsResult.status ===
+        "rejected",
+
+      compliance:
+        complianceResult.status ===
+        "rejected",
+    },
+
+    routeId:
+      routeId(work),
   };
 }

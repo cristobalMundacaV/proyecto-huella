@@ -218,10 +218,13 @@ export default function ObraResumenPage() {
     obra,
     context,
     indicators,
+    governedIndicators = [],
+    baselines = [],
+    impacts = [],
+    compliance = null,
     timeline,
     resourceErrors = {},
   } = useOutletContext();
-
 
   const diagnosis =
     context?.diagnostico_obra ||
@@ -259,6 +262,49 @@ export default function ObraResumenPage() {
   const evidenceTotal =
     evidence.total ?? null;
 
+  const currentIndicators =
+    governedIndicators.filter(
+      (item) =>
+        item.valor_actual
+    );
+
+
+  const activeBaselines =
+    baselines.filter(
+      (item) =>
+        item.estado ===
+        "suficiente" ||
+        item.estado ===
+        "cerrada"
+    );
+
+
+  const totalImpact =
+    impacts.reduce(
+      (
+        total,
+        item,
+      ) =>
+        total +
+        Number(
+          item.valor || 0
+        ),
+      0,
+    );
+
+
+  const impactUnit =
+    impacts.find(
+      (item) =>
+        item.unidad
+    )?.unidad ||
+    "kgCO2e";
+
+
+  const complianceAlerts =
+    compliance
+      ?.alertas_abiertas ??
+    null;
 
   const featured =
     resourceErrors.indicators
@@ -390,9 +436,10 @@ export default function ObraResumenPage() {
 
 
       {/* KPIS */}
+      {/* KPIS EJECUTIVOS */}
       <section
         aria-label="Señales de gestión"
-        className="grid gap-3 sm:grid-cols-3"
+        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
       >
         <KpiCard
           icon={AlertTriangle}
@@ -420,7 +467,7 @@ export default function ObraResumenPage() {
           }
           helper={
             actions.length
-              ? "Gestionadas desde Problemas"
+              ? "Intervenciones activas"
               : "Sin acciones activas"
           }
           status={
@@ -431,28 +478,45 @@ export default function ObraResumenPage() {
         />
 
         <KpiCard
-          icon={FileCheck2}
-          label="Evidencias"
+          icon={Activity}
+          label="Impacto calculado"
           value={
-            evidenceTotal ??
+            impacts.length
+              ? totalImpact
+              : "No disponible"
+          }
+          unit={
+            impacts.length
+              ? impactUnit
+              : undefined
+          }
+          helper={
+            impacts.length
+              ? `${impacts.length} resultados trazables`
+              : "Sin impactos calculados"
+          }
+        />
+
+        <KpiCard
+          icon={ShieldCheck}
+          label="Alertas cumplimiento"
+          value={
+            complianceAlerts ??
             "No disponible"
           }
           helper={
-            evidenceTotal ===
-              null
-              ? "Conteo no disponible"
-              : evidenceTotal ===
-                0
-                ? "Sin evidencia vinculada"
-                : `${evidence.versiones ??
-                0
-                } versiones documentales`
+            complianceAlerts === null
+              ? "Cumplimiento no disponible"
+              : complianceAlerts
+                ? "Requieren revisión"
+                : "Sin alertas abiertas"
           }
           status={
-            evidenceTotal >
-              0
-              ? "success"
-              : undefined
+            complianceAlerts > 0
+              ? "warning"
+              : complianceAlerts === 0
+                ? "success"
+                : undefined
           }
         />
       </section>
@@ -493,8 +557,8 @@ export default function ObraResumenPage() {
                         problem.id
                       }
                       className={`flex flex-wrap items-center justify-between gap-4 p-5 ${index
-                          ? "border-t border-slate-100"
-                          : ""
+                        ? "border-t border-slate-100"
+                        : ""
                         }`}
                     >
                       <div className="min-w-0">
@@ -539,6 +603,73 @@ export default function ObraResumenPage() {
           </section>
         )}
 
+      {/* INDICADORES GOBERNADOS */}
+      <section className="space-y-3">
+        <SectionHeader
+          title="Indicadores ambientales"
+          description="Últimos valores gobernados disponibles para esta obra."
+          action={
+            <Link
+              className="inline-flex items-center gap-1.5 text-sm font-bold text-[var(--brand-primary)]"
+              to={`/obras/${obraId}/indicadores`}
+            >
+              Ver trazabilidad
+
+              <ArrowRight
+                aria-hidden="true"
+                size={15}
+              />
+            </Link>
+          }
+        />
+
+        {resourceErrors.governedIndicators ? (
+          <div className="rounded-[18px] border border-amber-200 bg-amber-50/60 p-4 text-sm text-amber-900">
+            Los indicadores gobernados
+            no están disponibles.
+          </div>
+        ) : currentIndicators.length ? (
+          <div className="grid gap-3 md:grid-cols-3">
+            {currentIndicators
+              .slice(0, 3)
+              .map(
+                (item) => (
+                  <KpiCard
+                    key={item.id}
+                    icon={Activity}
+                    label={
+                      item.nombre
+                    }
+                    value={
+                      item.valor_actual
+                        ?.valor
+                    }
+                    unit={
+                      item.valor_actual
+                        ?.unidad ||
+                      item.unidad
+                    }
+                    helper={
+                      activeBaselines.some(
+                        (baseline) =>
+                          baseline.indicador ===
+                          item.id
+                      )
+                        ? "Línea base disponible"
+                        : "Sin línea base suficiente"
+                    }
+                  />
+                ),
+              )}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Activity}
+            title="Sin indicadores gobernados"
+            description="Los indicadores aparecerán cuando existan resultados ambientales versionados para esta obra."
+          />
+        )}
+      </section>
 
       {/* INDICADORES */}
       <section className="space-y-3">
@@ -604,6 +735,76 @@ export default function ObraResumenPage() {
         )}
       </section>
 
+
+      {/* CUMPLIMIENTO */}
+      <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+        <SectionHeader
+          title="Cumplimiento ambiental"
+          description="Estado documental y alertas asociadas exclusivamente a esta obra."
+          action={
+            <Link
+              className="inline-flex items-center gap-1.5 text-sm font-bold text-[var(--brand-primary)]"
+              to={`/obras/${obraId}/cumplimiento`}
+            >
+              Ver cumplimiento
+
+              <ArrowRight
+                aria-hidden="true"
+                size={15}
+              />
+            </Link>
+          }
+        />
+
+        {resourceErrors.compliance ? (
+          <p className="mt-4 text-sm text-amber-800">
+            El estado de cumplimiento
+            no está disponible.
+          </p>
+        ) : compliance ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <KpiCard
+              icon={FileCheck2}
+              label="Documentos"
+              value={
+                compliance.total_documentos ??
+                0
+              }
+              helper={`${compliance.documentos_validados ?? 0} validados`}
+            />
+
+            <KpiCard
+              icon={AlertTriangle}
+              label="Alertas abiertas"
+              value={
+                compliance.alertas_abiertas ??
+                0
+              }
+              status={
+                compliance.alertas_abiertas
+                  ? "warning"
+                  : "success"
+              }
+            />
+
+            <KpiCard
+              icon={ShieldCheck}
+              label="Cumplimiento"
+              value={
+                compliance.compliance_pct ??
+                0
+              }
+              unit="%"
+            />
+          </div>
+        ) : (
+          <EmptyState
+            icon={ShieldCheck}
+            title="Sin lectura de cumplimiento"
+            description="Todavía no existe información suficiente para construir esta lectura."
+          />
+        )}
+      </section>
 
       {/* COBERTURA */}
       <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
