@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 
+from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.db.models import Sum
@@ -34,6 +35,7 @@ from apps.analytics.models import (
     ProcesoOperacional,
     RegistroEmision,
     UnidadOperacional,
+    UsuarioOrganizacion,
     ValorIndicador,
     VariableAmbientalExtraida,
 )
@@ -53,12 +55,19 @@ class Command(BaseCommand):
         parser.add_argument("--seed", type=int, default=20260821)
         parser.add_argument("--days", type=int, default=180)
         parser.add_argument("--reset", action="store_true")
+        parser.add_argument("--username")
 
     @transaction.atomic
     def handle(self, *args, **options):
         days = int(options["days"])
         if days < 180:
             raise CommandError("--days debe ser al menos 180 para construir la historia requerida.")
+        user = None
+        if options["username"]:
+            try:
+                user = User.objects.get(username=options["username"])
+            except User.DoesNotExist as exc:
+                raise CommandError(f"No existe el usuario '{options['username']}'.") from exc
         rng = random.Random(options["seed"])
         if options["reset"]:
             removed = self.reset_tenant()
@@ -69,6 +78,12 @@ class Command(BaseCommand):
         end_date = timezone.localdate()
         start_date = end_date - timedelta(days=days - 1)
         org, obra, stages = self.create_foundation(start_date, end_date)
+        if user:
+            UsuarioOrganizacion.objects.update_or_create(
+                user=user,
+                organizacion=org,
+                defaults={"rol": UsuarioOrganizacion.Rol.ADMIN, "activo": True},
+            )
         sources, unit, processes, assets = self.create_operational_context(org, obra, start_date)
         evidence = self.create_evidence(org, obra, stages, start_date, end_date)
         activities, observations = self.create_history(
