@@ -786,6 +786,58 @@ export default function CopilotPage() {
                             "Sin explicación adicional."}
                         </p>
 
+                        {proposal.diagnostico && (
+                          <div className="mt-4 grid gap-3 md:grid-cols-3">
+                            <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3">
+                              <p className="text-xs font-black uppercase tracking-wide text-emerald-800">
+                                Hechos utilizados
+                              </p>
+
+                              <ul className="mt-2 space-y-1 text-sm">
+                                {(proposal.diagnostico.hechos || []).map(
+                                  (item) => (
+                                    <li key={item}>
+                                      • {item}
+                                    </li>
+                                  ),
+                                )}
+                              </ul>
+                            </div>
+
+                            <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3">
+                              <p className="text-xs font-black uppercase tracking-wide text-amber-800">
+                                Supuestos
+                              </p>
+
+                              <ul className="mt-2 space-y-1 text-sm">
+                                {(proposal.diagnostico.hipotesis || []).map(
+                                  (item) => (
+                                    <li key={item}>
+                                      • {item}
+                                    </li>
+                                  ),
+                                )}
+                              </ul>
+                            </div>
+
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                              <p className="text-xs font-black uppercase tracking-wide text-slate-700">
+                                Limitaciones
+                              </p>
+
+                              <ul className="mt-2 space-y-1 text-sm">
+                                {(proposal.diagnostico.limitaciones || []).map(
+                                  (item) => (
+                                    <li key={item}>
+                                      • {item}
+                                    </li>
+                                  ),
+                                )}
+                              </ul>
+                            </div>
+                          </div>
+                        )}
+
                         {!!proposal
                           .restricciones_consideradas
                           ?.length && (
