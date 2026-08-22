@@ -8,6 +8,7 @@ import {
 import {
   domainStateInfo,
 } from "../utils/operationSelectors";
+import { getEnvironmentalDomain } from "@/shared/config/environmentalDomains";
 
 const stateStyles = {
   con_datos: {
@@ -60,13 +61,17 @@ export default function OperationDomainCard({
   signal,
   detail,
   to,
+  domainKey,
   compact = false,
 }) {
   const status = domainStateInfo(state);
 
-  const visual =
-    stateStyles[state] ||
-    stateStyles.sin_datos;
+  const identity = getEnvironmentalDomain(domainKey);
+  const visual = identity ? {
+    container: `${identity.border} bg-gradient-to-br ${identity.accent}`,
+    icon: `${identity.softBg} ${identity.text}`,
+  } : stateStyles[state] || stateStyles.sin_datos;
+  const actionColor = identity?.text || "text-emerald-700";
 
   if (compact) {
     return (
@@ -128,7 +133,7 @@ export default function OperationDomainCard({
           <Link
             to={to}
             aria-label={`Ver ${title}`}
-            className="
+            className={`
               flex
               h-10
               w-10
@@ -137,9 +142,9 @@ export default function OperationDomainCard({
               justify-center
               rounded-full
               border
-              border-emerald-200
-              bg-emerald-50
-              text-emerald-700
+              ${identity?.border || "border-emerald-200"}
+              ${identity?.softBg || "bg-emerald-50"}
+              ${identity?.text || "text-emerald-700"}
               transition
               duration-200
               group-hover:border-emerald-700
@@ -147,7 +152,7 @@ export default function OperationDomainCard({
               group-hover:text-white
               focus-visible:outline-none
               focus-visible:shadow-[var(--focus-ring)]
-            "
+            `}
           >
             <ArrowRight
               aria-hidden="true"
@@ -223,7 +228,7 @@ export default function OperationDomainCard({
           pt-5
           text-sm
           font-black
-          text-emerald-700
+          ${actionColor}
           focus-visible:outline-none
           focus-visible:shadow-[var(--focus-ring)]
         "

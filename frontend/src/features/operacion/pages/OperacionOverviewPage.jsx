@@ -1,14 +1,3 @@
-import {
-  Activity,
-  Droplets,
-  Fuel,
-  LandPlot,
-  Package,
-  Trash2,
-  Truck,
-  Volume2,
-  Zap,
-} from "lucide-react";
 import { Link, useOutletContext } from "react-router-dom";
 import { Alert, Card, CardContent, SectionHeader } from "@/shared/ui";
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
@@ -23,17 +12,12 @@ import {
   primaryAdditiveMetric,
   resourceData,
 } from "../utils/operationSelectors";
+import OperationDomainCard from "../components/OperationDomainCard";
+import { getEnvironmentalDomain } from "@/shared/config/environmentalDomains";
 
 const domains = [
-  ["energia", "Energía", Zap],
-  ["agua", "Agua", Droplets],
-  ["combustibles", "Combustibles", Fuel],
-  ["transporte", "Transporte", Truck],
-  ["materiales", "Materiales", Package],
-  ["residuos", "Residuos", Trash2],
-  ["ruido", "Ruido", Volume2],
-  ["hidrica-suelo", "Hídrica y suelo", LandPlot],
-];
+  "energia", "agua", "combustibles", "transporte", "materiales", "residuos", "ruido", "hidrica-suelo",
+].map((key) => { const identity = getEnvironmentalDomain(key); return [key, identity.label, identity.icon]; });
 
 const capabilityFor = (key) => key === "hidrica-suelo" ? "gestion_hidrica_suelo" : key;
 
@@ -104,7 +88,7 @@ function transportDescriptor(context, operation) {
   return {
     key: "transporte",
     title: "Transporte",
-    icon: Truck,
+    icon: getEnvironmentalDomain("transporte").icon,
     to: "transporte",
     state,
     signal,
@@ -132,7 +116,7 @@ function materialsDescriptor(context, operation) {
   return {
     key: "materiales",
     title: "Materiales",
-    icon: Package,
+    icon: getEnvironmentalDomain("materiales").icon,
     to: "materiales",
     state,
     signal: signals.length
@@ -243,49 +227,10 @@ export default function OperacionOverviewPage() {
         description="Ámbitos donde ya existen registros o mediciones asociadas a esta obra."
       />
 
-      {activeDomains.length === 0 && (
-        <div
-          className="
-        overflow-hidden
-        rounded-[22px]
-        border
-        border-emerald-200/80
-        bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.13),transparent_42%),linear-gradient(135deg,rgba(236,253,245,0.96),rgba(255,255,255,0.98))]
-        px-6
-        py-9
-        text-center
-        shadow-[0_10px_30px_rgba(15,23,42,0.04)]
-      "
-        >
-          <div
-            className="
-          mx-auto
-          flex
-          h-12
-          w-12
-          items-center
-          justify-center
-          rounded-full
-          bg-emerald-100
-          text-emerald-700
-        "
-          >
-            <Activity
-              aria-hidden="true"
-              size={21}
-            />
-          </div>
+      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {descriptors.map((domain) => <OperationDomainCard key={domain.key} domainKey={domain.key} icon={domain.icon} title={domain.title} state={domain.state} signal={domain.signal} detail={domain.reviewReason || (domain.latestAt ? `Último registro: ${formatDateTime(domain.latestAt)}` : "Abre el dominio para revisar su configuración y registros.")} to={domain.to} />)}
+      </div>
 
-          <h3 className="mt-4 text-lg font-black text-[var(--text-primary)]">
-            Aún no hay actividad operacional registrada
-          </h3>
-
-          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--text-muted)]">
-            Cuando registres mediciones, viajes, consumos, materiales u otras actividades,
-            Carbono Zero las organizará dentro de su ámbito operacional correspondiente.
-          </p>
-        </div>
-      )}
     </section>
   </div>;
 }

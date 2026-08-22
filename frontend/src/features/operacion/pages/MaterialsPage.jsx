@@ -61,6 +61,7 @@ export default function MaterialsPage() {
 
   return (
     <OperationDomainShell
+      domainKey="materiales"
       title="Materiales"
       description="¿Qué materiales están entrando, usándose o saliendo?"
       applicability={

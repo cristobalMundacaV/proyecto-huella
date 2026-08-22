@@ -105,6 +105,7 @@ export default function SectorDomainPage({ domain }) {
 
   return (
     <OperationDomainShell
+      domainKey={domain}
       title={config.label}
       description={config.question}
       applicability={

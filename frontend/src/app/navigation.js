@@ -497,13 +497,6 @@ export function getWorkNavigation({
       icon: ArrowLeft,
     },
 
-    switchWork: {
-      id: "switchWork",
-      label: "Cambiar obra",
-      path: "/obras",
-      icon: Boxes,
-    },
-
     groups: [
       {
         id: "work",
@@ -530,6 +523,7 @@ export function getWorkNavigation({
         items: [
           {
             id: "operationOverview",
+            domain: "operacion",
             label: "Resumen operacional",
             path: `${base}/operacion`,
             icon: Activity,
@@ -537,6 +531,7 @@ export function getWorkNavigation({
 
           {
             id: "energy",
+            domain: "energia",
             label: "Energía",
             path: `${base}/operacion/energia`,
             icon: Zap,
@@ -544,6 +539,7 @@ export function getWorkNavigation({
 
           {
             id: "water",
+            domain: "agua",
             label: "Agua",
             path: `${base}/operacion/agua`,
             icon: Droplets,
@@ -551,6 +547,7 @@ export function getWorkNavigation({
 
           {
             id: "fuel",
+            domain: "combustibles",
             label: "Combustibles",
             path: `${base}/operacion/combustibles`,
             icon: Fuel,
@@ -558,6 +555,7 @@ export function getWorkNavigation({
 
           {
             id: "transport",
+            domain: "transporte",
             label: "Transporte",
             path: `${base}/operacion/transporte`,
             icon: Truck,
@@ -565,6 +563,7 @@ export function getWorkNavigation({
 
           {
             id: "materials",
+            domain: "materiales",
             label: "Materiales",
             path: `${base}/operacion/materiales`,
             icon: Package,
@@ -572,6 +571,7 @@ export function getWorkNavigation({
 
           {
             id: "waste",
+            domain: "residuos",
             label: "Residuos",
             path: `${base}/operacion/residuos`,
             icon: Trash2,
@@ -579,6 +579,7 @@ export function getWorkNavigation({
 
           {
             id: "noise",
+            domain: "ruido",
             label: "Ruido",
             path: `${base}/operacion/ruido`,
             icon: Volume2,
@@ -586,6 +587,7 @@ export function getWorkNavigation({
 
           {
             id: "waterSoil",
+            domain: "hidrica_suelo",
             label: "Hídrica y suelo",
             path: `${base}/operacion/hidrica-suelo`,
             icon: LandPlot,
@@ -593,12 +595,14 @@ export function getWorkNavigation({
 
           {
             id: "indicators",
+            domain: "indicadores",
             label: "Indicadores",
             path: `${base}/indicadores`,
             icon: BarChart3,
           },
           {
             id: "compliance",
+            domain: "cumplimiento",
             label: "Cumplimiento",
             path: `${base}/cumplimiento`,
             icon: BarChart3,
@@ -612,6 +616,7 @@ export function getWorkNavigation({
         items: [
           {
             id: "problems",
+            domain: "problemas",
             label: "Problemas",
             path: `${base}/problemas`,
             icon: TriangleAlert,
@@ -619,6 +624,7 @@ export function getWorkNavigation({
 
           {
             id: "evidence",
+            domain: "evidencias",
             label: "Evidencias",
             path: `${base}/evidencias`,
             icon: FileCheck2,

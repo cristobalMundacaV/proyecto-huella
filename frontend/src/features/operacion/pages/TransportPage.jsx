@@ -55,6 +55,7 @@ export default function TransportPage() {
 
   return (
     <OperationDomainShell
+      domainKey="transporte"
       title="Transporte"
       description="¿Cómo se está moviendo carga o personas en esta obra?"
       applicability={

@@ -1,6 +1,7 @@
 import {
     Building2,
     ChevronDown,
+    Loader2,
 } from "lucide-react";
 
 import {
@@ -28,6 +29,8 @@ import {
     getActivePreset,
     getPresetLabel,
 } from "@/presets/registry";
+import { getOrganizacionObras } from "@/shared/services/api";
+import { getEnvironmentalDomain } from "@/shared/config/environmentalDomains";
 
 
 function resolveWorkId(
@@ -212,6 +215,7 @@ export default function Sidebar({
                 <WorkSidebar
                     navigation={workNavigation}
                     preset={preset}
+                    workId={workId}
                     onNavigate={onNavigate}
                 />
             ) : (
@@ -260,8 +264,50 @@ export default function Sidebar({
 function WorkSidebar({
     navigation,
     preset,
+    workId,
     onNavigate,
 }) {
+    const navigate = useNavigate();
+    const { pathname } = useLocation();
+    const { activeOrganizacionId } = useOrganizacionActiva();
+    const [selectorOpen, setSelectorOpen] = useState(false);
+    const [worksState, setWorksState] = useState({ status: "loading", rows: [], error: "" });
+
+    useEffect(() => {
+        let active = true;
+        setSelectorOpen(false);
+        if (!activeOrganizacionId) {
+            setWorksState({ status: "ready", rows: [], error: "" });
+            return () => { active = false; };
+        }
+        setWorksState({ status: "loading", rows: [], error: "" });
+        getOrganizacionObras(activeOrganizacionId)
+            .then((data) => {
+                if (active) setWorksState({ status: "ready", rows: Array.isArray(data) ? data : data?.results || [], error: "" });
+            })
+            .catch(() => {
+                if (active) setWorksState({ status: "error", rows: [], error: "No se pudieron cargar las obras." });
+            });
+        return () => { active = false; };
+    }, [activeOrganizacionId]);
+
+    const routeId = (work) => work.id || work.obra_id || work.codigo_obra;
+    const currentWork = worksState.rows.find((work) => String(routeId(work)) === String(workId));
+    const canSwitch = worksState.status === "ready" && worksState.rows.length > 1;
+
+    function selectWork(nextWork) {
+        const nextId = routeId(nextWork);
+        if (!nextId || String(nextId) === String(workId)) {
+            setSelectorOpen(false);
+            return;
+        }
+        const encodedId = encodeURIComponent(nextId);
+        const preserved = pathname.replace(/^\/obras\/[^/]+/, `/obras/${encodedId}`);
+        navigate(preserved.startsWith(`/obras/${encodedId}/`) ? preserved : `/obras/${encodedId}/resumen`);
+        setSelectorOpen(false);
+        onNavigate?.();
+    }
+
     return (
         <>
             <NavLink
@@ -291,18 +337,18 @@ function WorkSidebar({
                 Volver a visión general
             </NavLink>
 
-            <div className="mb-5 px-2">
+            <div className="relative mb-5 px-1">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">
-                    {preset.unitLabel}
+                    Obra activa
                 </p>
-
-                <p className="mt-1 text-sm font-black text-[var(--text-primary)]">
-                    Navegación de la obra
-                </p>
-
-                <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
-                    Estás trabajando únicamente con la información de esta {preset.unitLabel.toLowerCase()}.
-                </p>
+                {worksState.status === "loading" ? <div className="mt-2 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs text-[var(--text-muted)]"><Loader2 aria-hidden="true" size={15} className="animate-spin" />Cargando obra</div> : worksState.status === "error" ? <div className="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{worksState.error}</div> : !currentWork ? <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">Obra no disponible</div> : <>
+                    <button type="button" disabled={!canSwitch} aria-expanded={canSwitch ? selectorOpen : undefined} aria-haspopup={canSwitch ? "listbox" : undefined} onClick={() => canSwitch && setSelectorOpen((open) => !open)} className="mt-2 flex w-full items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-left shadow-sm transition hover:border-emerald-300 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:cursor-default">
+                        <Building2 aria-hidden="true" size={17} className="shrink-0 text-emerald-700" />
+                        <span className="min-w-0 flex-1"><span className="block truncate text-sm font-black text-[var(--text-primary)]">{currentWork.nombre || preset.unitLabel}</span>{currentWork.codigo_obra && <span className="block truncate text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)]">{currentWork.codigo_obra}</span>}</span>
+                        {canSwitch && <ChevronDown aria-hidden="true" size={15} className={`shrink-0 text-emerald-700 transition ${selectorOpen ? "rotate-180" : ""}`} />}
+                    </button>
+                    {selectorOpen && <div role="listbox" aria-label="Seleccionar obra" className="absolute left-1 right-1 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">{worksState.rows.map((work) => { const id = routeId(work); const selected = String(id) === String(workId); return <button key={id} type="button" role="option" aria-selected={selected} onClick={() => selectWork(work)} className={`w-full rounded-lg px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${selected ? "bg-emerald-50 text-emerald-900" : "hover:bg-slate-50"}`}><span className="block truncate text-xs font-black">{work.nombre || preset.unitLabel}</span>{work.codigo_obra && <span className="block truncate text-[10px] text-[var(--text-muted)]">{work.codigo_obra}</span>}</button>; })}</div>}
+                </>}
             </div>
 
             <nav
@@ -566,8 +612,8 @@ function NavItem({
     item,
     onNavigate,
 }) {
-    const Icon =
-        item.icon;
+    const domain = getEnvironmentalDomain(item.domain);
+    const Icon = domain?.icon || item.icon;
 
     return (
         <NavLink
@@ -589,13 +635,14 @@ function NavItem({
                     ? "py-1.5 text-xs"
                     : "py-2 text-sm"
                 } font-bold transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${isActive
-                    ? "bg-[var(--sidebar-active)] text-[var(--brand-primary)]"
+                    ? domain ? `${domain.softBg} ${domain.text}` : "bg-[var(--sidebar-active)] text-[var(--brand-primary)]"
                     : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-subtle)] hover:text-[var(--text-primary)]"
                 }`
             }
         >
             <Icon
                 aria-hidden="true"
+                className={domain?.text || ""}
                 size={
                     compact
                         ? 15
