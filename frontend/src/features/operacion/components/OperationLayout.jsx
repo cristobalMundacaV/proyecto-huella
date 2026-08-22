@@ -16,8 +16,8 @@ import {
 
 import {
   ErrorState,
-  LoadingState,
 } from "@/shared/ui";
+import PlatformLoader from "@/shared/components/PlatformLoader";
 
 import {
   getWorkOperation,
@@ -109,7 +109,7 @@ export default function OperationLayout() {
     "loading"
   ) {
     return (
-      <LoadingState label="Cargando información operacional" />
+      <PlatformLoader title="Cargando operación" description="Estamos reuniendo actividad, mediciones y trazabilidad de esta obra." />
     );
   }
 

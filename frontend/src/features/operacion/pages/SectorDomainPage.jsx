@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus } from "lucide-react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import {
   Alert,
+  Button,
   DataQualityBadge,
   EmptyState,
   ErrorState,
   KpiCard,
+  Pagination,
   SectionHeader,
   TableBody,
   TableCell,
@@ -33,6 +36,9 @@ import ManualFlowRecordModal from "../components/ManualFlowRecordModal";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import DomainSensorsPanel from "../components/DomainSensorsPanel";
 import DomainQualityPanel from "../components/DomainQualityPanel";
+import { getEnvironmentalDomain } from "@/shared/config/environmentalDomains";
+
+const PAGE_SIZE = 8;
 
 const qualityTone = (state) => state === "validada" ? "success" : state === "rechazada" ? "danger" : "warning";
 const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
@@ -56,6 +62,7 @@ function rangeHelper(metric) {
 export default function SectorDomainPage({ domain }) {
   const [trace, setTrace] = useState(null);
   const [captureOpen, setCaptureOpen] = useState(false);
+  const [page, setPage] = useState(1);
   const { obraId } = useParams();
   const {
     activeOrganizacionId,
@@ -77,11 +84,14 @@ export default function SectorDomainPage({ domain }) {
   const recordsReady = isResourceReady(operation.records);
   const records = domainRecords(resourceData(operation.records, []), domain);
   const measurements = recordMeasurements(records);
-  const additive = additiveMetrics(indicators, domain);
+  const additive = domain === "ruido" ? [] : additiveMetrics(indicators, domain);
   const series = nonAdditiveMetrics(indicators, domain);
   const ambiguous = domainMetrics(indicators, domain).filter((metric) => metric.registros_ambiguos > 0);
   const pointsReady = isResourceReady(operation.points);
   const pointNames = new Map(resourceData(operation.points, []).map((point) => [String(point.id), point.nombre]));
+  const generationRecords = domain === "energia" ? records.filter((record) => record.flujo === "generacion_propia") : [];
+  const generationIdentity = getEnvironmentalDomain("generacion_propia");
+  const GenerationIcon = generationIdentity.icon;
 
   const metricCards = [
     ...additive.map((metric) => ({
@@ -102,6 +112,8 @@ export default function SectorDomainPage({ domain }) {
 
   const noApplicable = applicabilityState === "no_aplica";
   const unresolved = ["pendiente", "no_determinado"].includes(applicabilityState);
+  useEffect(() => { setPage(1); }, [domain, measurements.length, persistedWorkId]);
+  const pagedMeasurements = useMemo(() => measurements.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [measurements, page]);
 
   return (
     <OperationDomainShell
@@ -114,21 +126,8 @@ export default function SectorDomainPage({ domain }) {
           capability={config.capability}
         />
       }
+      action={!noApplicable && !unresolved && records.length > 0 ? <Button leftIcon={Plus} onClick={() => setCaptureOpen(true)}>Registrar información</Button> : undefined}
     >
-      {!noApplicable && !unresolved && (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            className="rounded-[var(--radius-md)] bg-[var(--brand-primary)] px-4 py-2 text-sm font-bold text-white"
-            onClick={() =>
-              setCaptureOpen(true)
-            }
-          >
-            Registrar información
-          </button>
-        </div>
-      )}
-
       {!recordsReady && <ErrorState
         title={`No fue posible cargar ${config.label.toLowerCase()}`}
         description="Los demás dominios operacionales continúan disponibles."
@@ -142,7 +141,12 @@ export default function SectorDomainPage({ domain }) {
           Hay registros con múltiples mediciones que el sistema marca como ambiguos. No se agregaron automáticamente.
         </Alert>}
 
-        {metricCards.length > 0 && <section>
+        {generationRecords.length > 0 && <section className={`flex items-center gap-3 rounded-[20px] border p-4 ${generationIdentity.border} ${generationIdentity.softBg}`}>
+          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white ${generationIdentity.text}`}><GenerationIcon aria-hidden="true" size={19} /></span>
+          <div><p className="font-black">Generación propia</p><p className="mt-1 text-sm text-[var(--text-muted)]">{generationRecords.length} {generationRecords.length === 1 ? "registro diferenciado del consumo eléctrico" : "registros diferenciados del consumo eléctrico"}.</p></div>
+        </section>}
+
+        {!noApplicable && !unresolved && metricCards.length > 0 && <section>
           <SectionHeader
             eyebrow="LECTURA DEL ÁMBITO"
             title="Resumen"
@@ -156,14 +160,13 @@ export default function SectorDomainPage({ domain }) {
           />)}</div>
         </section>}
 
-        {!records.length
-          ? noApplicable
-            ? <EmptyState
+        {noApplicable
+          ? <EmptyState
               title="No aplica a esta obra"
               description="Este ámbito está marcado como no aplicable. La ausencia de registros no se interpreta como cero."
             />
-            : unresolved
-              ? <EmptyState
+          : unresolved
+            ? <EmptyState
                 title="Aplicabilidad por definir"
                 description="Aún no existe información suficiente para determinar si este ámbito aplica a la obra."
                 primaryAction={
@@ -183,10 +186,11 @@ export default function SectorDomainPage({ domain }) {
                   </Link>
                 }
               />
-              : <EmptyState
+            : !records.length
+              ? <EmptyState
                 title="Sin información registrada"
                 description={`Aún no hay registros de ${config.label.toLowerCase()} para esta obra.`}
-                primaryAction={<Link className="font-bold text-[var(--brand-primary)]" to="/datos/importaciones">Importar información</Link>}
+                primaryAction={<Button leftIcon={Plus} onClick={() => setCaptureOpen(true)}>Registrar información</Button>}
                 secondaryAction={<Link className="font-bold text-[var(--text-secondary)]" to={`/obras/${obraId}/evidencias`}>Agregar documento</Link>}
               />
           : <section>
@@ -213,7 +217,7 @@ export default function SectorDomainPage({ domain }) {
                   <TableCell as="th">Calidad</TableCell>
                   <TableCell as="th">Origen</TableCell>
                 </tr></TableHead>
-                <TableBody columns={6}>{measurements.map(({ record, observation }) => {
+                <TableBody columns={6}>{pagedMeasurements.map(({ record, observation }) => {
                   const contextLabel = pointNames.get(String(record.punto))
                     || record.ubicacion_contexto
                     || humanize(record.granularidad);
@@ -232,8 +236,10 @@ export default function SectorDomainPage({ domain }) {
                   </tr>;
                 })}</TableBody>
               </TableShell>}
+            <Pagination page={page} totalItems={measurements.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel={domain === "ruido" ? "mediciones acústicas" : "registros"} />
           </section>}
       </>}
+      {!noApplicable && !unresolved && records.length > 0 && <>
       <DomainSensorsPanel
         domain={domain}
         operation={operation}
@@ -268,6 +274,7 @@ export default function SectorDomainPage({ domain }) {
           reloadOperation
         }
       />
+      </>}
 
       <TraceabilityDrawer
         observation={trace}

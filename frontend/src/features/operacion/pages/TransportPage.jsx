@@ -1,9 +1,10 @@
 import { Link, useOutletContext, useParams } from "react-router-dom";
-import { EmptyState, ErrorState, KpiCard, SectionHeader, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
+import { Plus } from "lucide-react";
+import { Button, EmptyState, ErrorState, KpiCard, Pagination, SectionHeader, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
 import { applicability, isResourceReady, resourceData, transportMetrics } from "../utils/operationSelectors";
 import DomainApplicability from "../components/DomainApplicability";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import TransportRecordModal from "../components/TransportRecordModal";
 import OperationDomainShell from "../components/OperationDomainShell";
 import DomainSensorsPanel from "../components/DomainSensorsPanel";
@@ -11,6 +12,7 @@ import DomainQualityPanel from "../components/DomainQualityPanel";
 import DomainCalculationPanel from "../components/DomainCalculationPanel";
 
 const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
+const PAGE_SIZE = 8;
 
 function measurement(value, unit) {
   if (value === null || value === undefined) return "Sin datos";
@@ -37,6 +39,7 @@ export default function TransportPage() {
 
   const [recordOpen, setRecordOpen] =
     useState(false);
+  const [page, setPage] = useState(1);
 
   const persistedWorkId =
     obra?.id ||
@@ -52,6 +55,8 @@ export default function TransportPage() {
     .filter(Boolean);
   const noApplicable = applicabilityState === "no_aplica";
   const unresolved = ["pendiente", "no_determinado"].includes(applicabilityState);
+  useEffect(() => { setPage(1); }, [journeys.length, persistedWorkId]);
+  const pagedJourneys = useMemo(() => journeys.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [journeys, page]);
 
   return (
     <OperationDomainShell
@@ -64,20 +69,9 @@ export default function TransportPage() {
           capability="transporte"
         />
       }
+      action={!noApplicable && !unresolved && journeys.length > 0 ? <Button leftIcon={Plus} onClick={() => setRecordOpen(true)}>Registrar viaje</Button> : undefined}
     >
-      <div className="flex justify-end">
-        <button
-          type="button"
-          className="font-bold text-[var(--brand-primary)]"
-          onClick={() =>
-            setRecordOpen(true)
-          }
-        >
-          Registrar viaje
-        </button>
-      </div>
-
-      {indicatorsReady
+      {!noApplicable && !unresolved && (indicatorsReady
         ? summaryMetrics.length > 0 && <section>
           <SectionHeader
             eyebrow="LECTURA DEL ÁMBITO"
@@ -91,38 +85,19 @@ export default function TransportPage() {
             unit={metric.unit}
           />)}</div>
         </section>
-        : <ErrorState title="No fue posible cargar el resumen de transporte" description="Los viajes continúan disponibles si pudieron cargarse." />}
+        : <ErrorState title="No fue posible cargar el resumen de transporte" description="Los viajes continúan disponibles si pudieron cargarse." />)}
 
-      {!journeysReady
+      {noApplicable
+        ? <EmptyState title="No aplica a esta unidad" description="Transporte está marcado como no aplicable. La ausencia de viajes no se presenta como cero operacional." />
+        : unresolved
+          ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si transporte aplica a esta obra." primaryAction={<Link className="font-bold text-[var(--brand-primary)]" to={`/obras/${obraId}/diagnostico`}>Revisar diagnóstico</Link>} secondaryAction={<Link className="font-bold text-[var(--text-secondary)]" to={`/obras/${obraId}/evidencias`}>Agregar evidencia</Link>} />
+        : !journeysReady
         ? <ErrorState title="No fue posible cargar los viajes" description="El resumen de transporte continúa disponible si pudo calcularse." />
         : !journeys.length
-          ? noApplicable
-            ? <EmptyState title="No aplica a esta unidad" description="Transporte está marcado como no aplicable. La ausencia de viajes no se presenta como cero operacional." />
-            : unresolved
-              ? <EmptyState
-                title="Aplicabilidad por definir"
-                description="Aún no existe información suficiente para determinar si transporte aplica a esta obra."
-                primaryAction={
-                  <Link
-                    className="font-bold text-[var(--brand-primary)]"
-                    to={`/obras/${obraId}/diagnostico`}
-                  >
-                    Revisar diagnóstico
-                  </Link>
-                }
-                secondaryAction={
-                  <Link
-                    className="font-bold text-[var(--text-secondary)]"
-                    to={`/obras/${obraId}/evidencias`}
-                  >
-                    Agregar evidencia
-                  </Link>
-                }
-              />
-              : <EmptyState
+          ? <EmptyState
                 title="Sin viajes registrados"
                 description="Aún no hay movimientos de transporte registrados para esta unidad."
-                primaryAction={<Link className="font-bold text-[var(--brand-primary)]" to="/datos/importaciones">Importar información</Link>}
+                primaryAction={<Button leftIcon={Plus} onClick={() => setRecordOpen(true)}>Registrar viaje</Button>}
                 secondaryAction={<Link className="font-bold text-[var(--text-secondary)]" to={`/obras/${obraId}/evidencias`}>Agregar documento</Link>}
               />
           : <section>
@@ -141,7 +116,7 @@ export default function TransportPage() {
                 <TableCell as="th">Estado</TableCell>
                 <TableCell as="th">Origen del dato</TableCell>
               </tr></TableHead>
-              <TableBody columns={6}>{journeys.map((journey) => {
+              <TableBody columns={6}>{pagedJourneys.map((journey) => {
                 const distance = journey.metricas?.distancia_km;
                 const load = journey.metricas?.carga_t;
                 const fuel = journey.metricas?.combustible_l;
@@ -187,7 +162,9 @@ export default function TransportPage() {
                 </tr>;
               })}</TableBody>
             </TableShell>
+            <Pagination page={page} totalItems={journeys.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel="viajes" />
           </section>}
+      {!noApplicable && !unresolved && journeys.length > 0 && <>
       <DomainSensorsPanel
         domain="transporte"
         operation={operation}
@@ -218,6 +195,7 @@ export default function TransportPage() {
           reloadOperation
         }
       />
+      </>}
       <TransportRecordModal
         open={recordOpen}
         onClose={() =>

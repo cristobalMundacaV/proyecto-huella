@@ -1,8 +1,11 @@
 import { Link, useOutletContext, useParams } from "react-router-dom";
+import { Plus } from "lucide-react";
 import {
   Alert,
+  Button,
   EmptyState,
   ErrorState,
+  Pagination,
   SectionHeader,
   TableBody,
   TableCell,
@@ -13,7 +16,7 @@ import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
 import DomainApplicability from "../components/DomainApplicability";
 import OperationDomainShell from "../components/OperationDomainShell";
 import { applicability, isResourceReady, resourceData } from "../utils/operationSelectors";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import MaterialEventModal from "../components/MaterialEventModal";
 import DomainSensorsPanel from "../components/DomainSensorsPanel";
 import DomainQualityPanel from "../components/DomainQualityPanel";
@@ -21,6 +24,7 @@ import DomainCalculationPanel from "../components/DomainCalculationPanel";
 
 
 const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
+const PAGE_SIZE = 8;
 
 function measurement(value, unit) {
   if (value === null || value === undefined) return "Sin datos";
@@ -38,6 +42,7 @@ export default function MaterialsPage() {
 
   const [recordOpen, setRecordOpen] =
     useState(false);
+  const [page, setPage] = useState(1);
 
   const persistedWorkId =
     obra?.id ||
@@ -58,6 +63,8 @@ export default function MaterialsPage() {
     })));
   const noApplicable = applicabilityState === "no_aplica";
   const unresolved = ["pendiente", "no_determinado"].includes(applicabilityState);
+  useEffect(() => { setPage(1); }, [events.length, persistedWorkId]);
+  const pagedEvents = useMemo(() => events.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [events, page]);
 
   return (
     <OperationDomainShell
@@ -70,21 +77,11 @@ export default function MaterialsPage() {
           capability="materiales"
         />
       }
+      action={!noApplicable && !unresolved && events.length > 0 ? <Button leftIcon={Plus} onClick={() => setRecordOpen(true)}>Registrar movimiento</Button> : undefined}
     >
-      <div className="flex justify-end">
-        <button
-          type="button"
-          className="font-bold text-[var(--brand-primary)]"
-          onClick={() =>
-            setRecordOpen(true)
-          }
-        >
-          Registrar movimiento
-        </button>
-      </div>
-      {!balancesReady && <ErrorState title="No fue posible cargar los balances de materiales" description="Los eventos continúan disponibles si pudieron cargarse." />}
+      {!noApplicable && !unresolved && !balancesReady && <ErrorState title="No fue posible cargar los balances de materiales" description="Los eventos continúan disponibles si pudieron cargarse." />}
 
-      {balancesReady && signals.length > 0 && <Alert tone="warning" title="Requiere revisión">
+      {!noApplicable && !unresolved && balancesReady && signals.length > 0 && <Alert tone="warning" title="Requiere revisión">
         <p>{signals.length} {signals.length === 1 ? "señal del balance requiere" : "señales del balance requieren"} revisión.</p>
         <details className="mt-2">
           <summary className="cursor-pointer font-bold">Ver detalles</summary>
@@ -92,7 +89,7 @@ export default function MaterialsPage() {
         </details>
       </Alert>}
 
-      {balancesReady && balanceRows.length > 0 && <section>
+      {!noApplicable && !unresolved && balancesReady && balanceRows.length > 0 && <section>
         <SectionHeader
           eyebrow="BALANCE OPERACIONAL"
           title="Balances disponibles"
@@ -118,36 +115,17 @@ export default function MaterialsPage() {
         </TableShell>
       </section>}
 
-      {!eventsReady
+      {noApplicable
+        ? <EmptyState title="No aplica a esta unidad" description="Materiales está marcado como no aplicable. La ausencia de movimientos no se presenta como cero." />
+        : unresolved
+          ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si materiales aplica a esta obra." primaryAction={<Link className="font-bold text-[var(--brand-primary)]" to={`/obras/${obraId}/diagnostico`}>Revisar diagnóstico</Link>} secondaryAction={<Link className="font-bold text-[var(--text-secondary)]" to={`/obras/${obraId}/evidencias`}>Agregar evidencia</Link>} />
+        : !eventsReady
         ? <ErrorState title="No fue posible cargar los eventos de materiales" description="Los balances continúan disponibles si pudieron calcularse." />
         : !events.length
-          ? noApplicable
-            ? <EmptyState title="No aplica a esta unidad" description="Materiales está marcado como no aplicable. La ausencia de eventos no se presenta como cero." />
-            : unresolved
-              ? <EmptyState
-                title="Aplicabilidad por definir"
-                description="Aún no existe información suficiente para determinar si materiales aplica a esta obra."
-                primaryAction={
-                  <Link
-                    className="font-bold text-[var(--brand-primary)]"
-                    to={`/obras/${obraId}/diagnostico`}
-                  >
-                    Revisar diagnóstico
-                  </Link>
-                }
-                secondaryAction={
-                  <Link
-                    className="font-bold text-[var(--text-secondary)]"
-                    to={`/obras/${obraId}/evidencias`}
-                  >
-                    Agregar evidencia
-                  </Link>
-                }
-              />
-              : <EmptyState
+          ? <EmptyState
                 title="Sin información registrada"
                 description="Aún no hay entradas, usos o salidas de materiales registradas para esta unidad."
-                primaryAction={<Link className="font-bold text-[var(--brand-primary)]" to="/datos/importaciones">Importar información</Link>}
+                primaryAction={<Button leftIcon={Plus} onClick={() => setRecordOpen(true)}>Registrar movimiento</Button>}
                 secondaryAction={<Link className="font-bold text-[var(--text-secondary)]" to={`/obras/${obraId}/evidencias`}>Agregar documento</Link>}
               />
           : <section>
@@ -166,7 +144,7 @@ export default function MaterialsPage() {
                 <TableCell as="th">Lote</TableCell>
                 <TableCell as="th">Origen del dato</TableCell>
               </tr></TableHead>
-              <TableBody columns={6}>{events.map((event) => {
+              <TableBody columns={6}>{pagedEvents.map((event) => {
                 const source = event.cantidad_detalle?.fuente_detalle?.nombre;
                 const sensorId = event.cantidad_detalle?.sensor_detalle?.id;
                 return <tr key={event.id}>
@@ -186,7 +164,9 @@ export default function MaterialsPage() {
                 </tr>;
               })}</TableBody>
             </TableShell>
+            <Pagination page={page} totalItems={events.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel="movimientos" />
           </section>}
+      {!noApplicable && !unresolved && events.length > 0 && <>
       <DomainSensorsPanel
         domain="materiales"
         operation={operation}
@@ -217,6 +197,7 @@ export default function MaterialsPage() {
           reloadOperation
         }
       />
+      </>}
       <MaterialEventModal
         open={recordOpen}
         onClose={() =>

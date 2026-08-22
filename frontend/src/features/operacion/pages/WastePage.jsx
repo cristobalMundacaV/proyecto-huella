@@ -1,5 +1,6 @@
 import { Link, useOutletContext } from "react-router-dom";
-import { ErrorState, SectionHeader, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
+import { useEffect, useMemo, useState } from "react";
+import { ErrorState, Pagination, SectionHeader, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
 import SectorDomainPage from "./SectorDomainPage";
 import { isResourceReady, resourceData } from "../utils/operationSelectors";
@@ -8,11 +9,15 @@ function measurement(value, unit) {
   if (value === null || value === undefined) return "Sin datos";
   return unit ? `${formatNumber(value)} ${unit}` : `${formatNumber(value)} · unidad no informada`;
 }
+const PAGE_SIZE = 8;
 
 export default function WastePage() {
   const { operation } = useOutletContext();
+  const [page, setPage] = useState(1);
   const eventsReady = isResourceReady(operation.materialEvents);
   const materialWaste = resourceData(operation.materialEvents, []).filter((event) => event.tipo === "residuo");
+  useEffect(() => { setPage(1); }, [materialWaste.length]);
+  const pagedWaste = useMemo(() => materialWaste.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [materialWaste, page]);
 
   return <div className="space-y-8">
     <SectorDomainPage domain="residuos" />
@@ -34,7 +39,7 @@ export default function WastePage() {
           <TableCell as="th">Destino registrado</TableCell>
           <TableCell as="th">Origen del dato</TableCell>
         </tr></TableHead>
-        <TableBody columns={5}>{materialWaste.map((event) => {
+        <TableBody columns={5}>{pagedWaste.map((event) => {
           const source = event.cantidad_detalle?.fuente_detalle?.nombre;
           const sensorId = event.cantidad_detalle?.sensor_detalle?.id;
           return <tr key={event.id}>
@@ -50,6 +55,7 @@ export default function WastePage() {
           </tr>;
         })}</TableBody>
       </TableShell>
+      <Pagination page={page} totalItems={materialWaste.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel="residuos de materiales" />
     </section>}
   </div>;
 }
