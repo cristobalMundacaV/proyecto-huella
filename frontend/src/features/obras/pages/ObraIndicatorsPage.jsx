@@ -23,6 +23,7 @@ import {
   TableHead,
   TableShell,
 } from "@/shared/ui";
+import PlatformLoader from "@/shared/components/PlatformLoader";
 
 import {
   formatDateTime,
@@ -124,11 +125,7 @@ export default function ObraIndicatorsPage() {
   if (
     state.loading
   ) {
-    return (
-      <p className="text-sm text-[var(--text-muted)]">
-        Cargando indicadores...
-      </p>
-    );
+    return <PlatformLoader title="Cargando indicadores" description="Estamos reuniendo valores, líneas base y resultados ambientales de esta obra." />;
   }
 
   const availableIndicators = state.indicators.filter((indicator) => indicator.valor_actual?.valor !== null && indicator.valor_actual?.valor !== undefined);

@@ -4,7 +4,8 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { getOrganizacionConfiguracion, updateOrganizacionConfiguracion } from "@/shared/services/api";
-import { Alert, Button, Card, CardContent, EmptyState, ErrorState, Input, LoadingState, PageHeader, Select } from "@/shared/ui";
+import { Alert, Button, Card, CardContent, EmptyState, ErrorState, Input, PageHeader, Select } from "@/shared/ui";
+import PlatformLoader from "@/shared/components/PlatformLoader";
 
 const EDITABLE_FIELDS = [
   "modo_importacion",
@@ -121,7 +122,7 @@ export default function ConfiguracionPage() {
   }
 
   if (!activeOrganizacionId) return <EmptyState title="Sin organización activa" description="Selecciona una organización antes de administrar preferencias." />;
-  if (state.scopeKey !== scopeKey || state.status === "loading") return <LoadingState label="Cargando preferencias" />;
+  if (state.scopeKey !== scopeKey || state.status === "loading") return <PlatformLoader title="Cargando preferencias" description="Estamos preparando la configuración de la organización activa." />;
 
   return (
     <main className="space-y-7">

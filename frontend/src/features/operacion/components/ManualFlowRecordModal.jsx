@@ -419,6 +419,7 @@ export default function ManualFlowRecordModal({
                 setLoadingPoints(false);
             });
     }, [
+        config?.defaultMetric,
         config?.defaultUnit,
         open,
         organizationId,

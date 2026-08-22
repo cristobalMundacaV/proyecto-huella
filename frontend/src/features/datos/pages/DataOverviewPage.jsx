@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, CheckCircle2, FileText, UploadCloud } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
-import { Alert, Card, CardContent, ErrorState, LoadingState, PageHeader, SectionHeader, StatusBadge } from "@/shared/ui";
+import { Alert, Card, CardContent, ErrorState, PageHeader, SectionHeader, StatusBadge } from "@/shared/ui";
+import PlatformLoader from "@/shared/components/PlatformLoader";
 import { formatDateTime } from "@/shared/utils/formatters";
 import { listEvidence, listImports } from "../services/dataApi";
 import {
@@ -70,7 +71,7 @@ export default function DataOverviewPage() {
 
   const loading = state.scope !== String(activeOrganizacionId) || state.evidence.status === "loading" || state.imports.status === "loading";
   const partialError = state.evidence.status === "error" || state.imports.status === "error";
-  if (loading) return <LoadingState label="Revisando tus datos" />;
+  if (loading) return <PlatformLoader title="Revisando tus datos" description="Estamos reuniendo importaciones, evidencias y señales de calidad." />;
 
   const recentEvidence = state.evidence.status === "ready" ? state.evidence.rows.slice(0, 3) : [];
   const recentImports = state.imports.status === "ready" ? state.imports.rows.slice(0, 3) : [];

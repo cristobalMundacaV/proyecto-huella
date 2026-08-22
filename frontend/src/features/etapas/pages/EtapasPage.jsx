@@ -4,7 +4,8 @@ import { Plus } from "lucide-react";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { createEtapaObra, getOrganizacionEtapas } from "@/shared/services/api";
-import { Alert, Button, EmptyState, ErrorState, Input, LoadingState, Modal, PageHeader, Select, StatusBadge, TableBody, TableCell, TableHead, TableShell, Textarea } from "@/shared/ui";
+import { Alert, Button, EmptyState, ErrorState, Input, Modal, PageHeader, Select, StatusBadge, TableBody, TableCell, TableHead, TableShell, Textarea } from "@/shared/ui";
+import PlatformLoader from "@/shared/components/PlatformLoader";
 
 const TYPES = ["Excavacion", "Fundaciones", "Obra gruesa", "Estructura", "Instalaciones", "Terminaciones", "Urbanizacion", "Retiro de residuos", "Logistica", "Administracion de obra", "Otro"];
 const STATES = { activa: "Activa", inactiva: "Inactiva", suspendida: "Suspendida", finalizada: "Finalizada" };
@@ -59,7 +60,7 @@ export default function EtapasPage() {
 
   const scopeKey = activeOrganizacionId ? String(activeOrganizacionId) : "";
   if (!activeOrganizacionId) return <EmptyState title="Sin organización activa" description="Selecciona una organización para revisar su estructura." />;
-  if (state.scopeKey !== scopeKey || state.status === "loading") return <LoadingState label="Cargando estructura" />;
+  if (state.scopeKey !== scopeKey || state.status === "loading") return <PlatformLoader title="Cargando estructura" description="Estamos reuniendo las etapas y su contexto operacional." />;
 
   const construction = activeOrganizacion?.preset === "construccion";
   const unitLabel = construction ? "Etapa" : "Elemento de estructura";

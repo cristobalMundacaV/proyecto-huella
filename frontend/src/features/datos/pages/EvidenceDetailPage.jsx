@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ExternalLink, ShieldCheck } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
-import { Alert, Card, CardContent, ErrorState, LoadingState, PageHeader, SectionHeader, StatusBadge, Timeline, TimelineItem } from "@/shared/ui";
+import { Alert, Card, CardContent, ErrorState, PageHeader, SectionHeader, StatusBadge, Timeline, TimelineItem } from "@/shared/ui";
+import PlatformLoader from "@/shared/components/PlatformLoader";
 import { formatDate, formatDateTime } from "@/shared/utils/formatters";
 import { evidenceContext, listEvidence, listImports } from "../services/dataApi";
 import { evidenceStatusInfo, evidenceTypeLabel, importDisplayName } from "../utils/dataPresentation";
@@ -56,7 +57,7 @@ export default function EvidenceDetailPage() {
     return () => { requestRef.current += 1; };
   }, [activeOrganizacionId, evidenceId, scopeKey]);
 
-  if (state.scope !== scopeKey || state.status === "loading") return <LoadingState label="Cargando documento" />;
+  if (state.scope !== scopeKey || state.status === "loading") return <PlatformLoader title="Cargando documento" description="Estamos reuniendo el archivo, sus versiones y relaciones de trazabilidad." />;
   if (state.status === "missing") return <ErrorState description="El documento no está disponible en la organización activa." />;
   if (state.status === "error") return <ErrorState description="El documento no existe o no está disponible para tu usuario." />;
 
@@ -102,6 +103,8 @@ export default function EvidenceDetailPage() {
         {state.linkedImport && <Link className="mt-5 inline-flex text-sm font-bold text-[var(--brand-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]" to={`/datos/importaciones/${state.linkedImport.id}`}>Ver importación: {importDisplayName(state.linkedImport)}</Link>}
       </CardContent></Card>
     </div>
+
+    {(evidence.observaciones || evidence.descripcion || state.document?.observaciones) && <section className="rounded-[22px] border border-[var(--border-default)] bg-[var(--bg-surface-subtle)] p-5"><SectionHeader title="Observaciones documentales" description="Contexto registrado junto al documento original." /><p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{evidence.observaciones || evidence.descripcion || state.document.observaciones}</p></section>}
 
     <section>
       <SectionHeader title="Versiones" description="Historial de archivos procesados para este documento." />

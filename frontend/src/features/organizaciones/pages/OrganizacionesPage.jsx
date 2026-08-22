@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Building2, CheckCircle2, Pencil, Plus, Trash2 } from "lucide-react";
 
 import ConfirmationModal from "@/shared/components/ConfirmationModal";
-import { Alert, Button, Card, CardContent, EmptyState, ErrorState, LoadingState, Modal, PageHeader, StatusBadge } from "@/shared/ui";
+import { Alert, Button, Card, CardContent, EmptyState, ErrorState, Modal, PageHeader, StatusBadge } from "@/shared/ui";
+import PlatformLoader from "@/shared/components/PlatformLoader";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { createEmpresa, deleteEmpresa, updateEmpresa } from "@/shared/services/api";
 import { useOrganizacionActiva } from "../context/OrganizacionActivaContext";
@@ -140,7 +141,7 @@ export default function OrganizacionesPage({ initialOpenCreate = false }) {
     }
   }
 
-  if (loadingOrganizaciones && !organizaciones.length) return <LoadingState label="Cargando organizaciones" />;
+  if (loadingOrganizaciones && !organizaciones.length) return <PlatformLoader title="Cargando organizaciones" description="Estamos reuniendo los espacios disponibles para tu usuario." />;
 
   return (
     <main className="space-y-7">

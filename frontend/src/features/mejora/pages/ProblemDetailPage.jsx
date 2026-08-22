@@ -3,6 +3,7 @@ import { Link, useOutletContext, useParams } from "react-router-dom";
 import { ArrowLeft, Plus } from "lucide-react";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import TraceabilityDrawer from "@/features/datos/components/TraceabilityDrawer";
+import PlatformLoader from "@/shared/components/PlatformLoader";
 import { Alert, Button, Card, CardContent, DataQualityBadge, EmptyState, ErrorState, Input, LoadingState, Modal, PageHeader, SectionHeader, Select, StatusBadge, TableBody, TableCell, TableHead, TableShell, Textarea, Timeline, TimelineItem, TraceabilityLink } from "@/shared/ui";
 import { formatDate, formatNumber } from "@/shared/utils/formatters";
 import {
@@ -154,7 +155,7 @@ export default function ProblemDetailPage({ workScoped = false }) {
   }
 
   const requestedScopeKey = activeOrganizacionId && problemId && (!workScoped || workId) ? `${activeOrganizacionId}:${workScoped ? workId : "global"}:${problemId}` : "";
-  if (state.scopeKey !== requestedScopeKey || state.problem.status === "loading") return <LoadingState label="Cargando problema" />;
+  if (state.scopeKey !== requestedScopeKey || state.problem.status === "loading") return <PlatformLoader title="Cargando problemática" description="Estamos reuniendo situación inicial, acciones, mediciones e historial." />;
   if (state.problem.status === "error") return <ErrorState description="El problema no existe o no está disponible en este contexto." />;
 
   const back = workScoped ? `/obras/${obraId}/problemas` : "/inteligencia/problemas";
@@ -313,7 +314,7 @@ export default function ProblemDetailPage({ workScoped = false }) {
         {activeAction && <Card><CardContent>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div><h3 className="text-lg font-bold">{activeAction.titulo}</h3><p className="mt-1 text-sm text-[var(--text-secondary)]">{activeAction.descripcion}</p></div>
-            <StatusBadge>{actionStatusLabel(activeAction.estado)}</StatusBadge>
+            <StatusBadge tone={["implementada", "evaluada"].includes(activeAction.estado) ? "success" : ["descartada", "cancelada"].includes(activeAction.estado) ? "neutral" : "info"}>{actionStatusLabel(activeAction.estado)}</StatusBadge>
           </div>
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--text-muted)]">
             <span>Responsable: {activeAction.responsable || "Sin asignar"}</span>

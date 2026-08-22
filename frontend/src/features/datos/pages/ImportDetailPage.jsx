@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, FileCheck2 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
-import { Alert, Card, CardContent, ErrorState, LoadingState, PageHeader, SectionHeader, StatusBadge } from "@/shared/ui";
+import { Alert, Card, CardContent, ErrorState, PageHeader, SectionHeader, StatusBadge } from "@/shared/ui";
+import PlatformLoader from "@/shared/components/PlatformLoader";
 import { formatDateTime } from "@/shared/utils/formatters";
 import { getImport } from "../services/dataApi";
 import { destinationLabel, importDisplayName, importProgressStep, importResultLabel, importStatusInfo } from "../utils/dataPresentation";
@@ -28,7 +29,7 @@ export default function ImportDetailPage() {
     return () => { requestRef.current += 1; };
   }, [activeOrganizacionId, processId, scopeKey]);
 
-  if (state.scope !== scopeKey || state.loading) return <LoadingState label="Cargando importación" />;
+  if (state.scope !== scopeKey || state.loading) return <PlatformLoader title="Cargando importación" description="Estamos reconstruyendo su estado, resultado y trazabilidad documental." />;
   if (state.error) return <ErrorState description={state.error} />;
 
   const item = state.data;

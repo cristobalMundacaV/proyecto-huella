@@ -4,7 +4,8 @@ import { Plus, UsersRound } from "lucide-react";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { createOrganizacionUsuario, getOrganizacionUsuarios } from "@/shared/services/api";
-import { Alert, Button, EmptyState, ErrorState, Input, LoadingState, Modal, PageHeader, Select, StatusBadge, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
+import { Alert, Button, EmptyState, ErrorState, Input, Modal, PageHeader, Select, StatusBadge, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
+import PlatformLoader from "@/shared/components/PlatformLoader";
 
 const ROLE_LABELS = { admin: "Administrador", analista: "Analista", operador: "Operador", lector: "Lector" };
 const emptyForm = { username: "", email: "", first_name: "", last_name: "", password: "", rol: "analista", cargo: "", activo: true };
@@ -62,7 +63,7 @@ export default function UsuariosPage() {
 
   const scopeKey = activeOrganizacionId ? String(activeOrganizacionId) : "";
   if (!activeOrganizacionId) return <EmptyState title="Sin organización activa" description="Selecciona una organización antes de administrar accesos." />;
-  if (state.scopeKey !== scopeKey || state.status === "loading") return <LoadingState label="Cargando usuarios" />;
+  if (state.scopeKey !== scopeKey || state.status === "loading") return <PlatformLoader title="Cargando usuarios" description="Estamos reuniendo accesos y roles de la organización activa." />;
 
   return (
     <main className="space-y-6">
