@@ -178,7 +178,7 @@ export default function IntelligencePage() {
         description="La inteligencia trabaja sobre problemas, indicadores y restricciones reales. No genera impactos ni escenarios ficticios."
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      {summary.open > 0 && <div className="grid gap-4 md:grid-cols-3">
         <article className="rounded-2xl border bg-white p-5">
           <div className="flex items-center gap-2">
             <AlertTriangle
@@ -223,7 +223,7 @@ export default function IntelligencePage() {
             </b>
           </div>
         </article>
-      </div>
+      </div>}
 
       {state.error && (
         <p className="text-sm text-red-700">
@@ -231,7 +231,7 @@ export default function IntelligencePage() {
         </p>
       )}
 
-      {!state.rows.length ? (
+      {!summary.open ? (
         <EmptyState
           icon={CheckCircle2}
           title="No hay decisiones pendientes"
@@ -246,6 +246,7 @@ export default function IntelligencePage() {
                   item.estado
                 ),
             )
+            .slice(0, 5)
             .map(
               (item) => (
                 <article
@@ -306,12 +307,6 @@ export default function IntelligencePage() {
                         Ver gestión
                       </Link>
 
-                      <Link
-                        className="text-sm font-bold text-[var(--brand-primary)]"
-                        to="/inteligencia/copiloto"
-                      >
-                        Consultar Copiloto
-                      </Link>
                     </div>
                   </div>
                 </article>

@@ -131,6 +131,10 @@ export default function ObraIndicatorsPage() {
     );
   }
 
+  const availableIndicators = state.indicators.filter((indicator) => indicator.valor_actual?.valor !== null && indicator.valor_actual?.valor !== undefined);
+  const baselineByIndicator = new Map(state.baselines.map((baseline) => [String(baseline.indicador), baseline]));
+  const noEnvironmentalData = !availableIndicators.length && !state.baselines.length && !state.impacts.length;
+
   return (
     <section className="space-y-6">
       <SectionHeader
@@ -139,9 +143,15 @@ export default function ObraIndicatorsPage() {
         description="Resultados ambientales versionados y scoped exclusivamente a esta obra."
       />
 
-      {state.indicators.length ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {state.indicators.map(
+      {noEnvironmentalData ? <EmptyState
+        icon={Activity}
+        title="Sin lectura ambiental disponible"
+        description="Esta obra todavía no tiene valores, líneas base ni resultados calculados suficientes para construir una lectura de indicadores."
+      /> : <>
+
+      {availableIndicators.length ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {availableIndicators.slice(0, 4).map(
             (indicator) => (
               <KpiCard
                 key={
@@ -159,9 +169,9 @@ export default function ObraIndicatorsPage() {
                   indicator.unidad
                 }
                 helper={
-                  human(
-                    indicator.tipo,
-                  )
+                  baselineByIndicator.has(String(indicator.id))
+                    ? `Línea base ${human(baselineByIndicator.get(String(indicator.id)).estado)}`
+                    : `${human(indicator.tipo)} · Sin línea base disponible`
                 }
                 icon={
                   Activity
@@ -343,6 +353,7 @@ export default function ObraIndicatorsPage() {
           </TableShell>
         )}
       </div>
+      </>}
     </section>
   );
 }

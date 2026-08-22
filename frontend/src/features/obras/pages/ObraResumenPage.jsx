@@ -265,7 +265,8 @@ export default function ObraResumenPage() {
   const currentIndicators =
     governedIndicators.filter(
       (item) =>
-        item.valor_actual
+        item.valor_actual?.valor !== null &&
+        item.valor_actual?.valor !== undefined
     );
 
 
@@ -277,28 +278,6 @@ export default function ObraResumenPage() {
         item.estado ===
         "cerrada"
     );
-
-
-  const totalImpact =
-    impacts.reduce(
-      (
-        total,
-        item,
-      ) =>
-        total +
-        Number(
-          item.valor || 0
-        ),
-      0,
-    );
-
-
-  const impactUnit =
-    impacts.find(
-      (item) =>
-        item.unidad
-    )?.unidad ||
-    "kgCO2e";
 
 
   const complianceAlerts =
@@ -479,21 +458,16 @@ export default function ObraResumenPage() {
 
         <KpiCard
           icon={Activity}
-          label="Impacto calculado"
+          label="Resultados ambientales"
           value={
             impacts.length
-              ? totalImpact
-              : "No disponible"
-          }
-          unit={
-            impacts.length
-              ? impactUnit
-              : undefined
+              ? impacts.length
+              : null
           }
           helper={
             impacts.length
               ? `${impacts.length} resultados trazables`
-              : "Sin impactos calculados"
+              : "Sin resultados calculados"
           }
         />
 
@@ -671,8 +645,8 @@ export default function ObraResumenPage() {
         )}
       </section>
 
-      {/* INDICADORES */}
-      <section className="space-y-3">
+      {/* INDICADORES OPERACIONALES DE RESPALDO */}
+      {!currentIndicators.length && <section className="space-y-3">
         <SectionHeader
           title="Indicadores destacados"
           description="Señales principales disponibles para esta unidad."
@@ -733,7 +707,7 @@ export default function ObraResumenPage() {
             className="border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.12),transparent_40%),linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98))]"
           />
         )}
-      </section>
+      </section>}
 
 
       {/* CUMPLIMIENTO */}
@@ -767,18 +741,16 @@ export default function ObraResumenPage() {
               icon={FileCheck2}
               label="Documentos"
               value={
-                compliance.total_documentos ??
-                0
+                compliance.total_documentos
               }
-              helper={`${compliance.documentos_validados ?? 0} validados`}
+              helper={compliance.documentos_validados === null || compliance.documentos_validados === undefined ? "Validación no disponible" : `${compliance.documentos_validados} validados`}
             />
 
             <KpiCard
               icon={AlertTriangle}
               label="Alertas abiertas"
               value={
-                compliance.alertas_abiertas ??
-                0
+                compliance.alertas_abiertas
               }
               status={
                 compliance.alertas_abiertas
@@ -791,8 +763,7 @@ export default function ObraResumenPage() {
               icon={ShieldCheck}
               label="Cumplimiento"
               value={
-                compliance.compliance_pct ??
-                0
+                compliance.compliance_pct
               }
               unit="%"
             />

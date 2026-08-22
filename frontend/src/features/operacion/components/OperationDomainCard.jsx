@@ -67,10 +67,11 @@ export default function OperationDomainCard({
   const status = domainStateInfo(state);
 
   const identity = getEnvironmentalDomain(domainKey);
-  const visual = identity ? {
+  const domainVisual = identity ? {
     container: `${identity.border} bg-gradient-to-br ${identity.accent}`,
     icon: `${identity.softBg} ${identity.text}`,
-  } : stateStyles[state] || stateStyles.sin_datos;
+  } : null;
+  const visual = state === "con_datos" && domainVisual ? domainVisual : stateStyles[state] || domainVisual || stateStyles.sin_datos;
   const actionColor = identity?.text || "text-emerald-700";
 
   if (compact) {
@@ -220,7 +221,7 @@ export default function OperationDomainCard({
 
       <Link
         to={to}
-        className="
+        className={`
           mt-auto
           flex
           items-center
@@ -231,7 +232,7 @@ export default function OperationDomainCard({
           ${actionColor}
           focus-visible:outline-none
           focus-visible:shadow-[var(--focus-ring)]
-        "
+        `}
       >
         Explorar dominio
 
