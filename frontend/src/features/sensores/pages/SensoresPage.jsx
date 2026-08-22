@@ -27,6 +27,7 @@ import {
   FilterBar,
   Input,
   Modal,
+  Pagination,
   SearchInput,
   Select,
   StatusBadge,
@@ -35,6 +36,8 @@ import {
   TableHead,
   TableShell,
 } from "@/shared/ui";
+
+const PAGE_SIZE = 8;
 
 import { formatDateTime } from "@/shared/utils/formatters";
 
@@ -157,6 +160,7 @@ export default function SensoresPage() {
   });
 
   const [form, setForm] = useState(null);
+  const [page, setPage] = useState(1);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
@@ -219,6 +223,8 @@ export default function SensoresPage() {
       );
     });
   }, [filters, state.sensors]);
+  useEffect(() => { setPage(1); }, [filters, activeOrganizacionId, state.sensors]);
+  const pagedSensors = useMemo(() => sensors.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [page, sensors]);
 
   const attentionCount =
     state.sensors.filter(
@@ -440,7 +446,7 @@ export default function SensoresPage() {
             </TableHead>
 
             <TableBody columns={7}>
-              {sensors.map((sensor) => {
+              {pagedSensors.map((sensor) => {
                 const status =
                   sensorStatusInfo(sensor.estado);
 
@@ -524,6 +530,7 @@ export default function SensoresPage() {
               })}
             </TableBody>
           </TableShell>
+          <Pagination page={page} totalItems={sensors.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel="sensores" />
         </div>
       )}
 

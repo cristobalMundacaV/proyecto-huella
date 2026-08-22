@@ -21,10 +21,12 @@ import { useOrganizacionActiva } from "@/features/organizaciones/context/Organiz
 import {
   Alert,
   Button,
+  IconButton,
   EmptyState,
   ErrorState,
   FilterBar,
   Modal,
+  Pagination,
   Select,
   TableBody,
   TableCell,
@@ -32,6 +34,8 @@ import {
   TableShell,
   Textarea,
 } from "@/shared/ui";
+
+const PAGE_SIZE = 8;
 
 import {
   formatDateTime,
@@ -114,6 +118,7 @@ export default function ReviewQueuePage() {
     dialog,
     setDialog,
   ] = useState(null);
+  const [page, setPage] = useState(1);
 
   const [
     mutationError,
@@ -127,6 +132,7 @@ export default function ReviewQueuePage() {
 
   const requestRef =
     useRef(0);
+  useEffect(() => { setPage(1); }, [filters.tipo, filters.estado, activeOrganizacionId, state.rows]);
 
 
   const load =
@@ -529,7 +535,7 @@ export default function ReviewQueuePage() {
             <TableBody
               columns={6}
             >
-              {state.rows.map(
+              {state.rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(
                 (review) => {
                   const reference =
                     reviewReference(
@@ -660,9 +666,10 @@ export default function ReviewQueuePage() {
                         {!historical &&
                           !user?.is_demo ? (
                           <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              variant="secondary"
+                            <IconButton
+                              icon={FileSearch}
+                              aria-label={`Registrar hallazgo en revisión ${review.id}`}
+                              title="Registrar hallazgo"
                               onClick={() => {
                                 setMutationError(
                                   ""
@@ -673,12 +680,12 @@ export default function ReviewQueuePage() {
                                   review,
                                 });
                               }}
-                            >
-                              Registrar hallazgo
-                            </Button>
+                            />
 
-                            <Button
-                              size="sm"
+                            <IconButton
+                              icon={ClipboardCheck}
+                              aria-label={`Tomar decisión en revisión ${review.id}`}
+                              title="Tomar decisión"
                               onClick={() => {
                                 setMutationError(
                                   ""
@@ -691,9 +698,7 @@ export default function ReviewQueuePage() {
                                   review,
                                 });
                               }}
-                            >
-                              Tomar decisión
-                            </Button>
+                            />
                           </div>
                         ) : (
                           <div className="text-xs text-[var(--text-muted)]">
@@ -740,6 +745,7 @@ export default function ReviewQueuePage() {
               )}
             </TableBody>
           </TableShell>
+          <Pagination page={page} totalItems={state.rows.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel="revisiones" />
         </div>
       )}
 

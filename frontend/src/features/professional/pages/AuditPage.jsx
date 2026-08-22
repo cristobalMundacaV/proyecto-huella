@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { getEnvironmentalAudit } from "../api/professionalV2Api";
-import { EmptyState, ErrorState, LoadingState, PageHeader, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
+import PlatformLoader from "@/shared/components/PlatformLoader";
+import { EmptyState, ErrorState, PageHeader, Pagination, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
 import { formatDateTime } from "@/shared/utils/formatters";
 import { auditEntityLabel, human } from "../components/GovernanceShared";
 
 export default function AuditPage() {
   const { activeOrganizacionId } = useOrganizacionActiva();
   const [state, setState] = useState({ scopeKey: "", status: "loading", rows: [], error: "" });
+  const [page, setPage] = useState(1);
   const requestRef = useRef(0);
 
   useEffect(() => {
@@ -24,9 +26,10 @@ export default function AuditPage() {
       });
     return () => { requestRef.current += 1; };
   }, [activeOrganizacionId]);
+  useEffect(() => { setPage(1); }, [activeOrganizacionId, state.rows]);
 
   const requestedScopeKey = activeOrganizacionId ? String(activeOrganizacionId) : "";
-  if (state.scopeKey !== requestedScopeKey || state.status === "loading") return <LoadingState label="Cargando auditoría" />;
+  if (state.scopeKey !== requestedScopeKey || state.status === "loading") return <PlatformLoader title="Cargando auditoría" description="Estamos preparando el registro de decisiones gobernadas." />;
 
   return <main className="space-y-6">
     <PageHeader
@@ -36,15 +39,15 @@ export default function AuditPage() {
     />
     {state.status === "error" ? <ErrorState description={state.error} /> : !state.rows.length ? (
       <EmptyState title="Sin eventos de auditoría" description="No hay decisiones o cambios gobernados registrados todavía." />
-    ) : <TableShell>
+    ) : <><TableShell>
       <TableHead><tr><TableCell as="th">Fecha</TableCell><TableCell as="th">Actor</TableCell><TableCell as="th">Acción</TableCell><TableCell as="th">Elemento</TableCell><TableCell as="th">Resultado / contexto</TableCell></tr></TableHead>
-      <TableBody columns={5}>{state.rows.map((event) => <tr key={event.id}>
+      <TableBody columns={5}>{state.rows.slice((page - 1) * 8, page * 8).map((event) => <tr key={event.id}>
         <TableCell>{formatDateTime(event.timestamp)}</TableCell>
         <TableCell>{event.actor_nombre || "Sistema"}</TableCell>
         <TableCell>{human(event.tipo)}</TableCell>
         <TableCell>{auditEntityLabel(event.entidad)}{event.referencia ? <span className="block text-xs text-[var(--text-muted)]">Referencia {event.referencia}</span> : null}</TableCell>
         <TableCell>{event.resumen || "Sin contexto adicional"}</TableCell>
       </tr>)}</TableBody>
-    </TableShell>}
+    </TableShell><Pagination page={page} totalItems={state.rows.length} pageSize={8} onChange={setPage} itemLabel="eventos de auditoría" /></>}
   </main>;
 }

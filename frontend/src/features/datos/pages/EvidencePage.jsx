@@ -31,6 +31,7 @@ import {
   ErrorState,
   Input,
   Modal,
+  Pagination,
   SearchInput,
   SectionHeader,
   Select,
@@ -41,6 +42,8 @@ import {
   TableShell,
   Textarea,
 } from "@/shared/ui";
+
+const PAGE_SIZE = 8;
 
 import { formatDate } from "@/shared/utils/formatters";
 
@@ -205,6 +208,7 @@ export default function EvidencePage({
 
   const [status, setStatus] =
     useState("");
+  const [page, setPage] = useState(1);
 
   const [uploading, setUploading] =
     useState(false);
@@ -355,6 +359,8 @@ export default function EvidencePage({
       status,
     ]
   );
+  useEffect(() => { setPage(1); }, [query, status, scopeKey, rows]);
+  const pagedVisible = useMemo(() => visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [page, visible]);
 
   const pendingCount =
     useMemo(
@@ -706,7 +712,7 @@ export default function EvidencePage({
           className="border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_40%),linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98))] shadow-[0_12px_36px_rgba(6,78,59,0.06)]"
         />
       ) : (
-        !!visible.length && (
+        !!visible.length && (<>
           <TableShell>
             <TableHead>
               <tr>
@@ -736,7 +742,7 @@ export default function EvidencePage({
             </TableHead>
 
             <TableBody columns={5}>
-              {visible.map((row) => {
+              {pagedVisible.map((row) => {
                 const rowStatus =
                   evidenceStatusInfo(
                     row.estado_documental
@@ -809,7 +815,8 @@ export default function EvidencePage({
               })}
             </TableBody>
           </TableShell>
-        )
+          <Pagination page={page} totalItems={visible.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel="evidencias" />
+        </>)
       )}
 
       <Modal

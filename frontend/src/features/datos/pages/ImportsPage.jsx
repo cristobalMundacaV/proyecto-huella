@@ -22,6 +22,7 @@ import {
   EmptyState,
   ErrorState,
   FilterBar,
+  Pagination,
   SearchInput,
   Select,
   StatusBadge,
@@ -30,6 +31,8 @@ import {
   TableHead,
   TableShell,
 } from "@/shared/ui";
+
+const PAGE_SIZE = 8;
 
 import {
   formatDateTime,
@@ -108,6 +111,7 @@ export default function ImportsPage() {
       query: "",
       status: "",
     });
+  const [page, setPage] = useState(1);
 
   const requestRef = useRef(0);
   const workflowRef = useRef(null);
@@ -254,6 +258,9 @@ export default function ImportsPage() {
         ).length,
       [state.rows]
     );
+
+  useEffect(() => { setPage(1); }, [filters.query, filters.status, scope, state.rows]);
+  const pagedRows = useMemo(() => visibleRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [page, visibleRows]);
 
 
   const completedCount =
@@ -518,7 +525,7 @@ export default function ImportsPage() {
                   <TableBody
                     columns={5}
                   >
-                    {visibleRows.map(
+                    {pagedRows.map(
                       (row) => {
                         const status =
                           importStatusInfo(
@@ -610,6 +617,7 @@ export default function ImportsPage() {
                     )}
                   </TableBody>
                 </TableShell>
+                <Pagination page={page} totalItems={visibleRows.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel="importaciones" />
               </div>
             )}
           </>

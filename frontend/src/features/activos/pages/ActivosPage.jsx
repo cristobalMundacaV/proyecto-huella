@@ -8,16 +8,20 @@ import { Link } from "react-router-dom";
 import {
   Plus,
   Boxes,
+  Pencil,
+  Wrench,
 } from "lucide-react";
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import {
   Button,
+  IconButton,
   EmptyState,
   ErrorState,
   FilterBar,
   Input,
   Modal,
+  Pagination,
   SearchInput,
   Select,
   StatusBadge,
@@ -27,6 +31,8 @@ import {
   TableShell,
   Textarea,
 } from "@/shared/ui";
+
+const PAGE_SIZE = 8;
 
 import {
   createAsset,
@@ -95,6 +101,7 @@ export default function ActivosPage() {
   });
 
   const [dialog, setDialog] = useState(null);
+  const [page, setPage] = useState(1);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
@@ -143,6 +150,9 @@ export default function ActivosPage() {
       ),
     [filters.query, state.rows]
   );
+  useEffect(() => { setPage(1); }, [filters.query, filters.tipo, filters.estado, activeOrganizacionId, state.rows]);
+  const pagedRows = useMemo(() => rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [page, rows]);
+  const filtersActive = Boolean(filters.query || filters.tipo || filters.estado);
 
   async function save() {
     setBusy(true);
@@ -311,7 +321,7 @@ export default function ActivosPage() {
           title="Cargando activos"
           description="Estamos preparando los equipos y su estado operacional."
         />
-      ) : !rows.length ? (
+      ) : !state.rows.length && !filtersActive ? (
         <EmptyState
           icon={Boxes}
           title="Aún no hay activos registrados"
@@ -328,7 +338,9 @@ export default function ActivosPage() {
             </Button>
           }
         />
-      ) : (
+      ) : !rows.length ? (
+        <EmptyState icon={Boxes} title="No encontramos activos" description="Prueba cambiando la búsqueda, el tipo o el estado seleccionado." />
+      ) : (<>
         <TableShell>
           <TableHead>
             <tr>
@@ -363,7 +375,7 @@ export default function ActivosPage() {
           </TableHead>
 
           <TableBody columns={7}>
-            {rows.map((item) => (
+            {pagedRows.map((item) => (
               <tr key={item.id}>
                 <TableCell>
                   <b>{item.nombre}</b>
@@ -419,21 +431,21 @@ export default function ActivosPage() {
 
                 <TableCell>
                   <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
+                    <IconButton
+                      icon={Pencil}
+                      aria-label={`Editar ${item.nombre}`}
+                      title="Editar activo"
                       onClick={() =>
                         setDialog({
                           ...item,
                         })
                       }
-                    >
-                      Editar
-                    </Button>
+                    />
 
-                    <Button
-                      size="sm"
-                      variant="secondary"
+                    <IconButton
+                      icon={Wrench}
+                      aria-label={`Registrar mantenimiento de ${item.nombre}`}
+                      title="Registrar mantenimiento"
                       onClick={() =>
                         setDialog({
                           type: "maintenance",
@@ -445,16 +457,15 @@ export default function ActivosPage() {
                           },
                         })
                       }
-                    >
-                      Mantenimiento
-                    </Button>
+                    />
                   </div>
                 </TableCell>
               </tr>
             ))}
           </TableBody>
         </TableShell>
-      )}
+        <Pagination page={page} totalItems={rows.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel="activos" />
+      </>)}
 
       <Modal
         open={Boolean(dialog)}

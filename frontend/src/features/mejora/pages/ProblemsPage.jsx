@@ -32,6 +32,7 @@ import {
   FilterBar,
   Input,
   Modal,
+  Pagination,
   SearchInput,
   SectionHeader,
   Select,
@@ -42,6 +43,8 @@ import {
   TableShell,
   Textarea,
 } from "@/shared/ui";
+
+const PAGE_SIZE = 8;
 
 import { formatDate } from "@/shared/utils/formatters";
 
@@ -175,6 +178,7 @@ export default function ProblemsPage({
 
   const [status, setStatus] =
     useState("");
+  const [page, setPage] = useState(1);
 
   const [form, setForm] =
     useState(null);
@@ -316,6 +320,8 @@ export default function ProblemsPage({
         status,
       ]
     );
+  useEffect(() => { setPage(1); }, [query, status, state.scopeKey, state.rows]);
+  const pagedVisible = useMemo(() => visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [page, visible]);
 
 
   const openCount =
@@ -652,7 +658,7 @@ export default function ProblemsPage({
               <TableBody
                 columns={6}
               >
-                {visible.map(
+                {pagedVisible.map(
                   (item) => {
                     /*
                      * Importante:
@@ -764,6 +770,7 @@ export default function ProblemsPage({
                 )}
               </TableBody>
             </TableShell>
+            <Pagination page={page} totalItems={visible.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel="problemas" />
           </div>
         )
       )}
