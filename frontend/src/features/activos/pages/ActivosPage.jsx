@@ -15,6 +15,7 @@ import PlatformLoader from "@/shared/components/PlatformLoader";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import {
   Button,
+  Alert,
   IconButton,
   EmptyState,
   ErrorState,
@@ -103,6 +104,7 @@ export default function ActivosPage() {
   const [dialog, setDialog] = useState(null);
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState(false);
+  const [mutationError, setMutationError] = useState("");
 
   const load = useCallback(() => {
     setState((current) => ({
@@ -156,6 +158,7 @@ export default function ActivosPage() {
 
   async function save() {
     setBusy(true);
+    setMutationError("");
 
     try {
       if (dialog.id) {
@@ -173,6 +176,8 @@ export default function ActivosPage() {
 
       setDialog(null);
       await load();
+    } catch (error) {
+      setMutationError(error.response?.data?.detail || "No fue posible guardar el activo. Revisa los datos e inténtalo nuevamente.");
     } finally {
       setBusy(false);
     }
@@ -180,6 +185,7 @@ export default function ActivosPage() {
 
   async function maintenance() {
     setBusy(true);
+    setMutationError("");
 
     try {
       await createMaintenance(
@@ -190,6 +196,8 @@ export default function ActivosPage() {
 
       setDialog(null);
       await load();
+    } catch (error) {
+      setMutationError(error.response?.data?.detail || "No fue posible registrar el mantenimiento. Revisa los datos e inténtalo nuevamente.");
     } finally {
       setBusy(false);
     }
@@ -469,6 +477,8 @@ export default function ActivosPage() {
 
       <Modal
         open={Boolean(dialog)}
+        eyebrow={dialog?.type === "maintenance" ? "GESTIÓN DEL ACTIVO" : "INFORMACIÓN OPERACIONAL"}
+        icon={dialog?.type === "maintenance" ? Wrench : Boxes}
         title={
           dialog?.type === "maintenance"
             ? `Mantenimiento · ${dialog.asset.nombre}`
@@ -483,12 +493,13 @@ export default function ActivosPage() {
               ? "Actualiza la información operacional del activo."
               : "Registra un equipo físico para incorporarlo al seguimiento de tu operación."
         }
-        onClose={() => setDialog(null)}
+        onClose={() => { if (!busy) { setDialog(null); setMutationError(""); } }}
         footer={
           <div className="flex justify-end gap-2">
             <Button
               variant="secondary"
-              onClick={() => setDialog(null)}
+              disabled={busy}
+              onClick={() => { setDialog(null); setMutationError(""); }}
             >
               Cancelar
             </Button>
@@ -502,13 +513,16 @@ export default function ActivosPage() {
                   : save
               }
             >
-              Guardar
+              {dialog?.type === "maintenance" ? "Registrar mantenimiento" : dialog?.id ? "Guardar cambios" : "Crear activo"}
             </Button>
           </div>
         }
       >
+        {mutationError && <Alert tone="danger" title="No pudimos completar la acción">{mutationError}</Alert>}
         {dialog?.type === "maintenance" ? (
-          <div className="space-y-4">
+          <section className="mt-5 space-y-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface-subtle)] p-4">
+            <div><h3 className="font-black">Intervención</h3><p className="mt-1 text-sm text-[var(--text-muted)]">Define la programación y el estado actual del mantenimiento.</p></div>
+            <div className="grid gap-4 sm:grid-cols-2">
             <Input
               label="Tipo"
               value={dialog.form.tipo}
@@ -563,9 +577,11 @@ export default function ActivosPage() {
                 </option>
               ))}
             </Select>
-          </div>
+            </div>
+          </section>
         ) : (
-          <div className="space-y-4">
+          <div className="mt-5 space-y-6">
+            <section className="space-y-4"><div><h3 className="font-black">Información principal</h3><p className="mt-1 text-sm text-[var(--text-muted)]">Identifica el equipo dentro de la operación.</p></div><div className="grid gap-4 sm:grid-cols-2">
             <Input
               required
               label="Código"
@@ -615,23 +631,13 @@ export default function ActivosPage() {
             <Select
               label="Estado"
               value={dialog?.estado || "operativo"}
-              onChange={(e) =>
-                setDialog({
-                  ...dialog,
-                  estado: e.target.value,
-                })
-              }
+              onChange={(e) => setDialog({ ...dialog, estado: e.target.value })}
             >
-              {ASSET_STATUS_OPTIONS.map((option) => (
-                <option
-                  key={option.value}
-                  value={option.value}
-                >
-                  {option.label}
-                </option>
-              ))}
+              {ASSET_STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </Select>
+            </div></section>
 
+            <section className="space-y-4"><div><h3 className="font-black">Contexto operacional</h3><p className="mt-1 text-sm text-[var(--text-muted)]">Agrega información útil para reconocer y gestionar el activo.</p></div>
             <Textarea
               label="Descripción"
               value={
@@ -645,6 +651,7 @@ export default function ActivosPage() {
                 })
               }
             />
+            </section>
           </div>
         )}
       </Modal>

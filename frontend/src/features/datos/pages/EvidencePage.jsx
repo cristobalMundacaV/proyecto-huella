@@ -821,6 +821,8 @@ export default function EvidencePage({
 
       <Modal
         open={uploadModalOpen}
+        eyebrow="TRAZABILIDAD DOCUMENTAL"
+        icon={FileUp}
         title="Agregar evidencia"
         description={
           workScoped

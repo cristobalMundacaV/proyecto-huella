@@ -779,6 +779,8 @@ export default function ProblemsPage({
       {/* MODAL */}
       <Modal
         open={Boolean(form)}
+        eyebrow="MEJORA CONTINUA"
+        icon={AlertTriangle}
         title="Registrar problema"
         description="Describe la situación ambiental y define cómo se medirá. Registrar un problema no selecciona ni ejecuta ninguna acción."
         onClose={() => {

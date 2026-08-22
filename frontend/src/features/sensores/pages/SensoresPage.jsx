@@ -22,6 +22,7 @@ import { getAssets } from "@/features/activos/api/assetsApi";
 
 import {
   Button,
+  Alert,
   EmptyState,
   ErrorState,
   FilterBar,
@@ -162,6 +163,7 @@ export default function SensoresPage() {
   const [form, setForm] = useState(null);
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState(false);
+  const [mutationError, setMutationError] = useState("");
 
   const load = useCallback(() => {
     setState((current) => ({
@@ -236,6 +238,7 @@ export default function SensoresPage() {
 
   async function save() {
     setBusy(true);
+    setMutationError("");
 
     try {
       await createSensor(
@@ -249,6 +252,8 @@ export default function SensoresPage() {
 
       setForm(null);
       await load();
+    } catch (error) {
+      setMutationError(error.response?.data?.detail || "No fue posible crear el sensor. Revisa los datos e inténtalo nuevamente.");
     } finally {
       setBusy(false);
     }
@@ -536,14 +541,17 @@ export default function SensoresPage() {
 
       <Modal
         open={Boolean(form)}
+        eyebrow="TELEMETRÍA OPERACIONAL"
+        icon={Radio}
         title="Crear sensor"
         description="Registra un dispositivo físico para incorporar sus lecturas al seguimiento operacional. El sensor no genera emisiones automáticamente."
-        onClose={() => setForm(null)}
+        onClose={() => { if (!busy) { setForm(null); setMutationError(""); } }}
         footer={
           <div className="flex justify-end gap-2">
             <Button
               variant="secondary"
-              onClick={() => setForm(null)}
+              disabled={busy}
+              onClick={() => { setForm(null); setMutationError(""); }}
             >
               Cancelar
             </Button>
@@ -557,7 +565,11 @@ export default function SensoresPage() {
           </div>
         }
       >
-        <div className="space-y-4">
+        <div className="space-y-6">
+          {mutationError && <Alert tone="danger" title="No pudimos crear el sensor">{mutationError}</Alert>}
+          <section className="space-y-4">
+            <div><h3 className="font-black">Información principal</h3><p className="mt-1 text-sm text-[var(--text-muted)]">Identifica el dispositivo y la variable que observará.</p></div>
+            <div className="grid gap-4 sm:grid-cols-2">
           <Input
             required
             label="Identificador del dispositivo"
@@ -612,7 +624,11 @@ export default function SensoresPage() {
               )
             )}
           </Select>
+            </div>
+          </section>
 
+          <section className="space-y-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface-subtle)] p-4">
+            <div><h3 className="font-black">Contexto operacional</h3><p className="mt-1 text-sm text-[var(--text-muted)]">La asociación permite ubicar las lecturas en el equipo correcto.</p></div>
           <Select
             label="Activo asociado"
             value={
@@ -639,6 +655,8 @@ export default function SensoresPage() {
               </option>
             ))}
           </Select>
+          {!state.assets.length && <p className="text-sm text-[var(--text-muted)]">No hay activos disponibles. Puedes crear el sensor sin asociación y vincularlo posteriormente.</p>}
+          </section>
         </div>
       </Modal>
     </main>

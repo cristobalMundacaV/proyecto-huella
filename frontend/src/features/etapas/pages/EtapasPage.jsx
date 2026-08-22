@@ -103,10 +103,12 @@ export default function EtapasPage() {
 
       <Modal
         open={dialogOpen}
+        eyebrow="ESTRUCTURA OPERACIONAL"
+        icon={Plus}
         title="Crear etapa"
         description="Registra sólo la información necesaria para ubicar esta etapa dentro de la operación."
         onClose={() => !saving && setDialogOpen(false)}
-        footer={<div className="flex flex-wrap justify-end gap-2"><Button variant="secondary" onClick={() => setDialogOpen(false)}>Cancelar</Button><Button loading={saving} disabled={!form.nombre.trim()} onClick={create}>Crear etapa</Button></div>}
+        footer={<div className="flex flex-wrap justify-end gap-2"><Button variant="secondary" disabled={saving} onClick={() => setDialogOpen(false)}>Cancelar</Button><Button loading={saving} disabled={!form.nombre.trim()} onClick={create}>Crear etapa</Button></div>}
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <Input label="Nombre" required value={form.nombre} onChange={(event) => setForm((current) => ({ ...current, nombre: event.target.value }))} />

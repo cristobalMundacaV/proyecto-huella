@@ -3,6 +3,7 @@ import {
     useMemo,
     useState,
 } from "react";
+import { ClipboardPlus } from "lucide-react";
 
 import {
     Button,
@@ -750,11 +751,15 @@ export default function ManualFlowRecordModal({
     return (
         <Modal
             open={open}
-            onClose={onClose}
+            onClose={() => { if (!saving) onClose(); }}
+            eyebrow="REGISTRO OPERACIONAL"
+            icon={ClipboardPlus}
             title="Registrar información"
             description="El registro quedará asociado a esta obra y conservará su fuente."
+            footer={<div className="flex justify-end gap-2"><Button type="button" variant="secondary" disabled={saving} onClick={onClose}>Cancelar</Button><Button form="manual-flow-form" type="submit" loading={saving} disabled={!canSubmit}>Registrar</Button></div>}
         >
             <form
+                id="manual-flow-form"
                 className="space-y-4"
                 onSubmit={submit}
             >
@@ -1384,29 +1389,6 @@ export default function ManualFlowRecordModal({
                     </p>
                 )}
 
-                <div className="flex justify-end gap-2">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={
-                            onClose
-                        }
-                    >
-                        Cancelar
-                    </Button>
-
-                    <Button
-                        type="submit"
-                        loading={
-                            saving
-                        }
-                        disabled={
-                            !canSubmit
-                        }
-                    >
-                        Registrar
-                    </Button>
-                </div>
             </form>
         </Modal>
     );

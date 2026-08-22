@@ -65,6 +65,7 @@ export default function ProblemDetailPage({ workScoped = false }) {
   const [dialog, setDialog] = useState(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [dialogError, setDialogError] = useState("");
   const [trace, setTrace] = useState(null);
   const requestRef = useRef(0);
 
@@ -138,13 +139,15 @@ export default function ProblemDetailPage({ workScoped = false }) {
   async function mutate(call, message) {
     setBusy(true);
     setFeedback("");
+    setDialogError("");
     try {
       await call();
       setDialog(null);
       setFeedback(message);
       await load();
     } catch (error) {
-      setFeedback(error?.response?.data?.detail || "No se pudo completar la operación.");
+      const message = error?.response?.data?.detail || "No se pudo completar la operación.";
+      if (dialog) setDialogError(message); else setFeedback(message);
     } finally {
       setBusy(false);
     }
@@ -408,8 +411,9 @@ export default function ProblemDetailPage({ workScoped = false }) {
 
     <ProblemDialog
       dialog={dialog}
+      error={dialogError}
       busy={busy}
-      onClose={() => setDialog(null)}
+      onClose={() => { if (!busy) { setDialog(null); setDialogError(""); } }}
       onSubmit={(payload) => {
         if (dialog.type === "start") return mutate(() => startProblemAction(activeOrganizacionId, problemId, dialog.action.id, workId), "Acción iniciada. La situación BASE quedó congelada para este ciclo.");
         if (dialog.type === "escalate") return mutate(() => escalateProblem(activeOrganizacionId, problemId, payload.motivo, workId), "Problema enviado a revisión profesional.");
@@ -433,7 +437,7 @@ function ResourceSection({ id = undefined, title, state, action = null, children
   </section>;
 }
 
-function ProblemDialog({ dialog, busy, onClose, onSubmit, onChange }) {
+function ProblemDialog({ dialog, busy, error, onClose, onSubmit, onChange }) {
   if (!dialog) return null;
   const titles = {
     start: "Iniciar acción",
@@ -443,11 +447,14 @@ function ProblemDialog({ dialog, busy, onClose, onSubmit, onChange }) {
   };
   return <Modal
     open
+    eyebrow="MEJORA CONTINUA"
+    icon={Plus}
     title={titles[dialog.type]}
     description={dialog.type === "start" ? "Al confirmar, la situación BASE del ciclo quedará congelada para poder comparar el resultado después." : undefined}
     onClose={onClose}
-    footer={<div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Cancelar</Button><Button loading={busy} onClick={() => onSubmit(dialog)}>{dialog.type === "start" ? "Confirmar inicio" : dialog.type === "escalate" ? "Enviar a revisión" : "Guardar"}</Button></div>}
+    footer={<div className="flex justify-end gap-2"><Button variant="secondary" disabled={busy} onClick={onClose}>Cancelar</Button><Button loading={busy} onClick={() => onSubmit(dialog)}>{dialog.type === "start" ? "Confirmar inicio" : dialog.type === "escalate" ? "Enviar a revisión" : dialog.type === "action" ? "Crear acción" : "Registrar medición"}</Button></div>}
   >
+    {error && <Alert tone="danger" title="No pudimos completar la acción">{error}</Alert>}
     {dialog.type === "start" ? <Alert tone="warning">Iniciar la acción no significa que el problema esté resuelto. El resultado deberá verificarse después.</Alert>
       : dialog.type === "escalate" ? <Textarea required label="Motivo de la revisión" value={dialog.motivo} onChange={(event) => onChange({ ...dialog, motivo: event.target.value })} />
         : dialog.type === "action" ? <div className="space-y-4">
