@@ -3,7 +3,8 @@ import { Plus, Trash2 } from "lucide-react";
 
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
-import { Alert, Button, Card, CardContent, EmptyState, ErrorState, Input, LoadingState, PageHeader, Select, StatusBadge, Textarea } from "@/shared/ui";
+import PlatformLoader from "@/shared/components/PlatformLoader";
+import { Alert, Button, Card, CardContent, EmptyState, ErrorState, Input, PageHeader, Select, StatusBadge, Textarea } from "@/shared/ui";
 import CapacidadesAmbientales from "../components/CapacidadesAmbientales";
 import { saveDiagnostico } from "../api/diagnosticoApi";
 import { useDiagnostico } from "../hooks/useDiagnostico";
@@ -23,7 +24,7 @@ const GROUPS = [
 ];
 const emptyForm = { estado: "pendiente", objetivo_principal: "", descripcion_contexto: "", observaciones: "" };
 const keyFor = (item) => item.id ? `id-${item.id}` : item.localId;
-const statusTone = (value) => value === "completado" ? "success" : value === "requiere_actualizacion" ? "warning" : "neutral";
+const statusTone = (value) => value === "completado" ? "success" : value === "requiere_actualizacion" || value === "pendiente" ? "warning" : "info";
 const PROFILE_LABELS = { construccion: "Construcción", forestal: "Forestal", aserradero: "Aserradero", transporte: "Transporte", industrial: "Industrial" };
 
 export default function DiagnosticoAmbientalPage() {
@@ -38,10 +39,12 @@ export default function DiagnosticoAmbientalPage() {
   const [saving, setSaving] = useState(false);
   const [mutationError, setMutationError] = useState("");
   const [success, setSuccess] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const activeScopeRef = useRef(activeOrganizacionId);
 
   useLayoutEffect(() => {
     activeScopeRef.current = activeOrganizacionId;
+    setShowCreateForm(false);
   }, [activeOrganizacionId]);
 
   useEffect(() => {
@@ -79,12 +82,16 @@ export default function DiagnosticoAmbientalPage() {
     } finally { setSaving(false); }
   }
 
-  const scopeKey = activeOrganizacionId ? String(activeOrganizacionId) : "";
+  const scopeKey = activeOrganizacionId ? `${activeOrganizacionId}:organizacion` : "";
   if (!activeOrganizacionId) return <EmptyState title="Sin organización activa" description="Selecciona una organización para revisar su contexto." />;
-  if (state.scopeKey !== scopeKey || state.diagnostico.status === "loading") return <LoadingState label="Cargando diagnóstico" />;
+  if (state.scopeKey !== scopeKey || state.diagnostico.status === "loading") return <PlatformLoader title="Cargando diagnóstico" description="Estamos preparando el contexto ambiental de la organización." />;
 
   const diagnostic = state.diagnostico.data;
   const canSave = !user?.is_demo && (formDirty || dirtyItems.size > 0 || deletedIds.length > 0);
+
+  if (state.diagnostico.status === "error") return <main className="space-y-6"><PageHeader eyebrow="Administración · Diagnóstico" title="Diagnóstico de contexto" description="Define el contexto organizacional que determina qué información ambiental aplica." metadata={activeOrganizacion?.nombre || undefined} /><ErrorState description={state.diagnostico.error} onRetry={state.reload} /></main>;
+
+  if (!diagnostic && !showCreateForm) return <main className="space-y-6"><PageHeader eyebrow="Administración · Diagnóstico" title="Diagnóstico de contexto" description="Define el contexto organizacional que determina qué información ambiental aplica." metadata={activeOrganizacion?.nombre || undefined} /><EmptyState title="Diagnóstico aún no configurado" description="Inicia el contexto ambiental de esta organización para definir procesos, fuentes, brechas y aplicabilidad." primaryAction={!user?.is_demo ? <Button onClick={() => setShowCreateForm(true)}>Iniciar diagnóstico</Button> : undefined} /></main>;
 
   return (
     <main className="space-y-7">
@@ -106,8 +113,7 @@ export default function DiagnosticoAmbientalPage() {
         <Info label="Siguiente paso" value={state.preparacion.status === "ready" ? state.preparacion.data?.siguiente_paso || "Sin datos" : state.preparacion.status === "error" ? "No disponible" : "Cargando…"} />
       </section>
 
-      {state.diagnostico.status === "error" ? <ErrorState description={state.diagnostico.error} onRetry={state.reload} /> : (
-        <section className="space-y-4">
+      <section className="space-y-4">
           <div><h2 className="text-lg font-black">Contexto organizacional</h2><p className="text-sm text-[var(--text-muted)]">Estas respuestas describen el contexto actual; pueden actualizarse cuando cambie la operación.</p></div>
           <Card><CardContent>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -117,8 +123,7 @@ export default function DiagnosticoAmbientalPage() {
               <Textarea label="Observaciones" rows={4} value={form.observaciones} disabled={user?.is_demo} onChange={(event) => setField("observaciones", event.target.value)} />
             </div>
           </CardContent></Card>
-        </section>
-      )}
+      </section>
 
       {state.diagnostico.status === "ready" && (
         <section className="space-y-4">
@@ -129,7 +134,7 @@ export default function DiagnosticoAmbientalPage() {
 
       <section className="space-y-4">
         <div><h2 className="text-lg font-black">Aplicabilidad</h2><p className="text-sm text-[var(--text-muted)]">Indica qué capacidades aplican al contexto de esta organización. Un estado pendiente no se completa con supuestos.</p></div>
-        {state.capacidades.status === "loading" ? <LoadingState inline label="Cargando aplicabilidad" /> : state.capacidades.status === "error" ? <ErrorState description={state.capacidades.error} /> : !state.capacidades.data.length ? <EmptyState title="Sin capacidades registradas" description="No hay aplicabilidad disponible para mostrar." /> : <CapacidadesAmbientales organizacionId={activeOrganizacionId} capacidades={state.capacidades.data} onChange={state.reload} readOnly={user?.is_demo} />}
+        {state.capacidades.status === "loading" ? <PlatformLoader compact title="Cargando aplicabilidad" description="Estamos revisando las capacidades disponibles." /> : state.capacidades.status === "error" ? <ErrorState description={state.capacidades.error} onRetry={state.reload} /> : !state.capacidades.data.length ? <EmptyState title="Sin capacidades registradas" description="No hay aplicabilidad disponible para mostrar." /> : <CapacidadesAmbientales organizacionId={activeOrganizacionId} capacidades={state.capacidades.data} onChange={state.reload} readOnly={user?.is_demo} />}
       </section>
 
       {!user?.is_demo && state.diagnostico.status === "ready" && <div className="flex justify-end"><Button loading={saving} disabled={!canSave} onClick={save}>{diagnostic ? "Guardar cambios" : "Guardar contexto"}</Button></div>}

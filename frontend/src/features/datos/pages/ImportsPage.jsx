@@ -110,6 +110,13 @@ export default function ImportsPage() {
     });
 
   const requestRef = useRef(0);
+  const workflowRef = useRef(null);
+
+  const openImportWorkflow = () => {
+    workflowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    workflowRef.current?.focus({ preventScroll: true });
+    window.history.replaceState(null, "", "#nueva-importacion");
+  };
 
 
   const load = useCallback(
@@ -325,8 +332,9 @@ export default function ImportsPage() {
             </div>
           </div>
 
-          <a
-            href="#nueva-importacion"
+          <button
+            type="button"
+            onClick={openImportWorkflow}
             className="inline-flex self-start items-center gap-2 rounded-xl border border-white/30 bg-white px-4 py-3 text-sm font-black text-emerald-900 shadow-[0_8px_24px_rgba(0,0,0,0.12)] transition hover:bg-emerald-50 lg:self-center"
           >
             <FileSpreadsheet
@@ -335,14 +343,16 @@ export default function ImportsPage() {
             />
 
             Nueva importación
-          </a>
+          </button>
         </div>
       </section>
 
 
       {/* NUEVA IMPORTACIÓN */}
       <section
+        ref={workflowRef}
         id="nueva-importacion"
+        tabIndex={-1}
         className="scroll-mt-28"
       >
         <ImportWorkflow

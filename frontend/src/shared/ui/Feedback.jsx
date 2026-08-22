@@ -17,9 +17,11 @@ export function EmptyState({
 }) {
     return (
         <section
-            className={`rounded-[var(--radius-lg)] border border-dashed border-[var(--border-strong)] bg-[var(--bg-surface-subtle)] p-8 text-center ${className}`}
+            className={`relative overflow-hidden rounded-[var(--radius-lg)] border border-emerald-100/90 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.10),transparent_48%),linear-gradient(180deg,var(--bg-surface),var(--bg-surface-subtle))] p-8 text-center shadow-[0_14px_36px_rgba(15,23,42,0.06)] ${className}`}
         >
-            <Icon className="mx-auto text-[var(--text-muted)]" />
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+                <Icon aria-hidden="true" size={22} />
+            </span>
 
             <h2 className="mt-3 text-lg font-bold">
                 {title}

@@ -31,6 +31,13 @@ export function useDiagnostico(
 
   const reload = useCallback(async () => {
     if (!organizacionId) {
+      requestRef.current += 1;
+      setState({
+        scopeKey: "",
+        diagnostico: resource("ready", null),
+        capacidades: resource("ready", []),
+        preparacion: resource("ready", null),
+      });
       return;
     }
 
