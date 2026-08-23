@@ -791,15 +791,12 @@ function ElementGroup({
                         <Button
                             size="sm"
                             variant="secondary"
-                            className="inline-flex shrink-0 whitespace-nowrap"
+                            leftIcon={Plus}
+                            className="shrink-0 whitespace-nowrap"
                             onClick={() =>
                                 onAdd(type)
                             }
                         >
-                            <Plus
-                                size={15}
-                                aria-hidden="true"
-                            />
                             Agregar
                         </Button>
                     )}

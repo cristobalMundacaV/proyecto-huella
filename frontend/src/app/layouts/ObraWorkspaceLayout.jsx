@@ -44,6 +44,19 @@ function environmentalProfileLabel(value) {
   return labels[value] || String(value || "Sin datos").replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
 }
 
+function environmentalStateTextClass(value) {
+  if (["estable", "cerrada", "cerrado"].includes(value)) return "text-emerald-100";
+  if (["requiere_atencion", "cierre_pendiente"].includes(value)) return "text-amber-200";
+  if (["mejora_en_curso", "monitoreo"].includes(value)) return "text-cyan-100";
+  return "text-white";
+}
+
+function workStateChipClass(value) {
+  if (["activa", "activo", "en_ejecucion", "finalizada"].includes(value)) return "border-emerald-200/45 bg-emerald-300/15 text-emerald-50";
+  if (["pausada", "planificada"].includes(value)) return "border-amber-200/50 bg-amber-300/15 text-amber-100";
+  return "border-white/20 bg-white/10 text-white";
+}
+
 function environmentalDescription(
   value
 ) {
@@ -280,12 +293,16 @@ export default function ObraWorkspaceLayout() {
               )}
 
 
-              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold">
-                {statusLabel(
-                  obra.estado
-                )}
-              </span>
+              {!hideTechnicalWorkCode && (
+                <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold">{statusLabel(obra.estado)}</span>
+              )}
 
+              {hideTechnicalWorkCode && location && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold">
+                  <MapPin aria-hidden="true" size={14} />
+                  {location}
+                </span>
+              )}
 
               {obra.fecha_inicio && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold">
@@ -301,8 +318,10 @@ export default function ObraWorkspaceLayout() {
                 </span>
               )}
 
+              {hideTechnicalWorkCode && <span className={`rounded-full border px-3 py-1.5 text-xs font-bold ${workStateChipClass(obra.estado)}`}>{statusLabel(obra.estado)}</span>}
 
-              {location && (
+
+              {!hideTechnicalWorkCode && location && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold">
                   <MapPin
                     aria-hidden="true"
@@ -323,11 +342,13 @@ export default function ObraWorkspaceLayout() {
             </p>
 
             <div className="mt-3">
-              <WorkStatus
-                value={
-                  obra.estado_ambiental
-                }
-              />
+              {hideTechnicalWorkCode ? (
+                <p className={`text-xl font-black ${environmentalStateTextClass(obra.estado_ambiental)}`}>
+                  {statusLabel(obra.estado_ambiental)}
+                </p>
+              ) : (
+                <WorkStatus value={obra.estado_ambiental} />
+              )}
             </div>
 
             <p className="mt-3 text-sm leading-6 text-emerald-50/80">
