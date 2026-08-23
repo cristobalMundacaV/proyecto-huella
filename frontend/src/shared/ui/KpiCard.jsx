@@ -24,6 +24,7 @@ export default function KpiCard({
     loading = false,
     status = "neutral",
     tone,
+    align = "left",
 }) {
     const missing = value === null || value === undefined || value === "";
     const visualStatus = tone || status;
@@ -49,8 +50,8 @@ export default function KpiCard({
     return (
         <Card className="border-slate-200/80 bg-[linear-gradient(145deg,rgba(255,255,255,1),rgba(248,250,252,0.92))] shadow-[0_10px_28px_rgba(15,23,42,0.055)]">
             <CardContent className="h-full">
-                <div className="flex items-start justify-between gap-3">
-                    <div>
+                <div className={`flex gap-3 ${align === "center" ? "flex-col items-center text-center" : "items-start justify-between"}`}>
+                    <div className={align === "center" ? "order-2" : ""}>
                         <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
                             {label || title}
                         </p>
@@ -81,7 +82,7 @@ export default function KpiCard({
 
                     {renderedIcon && (
                         <span
-                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/80 ${statusColors[visualStatus] || statusColors.neutral}`}
+                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/80 ${align === "center" ? "order-1" : ""} ${statusColors[visualStatus] || statusColors.neutral}`}
                         >
                             {renderedIcon}
                         </span>
