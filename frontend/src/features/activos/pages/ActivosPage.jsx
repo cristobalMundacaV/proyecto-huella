@@ -376,7 +376,7 @@ export default function ActivosPage() {
                 Sensores
               </TableCell>
 
-              <TableCell as="th">
+              <TableCell as="th" align="center">
                 Acciones
               </TableCell>
             </tr>
@@ -387,10 +387,6 @@ export default function ActivosPage() {
               <tr key={item.id}>
                 <TableCell>
                   <b>{item.nombre}</b>
-
-                  <span className="block text-xs text-[var(--text-muted)]">
-                    {item.codigo}
-                  </span>
                 </TableCell>
 
                 <TableCell>
@@ -437,10 +433,12 @@ export default function ActivosPage() {
                   </Link>
                 </TableCell>
 
-                <TableCell>
-                  <div className="flex gap-2">
+                <TableCell align="center">
+                  <div className="flex items-center justify-center gap-2">
                     <IconButton
                       icon={Pencil}
+                      size="sm"
+                      className="h-9 w-9 !rounded-full !border-sky-200 !bg-sky-50 !p-0 !text-sky-700 hover:!bg-sky-100"
                       aria-label={`Editar ${item.nombre}`}
                       title="Editar activo"
                       onClick={() =>
@@ -452,6 +450,8 @@ export default function ActivosPage() {
 
                     <IconButton
                       icon={Wrench}
+                      size="sm"
+                      className="h-9 w-9 !rounded-full !border-amber-200 !bg-amber-50 !p-0 !text-amber-700 hover:!bg-amber-100"
                       aria-label={`Registrar mantenimiento de ${item.nombre}`}
                       title="Registrar mantenimiento"
                       onClick={() =>
