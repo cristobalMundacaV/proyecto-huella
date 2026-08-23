@@ -61,6 +61,20 @@ def get_organizacion_or_404(organizacion_id):
     return get_object_or_404(Organizacion, organizacion_id=organizacion_id)
 
 
+def get_user_organizacion_or_404(request, organizacion_id):
+    return get_object_or_404(user_organizations(request), organizacion_id=organizacion_id)
+
+
+def can_administer_organization(user, organizacion):
+    return bool(
+        user.is_superuser
+        or UsuarioOrganizacion.objects.filter(
+            user=user, organizacion=organizacion, activo=True,
+            rol=UsuarioOrganizacion.Rol.ADMIN,
+        ).exists()
+    )
+
+
 def get_obra_or_404(codigo_obra):
     return get_object_or_404(Obra, codigo_obra=codigo_obra)
 
@@ -382,6 +396,8 @@ def organizaciones(request):
             queryset.distinct(), many=True
         )
         return Response(serializer.data)
+    if not request.user.is_superuser:
+        return Response({"detail": "Solo la administración de plataforma puede crear organizaciones."}, status=status.HTTP_403_FORBIDDEN)
     serializer = OrganizacionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     organizacion = serializer.save()
@@ -397,27 +413,39 @@ def organizaciones(request):
 
 
 @api_view(["GET", "PATCH", "DELETE"])
+@permission_classes([IsAuthenticated])
 def organizacion_detail(request, organizacion_id):
-    organizacion = get_organizacion_or_404(organizacion_id)
+    organizacion = get_user_organizacion_or_404(request, organizacion_id)
     if request.method == "GET":
         return Response(OrganizacionSerializer(organizacion).data)
     if request.method == "DELETE":
+        if not request.user.is_superuser:
+            return Response({"detail": "La eliminación de organizaciones no está disponible en la configuración del tenant."}, status=status.HTTP_403_FORBIDDEN)
         organizacion.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-    serializer = OrganizacionSerializer(organizacion, data=request.data, partial=True)
+    if not can_administer_organization(request.user, organizacion):
+        return Response({"detail": "No tienes permisos para modificar esta organización."}, status=status.HTTP_403_FORBIDDEN)
+    payload = request.data.copy()
+    if not request.user.is_superuser:
+        payload.pop("activa", None)
+        payload.pop("organizacion_id", None)
+    serializer = OrganizacionSerializer(organizacion, data=payload, partial=True)
     serializer.is_valid(raise_exception=True)
     serializer.save()
     return Response(serializer.data)
 
 
 @api_view(["GET", "PATCH"])
+@permission_classes([IsAuthenticated])
 def organizacion_configuracion(request, organizacion_id):
-    organizacion = get_organizacion_or_404(organizacion_id)
+    organizacion = get_user_organizacion_or_404(request, organizacion_id)
     configuracion, _ = ConfiguracionOrganizacion.objects.get_or_create(
         organizacion=organizacion
     )
     if request.method == "GET":
         return Response(ConfiguracionOrganizacionSerializer(configuracion).data)
+    if not can_administer_organization(request.user, organizacion):
+        return Response({"detail": "No tienes permisos para modificar esta configuración."}, status=status.HTTP_403_FORBIDDEN)
     serializer = ConfiguracionOrganizacionSerializer(
         configuracion, data=request.data, partial=True
     )
@@ -475,13 +503,16 @@ def organizacion_dashboard(request, organizacion_id):
 
 
 @api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
 def organizacion_usuarios(request, organizacion_id):
-    organizacion = get_organizacion_or_404(organizacion_id)
+    organizacion = get_user_organizacion_or_404(request, organizacion_id)
     if request.method == "GET":
         perfiles = UsuarioOrganizacion.objects.select_related(
             "user", "organizacion"
         ).filter(organizacion=organizacion)
         return Response(UsuarioOrganizacionSerializer(perfiles, many=True).data)
+    if not can_administer_organization(request.user, organizacion):
+        return Response({"detail": "No tienes permisos para administrar accesos."}, status=status.HTTP_403_FORBIDDEN)
     serializer = UsuarioOrganizacionCreateSerializer(
         data=request.data, context={"organizacion": organizacion}
     )

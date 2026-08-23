@@ -7,7 +7,7 @@ const labels = {
   indicadores: "Indicadores", problemas: "Problemas", evidencias: "Evidencias",
   timeline: "Historial", informes: "Informes", datos: "Datos", importaciones: "Importaciones",
   inteligencia: "Inteligencia", acciones: "Acciones", copiloto: "Copiloto",
-  gobernanza: "Gobernanza", revision: "Revisión profesional", expedientes: "Expedientes", calidad: "Calidad", auditoria: "Auditoría", conocimiento: "Conocimiento", factores: "Factores", administracion: "Administración",
+  gobernanza: "Gobernanza", revision: "Revisión profesional", expedientes: "Expedientes", calidad: "Calidad", auditoria: "Auditoría", conocimiento: "Conocimiento", factores: "Factores", administracion: "Configuración",
   organizacion: "Organización", usuarios: "Usuarios", configuracion: "Preferencias",
   diagnostico: "Diagnóstico", estructura: "Estructura", activos: "Activos", sensores: "Sensores",
 };

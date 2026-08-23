@@ -49,6 +49,7 @@ const WastePage = lazy(() => import("@/features/operacion/pages/WastePage"));
 const ProblemsPage = lazy(() => import("@/features/mejora/pages/ProblemsPage"));
 const ProblemDetailPage = lazy(() => import("@/features/mejora/pages/ProblemDetailPage"));
 const AdministracionPage = lazy(() => import("@/features/administracion/pages/AdministracionPage"));
+const SettingsSectionPage = lazy(() => import("@/features/administracion/pages/SettingsSectionPage"));
 const OrganizacionesPage = lazy(() => import("@/features/organizaciones/pages/OrganizacionesPage"));
 const UsuariosPage = lazy(() => import("@/features/usuarios/pages/UsuariosPage"));
 const ConfiguracionPage = lazy(() => import("@/features/configuracion/pages/ConfiguracionPage"));
@@ -140,7 +141,7 @@ export default function AppRouter() {
         <Route path="gobernanza/auditoria" element={<AuditPage />} />
         <Route path="gobernanza/conocimiento" element={<KnowledgePage />} />
         <Route path="gobernanza/informes" element={<DossiersPage />} />
-        <Route path="administracion" element={<AdministracionPage />} /><Route path="administracion/organizacion" element={<OrganizationRoute />} /><Route path="administracion/usuarios" element={<UsuariosPage />} /><Route path="administracion/configuracion" element={<ConfiguracionPage />} /><Route path="administracion/diagnostico" element={<DiagnosticoAmbientalPage />} /><Route path="administracion/estructura" element={<EtapasPage />} />
+        <Route path="administracion" element={<AdministracionPage />} /><Route path="administracion/organizacion" element={<OrganizationRoute />} /><Route path="administracion/equipo" element={<UsuariosPage />} /><Route path="administracion/usuarios" element={<Navigate to="/administracion/equipo" replace />} /><Route path="administracion/operacion" element={<SettingsSectionPage section="operacion" />} /><Route path="administracion/ambiental" element={<SettingsSectionPage section="ambiental" />} /><Route path="administracion/calculo" element={<SettingsSectionPage section="calculo" />} /><Route path="administracion/reportes" element={<SettingsSectionPage section="reportes" />} /><Route path="administracion/datos" element={<SettingsSectionPage section="datos" />} /><Route path="administracion/auditoria" element={<SettingsSectionPage section="auditoria" />} /><Route path="administracion/configuracion" element={<ConfiguracionPage />} /><Route path="administracion/diagnostico" element={<DiagnosticoAmbientalPage />} /><Route path="administracion/estructura" element={<EtapasPage />} />
         <Route path="operacion/recepcion-trozas" element={<RecepcionTrozasPage />} /><Route path="operacion/produccion" element={<ProduccionAserraderoPage />} /><Route path="operacion/secado" element={<SecadoAserraderoPage />} /><Route path="operacion/energia" element={<EnergiaAserraderoPage />} /><Route path="operacion/transporte-forestal" element={<TransporteForestalPage />} /><Route path="operacion/residuos-subproductos" element={<ResiduosSubproductosPage />} /><Route path="operacion/lotes-forestales" element={<LotesForestalesPage />} />
         <Route path="*" element={<NotFoundPage authenticated />} />
       </Route></Route></Route>

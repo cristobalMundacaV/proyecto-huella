@@ -130,8 +130,8 @@ export const NAV_ITEMS = {
 
   administration: {
     id: "administration",
-    label: "Administración",
-    title: "Administración",
+    label: "Configuración",
+    title: "Configuración",
     description: "Gestiona la organización, sus usuarios y preferencias de funcionamiento.",
     path: "/administracion",
     icon: Settings,

@@ -135,7 +135,7 @@ export default function Navbar({
               </div>
 
               <Link
-                to="/administracion/usuarios"
+                to="/administracion/equipo"
                 onClick={() =>
                   setOpen(false)
                 }

@@ -8,6 +8,8 @@ import { Alert, Button, Card, CardContent, EmptyState, ErrorState, Input, PageHe
 import PlatformLoader from "@/shared/components/PlatformLoader";
 
 const EDITABLE_FIELDS = [
+  "unidad_emisiones",
+  "redondeo_decimales",
   "modo_importacion",
   "crear_etapas_automaticamente",
   "crear_obras_automaticamente",
@@ -180,7 +182,9 @@ export default function ConfiguracionPage() {
               <Select label="Periodo predeterminado" value={state.data.reporte_periodo_default || "ultimos_12_meses"} onChange={(event) => update("reporte_periodo_default", event.target.value)} disabled={user?.is_demo}>
                 <option value="ultimos_30_dias">Últimos 30 días</option><option value="ultimos_3_meses">Últimos 3 meses</option><option value="ultimos_6_meses">Últimos 6 meses</option><option value="ultimos_12_meses">Últimos 12 meses</option><option value="anio_actual">Año actual</option>
               </Select>
-              <Input label="Unidad visual de emisiones" value={state.data.reporte_unidad_visual_emisiones || ""} onChange={(event) => update("reporte_unidad_visual_emisiones", event.target.value)} disabled={user?.is_demo} />
+              <Select label="Unidad visual de emisiones" value={state.data.reporte_unidad_visual_emisiones || "kg CO2e"} onChange={(event) => { update("reporte_unidad_visual_emisiones", event.target.value); update("unidad_emisiones", event.target.value); }} disabled={user?.is_demo}><option value="kg CO2e">kgCO2e</option><option value="t CO2e">tCO2e</option></Select>
+              <Select label="Precisión visual" value={String(state.data.redondeo_decimales ?? 1)} onChange={(event) => update("redondeo_decimales", Number(event.target.value))} disabled={user?.is_demo}><option value="0">0 decimales</option><option value="1">1 decimal</option><option value="2">2 decimales</option></Select>
+              <p className="text-xs leading-5 text-[var(--text-muted)]">Esta preferencia convierte solo la presentación. Los resultados canónicos permanecen almacenados en kgCO2e.</p>
               <Toggle label="Mostrar categoría" checked={state.data.reporte_mostrar_categoria} onChange={(value) => update("reporte_mostrar_categoria", value)} disabled={user?.is_demo} />
               <Toggle label="Mostrar etapa" checked={state.data.reporte_mostrar_etapa} onChange={(value) => update("reporte_mostrar_etapa", value)} disabled={user?.is_demo} />
               <Toggle label="Mostrar tabla" checked={state.data.reporte_mostrar_tabla} onChange={(value) => update("reporte_mostrar_tabla", value)} disabled={user?.is_demo} />

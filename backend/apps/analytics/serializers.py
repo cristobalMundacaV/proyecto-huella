@@ -62,6 +62,7 @@ class OrganizacionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "organizacion_id",
             "etapas_count",
             "obras_count",
             "registros_count",
@@ -141,7 +142,7 @@ class ConfiguracionOrganizacionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConfiguracionOrganizacion
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "organizacion", "created_at", "updated_at"]
 
 
 class EtapaObraSerializer(serializers.ModelSerializer):

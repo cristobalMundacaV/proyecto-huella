@@ -2,7 +2,8 @@ from django.db import transaction
 from django.db.models import ProtectedError
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .models import (
@@ -12,12 +13,22 @@ from .models import (
     Obra,
     RegistroEmision,
     TransporteObra,
+    UsuarioOrganizacion,
 )
 from .serializers import OrganizacionSerializer
 
 
-def get_organizacion_or_404(organizacion_id):
-    return get_object_or_404(Organizacion, organizacion_id=organizacion_id)
+def get_organizacion_or_404(request, organizacion_id):
+    queryset = Organizacion.objects.all()
+    if not request.user.is_superuser:
+        queryset = queryset.filter(usuarios__user=request.user, usuarios__activo=True)
+    return get_object_or_404(queryset.distinct(), organizacion_id=organizacion_id)
+
+
+def can_administer(user, organization):
+    return user.is_superuser or UsuarioOrganizacion.objects.filter(
+        user=user, organizacion=organization, activo=True, rol=UsuarioOrganizacion.Rol.ADMIN,
+    ).exists()
 
 
 @transaction.atomic
@@ -56,18 +67,27 @@ def delete_organizacion_with_related_data(organizacion):
 
 
 @api_view(["GET", "PATCH", "DELETE"])
+@permission_classes([IsAuthenticated])
 def organizacion_detail_safe(request, organizacion_id):
-    organizacion = get_organizacion_or_404(organizacion_id)
+    organizacion = get_organizacion_or_404(request, organizacion_id)
 
     if request.method == "GET":
         return Response(OrganizacionSerializer(organizacion).data)
 
     if request.method == "PATCH":
-        serializer = OrganizacionSerializer(organizacion, data=request.data, partial=True)
+        if not can_administer(request.user, organizacion):
+            return Response({"detail": "No tienes permisos para modificar esta organización."}, status=status.HTTP_403_FORBIDDEN)
+        payload = request.data.copy()
+        if not request.user.is_superuser:
+            payload.pop("activa", None)
+            payload.pop("organizacion_id", None)
+        serializer = OrganizacionSerializer(organizacion, data=payload, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
 
+    if not request.user.is_superuser:
+        return Response({"detail": "La eliminación de organizaciones corresponde a la administración de plataforma."}, status=status.HTTP_403_FORBIDDEN)
     try:
         deleted_summary = delete_organizacion_with_related_data(organizacion)
     except ProtectedError as exc:

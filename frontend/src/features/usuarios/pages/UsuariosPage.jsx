@@ -13,6 +13,8 @@ const emptyForm = { username: "", email: "", first_name: "", last_name: "", pass
 export default function UsuariosPage() {
   const { user } = useAuth();
   const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
+  const membership = user?.organizaciones?.find((item) => String(item.organizacion_id) === String(activeOrganizacionId));
+  const canAdminister = !user?.is_demo && (user?.is_superuser || membership?.rol === "admin");
   const [state, setState] = useState({ scopeKey: "", status: "loading", rows: [], error: "" });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -68,11 +70,11 @@ export default function UsuariosPage() {
   return (
     <main className="space-y-6">
       <PageHeader
-        eyebrow="Administración · Usuarios"
+        eyebrow="Configuración · Equipo y acceso"
         title="Usuarios y roles"
         description="Revisa quién tiene acceso y qué rol tiene en la organización."
         metadata={activeOrganizacion?.nombre || undefined}
-        actions={!user?.is_demo ? <Button onClick={() => { setMutationError(""); setForm(emptyForm); setDialogOpen(true); }}><Plus size={16} aria-hidden="true" />Agregar usuario</Button> : undefined}
+        actions={canAdminister ? <Button onClick={() => { setMutationError(""); setForm(emptyForm); setDialogOpen(true); }}><Plus size={16} aria-hidden="true" />Agregar usuario</Button> : undefined}
       />
 
       {user?.is_demo && <Alert title="Solo lectura en modo demo">Puedes revisar los accesos, pero no agregar usuarios.</Alert>}
@@ -81,7 +83,7 @@ export default function UsuariosPage() {
       {state.status === "error" ? (
         <ErrorState description={state.error} onRetry={load} />
       ) : !state.rows.length ? (
-        <EmptyState title="Sin usuarios registrados" description="Agrega un usuario cuando necesite acceso directo a esta organización." action={!user?.is_demo ? <Button onClick={() => setDialogOpen(true)}>Agregar usuario</Button> : undefined} />
+        <EmptyState title="Sin usuarios registrados" description="Los accesos de esta organización aparecerán aquí." action={canAdminister ? <Button onClick={() => setDialogOpen(true)}>Agregar usuario</Button> : undefined} />
       ) : (
         <TableShell>
           <TableHead><tr><TableCell as="th">Usuario</TableCell><TableCell as="th">Rol</TableCell><TableCell as="th">Estado</TableCell><TableCell as="th">Organización</TableCell><TableCell as="th">Acción</TableCell></tr></TableHead>
