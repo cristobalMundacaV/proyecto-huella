@@ -20,7 +20,11 @@ export default function Breadcrumbs() {
     <nav aria-label="Breadcrumb" className="mb-5 flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--text-muted)]">
       {segments.map((segment, index) => {
         const current = `/${segments.slice(0, index + 1).join("/")}`;
-        const label = segment === obraId ? `Obra ${decodeURIComponent(segment)}` : labels[segment] || segment;
+        const label = segment === obraId
+          ? `Obra ${decodeURIComponent(segment)}`
+          : segment === "diagnostico" && obraId
+            ? "Perfil ambiental de la obra"
+            : labels[segment] || segment;
         const last = index === segments.length - 1;
         return <Fragment key={current}>
           {index > 0 && <ChevronRight size={13} aria-hidden="true" />}

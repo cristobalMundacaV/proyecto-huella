@@ -34,7 +34,7 @@ export function EmptyState({
             {(primaryAction ||
                 secondaryAction ||
                 action) && (
-                    <div className="mt-5 flex justify-center gap-2">
+                    <div className="mt-5 flex flex-wrap justify-center gap-2">
                         {primaryAction || action}
                         {secondaryAction}
                     </div>

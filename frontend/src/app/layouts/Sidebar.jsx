@@ -31,6 +31,7 @@ import {
 } from "@/presets/registry";
 import { getOrganizacionObras } from "@/shared/services/api";
 import { getEnvironmentalDomain } from "@/shared/config/environmentalDomains";
+import { getWorkContext } from "@/features/obras/services/workspaceApi";
 
 
 function resolveWorkId(
@@ -84,6 +85,28 @@ export default function Sidebar({
             pathname
         );
 
+    const applicabilityScope = activeOrganizacionId && workId ? `${activeOrganizacionId}:${workId}` : "";
+    const [workApplicability, setWorkApplicability] = useState({ scope: "", rows: [] });
+
+    useEffect(() => {
+        let active = true;
+        if (!applicabilityScope) {
+            setWorkApplicability({ scope: "", rows: [] });
+            return () => { active = false; };
+        }
+        setWorkApplicability({ scope: applicabilityScope, rows: [] });
+        getWorkContext(activeOrganizacionId, workId)
+            .then((workspace) => {
+                if (!active) return;
+                const rows = workspace?.context?.diagnostico_obra?.aplicabilidad;
+                setWorkApplicability({ scope: applicabilityScope, rows: Array.isArray(rows) ? rows : [] });
+            })
+            .catch(() => {
+                if (active) setWorkApplicability({ scope: applicabilityScope, rows: [] });
+            });
+        return () => { active = false; };
+    }, [activeOrganizacionId, applicabilityScope, workId]);
+
 
     const navigation =
         useMemo(
@@ -101,9 +124,10 @@ export default function Sidebar({
                 workId
                     ? getWorkNavigation({
                         obraId: workId,
+                        applicability: workApplicability.scope === applicabilityScope ? workApplicability.rows : [],
                     })
                     : null,
-            [workId]
+            [applicabilityScope, workApplicability, workId]
         );
 
 
@@ -294,7 +318,6 @@ function WorkSidebar({
     const routeId = (work) => work.id || work.obra_id || work.codigo_obra;
     const currentWork = worksState.rows.find((work) => String(routeId(work)) === String(workId));
     const canSwitch = worksState.status === "ready" && worksState.rows.length > 1;
-    const hideTechnicalWorkCode = /\/obras\/[^/]+\/diagnostico\/?$/.test(pathname);
 
     function selectWork(nextWork) {
         const nextId = routeId(nextWork);
@@ -345,10 +368,10 @@ function WorkSidebar({
                 {worksState.status === "loading" ? <div className="mt-2 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs text-[var(--text-muted)]"><Loader2 aria-hidden="true" size={15} className="animate-spin" />Cargando obra</div> : worksState.status === "error" ? <div className="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{worksState.error}</div> : !currentWork ? <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">Obra no disponible</div> : <>
                     <button type="button" disabled={!canSwitch} aria-expanded={canSwitch ? selectorOpen : undefined} aria-haspopup={canSwitch ? "listbox" : undefined} onClick={() => canSwitch && setSelectorOpen((open) => !open)} className="mt-2 flex w-full items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-left shadow-sm transition hover:border-emerald-300 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:cursor-default">
                         <Building2 aria-hidden="true" size={17} className="shrink-0 text-emerald-700" />
-                        <span className="min-w-0 flex-1"><span className="block truncate text-sm font-black text-[var(--text-primary)]">{currentWork.nombre || preset.unitLabel}</span>{!hideTechnicalWorkCode && currentWork.codigo_obra && <span className="block truncate text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)]">{currentWork.codigo_obra}</span>}</span>
+                        <span className="min-w-0 flex-1"><span className="block truncate text-sm font-black text-[var(--text-primary)]">{currentWork.nombre || preset.unitLabel}</span></span>
                         {canSwitch && <ChevronDown aria-hidden="true" size={15} className={`shrink-0 text-emerald-700 transition ${selectorOpen ? "rotate-180" : ""}`} />}
                     </button>
-                    {selectorOpen && <div role="listbox" aria-label="Seleccionar obra" className="absolute left-1 right-1 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">{worksState.rows.map((work) => { const id = routeId(work); const selected = String(id) === String(workId); return <button key={id} type="button" role="option" aria-selected={selected} onClick={() => selectWork(work)} className={`w-full rounded-lg px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${selected ? "bg-emerald-50 text-emerald-900" : "hover:bg-slate-50"}`}><span className="block truncate text-xs font-black">{work.nombre || preset.unitLabel}</span>{!hideTechnicalWorkCode && work.codigo_obra && <span className="block truncate text-[10px] text-[var(--text-muted)]">{work.codigo_obra}</span>}</button>; })}</div>}
+                    {selectorOpen && <div role="listbox" aria-label="Seleccionar obra" className="absolute left-1 right-1 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">{worksState.rows.map((work) => { const id = routeId(work); const selected = String(id) === String(workId); return <button key={id} type="button" role="option" aria-selected={selected} onClick={() => selectWork(work)} className={`w-full rounded-lg px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${selected ? "bg-emerald-50 text-emerald-900" : "hover:bg-slate-50"}`}><span className="block truncate text-xs font-black">{work.nombre || preset.unitLabel}</span></button>; })}</div>}
                 </>}
             </div>
 

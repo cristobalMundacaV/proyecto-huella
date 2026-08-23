@@ -1,8 +1,9 @@
 import { Link, useOutletContext, useParams } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { ClipboardCheck, Plus } from "lucide-react";
 import {
   Alert,
   Button,
+  ButtonLink,
   EmptyState,
   ErrorState,
   Pagination,
@@ -118,7 +119,7 @@ export default function MaterialsPage() {
       {noApplicable
         ? <EmptyState title="No aplica a esta unidad" description="Materiales está marcado como no aplicable. La ausencia de movimientos no se presenta como cero." />
         : unresolved
-          ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si materiales aplica a esta obra." primaryAction={<Link className="font-bold text-[var(--brand-primary)]" to={`/obras/${obraId}/diagnostico`}>Revisar diagnóstico</Link>} secondaryAction={<Link className="font-bold text-[var(--text-secondary)]" to={`/obras/${obraId}/evidencias`}>Agregar evidencia</Link>} />
+          ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si materiales aplica a esta obra." primaryAction={<ButtonLink leftIcon={ClipboardCheck} to={`/obras/${obraId}/diagnostico`}>Revisar perfil ambiental</ButtonLink>} secondaryAction={<ButtonLink leftIcon={Plus} variant="secondary" to={`/obras/${obraId}/evidencias`}>Agregar evidencia</ButtonLink>} />
         : !eventsReady
         ? <ErrorState title="No fue posible cargar los eventos de materiales" description="Los balances continúan disponibles si pudieron calcularse." />
         : !events.length
@@ -126,7 +127,7 @@ export default function MaterialsPage() {
                 title="Sin información registrada"
                 description="Aún no hay entradas, usos o salidas de materiales registradas para esta unidad."
                 primaryAction={<Button leftIcon={Plus} onClick={() => setRecordOpen(true)}>Registrar movimiento</Button>}
-                secondaryAction={<Link className="font-bold text-[var(--text-secondary)]" to={`/obras/${obraId}/evidencias`}>Agregar documento</Link>}
+                secondaryAction={<ButtonLink leftIcon={Plus} variant="secondary" to={`/obras/${obraId}/evidencias`}>Agregar documento</ButtonLink>}
               />
           : <section>
             <SectionHeader

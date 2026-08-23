@@ -71,7 +71,7 @@ export default function OperationDomainCard({
     container: `${identity.border} bg-gradient-to-br ${identity.accent}`,
     icon: `${identity.softBg} ${identity.text}`,
   } : null;
-  const visual = state === "con_datos" && domainVisual ? domainVisual : stateStyles[state] || domainVisual || stateStyles.sin_datos;
+  const visual = domainVisual || stateStyles[state] || stateStyles.sin_datos;
   const actionColor = identity?.text || "text-emerald-700";
 
   if (compact) {
@@ -111,7 +111,7 @@ export default function OperationDomainCard({
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-black text-[var(--text-primary)]">
+              <h3 className={`font-black ${identity?.text || "text-[var(--text-primary)]"}`}>
                 {title}
               </h3>
 
@@ -205,7 +205,7 @@ export default function OperationDomainCard({
         </StatusBadge>
       </div>
 
-      <h3 className="mt-4 text-lg font-black text-[var(--text-primary)]">
+      <h3 className={`mt-4 text-lg font-black ${identity?.text || "text-[var(--text-primary)]"}`}>
         {title}
       </h3>
 

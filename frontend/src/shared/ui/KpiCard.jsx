@@ -1,5 +1,6 @@
 import { createElement, isValidElement } from "react";
 import { Card, CardContent } from "./Card";
+import { formatNumber } from "@/shared/utils/formatters";
 
 const statusColors = {
     neutral: "text-[var(--status-neutral)]",
@@ -26,6 +27,9 @@ export default function KpiCard({
 }) {
     const missing = value === null || value === undefined || value === "";
     const visualStatus = tone || status;
+    const numericValue = (typeof value === "number" || (typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value))))
+        ? formatNumber(value)
+        : value;
 
     const isIconComponent =
         typeof icon === "function" ||
@@ -58,7 +62,7 @@ export default function KpiCard({
                                 "Sin datos"
                             ) : (
                                 <>
-                                    {value}
+                                    {numericValue}
                                     {unit && (
                                         <span className="ml-1 text-sm text-[var(--text-secondary)]">
                                             {unit}

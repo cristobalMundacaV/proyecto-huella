@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { ClipboardCheck, Plus } from "lucide-react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import {
   Alert,
   Button,
+  ButtonLink,
   DataQualityBadge,
   EmptyState,
   ErrorState,
@@ -170,20 +171,21 @@ export default function SectorDomainPage({ domain }) {
                 title="Aplicabilidad por definir"
                 description="Aún no existe información suficiente para determinar si este ámbito aplica a la obra."
                 primaryAction={
-                  <Link
-                    className="font-bold text-[var(--brand-primary)]"
+                  <ButtonLink
+                    leftIcon={ClipboardCheck}
                     to={`/obras/${obraId}/diagnostico`}
                   >
-                    Revisar diagnóstico
-                  </Link>
+                    Revisar perfil ambiental
+                  </ButtonLink>
                 }
                 secondaryAction={
-                  <Link
-                    className="font-bold text-[var(--text-secondary)]"
+                  <ButtonLink
+                    leftIcon={Plus}
+                    variant="secondary"
                     to={`/obras/${obraId}/evidencias`}
                   >
                     Agregar evidencia
-                  </Link>
+                  </ButtonLink>
                 }
               />
             : !records.length
@@ -191,7 +193,7 @@ export default function SectorDomainPage({ domain }) {
                 title="Sin información registrada"
                 description={`Aún no hay registros de ${config.label.toLowerCase()} para esta obra.`}
                 primaryAction={<Button leftIcon={Plus} onClick={() => setCaptureOpen(true)}>Registrar información</Button>}
-                secondaryAction={<Link className="font-bold text-[var(--text-secondary)]" to={`/obras/${obraId}/evidencias`}>Agregar documento</Link>}
+                secondaryAction={<ButtonLink leftIcon={Plus} variant="secondary" to={`/obras/${obraId}/evidencias`}>Agregar documento</ButtonLink>}
               />
           : <section>
             <SectionHeader

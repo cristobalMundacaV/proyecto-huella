@@ -35,8 +35,9 @@ function sectorDescriptor(key, title, icon, context, indicators, operation) {
   const records = domainRecords(resourceData(operation.records, []), key);
   const metrics = domainMetrics(indicators, key);
   const ambiguousCount = metrics.reduce((sum, metric) => sum + Number(metric.registros_ambiguos || 0), 0);
+  const applicabilityState = applicability(context, capabilityFor(key));
   const state = domainState({
-    applicabilityState: applicability(context, capabilityFor(key)),
+    applicabilityState,
     records,
     ambiguous: ambiguousCount > 0,
     available: ready,
@@ -57,6 +58,7 @@ function sectorDescriptor(key, title, icon, context, indicators, operation) {
 
   return {
     key,
+    applicabilityState,
     title,
     icon,
     to: key,
@@ -73,8 +75,9 @@ function transportDescriptor(context, operation) {
   const indicatorsReady = isResourceReady(operation.transport);
   const journeys = resourceData(operation.journeys, []);
   const transport = resourceData(operation.transport, null);
+  const applicabilityState = applicability(context, "transporte");
   const state = domainState({
-    applicabilityState: applicability(context, "transporte"),
+    applicabilityState,
     records: journeys,
     available: journeysReady,
   });
@@ -87,6 +90,7 @@ function transportDescriptor(context, operation) {
 
   return {
     key: "transporte",
+    applicabilityState,
     title: "Transporte",
     icon: getEnvironmentalDomain("transporte").icon,
     to: "transporte",
@@ -105,8 +109,9 @@ function materialsDescriptor(context, operation) {
   const signals = balancesReady
     ? resourceData(operation.materials, []).flatMap((material) => material.senales || [])
     : [];
+  const applicabilityState = applicability(context, "materiales");
   const state = domainState({
-    applicabilityState: applicability(context, "materiales"),
+    applicabilityState,
     records: events,
     ambiguous: signals.length > 0,
     available: eventsReady,
@@ -115,6 +120,7 @@ function materialsDescriptor(context, operation) {
 
   return {
     key: "materiales",
+    applicabilityState,
     title: "Materiales",
     icon: getEnvironmentalDomain("materiales").icon,
     to: "materiales",
@@ -135,18 +141,19 @@ export default function OperacionOverviewPage() {
     if (key === "materiales") return materialsDescriptor(context, operation);
     return sectorDescriptor(key, title, icon, context, indicators, operation);
   });
+  const operationalDescriptors = descriptors.filter((domain) => ["aplica", "sin_datos"].includes(domain.applicabilityState));
 
-  const activeDomains = descriptors
+  const activeDomains = operationalDescriptors
     .filter((domain) => ["con_datos", "requiere_revision"].includes(domain.state))
     .toSorted((left, right) => String(right.latestAt || "").localeCompare(String(left.latestAt || "")));
-  const attention = descriptors.filter((domain) => domain.state === "requiere_revision").slice(0, 5);
+  const attention = operationalDescriptors.filter((domain) => domain.state === "requiere_revision").slice(0, 5);
   const recent = activeDomains
     .filter((domain) => domain.latestAt)
     .toSorted((left, right) => String(right.latestAt).localeCompare(String(left.latestAt)))
     .slice(0, 3);
   const activityCount = activeDomains.length;
-  const unavailableCount = descriptors.filter((domain) => domain.state === "error").length;
-  const secondaryUnavailable = Boolean(
+  const unavailableCount = operationalDescriptors.filter((domain) => domain.state === "error").length;
+  const secondaryUnavailable = operationalDescriptors.length > 0 && Boolean(
     resourceErrors?.indicators
     || (!isResourceReady(operation.transport) && isResourceReady(operation.journeys))
     || (!isResourceReady(operation.materials) && isResourceReady(operation.materialEvents)),
@@ -228,8 +235,10 @@ export default function OperacionOverviewPage() {
       />
 
       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {descriptors.map((domain) => <OperationDomainCard key={domain.key} domainKey={domain.key} icon={domain.icon} title={domain.title} state={domain.state} signal={domain.signal} detail={domain.reviewReason || (domain.latestAt ? `Último registro: ${formatDateTime(domain.latestAt)}` : "Abre el dominio para revisar su configuración y registros.")} to={domain.to} />)}
+        {operationalDescriptors.map((domain) => <OperationDomainCard key={domain.key} domainKey={domain.key} icon={domain.icon} title={domain.title} state={domain.state} signal={domain.signal} detail={domain.reviewReason || (domain.latestAt ? `Último registro: ${formatDateTime(domain.latestAt)}` : "Aún no hay información registrada para este ámbito.")} to={domain.to} />)}
       </div>
+
+      {!operationalDescriptors.length && <div className="mt-4"><Alert tone="warning">El perfil ambiental de la obra aún no tiene dominios operativos confirmados. Configura su aplicabilidad para habilitarlos.</Alert></div>}
 
     </section>
   </div>;

@@ -1,6 +1,6 @@
 import { Link, useOutletContext, useParams } from "react-router-dom";
-import { Plus } from "lucide-react";
-import { Button, EmptyState, ErrorState, KpiCard, Pagination, SectionHeader, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
+import { ClipboardCheck, Plus } from "lucide-react";
+import { Button, ButtonLink, EmptyState, ErrorState, KpiCard, Pagination, SectionHeader, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
 import { applicability, isResourceReady, resourceData, transportMetrics } from "../utils/operationSelectors";
 import DomainApplicability from "../components/DomainApplicability";
@@ -90,7 +90,7 @@ export default function TransportPage() {
       {noApplicable
         ? <EmptyState title="No aplica a esta unidad" description="Transporte está marcado como no aplicable. La ausencia de viajes no se presenta como cero operacional." />
         : unresolved
-          ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si transporte aplica a esta obra." primaryAction={<Link className="font-bold text-[var(--brand-primary)]" to={`/obras/${obraId}/diagnostico`}>Revisar diagnóstico</Link>} secondaryAction={<Link className="font-bold text-[var(--text-secondary)]" to={`/obras/${obraId}/evidencias`}>Agregar evidencia</Link>} />
+          ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si transporte aplica a esta obra." primaryAction={<ButtonLink leftIcon={ClipboardCheck} to={`/obras/${obraId}/diagnostico`}>Revisar perfil ambiental</ButtonLink>} secondaryAction={<ButtonLink leftIcon={Plus} variant="secondary" to={`/obras/${obraId}/evidencias`}>Agregar evidencia</ButtonLink>} />
         : !journeysReady
         ? <ErrorState title="No fue posible cargar los viajes" description="El resumen de transporte continúa disponible si pudo calcularse." />
         : !journeys.length
@@ -98,7 +98,7 @@ export default function TransportPage() {
                 title="Sin viajes registrados"
                 description="Aún no hay movimientos de transporte registrados para esta unidad."
                 primaryAction={<Button leftIcon={Plus} onClick={() => setRecordOpen(true)}>Registrar viaje</Button>}
-                secondaryAction={<Link className="font-bold text-[var(--text-secondary)]" to={`/obras/${obraId}/evidencias`}>Agregar documento</Link>}
+                secondaryAction={<ButtonLink leftIcon={Plus} variant="secondary" to={`/obras/${obraId}/evidencias`}>Agregar documento</ButtonLink>}
               />
           : <section>
             <SectionHeader

@@ -381,7 +381,7 @@ export default function WorkDiagnosticPage() {
                     ?.error ||
                 error.response?.data
                     ?.detail ||
-                "No se pudo guardar el diagnóstico de la obra.",
+                "No se pudo guardar el perfil ambiental de la obra.",
             );
         } finally {
             setSaving(false);
@@ -411,7 +411,7 @@ export default function WorkDiagnosticPage() {
             .status === "loading"
     ) {
         return (
-            <LoadingState label="Cargando diagnóstico de la obra" />
+            <LoadingState label="Cargando perfil ambiental de la obra" />
         );
     }
 
@@ -431,7 +431,7 @@ export default function WorkDiagnosticPage() {
     const diagnosticState = diagnostic?.estado || "pendiente";
     const diagnosticStateLabel = diagnostic
         ? STATES.find(([value]) => value === diagnosticState)?.[1] || diagnosticState
-        : "Sin diagnóstico";
+        : "Perfil sin configurar";
     const workProfile = workspace?.obra?.perfil_ambiental || workspace?.obra?.perfil || workspace?.obra?.tipo_obra;
     const coverage = state.preparacion.status === "ready"
         ? state.preparacion.data?.siguiente_paso || "Sin datos"
@@ -441,8 +441,8 @@ export default function WorkDiagnosticPage() {
         <section className="space-y-6">
             <SectionHeader
                 eyebrow="CONTEXTO AMBIENTAL"
-                title="Diagnóstico de la obra"
-                description="Define qué ocurre en esta obra, qué información existe y qué ámbitos ambientales deben gestionarse."
+                title="Perfil ambiental de la obra"
+                description="Define el contexto ambiental de esta obra y determina qué ámbitos deben formar parte de su gestión."
             />
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

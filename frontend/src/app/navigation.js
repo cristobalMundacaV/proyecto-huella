@@ -485,9 +485,16 @@ export function getNavigationForPreset(preset) {
 
 export function getWorkNavigation({
   obraId,
+  applicability = [],
 }) {
   const base =
     `/obras/${obraId}`;
+  const visibleCapabilities = new Set(
+    applicability
+      .filter((item) => ["aplica", "sin_datos"].includes(item?.estado_obra))
+      .map((item) => item?.clave)
+      .filter(Boolean),
+  );
 
   return {
     exit: {
@@ -507,12 +514,6 @@ export function getWorkNavigation({
             label: "Resumen",
             path: `${base}/resumen`,
             icon: Gauge,
-          },
-          {
-            id: "diagnostic",
-            label: "Diagnóstico ambiental",
-            path: `${base}/diagnostico`,
-            icon: ClipboardCheck,
           },
         ],
       },
@@ -588,6 +589,7 @@ export function getWorkNavigation({
           {
             id: "waterSoil",
             domain: "hidrica_suelo",
+            capability: "gestion_hidrica_suelo",
             label: "Hídrica y suelo",
             path: `${base}/operacion/hidrica-suelo`,
             icon: LandPlot,
@@ -607,7 +609,7 @@ export function getWorkNavigation({
             path: `${base}/cumplimiento`,
             icon: BarChart3,
           },
-        ],
+        ].filter((item) => !item.domain || ["operacion", "indicadores", "cumplimiento"].includes(item.domain) || visibleCapabilities.has(item.capability || item.domain)),
       },
 
       {

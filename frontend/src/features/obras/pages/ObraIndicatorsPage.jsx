@@ -16,6 +16,7 @@ import {
 import {
   EmptyState,
   KpiCard,
+  Pagination,
   SectionHeader,
   StatusBadge,
   TableBody,
@@ -70,6 +71,8 @@ export default function ObraIndicatorsPage() {
     baselines: [],
     impacts: [],
   });
+  const [baselinePage, setBaselinePage] = useState(1);
+  const [impactPage, setImpactPage] = useState(1);
 
   useEffect(
     () => {
@@ -121,6 +124,11 @@ export default function ObraIndicatorsPage() {
       workId,
     ],
   );
+
+  useEffect(() => {
+    setBaselinePage(1);
+    setImpactPage(1);
+  }, [state.baselines.length, state.impacts.length, workId]);
 
   if (
     state.loading
@@ -199,7 +207,7 @@ export default function ObraIndicatorsPage() {
             description="Todavía no existe historia suficiente para establecer una referencia."
           />
         ) : (
-          <TableShell>
+          <><TableShell>
             <TableHead>
               <tr>
                 <TableCell as="th">
@@ -223,7 +231,7 @@ export default function ObraIndicatorsPage() {
             <TableBody
               columns={4}
             >
-              {state.baselines.map(
+              {state.baselines.slice((baselinePage - 1) * 8, baselinePage * 8).map(
                 (
                   baseline,
                 ) => (
@@ -232,7 +240,7 @@ export default function ObraIndicatorsPage() {
                       baseline.id
                     }
                   >
-                    <TableCell>
+                    <TableCell align="left">
                       {
                         baseline.indicador_nombre
                       }
@@ -264,7 +272,7 @@ export default function ObraIndicatorsPage() {
                 ),
               )}
             </TableBody>
-          </TableShell>
+          </TableShell><Pagination page={baselinePage} totalItems={state.baselines.length} pageSize={8} onChange={setBaselinePage} itemLabel="líneas base" /></>
         )}
       </div>
 
@@ -282,7 +290,7 @@ export default function ObraIndicatorsPage() {
             description="Aún no existen resultados de cálculo para esta obra."
           />
         ) : (
-          <TableShell>
+          <><TableShell>
             <TableHead>
               <tr>
                 <TableCell as="th">
@@ -306,7 +314,7 @@ export default function ObraIndicatorsPage() {
             <TableBody
               columns={4}
             >
-              {state.impacts.map(
+              {state.impacts.slice((impactPage - 1) * 8, impactPage * 8).map(
                 (
                   impact,
                 ) => (
@@ -315,7 +323,7 @@ export default function ObraIndicatorsPage() {
                       impact.id
                     }
                   >
-                    <TableCell>
+                    <TableCell align="left">
                       {
                         impact.actividad_nombre
                       }
@@ -347,7 +355,7 @@ export default function ObraIndicatorsPage() {
                 ),
               )}
             </TableBody>
-          </TableShell>
+          </TableShell><Pagination page={impactPage} totalItems={state.impacts.length} pageSize={8} onChange={setImpactPage} itemLabel="impactos" /></>
         )}
       </div>
       </>}
