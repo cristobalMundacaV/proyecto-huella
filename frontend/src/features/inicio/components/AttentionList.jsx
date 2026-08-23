@@ -50,6 +50,10 @@ const severityInfo = (value) => {
 };
 
 const riskLabel = (value) => ({ critico: "Crítico", alto: "Alto", medio: "Medio", bajo: "Bajo" })[value] || value;
+const capitalized = (value) => {
+  const label = String(value || "Pendiente").replaceAll("_", " ").trim();
+  return label ? `${label.charAt(0).toUpperCase()}${label.slice(1).toLowerCase()}` : "Pendiente";
+};
 
 export default function AttentionList({ items = [], contextIncomplete = false }) {
   if (!items.length) return <EmptyState
@@ -66,23 +70,25 @@ export default function AttentionList({ items = [], contextIncomplete = false })
       const severity = severityInfo(item.severity);
 
       return <article className={`rounded-[18px] border border-l-4 p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] ${severity.card}`} key={item.key}>
-        <div className="flex items-start gap-3">
-          <span className={`flex h-10 w-10 shrink-0 items-center justify-center self-center rounded-xl ${severity.icon}`}>
+        <div className="flex items-center gap-3">
+          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${severity.icon}`}>
             <SignalIcon aria-hidden="true" size={19} />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-3">
               <h3 className="font-black text-[var(--text-primary)]">{item.title}</h3>
-              <span className="shrink-0"><StatusBadge tone={item.tone}>{item.status}</StatusBadge></span>
+              <span className="shrink-0"><StatusBadge tone={item.tone}>{capitalized(item.status)}</StatusBadge></span>
             </div>
             {item.description && <p className="mt-1 line-clamp-2 text-sm text-[var(--text-secondary)]">{item.description}</p>}
-            <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-wrap gap-2 text-xs font-bold">
               {category && <span className={`inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 ${category.text}`}><DomainIcon aria-hidden="true" size={14} />{category.label}</span>}
               {item.risk && <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${severity.risk}`}><ShieldAlert aria-hidden="true" size={14} />Riesgo: {riskLabel(item.risk)}</span>}
               {!item.risk && item.reason && <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-600">{item.reason}</span>}
-            </div>
-            {item.path && <div className="mt-3 flex justify-end"><ButtonLink size="sm" variant="secondary" rightIcon={ArrowRight} to={item.path}>{item.action || "Ver gestión"}</ButtonLink></div>}
           </div>
+          {item.path && <ButtonLink className="ml-auto" size="sm" variant="secondary" rightIcon={ArrowRight} to={item.path}>{item.action || "Ver gestión"}</ButtonLink>}
         </div>
       </article>;
     })}
