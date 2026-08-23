@@ -439,11 +439,11 @@ export default function InicioPage() {
                 <div className="space-y-6">
                     <section
                         id="priorities"
-                        className="rounded-2xl border border-emerald-200/80 bg-[linear-gradient(135deg,rgba(236,253,245,0.96)_0%,rgba(209,250,229,0.72)_100%)] p-5 shadow-[0_12px_30px_rgba(6,78,59,0.08)]">                   <SectionHeader
+                        className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">                   <SectionHeader
                             title="Requiere tu atención"
                             description={
                                 priorities.length
-                                    ? "Los pendientes más importantes y su siguiente paso."
+                                    ? "Pendientes priorizados según riesgo, seguimiento y necesidad de intervención."
                                     : incompleteCount
                                         ? "No hay pendientes detectados en la información disponible."
                                         : "No hay pendientes disponibles."
@@ -570,19 +570,14 @@ function buildPriorities({
     workById,
 }) {
     const items = [];
-    const representedWorks = new Set();
 
     attentionWorks.forEach(work => {
-        if (items.length >= 5) return;
-
         const id = workId(work);
 
         const status =
             contextByWork.get(id)?.obra
                 ?.estado_ambiental ||
             work.estado_ambiental;
-
-        representedWorks.add(id);
 
         items.push({
             key: `work-${id}`,
@@ -597,22 +592,14 @@ function buildPriorities({
             reason: statusLabel(status),
             status: statusLabel(status),
             tone: "warning",
+            severity: "medio",
             path: `/obras/${id}/resumen`,
             action: `Ver ${preset.unitLabel.toLowerCase()}`,
         });
     });
 
     openProblems.forEach(problem => {
-        if (items.length >= 5) return;
-
         const id = referenceId(problem.obra);
-
-        if (
-            id &&
-            representedWorks.has(id)
-        ) {
-            return;
-        }
 
         const work = workById.get(id);
 
@@ -625,8 +612,12 @@ function buildPriorities({
                 "Alcance organizacional",
             reason: `Problema ambiental · ${problem.categoria || "Sin categoría"
                 }`,
+            description: problem.descripcion || "",
+            category: problem.categoria || "",
+            risk: problem.nivel_riesgo || "",
             status: statusLabel(problem.estado),
             tone: "warning",
+            severity: problem.nivel_riesgo || (problem.estado === "en_seguimiento" ? "seguimiento" : "neutral"),
             path: id
                 ? `/obras/${id}/problemas/${problem.id}`
                 : `/inteligencia/problemas/${problem.id}`,
@@ -635,8 +626,6 @@ function buildPriorities({
     });
 
     pendingEvidence.forEach(evidence => {
-        if (items.length >= 5) return;
-
         const id = referenceId(evidence.obra);
 
         items.push({
@@ -654,18 +643,31 @@ function buildPriorities({
                 evidence.estado_validacion ||
                 evidence.estado_revision
             ).toLowerCase()}`,
+            description: evidence.obra_nombre || workById.get(id)?.nombre || "",
             status: statusLabel(
                 evidence.estado_documental ||
                 evidence.estado_validacion ||
                 evidence.estado_revision
             ),
             tone: "info",
+            severity: "seguimiento",
             path: `/datos/evidencias/${evidence.id}`,
             action: "Revisar evidencia",
         });
     });
 
-    return items;
+    const rank = value => {
+        if (["critico", "alto"].includes(value)) return 1;
+        if (value === "medio") return 2;
+        if (["seguimiento", "en_seguimiento", "en_implementacion"].includes(value)) return 3;
+        return 4;
+    };
+
+    return items
+        .map((item, index) => ({ item, index }))
+        .sort((left, right) => rank(left.item.severity) - rank(right.item.severity) || left.index - right.index)
+        .slice(0, 4)
+        .map(({ item }) => item);
 }
 
 function countByWork(evidence) {

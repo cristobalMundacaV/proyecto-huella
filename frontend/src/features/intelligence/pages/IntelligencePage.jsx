@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowRight, Bot, CheckCircle2, CircleAlert, ClipboardCheck, Lightbulb, ScanSearch, ShieldAlert, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bot, CheckCircle2, CircleAlert, ClipboardCheck, Lightbulb, ShieldAlert, Sparkles } from "lucide-react";
 
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import { getEnvironmentalDomain } from "@/shared/config/environmentalDomains";
@@ -24,20 +24,11 @@ const categoryInfo = (value) => getEnvironmentalDomain(categoryKey(value)) || {
   label: value || "Sin categoría", icon: CircleAlert, text: "text-slate-600", softBg: "bg-slate-100",
 };
 
-const signalIcon = (item, fallback) => {
-  const text = `${item.titulo || ""} ${item.descripcion || ""}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (/aumento|alza|crecimiento|incremento/.test(text)) return TrendingUp;
-  if (/caida|disminucion|perdida/.test(text)) return TrendingDown;
-  if (/seguimiento|revision|trazabilidad|conciliacion/.test(text)) return ScanSearch;
-  if (/riesgo|desvio|incumplimiento|alerta/.test(text)) return ShieldAlert;
-  return fallback;
-};
-
 const riskInfo = (value) => {
-  if (["critico", "alto"].includes(value)) return { card: "border-rose-200 border-l-rose-500 bg-rose-50/35", icon: "bg-rose-100 text-rose-700", signal: "border-rose-200 bg-rose-50 text-rose-700" };
-  if (value === "medio") return { card: "border-amber-200 border-l-amber-500 bg-amber-50/35", icon: "bg-amber-100 text-amber-700", signal: "border-amber-200 bg-amber-50 text-amber-700" };
-  if (value === "bajo") return { card: "border-sky-200 border-l-sky-500 bg-sky-50/30", icon: "bg-sky-100 text-sky-700", signal: "border-sky-200 bg-sky-50 text-sky-700" };
-  return { card: "border-slate-200 border-l-slate-400 bg-white", icon: "bg-slate-100 text-slate-600", signal: "border-slate-200 bg-slate-50 text-slate-600" };
+  if (["critico", "alto"].includes(value)) return { card: "border-rose-200 bg-rose-50/35", icon: "bg-rose-100 text-rose-700", signal: "text-rose-700" };
+  if (value === "medio") return { card: "border-amber-200 bg-amber-50/35", icon: "bg-amber-100 text-amber-700", signal: "text-amber-700" };
+  if (value === "bajo") return { card: "border-emerald-200 bg-emerald-50/30", icon: "bg-emerald-100 text-emerald-700", signal: "text-emerald-700" };
+  return { card: "border-slate-200 bg-white", icon: "bg-slate-100 text-slate-600", signal: "text-slate-600" };
 };
 
 const priority = (item) => {
@@ -98,32 +89,29 @@ export default function IntelligencePage() {
         <KpiCard align="center" icon={ClipboardCheck} label="Revisión profesional" value={summary.professional} helper="escalados o no resueltos" status="info" />
       </section>
 
-      <section className="space-y-4 rounded-[22px] border border-slate-200 bg-slate-50/70 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)] sm:p-5">
-        <SectionHeader title="Requiere tu atención" description="Pendientes priorizados según riesgo, seguimiento y necesidad de intervención." />
+      <section className="space-y-3">
+        <SectionHeader title="Requiere atención" description="Problemas abiertos ordenados para facilitar la priorización ambiental." />
         <div className="grid gap-3">
           {visibleProblems.map((item) => {
             const category = categoryInfo(item.categoria);
             const CategoryIcon = category.icon;
-            const SignalIcon = signalIcon(item, CategoryIcon);
             const risk = riskInfo(item.nivel_riesgo);
-            return <article key={item.id} className={`rounded-[18px] border border-l-4 p-4 shadow-[0_8px_24px_rgba(15,23,42,0.045)] ${risk.card}`}>
-              <div className="flex items-start gap-3 sm:gap-4">
-                <span className={`flex h-10 w-10 shrink-0 items-center justify-center self-center rounded-xl ${risk.icon}`}><SignalIcon aria-hidden="true" size={19} /></span>
+            return <article key={item.id} className={`rounded-[20px] border p-4 shadow-[0_8px_24px_rgba(15,23,42,0.045)] ${risk.card}`}>
+              <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${risk.icon}`}><AlertTriangle aria-hidden="true" size={19} /></span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
                     <h2 className="font-black text-[var(--text-primary)]">{item.titulo || "Problema ambiental"}</h2>
-                    <span className="shrink-0"><StatusBadge tone={problemTone(item.estado)}>{problemStatusLabel(item.estado)}</StatusBadge></span>
+                    <StatusBadge tone={problemTone(item.estado)}>{problemStatusLabel(item.estado)}</StatusBadge>
                   </div>
                   {item.descripcion && <p className="mt-1 line-clamp-2 text-sm leading-5 text-[var(--text-secondary)]">{item.descripcion}</p>}
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 ${category.text}`}><CategoryIcon aria-hidden="true" size={14} />Categoría: {category.label}</span>
-                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${risk.signal}`}><ShieldAlert aria-hidden="true" size={14} />Riesgo: {riskLabel(item.nivel_riesgo)}</span>
-                    {needsProfessional(item.estado) && <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-violet-700"><Bot aria-hidden="true" size={14} />Requiere revisión profesional</span>}
-                  </div>
-                  <div className="mt-3 flex justify-end">
-                    <ButtonLink size="sm" variant="secondary" rightIcon={ArrowRight} to={`/inteligencia/problemas/${item.id}`}>Ver gestión</ButtonLink>
+                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-bold">
+                    <span className={`inline-flex items-center gap-1.5 ${category.text}`}><span className={`flex h-6 w-6 items-center justify-center rounded-lg ${category.softBg}`}><CategoryIcon aria-hidden="true" size={14} /></span>{category.label}</span>
+                    <span className={`inline-flex items-center gap-1.5 ${risk.signal}`}><ShieldAlert aria-hidden="true" size={15} />Riesgo {riskLabel(item.nivel_riesgo).toLowerCase()}</span>
+                    {needsProfessional(item.estado) && <span className="inline-flex items-center gap-1.5 text-violet-700"><Bot aria-hidden="true" size={15} />Requiere revisión profesional</span>}
                   </div>
                 </div>
+                <ButtonLink className="shrink-0" size="sm" variant="secondary" rightIcon={ArrowRight} to={`/inteligencia/problemas/${item.id}`}>Ver gestión</ButtonLink>
               </div>
             </article>;
           })}
