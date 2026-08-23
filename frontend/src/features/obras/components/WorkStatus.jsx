@@ -30,6 +30,27 @@ export function statusTone(value) {
   return "neutral";
 }
 
+const profileLabels = {
+  edificacion: "Edificación",
+  construccion: "Construcción",
+  infraestructura: "Infraestructura",
+  industrial: "Industrial",
+  transporte: "Transporte",
+};
+
+export function environmentalProfileLabel(value) {
+  if (!value) return "Sin información";
+  return profileLabels[value] || String(value).replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
+}
+
+export function statusTextClass(value) {
+  const tone = statusTone(value);
+  if (tone === "success") return "text-emerald-100";
+  if (tone === "warning") return "text-amber-200";
+  if (tone === "info") return "text-cyan-100";
+  return "text-white";
+}
+
 export default function WorkStatus({ value }) {
   return <StatusBadge tone={statusTone(value)}>{statusLabel(value)}</StatusBadge>;
 }

@@ -14,8 +14,6 @@ import {
   useParams,
 } from "react-router-dom";
 
-import WorkStatus from "../components/WorkStatus";
-
 import {
   EmptyState,
   KpiCard,
@@ -343,14 +341,6 @@ export default function ObraResumenPage() {
             <h2 className="mt-1 text-xl font-black text-[var(--text-primary)]">
               Estado general
             </h2>
-
-            <div className="mt-4">
-              <WorkStatus
-                value={
-                  obra.estado_ambiental
-                }
-              />
-            </div>
 
             <p className="mt-4 text-sm leading-6 text-[var(--text-secondary)]">
               {stateSummary}

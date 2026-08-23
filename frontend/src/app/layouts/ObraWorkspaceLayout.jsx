@@ -24,38 +24,21 @@ import { useOrganizacionActiva } from "@/features/organizaciones/context/Organiz
 
 import { getWorkWorkspace } from "@/features/obras/services/workspaceApi";
 
-import WorkStatus, {
+import {
+  environmentalProfileLabel,
   statusLabel,
+  statusTextClass,
 } from "@/features/obras/components/WorkStatus";
 
 import { getActivePreset } from "@/presets/registry";
 
 import {
   ErrorState,
-  ScopeBadge,
 } from "@/shared/ui";
 
 import {
   formatDate,
 } from "@/shared/utils/formatters";
-
-function environmentalProfileLabel(value) {
-  const labels = { edificacion: "Edificación", construccion: "Construcción", infraestructura: "Infraestructura" };
-  return labels[value] || String(value || "Sin datos").replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
-}
-
-function environmentalStateTextClass(value) {
-  if (["estable", "cerrada", "cerrado"].includes(value)) return "text-emerald-100";
-  if (["requiere_atencion", "cierre_pendiente"].includes(value)) return "text-amber-200";
-  if (["mejora_en_curso", "monitoreo"].includes(value)) return "text-cyan-100";
-  return "text-white";
-}
-
-function workStateChipClass(value) {
-  if (["activa", "activo", "en_ejecucion", "finalizada"].includes(value)) return "border-emerald-200/45 bg-emerald-300/15 text-emerald-50";
-  if (["pausada", "planificada"].includes(value)) return "border-amber-200/50 bg-amber-300/15 text-amber-100";
-  return "border-white/20 bg-white/10 text-white";
-}
 
 function environmentalDescription(
   value
@@ -97,7 +80,7 @@ export default function ObraWorkspaceLayout() {
   const {
     obraId,
   } = useParams();
-  const isWorkProfileRoute = /\/obras\/[^/]+\/diagnostico\/?$/.test(pathname);
+  const isSummaryRoute = /\/obras\/[^/]+\/resumen\/?$/.test(pathname);
 
   const {
     activeOrganizacion,
@@ -260,8 +243,7 @@ export default function ObraWorkspaceLayout() {
       </Link>
 
 
-      {/* HERO DE OBRA */}
-      <section className="overflow-hidden rounded-[28px] border border-emerald-700/20 bg-[linear-gradient(135deg,rgba(6,78,59,0.98)_0%,rgba(6,95,70,0.94)_48%,rgba(15,118,110,0.84)_100%)] p-6 text-white shadow-[0_18px_45px_rgba(6,78,59,0.16)]">
+      {isSummaryRoute && <section className="overflow-hidden rounded-[28px] border border-emerald-700/20 bg-[linear-gradient(135deg,rgba(6,78,59,0.98)_0%,rgba(6,95,70,0.94)_48%,rgba(15,118,110,0.84)_100%)] p-6 text-white shadow-[0_18px_45px_rgba(6,78,59,0.16)]">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-center">
 
           <div className="min-w-0">
@@ -285,11 +267,7 @@ export default function ObraWorkspaceLayout() {
 
             <div className="mt-5 flex flex-wrap gap-2">
 
-              {!isWorkProfileRoute && (
-                <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold">{statusLabel(obra.estado)}</span>
-              )}
-
-              {isWorkProfileRoute && location && (
+              {location && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold">
                   <MapPin aria-hidden="true" size={14} />
                   {location}
@@ -310,19 +288,9 @@ export default function ObraWorkspaceLayout() {
                 </span>
               )}
 
-              {isWorkProfileRoute && <span className={`rounded-full border px-3 py-1.5 text-xs font-bold ${workStateChipClass(obra.estado)}`}>{statusLabel(obra.estado)}</span>}
-
-
-              {!isWorkProfileRoute && location && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold">
-                  <MapPin
-                    aria-hidden="true"
-                    size={14}
-                  />
-
-                  {location}
-                </span>
-              )}
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold">
+                {statusLabel(obra.estado)}
+              </span>
             </div>
           </div>
 
@@ -333,15 +301,9 @@ export default function ObraWorkspaceLayout() {
               Estado ambiental
             </p>
 
-            <div className="mt-3">
-              {isWorkProfileRoute ? (
-                <p className={`text-xl font-black ${environmentalStateTextClass(obra.estado_ambiental)}`}>
-                  {statusLabel(obra.estado_ambiental)}
-                </p>
-              ) : (
-                <WorkStatus value={obra.estado_ambiental} />
-              )}
-            </div>
+            <p className={`mt-3 text-2xl font-black ${statusTextClass(obra.estado_ambiental)}`}>
+              {statusLabel(obra.estado_ambiental)}
+            </p>
 
             <p className="mt-3 text-sm leading-6 text-emerald-50/80">
               {environmentalDescription(
@@ -355,14 +317,14 @@ export default function ObraWorkspaceLayout() {
                   Perfil ambiental
                 </p>
 
-                <div className="mt-2">
-                  {isWorkProfileRoute ? <p className="text-xl font-black text-white">{environmentalProfileLabel(obra.perfil_ambiental)}</p> : <ScopeBadge label={String(obra.perfil_ambiental).replaceAll("_", " ")} />}
-                </div>
+                <p className="mt-2 text-xl font-black text-white">
+                  {environmentalProfileLabel(obra.perfil_ambiental)}
+                </p>
               </div>
             )}
           </div>
         </div>
-      </section>
+      </section>}
 
       <Outlet
         context={
