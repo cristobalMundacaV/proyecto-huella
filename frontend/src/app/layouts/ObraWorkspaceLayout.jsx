@@ -14,6 +14,7 @@ import {
 import {
   Link,
   Outlet,
+  useLocation,
   useParams,
 } from "react-router-dom";
 
@@ -37,6 +38,11 @@ import {
 import {
   formatDate,
 } from "@/shared/utils/formatters";
+
+function environmentalProfileLabel(value) {
+  const labels = { edificacion: "Edificación", construccion: "Construcción", infraestructura: "Infraestructura" };
+  return labels[value] || String(value || "Sin datos").replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
+}
 
 function environmentalDescription(
   value
@@ -74,9 +80,11 @@ function environmentalDescription(
 
 
 export default function ObraWorkspaceLayout() {
+  const { pathname } = useLocation();
   const {
     obraId,
   } = useParams();
+  const hideTechnicalWorkCode = /\/obras\/[^/]+\/diagnostico\/?$/.test(pathname);
 
   const {
     activeOrganizacion,
@@ -251,7 +259,7 @@ export default function ObraWorkspaceLayout() {
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <h1 className="text-3xl font-black leading-tight">
                 {obra.nombre ||
-                  obra.codigo_obra ||
+                  (!hideTechnicalWorkCode && obra.codigo_obra) ||
                   preset.unitLabel}
               </h1>
             </div>
@@ -265,7 +273,7 @@ export default function ObraWorkspaceLayout() {
 
             <div className="mt-5 flex flex-wrap gap-2">
 
-              {obra.codigo_obra && (
+              {!hideTechnicalWorkCode && obra.codigo_obra && (
                 <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold">
                   {obra.codigo_obra}
                 </span>
@@ -335,14 +343,7 @@ export default function ObraWorkspaceLayout() {
                 </p>
 
                 <div className="mt-2">
-                  <ScopeBadge
-                    label={String(
-                      obra.perfil_ambiental
-                    ).replaceAll(
-                      "_",
-                      " "
-                    )}
-                  />
+                  {hideTechnicalWorkCode ? <p className="text-xl font-black text-white">{environmentalProfileLabel(obra.perfil_ambiental)}</p> : <ScopeBadge label={String(obra.perfil_ambiental).replaceAll("_", " ")} />}
                 </div>
               </div>
             )}

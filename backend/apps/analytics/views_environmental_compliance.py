@@ -67,6 +67,15 @@ def serialize(serializer_class, instance, request=None, many=False):
     return serializer_class(instance, many=many, context={"request": request}).data
 
 
+def filter_alerts_for_work(queryset, work):
+    """Limit alerts to relations that consistently belong to the requested work."""
+    return queryset.filter(
+        Q(documento__obra=work, variable__isnull=True)
+        | Q(documento__isnull=True, variable__documento__obra=work)
+        | Q(documento__obra=work, variable__documento__obra=work)
+    ).distinct()
+
+
 @api_view(["GET", "POST"])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def documentos_ambientales(request, organizacion_id):
@@ -290,9 +299,7 @@ def alertas_cumplimiento(request, organizacion_id):
     )
 
     if work is not None:
-        queryset = queryset.filter(
-            Q(documento__obra=work) | Q(variable__documento__obra=work)
-        ).distinct()
+        queryset = filter_alerts_for_work(queryset, work)
 
     estado = request.query_params.get("estado")
     if estado:
@@ -336,9 +343,7 @@ def cumplimiento_ambiental_resumen(request, organizacion_id):
 
         variables = variables.filter(documento__obra=work)
 
-        alertas = alertas.filter(
-            Q(documento__obra=work) | Q(variable__documento__obra=work)
-        ).distinct()
+        alertas = filter_alerts_for_work(alertas, work)
     alertas_abiertas_q = Q(
         estado__in=[
             AlertaCumplimientoAmbiental.Estado.ABIERTA,
@@ -351,7 +356,7 @@ def cumplimiento_ambiental_resumen(request, organizacion_id):
         estado_cumplimiento=VariableAmbientalExtraida.EstadoCumplimiento.CUMPLE
     ).count()
     compliance_pct = (
-        round((cumplen / total_variables) * 100, 2) if total_variables else 0
+        round((cumplen / total_variables) * 100, 2) if total_variables else None
     )
 
     latest_critical = alertas.filter(

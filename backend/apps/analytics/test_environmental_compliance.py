@@ -4,10 +4,12 @@ from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 
 from .models import (
+    AlertaCumplimientoAmbiental,
     DocumentoAmbiental,
     Obra,
     Organizacion,
     UsuarioOrganizacion,
+    VariableAmbientalExtraida,
 )
 
 
@@ -76,6 +78,22 @@ class EnvironmentalComplianceTests(APITestCase):
 
         self.base = f"/api/organizaciones/" f"{self.org.organizacion_id}"
 
+    def create_alert(self, document, title):
+        variable = VariableAmbientalExtraida.objects.create(
+            organizacion=document.organizacion,
+            documento=document,
+            variable_id=f"variable-{document.id}",
+            nombre="Variable ambiental",
+        )
+        return AlertaCumplimientoAmbiental.objects.create(
+            organizacion=document.organizacion,
+            documento=document,
+            variable=variable,
+            severidad=AlertaCumplimientoAmbiental.Severidad.AMARILLO,
+            tipo_alerta="revision_documental",
+            titulo=title,
+        )
+
     def test_documentos_filtran_por_obra(
         self,
     ):
@@ -116,6 +134,70 @@ class EnvironmentalComplianceTests(APITestCase):
             response.status_code,
             404,
         )
+
+    def test_alertas_filtran_por_obra_y_serializan(self):
+        alert_a = self.create_alert(self.document_a, "Alerta A")
+        alert_b = self.create_alert(self.document_b, "Alerta B")
+
+        response = self.client.get(
+            f"{self.base}/alertas-cumplimiento/?obra={self.work_a.id}"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item["id"] for item in response.data], [alert_a.id])
+        self.assertNotIn(alert_b.id, [item["id"] for item in response.data])
+
+    def test_resumen_filtra_por_obra(self):
+        self.document_a.estado_validacion = DocumentoAmbiental.EstadoValidacion.VALIDO
+        self.document_a.save(update_fields=["estado_validacion"])
+        self.create_alert(self.document_a, "Alerta A")
+        self.create_alert(self.document_b, "Alerta B")
+
+        response = self.client.get(
+            f"{self.base}/cumplimiento-ambiental/resumen/?obra={self.work_a.id}"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["obra_id"], self.work_a.id)
+        self.assertEqual(response.data["total_documentos"], 1)
+        self.assertEqual(response.data["documentos_validados"], 1)
+        self.assertEqual(response.data["alertas_abiertas"], 1)
+        self.assertEqual(response.data["compliance_pct"], 0.0)
+
+    def test_resumen_obra_sin_datos_no_fabrica_porcentaje(self):
+        empty_work = Obra.objects.create(
+            organizacion=self.org,
+            nombre="Obra sin antecedentes",
+            fecha_inicio=date(2026, 1, 1),
+        )
+
+        response = self.client.get(
+            f"{self.base}/cumplimiento-ambiental/resumen/?obra={empty_work.id}"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["total_documentos"], 0)
+        self.assertEqual(response.data["documentos_validados"], 0)
+        self.assertEqual(response.data["alertas_abiertas"], 0)
+        self.assertIsNone(response.data["compliance_pct"])
+
+    def test_obra_de_otro_tenant_no_es_accesible(self):
+        other_org = Organizacion.objects.create(nombre="Otra organizacion")
+        other_work = Obra.objects.create(
+            organizacion=other_org,
+            nombre="Obra externa",
+            fecha_inicio=date(2026, 1, 1),
+        )
+
+        for endpoint in [
+            "documentos-ambientales/",
+            "alertas-cumplimiento/",
+            "cumplimiento-ambiental/resumen/",
+        ]:
+            response = self.client.get(
+                f"{self.base}/{endpoint}?obra={other_work.id}"
+            )
+            self.assertEqual(response.status_code, 404)
 
     def test_post_work_scoped_impone_obra(
         self,

@@ -1,14 +1,29 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, FileText, ShieldCheck } from "lucide-react";
 import { Link, useOutletContext } from "react-router-dom";
 
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
-import { EmptyState, ErrorState, KpiCard, SectionHeader, StatusBadge, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
+import { EmptyState, ErrorState, KpiCard, Pagination, SectionHeader, StatusBadge, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
+import { formatDate } from "@/shared/utils/formatters";
 import { getComplianceAlerts, getComplianceDocuments, getComplianceSummary } from "../api/complianceApi";
 
 const rowsFrom = (value) => Array.isArray(value) ? value : value?.results || value?.data || [];
 const errorMessage = (reason, fallback) => reason?.response?.data?.error || reason?.response?.data?.detail || fallback;
+const PAGE_SIZE = 8;
+const DOCUMENT_TYPE_LABELS = {
+  balance_consumos: "Balance de consumos",
+  medicion_ruido: "Medición de ruido",
+};
+const humanize = (value) => String(value || "Sin datos").replaceAll("_", " ");
+const documentTypeLabel = (value) => DOCUMENT_TYPE_LABELS[value] || humanize(value);
+const statusTone = (value) => {
+  const status = String(value || "").toLowerCase();
+  if (["valido", "válido", "validado", "resuelta", "cerrada"].includes(status)) return "success";
+  if (["rechazado", "vencido", "error"].includes(status)) return "danger";
+  if (["pendiente", "observado", "abierta", "en_revision"].includes(status)) return "warning";
+  return "info";
+};
 
 export default function WorkCompliancePage() {
   const workspace = useOutletContext() || {};
@@ -16,6 +31,7 @@ export default function WorkCompliancePage() {
   const workId = workspace.obra?.id || workspace.obra?.obra_id;
   const scope = activeOrganizacionId && workId ? `${activeOrganizacionId}:${workId}` : "";
   const requestRef = useRef(0);
+  const [documentsPage, setDocumentsPage] = useState(1);
   const [state, setState] = useState({ scope: "", loading: true, summary: null, documents: [], alerts: [], summaryError: "", documentsError: "", alertsError: "" });
 
   const load = useCallback(async () => {
@@ -51,13 +67,22 @@ export default function WorkCompliancePage() {
     return () => { requestRef.current += 1; };
   }, [load]);
 
+  useEffect(() => {
+    setDocumentsPage(1);
+  }, [scope]);
+
+  const visibleDocuments = useMemo(() => {
+    const start = (documentsPage - 1) * PAGE_SIZE;
+    return state.documents.slice(start, start + PAGE_SIZE);
+  }, [documentsPage, state.documents]);
+
   if (!activeOrganizacionId || !workId) return <EmptyState icon={ShieldCheck} title="Obra no disponible" description="Selecciona una obra válida de la organización activa para revisar su cumplimiento." />;
   if (state.scope !== scope || state.loading) return <PlatformLoader title="Cargando cumplimiento" description="Estamos reuniendo documentos, indicadores y alertas de esta obra." />;
   if (state.summaryError && state.documentsError && state.alertsError) return <ErrorState description="No fue posible cargar la información de cumplimiento de esta obra." onRetry={load} />;
 
   const noData = !state.summaryError && !state.documentsError && !state.alertsError && !state.documents.length && !state.alerts.length
-    && (state.summary?.total_documentos === 0 || state.summary?.total_documentos == null)
-    && (state.summary?.alertas_abiertas === 0 || state.summary?.alertas_abiertas == null);
+    && state.summary?.total_documentos === 0
+    && state.summary?.alertas_abiertas === 0;
 
   const alertCount = state.summary?.alertas_abiertas;
   const hasAlerts = state.alerts.length > 0 || (alertCount !== null && alertCount !== undefined && alertCount > 0);
@@ -80,12 +105,12 @@ export default function WorkCompliancePage() {
 
       <section className="space-y-3"><SectionHeader eyebrow="PRIORIDAD" title="Requiere atención" description="Alertas que deben revisarse antes de interpretar el cumplimiento como completo." />
         {state.alertsError ? <ErrorState description={state.alertsError} onRetry={load} /> : !state.alerts.length ? <EmptyState icon={CheckCircle2} title="Sin alertas abiertas" description="No existen alertas de cumplimiento asociadas a esta obra." /> :
-          <div className="grid gap-3">{state.alerts.slice(0, 5).map((item) => <article key={item.id} className="flex flex-col gap-3 rounded-[20px] border border-amber-200 bg-amber-50/60 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><AlertTriangle aria-hidden="true" size={18} /></span><div><b>{item.mensaje || item.descripcion || `Alerta ${item.id}`}</b><p className="mt-1 text-xs text-[var(--text-muted)]">Requiere revisión documental o de vigencia.</p></div></div><div className="flex flex-wrap gap-2"><StatusBadge tone={item.severidad === "rojo" ? "danger" : item.severidad === "amarillo" ? "warning" : "info"}>{item.severidad || "Sin clasificar"}</StatusBadge><StatusBadge>{String(item.estado || "pendiente").replaceAll("_", " ")}</StatusBadge></div></article>)}</div>}
+          <div className="grid gap-3">{state.alerts.slice(0, 5).map((item) => <article key={item.id} className="flex flex-col gap-3 rounded-[20px] border border-amber-200 bg-amber-50/60 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><AlertTriangle aria-hidden="true" size={18} /></span><div><b>{item.titulo || item.mensaje || item.descripcion || `Alerta ${item.id}`}</b><p className="mt-1 text-xs text-[var(--text-muted)]">Requiere revisión documental o de vigencia.</p></div></div><div className="flex flex-wrap gap-2"><StatusBadge tone={item.severidad === "rojo" ? "danger" : item.severidad === "amarillo" ? "warning" : "info"}>{item.severidad || "Sin clasificar"}</StatusBadge><StatusBadge tone={statusTone(item.estado)}>{humanize(item.estado || "pendiente")}</StatusBadge></div></article>)}</div>}
       </section>
 
       <section className="space-y-3"><SectionHeader eyebrow="ANTECEDENTES" title="Documentos ambientales" action={<Link className="text-sm font-bold text-[var(--brand-primary)]" to="../evidencias">Ir a evidencias</Link>} />
         {state.documentsError ? <ErrorState description={state.documentsError} onRetry={load} /> : !state.documents.length ? <EmptyState icon={FileText} title="Sin documentos asociados" description="Todavía no existen documentos ambientales vinculados a esta obra." /> :
-          <TableShell><TableHead><tr><TableCell as="th">Documento</TableCell><TableCell as="th">Tipo</TableCell><TableCell as="th">Estado</TableCell><TableCell as="th">Fecha</TableCell></tr></TableHead><TableBody columns={4}>{state.documents.map((item) => <tr key={item.id}><TableCell><b>{item.nombre || item.nombre_archivo || `Documento ${item.id}`}</b></TableCell><TableCell>{item.tipo_documento || item.tipo || "—"}</TableCell><TableCell><StatusBadge>{String(item.estado_validacion || item.estado || "pendiente").replaceAll("_", " ")}</StatusBadge></TableCell><TableCell>{item.fecha_documento || item.created_at || "—"}</TableCell></tr>)}</TableBody></TableShell>}
+          <><TableShell><TableHead><tr><TableCell as="th">Documento</TableCell><TableCell as="th" align="center">Tipo</TableCell><TableCell as="th" align="center">Estado</TableCell><TableCell as="th" align="center">Fecha</TableCell></tr></TableHead><TableBody columns={4}>{visibleDocuments.map((item) => { const documentStatus = item.estado_validacion || item.estado || "pendiente"; return <tr key={item.id}><TableCell><b>{item.nombre || item.nombre_archivo || `Documento ${item.id}`}</b></TableCell><TableCell align="center">{documentTypeLabel(item.tipo_documento || item.tipo)}</TableCell><TableCell align="center"><StatusBadge tone={statusTone(documentStatus)}>{humanize(documentStatus)}</StatusBadge></TableCell><TableCell align="center">{formatDate(item.fecha_documento || item.created_at)}</TableCell></tr>; })}</TableBody></TableShell>{state.documents.length > PAGE_SIZE ? <Pagination page={documentsPage} totalItems={state.documents.length} pageSize={PAGE_SIZE} onChange={setDocumentsPage} itemLabel="documentos" /> : null}</>}
       </section>
     </>}
   </main>;
