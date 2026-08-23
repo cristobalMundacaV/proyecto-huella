@@ -24,6 +24,13 @@ const statusTone = (value) => {
   if (["pendiente", "observado", "abierta", "en_revision"].includes(status)) return "warning";
   return "info";
 };
+const severityInfo = (value) => {
+  const severity = String(value || "").toLowerCase();
+  if (["rojo", "alta", "critica", "crítica"].includes(severity)) return { label: "Alta", tone: "danger" };
+  if (["amarillo", "media"].includes(severity)) return { label: "Media", tone: "warning" };
+  if (["verde", "baja"].includes(severity)) return { label: "Baja", tone: "info" };
+  return { label: "Sin clasificar", tone: "info" };
+};
 
 export default function WorkCompliancePage() {
   const workspace = useOutletContext() || {};
@@ -105,7 +112,7 @@ export default function WorkCompliancePage() {
 
       <section className="space-y-3"><SectionHeader eyebrow="PRIORIDAD" title="Requiere atención" description="Alertas que deben revisarse antes de interpretar el cumplimiento como completo." />
         {state.alertsError ? <ErrorState description={state.alertsError} onRetry={load} /> : !state.alerts.length ? <EmptyState icon={CheckCircle2} title="Sin alertas abiertas" description="No existen alertas de cumplimiento asociadas a esta obra." /> :
-          <div className="grid gap-3">{state.alerts.slice(0, 5).map((item) => <article key={item.id} className="flex flex-col gap-3 rounded-[20px] border border-amber-200 bg-amber-50/60 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><AlertTriangle aria-hidden="true" size={18} /></span><div><b>{item.titulo || item.mensaje || item.descripcion || `Alerta ${item.id}`}</b><p className="mt-1 text-xs text-[var(--text-muted)]">Requiere revisión documental o de vigencia.</p></div></div><div className="flex flex-wrap gap-2"><StatusBadge tone={item.severidad === "rojo" ? "danger" : item.severidad === "amarillo" ? "warning" : "info"}>{item.severidad || "Sin clasificar"}</StatusBadge><StatusBadge tone={statusTone(item.estado)}>{humanize(item.estado || "pendiente")}</StatusBadge></div></article>)}</div>}
+          <div className="grid gap-3">{state.alerts.slice(0, 5).map((item) => { const severity = severityInfo(item.severidad); return <article key={item.id} className="flex flex-col gap-3 rounded-[20px] border border-amber-200 bg-amber-50/60 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><AlertTriangle aria-hidden="true" size={18} /></span><div><b>{item.titulo || item.mensaje || item.descripcion || `Alerta ${item.id}`}</b><p className="mt-1 text-xs text-[var(--text-muted)]">Requiere revisión documental o de vigencia.</p></div></div><div className="flex flex-wrap gap-2"><StatusBadge tone={severity.tone}>{severity.label}</StatusBadge><StatusBadge tone={statusTone(item.estado)}>{humanize(item.estado || "pendiente")}</StatusBadge></div></article>; })}</div>}
       </section>
 
       <section className="space-y-3"><SectionHeader eyebrow="ANTECEDENTES" title="Documentos ambientales" action={<Link className="text-sm font-bold text-[var(--brand-primary)]" to="../evidencias">Ir a evidencias</Link>} />
