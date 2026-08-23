@@ -13,7 +13,7 @@ class IngestionV2ApiTests(APITestCase):
         self.user = User.objects.create_user("ingestion-v2", password="test-pass")
         self.organizacion = Organizacion.objects.create(nombre="Ingesta Uno")
         self.otra = Organizacion.objects.create(nombre="Ingesta Dos")
-        UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.organizacion)
+        UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.organizacion, rol=UsuarioOrganizacion.Rol.ADMIN)
         self.client.force_login(self.user)
         self.base = f"/api/organizaciones/{self.organizacion.organizacion_id}"
         asset = ActivoOperacional.objects.create(organizacion=self.organizacion, codigo="LEG-15", nombre="Vehiculo legacy", tipo="vehiculo")

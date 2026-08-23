@@ -15,7 +15,7 @@ class MultisourceIngestionV1Tests(APITestCase):
         self.user = User.objects.create_user("multisource", password="test")
         self.org = Organizacion.objects.create(nombre="Ingesta General")
         self.other = Organizacion.objects.create(nombre="Ingesta Ajena")
-        UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.org)
+        UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.org, rol=UsuarioOrganizacion.Rol.ADMIN)
         self.client.force_login(self.user)
         self.base = f"/api/organizaciones/{self.org.organizacion_id}"
         asset = ActivoOperacional.objects.create(organizacion=self.org, codigo="DEFAULT-15", nombre="Vehículo base", tipo="vehiculo")

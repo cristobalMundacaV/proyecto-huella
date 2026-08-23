@@ -15,6 +15,7 @@ from .models import (
     TransporteObra,
     UsuarioOrganizacion,
 )
+from .permissions import Permission, has_tenant_permission
 from .serializers import OrganizacionSerializer
 
 
@@ -26,9 +27,7 @@ def get_organizacion_or_404(request, organizacion_id):
 
 
 def can_administer(user, organization):
-    return user.is_superuser or UsuarioOrganizacion.objects.filter(
-        user=user, organizacion=organization, activo=True, rol=UsuarioOrganizacion.Rol.ADMIN,
-    ).exists()
+    return has_tenant_permission(user, organization, Permission.ORGANIZATION_UPDATE)
 
 
 @transaction.atomic
@@ -72,6 +71,8 @@ def organizacion_detail_safe(request, organizacion_id):
     organizacion = get_organizacion_or_404(request, organizacion_id)
 
     if request.method == "GET":
+        if not has_tenant_permission(request.user, organizacion, Permission.ORGANIZATION_VIEW):
+            return Response({"detail": "No tienes permisos para consultar esta organización."}, status=status.HTTP_403_FORBIDDEN)
         return Response(OrganizacionSerializer(organizacion).data)
 
     if request.method == "PATCH":

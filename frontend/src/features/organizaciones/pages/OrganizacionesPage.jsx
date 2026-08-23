@@ -3,6 +3,7 @@ import { Building2, Pencil } from "lucide-react";
 import { Alert, Button, EmptyState, ErrorState, Modal, PageHeader, StatusBadge } from "@/shared/ui";
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { usePermissions } from "@/features/auth/hooks/usePermissions";
 import { updateEmpresa } from "@/shared/services/api";
 import { useOrganizacionActiva } from "../context/OrganizacionActivaContext";
 import OrganizacionForm, { emptyOrganizationForm } from "../components/OrganizacionForm";
@@ -12,8 +13,8 @@ const PRESET_LABELS = { construccion: "Construcción", forestal: "Forestal", ase
 export default function OrganizacionesPage() {
   const { user } = useAuth();
   const { activeOrganizacion, loadingOrganizaciones, errorOrganizaciones, refreshOrganizaciones, setActiveOrganizacion } = useOrganizacionActiva();
-  const membership = user?.organizaciones?.find((item) => String(item.organizacion_id) === String(activeOrganizacion?.organizacion_id));
-  const canEdit = !user?.is_demo && (user?.is_superuser || membership?.rol === "admin");
+  const { can } = usePermissions();
+  const canEdit = !user?.is_demo && can("organization.update");
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(emptyOrganizationForm);
   const [saving, setSaving] = useState(false);

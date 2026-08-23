@@ -19,6 +19,7 @@ from .models import (
     TransporteLoteForestal,
     TransporteObra,
     UsuarioOrganizacion,
+    UsuarioObraAcceso,
     VariableAmbientalExtraida,
 )
 from .services.forestal_carbono import calcular_balance_neto_lote
@@ -73,6 +74,9 @@ class OrganizacionSerializer(serializers.ModelSerializer):
 
 
 class UsuarioOrganizacionSerializer(serializers.ModelSerializer):
+    rol_label = serializers.CharField(source="get_rol_display", read_only=True)
+    alcance_label = serializers.CharField(source="get_alcance_display", read_only=True)
+    obra_ids = serializers.SerializerMethodField()
     id = serializers.IntegerField(source="user.id", read_only=True)
     username = serializers.CharField(source="user.username", read_only=True)
     first_name = serializers.CharField(source="user.first_name", read_only=True)
@@ -94,6 +98,10 @@ class UsuarioOrganizacionSerializer(serializers.ModelSerializer):
             "organizacion_id",
             "organizacion_nombre",
             "rol",
+            "rol_label",
+            "alcance",
+            "alcance_label",
+            "obra_ids",
             "cargo",
             "activo",
             "created_at",
@@ -104,14 +112,46 @@ class UsuarioOrganizacionSerializer(serializers.ModelSerializer):
         full_name = usuario_organizacion.user.get_full_name().strip()
         return full_name or usuario_organizacion.user.username
 
+    def get_obra_ids(self, usuario_organizacion):
+        return list(usuario_organizacion.accesos_obra.values_list("obra_id", flat=True))
 
-class UsuarioOrganizacionCreateSerializer(serializers.Serializer):
+
+class MembershipScopeMixin:
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        forbidden = {"is_superuser", "is_staff", "groups", "user_permissions"}.intersection(self.initial_data)
+        if forbidden:
+            raise serializers.ValidationError({field: "Este campo no está permitido." for field in forbidden})
+        alcance = attrs.get("alcance", getattr(self.instance, "alcance", UsuarioOrganizacion.Alcance.ORGANIZACION))
+        obra_ids = attrs.get("obra_ids")
+        if alcance == UsuarioOrganizacion.Alcance.OBRAS:
+            if obra_ids is None and self.instance:
+                obra_ids = list(self.instance.accesos_obra.values_list("obra_id", flat=True))
+            if not obra_ids:
+                raise serializers.ValidationError({"obra_ids": "Selecciona al menos una obra."})
+            valid_ids = set(Obra.objects.filter(organizacion=self.context["organizacion"], id__in=obra_ids).values_list("id", flat=True))
+            if valid_ids != set(obra_ids):
+                raise serializers.ValidationError({"obra_ids": "Una o más obras no pertenecen a la organización."})
+        return attrs
+
+    @staticmethod
+    def sync_work_access(membership, obra_ids):
+        membership.accesos_obra.all().delete()
+        if membership.alcance == UsuarioOrganizacion.Alcance.OBRAS:
+            UsuarioObraAcceso.objects.bulk_create(
+                [UsuarioObraAcceso(usuario_organizacion=membership, obra_id=obra_id) for obra_id in obra_ids]
+            )
+
+
+class UsuarioOrganizacionCreateSerializer(MembershipScopeMixin, serializers.Serializer):
+    obra_ids = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False, default=list)
     username = serializers.CharField(max_length=150)
     email = serializers.EmailField(required=False, allow_blank=True)
     first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
     last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
     password = serializers.CharField(min_length=8, write_only=True)
     rol = serializers.ChoiceField(choices=UsuarioOrganizacion.Rol.choices, default=UsuarioOrganizacion.Rol.ANALISTA)
+    alcance = serializers.ChoiceField(choices=UsuarioOrganizacion.Alcance.choices, default=UsuarioOrganizacion.Alcance.ORGANIZACION)
     cargo = serializers.CharField(max_length=120, required=False, allow_blank=True)
     activo = serializers.BooleanField(default=True)
 
@@ -122,6 +162,7 @@ class UsuarioOrganizacionCreateSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         organizacion = self.context["organizacion"]
+        obra_ids = validated_data.pop("obra_ids", [])
         user = User.objects.create_user(
             username=validated_data["username"],
             email=validated_data.get("email", ""),
@@ -129,13 +170,31 @@ class UsuarioOrganizacionCreateSerializer(serializers.Serializer):
             first_name=validated_data.get("first_name", ""),
             last_name=validated_data.get("last_name", ""),
         )
-        return UsuarioOrganizacion.objects.create(
+        membership = UsuarioOrganizacion.objects.create(
             user=user,
             organizacion=organizacion,
             rol=validated_data.get("rol", UsuarioOrganizacion.Rol.ANALISTA),
+            alcance=validated_data.get("alcance", UsuarioOrganizacion.Alcance.ORGANIZACION),
             cargo=validated_data.get("cargo", ""),
             activo=validated_data.get("activo", True),
         )
+        self.sync_work_access(membership, obra_ids)
+        return membership
+
+
+class UsuarioOrganizacionUpdateSerializer(MembershipScopeMixin, serializers.ModelSerializer):
+    obra_ids = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False)
+
+    class Meta:
+        model = UsuarioOrganizacion
+        fields = ["rol", "cargo", "activo", "alcance", "obra_ids"]
+
+    def update(self, instance, validated_data):
+        obra_ids = validated_data.pop("obra_ids", None)
+        membership = super().update(instance, validated_data)
+        if obra_ids is not None or membership.alcance == UsuarioOrganizacion.Alcance.ORGANIZACION:
+            self.sync_work_access(membership, obra_ids or [])
+        return membership
 
 
 class ConfiguracionOrganizacionSerializer(serializers.ModelSerializer):

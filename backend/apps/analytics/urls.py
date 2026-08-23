@@ -18,6 +18,7 @@ from .views import (
     organizacion_registros_emision,
     organizacion_reportes,
     organizacion_usuarios,
+    organizacion_usuario_detail,
     organizaciones,
     dashboard_data,
     factores_catalogo,
@@ -589,6 +590,7 @@ urlpatterns = [
     path("organizaciones/<str:organizacion_id>/dashboard/", organizacion_dashboard),
     path("organizaciones/<str:organizacion_id>/etapas/", organizacion_etapas),
     path("organizaciones/<str:organizacion_id>/usuarios/", organizacion_usuarios),
+    path("organizaciones/<str:organizacion_id>/usuarios/<int:user_id>/", organizacion_usuario_detail),
     path("organizaciones/<str:organizacion_id>/obras/", organizacion_obras),
     path(
         "organizaciones/<str:organizacion_id>/registros-emision/",

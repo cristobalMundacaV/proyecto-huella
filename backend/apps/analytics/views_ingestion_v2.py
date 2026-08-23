@@ -6,17 +6,16 @@ from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
-from .models import Organizacion, PlantillaMapeo, ProcesoIngesta, UsuarioOrganizacion
+from .models import Organizacion, PlantillaMapeo, ProcesoIngesta
+from .permissions import Permission, has_tenant_permission
 from .serializers_ingestion_v2 import PlantillaMapeoSerializer, ProcesoIngestaSerializer
 from .services.ingestion_v2 import (analizar_ingesta, confirmar_ingesta, crear_ingesta,
                                     crear_ingesta_estructurada, guardar_mapeo, preview_ingesta)
 
 
-def _organizacion(request, organizacion_id):
+def _organizacion(request, organizacion_id, permission):
     organization = get_object_or_404(Organizacion, organizacion_id=organizacion_id)
-    allowed = request.user.is_authenticated and (request.user.is_superuser or UsuarioOrganizacion.objects.filter(
-        user=request.user, organizacion=organization, activo=True,
-    ).exists())
+    allowed = has_tenant_permission(request.user, organization, permission)
     return organization if allowed else None
 
 
@@ -39,7 +38,8 @@ def _contexto(request):
 @api_view(["GET", "POST"])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def ingestas(request, organizacion_id):
-    organizacion = _organizacion(request, organizacion_id)
+    permission = Permission.IMPORT_VIEW if request.method == "GET" else Permission.IMPORT_CREATE
+    organizacion = _organizacion(request, organizacion_id, permission)
     if not organizacion: return Response({"detail": "Recurso no encontrado."}, status=404)
     if request.method == "GET":
         queryset = organizacion.procesos_ingesta.select_related("version_evidencia__evidencia", "fuente_datos", "plantilla_mapeo")
@@ -77,7 +77,7 @@ def ingestas(request, organizacion_id):
 
 @api_view(["GET"])
 def ingesta_detail(request, organizacion_id, ingesta_id):
-    organization = _organizacion(request, organizacion_id)
+    organization = _organizacion(request, organizacion_id, Permission.IMPORT_VIEW)
     if not organization: return Response({"detail": "Recurso no encontrado."}, status=404)
     proceso = _proceso(organization, ingesta_id)
     return Response(ProcesoIngestaSerializer(proceso).data)
@@ -85,7 +85,7 @@ def ingesta_detail(request, organizacion_id, ingesta_id):
 
 @api_view(["POST"])
 def ingesta_analizar(request, organizacion_id, ingesta_id):
-    organization = _organizacion(request, organizacion_id)
+    organization = _organizacion(request, organizacion_id, Permission.IMPORT_REVIEW)
     if not organization: return Response({"detail": "Recurso no encontrado."}, status=404)
     proceso = _proceso(organization, ingesta_id)
     try:
@@ -97,7 +97,7 @@ def ingesta_analizar(request, organizacion_id, ingesta_id):
 
 @api_view(["POST", "PATCH"])
 def ingesta_mapeo(request, organizacion_id, ingesta_id):
-    organization = _organizacion(request, organizacion_id)
+    organization = _organizacion(request, organizacion_id, Permission.IMPORT_REVIEW)
     if not organization: return Response({"detail": "Recurso no encontrado."}, status=404)
     proceso = _proceso(organization, ingesta_id)
     try:
@@ -113,7 +113,7 @@ def ingesta_mapeo(request, organizacion_id, ingesta_id):
 
 @api_view(["GET"])
 def ingesta_preview(request, organizacion_id, ingesta_id):
-    organization = _organizacion(request, organizacion_id)
+    organization = _organizacion(request, organizacion_id, Permission.IMPORT_VIEW)
     if not organization: return Response({"detail": "Recurso no encontrado."}, status=404)
     return Response(preview_ingesta(_proceso(organization, ingesta_id)))
 
@@ -121,7 +121,7 @@ def ingesta_preview(request, organizacion_id, ingesta_id):
 @api_view(["POST"])
 def ingesta_confirmar(request, organizacion_id, ingesta_id):
     try:
-        organization = _organizacion(request, organizacion_id)
+        organization = _organizacion(request, organizacion_id, Permission.IMPORT_CONFIRM)
         if not organization: return Response({"detail": "Recurso no encontrado."}, status=404)
         return Response(confirmar_ingesta(_proceso(organization, ingesta_id)))
     except ValueError as exc:
@@ -130,7 +130,7 @@ def ingesta_confirmar(request, organizacion_id, ingesta_id):
 
 @api_view(["GET"])
 def plantillas_mapeo(request, organizacion_id):
-    organizacion = _organizacion(request, organizacion_id)
+    organizacion = _organizacion(request, organizacion_id, Permission.IMPORT_VIEW)
     if not organizacion: return Response({"detail": "Recurso no encontrado."}, status=404)
     queryset = PlantillaMapeo.objects.filter(organizacion=organizacion).select_related("fuente_datos").prefetch_related("mapeos")
     return Response(PlantillaMapeoSerializer(queryset, many=True).data)

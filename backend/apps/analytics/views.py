@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.db.models import Count, Sum
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
@@ -38,6 +39,14 @@ from .serializers import (
     TransporteObraSerializer,
     UsuarioOrganizacionCreateSerializer,
     UsuarioOrganizacionSerializer,
+    UsuarioOrganizacionUpdateSerializer,
+)
+from .permissions import (
+    Permission,
+    ROLE_PERMISSIONS,
+    filter_works_for_user,
+    has_tenant_permission,
+    require_tenant_permission,
 )
 from .services.local_advisor import generar_analisis_local
 from .services.document_extraction import extract_environmental_document
@@ -66,13 +75,7 @@ def get_user_organizacion_or_404(request, organizacion_id):
 
 
 def can_administer_organization(user, organizacion):
-    return bool(
-        user.is_superuser
-        or UsuarioOrganizacion.objects.filter(
-            user=user, organizacion=organizacion, activo=True,
-            rol=UsuarioOrganizacion.Rol.ADMIN,
-        ).exists()
-    )
+    return has_tenant_permission(user, organizacion, Permission.SETTINGS_MANAGE)
 
 
 def get_obra_or_404(codigo_obra):
@@ -87,14 +90,15 @@ def user_organizations(request):
 
 
 def get_user_obra_or_404(request, codigo_obra):
-    return get_object_or_404(Obra, codigo_obra=codigo_obra, organizacion__in=user_organizations(request))
+    obra = get_object_or_404(Obra.objects.select_related("organizacion"), codigo_obra=codigo_obra)
+    return get_object_or_404(filter_works_for_user(Obra.objects.all(), request.user, obra.organizacion), pk=obra.pk)
 
 
 def serialize_auth_user(user):
     if not user or not user.is_authenticated:
         return None
 
-    perfiles = UsuarioOrganizacion.objects.select_related("organizacion").filter(
+    perfiles = UsuarioOrganizacion.objects.select_related("organizacion").prefetch_related("accesos_obra").filter(
         user=user,
         activo=True,
     )
@@ -104,6 +108,12 @@ def serialize_auth_user(user):
             "organizacion_nombre": perfil.organizacion.nombre,
             "preset": perfil.organizacion.preset,
             "rol": perfil.rol,
+            "role": perfil.rol,
+            "role_label": perfil.get_rol_display(),
+            "alcance": perfil.alcance,
+            "scope": perfil.alcance,
+            "permissions": sorted(ROLE_PERMISSIONS.get(perfil.rol, ())),
+            "work_ids": list(perfil.accesos_obra.values_list("obra_id", flat=True)) if perfil.alcance == UsuarioOrganizacion.Alcance.OBRAS else [],
         }
         for perfil in perfiles
     ]
@@ -439,6 +449,7 @@ def organizacion_detail(request, organizacion_id):
 @permission_classes([IsAuthenticated])
 def organizacion_configuracion(request, organizacion_id):
     organizacion = get_user_organizacion_or_404(request, organizacion_id)
+    require_tenant_permission(request.user, organizacion, Permission.SETTINGS_VIEW)
     configuracion, _ = ConfiguracionOrganizacion.objects.get_or_create(
         organizacion=organizacion
     )
@@ -456,7 +467,8 @@ def organizacion_configuracion(request, organizacion_id):
 
 @api_view(["GET"])
 def organizacion_estado(request, organizacion_id):
-    organizacion = get_organizacion_or_404(organizacion_id)
+    organizacion = get_user_organizacion_or_404(request, organizacion_id)
+    require_tenant_permission(request.user, organizacion, Permission.ORGANIZATION_VIEW)
     registros = RegistroEmision.objects.filter(organizacion=organizacion)
     return Response(
         {
@@ -475,7 +487,8 @@ def organizacion_estado(request, organizacion_id):
 
 @api_view(["GET"])
 def organizacion_dashboard(request, organizacion_id):
-    organizacion = get_organizacion_or_404(organizacion_id)
+    organizacion = get_user_organizacion_or_404(request, organizacion_id)
+    require_tenant_permission(request.user, organizacion, Permission.ORGANIZATION_VIEW)
     registros = RegistroEmision.objects.filter(
         organizacion=organizacion
     ).select_related("obra", "etapa")
@@ -507,12 +520,12 @@ def organizacion_dashboard(request, organizacion_id):
 def organizacion_usuarios(request, organizacion_id):
     organizacion = get_user_organizacion_or_404(request, organizacion_id)
     if request.method == "GET":
+        require_tenant_permission(request.user, organizacion, Permission.TEAM_VIEW)
         perfiles = UsuarioOrganizacion.objects.select_related(
             "user", "organizacion"
         ).filter(organizacion=organizacion)
         return Response(UsuarioOrganizacionSerializer(perfiles, many=True).data)
-    if not can_administer_organization(request.user, organizacion):
-        return Response({"detail": "No tienes permisos para administrar accesos."}, status=status.HTTP_403_FORBIDDEN)
+    require_tenant_permission(request.user, organizacion, Permission.TEAM_MANAGE)
     serializer = UsuarioOrganizacionCreateSerializer(
         data=request.data, context={"organizacion": organizacion}
     )
@@ -523,13 +536,50 @@ def organizacion_usuarios(request, organizacion_id):
     )
 
 
+def _is_last_active_admin(membership, payload=None):
+    payload = payload or {}
+    remains_admin = payload.get("rol", membership.rol) == UsuarioOrganizacion.Rol.ADMIN
+    remains_active = payload.get("activo", membership.activo)
+    if membership.rol != UsuarioOrganizacion.Rol.ADMIN or not membership.activo or (remains_admin and remains_active):
+        return False
+    return not UsuarioOrganizacion.objects.filter(
+        organizacion=membership.organizacion, rol=UsuarioOrganizacion.Rol.ADMIN, activo=True
+    ).exclude(pk=membership.pk).exists()
+
+
+@api_view(["PATCH", "DELETE"])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def organizacion_usuario_detail(request, organizacion_id, user_id):
+    organizacion = get_user_organizacion_or_404(request, organizacion_id)
+    require_tenant_permission(request.user, organizacion, Permission.TEAM_MANAGE)
+    membership = get_object_or_404(
+        UsuarioOrganizacion.objects.select_for_update(), organizacion=organizacion, user_id=user_id
+    )
+    if request.method == "DELETE":
+        if not request.user.is_superuser and _is_last_active_admin(membership, {"activo": False}):
+            return Response({"detail": "No se puede eliminar al último administrador activo."}, status=status.HTTP_409_CONFLICT)
+        membership.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    if not request.user.is_superuser and _is_last_active_admin(membership, request.data):
+        return Response({"detail": "No se puede desactivar ni cambiar el rol del último administrador activo."}, status=status.HTTP_409_CONFLICT)
+    serializer = UsuarioOrganizacionUpdateSerializer(
+        membership, data=request.data, partial=True, context={"organizacion": organizacion}
+    )
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(UsuarioOrganizacionSerializer(membership).data)
+
+
 @api_view(["GET", "POST"])
 def organizacion_etapas(request, organizacion_id):
-    organizacion = get_organizacion_or_404(organizacion_id)
+    organizacion = get_user_organizacion_or_404(request, organizacion_id)
     if request.method == "GET":
+        require_tenant_permission(request.user, organizacion, Permission.WORK_VIEW)
         return Response(
             EtapaObraSerializer(organizacion.etapas.order_by("nombre"), many=True).data
         )
+    require_tenant_permission(request.user, organizacion, Permission.WORK_CREATE)
     serializer = EtapaObraSerializer(
         data={**request.data, "organizacion": organizacion.id}
     )
@@ -539,17 +589,20 @@ def organizacion_etapas(request, organizacion_id):
 
 
 @api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
 def organizacion_obras(request, organizacion_id):
-    organizacion = get_organizacion_or_404(organizacion_id)
+    organizacion = get_user_organizacion_or_404(request, organizacion_id)
     if request.method == "GET":
+        require_tenant_permission(request.user, organizacion, Permission.WORK_VIEW)
         return Response(
             ObraSerializer(
-                organizacion.obras.select_related("etapa_principal").order_by(
-                    "-created_at"
-                ),
+                filter_works_for_user(
+                    Obra.objects.select_related("etapa_principal"), request.user, organizacion
+                ).order_by("-created_at"),
                 many=True,
             ).data
         )
+    require_tenant_permission(request.user, organizacion, Permission.WORK_CREATE)
     serializer = ObraSerializer(data={**request.data, "organizacion": organizacion.id})
     serializer.is_valid(raise_exception=True)
     obra = serializer.save()
@@ -558,7 +611,8 @@ def organizacion_obras(request, organizacion_id):
 
 @api_view(["GET"])
 def organizacion_reportes(request, organizacion_id):
-    organizacion = get_organizacion_or_404(organizacion_id)
+    organizacion = get_user_organizacion_or_404(request, organizacion_id)
+    require_tenant_permission(request.user, organizacion, Permission.REPORT_VIEW)
     registros = RegistroEmision.objects.filter(
         organizacion=organizacion
     ).select_related("obra", "etapa")
@@ -580,14 +634,17 @@ def organizacion_reportes(request, organizacion_id):
 
 @api_view(["GET", "POST"])
 def organizacion_registros_emision(request, organizacion_id):
-    organizacion = get_organizacion_or_404(organizacion_id)
+    organizacion = get_user_organizacion_or_404(request, organizacion_id)
     if request.method == "GET":
+        require_tenant_permission(request.user, organizacion, Permission.DATA_VIEW)
+        allowed_works = filter_works_for_user(Obra.objects.all(), request.user, organizacion)
         registros = (
-            RegistroEmision.objects.filter(organizacion=organizacion)
+            RegistroEmision.objects.filter(organizacion=organizacion, obra__in=allowed_works)
             .select_related("obra", "etapa")
             .order_by("-fecha", "-created_at")
         )
         return Response(RegistroEmisionSerializer(registros, many=True).data)
+    require_tenant_permission(request.user, organizacion, Permission.DATA_CREATE)
     data = request.data.copy()
     data["organizacion"] = organizacion.id
     serializer = RegistroEmisionSerializer(data=data)
@@ -601,10 +658,12 @@ def organizacion_registros_emision(request, organizacion_id):
 @api_view(["GET", "POST"])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def organizacion_evidencias(request, organizacion_id):
-    organizacion = get_organizacion_or_404(organizacion_id)
+    organizacion = get_user_organizacion_or_404(request, organizacion_id)
     if request.method == "GET":
+        require_tenant_permission(request.user, organizacion, Permission.EVIDENCE_VIEW)
+        allowed_works = filter_works_for_user(Obra.objects.all(), request.user, organizacion)
         evidencias = (
-            EvidenciaObra.objects.filter(organizacion=organizacion)
+            EvidenciaObra.objects.filter(organizacion=organizacion, obra__in=allowed_works)
             .select_related("obra", "etapa", "lote_forestal").prefetch_related("registros_emision")
             .order_by("-created_at")
         )
@@ -616,7 +675,11 @@ def organizacion_evidencias(request, organizacion_id):
                 evidencias, many=True, context={"request": request}
             ).data
         )
+    require_tenant_permission(request.user, organizacion, Permission.EVIDENCE_CREATE)
     data = request.data.copy()
+    work_id = data.get("obra")
+    if work_id and not filter_works_for_user(Obra.objects.all(), request.user, organizacion).filter(pk=work_id).exists():
+        return Response({"detail": "Recurso no encontrado."}, status=status.HTTP_404_NOT_FOUND)
     data["organizacion"] = organizacion.id
     serializer = EvidenciaObraSerializer(data=data, context={"request": request})
     serializer.is_valid(raise_exception=True)
@@ -630,7 +693,8 @@ def organizacion_evidencias(request, organizacion_id):
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
 def organizacion_evidencia_extraer(request, organizacion_id):
-    organizacion = get_organizacion_or_404(organizacion_id)
+    organizacion = get_user_organizacion_or_404(request, organizacion_id)
+    require_tenant_permission(request.user, organizacion, Permission.EVIDENCE_CREATE)
     upload = request.FILES.get("file") or request.FILES.get("archivo")
 
     if not upload:
@@ -646,9 +710,12 @@ def organizacion_evidencia_extraer(request, organizacion_id):
 @api_view(["GET", "POST"])
 def obras(request):
     if request.method == "GET":
+        allowed_ids = []
+        for organization in user_organizations(request):
+            allowed_ids.extend(filter_works_for_user(Obra.objects.all(), request.user, organization).values_list("id", flat=True))
         return Response(
             ObraSerializer(
-                Obra.objects.filter(organizacion__in=user_organizations(request)).select_related("organizacion", "etapa_principal").order_by(
+                Obra.objects.filter(id__in=allowed_ids).select_related("organizacion", "etapa_principal").order_by(
                     "-created_at"
                 ),
                 many=True,
@@ -658,6 +725,7 @@ def obras(request):
     serializer.is_valid(raise_exception=True)
     if serializer.validated_data["organizacion"] not in user_organizations(request):
         return Response({"detail": "Recurso no encontrado."}, status=404)
+    require_tenant_permission(request.user, serializer.validated_data["organizacion"], Permission.WORK_CREATE)
     obra = serializer.save()
     return Response(ObraSerializer(obra).data, status=status.HTTP_201_CREATED)
 
@@ -666,6 +734,7 @@ def obras(request):
 def obra_detail(request, codigo_obra):
     obra = get_user_obra_or_404(request, codigo_obra)
     if request.method == "GET":
+        require_tenant_permission(request.user, obra.organizacion, Permission.WORK_VIEW)
         payload = ObraSerializer(obra).data
         registros = obra.registros_emision.select_related("etapa", "obra")
         payload["analisis_ambiental"] = build_environmental_summary(
@@ -677,8 +746,10 @@ def obra_detail(request, codigo_obra):
         payload["contexto_ambiental_v1"] = work_context(obra)
         return Response(payload)
     if request.method == "DELETE":
+        require_tenant_permission(request.user, obra.organizacion, Permission.WORK_ARCHIVE)
         obra.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+    require_tenant_permission(request.user, obra.organizacion, Permission.WORK_UPDATE)
     serializer = ObraSerializer(obra, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
     serializer.save()
@@ -689,10 +760,12 @@ def obra_detail(request, codigo_obra):
 def obra_registros_emision(request, codigo_obra):
     obra = get_user_obra_or_404(request, codigo_obra)
     if request.method == "GET":
+        require_tenant_permission(request.user, obra.organizacion, Permission.DATA_VIEW)
         registros = obra.registros_emision.select_related(
             "organizacion", "etapa"
         ).order_by("-fecha", "-created_at")
         return Response(RegistroEmisionSerializer(registros, many=True).data)
+    require_tenant_permission(request.user, obra.organizacion, Permission.DATA_CREATE)
     data = request.data.copy()
     data["organizacion"] = obra.organizacion_id
     data["obra"] = obra.id
@@ -709,6 +782,7 @@ def obra_registros_emision(request, codigo_obra):
 def obra_evidencias(request, codigo_obra):
     obra = get_user_obra_or_404(request, codigo_obra)
     if request.method == "GET":
+        require_tenant_permission(request.user, obra.organizacion, Permission.EVIDENCE_VIEW)
         evidencias = obra.evidencias.select_related(
             "organizacion", "etapa"
         ).prefetch_related("registros_emision").order_by("-created_at")
@@ -717,6 +791,7 @@ def obra_evidencias(request, codigo_obra):
                 evidencias, many=True, context={"request": request}
             ).data
         )
+    require_tenant_permission(request.user, obra.organizacion, Permission.EVIDENCE_CREATE)
     data = request.data.copy()
     data["organizacion"] = obra.organizacion_id
     data["obra"] = obra.id
@@ -733,12 +808,14 @@ def obra_evidencias(request, codigo_obra):
 def obra_transportes(request, codigo_obra):
     obra = get_user_obra_or_404(request, codigo_obra)
     if request.method == "GET":
+        require_tenant_permission(request.user, obra.organizacion, Permission.DATA_VIEW)
         return Response(
             TransporteObraSerializer(
                 obra.transportes.select_related("etapa").order_by("-fecha_hora"),
                 many=True,
             ).data
         )
+    require_tenant_permission(request.user, obra.organizacion, Permission.DATA_CREATE)
     data = request.data.copy()
     data["obra"] = obra.id
     serializer = TransporteObraSerializer(data=data)

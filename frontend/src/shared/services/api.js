@@ -64,6 +64,8 @@ export async function updateEmpresa(id, payload) { return updateOrganizacion(id,
 export async function deleteEmpresa(id) { return deleteOrganizacion(id); }
 export async function getOrganizacionUsuarios(id) { return (await api.get(organizacionPath(id, "/usuarios/"))).data; }
 export async function createOrganizacionUsuario(id, payload) { return (await api.post(organizacionPath(id, "/usuarios/"), payload)).data; }
+export async function updateOrganizacionUsuario(id, userId, payload) { return (await api.patch(organizacionPath(id, `/usuarios/${userId}/`), payload)).data; }
+export async function deleteOrganizacionUsuario(id, userId) { return (await api.delete(organizacionPath(id, `/usuarios/${userId}/`))).data; }
 export async function getOrganizacionDashboard(id, params = {}) { return (await api.get(organizacionPath(id, "/dashboard/"), { params })).data; }
 export async function getOrganizacionEstado(id) { return (await api.get(organizacionPath(id, "/estado/"))).data; }
 export async function getOrganizacionConfiguracion(id) { return (await api.get(organizacionPath(id, "/configuracion/"))).data; }

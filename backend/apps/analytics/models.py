@@ -94,13 +94,20 @@ class Organizacion(models.Model):
 class UsuarioOrganizacion(models.Model):
     class Rol(models.TextChoices):
         ADMIN = "admin", "Administrador"
-        ANALISTA = "analista", "Analista"
+        RESPONSABLE_AMBIENTAL = "responsable_ambiental", "Responsable ambiental"
+        ANALISTA = "analista", "Analista ambiental"
         OPERADOR = "operador", "Operador"
+        REVISOR_AMBIENTAL = "revisor_ambiental", "Revisor ambiental"
         LECTOR = "lector", "Lector"
+
+    class Alcance(models.TextChoices):
+        ORGANIZACION = "organizacion", "Toda la organización"
+        OBRAS = "obras", "Obras específicas"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="organizaciones_perfil")
     organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="usuarios")
-    rol = models.CharField(max_length=20, choices=Rol.choices, default=Rol.ANALISTA)
+    rol = models.CharField(max_length=24, choices=Rol.choices, default=Rol.ANALISTA)
+    alcance = models.CharField(max_length=20, choices=Alcance.choices, default=Alcance.ORGANIZACION)
     cargo = models.CharField(max_length=120, blank=True)
     activo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -114,6 +121,20 @@ class UsuarioOrganizacion(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.organizacion.nombre}"
+
+
+class UsuarioObraAcceso(models.Model):
+    usuario_organizacion = models.ForeignKey(UsuarioOrganizacion, on_delete=models.CASCADE, related_name="accesos_obra")
+    obra = models.ForeignKey("Obra", on_delete=models.CASCADE, related_name="accesos_usuario")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["usuario_organizacion", "obra"], name="unique_usuario_obra_acceso")]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.obra_id and self.usuario_organizacion_id and self.obra.organizacion_id != self.usuario_organizacion.organizacion_id:
+            raise ValidationError({"obra": "La obra debe pertenecer a la organización de la membresía."})
 
 
 class DiagnosticoAmbientalInicial(models.Model):

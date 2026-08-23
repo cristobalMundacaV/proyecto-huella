@@ -13,8 +13,8 @@ from .models import (
     Obra,
     Organizacion,
     ProblematicaAmbiental,
-    UsuarioOrganizacion,
 )
+from .permissions import Permission, filter_works_for_user, has_tenant_permission
 
 from .serializers_problematicas import (
     AccionMejoraAmbientalSerializer,
@@ -46,20 +46,15 @@ from .services.intervention_v2 import (
 def _org(
     request,
     value,
+    permission=None,
 ):
     organization = get_object_or_404(
         Organizacion,
         organizacion_id=value,
     )
 
-    allowed = request.user.is_authenticated and (
-        request.user.is_superuser
-        or UsuarioOrganizacion.objects.filter(
-            user=request.user,
-            organizacion=organization,
-            activo=True,
-        ).exists()
-    )
+    permission = permission or (Permission.PROBLEM_VIEW if request.method == "GET" else Permission.PROBLEM_MANAGE)
+    allowed = has_tenant_permission(request.user, organization, permission)
 
     if not allowed:
         raise Http404("Recurso no encontrado.")
@@ -71,7 +66,7 @@ def _requested_work(request, organization):
     work_id = request.query_params.get("obra")
     if not work_id:
         return None
-    work = Obra.objects.filter(organizacion=organization, id=work_id).first()
+    work = filter_works_for_user(Obra.objects.all(), request.user, organization).filter(id=work_id).first()
     if not work:
         raise Http404("Recurso no encontrado.")
     return work
@@ -102,6 +97,7 @@ def problematicas(
     org = _org(
         request,
         organizacion_id,
+        Permission.PROBLEM_VIEW if request.method == "GET" else Permission.PROBLEM_CREATE,
     )
 
     work = _requested_work(
