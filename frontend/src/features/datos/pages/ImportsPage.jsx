@@ -7,18 +7,24 @@ import {
 } from "react";
 
 import {
+  Boxes,
+  Database,
   Eye,
+  FileCheck2,
   FileSpreadsheet,
+  History,
   Search,
+  UploadCloud,
 } from "lucide-react";
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import PlatformLoader from "@/shared/components/PlatformLoader";
 
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 
 import {
+  Button,
   EmptyState,
   ErrorState,
   FilterBar,
@@ -39,6 +45,7 @@ import {
 } from "@/shared/utils/formatters";
 
 import ImportWorkflow from "../components/ImportWorkflow";
+import ImportModeCard from "../components/ImportModeCard";
 
 import {
   listImports,
@@ -90,6 +97,7 @@ const IMPORT_STATUS_OPTIONS = [
 
 
 export default function ImportsPage() {
+  const navigate = useNavigate();
   const {
     activeOrganizacionId,
   } = useOrganizacionActiva();
@@ -112,13 +120,18 @@ export default function ImportsPage() {
       status: "",
     });
   const [page, setPage] = useState(1);
+  const [workflowOpen, setWorkflowOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const requestRef = useRef(0);
   const workflowRef = useRef(null);
 
   const openImportWorkflow = () => {
-    workflowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    workflowRef.current?.focus({ preventScroll: true });
+    setWorkflowOpen(true);
+    window.requestAnimationFrame(() => {
+      workflowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      workflowRef.current?.focus({ preventScroll: true });
+    });
     window.history.replaceState(null, "", "#nueva-importacion");
   };
 
@@ -260,23 +273,32 @@ export default function ImportsPage() {
     );
 
   useEffect(() => { setPage(1); }, [filters.query, filters.status, scope, state.rows]);
-  const pagedRows = useMemo(() => visibleRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [page, visibleRows]);
+  const pagedRows = useMemo(() => historyOpen ? visibleRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : visibleRows.slice(0, 5), [historyOpen, page, visibleRows]);
 
 
-  const completedCount =
+  const pendingConfirmationCount =
     useMemo(
       () =>
         state.rows.filter(
           (row) =>
             [
-              "completado",
-              "completado_con_observaciones",
+              "requiere_mapeo",
+              "listo_para_confirmar",
             ].includes(
               row.estado
             )
         ).length,
       [state.rows]
     );
+
+  const scopeLabel = (row) => ({
+    organizacion: "Organización", obra: "Obra", dominio: "Dominio ambiental", activo: "Activo",
+  }[row.contexto_confirmado?.alcance] || "Organización");
+
+  const contextLabel = (row) => {
+    const context = row.contexto_confirmado || {};
+    return [context.obra_nombre, context.dominio_label].filter(Boolean).join(" · ") || "Toda la organización";
+  };
 
 
   if (
@@ -316,31 +338,30 @@ export default function ImportsPage() {
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold">
+              {state.rows.length > 0 && <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold">
                 {state.rows.length}{" "}
                 {state.rows.length === 1
                   ? "importación registrada"
                   : "importaciones registradas"}
-              </span>
+              </span>}
 
-              <span className="rounded-full border border-amber-300/40 bg-amber-300/15 px-3 py-1.5 text-xs font-bold text-amber-100">
+              {attentionCount > 0 && <span className="rounded-full border border-amber-300/40 bg-amber-300/15 px-3 py-1.5 text-xs font-bold text-amber-100">
                 {attentionCount}{" "}
                 {attentionCount === 1
                   ? "requiere atención"
                   : "requieren atención"}
-              </span>
+              </span>}
 
-              <span className="rounded-full border border-emerald-200/30 bg-emerald-200/10 px-3 py-1.5 text-xs font-bold text-emerald-50">
-                {completedCount}{" "}
-                {completedCount === 1
-                  ? "completada"
-                  : "completadas"}
-              </span>
+              {pendingConfirmationCount > 0 && <span className="rounded-full border border-emerald-200/30 bg-emerald-200/10 px-3 py-1.5 text-xs font-bold text-emerald-50">
+                {pendingConfirmationCount}{" "}
+                {pendingConfirmationCount === 1
+                  ? "pendiente de confirmación"
+                  : "pendientes de confirmación"}
+              </span>}
             </div>
           </div>
 
-          <button
-            type="button"
+          <Button
             onClick={openImportWorkflow}
             className="inline-flex self-start items-center gap-2 rounded-xl border border-white/30 bg-white px-4 py-3 text-sm font-black text-emerald-900 shadow-[0_8px_24px_rgba(0,0,0,0.12)] transition hover:bg-emerald-50 lg:self-center"
           >
@@ -350,13 +371,31 @@ export default function ImportsPage() {
             />
 
             Nueva importación
-          </button>
+          </Button>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Punto de entrada</p>
+          <h2 className="mt-1 text-2xl font-black text-[var(--text-primary)]">¿Qué quieres incorporar?</h2>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">Elige el flujo correcto antes de seleccionar archivos.</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <ImportModeCard icon={UploadCloud} title="Importar datos operacionales" description="Consumos, materiales, residuos, transporte y otras mediciones." onClick={openImportWorkflow} />
+          <ImportModeCard icon={FileCheck2} title="Subir evidencia o documento" description="Respalda la trazabilidad ambiental con un antecedente documental." onClick={() => navigate("/datos/evidencias")} />
+          <ImportModeCard icon={Database} title="Importar catálogo maestro" description="Carga administrada de catálogos y datos de referencia." disabled badge="Próximamente" />
+          <ImportModeCard icon={Boxes} title="Importación masiva" description="Procesamiento coordinado de varios archivos o estructuras." disabled badge="Próximamente" />
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={openImportWorkflow}><UploadCloud aria-hidden="true" size={17} />Nueva importación</Button>
+          <Button variant="secondary" onClick={() => setHistoryOpen(true)}><History aria-hidden="true" size={17} />Ver historial</Button>
         </div>
       </section>
 
 
       {/* NUEVA IMPORTACIÓN */}
-      <section
+      {workflowOpen && <section
         ref={workflowRef}
         id="nueva-importacion"
         tabIndex={-1}
@@ -370,19 +409,21 @@ export default function ImportsPage() {
             activeOrganizacionId
           }
           onCompleted={load}
+          onClose={() => setWorkflowOpen(false)}
         />
-      </section>
+      </section>}
 
 
       {/* HISTORIAL */}
       <section className="space-y-4">
-        <div>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
           <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">
             Seguimiento
           </p>
 
           <h2 className="mt-1 text-2xl font-black text-[var(--text-primary)]">
-            Historial de importaciones
+            {historyOpen ? "Historial de importaciones" : "Importaciones recientes"}
           </h2>
 
           <p className="mt-1 text-sm text-[var(--text-muted)]">
@@ -390,6 +431,10 @@ export default function ImportsPage() {
             su estado y el resultado que
             quedó registrado.
           </p>
+          </div>
+          {!historyOpen && state.rows.length > 5 && (
+            <Button variant="secondary" onClick={() => setHistoryOpen(true)}><History aria-hidden="true" size={17} />Ver historial completo</Button>
+          )}
         </div>
 
 
@@ -412,13 +457,14 @@ export default function ImportsPage() {
               FileSpreadsheet
             }
             title="Aún no hay importaciones anteriores"
-            description="Cuando completes tu primera carga, aparecerá aquí con su estado y resultado."
+             description="Cuando completes tu primera carga, aparecerá aquí con su estado y resultado."
+            action={<Button onClick={openImportWorkflow}><UploadCloud aria-hidden="true" size={17} />Nueva importación</Button>}
             className="border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_40%),linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98))] shadow-[0_12px_36px_rgba(6,78,59,0.06)]"
           />
         ) : (
           <>
             {/* FILTROS */}
-            <FilterBar>
+            {historyOpen && <FilterBar>
               <div className="grid w-full gap-4 md:grid-cols-2">
                 <SearchInput
                   label="Buscar importaciones"
@@ -482,7 +528,7 @@ export default function ImportsPage() {
                   )}
                 </Select>
               </div>
-            </FilterBar>
+            </FilterBar>}
 
 
             {!visibleRows.length ? (
@@ -497,9 +543,10 @@ export default function ImportsPage() {
                 <TableShell>
                   <TableHead>
                     <tr>
-                      <TableCell as="th">
-                        Archivo / fuente
-                      </TableCell>
+                      <TableCell as="th">Fecha</TableCell>
+                      <TableCell as="th">Archivo / fuente</TableCell>
+                      <TableCell as="th">Alcance</TableCell>
+                      <TableCell as="th">Contexto</TableCell>
 
                       <TableCell as="th">
                         Estado
@@ -507,10 +554,6 @@ export default function ImportsPage() {
 
                       <TableCell as="th">
                         Resultado
-                      </TableCell>
-
-                      <TableCell as="th">
-                        Fecha
                       </TableCell>
 
                       <TableCell
@@ -523,7 +566,7 @@ export default function ImportsPage() {
                   </TableHead>
 
                   <TableBody
-                    columns={5}
+                    columns={7}
                   >
                     {pagedRows.map(
                       (row) => {
@@ -539,6 +582,7 @@ export default function ImportsPage() {
                             }
                             className="transition-colors hover:bg-emerald-50/30"
                           >
+                            <TableCell><span className="whitespace-nowrap text-sm text-[var(--text-secondary)]">{formatDateTime(row.created_at)}</span></TableCell>
                             <TableCell>
                               <div className="flex min-w-[220px] items-start gap-3">
                                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
@@ -566,6 +610,9 @@ export default function ImportsPage() {
                               </div>
                             </TableCell>
 
+                            <TableCell><span className="text-sm text-[var(--text-secondary)]">{scopeLabel(row)}</span></TableCell>
+                            <TableCell><span className="text-sm text-[var(--text-secondary)]">{contextLabel(row)}</span></TableCell>
+
                             <TableCell>
                               <StatusBadge
                                 tone={
@@ -582,14 +629,6 @@ export default function ImportsPage() {
                               <span className="text-sm text-[var(--text-secondary)]">
                                 {importResultLabel(
                                   row
-                                )}
-                              </span>
-                            </TableCell>
-
-                            <TableCell>
-                              <span className="text-sm text-[var(--text-secondary)]">
-                                {formatDateTime(
-                                  row.created_at
                                 )}
                               </span>
                             </TableCell>
@@ -617,7 +656,7 @@ export default function ImportsPage() {
                     )}
                   </TableBody>
                 </TableShell>
-                <Pagination page={page} totalItems={visibleRows.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel="importaciones" />
+                {historyOpen && <Pagination page={page} totalItems={visibleRows.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel="importaciones" />}
               </div>
             )}
           </>

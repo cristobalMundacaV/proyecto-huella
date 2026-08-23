@@ -5,7 +5,7 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
 
-from ..models import (ActivoOperacional, EvidenciaObra, FuenteDatos, MapeoColumna, Obra,
+from ..models import (ActivoOperacional, AplicabilidadCapacidadObra, EvidenciaObra, FuenteDatos, MapeoColumna, Obra,
                       PlantillaMapeo, ProcesoIngesta, ProcesoOperacional, PuntoAmbientalOperacional,
                       RegistroExtraido, UnidadOperacional, VersionEvidencia)
 from .ingestion_concepts import (CONCEPT_ALIASES, classify_document, normalize_column,
@@ -101,6 +101,7 @@ def crear_ingesta(organizacion, upload, *, fuente_id=None, fuente_nombre="Fuente
         destino_operacional=destino_operacional, flujo=flujo, clasificacion_sugerida=suggested,
         clasificacion_confirmada=clasificacion_confirmada, contexto_confirmado=contexto_confirmado or {},
     )
+    _validate_context(process, process.contexto_confirmado)
     process.full_clean(); process.save()
     return process
 
@@ -121,6 +122,7 @@ def crear_ingesta_estructurada(organizacion, payload, *, fuente_id=None, fuente_
         destino_operacional=destino_operacional, flujo=flujo, contexto_confirmado=contexto_confirmado or {},
         estado=ProcesoIngesta.Estado.RECIBIDO, filas_detectadas=len(rows),
     )
+    _validate_context(process, process.contexto_confirmado)
     process.full_clean(); process.save()
     RegistroExtraido.objects.bulk_create([
         RegistroExtraido(proceso_ingesta=process, numero_fila=index, origen=f"payload:{index}", datos_originales=row)
@@ -145,6 +147,33 @@ def _validate_context(process, context):
     for field, model in references.items():
         if context.get(field) and not model.objects.filter(organizacion=process.organizacion, id=context[field]).exists():
             raise ValueError(f"La referencia {field} no pertenece a la organización.")
+    scope = context.get("alcance", "organizacion")
+    if scope not in {"organizacion", "obra", "dominio", "activo"}:
+        raise ValueError("El alcance informado no es válido.")
+    if scope in {"obra", "dominio", "activo"} and not context.get("obra_id"):
+        raise ValueError("El alcance seleccionado requiere una obra.")
+    if scope == "dominio":
+        domain = context.get("dominio")
+        if not domain:
+            raise ValueError("El alcance ambiental requiere un dominio.")
+        capability = "gestion_hidrica_suelo" if domain in {"hidrica_suelo", "hidrica-suelo"} else domain
+        if not AplicabilidadCapacidadObra.objects.filter(
+            obra_id=context["obra_id"], obra__organizacion=process.organizacion,
+            capacidad__clave=capability, estado__in=["aplica", "sin_datos"],
+        ).exists():
+            raise ValueError("El dominio no está confirmado como aplicable para la obra.")
+    if scope == "activo":
+        raise ValueError("El modelo actual no permite verificar que un activo pertenezca a una obra.")
+
+
+def _context_conflicts(confirmed, suggested):
+    labels = {"obra_id": "obra", "activo_id": "activo", "proceso_operacional_id": "proceso", "punto_id": "punto_medicion"}
+    return [
+        {"codigo": "contexto_contradictorio", "campo": labels.get(field, field),
+         "detalle": f"El valor del archivo contradice el {labels.get(field, field)} seleccionado."}
+        for field, selected in (confirmed or {}).items()
+        if field in labels and suggested.get(field) and str(suggested[field]) != str(selected)
+    ]
 
 
 @transaction.atomic
@@ -275,7 +304,7 @@ def preview_ingesta(proceso):
     for record in proceso.registros_extraidos.all():
         normalized, units = _normalize_row(record.datos_originales, mapping)
         suggestions, context_errors = _context_suggestions(proceso, normalized)
-        errors = _capture_errors(proceso, normalized) + context_errors
+        errors = _capture_errors(proceso, normalized) + context_errors + _context_conflicts(proceso.contexto_confirmado, suggestions)
         record.datos_normalizados = {"valores": normalized, "unidades": units, "contexto_sugerido": suggestions}
         record.errores = errors; record.auto_confirmable = not errors
         record.estado = RegistroExtraido.Estado.LISTO if not errors else RegistroExtraido.Estado.REQUIERE_REVISION
@@ -320,7 +349,7 @@ def confirmar_ingesta(proceso):
                 suggestions, context_errors = _context_suggestions(proceso, data)
                 confirmed = proceso.contexto_confirmado or {}
                 context_key = {"obra": "obra_id", "proceso": "proceso_operacional_id", "activo": "activo_id", "punto_medicion": "punto_id"}
-                unresolved = [error for error in context_errors if not confirmed.get(context_key.get(error["campo"], ""))]
+                unresolved = _context_conflicts(confirmed, suggestions) + [error for error in context_errors if not confirmed.get(context_key.get(error["campo"], ""))]
                 if unresolved: raise ValueError(f"{unresolved[0]['codigo']}|{unresolved[0]['campo']}|{unresolved[0]['detalle']}")
                 record.datos_normalizados = {"valores": data, "unidades": units, "contexto_sugerido": suggestions}
                 activity, specialization, created_observations = handler(record, data, units)

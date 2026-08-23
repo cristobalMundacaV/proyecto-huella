@@ -1,12 +1,21 @@
-import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ExternalLink, ShieldCheck } from "lucide-react";
+import { createElement, useEffect, useRef, useState } from "react";
+import { ArrowLeft, BadgeCheck, FileCheck2, FileText, History, MessageSquareText, Receipt, ShieldCheck } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
-import { Alert, Card, CardContent, ErrorState, PageHeader, SectionHeader, StatusBadge, Timeline, TimelineItem } from "@/shared/ui";
+import { Alert, ButtonLink, EmptyState, ErrorState, SectionHeader, StatusBadge, Timeline, TimelineItem } from "@/shared/ui";
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import { formatDate, formatDateTime } from "@/shared/utils/formatters";
+import EvidenceDocumentViewer, { documentPresentation, FileActions } from "../components/EvidenceDocumentViewer";
 import { evidenceContext, listEvidence, listImports } from "../services/dataApi";
 import { evidenceStatusInfo, evidenceTypeLabel, importDisplayName } from "../utils/dataPresentation";
+
+const evidenceIcon = (type, presentation) => {
+  const value = String(type || "").toLowerCase();
+  if (value.includes("factura")) return Receipt;
+  if (value.includes("certificado")) return BadgeCheck;
+  if (value.includes("informe")) return FileText;
+  return presentation.Icon || FileCheck2;
+};
 
 export default function EvidenceDetailPage() {
   const { evidenceId } = useParams();
@@ -19,41 +28,16 @@ export default function EvidenceDetailPage() {
     if (!activeOrganizacionId) return undefined;
     const requestId = ++requestRef.current;
     setState({ scope: scopeKey, status: "loading", data: null, document: null, linkedImport: null, supplementalError: false });
-
-    Promise.allSettled([
-      evidenceContext(evidenceId),
-      listEvidence(activeOrganizacionId),
-      listImports(activeOrganizacionId),
-    ]).then(([contextResult, evidenceResult, importsResult]) => {
+    Promise.allSettled([evidenceContext(evidenceId), listEvidence(activeOrganizacionId), listImports(activeOrganizacionId)]).then(([contextResult, evidenceResult, importsResult]) => {
       if (requestRef.current !== requestId) return;
-      if (contextResult.status === "rejected") {
-        setState({ scope: scopeKey, status: "error", data: null, document: null, linkedImport: null, supplementalError: false });
-        return;
-      }
-      if (String(contextResult.value.references?.organization || "") !== String(activeOrganizacionId)) {
-        setState({ scope: scopeKey, status: "missing", data: null, document: null, linkedImport: null, supplementalError: false });
-        return;
-      }
-
+      if (contextResult.status === "rejected") return setState({ scope: scopeKey, status: "error", data: null, document: null, linkedImport: null, supplementalError: false });
+      if (String(contextResult.value.references?.organization || "") !== String(activeOrganizacionId)) return setState({ scope: scopeKey, status: "missing", data: null, document: null, linkedImport: null, supplementalError: false });
       const documents = evidenceResult.status === "fulfilled" ? evidenceResult.value : null;
       const document = documents?.find((item) => String(item.id) === String(evidenceId)) || null;
-      if (documents && !document) {
-        setState({ scope: scopeKey, status: "missing", data: null, document: null, linkedImport: null, supplementalError: importsResult.status === "rejected" });
-        return;
-      }
-
+      if (documents && !document) return setState({ scope: scopeKey, status: "missing", data: null, document: null, linkedImport: null, supplementalError: importsResult.status === "rejected" });
       const imports = importsResult.status === "fulfilled" ? importsResult.value : [];
-      const linkedImport = imports.find((item) => String(item.version_evidencia_detalle?.evidencia) === String(evidenceId)) || null;
-      setState({
-        scope: scopeKey,
-        status: "ready",
-        data: contextResult.value,
-        document,
-        linkedImport,
-        supplementalError: evidenceResult.status === "rejected" || importsResult.status === "rejected",
-      });
+      setState({ scope: scopeKey, status: "ready", data: contextResult.value, document, linkedImport: imports.find((item) => String(item.version_evidencia_detalle?.evidencia) === String(evidenceId)) || null, supplementalError: evidenceResult.status === "rejected" || importsResult.status === "rejected" });
     });
-
     return () => { requestRef.current += 1; };
   }, [activeOrganizacionId, evidenceId, scopeKey]);
 
@@ -63,69 +47,36 @@ export default function EvidenceDetailPage() {
 
   const evidence = state.data.evidencia;
   const versions = state.data.versiones || [];
-  const status = evidenceStatusInfo(evidence.estado);
-  const scopeLabel = state.document?.obra_nombre || state.document?.organizacion_nombre || "Organización activa";
-  const headerDate = evidence.fecha_documento
-    ? `Fecha del documento: ${formatDate(evidence.fecha_documento)}`
-    : state.document?.created_at
-      ? `Ingresó: ${formatDate(state.document.created_at)}`
-      : "Fecha: Sin datos";
+  const document = state.document || {};
+  const status = evidenceStatusInfo(evidence.estado || document.estado_documental);
+  const type = evidence.tipo || document.tipo_evidencia;
+  const typeLabel = evidenceTypeLabel(type);
+  const scopeLabel = document.obra_nombre || document.organizacion_nombre || "Organización activa";
+  const documentDate = evidence.fecha_documento || document.fecha_documento;
+  const latestVersion = versions[0];
+  const fileUrl = document.archivo_url || evidence.archivo_url || "";
+  const fileName = latestVersion?.nombre_original || document.archivo?.split("/").pop() || evidence.nombre || document.nombre || "Documento original";
+  const mime = latestVersion?.metadata_tecnica?.mime_type || document.metadata_extraccion?.mime_type;
+  const presentation = documentPresentation({ url: fileUrl, name: fileName, mime });
+  const observations = evidence.observaciones || evidence.descripcion || document.observaciones;
 
   return <main className="space-y-6">
     <Link className="inline-flex items-center gap-2 text-sm font-bold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]" to="/datos/evidencias"><ArrowLeft aria-hidden="true" size={16} />Evidencias</Link>
-    <PageHeader
-      title={evidence.nombre || "Documento"}
-      description={scopeLabel}
-      status={<StatusBadge tone={status.tone}>{status.label}</StatusBadge>}
-      metadata={headerDate}
-    />
-
+    <header className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border-default)] pb-5"><div className="flex min-w-0 items-start gap-3"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">{createElement(evidenceIcon(type, presentation), { "aria-hidden": true, size: 23 })}</span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-black text-[var(--text-primary)]">{evidence.nombre || document.nombre || "Documento"}</h1><StatusBadge tone={status.tone}>{status.label}</StatusBadge></div><p className="mt-1 text-sm text-[var(--text-secondary)]">{typeLabel} · {scopeLabel}</p><p className="mt-1 text-xs text-[var(--text-muted)]">{documentDate ? formatDate(documentDate) : "Fecha documental no informada"}</p></div></div><FileActions url={fileUrl} name={fileName} /></header>
     {state.supplementalError && <Alert tone="info" title="Detalle parcial">El documento está disponible, pero parte de su contexto relacionado no pudo consultarse.</Alert>}
 
-    <div className="grid gap-5 lg:grid-cols-2">
-      <Card><CardContent>
-        <SectionHeader title="Documento" description="Archivo y datos documentales disponibles." />
-        <dl className="space-y-3 text-sm">
-          <div><dt className="text-[var(--text-muted)]">Tipo</dt><dd className="font-medium">{evidenceTypeLabel(evidence.tipo)}</dd></div>
-          <div><dt className="text-[var(--text-muted)]">Fecha documental</dt><dd className="font-medium">{evidence.fecha_documento ? formatDate(evidence.fecha_documento) : "Sin datos"}</dd></div>
-          <div><dt className="text-[var(--text-muted)]">Estado</dt><dd className="mt-1"><StatusBadge tone={status.tone}>{status.label}</StatusBadge></dd></div>
-        </dl>
-        {state.document?.archivo_url && <a className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[var(--brand-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]" href={state.document.archivo_url} rel="noreferrer" target="_blank">Abrir archivo original <ExternalLink aria-hidden="true" size={15} /></a>}
-        <p className="mt-4 text-xs text-[var(--text-muted)]">El archivo original se conserva. Las versiones procesadas se muestran por separado y no lo reemplazan silenciosamente.</p>
-      </CardContent></Card>
-
-      <Card><CardContent>
-        <SectionHeader title="Contexto" description="Dónde aplica este documento." />
-        <dl className="space-y-3 text-sm">
-          <div><dt className="text-[var(--text-muted)]">Alcance</dt><dd className="font-medium">{scopeLabel}</dd></div>
-          {state.document?.obra_codigo && <div><dt className="text-[var(--text-muted)]">Código de obra</dt><dd className="font-medium">{state.document.obra_codigo}</dd></div>}
-        </dl>
-        {state.linkedImport && <Link className="mt-5 inline-flex text-sm font-bold text-[var(--brand-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]" to={`/datos/importaciones/${state.linkedImport.id}`}>Ver importación: {importDisplayName(state.linkedImport)}</Link>}
-      </CardContent></Card>
+    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
+      <EvidenceDocumentViewer url={fileUrl} name={fileName} mime={mime} />
+      <aside className="rounded-[24px] border border-[var(--border-default)] bg-white p-5 shadow-[0_12px_32px_rgba(15,23,42,0.05)] lg:sticky lg:top-24"><p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Información</p><dl className="mt-4 space-y-4 text-sm"><div><dt className="text-[var(--text-muted)]">Tipo</dt><dd className="font-bold">{typeLabel}</dd></div><div><dt className="text-[var(--text-muted)]">Estado</dt><dd className="font-bold">{status.label}</dd></div><div><dt className="text-[var(--text-muted)]">Fecha documental</dt><dd className="font-bold">{documentDate ? formatDate(documentDate) : "Sin datos"}</dd></div><div><dt className="text-[var(--text-muted)]">Obra o alcance</dt><dd className="font-bold">{scopeLabel}</dd></div>{document.organizacion_nombre && <div><dt className="text-[var(--text-muted)]">Organización</dt><dd className="font-bold">{document.organizacion_nombre}</dd></div>}</dl>{state.linkedImport && <div className="mt-6 border-t border-[var(--border-default)] pt-5"><p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">Origen de incorporación</p><p className="mt-2 text-sm font-bold">{importDisplayName(state.linkedImport)}</p><ButtonLink className="mt-3" variant="secondary" to={`/datos/importaciones/${state.linkedImport.id}`}>Ver importación →</ButtonLink></div>}</aside>
     </div>
 
-    {(evidence.observaciones || evidence.descripcion || state.document?.observaciones) && <section className="rounded-[22px] border border-[var(--border-default)] bg-[var(--bg-surface-subtle)] p-5"><SectionHeader title="Observaciones documentales" description="Contexto registrado junto al documento original." /><p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{evidence.observaciones || evidence.descripcion || state.document.observaciones}</p></section>}
+    {observations && <section className="flex gap-3 rounded-[20px] border border-teal-200 bg-teal-50/50 p-5"><MessageSquareText aria-hidden="true" className="shrink-0 text-teal-700" size={21} /><div><h2 className="font-black">Observaciones documentales</h2><p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{observations}</p></div></section>}
 
-    <section>
-      <SectionHeader title="Versiones" description="Historial de archivos procesados para este documento." />
-      {versions.length ? <Card><CardContent><Timeline>{versions.map((version, index) => <TimelineItem
-        key={version.id}
-        icon={ShieldCheck}
-        timestamp={formatDateTime(version.created_at)}
-        title={`Versión ${version.version}${index === 0 ? " · más reciente" : ""}`}
-        description={version.nombre_original || "Archivo sin nombre"}
-      />)}</Timeline></CardContent></Card> : <Card><CardContent><p className="text-sm text-[var(--text-muted)]">No hay versiones procesadas disponibles.</p></CardContent></Card>}
-    </section>
+    <section><SectionHeader title="Versiones" description="Historial documental conservado sin reemplazar silenciosamente el archivo original." />{versions.length ? <div className="mt-4 rounded-[22px] border border-[var(--border-default)] bg-white p-5"><Timeline>{versions.map((version, index) => <TimelineItem key={version.id} icon={ShieldCheck} timestamp={formatDateTime(version.created_at)} title={`Versión ${version.version}${index === 0 ? " · más reciente" : ""}`} description={version.nombre_original || "Archivo sin nombre"} />)}</Timeline></div> : <EmptyState compact icon={History} title="Sin versiones adicionales" description="Este documento conserva únicamente su archivo original." />}</section>
 
-    <section>
-      <SectionHeader title="Trazabilidad" description="Detalles disponibles para responder de dónde salió este documento." />
-      <Card><CardContent>
-        {versions.length ? <details>
-          <summary className="cursor-pointer font-bold text-[var(--text-primary)]">Detalles de trazabilidad</summary>
-          <div className="mt-4 space-y-3">{versions.map((version) => <div key={version.id} className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-subtle)] p-3 text-sm"><p className="font-bold">Versión {version.version}</p><p className="mt-1 text-[var(--text-muted)]">Archivo: {version.nombre_original || "Sin datos"}</p><p className="mt-1 break-all text-xs text-[var(--text-muted)]">Checksum: {version.checksum_sha256 || "Sin datos"}</p></div>)}</div>
-        </details> : <p className="text-sm text-[var(--text-muted)]">No hay información de versiones para ampliar la trazabilidad.</p>}
-        <p className="mt-4 text-xs text-[var(--text-muted)]">El contrato de este detalle no entrega observaciones individuales producidas por el documento; no se reconstruyen ni se infieren.</p>
-      </CardContent></Card>
-    </section>
+    <section><SectionHeader title="Trazabilidad" description="Información disponible para responder de dónde salió este documento." /><div className="mt-4 rounded-[22px] border border-[var(--border-default)] bg-white p-5"><div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4"><Trace label="Archivo original" value={fileName} /><Trace label="Contexto" value={scopeLabel} /><Trace label="Versionado" value={versions.length ? `${versions.length} ${versions.length === 1 ? "versión" : "versiones"}` : "Archivo original"} /><Trace label="Importación" value={state.linkedImport ? importDisplayName(state.linkedImport) : "Sin importación vinculada"} /></div><details className="mt-5 border-t border-[var(--border-default)] pt-4"><summary className="cursor-pointer font-bold">Información técnica</summary><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">{document.obra_codigo && <Technical label="Código de obra" value={document.obra_codigo} />}<Technical label="Identificador documental" value={evidenceId} />{latestVersion && <><Technical label="Nombre original" value={latestVersion.nombre_original || "Sin datos"} /><Technical label="Versión" value={latestVersion.version} /><div className="sm:col-span-2"><Technical label="Checksum" value={latestVersion.checksum_sha256 || "Sin datos"} mono /></div></>}</dl></details><p className="mt-4 text-xs text-[var(--text-muted)]">El contrato no entrega observaciones individuales producidas por este documento; no se reconstruyen ni se infieren.</p></div></section>
   </main>;
 }
+
+function Trace({ label, value }) { return <div><p className="text-[var(--text-muted)]">{label}</p><p className="mt-1 font-bold">{value}</p></div>; }
+function Technical({ label, value, mono = false }) { return <div><dt className="text-[var(--text-muted)]">{label}</dt><dd className={`break-all font-medium ${mono ? "font-mono text-xs" : ""}`}>{value}</dd></div>; }

@@ -11,6 +11,7 @@ import { destinationLabel, importDisplayName, importProgressStep, importResultLa
 const steps = ["Subir", "Entender", "Revisar", "Confirmar", "Resultado"];
 const displayValue = (value) => value === null || value === undefined ? "Sin datos" : value;
 const terminalStates = ["completado", "completado_con_observaciones"];
+const humanize = (value) => String(value || "").replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
 
 export default function ImportDetailPage() {
   const { processId } = useParams();
@@ -41,11 +42,23 @@ export default function ImportDetailPage() {
   const resultAvailable = terminalStates.includes(item.estado);
   const analysisAvailable = ["requiere_mapeo", "listo_para_confirmar", "procesando", "completado", "completado_con_observaciones"].includes(item.estado);
   const version = item.version_evidencia_detalle;
-  const workId = item.contexto_confirmado?.obra_id;
+  const context = item.contexto_confirmado || {};
+  const workId = context.obra_id;
+  const mappings = item.plantilla?.mapeos || [];
 
   return <main className="space-y-6">
     <Link className="inline-flex items-center gap-2 text-sm font-bold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]" to="/datos/importaciones"><ArrowLeft aria-hidden="true" size={16} />Importaciones</Link>
     <PageHeader title={importDisplayName(item)} description={formatDateTime(item.created_at)} status={<StatusBadge tone={status.tone}>{status.label}</StatusBadge>} />
+
+    <section>
+      <SectionHeader title="Contexto" description="Alcance confirmado por la persona antes de cargar el archivo." />
+      <Card><CardContent><dl className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div><dt className="text-[var(--text-muted)]">Alcance</dt><dd className="font-bold">{humanize(context.alcance || "organizacion")}</dd></div>
+        <div><dt className="text-[var(--text-muted)]">Obra</dt><dd className="font-bold">{context.obra_nombre || "No aplica"}</dd></div>
+        <div><dt className="text-[var(--text-muted)]">Ámbito ambiental</dt><dd className="font-bold">{context.dominio_label || "No aplica"}</dd></div>
+        <div><dt className="text-[var(--text-muted)]">Fuente</dt><dd className="font-bold">{item.fuente_nombre || "Sin datos"}</dd></div>
+      </dl></CardContent></Card>
+    </section>
 
     <section>
       <SectionHeader title="Estado" description="Dónde se encuentra esta carga dentro del proceso." />
@@ -86,7 +99,7 @@ export default function ImportDetailPage() {
           <div><dt className="text-[var(--text-muted)]">Fuente de datos</dt><dd className="font-medium">{item.fuente_nombre || "Sin datos"}</dd></div>
           <div><dt className="text-[var(--text-muted)]">Se incorporará en</dt><dd className="font-medium">{destinationLabel(item.destino_operacional)}</dd></div>
           {item.flujo && <div><dt className="text-[var(--text-muted)]">Flujo</dt><dd className="font-medium">{String(item.flujo).replaceAll("_", " ")}</dd></div>}
-          {workId && <div><dt className="text-[var(--text-muted)]">Obra</dt><dd><Link className="font-bold text-[var(--brand-primary)]" to={`/obras/${workId}/resumen`}>Ver obra #{workId}</Link></dd></div>}
+          {workId && <div><dt className="text-[var(--text-muted)]">Obra</dt><dd><Link className="font-bold text-[var(--brand-primary)]" to={`/obras/${workId}/resumen`}>{context.obra_nombre || "Ver obra"}</Link></dd></div>}
         </dl>
       </CardContent></Card>
 
@@ -99,5 +112,12 @@ export default function ImportDetailPage() {
         </div> : <p className="text-sm text-[var(--text-muted)]">Esta carga no tiene evidencia documental asociada en el contrato actual.</p>}
       </CardContent></Card>
     </div>
+
+    <section>
+      <SectionHeader title="Mapeo" description="Correspondencia de columnas utilizada para interpretar el archivo." />
+      <Card><CardContent>
+        {mappings.length ? <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead><tr className="border-b border-[var(--border-default)] text-[var(--text-muted)]"><th className="p-3">Columna de origen</th><th className="p-3">Campo de destino</th><th className="p-3">Unidad esperada</th></tr></thead><tbody>{mappings.map((mapping) => <tr key={mapping.id} className="border-b border-[var(--border-default)] last:border-0"><td className="p-3 font-bold">{mapping.columna_origen}</td><td className="p-3">{humanize(mapping.concepto_normalizado)}</td><td className="p-3">{mapping.unidad_esperada || "Sin unidad definida"}</td></tr>)}</tbody></table></div> : <p className="text-sm text-[var(--text-muted)]">Todavía no existe un mapeo confirmado para esta importación.</p>}
+      </CardContent></Card>
+    </section>
   </main>;
 }

@@ -1,9 +1,10 @@
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
+import json
 from rest_framework.test import APITestCase
 
-from .models import (ActividadOperacional, ActivoOperacional, EvidenciaObra, FuenteDatos, Observacion, Organizacion,
+from .models import (ActividadOperacional, ActivoOperacional, EvidenciaObra, FuenteDatos, Observacion, Obra, Organizacion,
                      PlantillaMapeo, ProcesoIngesta, RegistroEmision, UsuarioOrganizacion, Vehiculo, VersionEvidencia)
 
 
@@ -18,14 +19,34 @@ class IngestionV2ApiTests(APITestCase):
         asset = ActivoOperacional.objects.create(organizacion=self.organizacion, codigo="LEG-15", nombre="Vehiculo legacy", tipo="vehiculo")
         Vehiculo.objects.create(activo=asset, patente="LEG-15")
 
-    def upload(self, content="viaje_id,km,toneladas\nV-001,132,18\nV-002,98,12\n", name="viajes.csv", fuente_nombre="Planilla logistica"):
+    def upload(self, content="viaje_id,km,toneladas\nV-001,132,18\nV-002,98,12\n", name="viajes.csv", fuente_nombre="Planilla logistica", contexto=None):
         lines = content.strip().splitlines()
         if lines and "patente" not in lines[0].lower():
             lines = [f"{lines[0]},patente", *[f"{line},LEG-15" for line in lines[1:]]]
             content = "\n".join(lines) + "\n"
         file = SimpleUploadedFile(name, content.encode("utf-8"), content_type="text/csv")
-        return self.client.post(f"{self.base}/ingestas/", {"archivo": file, "fuente_nombre": fuente_nombre,
-                                                                  "destino_operacional": "transporte"}, format="multipart")
+        payload = {"archivo": file, "fuente_nombre": fuente_nombre, "destino_operacional": "transporte"}
+        if contexto is not None:
+            payload["contexto"] = json.dumps(contexto)
+        return self.client.post(f"{self.base}/ingestas/", payload, format="multipart")
+
+    def test_carga_persiste_contexto_confirmado_de_obra(self):
+        obra = Obra.objects.create(
+            organizacion=self.organizacion, nombre="Centro logístico", fecha_inicio=timezone.localdate()
+        )
+        contexto = {"alcance": "obra", "obra_id": obra.id, "obra_nombre": obra.nombre}
+        response = self.upload(contexto=contexto)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["contexto_confirmado"], contexto)
+        self.assertEqual(ProcesoIngesta.objects.get(id=response.data["id"]).contexto_confirmado, contexto)
+
+    def test_carga_rechaza_obra_de_otro_tenant(self):
+        obra = Obra.objects.create(
+            organizacion=self.otra, nombre="Obra ajena", fecha_inicio=timezone.localdate()
+        )
+        response = self.upload(contexto={"alcance": "obra", "obra_id": obra.id})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(ProcesoIngesta.objects.count(), 0)
 
     def analyze_and_map(self, ingesta_id):
         analysis = self.client.post(f"{self.base}/ingestas/{ingesta_id}/analizar/", {}, format="json")

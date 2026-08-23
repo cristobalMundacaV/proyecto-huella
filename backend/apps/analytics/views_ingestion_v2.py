@@ -1,3 +1,5 @@
+import json
+
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes
@@ -20,6 +22,18 @@ def _organizacion(request, organizacion_id):
 
 def _proceso(organizacion, ingesta_id):
     return get_object_or_404(ProcesoIngesta.objects.select_related("version_evidencia__evidencia", "fuente_datos", "plantilla_mapeo"), organizacion=organizacion, id=ingesta_id)
+
+
+def _contexto(request):
+    value = request.data.get("contexto", {})
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ValueError("El contexto debe ser un objeto JSON válido.") from exc
+    if not isinstance(value, dict):
+        raise ValueError("El contexto debe ser un objeto.")
+    return value
 
 
 @api_view(["GET", "POST"])
@@ -54,7 +68,7 @@ def ingestas(request, organizacion_id):
             fuente_nombre=request.data.get("fuente_nombre", ""), evidencia_id=request.data.get("evidencia"),
             tipo_ingesta=request.data.get("tipo_ingesta", "tabular"),
             destino_operacional=request.data.get("destino_operacional", "actividad_generica"), flujo=request.data.get("flujo", ""),
-            clasificacion_confirmada=request.data.get("clasificacion_confirmada", ""),
+            clasificacion_confirmada=request.data.get("clasificacion_confirmada", ""), contexto_confirmado=_contexto(request),
         )
     except ValueError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
