@@ -14,7 +14,7 @@ from .models import (
     Organizacion,
     ProblematicaAmbiental,
 )
-from .permissions import Permission, filter_works_for_user, has_tenant_permission
+from .permissions import Permission, filter_works_for_user, has_tenant_permission, require_resource_work_access
 
 from .serializers_problematicas import (
     AccionMejoraAmbientalSerializer,
@@ -59,6 +59,7 @@ def _org(
     if not allowed:
         raise Http404("Recurso no encontrado.")
 
+    organization._rbac_user = request.user
     return organization
 
 
@@ -79,6 +80,7 @@ def _problem(organizacion, problematica_id, work=None):
     problem = ProblematicaAmbiental.objects.filter(**filters).first()
     if not problem:
         raise Http404("Recurso no encontrado.")
+    require_resource_work_access(organizacion._rbac_user, organizacion, problem)
     return problem
 
 
@@ -139,6 +141,8 @@ def problematicas(
     )
 
     serializer.is_valid(raise_exception=True)
+    requested_problem = ProblematicaAmbiental(organizacion=org, obra=serializer.validated_data.get("obra"))
+    require_resource_work_access(request.user, org, requested_problem)
 
     problem = serializer.save(organizacion=org)
 

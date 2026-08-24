@@ -3,7 +3,6 @@ import { ClipboardCheck, Plus } from "lucide-react";
 import { Button, ButtonLink, EmptyState, ErrorState, KpiCard, Pagination, SectionHeader, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
 import { applicability, isResourceReady, resourceData, transportMetrics } from "../utils/operationSelectors";
-import DomainApplicability from "../components/DomainApplicability";
 import { useEffect, useMemo, useState } from "react";
 import TransportRecordModal from "../components/TransportRecordModal";
 import OperationDomainShell from "../components/OperationDomainShell";
@@ -55,6 +54,7 @@ export default function TransportPage() {
     .filter(Boolean);
   const noApplicable = applicabilityState === "no_aplica";
   const unresolved = ["pendiente", "no_determinado"].includes(applicabilityState);
+  const applicabilityBadge = noApplicable ? "No aplica" : unresolved ? "Aplicabilidad por definir" : "Aplica";
   useEffect(() => { setPage(1); }, [journeys.length, persistedWorkId]);
   const pagedJourneys = useMemo(() => journeys.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [journeys, page]);
 
@@ -63,13 +63,9 @@ export default function TransportPage() {
       domainKey="transporte"
       title="Transporte"
       description="¿Cómo se está moviendo carga o personas en esta obra?"
-      applicability={
-        <DomainApplicability
-          context={context}
-          capability="transporte"
-        />
-      }
-      action={!noApplicable && !unresolved && journeys.length > 0 ? <Button leftIcon={Plus} onClick={() => setRecordOpen(true)}>Registrar viaje</Button> : undefined}
+      badges={[applicabilityBadge, journeysReady ? (journeys.length ? `${journeys.length} ${journeys.length === 1 ? "viaje" : "viajes"}` : "Sin viajes") : "Viajes no disponibles", noApplicable ? "Flujo deshabilitado" : unresolved ? "Requiere definición" : "Flujo habilitado"]}
+      primaryAction={!noApplicable && (unresolved ? <ButtonLink leftIcon={ClipboardCheck} to={`/obras/${obraId}/diagnostico`}>Revisar perfil ambiental</ButtonLink> : <Button leftIcon={Plus} onClick={() => setRecordOpen(true)}>Registrar viaje</Button>)}
+      secondaryAction={!noApplicable && <ButtonLink leftIcon={Plus} variant="secondary" to={`/obras/${obraId}/evidencias`}>{unresolved ? "Agregar evidencia" : "Agregar documento"}</ButtonLink>}
     >
       {!noApplicable && !unresolved && (indicatorsReady
         ? summaryMetrics.length > 0 && <section>
@@ -90,15 +86,13 @@ export default function TransportPage() {
       {noApplicable
         ? <EmptyState title="No aplica a esta unidad" description="Transporte está marcado como no aplicable. La ausencia de viajes no se presenta como cero operacional." />
         : unresolved
-          ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si transporte aplica a esta obra." primaryAction={<ButtonLink leftIcon={ClipboardCheck} to={`/obras/${obraId}/diagnostico`}>Revisar perfil ambiental</ButtonLink>} secondaryAction={<ButtonLink leftIcon={Plus} variant="secondary" to={`/obras/${obraId}/evidencias`}>Agregar evidencia</ButtonLink>} />
+          ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si transporte aplica a esta obra." />
         : !journeysReady
         ? <ErrorState title="No fue posible cargar los viajes" description="El resumen de transporte continúa disponible si pudo calcularse." />
         : !journeys.length
           ? <EmptyState
                 title="Sin viajes registrados"
-                description="Aún no hay movimientos de transporte registrados para esta unidad."
-                primaryAction={<Button leftIcon={Plus} onClick={() => setRecordOpen(true)}>Registrar viaje</Button>}
-                secondaryAction={<ButtonLink leftIcon={Plus} variant="secondary" to={`/obras/${obraId}/evidencias`}>Agregar documento</ButtonLink>}
+                description="Aún no hay movimientos de transporte registrados para esta unidad. Comienza registrando un viaje o adjuntando documentación de respaldo."
               />
           : <section>
             <SectionHeader

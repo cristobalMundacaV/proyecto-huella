@@ -31,7 +31,6 @@ import {
   recordMeasurements,
   resourceData,
 } from "../utils/operationSelectors";
-import DomainApplicability from "../components/DomainApplicability";
 import OperationDomainShell from "../components/OperationDomainShell";
 import ManualFlowRecordModal from "../components/ManualFlowRecordModal";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
@@ -113,6 +112,7 @@ export default function SectorDomainPage({ domain }) {
 
   const noApplicable = applicabilityState === "no_aplica";
   const unresolved = ["pendiente", "no_determinado"].includes(applicabilityState);
+  const applicabilityBadge = noApplicable ? "No aplica" : unresolved ? "Aplicabilidad por definir" : "Aplica";
   useEffect(() => { setPage(1); }, [domain, measurements.length, persistedWorkId]);
   const pagedMeasurements = useMemo(() => measurements.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [measurements, page]);
 
@@ -121,13 +121,9 @@ export default function SectorDomainPage({ domain }) {
       domainKey={domain}
       title={config.label}
       description={config.question}
-      applicability={
-        <DomainApplicability
-          context={context}
-          capability={config.capability}
-        />
-      }
-      action={!noApplicable && !unresolved && records.length > 0 ? <Button leftIcon={Plus} onClick={() => setCaptureOpen(true)}>Registrar información</Button> : undefined}
+      badges={[applicabilityBadge, recordsReady ? (records.length ? `${records.length} ${records.length === 1 ? "registro" : "registros"}` : "Sin registros") : "Registros no disponibles", noApplicable ? "Flujo deshabilitado" : unresolved ? "Requiere definición" : "Flujo habilitado"]}
+      primaryAction={!noApplicable && (unresolved ? <ButtonLink leftIcon={ClipboardCheck} to={`/obras/${obraId}/diagnostico`}>Revisar perfil ambiental</ButtonLink> : <Button leftIcon={Plus} onClick={() => setCaptureOpen(true)}>Registrar información</Button>)}
+      secondaryAction={!noApplicable && <ButtonLink leftIcon={Plus} variant="secondary" to={`/obras/${obraId}/evidencias`}>{unresolved ? "Agregar evidencia" : "Agregar documento"}</ButtonLink>}
     >
       {!recordsReady && <ErrorState
         title={`No fue posible cargar ${config.label.toLowerCase()}`}
@@ -170,30 +166,11 @@ export default function SectorDomainPage({ domain }) {
             ? <EmptyState
                 title="Aplicabilidad por definir"
                 description="Aún no existe información suficiente para determinar si este ámbito aplica a la obra."
-                primaryAction={
-                  <ButtonLink
-                    leftIcon={ClipboardCheck}
-                    to={`/obras/${obraId}/diagnostico`}
-                  >
-                    Revisar perfil ambiental
-                  </ButtonLink>
-                }
-                secondaryAction={
-                  <ButtonLink
-                    leftIcon={Plus}
-                    variant="secondary"
-                    to={`/obras/${obraId}/evidencias`}
-                  >
-                    Agregar evidencia
-                  </ButtonLink>
-                }
               />
             : !records.length
               ? <EmptyState
                 title="Sin información registrada"
-                description={`Aún no hay registros de ${config.label.toLowerCase()} para esta obra.`}
-                primaryAction={<Button leftIcon={Plus} onClick={() => setCaptureOpen(true)}>Registrar información</Button>}
-                secondaryAction={<ButtonLink leftIcon={Plus} variant="secondary" to={`/obras/${obraId}/evidencias`}>Agregar documento</ButtonLink>}
+                description={`Aún no hay registros de ${config.label.toLowerCase()} para esta obra. Comienza registrando información o adjuntando documentación de respaldo.`}
               />
           : <section>
             <SectionHeader

@@ -45,7 +45,7 @@ class IngestionV2ApiTests(APITestCase):
             organizacion=self.otra, nombre="Obra ajena", fecha_inicio=timezone.localdate()
         )
         response = self.upload(contexto={"alcance": "obra", "obra_id": obra.id})
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 404)
         self.assertEqual(ProcesoIngesta.objects.count(), 0)
 
     def analyze_and_map(self, ingesta_id):

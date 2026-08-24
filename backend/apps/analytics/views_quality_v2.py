@@ -9,11 +9,12 @@ from .models import (
     EvaluacionCalidadDato,
     IndicadorAmbiental,
     LineaBaseAmbiental,
+    Obra,
     Organizacion,
     PeriodoComparable,
     PoliticaConfianzaFuente,
-    UsuarioOrganizacion,
 )
+from .permissions import Permission, filter_works_for_user, has_tenant_permission, require_resource_work_access
 from .serializers_quality_v2 import (
     DiscrepanciaSerializer,
     EvaluacionCalidadSerializer,
@@ -27,16 +28,9 @@ from .services.indicators_v2 import build_baseline
 from .services.quality_v2 import evaluate_observation_quality
 
 
-def _org(request, value):
+def _org(request, value, permission=Permission.INDICATOR_VIEW):
     organization = get_object_or_404(Organizacion, organizacion_id=value)
-    allowed = request.user.is_authenticated and (
-        request.user.is_superuser
-        or UsuarioOrganizacion.objects.filter(
-            user=request.user,
-            organizacion=organization,
-            activo=True,
-        ).exists()
-    )
+    allowed = has_tenant_permission(request.user, organization, permission)
     if not allowed:
         raise Http404("Recurso no encontrado.")
     return organization
@@ -124,7 +118,7 @@ def discrepancias(
 
 @api_view(["PATCH"])
 def discrepancia_detail(request, organizacion_id, discrepancia_id):
-    org = _org(request, organizacion_id)
+    org = _org(request, organizacion_id, Permission.IMPORT_REVIEW)
     item = get_object_or_404(DiscrepanciaDato, organizacion=org, id=discrepancia_id)
     serializer = DiscrepanciaSerializer(item, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
@@ -134,7 +128,7 @@ def discrepancia_detail(request, organizacion_id, discrepancia_id):
 
 @api_view(["GET"])
 def politicas_fuente(request, organizacion_id):
-    org = _org(request, organizacion_id)
+    org = _org(request, organizacion_id, Permission.FACTOR_VIEW)
     queryset = PoliticaConfianzaFuente.objects.filter(
         Q(organizacion=org) | Q(organizacion__isnull=True), activa=True
     ).order_by("concepto", "prioridad")
@@ -152,6 +146,8 @@ def indicadores(
     )
 
     queryset = org.indicadores_ambientales_v2.prefetch_related("valores")
+    allowed_works = filter_works_for_user(Obra.objects.all(), request.user, org)
+    queryset = queryset.filter(Q(obra__isnull=True) | Q(obra__in=allowed_works))
 
     obra_id = request.query_params.get("obra")
 
@@ -182,6 +178,7 @@ def serie_indicador(
         organizacion=org,
         id=indicador_id,
     )
+    require_resource_work_access(request.user, org, indicator)
 
     return Response(
         ValorIndicadorSerializer(
@@ -195,6 +192,7 @@ def serie_indicador(
 def comparacion_indicador(request, organizacion_id, indicador_id):
     org = _org(request, organizacion_id)
     indicator = get_object_or_404(IndicadorAmbiental, organizacion=org, id=indicador_id)
+    require_resource_work_access(request.user, org, indicator)
     current = indicator.valores.order_by("-periodo_fin", "-version").first()
     if not current:
         return Response({"estado": "sin_base", "calidad_comparacion": "sin_datos"})
@@ -233,6 +231,7 @@ def lineas_base(
     org = _org(
         request,
         organizacion_id,
+        Permission.INDICATOR_MANAGE if request.method == "POST" else Permission.INDICATOR_VIEW,
     )
 
     obra_id = request.query_params.get("obra")
@@ -243,6 +242,7 @@ def lineas_base(
             organizacion=org,
             id=request.data.get("indicador"),
         )
+        require_resource_work_access(request.user, org, indicator)
 
         baseline = build_baseline(indicator)
 
@@ -252,6 +252,8 @@ def lineas_base(
         )
 
     queryset = org.lineas_base_ambientales.select_related("indicador")
+    allowed_works = filter_works_for_user(Obra.objects.all(), request.user, org)
+    queryset = queryset.filter(Q(indicador__obra__isnull=True) | Q(indicador__obra__in=allowed_works))
 
     if obra_id:
         queryset = queryset.filter(indicador__obra_id=obra_id)
@@ -269,6 +271,9 @@ def resumen_ambiental_v2(request, organizacion_id):
     org = _org(request, organizacion_id)
     indicators = org.indicadores_ambientales_v2.prefetch_related("valores")
     baselines = org.lineas_base_ambientales.select_related("indicador")
+    allowed_works = filter_works_for_user(Obra.objects.all(), request.user, org)
+    indicators = indicators.filter(Q(obra__isnull=True) | Q(obra__in=allowed_works))
+    baselines = baselines.filter(Q(indicador__obra__isnull=True) | Q(indicador__obra__in=allowed_works))
     return Response(
         {
             "mensaje": (

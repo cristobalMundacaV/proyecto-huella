@@ -1,4 +1,6 @@
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.exceptions import PermissionDenied
+from django.http import Http404
 
 from .models import UsuarioOrganizacion
 
@@ -113,6 +115,15 @@ def has_tenant_permission(user, organization, permission):
     return bool(membership and permission in ROLE_PERMISSIONS.get(membership.rol, ()))
 
 
+def has_any_tenant_permission(user, permission):
+    if not user or not user.is_authenticated or permission not in ALL_PERMISSIONS:
+        return False
+    if user.is_superuser:
+        return True
+    roles = UsuarioOrganizacion.objects.filter(user=user, activo=True).values_list("rol", flat=True)
+    return any(permission in ROLE_PERMISSIONS.get(role, ()) for role in roles)
+
+
 def require_tenant_permission(user, organization, permission):
     if not has_tenant_permission(user, organization, permission):
         raise PermissionDenied("No tienes permisos para realizar esta acción.")
@@ -135,3 +146,33 @@ def user_can_access_work(user, organization, work):
         return False
     queryset = work.__class__.objects.all()
     return filter_works_for_user(queryset, user, organization).filter(pk=work.pk).exists()
+
+
+def require_work_access(user, organization, work):
+    if work is not None and not user_can_access_work(user, organization, work):
+        raise Http404("Recurso no encontrado.")
+    return work
+
+
+def resource_work(resource):
+    """Resuelve la obra de recursos críticos sin consultar IDs aportados por el cliente."""
+    paths = (
+        "obra", "actividad.obra", "observacion.actividad.obra", "calculo.actividad.obra",
+        "indicador.obra", "documento.obra", "variable.documento.obra", "problematica.obra", "intervencion.problematica.obra",
+        "expediente.problematica.obra", "version_evidencia.evidencia.obra",
+    )
+    for path in paths:
+        current = resource
+        try:
+            for part in path.split("."):
+                current = getattr(current, part)
+        except (AttributeError, ObjectDoesNotExist):
+            continue
+        if current is not None:
+            return current
+    return None
+
+
+def require_resource_work_access(user, organization, resource):
+    require_work_access(user, organization, resource_work(resource))
+    return resource

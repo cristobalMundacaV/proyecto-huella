@@ -24,6 +24,7 @@ from .models import (
     MaterialConstruccion,
     Obra,
     RegistroEmision,
+    SuscripcionSaaS,
     TransporteObra,
     UsuarioOrganizacion,
 )
@@ -46,6 +47,7 @@ from .permissions import (
     ROLE_PERMISSIONS,
     filter_works_for_user,
     has_tenant_permission,
+    has_any_tenant_permission,
     require_tenant_permission,
 )
 from .services.local_advisor import generar_analisis_local
@@ -98,7 +100,7 @@ def serialize_auth_user(user):
     if not user or not user.is_authenticated:
         return None
 
-    perfiles = UsuarioOrganizacion.objects.select_related("organizacion").prefetch_related("accesos_obra").filter(
+    perfiles = UsuarioOrganizacion.objects.select_related("organizacion", "organizacion__suscripcion_saas").prefetch_related("accesos_obra").filter(
         user=user,
         activo=True,
     )
@@ -114,6 +116,8 @@ def serialize_auth_user(user):
             "scope": perfil.alcance,
             "permissions": sorted(ROLE_PERMISSIONS.get(perfil.rol, ())),
             "work_ids": list(perfil.accesos_obra.values_list("obra_id", flat=True)) if perfil.alcance == UsuarioOrganizacion.Alcance.OBRAS else [],
+            "saas_estado": getattr(getattr(perfil.organizacion, "suscripcion_saas", None), "estado", "activo"),
+            "saas_disponibilidad": getattr(getattr(perfil.organizacion, "suscripcion_saas", None), "disponibilidad", "operativo"),
         }
         for perfil in perfiles
     ]
@@ -411,6 +415,7 @@ def organizaciones(request):
     serializer = OrganizacionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     organizacion = serializer.save()
+    SuscripcionSaaS.objects.get_or_create(organizacion=organizacion)
     ConfiguracionOrganizacion.objects.get_or_create(organizacion=organizacion)
     UsuarioOrganizacion.objects.get_or_create(
         user=request.user,
@@ -851,6 +856,8 @@ def verificar_obra(request, codigo_obra):
 @api_view(["GET", "POST"])
 def factores_emision(request):
     if request.method == "GET":
+        if not has_any_tenant_permission(request.user, Permission.FACTOR_VIEW):
+            return Response({"detail": "No tienes permisos para consultar factores."}, status=403)
         queryset = FactorEmision.objects.order_by("categoria", "actividad")
         filters = {
             "preset": request.query_params.get("preset"),
@@ -868,6 +875,8 @@ def factores_emision(request):
                 activo=str(activo).lower() in {"1", "true", "si", "yes"}
             )
         return Response(FactorEmisionSerializer(queryset, many=True).data)
+    if not request.user.is_superuser:
+        return Response({"detail": "Solo la gobernanza de plataforma puede crear factores globales."}, status=403)
     serializer = FactorEmisionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     factor = serializer.save()
@@ -881,8 +890,12 @@ def factores_emision_detail(request, factor_id):
     factor = get_object_or_404(FactorEmision, pk=factor_id)
 
     if request.method == "GET":
+        if not has_any_tenant_permission(request.user, Permission.FACTOR_VIEW):
+            return Response({"detail": "No tienes permisos para consultar factores."}, status=403)
         return Response(FactorEmisionSerializer(factor).data)
 
+    if not request.user.is_superuser:
+        return Response({"detail": "Solo la gobernanza de plataforma puede modificar factores globales."}, status=403)
     serializer = FactorEmisionSerializer(factor, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
     factor = serializer.save()

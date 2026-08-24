@@ -4,7 +4,9 @@ import Providers from "@/app/providers";
 import AuthenticatedLayout from "@/app/layouts/AuthenticatedLayout";
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import NotFoundPage from "@/shared/components/NotFoundPage";
+import { ErrorState } from "@/shared/ui/Feedback";
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { usePermissions } from "@/features/auth/hooks/usePermissions";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 
 const IntelligencePage = lazy(() => import("@/features/intelligence/pages/IntelligencePage"));
@@ -25,6 +27,7 @@ const ObrasPage = lazy(() => import("@/features/obras/pages/ObrasPage"));
 const ObraWorkspaceLayout = lazy(() => import("@/app/layouts/ObraWorkspaceLayout"));
 const ObraResumenPage = lazy(() => import("@/features/obras/pages/ObraResumenPage"));
 const ObraIndicatorsPage = lazy(() => import("@/features/obras/pages/ObraIndicatorsPage"));
+const ReportsPage = lazy(() => import("@/features/reportes/pages/ReportsPage"));
 const WorkCompliancePage = lazy(
   () =>
     import(
@@ -68,12 +71,18 @@ const WorkDiagnosticPage = lazy(
       "@/features/diagnostico/pages/WorkDiagnosticPage"
     ),
 );
+const SaaSLayout = lazy(() => import("@/features/saas/components/SaaSLayout"));
+const SaaSDashboardPage = lazy(() => import("@/features/saas/pages/SaaSDashboardPage"));
+const SaaSOrganizationsPage = lazy(() => import("@/features/saas/pages/SaaSOrganizationsPage"));
+const SaaSAuditPage = lazy(() => import("@/features/saas/pages/SaaSAuditPage"));
 
 function ProviderBoundary() { return <Providers><Outlet /></Providers>; }
 function RequireAuth() { const { loadingAuth, user } = useAuth(); const location = useLocation(); if (loadingAuth) return <PlatformLoader fullScreen title="Iniciando sesión" />; return user ? <Outlet /> : <Navigate to="/login" replace state={{ returnTo: location.pathname + location.search }} />; }
 function LoginRoute() { const { loadingAuth, user } = useAuth(); if (loadingAuth) return <PlatformLoader fullScreen title="Iniciando sesión" />; return user ? <Navigate to="/inicio" replace /> : <LoginPage />; }
 function RequireOrganization() { const { activeOrganizacion, loadingOrganizaciones } = useOrganizacionActiva(); const { pathname } = useLocation(); if (loadingOrganizaciones) return <PlatformLoader fullScreen title="Cargando empresas" />; return !activeOrganizacion && pathname !== "/administracion/organizacion" ? <Navigate to="/administracion/organizacion" replace /> : <Outlet />; }
 function OrganizationRoute() { const { activeOrganizacion } = useOrganizacionActiva(); return <OrganizacionesPage initialOpenCreate={!activeOrganizacion} />; }
+function RequireCapability({ permission, children }) { const { can } = usePermissions(); return can(permission) ? children : <ErrorState title="Sin permisos" description="No tienes permisos para acceder a este módulo en la organización activa." />; }
+function RequireSuperuser({ children }) { const { user } = useAuth(); return user?.is_superuser ? children : <ErrorState title="Acceso restringido" description="Esta sección pertenece exclusivamente a la administración global de Carbono Zero." />; }
 
 export default function AppRouter() {
   return <Suspense fallback={<PlatformLoader fullScreen title="Cargando módulo" />}><Routes>
@@ -81,7 +90,9 @@ export default function AppRouter() {
     <Route path="/verificar/:codigo" element={<VerificarObra />} />
     <Route element={<ProviderBoundary />}>
       <Route path="/login" element={<LoginRoute />} />
-      <Route element={<RequireAuth />}><Route element={<RequireOrganization />}><Route element={<AuthenticatedLayout />}>
+      <Route element={<RequireAuth />}>
+        <Route path="saas" element={<RequireSuperuser><SaaSLayout /></RequireSuperuser>}><Route index element={<SaaSDashboardPage />} /><Route path="organizaciones" element={<SaaSOrganizationsPage />} /><Route path="auditoria" element={<SaaSAuditPage />} /></Route>
+        <Route element={<RequireOrganization />}><Route element={<AuthenticatedLayout />}>
         <Route index element={<Navigate to="/inicio" replace />} />
         <Route path="inicio" element={<InicioPage />} />
         <Route path="obras" element={<ObrasPage />} />
@@ -101,30 +112,31 @@ export default function AppRouter() {
           </Route>
           <Route
             path="indicadores"
-            element={<ObraIndicatorsPage />}
+            element={<RequireCapability permission="indicators.view"><ObraIndicatorsPage /></RequireCapability>}
           />
+          <Route path="reportes" element={<RequireCapability permission="reports.view"><ReportsPage /></RequireCapability>} />
 
           <Route
             path="cumplimiento"
-            element={<WorkCompliancePage />}
+            element={<RequireCapability permission="compliance.view"><WorkCompliancePage /></RequireCapability>}
           />
 
           <Route
             path="problemas"
-            element={<ProblemsPage workScoped />}
+            element={<RequireCapability permission="problems.view"><ProblemsPage workScoped /></RequireCapability>}
           />
           <Route path="problemas/:problemId" element={<ProblemDetailPage workScoped />} />
-          <Route path="evidencias" element={<EvidencePage workScoped />} />
+          <Route path="evidencias" element={<RequireCapability permission="evidence.view"><EvidencePage workScoped /></RequireCapability>} />
           <Route path="timeline" element={<ObraTimelinePage />} />
           <Route
             path="diagnostico"
-            element={<WorkDiagnosticPage />}
+            element={<RequireCapability permission="environmental_profile.view"><WorkDiagnosticPage /></RequireCapability>}
           />
         </Route>
         <Route path="datos" element={<DataOverviewPage />} />
-        <Route path="datos/evidencias" element={<EvidencePage />} />
+        <Route path="datos/evidencias" element={<RequireCapability permission="evidence.view"><EvidencePage /></RequireCapability>} />
         <Route path="datos/evidencias/:evidenceId" element={<EvidenceDetailPage />} />
-        <Route path="datos/importaciones" element={<ImportsPage />} />
+        <Route path="datos/importaciones" element={<RequireCapability permission="imports.view"><ImportsPage /></RequireCapability>} />
         <Route path="datos/importaciones/:processId" element={<ImportDetailPage />} />
         <Route path="operacion/activos" element={<ActivosPage />} /><Route path="operacion/sensores" element={<SensoresPage />} /><Route path="operacion/sensores/:sensorId" element={<SensorDetailPage />} />
         <Route path="inteligencia" element={<IntelligencePage />} />
@@ -133,7 +145,7 @@ export default function AppRouter() {
         <Route path="inteligencia/acciones" element={<Navigate to="/inteligencia/problemas" replace />} />
         <Route path="inteligencia/copiloto" element={<CopilotoAmbientalPage />} />
         <Route path="gobernanza" element={<GovernanceOverviewPage />} />
-        <Route path="gobernanza/revision" element={<ReviewQueuePage />} />
+        <Route path="gobernanza/revision" element={<RequireCapability permission="professional_review.execute"><ReviewQueuePage /></RequireCapability>} />
         <Route path="gobernanza/expedientes" element={<DossiersPage />} />
         <Route path="gobernanza/expedientes/:dossierId" element={<DossierDetailPage />} />
         <Route path="gobernanza/factores" element={<FactoresPage />} />

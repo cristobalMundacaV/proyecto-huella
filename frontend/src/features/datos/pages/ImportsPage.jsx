@@ -22,6 +22,7 @@ import { Link, useNavigate } from "react-router-dom";
 import PlatformLoader from "@/shared/components/PlatformLoader";
 
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
+import { usePermissions } from "@/features/auth/hooks/usePermissions";
 
 import {
   Button,
@@ -97,6 +98,8 @@ const IMPORT_STATUS_OPTIONS = [
 
 
 export default function ImportsPage() {
+  const { can } = usePermissions();
+  const canCreate = can("imports.create");
   const navigate = useNavigate();
   const {
     activeOrganizacionId,
@@ -361,7 +364,7 @@ export default function ImportsPage() {
             </div>
           </div>
 
-          <Button
+          {canCreate && <Button
             onClick={openImportWorkflow}
             className="inline-flex self-start items-center gap-2 rounded-xl border border-white/30 bg-white px-4 py-3 text-sm font-black text-emerald-900 shadow-[0_8px_24px_rgba(0,0,0,0.12)] transition hover:bg-emerald-50 lg:self-center"
           >
@@ -371,7 +374,7 @@ export default function ImportsPage() {
             />
 
             Nueva importación
-          </Button>
+          </Button>}
         </div>
       </section>
 
@@ -382,13 +385,13 @@ export default function ImportsPage() {
           <p className="mt-1 text-sm text-[var(--text-muted)]">Elige el flujo correcto antes de seleccionar archivos.</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <ImportModeCard icon={UploadCloud} title="Importar datos operacionales" description="Consumos, materiales, residuos, transporte y otras mediciones." onClick={openImportWorkflow} />
+          {canCreate && <ImportModeCard icon={UploadCloud} title="Importar datos operacionales" description="Consumos, materiales, residuos, transporte y otras mediciones." onClick={openImportWorkflow} />}
           <ImportModeCard icon={FileCheck2} title="Subir evidencia o documento" description="Respalda la trazabilidad ambiental con un antecedente documental." onClick={() => navigate("/datos/evidencias")} />
           <ImportModeCard icon={Database} title="Importar catálogo maestro" description="Carga administrada de catálogos y datos de referencia." disabled badge="Próximamente" />
           <ImportModeCard icon={Boxes} title="Importación masiva" description="Procesamiento coordinado de varios archivos o estructuras." disabled badge="Próximamente" />
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button onClick={openImportWorkflow}><UploadCloud aria-hidden="true" size={17} />Nueva importación</Button>
+          {canCreate && <Button onClick={openImportWorkflow}><UploadCloud aria-hidden="true" size={17} />Nueva importación</Button>}
           <Button variant="secondary" onClick={() => setHistoryOpen(true)}><History aria-hidden="true" size={17} />Ver historial</Button>
         </div>
       </section>
@@ -458,7 +461,7 @@ export default function ImportsPage() {
             }
             title="Aún no hay importaciones anteriores"
              description="Cuando completes tu primera carga, aparecerá aquí con su estado y resultado."
-            action={<Button onClick={openImportWorkflow}><UploadCloud aria-hidden="true" size={17} />Nueva importación</Button>}
+            action={canCreate ? <Button onClick={openImportWorkflow}><UploadCloud aria-hidden="true" size={17} />Nueva importación</Button> : undefined}
             className="border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_40%),linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98))] shadow-[0_12px_36px_rgba(6,78,59,0.06)]"
           />
         ) : (

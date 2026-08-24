@@ -21,6 +21,7 @@ import {
 } from "react-router-dom";
 
 import PlatformLoader from "@/shared/components/PlatformLoader";
+import { usePermissions } from "@/features/auth/hooks/usePermissions";
 
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 
@@ -148,6 +149,8 @@ function needsProfessionalReview(item) {
 export default function ProblemsPage({
   workScoped = false,
 }) {
+  const { can } = usePermissions();
+  const canCreate = can("problems.create");
   const workspace =
     useOutletContext() || {};
 
@@ -426,14 +429,14 @@ export default function ProblemsPage({
   }
 
 
-  const createAction = (
+  const createAction = canCreate ? (
     <Button
       leftIcon={Plus}
       onClick={openCreateModal}
     >
       Registrar problema
     </Button>
-  );
+  ) : undefined;
 
 
   if (

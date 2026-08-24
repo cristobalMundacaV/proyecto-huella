@@ -14,14 +14,12 @@ from ..models import (CalculoAmbiental, CorreccionHistoricaAmbiental,
                       EventoAuditoriaAmbiental, ExpedienteAmbiental,
                       InformeAmbiental, RevisionProfesionalAmbiental,
                       SnapshotInformeAmbiental, UsuarioOrganizacion)
+from ..permissions import Permission, has_tenant_permission
 from .calculation_v2 import calculate_activity
 
 
-REVIEW_ROLES = {UsuarioOrganizacion.Rol.ADMIN, UsuarioOrganizacion.Rol.ANALISTA}
-
-
 def can_review(user, organization):
-    return bool(user and user.is_authenticated and (user.is_superuser or UsuarioOrganizacion.objects.filter(user=user, organizacion=organization, activo=True, rol__in=REVIEW_ROLES).exists()))
+    return has_tenant_permission(user, organization, Permission.REVIEW_PROFESSIONAL)
 
 
 def audit(organization, event_type, actor, entity, reference, summary, metadata=None):

@@ -23,10 +23,15 @@ from .services.foundation import (
     inicializar_capacidades_preset,
     resumen_preparacion_ambiental,
 )
+from .permissions import Permission, filter_works_for_user, has_tenant_permission
 
 
-def _organizacion(organizacion_id):
-    return get_object_or_404(Organizacion, organizacion_id=organizacion_id)
+def _organizacion(request, organizacion_id, permission):
+    organization = get_object_or_404(Organizacion, organizacion_id=organizacion_id)
+    if not has_tenant_permission(request.user, organization, permission):
+        from django.http import Http404
+        raise Http404("Recurso no encontrado.")
+    return organization
 
 
 @api_view(["GET"])
@@ -40,9 +45,10 @@ def capacidades_disponibles(request):
 
 @api_view(["GET", "POST", "PATCH"])
 def diagnostico_ambiental(request, organizacion_id):
-    organizacion = _organizacion(organizacion_id)
+    permission = Permission.PROFILE_VIEW if request.method == "GET" else Permission.PROFILE_MANAGE
+    organizacion = _organizacion(request, organizacion_id, permission)
     obra_id = request.query_params.get("obra") or request.data.get("obra")
-    obra = get_object_or_404(organizacion.obras, id=obra_id) if obra_id else None
+    obra = get_object_or_404(filter_works_for_user(organizacion.obras.all(), request.user, organizacion), id=obra_id) if obra_id else None
     diagnostico = DiagnosticoAmbientalInicial.objects.filter(
         organizacion=organizacion, obra=obra
     ).first()
@@ -82,10 +88,10 @@ def aplicabilidad_capacidad_obra(
     obra_id,
     capacidad_id,
 ):
-    organizacion = _organizacion(organizacion_id)
+    organizacion = _organizacion(request, organizacion_id, Permission.APPLICABILITY_MANAGE)
 
     obra = get_object_or_404(
-        organizacion.obras,
+        filter_works_for_user(organizacion.obras.all(), request.user, organizacion),
         id=obra_id,
     )
 
@@ -139,7 +145,7 @@ def aplicabilidad_capacidad_obra(
 
 @api_view(["GET"])
 def capacidades_organizacion(request, organizacion_id):
-    relaciones = inicializar_capacidades_preset(_organizacion(organizacion_id))
+    relaciones = inicializar_capacidades_preset(_organizacion(request, organizacion_id, Permission.PROFILE_VIEW))
     return Response(CapacidadOrganizacionSerializer(relaciones, many=True).data)
 
 
@@ -148,7 +154,7 @@ def capacidad_organizacion_detail(request, organizacion_id, capacidad_id):
     relacion = get_object_or_404(
         CapacidadOrganizacion,
         id=capacidad_id,
-        organizacion=_organizacion(organizacion_id),
+        organizacion=_organizacion(request, organizacion_id, Permission.PROFILE_MANAGE),
     )
     serializer = CapacidadOrganizacionSerializer(
         relacion, data=request.data, partial=True
@@ -175,7 +181,8 @@ def _coleccion(request, organizacion, queryset, serializer_class):
 
 @api_view(["GET", "POST"])
 def unidades_operacionales(request, organizacion_id):
-    organizacion = _organizacion(organizacion_id)
+    permission = Permission.ASSET_VIEW if request.method == "GET" else Permission.ASSET_MANAGE
+    organizacion = _organizacion(request, organizacion_id, permission)
     return _coleccion(
         request,
         organizacion,
@@ -187,7 +194,7 @@ def unidades_operacionales(request, organizacion_id):
 @api_view(["PATCH"])
 def unidad_operacional_detail(request, organizacion_id, unidad_id):
     unidad = get_object_or_404(
-        UnidadOperacional, id=unidad_id, organizacion=_organizacion(organizacion_id)
+        UnidadOperacional, id=unidad_id, organizacion=_organizacion(request, organizacion_id, Permission.ASSET_MANAGE)
     )
     serializer = UnidadOperacionalSerializer(unidad, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
@@ -197,7 +204,8 @@ def unidad_operacional_detail(request, organizacion_id, unidad_id):
 
 @api_view(["GET", "POST"])
 def procesos_operacionales(request, organizacion_id):
-    organizacion = _organizacion(organizacion_id)
+    permission = Permission.ASSET_VIEW if request.method == "GET" else Permission.ASSET_MANAGE
+    organizacion = _organizacion(request, organizacion_id, permission)
     return _coleccion(
         request,
         organizacion,
@@ -208,7 +216,7 @@ def procesos_operacionales(request, organizacion_id):
 
 @api_view(["PATCH"])
 def proceso_operacional_detail(request, organizacion_id, proceso_id):
-    organizacion = _organizacion(organizacion_id)
+    organizacion = _organizacion(request, organizacion_id, Permission.ASSET_MANAGE)
     proceso = get_object_or_404(
         ProcesoOperacional, id=proceso_id, organizacion=organizacion
     )
@@ -222,6 +230,6 @@ def proceso_operacional_detail(request, organizacion_id, proceso_id):
 
 @api_view(["GET"])
 def preparacion_ambiental(request, organizacion_id):
-    organizacion = _organizacion(organizacion_id)
+    organizacion = _organizacion(request, organizacion_id, Permission.PROFILE_VIEW)
     inicializar_capacidades_preset(organizacion)
     return Response(resumen_preparacion_ambiental(organizacion))

@@ -2,6 +2,7 @@ import {
   ChevronDown,
   LogOut,
   Menu,
+  ShieldCheck,
   UserRound,
 } from "lucide-react";
 
@@ -148,6 +149,7 @@ export default function Navbar({
 
                 Ver información de usuario
               </Link>
+              {user?.is_superuser && <Link to="/saas" onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-emerald-800 transition hover:bg-emerald-50"><ShieldCheck aria-hidden="true" size={17} />Abrir Carbono Zero Global</Link>}
 
               <button
                 type="button"

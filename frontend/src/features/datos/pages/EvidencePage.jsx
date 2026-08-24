@@ -23,6 +23,7 @@ import {
 import PlatformLoader from "@/shared/components/PlatformLoader";
 
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
+import { usePermissions } from "@/features/auth/hooks/usePermissions";
 
 import {
   Alert,
@@ -167,6 +168,8 @@ function extractApiError(error) {
 export default function EvidencePage({
   workScoped = false,
 }) {
+  const { can } = usePermissions();
+  const canCreate = can("evidence.create");
   const workspace =
     useOutletContext() || {};
 
@@ -527,14 +530,14 @@ export default function EvidencePage({
     }
   }
 
-  const uploadAction = (
+  const uploadAction = canCreate ? (
     <Button
       leftIcon={FileUp}
       onClick={openUploadModal}
     >
       Agregar documento
     </Button>
-  );
+  ) : undefined;
 
   if (
     loadedScope !== scopeKey ||
@@ -601,7 +604,7 @@ export default function EvidencePage({
               </div>
             </div>
 
-            <Button
+            {canCreate && <Button
               variant="secondary"
               leftIcon={FileUp}
               onClick={
@@ -610,7 +613,7 @@ export default function EvidencePage({
               className="self-start border-white/30 bg-white text-emerald-900 shadow-[0_8px_24px_rgba(0,0,0,0.12)] hover:bg-emerald-50 lg:self-center"
             >
               Agregar documento
-            </Button>
+            </Button>}
           </div>
         </section>
       )}
@@ -682,7 +685,7 @@ export default function EvidencePage({
               : "Incorpora documentos que respalden y permitan verificar la información ambiental de tu operación."
           }
           className="border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_40%),linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98))] shadow-[0_12px_36px_rgba(6,78,59,0.07)]"
-          primaryAction={
+          primaryAction={canCreate ?
             <Button
               leftIcon={Plus}
               onClick={
@@ -690,7 +693,7 @@ export default function EvidencePage({
               }
             >
               Agregar primera evidencia
-            </Button>
+            </Button> : undefined
           }
           secondaryAction={
             !workScoped ? (

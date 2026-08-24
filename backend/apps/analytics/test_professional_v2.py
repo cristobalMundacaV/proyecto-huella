@@ -61,7 +61,7 @@ class ProfessionalV2Tests(APITestCase):
         UsuarioOrganizacion.objects.create(
             user=self.professional,
             organizacion=self.org,
-            rol="analista",
+            rol=UsuarioOrganizacion.Rol.REVISOR_AMBIENTAL,
             cargo="Revisor ambiental",
         )
         UsuarioOrganizacion.objects.create(
@@ -411,7 +411,7 @@ class ProfessionalV2Tests(APITestCase):
             {"estado": "validada", "conclusion": "No autorizado"},
             format="json",
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 403)
         pending.refresh_from_db()
         self.assertEqual(pending.estado, "pendiente")
 
@@ -600,7 +600,7 @@ class ProfessionalV2Tests(APITestCase):
             self.client.post(
                 f"{self.base}/informes/{report.id}/validar/", {}, format="json"
             ).status_code,
-            400,
+            403,
         )
         validate_report(report, self.professional)
         report.metadata = {"cambio": True}

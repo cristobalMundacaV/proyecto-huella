@@ -182,7 +182,7 @@ class MethodologyGovernanceV1Tests(APITestCase):
         with self.assertRaises(ValidationError): calculation.save()
         self.client.force_login(self.member)
         response = self.client.post(f"{self.base}/metodologias/{version.metodologia_id}/", {}, format="json")
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 400)
         foreign_base = f"/api/organizaciones/{self.other.organizacion_id}"
         self.assertEqual(self.client.get(f"{foreign_base}/metodologias/").status_code, 404)
 

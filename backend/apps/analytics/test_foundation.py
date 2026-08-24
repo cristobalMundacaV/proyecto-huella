@@ -11,7 +11,7 @@ class FoundationApiTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user("foundation", password="test-pass")
         self.organizacion = Organizacion.objects.create(nombre="Nueva Construccion", preset="construccion")
-        UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.organizacion)
+        UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.organizacion, rol=UsuarioOrganizacion.Rol.RESPONSABLE_AMBIENTAL)
         self.otra = Organizacion.objects.create(nombre="Otro Tenant")
         self.client.force_login(self.user)
         self.base = f"/api/organizaciones/{self.organizacion.organizacion_id}"

@@ -10,8 +10,15 @@ from .models import (
     LimiteNormativoAmbiental,
     Obra,
     Organizacion,
-    UsuarioOrganizacion,
     VariableAmbientalExtraida,
+)
+from .permissions import (
+    Permission,
+    filter_works_for_user,
+    get_membership,
+    has_tenant_permission,
+    require_resource_work_access,
+    require_work_access,
 )
 from .serializers import (
     AlertaCumplimientoAmbientalSerializer,
@@ -24,24 +31,22 @@ from .serializers import (
 def get_organizacion_or_404(
     request,
     organizacion_id,
+    permission=None,
 ):
     organization = get_object_or_404(
         Organizacion,
         organizacion_id=organizacion_id,
     )
 
-    allowed = request.user.is_authenticated and (
-        request.user.is_superuser
-        or UsuarioOrganizacion.objects.filter(
-            user=request.user,
-            organizacion=organization,
-            activo=True,
-        ).exists()
-    )
+    permission = permission or (Permission.COMPLIANCE_VIEW if request.method == "GET" else Permission.COMPLIANCE_MANAGE)
+    allowed = has_tenant_permission(request.user, organization, permission)
 
     if not allowed:
         from django.http import Http404
+        from rest_framework.exceptions import PermissionDenied
 
+        if request.user.is_authenticated and get_membership(request.user, organization):
+            raise PermissionDenied("No tienes permisos para realizar esta acción.")
         raise Http404("Recurso no encontrado.")
 
     return organization
@@ -56,11 +61,7 @@ def requested_work(
     if not work_id:
         return None
 
-    return get_object_or_404(
-        Obra,
-        organizacion=organization,
-        id=work_id,
-    )
+    return get_object_or_404(filter_works_for_user(Obra.objects.all(), request.user, organization), id=work_id)
 
 
 def serialize(serializer_class, instance, request=None, many=False):
@@ -82,6 +83,7 @@ def documentos_ambientales(request, organizacion_id):
     organizacion = get_organizacion_or_404(
         request,
         organizacion_id,
+        Permission.EVIDENCE_VIEW if request.method == "GET" else Permission.EVIDENCE_CREATE,
     )
     if request.method == "GET":
         queryset = (
@@ -101,6 +103,9 @@ def documentos_ambientales(request, organizacion_id):
 
         if work is not None:
             queryset = queryset.filter(obra=work)
+        else:
+            allowed_works = filter_works_for_user(Obra.objects.all(), request.user, organizacion)
+            queryset = queryset.filter(Q(obra__isnull=True) | Q(obra__in=allowed_works))
 
         return Response(
             serialize(
@@ -132,6 +137,8 @@ def documentos_ambientales(request, organizacion_id):
         data=data, context={"request": request, "organizacion": organizacion}
     )
     serializer.is_valid(raise_exception=True)
+    if serializer.validated_data.get("obra"):
+        require_work_access(request.user, organizacion, serializer.validated_data["obra"])
     documento = serializer.save()
     return Response(
         serialize(DocumentoAmbientalSerializer, documento, request=request),
@@ -142,13 +149,18 @@ def documentos_ambientales(request, organizacion_id):
 @api_view(["GET", "PATCH", "DELETE"])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def documento_ambiental_detail(request, organizacion_id, documento_id):
+    permission = Permission.EVIDENCE_VIEW
+    if request.method != "GET":
+        permission = Permission.EVIDENCE_VALIDATE if "estado_validacion" in request.data else Permission.EVIDENCE_UPDATE
     organizacion = get_organizacion_or_404(
         request,
         organizacion_id,
+        permission,
     )
     documento = get_object_or_404(
         DocumentoAmbiental, pk=documento_id, organizacion=organizacion
     )
+    require_resource_work_access(request.user, organizacion, documento)
     if request.method == "GET":
         return Response(
             serialize(DocumentoAmbientalSerializer, documento, request=request)
@@ -163,6 +175,8 @@ def documento_ambiental_detail(request, organizacion_id, documento_id):
         context={"request": request, "organizacion": organizacion},
     )
     serializer.is_valid(raise_exception=True)
+    if serializer.validated_data.get("obra"):
+        require_work_access(request.user, organizacion, serializer.validated_data["obra"])
     documento = serializer.save()
     return Response(serialize(DocumentoAmbientalSerializer, documento, request=request))
 
@@ -172,6 +186,7 @@ def variables_ambientales(request, organizacion_id):
     organizacion = get_organizacion_or_404(
         request,
         organizacion_id,
+        Permission.COMPLIANCE_VIEW if request.method == "GET" else Permission.COMPLIANCE_MANAGE,
     )
     if request.method == "GET":
         queryset = VariableAmbientalExtraida.objects.filter(
@@ -200,6 +215,8 @@ def variables_ambientales(request, organizacion_id):
         data=data, context={"organizacion": organizacion}
     )
     serializer.is_valid(raise_exception=True)
+    if serializer.validated_data.get("documento"):
+        require_resource_work_access(request.user, organizacion, serializer.validated_data["documento"])
     variable = serializer.save()
     return Response(
         VariableAmbientalExtraidaSerializer(variable).data,
@@ -212,10 +229,12 @@ def variable_ambiental_detail(request, organizacion_id, variable_id):
     organizacion = get_organizacion_or_404(
         request,
         organizacion_id,
+        Permission.COMPLIANCE_VIEW if request.method == "GET" else Permission.COMPLIANCE_MANAGE,
     )
     variable = get_object_or_404(
         VariableAmbientalExtraida, pk=variable_id, organizacion=organizacion
     )
+    require_resource_work_access(request.user, organizacion, variable)
     if request.method == "GET":
         return Response(VariableAmbientalExtraidaSerializer(variable).data)
     if request.method == "DELETE":
@@ -300,6 +319,13 @@ def alertas_cumplimiento(request, organizacion_id):
 
     if work is not None:
         queryset = filter_alerts_for_work(queryset, work)
+    else:
+        allowed_works = filter_works_for_user(Obra.objects.all(), request.user, organizacion)
+        queryset = queryset.filter(
+            Q(documento__obra__isnull=True, variable__documento__obra__isnull=True)
+            | Q(documento__obra__in=allowed_works)
+            | Q(variable__documento__obra__in=allowed_works)
+        ).distinct()
 
     estado = request.query_params.get("estado")
     if estado:
@@ -312,10 +338,12 @@ def alerta_cumplimiento_detail(request, organizacion_id, alerta_id):
     organizacion = get_organizacion_or_404(
         request,
         organizacion_id,
+        Permission.COMPLIANCE_REVIEW,
     )
     alerta = get_object_or_404(
         AlertaCumplimientoAmbiental, pk=alerta_id, organizacion=organizacion
     )
+    require_resource_work_access(request.user, organizacion, alerta)
     serializer = AlertaCumplimientoAmbientalSerializer(
         alerta, data=request.data, partial=True
     )
@@ -344,6 +372,15 @@ def cumplimiento_ambiental_resumen(request, organizacion_id):
         variables = variables.filter(documento__obra=work)
 
         alertas = filter_alerts_for_work(alertas, work)
+    else:
+        allowed_works = filter_works_for_user(Obra.objects.all(), request.user, organizacion)
+        documentos = documentos.filter(Q(obra__isnull=True) | Q(obra__in=allowed_works))
+        variables = variables.filter(Q(documento__obra__isnull=True) | Q(documento__obra__in=allowed_works))
+        alertas = alertas.filter(
+            Q(documento__obra__isnull=True, variable__documento__obra__isnull=True)
+            | Q(documento__obra__in=allowed_works)
+            | Q(variable__documento__obra__in=allowed_works)
+        ).distinct()
     alertas_abiertas_q = Q(
         estado__in=[
             AlertaCumplimientoAmbiental.Estado.ABIERTA,

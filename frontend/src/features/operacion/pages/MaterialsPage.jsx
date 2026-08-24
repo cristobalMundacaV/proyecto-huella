@@ -14,7 +14,6 @@ import {
   TableShell,
 } from "@/shared/ui";
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
-import DomainApplicability from "../components/DomainApplicability";
 import OperationDomainShell from "../components/OperationDomainShell";
 import { applicability, isResourceReady, resourceData } from "../utils/operationSelectors";
 import { useEffect, useMemo, useState } from "react";
@@ -64,6 +63,7 @@ export default function MaterialsPage() {
     })));
   const noApplicable = applicabilityState === "no_aplica";
   const unresolved = ["pendiente", "no_determinado"].includes(applicabilityState);
+  const applicabilityBadge = noApplicable ? "No aplica" : unresolved ? "Aplicabilidad por definir" : "Aplica";
   useEffect(() => { setPage(1); }, [events.length, persistedWorkId]);
   const pagedEvents = useMemo(() => events.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [events, page]);
 
@@ -72,13 +72,9 @@ export default function MaterialsPage() {
       domainKey="materiales"
       title="Materiales"
       description="¿Qué materiales están entrando, usándose o saliendo?"
-      applicability={
-        <DomainApplicability
-          context={context}
-          capability="materiales"
-        />
-      }
-      action={!noApplicable && !unresolved && events.length > 0 ? <Button leftIcon={Plus} onClick={() => setRecordOpen(true)}>Registrar movimiento</Button> : undefined}
+      badges={[applicabilityBadge, eventsReady ? (events.length ? `${events.length} ${events.length === 1 ? "movimiento" : "movimientos"}` : "Sin movimientos") : "Movimientos no disponibles", noApplicable ? "Flujo deshabilitado" : unresolved ? "Requiere definición" : "Flujo habilitado"]}
+      primaryAction={!noApplicable && (unresolved ? <ButtonLink leftIcon={ClipboardCheck} to={`/obras/${obraId}/diagnostico`}>Revisar perfil ambiental</ButtonLink> : <Button leftIcon={Plus} onClick={() => setRecordOpen(true)}>Registrar movimiento</Button>)}
+      secondaryAction={!noApplicable && <ButtonLink leftIcon={Plus} variant="secondary" to={`/obras/${obraId}/evidencias`}>{unresolved ? "Agregar evidencia" : "Agregar documento"}</ButtonLink>}
     >
       {!noApplicable && !unresolved && !balancesReady && <ErrorState title="No fue posible cargar los balances de materiales" description="Los eventos continúan disponibles si pudieron cargarse." />}
 
@@ -119,15 +115,13 @@ export default function MaterialsPage() {
       {noApplicable
         ? <EmptyState title="No aplica a esta unidad" description="Materiales está marcado como no aplicable. La ausencia de movimientos no se presenta como cero." />
         : unresolved
-          ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si materiales aplica a esta obra." primaryAction={<ButtonLink leftIcon={ClipboardCheck} to={`/obras/${obraId}/diagnostico`}>Revisar perfil ambiental</ButtonLink>} secondaryAction={<ButtonLink leftIcon={Plus} variant="secondary" to={`/obras/${obraId}/evidencias`}>Agregar evidencia</ButtonLink>} />
+          ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si materiales aplica a esta obra." />
         : !eventsReady
         ? <ErrorState title="No fue posible cargar los eventos de materiales" description="Los balances continúan disponibles si pudieron calcularse." />
         : !events.length
           ? <EmptyState
                 title="Sin información registrada"
-                description="Aún no hay entradas, usos o salidas de materiales registradas para esta unidad."
-                primaryAction={<Button leftIcon={Plus} onClick={() => setRecordOpen(true)}>Registrar movimiento</Button>}
-                secondaryAction={<ButtonLink leftIcon={Plus} variant="secondary" to={`/obras/${obraId}/evidencias`}>Agregar documento</ButtonLink>}
+                description="Aún no hay entradas, usos o salidas de materiales registradas para esta unidad. Comienza registrando un movimiento o adjuntando documentación de respaldo."
               />
           : <section>
             <SectionHeader

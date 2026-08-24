@@ -9,7 +9,7 @@ import pandas as pd
 from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -26,6 +26,7 @@ from .models import (
     UsuarioOrganizacion,
 )
 from .services.environmental_records import create_environmental_record
+from .permissions import Permission, filter_works_for_user, get_membership, has_tenant_permission
 
 BATCH_PREFIX = "importaciones"
 BATCH_TTL = 60 * 60
@@ -237,6 +238,33 @@ def resolve_organizacion(organizacion_id):
     if not organizacion_id:
         return None
     return Organizacion.objects.get(organizacion_id=organizacion_id)
+
+
+def authorized_organization(request, organization_id, permission):
+    if not organization_id:
+        if not request.user.is_superuser:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Solo la administración de plataforma puede usar importaciones sin tenant.")
+        return None
+    organization = resolve_organizacion(organization_id)
+    if not has_tenant_permission(request.user, organization, permission):
+        from django.http import Http404
+        raise Http404("Recurso no encontrado.")
+    return organization
+
+
+def require_rows_work_scope(request, organization, rows):
+    """Revalida la obra declarada por cada fila legacy en preview y confirmación."""
+    if not organization or request.user.is_superuser:
+        return
+    membership = get_membership(request.user, organization)
+    if not membership or membership.alcance == UsuarioOrganizacion.Alcance.ORGANIZACION:
+        return
+    allowed_codes = set(filter_works_for_user(Obra.objects.all(), request.user, organization).values_list("codigo_obra", flat=True))
+    for row in rows:
+        code = (row.get("data") or {}).get("codigo_obra")
+        if code and code not in allowed_codes:
+            raise Http404("Recurso no encontrado.")
 
 
 def parse_organizaciones(raw_rows):
@@ -718,6 +746,8 @@ def importacion_generica_preview(request):
             "batch_id": cache_batch({"kind": "generica", "rows": rows}),
         }
         return Response(payload)
+    except Http404:
+        raise
     except Exception as exc:
         return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1022,26 +1052,32 @@ def normalize_kind(kind):
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
 def importacion_preview(request, kind, organizacion_id=None):
+    organizacion = authorized_organization(request, organizacion_id, Permission.IMPORT_CREATE)
     try:
         normalized_kind = normalize_kind(kind)
-        organizacion = resolve_organizacion(organizacion_id)
         rows = parse_for_kind(normalized_kind, get_upload(request), organizacion)
+        require_rows_work_scope(request, organizacion, rows)
         return Response(preview_payload(normalized_kind, rows))
+    except Http404:
+        raise
     except Exception as exc:
         return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["POST"])
 def importacion_confirm(request, kind, organizacion_id=None):
+    organizacion = authorized_organization(request, organizacion_id, Permission.IMPORT_CONFIRM)
     try:
         normalized_kind = normalize_kind(kind)
-        organizacion = resolve_organizacion(organizacion_id)
         batch = load_batch(request.data.get("batch_id"))
         rows = (batch or {}).get("rows") or request.data.get("rows") or []
+        require_rows_work_scope(request, organizacion, rows)
         with transaction.atomic():
             result = save_for_kind(normalized_kind, rows, request.user, organizacion)
         result.pop("organizacion", None)
         return Response(result)
+    except Http404:
+        raise
     except Exception as exc:
         return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1258,6 +1294,8 @@ def preview_complete_payload(upload):
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
 def importacion_completa_preview(request):
+    if not request.user.is_superuser:
+        return Response({"detail": "Solo la administración de plataforma puede importar organizaciones completas."}, status=403)
     try:
         return Response(preview_complete_payload(get_upload(request)))
     except Exception as exc:
@@ -1266,6 +1304,8 @@ def importacion_completa_preview(request):
 
 @api_view(["POST"])
 def importacion_completa_confirm(request):
+    if not request.user.is_superuser:
+        return Response({"detail": "Solo la administración de plataforma puede importar organizaciones completas."}, status=403)
     batch = load_batch(request.data.get("batch_id"))
     if not batch:
         return Response(

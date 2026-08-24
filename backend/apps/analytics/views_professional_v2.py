@@ -15,7 +15,13 @@ from .models import (
     ProblematicaAmbiental,
     ResultadoIntervencion,
     RevisionProfesionalAmbiental,
-    UsuarioOrganizacion,
+)
+from .permissions import (
+    Permission,
+    filter_works_for_user,
+    get_membership,
+    has_tenant_permission,
+    require_resource_work_access,
 )
 from .serializers_professional_v2 import (
     EventoAuditoriaSerializer,
@@ -36,15 +42,14 @@ from .services.professional_v2 import (
 )
 
 
-def _organization(request, value):
+def _organization(request, value, permission=Permission.REVIEW_PROFESSIONAL):
     organization = get_object_or_404(Organizacion, organizacion_id=value)
-    allowed = request.user.is_authenticated and (
-        request.user.is_superuser
-        or UsuarioOrganizacion.objects.filter(
-            user=request.user, organizacion=organization, activo=True
-        ).exists()
-    )
-    return organization if allowed else None
+    if not request.user.is_superuser and not get_membership(request.user, organization):
+        return None
+    if not has_tenant_permission(request.user, organization, permission):
+        from rest_framework.exceptions import PermissionDenied
+        raise PermissionDenied("No tienes permisos para realizar esta acción.")
+    return organization
 
 
 def _work(
@@ -56,11 +61,7 @@ def _work(
     if not work_id:
         return None
 
-    return get_object_or_404(
-        Obra,
-        organizacion=organization,
-        id=work_id,
-    )
+    return get_object_or_404(filter_works_for_user(Obra.objects.all(), request.user, organization), id=work_id)
 
 
 def _error(exc):
@@ -162,6 +163,7 @@ def revision_profesional_detail(request, organizacion_id, revision_id):
     review = get_object_or_404(
         RevisionProfesionalAmbiental, organizacion=organization, id=revision_id
     )
+    require_resource_work_access(request.user, organization, review)
     if request.method == "GET":
         return Response(RevisionProfesionalSerializer(review).data)
     if not can_review(request.user, organization):
@@ -190,6 +192,7 @@ def revision_hallazgos(request, organizacion_id, revision_id):
         id=revision_id,
         estado="pendiente",
     )
+    require_resource_work_access(request.user, organization, review)
     serializer = HallazgoSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     finding = serializer.save(revision=review)
@@ -204,6 +207,7 @@ def revision_decision(request, organizacion_id, revision_id):
     review = get_object_or_404(
         RevisionProfesionalAmbiental, organizacion=organization, id=revision_id
     )
+    require_resource_work_access(request.user, organization, review)
     try:
         decided = decide_review(
             review,
@@ -220,7 +224,7 @@ def revision_decision(request, organizacion_id, revision_id):
 
 @api_view(["GET"])
 def auditoria(request, organizacion_id):
-    organization = _organization(request, organizacion_id)
+    organization = _organization(request, organizacion_id, Permission.AUDIT_VIEW)
     if not organization:
         return _missing()
     queryset = organization.eventos_auditoria_ambiental.select_related("actor")
@@ -231,7 +235,8 @@ def auditoria(request, organizacion_id):
 
 @api_view(["GET", "POST"])
 def expedientes(request, organizacion_id):
-    organization = _organization(request, organizacion_id)
+    permission = Permission.PROBLEM_VIEW if request.method == "GET" else Permission.PROBLEM_MANAGE
+    organization = _organization(request, organizacion_id, permission)
     if not organization:
         return _missing()
     if request.method == "GET":
@@ -414,7 +419,7 @@ def expediente_reopen(
 
 @api_view(["POST"])
 def informes(request, organizacion_id):
-    organization = _organization(request, organizacion_id)
+    organization = _organization(request, organizacion_id, Permission.REPORT_GENERATE)
     if not organization:
         return _missing()
     report_type = request.data.get("tipo")
@@ -465,6 +470,7 @@ def informes(request, organizacion_id):
             {"detail": "El tipo requiere su objeto principal correspondiente."},
             status=400,
         )
+    require_resource_work_access(request.user, organization, primary)
     try:
         report = generate_report(
             organization,
@@ -482,7 +488,7 @@ def informes(request, organizacion_id):
 
 @api_view(["GET"])
 def informe_detail(request, organizacion_id, informe_id):
-    organization = _organization(request, organizacion_id)
+    organization = _organization(request, organizacion_id, Permission.REPORT_VIEW)
     if not organization:
         return _missing()
     return Response(
@@ -498,7 +504,7 @@ def informe_detail(request, organizacion_id, informe_id):
 
 @api_view(["GET"])
 def informe_pdf(request, organizacion_id, informe_id):
-    organization = _organization(request, organizacion_id)
+    organization = _organization(request, organizacion_id, Permission.REPORT_VIEW)
     if not organization:
         return _missing()
     report = get_object_or_404(
@@ -514,7 +520,7 @@ def informe_pdf(request, organizacion_id, informe_id):
 
 @api_view(["POST"])
 def informe_validate(request, organizacion_id, informe_id):
-    organization = _organization(request, organizacion_id)
+    organization = _organization(request, organizacion_id, Permission.REPORT_APPROVE)
     if not organization:
         return _missing()
     report = get_object_or_404(

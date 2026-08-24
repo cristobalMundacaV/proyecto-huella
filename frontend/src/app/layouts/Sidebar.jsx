@@ -32,6 +32,24 @@ import {
 import { getOrganizacionObras } from "@/shared/services/api";
 import { getEnvironmentalDomain } from "@/shared/config/environmentalDomains";
 import { getWorkContext } from "@/features/obras/services/workspaceApi";
+import { usePermissions } from "@/features/auth/hooks/usePermissions";
+
+const NAV_PERMISSIONS = {
+    administration: "settings.view", professionalReview: "professional_review.execute",
+    imports: "imports.view", evidence: "evidence.view", indicators: "indicators.view",
+    compliance: "compliance.view", problems: "problems.view", improvement: "problems.view",
+    reports: "reports.view", assets: "assets.view", sensors: "sensors.view", audit: "audit.view",
+};
+
+function filterNavigation(navigation, can) {
+    return {
+        ...navigation,
+        groups: navigation.groups.map((group) => ({
+            ...group,
+            items: group.items.filter((item) => !NAV_PERMISSIONS[item.id] || can(NAV_PERMISSIONS[item.id])),
+        })).filter((group) => group.items.length),
+    };
+}
 
 
 function resolveWorkId(
@@ -49,6 +67,7 @@ function resolveWorkId(
 export default function Sidebar({
     onNavigate,
 }) {
+    const { can } = usePermissions();
     const navigate =
         useNavigate();
 
@@ -110,11 +129,8 @@ export default function Sidebar({
 
     const navigation =
         useMemo(
-            () =>
-                getNavigationForPreset(
-                    preset
-                ),
-            [preset]
+            () => filterNavigation(getNavigationForPreset(preset), can),
+            [can, preset]
         );
 
 
@@ -122,12 +138,12 @@ export default function Sidebar({
         useMemo(
             () =>
                 workId
-                    ? getWorkNavigation({
+                    ? filterNavigation(getWorkNavigation({
                         obraId: workId,
                         applicability: workApplicability.scope === applicabilityScope ? workApplicability.rows : [],
-                    })
+                    }), can)
                     : null,
-            [applicabilityScope, workApplicability, workId]
+            [applicabilityScope, can, workApplicability, workId]
         );
 
 

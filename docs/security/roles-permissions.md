@@ -37,3 +37,9 @@ El catálogo exhaustivo y la matriz ejecutable residen en `backend/apps/analytic
 ## Segregación y aislamiento
 
 Crear, editar, revisar, validar, confirmar, aprobar y cerrar son permisos distintos. El orden obligatorio es: validar tenant, validar permiso y después validar alcance. Toda creación deriva la organización desde el endpoint validado; IDs de obra del payload deben pertenecer al tenant y al alcance. Los serializers de equipo no aceptan `is_staff`, `is_superuser`, grupos ni permisos Django. El último administrador activo no puede desactivarse, eliminarse ni degradarse.
+
+## Cobertura transversal
+
+La capa central se aplica a cálculos y metodologías, importaciones, evidencias y compliance, perfil y aplicabilidad, indicadores, problemáticas y revisión profesional. Los recursos derivados resuelven su obra desde la relación persistida y revalidan alcance en cada operación; los flujos de ingesta también revalidan el contexto en mapping, preview y confirmación. La navegación, las rutas críticas y sus acciones usan las capacidades de `/auth/me` sin reconstruir roles en el cliente.
+
+La segregación entre autor y aprobador solo puede imponerse donde el recurso conserva autoría verificable. Los recursos históricos sin autor persistido mantienen esta limitación documentada; no se infiere autoría.

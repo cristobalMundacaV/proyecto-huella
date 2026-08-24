@@ -229,6 +229,11 @@ const PAGE_CONTEXTS = [
     title: "Indicadores",
     description: "Indicadores ambientales y operacionales de esta unidad.",
   },
+  {
+    pattern: "/obras/:obraId/reportes",
+    title: "Reportes",
+    description: "Lectura ejecutiva, evolución y focos ambientales de esta unidad.",
+  },
 
   {
     pattern: "/obras/:obraId/problemas/:problemId",
@@ -603,13 +608,20 @@ export function getWorkNavigation({
             icon: BarChart3,
           },
           {
+            id: "reports",
+            domain: "reportes",
+            label: "Reportes",
+            path: `${base}/reportes`,
+            icon: BarChart3,
+          },
+          {
             id: "compliance",
             domain: "cumplimiento",
             label: "Cumplimiento",
             path: `${base}/cumplimiento`,
             icon: BarChart3,
           },
-        ].filter((item) => !item.domain || ["operacion", "indicadores", "cumplimiento"].includes(item.domain) || visibleCapabilities.has(item.capability || item.domain)),
+        ].filter((item) => !item.domain || ["operacion", "indicadores", "reportes", "cumplimiento"].includes(item.domain) || visibleCapabilities.has(item.capability || item.domain)),
       },
 
       {

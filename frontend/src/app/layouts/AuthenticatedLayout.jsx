@@ -7,11 +7,15 @@ import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { IconButton } from "@/shared/ui/Button";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
+import SuspendedServicePage from "@/features/saas/components/SuspendedServicePage";
 
 export default function AuthenticatedLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { pathname } = useLocation();
   const { user } = useAuth();
+  const { activeOrganizacionId } = useOrganizacionActiva();
+  const activeMembership = user?.organizaciones?.find((item) => String(item.organizacion_id) === String(activeOrganizacionId));
 
   useEffect(() => { setMobileMenuOpen(false); }, [pathname]);
 
@@ -32,6 +36,8 @@ export default function AuthenticatedLayout() {
   useEffect(() => {
     if (!pathname.startsWith("/obras/")) window.scrollTo({ top: 0, behavior: "auto" });
   }, [pathname]);
+
+  if (!user?.is_superuser && activeMembership?.saas_disponibilidad === "bloqueado") return <SuspendedServicePage membership={activeMembership} />;
 
   return (
     <main className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)]">

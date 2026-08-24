@@ -91,6 +91,55 @@ class Organizacion(models.Model):
         return self.nombre
 
 
+class SuscripcionSaaS(models.Model):
+    class Plan(models.TextChoices):
+        SIN_PLAN = "sin_plan", "Sin plan"
+        STARTER = "starter", "Starter"
+        PROFESSIONAL = "professional", "Professional"
+        ENTERPRISE = "enterprise", "Enterprise"
+
+    class Estado(models.TextChoices):
+        PILOTO = "piloto", "Piloto"
+        ACTIVO = "activo", "Activo"
+        PAGO_PENDIENTE = "pago_pendiente", "Pago pendiente"
+        SUSPENDIDO = "suspendido", "Suspendido"
+        CANCELADO = "cancelado", "Cancelado"
+
+    class Disponibilidad(models.TextChoices):
+        OPERATIVO = "operativo", "Operativo"
+        BLOQUEADO = "bloqueado", "Bloqueado"
+
+    organizacion = models.OneToOneField(Organizacion, on_delete=models.CASCADE, related_name="suscripcion_saas")
+    plan = models.CharField(max_length=24, choices=Plan.choices, default=Plan.SIN_PLAN, db_index=True)
+    estado = models.CharField(max_length=24, choices=Estado.choices, default=Estado.PILOTO, db_index=True)
+    disponibilidad = models.CharField(max_length=16, choices=Disponibilidad.choices, default=Disponibilidad.OPERATIVO, db_index=True)
+    inicio_plan = models.DateField(null=True, blank=True)
+    fin_piloto = models.DateField(null=True, blank=True)
+    proximo_vencimiento = models.DateField(null=True, blank=True)
+    fecha_suspension = models.DateTimeField(null=True, blank=True)
+    fecha_cancelacion = models.DateTimeField(null=True, blank=True)
+    responsable_comercial = models.CharField(max_length=160, blank=True)
+    limites = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["organizacion__nombre"]
+
+
+class EventoAuditoriaSaaS(models.Model):
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="auditoria_saas")
+    actor = models.ForeignKey(User, on_delete=models.PROTECT, related_name="eventos_saas")
+    accion = models.CharField(max_length=60, db_index=True)
+    detalle = models.TextField(blank=True)
+    estado_anterior = models.JSONField(default=dict, blank=True)
+    estado_nuevo = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
 class UsuarioOrganizacion(models.Model):
     class Rol(models.TextChoices):
         ADMIN = "admin", "Administrador"

@@ -24,6 +24,7 @@ import {
 } from "react-router-dom";
 
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { usePermissions } from "@/features/auth/hooks/usePermissions";
 
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 
@@ -106,6 +107,9 @@ const TONE_STYLES = {
 };
 
 export default function WorkDiagnosticPage() {
+    const { can } = usePermissions();
+    const canManageProfile = can("environmental_profile.manage");
+    const canManageApplicability = can("environmental_profile.applicability_manage");
     const { obraId } = useParams();
 
     const workspace =
@@ -641,7 +645,7 @@ export default function WorkDiagnosticPage() {
                                                 group.type,
                                         )}
                                         readOnly={
-                                            user?.is_demo
+                                            user?.is_demo || !canManageProfile
                                         }
                                         onAdd={
                                             addElement
@@ -713,13 +717,13 @@ export default function WorkDiagnosticPage() {
                             Boolean(diagnostic)
                         }
                         readOnly={
-                            user?.is_demo
+                            user?.is_demo || !canManageApplicability
                         }
                     />
                 )}
             </section>
 
-            {!user?.is_demo &&
+            {!user?.is_demo && canManageProfile &&
                 state.diagnostico
                     .status ===
                 "ready" && (

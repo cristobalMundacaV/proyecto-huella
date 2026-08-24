@@ -1,13 +1,14 @@
 import json
 
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
-from .models import Organizacion, PlantillaMapeo, ProcesoIngesta
-from .permissions import Permission, has_tenant_permission
+from .models import Obra, Organizacion, PlantillaMapeo, ProcesoIngesta
+from .permissions import Permission, filter_works_for_user, has_tenant_permission
 from .serializers_ingestion_v2 import PlantillaMapeoSerializer, ProcesoIngestaSerializer
 from .services.ingestion_v2 import (analizar_ingesta, confirmar_ingesta, crear_ingesta,
                                     crear_ingesta_estructurada, guardar_mapeo, preview_ingesta)
@@ -19,8 +20,17 @@ def _organizacion(request, organizacion_id, permission):
     return organization if allowed else None
 
 
-def _proceso(organizacion, ingesta_id):
-    return get_object_or_404(ProcesoIngesta.objects.select_related("version_evidencia__evidencia", "fuente_datos", "plantilla_mapeo"), organizacion=organizacion, id=ingesta_id)
+def _proceso(request, organizacion, ingesta_id):
+    process = get_object_or_404(ProcesoIngesta.objects.select_related("version_evidencia__evidencia", "fuente_datos", "plantilla_mapeo"), organizacion=organizacion, id=ingesta_id)
+    _validate_context_scope(request, organizacion, process.contexto_confirmado or {})
+    return process
+
+
+def _validate_context_scope(request, organization, context):
+    work_id = context.get("obra_id") if isinstance(context, dict) else None
+    if work_id and not filter_works_for_user(Obra.objects.all(), request.user, organization).filter(id=work_id).exists():
+        from django.http import Http404
+        raise Http404("Recurso no encontrado.")
 
 
 def _contexto(request):
@@ -43,7 +53,11 @@ def ingestas(request, organizacion_id):
     if not organizacion: return Response({"detail": "Recurso no encontrado."}, status=404)
     if request.method == "GET":
         queryset = organizacion.procesos_ingesta.select_related("version_evidencia__evidencia", "fuente_datos", "plantilla_mapeo")
+        allowed_ids = list(filter_works_for_user(Obra.objects.all(), request.user, organizacion).values_list("id", flat=True))
+        queryset = queryset.filter(Q(contexto_confirmado__obra_id__isnull=True) | Q(contexto_confirmado__obra_id__in=allowed_ids))
         return Response(ProcesoIngestaSerializer(queryset, many=True).data)
+    context = _contexto(request)
+    _validate_context_scope(request, organizacion, context)
     upload = request.FILES.get("archivo") or request.FILES.get("file")
     if not upload:
         try:
@@ -52,7 +66,7 @@ def ingestas(request, organizacion_id):
                 fuente_nombre=request.data.get("fuente_nombre", "Fuente estructurada"),
                 tipo_ingesta=request.data.get("tipo_ingesta", ""),
                 destino_operacional=request.data.get("destino_operacional", "actividad_generica"),
-                flujo=request.data.get("flujo", ""), contexto_confirmado=request.data.get("contexto", {}),
+                flujo=request.data.get("flujo", ""), contexto_confirmado=context,
             )
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -68,7 +82,7 @@ def ingestas(request, organizacion_id):
             fuente_nombre=request.data.get("fuente_nombre", ""), evidencia_id=request.data.get("evidencia"),
             tipo_ingesta=request.data.get("tipo_ingesta", "tabular"),
             destino_operacional=request.data.get("destino_operacional", "actividad_generica"), flujo=request.data.get("flujo", ""),
-            clasificacion_confirmada=request.data.get("clasificacion_confirmada", ""), contexto_confirmado=_contexto(request),
+            clasificacion_confirmada=request.data.get("clasificacion_confirmada", ""), contexto_confirmado=context,
         )
     except ValueError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -79,7 +93,7 @@ def ingestas(request, organizacion_id):
 def ingesta_detail(request, organizacion_id, ingesta_id):
     organization = _organizacion(request, organizacion_id, Permission.IMPORT_VIEW)
     if not organization: return Response({"detail": "Recurso no encontrado."}, status=404)
-    proceso = _proceso(organization, ingesta_id)
+    proceso = _proceso(request, organization, ingesta_id)
     return Response(ProcesoIngestaSerializer(proceso).data)
 
 
@@ -87,7 +101,7 @@ def ingesta_detail(request, organizacion_id, ingesta_id):
 def ingesta_analizar(request, organizacion_id, ingesta_id):
     organization = _organizacion(request, organizacion_id, Permission.IMPORT_REVIEW)
     if not organization: return Response({"detail": "Recurso no encontrado."}, status=404)
-    proceso = _proceso(organization, ingesta_id)
+    proceso = _proceso(request, organization, ingesta_id)
     try:
         return Response(analizar_ingesta(proceso))
     except Exception as exc:
@@ -99,7 +113,7 @@ def ingesta_analizar(request, organizacion_id, ingesta_id):
 def ingesta_mapeo(request, organizacion_id, ingesta_id):
     organization = _organizacion(request, organizacion_id, Permission.IMPORT_REVIEW)
     if not organization: return Response({"detail": "Recurso no encontrado."}, status=404)
-    proceso = _proceso(organization, ingesta_id)
+    proceso = _proceso(request, organization, ingesta_id)
     try:
         plantilla = guardar_mapeo(
             proceso, request.data.get("mapeos", []), request.data.get("nombre", "Mapeo ambiental"),
@@ -115,7 +129,7 @@ def ingesta_mapeo(request, organizacion_id, ingesta_id):
 def ingesta_preview(request, organizacion_id, ingesta_id):
     organization = _organizacion(request, organizacion_id, Permission.IMPORT_VIEW)
     if not organization: return Response({"detail": "Recurso no encontrado."}, status=404)
-    return Response(preview_ingesta(_proceso(organization, ingesta_id)))
+    return Response(preview_ingesta(_proceso(request, organization, ingesta_id)))
 
 
 @api_view(["POST"])
@@ -123,7 +137,7 @@ def ingesta_confirmar(request, organizacion_id, ingesta_id):
     try:
         organization = _organizacion(request, organizacion_id, Permission.IMPORT_CONFIRM)
         if not organization: return Response({"detail": "Recurso no encontrado."}, status=404)
-        return Response(confirmar_ingesta(_proceso(organization, ingesta_id)))
+        return Response(confirmar_ingesta(_proceso(request, organization, ingesta_id)))
     except ValueError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 

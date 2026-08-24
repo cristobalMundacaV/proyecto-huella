@@ -3,6 +3,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
@@ -12,10 +13,17 @@ from .models import (
     FormulaAmbiental,
     ImpactoAmbiental,
     MetodologiaAmbiental,
+    Obra,
     Organizacion,
-    UsuarioOrganizacion,
     VariableFormula,
     VersionMetodologia,
+)
+from .permissions import (
+    Permission,
+    filter_works_for_user,
+    get_membership,
+    has_tenant_permission,
+    require_resource_work_access,
 )
 from .serializers_calculation_v2 import (
     CalculoAmbientalSerializer,
@@ -31,33 +39,19 @@ from .services.methodology_compatibility import compare_calculations
 from .services.methodology_selector import select_methodology
 
 
-def _org(request, value):
+def _org(request, value, permission):
     org = get_object_or_404(Organizacion, organizacion_id=value)
-    allowed = request.user.is_authenticated and (
-        request.user.is_superuser
-        or UsuarioOrganizacion.objects.filter(
-            user=request.user,
-            organizacion=org,
-            activo=True,
-        ).exists()
-    )
-    return org if allowed else None
+    allowed = has_tenant_permission(request.user, org, permission)
+    if allowed:
+        return org
+    if get_membership(request.user, org):
+        raise PermissionDenied("No tienes permisos para realizar esta acción.")
+    return None
 
 
-def _activity(org, value):
-    return get_object_or_404(org.actividades_operacionales, id=value)
-
-
-def _tenant_admin(request, organization):
-    return request.user.is_authenticated and (
-        request.user.is_superuser
-        or UsuarioOrganizacion.objects.filter(
-            user=request.user,
-            organizacion=organization,
-            activo=True,
-            rol=UsuarioOrganizacion.Rol.ADMIN,
-        ).exists()
-    )
+def _activity(request, org, value):
+    activity = get_object_or_404(org.actividades_operacionales.select_related("obra"), id=value)
+    return require_resource_work_access(request.user, org, activity)
 
 
 def _serialize_selection(selection):
@@ -95,7 +89,7 @@ def _serialize_selection(selection):
 
 @api_view(["GET"])
 def metodologias(request, organizacion_id):
-    org = _org(request, organizacion_id)
+    org = _org(request, organizacion_id, Permission.FACTOR_VIEW)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
     queryset = MetodologiaAmbiental.objects.filter(
@@ -108,7 +102,8 @@ def metodologias(request, organizacion_id):
 
 @api_view(["GET", "POST"])
 def metodologia_detail(request, organizacion_id, metodologia_id):
-    org = _org(request, organizacion_id)
+    permission = Permission.FACTOR_VIEW if request.method == "GET" else Permission.FACTOR_CUSTOM_CREATE
+    org = _org(request, organizacion_id, permission)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
     item = get_object_or_404(
@@ -118,8 +113,6 @@ def metodologia_detail(request, organizacion_id, metodologia_id):
     )
     if request.method == "GET":
         return Response(MetodologiaSerializer(item).data)
-    if not _tenant_admin(request, org):
-        return Response({"detail": "Permiso insuficiente."}, status=403)
     if item.organizacion_id is None and not request.user.is_superuser:
         return Response(
             {"detail": "Solo un superusuario puede modificar metodologías globales."},
@@ -179,11 +172,9 @@ def metodologia_detail(request, organizacion_id, metodologia_id):
 
 @api_view(["POST"])
 def metodologia_transition(request, organizacion_id, metodologia_id, version_id):
-    org = _org(request, organizacion_id)
+    org = _org(request, organizacion_id, Permission.FACTOR_CUSTOM_REVIEW)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
-    if not _tenant_admin(request, org):
-        return Response({"detail": "Permiso insuficiente."}, status=403)
     version = get_object_or_404(
         VersionMetodologia.objects.filter(
             Q(metodologia__organizacion=org) | Q(metodologia__organizacion__isnull=True)
@@ -218,11 +209,9 @@ def metodologia_transition(request, organizacion_id, metodologia_id, version_id)
 def metodologia_variables(
     request, organizacion_id, metodologia_id, version_id, variable_id=None
 ):
-    org = _org(request, organizacion_id)
+    org = _org(request, organizacion_id, Permission.FACTOR_CUSTOM_CREATE)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
-    if not _tenant_admin(request, org):
-        return Response({"detail": "Permiso insuficiente."}, status=403)
     version = get_object_or_404(
         VersionMetodologia,
         id=version_id,
@@ -250,7 +239,7 @@ def metodologia_variables(
 
 @api_view(["GET"])
 def factores_ambientales(request, organizacion_id):
-    org = _org(request, organizacion_id)
+    org = _org(request, organizacion_id, Permission.FACTOR_VIEW)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
     queryset = FactorAmbiental.objects.filter(
@@ -261,20 +250,20 @@ def factores_ambientales(request, organizacion_id):
 
 @api_view(["GET"])
 def elegibilidad_actividad(request, organizacion_id, actividad_id):
-    org = _org(request, organizacion_id)
+    org = _org(request, organizacion_id, Permission.INDICATOR_VIEW)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
     return Response(
-        _serialize_selection(select_methodology(_activity(org, actividad_id)))
+        _serialize_selection(select_methodology(_activity(request, org, actividad_id)))
     )
 
 
 @api_view(["POST"])
 def calcular_actividad(request, organizacion_id, actividad_id):
-    org = _org(request, organizacion_id)
+    org = _org(request, organizacion_id, Permission.INDICATOR_MANAGE)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
-    activity = _activity(org, actividad_id)
+    activity = _activity(request, org, actividad_id)
     try:
         calculation, selection = calculate_activity(
             activity, result_context=request.data.get("contexto_resultado")
@@ -299,10 +288,10 @@ def calcular_actividad(request, organizacion_id, actividad_id):
 
 @api_view(["GET"])
 def calculos_actividad(request, organizacion_id, actividad_id):
-    org = _org(request, organizacion_id)
+    org = _org(request, organizacion_id, Permission.INDICATOR_VIEW)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
-    activity = _activity(org, actividad_id)
+    activity = _activity(request, org, actividad_id)
     queryset = activity.calculos_ambientales.select_related(
         "version_metodologia__metodologia",
         "formula__factor_ambiental",
@@ -313,7 +302,7 @@ def calculos_actividad(request, organizacion_id, actividad_id):
 
 @api_view(["GET"])
 def calculo_detail(request, organizacion_id, calculo_id):
-    org = _org(request, organizacion_id)
+    org = _org(request, organizacion_id, Permission.INDICATOR_VIEW)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
     item = get_object_or_404(
@@ -325,15 +314,16 @@ def calculo_detail(request, organizacion_id, calculo_id):
         organizacion=org,
         id=calculo_id,
     )
+    require_resource_work_access(request.user, org, item)
     return Response(CalculoAmbientalSerializer(item).data)
 
 
 @api_view(["POST"])
 def calculo_recalculate(request, organizacion_id, calculo_id):
-    org = _org(request, organizacion_id)
+    org = _org(request, organizacion_id, Permission.INDICATOR_MANAGE)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
-    calculation = get_object_or_404(CalculoAmbiental, organizacion=org, id=calculo_id)
+    calculation = require_resource_work_access(request.user, org, get_object_or_404(CalculoAmbiental.objects.select_related("actividad__obra"), organizacion=org, id=calculo_id))
     try:
         new, selection = recalculate(
             calculation,
@@ -360,20 +350,20 @@ def calculo_recalculate(request, organizacion_id, calculo_id):
 
 @api_view(["GET"])
 def calculo_snapshot(request, organizacion_id, calculo_id):
-    org = _org(request, organizacion_id)
+    org = _org(request, organizacion_id, Permission.INDICATOR_VIEW)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
-    calculation = get_object_or_404(CalculoAmbiental, organizacion=org, id=calculo_id)
+    calculation = require_resource_work_access(request.user, org, get_object_or_404(CalculoAmbiental.objects.select_related("actividad__obra"), organizacion=org, id=calculo_id))
     return Response(calculation.snapshot_tecnico)
 
 
 @api_view(["GET"])
 def calculo_compare(request, organizacion_id, calculo_id, other_id):
-    org = _org(request, organizacion_id)
+    org = _org(request, organizacion_id, Permission.INDICATOR_VIEW)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
-    left = get_object_or_404(CalculoAmbiental, organizacion=org, id=calculo_id)
-    right = get_object_or_404(CalculoAmbiental, organizacion=org, id=other_id)
+    left = require_resource_work_access(request.user, org, get_object_or_404(CalculoAmbiental.objects.select_related("actividad__obra"), organizacion=org, id=calculo_id))
+    right = require_resource_work_access(request.user, org, get_object_or_404(CalculoAmbiental.objects.select_related("actividad__obra"), organizacion=org, id=other_id))
     return Response(compare_calculations(left, right))
 
 
@@ -385,6 +375,7 @@ def impactos_ambientales(
     org = _org(
         request,
         organizacion_id,
+        Permission.INDICATOR_VIEW,
     )
 
     if not org:
@@ -406,6 +397,9 @@ def impactos_ambientales(
 
     if obra_id:
         queryset = queryset.filter(actividad__obra_id=obra_id)
+
+    allowed_works = filter_works_for_user(Obra.objects.all(), request.user, org)
+    queryset = queryset.filter(Q(actividad__obra__isnull=True) | Q(actividad__obra__in=allowed_works))
 
     return Response(
         ImpactoAmbientalSerializer(
