@@ -3,7 +3,7 @@ import { useId } from "react";
 function Field({ label, helper, error, required, children, inputId }) {
   const messageId = `${inputId}-message`;
   return <label htmlFor={inputId} className="block text-sm">
-    {label && <span className="mb-1.5 block font-bold text-[var(--text-secondary)]">{label}{required && <span aria-hidden="true"> *</span>}{required && <span className="sr-only"> (obligatorio)</span>}</span>}
+    {label && <span className={`mb-1.5 block font-bold ${error ? "text-[var(--status-danger)]" : "text-[var(--text-secondary)]"}`}>{label}{required && <span aria-hidden="true"> *</span>}{required && <span className="sr-only"> (obligatorio)</span>}</span>}
     {children(messageId)}
     {error ? <span id={messageId} className="mt-1.5 block text-xs font-medium text-[var(--status-danger)]" role="alert">{error}</span> : helper && <span id={messageId} className="mt-1.5 block text-xs leading-5 text-[var(--text-muted)]">{helper}</span>}
   </label>;

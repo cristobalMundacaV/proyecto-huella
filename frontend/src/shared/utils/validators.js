@@ -10,6 +10,18 @@ export function cleanRut(value) {
     .toUpperCase();
 }
 
+export function formatChileanRut(value = "") {
+  const normalized = String(value)
+    .replace(/[^0-9kK]/g, "")
+    .slice(0, 9)
+    .toUpperCase();
+
+  if (normalized.length <= 1) return normalized;
+
+  const body = normalized.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${body}-${normalized.slice(-1)}`;
+}
+
 export function isValidChileanRut(value) {
   const rut = cleanRut(value);
 

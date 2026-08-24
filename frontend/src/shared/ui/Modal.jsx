@@ -36,8 +36,8 @@ export default function Modal({ open = true, eyebrow, icon: Icon, title = "Diál
   if (!open) return null;
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(event) => { if (closeOnBackdrop && event.target === event.currentTarget) onClose?.(); }}>
     <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} className={`flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-elevated)] shadow-[var(--shadow-lg)] sm:max-h-[calc(100dvh-3rem)] ${widths[size] || widths.lg}`}>
-      <header className="flex shrink-0 items-start justify-between gap-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-subtle)] px-5 py-4 sm:px-6 sm:py-5">
-        <div className="flex min-w-0 items-start gap-3">
+      <header className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-subtle)] px-5 py-4 sm:px-6 sm:py-5">
+        <div className="flex min-w-0 items-center gap-3">
           {Icon && <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--brand-soft)] text-[var(--brand-primary)]"><Icon aria-hidden="true" size={20} /></span>}
           <div className="min-w-0">
             {eyebrow && <p className="mb-1 text-[0.68rem] font-black uppercase tracking-[0.16em] text-[var(--brand-primary)]">{eyebrow}</p>}
@@ -45,7 +45,7 @@ export default function Modal({ open = true, eyebrow, icon: Icon, title = "Diál
             {description && <p id={descriptionId} className="mt-1 max-w-2xl text-sm leading-5 text-[var(--text-muted)]">{description}</p>}
           </div>
         </div>
-        {onClose && <IconButton aria-label="Cerrar diálogo" title="Cerrar" icon={X} onClick={onClose} className="shrink-0 border border-[var(--border-default)] bg-[var(--bg-surface)]" />}
+        {onClose && <IconButton aria-label="Cerrar diálogo" title="Cerrar" icon={X} onClick={onClose} className="h-10 w-10 shrink-0 rounded-full border border-[var(--border-default)] bg-white p-0 shadow-sm hover:bg-white" />}
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">{children}</div>
       {footer && <footer className="shrink-0 border-t border-[var(--border-subtle)] bg-[var(--bg-surface-subtle)] px-5 py-4 sm:px-6">{footer}</footer>}
