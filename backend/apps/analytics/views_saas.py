@@ -19,7 +19,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .models import ActividadOperacional, DocumentoAmbiental, EvidenciaObra, EventoAuditoriaSaaS, Obra, Observacion, Organizacion, ProblematicaAmbiental, ProcesoIngesta, RegistroEmision, SuscripcionSaaS, UsuarioOrganizacion
-from .services.email_service import EmailService
+from .services.email_service import EmailDeliveryError, EmailService
 from .services.identity import normalize_email_identity, provision_user_membership
 
 
@@ -125,10 +125,17 @@ def saas_provision_organization(request):
     if request.data["sector"] not in Organizacion.Preset.values: return Response({"sector": ["Selecciona un sector disponible."]}, status=status.HTTP_400_BAD_REQUEST)
     if request.data["plan"] not in SuscripcionSaaS.Plan.values: return Response({"plan": ["Selecciona un plan disponible."]}, status=status.HTTP_400_BAD_REQUEST)
     if request.data["estado"] not in {SuscripcionSaaS.Estado.PILOTO, SuscripcionSaaS.Estado.ACTIVO}: return Response({"estado": ["El estado inicial debe ser Piloto o Activo."]}, status=status.HTTP_400_BAD_REQUEST)
-    organization = Organizacion.objects.create(nombre=request.data["nombre"].strip(), preset=request.data["sector"], onboarding_step=1)
-    subscription_item = SuscripcionSaaS.objects.create(organizacion=organization, plan=request.data["plan"], estado=request.data["estado"], disponibilidad=SuscripcionSaaS.Disponibilidad.OPERATIVO)
-    admin_user, _, identity = provision_user_membership(organization=organization, email=email, role=UsuarioOrganizacion.Rol.ADMIN, first_name=request.data["admin_nombre"], last_name=request.data["admin_apellido"], cargo=request.data.get("admin_cargo", ""))
-    audit(request, organization, "alta_saas", {}, {"plan": subscription_item.plan, "estado": subscription_item.estado, "administrador": email}, "Tenant y administrador inicial provisionados.")
+    try:
+        organization = Organizacion.objects.create(nombre=request.data["nombre"].strip(), preset=request.data["sector"], onboarding_step=1)
+        subscription_item = SuscripcionSaaS.objects.create(organizacion=organization, plan=request.data["plan"], estado=request.data["estado"], disponibilidad=SuscripcionSaaS.Disponibilidad.OPERATIVO)
+        admin_user, _, identity = provision_user_membership(organization=organization, email=email, role=UsuarioOrganizacion.Rol.ADMIN, first_name=request.data["admin_nombre"], last_name=request.data["admin_apellido"], cargo=request.data.get("admin_cargo", ""))
+        audit(request, organization, "alta_saas", {}, {"plan": subscription_item.plan, "estado": subscription_item.estado, "administrador": email}, "Tenant y administrador inicial provisionados.")
+    except EmailDeliveryError:
+        transaction.set_rollback(True)
+        return Response(
+            {"code": "email_delivery_failed", "detail": "No pudimos enviar el correo de activación. La organización no fue creada. Inténtalo nuevamente."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
     return Response({"organizacion_id": organization.organizacion_id, "nombre": organization.nombre, "plan": subscription_item.plan, "estado": subscription_item.estado, "administrador": email, "identidad_nueva": identity["identity_created"], "mensaje_enviado": identity["message_kind"]}, status=status.HTTP_201_CREATED)
 
 

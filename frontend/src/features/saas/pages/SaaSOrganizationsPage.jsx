@@ -211,11 +211,17 @@ export default function SaaSOrganizationsPage() {
       setToast({ id: Date.now(), tone: "success", message: "Organización creada", subtitle: created.mensaje_enviado === "invitation" ? "La persona ya tenía una cuenta. Le enviamos una invitación a esta organización." : "Enviamos el enlace de activación a su administrador." });
       load();
     } catch (requestError) {
+      const emailDeliveryFailed =
+        requestError.response?.data?.code === "email_delivery_failed";
       setToast({
         id: Date.now(),
         tone: "error",
-        message: "No pudimos crear la organización",
-        subtitle: naturalCreateError(requestError),
+        message: emailDeliveryFailed
+          ? "No pudimos enviar la invitación"
+          : "No pudimos crear la organización",
+        subtitle: emailDeliveryFailed
+          ? "La organización no fue creada. Revisa el correo del administrador e inténtalo nuevamente."
+          : naturalCreateError(requestError),
       });
     } finally {
       setBusy(false);

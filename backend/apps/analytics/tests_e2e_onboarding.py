@@ -1,5 +1,6 @@
 import re
 from datetime import date
+from unittest.mock import patch
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
@@ -8,6 +9,7 @@ from django.test import override_settings, TestCase
 from rest_framework.test import APIClient
 
 from .models import AreaCapacidadAmbiental, AreaOperacional, CapacidadOrganizacion, DiagnosticoAmbientalInicial, ElementoDiagnosticoAmbiental, EventoAuditoriaSaaS, Obra, Observacion, Organizacion, ProblematicaAmbiental, RegistroEmision, SuscripcionSaaS, UsuarioOrganizacion
+from .services.email_service import EmailDeliveryError
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend", RESEND_API_KEY="", FRONTEND_URL="http://frontend.test")
@@ -25,6 +27,39 @@ class SaaSOnboardingE2ETests(TestCase):
         response = self.client.post("/api/saas/organizaciones/provisionar/", {"nombre": "Tenant inválido", "sector": "construccion", "plan": "starter", "estado": "piloto", "admin_nombre": "Marcela", "admin_apellido": "Rojas", "admin_email": "c"}, format="json")
         self.assertEqual(response.status_code, 400); self.assertIn("admin_email", response.data)
         self.assertEqual(Organizacion.objects.count(), before)
+
+    @patch("apps.analytics.services.email_service.EmailService.send_account_activation", side_effect=EmailDeliveryError("fallo controlado"))
+    def test_activation_delivery_failure_rolls_back_new_identity_and_tenant(self, _send):
+        counts = {
+            "organizations": Organizacion.objects.count(),
+            "subscriptions": SuscripcionSaaS.objects.count(),
+            "memberships": UsuarioOrganizacion.objects.count(),
+            "users": User.objects.count(),
+        }
+
+        response = self.client.post("/api/saas/organizaciones/provisionar/", {"nombre": "Tenant sin correo", "sector": "construccion", "plan": "starter", "estado": "piloto", "admin_nombre": "Marcela", "admin_apellido": "Rojas", "admin_email": "nueva@example.com"}, format="json")
+
+        self.assertEqual(response.status_code, 503, response.data)
+        self.assertEqual(response.data["code"], "email_delivery_failed")
+        self.assertEqual(Organizacion.objects.count(), counts["organizations"])
+        self.assertEqual(SuscripcionSaaS.objects.count(), counts["subscriptions"])
+        self.assertEqual(UsuarioOrganizacion.objects.count(), counts["memberships"])
+        self.assertEqual(User.objects.count(), counts["users"])
+
+    @patch("apps.analytics.services.email_service.EmailService.send_organization_invitation", side_effect=EmailDeliveryError("fallo controlado"))
+    def test_invitation_delivery_failure_rolls_back_existing_identity_membership(self, _send):
+        existing = User.objects.create_user("existing-admin", "existing@example.com", "Original-password-123!")
+        original_password = existing.password
+        organizations_before = Organizacion.objects.count()
+
+        response = self.client.post("/api/saas/organizaciones/provisionar/", {"nombre": "Segundo tenant sin correo", "sector": "industrial", "plan": "professional", "estado": "activo", "admin_nombre": "Otro", "admin_apellido": "Nombre", "admin_email": "EXISTING@example.com"}, format="json")
+
+        self.assertEqual(response.status_code, 503, response.data)
+        self.assertEqual(response.data["code"], "email_delivery_failed")
+        self.assertEqual(Organizacion.objects.count(), organizations_before)
+        self.assertFalse(UsuarioOrganizacion.objects.filter(user=existing).exists())
+        existing.refresh_from_db()
+        self.assertEqual(existing.password, original_password)
 
     def test_full_provision_activation_and_onboarding(self):
         provisioned = self.provision(); organization = Organizacion.objects.get(organizacion_id=provisioned.data["organizacion_id"])
