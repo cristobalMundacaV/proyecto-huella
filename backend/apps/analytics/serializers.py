@@ -25,6 +25,7 @@ from .models import (
 )
 from .services.forestal_carbono import calcular_balance_neto_lote
 from .services.onboarding import valid_chilean_rut
+from .services.chile_locations import validate_chile_location
 
 
 def normalize_carbon_percentage(value):
@@ -52,6 +53,19 @@ class OrganizacionSerializer(serializers.ModelSerializer):
         if not re.fullmatch(r"9\d{8}", local):
             raise serializers.ValidationError("El formato del teléfono no es válido.")
         return f"+56{local}"
+
+    def validate(self, attrs):
+        if self.instance is None or "pais" in attrs:
+            attrs["pais"] = "Chile"
+        if "region" not in attrs and "comuna" not in attrs:
+            return attrs
+        region = attrs.get("region", getattr(self.instance, "region", ""))
+        comuna = attrs.get("comuna", getattr(self.instance, "comuna", ""))
+        location_error = validate_chile_location(region, comuna)
+        if location_error:
+            field = "comuna" if comuna else "region"
+            raise serializers.ValidationError({field: [location_error]})
+        return attrs
 
     class Meta:
         model = Organizacion

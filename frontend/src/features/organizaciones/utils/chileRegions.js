@@ -79,3 +79,4 @@ export function getComunasByRegion(region) {
 }
 
 export function isValidChileLocation(region, comuna) { return getComunasByRegion(region).some((item) => item.nombre === comuna || item.codigo === comuna); }
+export function selectChileRegion(region) { return { region, comuna: "" }; }

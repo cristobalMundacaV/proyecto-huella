@@ -73,7 +73,7 @@ class SaaSOnboardingE2ETests(TestCase):
         self.assertEqual(response.status_code, 200); admin.refresh_from_db(); self.assertTrue(admin.is_active); self.assertIsNotNone(authenticate(email=admin.email, password="Secure-access-481!"))
         self.client.force_authenticate(admin); headers = {"HTTP_X_ORGANIZATION_ID": organization.organizacion_id}
         steps = [
-            (1, {"nombre": organization.nombre, "rut": "21.683.264-7", "pais": "Chile", "preset": "construccion", "region": "Biobío"}),
+            (1, {"nombre": organization.nombre, "rut": "21.683.264-7", "preset": "construccion", "region": "Región del Biobío", "comuna": "Concepción"}),
             (2, {"areas": ["bodega", "maquinaria_operaciones", "logistica_transporte", "administracion_compras", "medio_ambiente", "gestion_obra"]}),
             (3, {"flujos": {"materiales": "regular", "combustibles": "regular", "energia": "parcial", "agua": "sin_informacion", "residuos": "regular"}}),
             (4, {"metodos": "PDF, Excel", "centralizacion": "parcial", "revision": "medio_ambiente", "frecuencia": "mensual"}),
@@ -89,6 +89,16 @@ class SaaSOnboardingE2ETests(TestCase):
         diagnostic = DiagnosticoAmbientalInicial.objects.get(organizacion=organization, obra=None)
         self.assertGreater(ElementoDiagnosticoAmbiental.objects.filter(diagnostico=diagnostic).count(), 0)
         self.assertFalse(RegistroEmision.objects.filter(organizacion=organization).exists()); self.assertFalse(Observacion.objects.filter(organizacion=organization).exists()); self.assertFalse(ProblematicaAmbiental.objects.filter(organizacion=organization).exists())
+
+    def test_onboarding_forces_chile_and_rejects_incompatible_commune(self):
+        provisioned = self.provision(); organization = Organizacion.objects.get(organizacion_id=provisioned.data["organizacion_id"])
+        admin = User.objects.get(email="marcela@example.com"); self.client.force_authenticate(admin)
+        headers = {"HTTP_X_ORGANIZATION_ID": organization.organizacion_id}
+        invalid = self.client.patch("/api/onboarding/", {"step": 1, "data": {"nombre": organization.nombre, "rut": "21.683.264-7", "preset": "construccion", "pais": "Argentina", "region": "Región del Biobío", "comuna": "Las Condes"}}, format="json", **headers)
+        self.assertEqual(invalid.status_code, 400)
+        valid = self.client.patch("/api/onboarding/", {"step": 1, "data": {"nombre": organization.nombre, "rut": "21.683.264-7", "preset": "construccion", "region": "Región del Biobío", "comuna": "Concepción"}}, format="json", **headers)
+        self.assertEqual(valid.status_code, 200, valid.data)
+        organization.refresh_from_db(); self.assertEqual(organization.pais, "Chile"); self.assertEqual(organization.comuna, "Concepción")
 
     def test_onboarding_is_tenant_isolated(self):
         self.provision(); first = Organizacion.objects.get(nombre__startswith="Constructora")

@@ -7,6 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from ..models import AreaCapacidadAmbiental, AreaOperacional, CapacidadAmbiental, CapacidadOrganizacion, DiagnosticoAmbientalInicial, ElementoDiagnosticoAmbiental
+from .chile_locations import validate_chile_location
 
 FLOW_CATALOG = {
     "materiales": ("Materiales e insumos", "Recepcion, utilizacion y trazabilidad."), "transporte": ("Transporte y logistica", "Viajes, cargas y rutas."),
@@ -44,11 +45,14 @@ def apply_onboarding_step(organization, user, step, payload):
     stored = dict(organization.onboarding_data or {})
     stored[str(step)] = payload
     if step == 1:
-        for field in ("nombre", "nombre_comercial", "rut", "rubro", "pais", "region", "comuna", "direccion", "email", "telefono", "contacto", "preset"):
+        for field in ("nombre", "nombre_comercial", "rut", "rubro", "region", "comuna", "direccion", "email", "telefono", "contacto", "preset"):
             if field in payload: setattr(organization, field, payload[field])
-        if not organization.nombre or not organization.rut or not organization.pais or not organization.preset:
-            raise ValueError("Completa razón social, RUT, país y sector.")
+        organization.pais = "Chile"
+        if not organization.nombre or not organization.rut or not organization.preset:
+            raise ValueError("Completa razón social, RUT y sector.")
         if not valid_chilean_rut(organization.rut): raise ValueError("El RUT ingresado no es válido.")
+        location_error = validate_chile_location(organization.region, organization.comuna)
+        if location_error: raise ValueError(location_error)
         if organization.email:
             try: validate_email(organization.email)
             except ValidationError as exc: raise ValueError("El formato del correo electrónico no es válido.") from exc
