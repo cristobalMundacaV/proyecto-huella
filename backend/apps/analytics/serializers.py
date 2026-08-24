@@ -43,6 +43,7 @@ class OrganizacionSerializer(serializers.ModelSerializer):
             "id",
             "organizacion_id",
             "nombre",
+            "nombre_comercial",
             "rut",
             "region",
             "comuna",
@@ -54,6 +55,9 @@ class OrganizacionSerializer(serializers.ModelSerializer):
             "telefono",
             "contacto",
             "observaciones",
+            "pais",
+            "onboarding_step",
+            "onboarding_completado",
             "etapas_count",
             "obras_count",
             "registros_count",
@@ -451,6 +455,8 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
     etapa_nombre = serializers.CharField(source="etapa.nombre", read_only=True)
     registros_fuente = serializers.SerializerMethodField()
     lote_forestal_id = serializers.CharField(source="lote_forestal.lote_id", read_only=True)
+    area_origen_nombre = serializers.CharField(source="area_origen.nombre", read_only=True)
+    usuario_origen_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = EvidenciaObra
@@ -469,6 +475,11 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
             "lote_forestal",
             "lote_forestal_id",
             "lote_id",
+            "area_origen",
+            "area_origen_nombre",
+            "usuario_origen",
+            "usuario_origen_nombre",
+            "metodo_captura",
             "tipo_evidencia",
             "estado_documental",
             "fecha_documento",
@@ -490,6 +501,11 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
             "etapa_nombre",
             "registros_fuente",
             "lote_forestal_id",
+            "area_origen",
+            "area_origen_nombre",
+            "usuario_origen",
+            "usuario_origen_nombre",
+            "metodo_captura",
             "archivo_url",
             "texto_extraido",
             "created_at",
@@ -516,6 +532,11 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
 
     def get_registros_fuente(self, evidencia):
         return list(evidencia.registros_emision.values_list("fuente_emision", flat=True))
+
+    def get_usuario_origen_nombre(self, evidencia):
+        if not evidencia.usuario_origen:
+            return ""
+        return evidencia.usuario_origen.get_full_name().strip() or evidencia.usuario_origen.username
 
     def get_archivo_url(self, evidencia):
         if not evidencia.archivo:

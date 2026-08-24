@@ -27,6 +27,11 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PUBLIC_FRONTEND_URL = os.getenv("PUBLIC_FRONTEND_URL", "")
+FRONTEND_URL = os.getenv("FRONTEND_URL", PUBLIC_FRONTEND_URL or "http://localhost:5173")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Carbono Zero <no-reply@carbonozero.mundacasolutions.com>")
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+PASSWORD_RESET_TIMEOUT = int(os.getenv("PASSWORD_RESET_TIMEOUT", "3600"))
 DATABASE_ENGINE = os.getenv("DATABASE_ENGINE", "django.db.backends.sqlite3")
 
 

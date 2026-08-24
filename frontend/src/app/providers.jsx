@@ -1,12 +1,13 @@
 import { AuthProvider } from "@/features/auth/context/AuthContext";
 import { OrganizacionActivaProvider } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { FactoresProvider } from "@/features/factores/context/FactoresContext";
+import { OperationalWorkspaceProvider } from "@/features/workspace/context/OperationalWorkspaceContext";
 
 function Providers({ children }) {
   return (
     <AuthProvider>
       <OrganizacionActivaProvider>
-        <FactoresProvider>{children}</FactoresProvider>
+        <OperationalWorkspaceProvider><FactoresProvider>{children}</FactoresProvider></OperationalWorkspaceProvider>
       </OrganizacionActivaProvider>
     </AuthProvider>
   );

@@ -8,6 +8,8 @@ import { ErrorState } from "@/shared/ui/Feedback";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { usePermissions } from "@/features/auth/hooks/usePermissions";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
+import { useOperationalWorkspace } from "@/features/workspace/context/OperationalWorkspaceContext";
+import WorkspaceSelector from "@/features/workspace/components/WorkspaceSelector";
 
 const IntelligencePage = lazy(() => import("@/features/intelligence/pages/IntelligencePage"));
 const CopilotoAmbientalPage = lazy(() => import("@/features/intelligence/pages/CopilotPage"));
@@ -21,8 +23,14 @@ const AuditPage = lazy(() => import("@/features/professional/pages/AuditPage"));
 const KnowledgePage = lazy(() => import("@/features/professional/pages/KnowledgePage"));
 const CarbonoZeroLanding = lazy(() => import("@/landing/CarbonoZeroLanding"));
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
+const OnboardingPage = lazy(() => import("@/features/onboarding/pages/OnboardingPage"));
+const PasswordLifecyclePage = lazy(() => import("@/features/onboarding/pages/PasswordLifecyclePage"));
+const ReadyToStartPage = lazy(() => import("@/features/onboarding/pages/ReadyToStartPage"));
+const StructureSettingsPage = lazy(() => import("@/features/onboarding/pages/StructureSettingsPage"));
+const SecurityPage = lazy(() => import("@/features/onboarding/pages/SecurityPage"));
 const VerificarObra = lazy(() => import("@/features/obras/pages/VerificarObra"));
 const InicioPage = lazy(() => import("@/features/inicio/pages/InicioPage"));
+const OperationalHome = lazy(() => import("@/features/workspace/pages/OperationalHome"));
 const ObrasPage = lazy(() => import("@/features/obras/pages/ObrasPage"));
 const ObraWorkspaceLayout = lazy(() => import("@/app/layouts/ObraWorkspaceLayout"));
 const ObraResumenPage = lazy(() => import("@/features/obras/pages/ObraResumenPage"));
@@ -78,8 +86,11 @@ const SaaSAuditPage = lazy(() => import("@/features/saas/pages/SaaSAuditPage"));
 
 function ProviderBoundary() { return <Providers><Outlet /></Providers>; }
 function RequireAuth() { const { loadingAuth, user } = useAuth(); const location = useLocation(); if (loadingAuth) return <PlatformLoader fullScreen title="Iniciando sesión" />; return user ? <Outlet /> : <Navigate to="/login" replace state={{ returnTo: location.pathname + location.search }} />; }
-function LoginRoute() { const { loadingAuth, user } = useAuth(); if (loadingAuth) return <PlatformLoader fullScreen title="Iniciando sesión" />; return user ? <Navigate to="/inicio" replace /> : <LoginPage />; }
+function LoginRoute() { const { loadingAuth, user } = useAuth(); if (loadingAuth) return <PlatformLoader fullScreen title="Iniciando sesión" />; if (!user) return <LoginPage />; return user.organizaciones?.some((item) => item.rol === "admin" && !item.onboarding_completado) ? <Navigate to="/onboarding" replace /> : <Navigate to="/inicio" replace />; }
 function RequireOrganization() { const { activeOrganizacion, loadingOrganizaciones } = useOrganizacionActiva(); const { pathname } = useLocation(); if (loadingOrganizaciones) return <PlatformLoader fullScreen title="Cargando empresas" />; return !activeOrganizacion && pathname !== "/administracion/organizacion" ? <Navigate to="/administracion/organizacion" replace /> : <Outlet />; }
+function RequireOnboardingComplete() { const { user } = useAuth(); const { activeOrganizacionId } = useOrganizacionActiva(); const membership = user?.organizaciones?.find((item) => String(item.organizacion_id) === String(activeOrganizacionId)); return membership?.rol === "admin" && !membership.onboarding_completado ? <Navigate to="/onboarding" replace /> : <Outlet />; }
+function RequireOperationalWorkspace() { const { loading, needsSelection } = useOperationalWorkspace(); if (loading) return <PlatformLoader fullScreen title="Preparando espacio de trabajo" />; return needsSelection ? <WorkspaceSelector /> : <Outlet />; }
+function ContextualHome() { const { activeWorkspace } = useOperationalWorkspace(); const { activeOrganizacion } = useOrganizacionActiva(); const operational = activeWorkspace && !["medio_ambiente", "gestion_obra"].includes(activeWorkspace.area.tipo); if (operational) return <OperationalHome />; return Number(activeOrganizacion?.registros_count || 0) === 0 ? <ReadyToStartPage /> : <InicioPage />; }
 function OrganizationRoute() { const { activeOrganizacion } = useOrganizacionActiva(); return <OrganizacionesPage initialOpenCreate={!activeOrganizacion} />; }
 function RequireCapability({ permission, children }) { const { can } = usePermissions(); return can(permission) ? children : <ErrorState title="Sin permisos" description="No tienes permisos para acceder a este módulo en la organización activa." />; }
 function RequireSuperuser({ children }) { const { user } = useAuth(); return user?.is_superuser ? children : <ErrorState title="Acceso restringido" description="Esta sección pertenece exclusivamente a la administración global de Carbono Zero." />; }
@@ -90,11 +101,16 @@ export default function AppRouter() {
     <Route path="/verificar/:codigo" element={<VerificarObra />} />
     <Route element={<ProviderBoundary />}>
       <Route path="/login" element={<LoginRoute />} />
+      <Route path="/activar-cuenta/:uid/:token" element={<PasswordLifecyclePage mode="activate" />} />
+      <Route path="/recuperar-contrasena" element={<PasswordLifecyclePage mode="request" />} />
+      <Route path="/restablecer-contrasena/:uid/:token" element={<PasswordLifecyclePage mode="reset" />} />
       <Route element={<RequireAuth />}>
+        <Route path="onboarding" element={<OnboardingPage />} />
         <Route path="saas" element={<RequireSuperuser><SaaSLayout /></RequireSuperuser>}><Route index element={<SaaSDashboardPage />} /><Route path="organizaciones" element={<SaaSOrganizationsPage />} /><Route path="auditoria" element={<SaaSAuditPage />} /></Route>
-        <Route element={<RequireOrganization />}><Route element={<AuthenticatedLayout />}>
+        <Route element={<RequireOrganization />}><Route element={<RequireOnboardingComplete />}><Route element={<RequireOperationalWorkspace />}><Route element={<AuthenticatedLayout />}>
         <Route index element={<Navigate to="/inicio" replace />} />
-        <Route path="inicio" element={<InicioPage />} />
+        <Route path="inicio" element={<ContextualHome />} />
+        <Route path="perfil/seguridad" element={<SecurityPage />} />
         <Route path="obras" element={<ObrasPage />} />
         <Route path="obras/:obraId" element={<ObraWorkspaceLayout />}>
           <Route index element={<Navigate to="resumen" replace />} />
@@ -153,10 +169,11 @@ export default function AppRouter() {
         <Route path="gobernanza/auditoria" element={<AuditPage />} />
         <Route path="gobernanza/conocimiento" element={<KnowledgePage />} />
         <Route path="gobernanza/informes" element={<DossiersPage />} />
+        <Route path="administracion/estructura-operacional" element={<RequireCapability permission="settings.manage"><StructureSettingsPage /></RequireCapability>} />
         <Route path="administracion" element={<AdministracionPage />} /><Route path="administracion/organizacion" element={<OrganizationRoute />} /><Route path="administracion/equipo" element={<UsuariosPage />} /><Route path="administracion/usuarios" element={<Navigate to="/administracion/equipo" replace />} /><Route path="administracion/operacion" element={<SettingsSectionPage section="operacion" />} /><Route path="administracion/ambiental" element={<SettingsSectionPage section="ambiental" />} /><Route path="administracion/calculo" element={<SettingsSectionPage section="calculo" />} /><Route path="administracion/reportes" element={<SettingsSectionPage section="reportes" />} /><Route path="administracion/datos" element={<SettingsSectionPage section="datos" />} /><Route path="administracion/auditoria" element={<SettingsSectionPage section="auditoria" />} /><Route path="administracion/configuracion" element={<ConfiguracionPage />} /><Route path="administracion/diagnostico" element={<DiagnosticoAmbientalPage />} /><Route path="administracion/estructura" element={<EtapasPage />} />
         <Route path="operacion/recepcion-trozas" element={<RecepcionTrozasPage />} /><Route path="operacion/produccion" element={<ProduccionAserraderoPage />} /><Route path="operacion/secado" element={<SecadoAserraderoPage />} /><Route path="operacion/energia" element={<EnergiaAserraderoPage />} /><Route path="operacion/transporte-forestal" element={<TransporteForestalPage />} /><Route path="operacion/residuos-subproductos" element={<ResiduosSubproductosPage />} /><Route path="operacion/lotes-forestales" element={<LotesForestalesPage />} />
         <Route path="*" element={<NotFoundPage authenticated />} />
-      </Route></Route></Route>
+      </Route></Route></Route></Route></Route>
     </Route>
     <Route path="*" element={<NotFoundPage />} />
   </Routes></Suspense>;

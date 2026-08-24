@@ -3,6 +3,7 @@ import {
   LogOut,
   Menu,
   ShieldCheck,
+  KeyRound,
   UserRound,
 } from "lucide-react";
 
@@ -18,6 +19,8 @@ import { useAuth } from "@/features/auth/context/AuthContext";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { getActivePreset } from "@/presets/registry";
 import { IconButton } from "@/shared/ui/Button";
+import WorkspaceSelector from "@/features/workspace/components/WorkspaceSelector";
+import { useOperationalWorkspace } from "@/features/workspace/context/OperationalWorkspaceContext";
 
 export default function Navbar({
   onOpenMobileMenu,
@@ -32,6 +35,7 @@ export default function Navbar({
   const navigate = useNavigate();
 
   const [open, setOpen] = useState(false);
+  const { workspaces } = useOperationalWorkspace();
 
   const displayName =
     user?.first_name ||
@@ -95,6 +99,7 @@ export default function Navbar({
           </p>
         </div>
 
+        {workspaces.length > 1 && <WorkspaceSelector compact />}
         <div className="relative ml-auto">
           <button
             type="button"
@@ -148,6 +153,14 @@ export default function Navbar({
                 />
 
                 Ver información de usuario
+              </Link>
+              <Link
+                to="/perfil/seguridad"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-[var(--text-primary)] transition hover:bg-[var(--bg-subtle)]"
+              >
+                <KeyRound aria-hidden="true" size={17} />
+                Seguridad y contraseña
               </Link>
               {user?.is_superuser && <Link to="/saas" onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-emerald-800 transition hover:bg-emerald-50"><ShieldCheck aria-hidden="true" size={17} />Abrir Carbono Zero Global</Link>}
 

@@ -6,3 +6,4 @@ export const updateSaaSOrganization = async (id, payload) => (await api.patch(`/
 export const runSaaSAction = async (id, action, payload = {}) => (await api.post(`/saas/organizaciones/${encodeURIComponent(id)}/acciones/`, { action, ...payload })).data;
 export const getSaaSAudit = async () => (await api.get("/saas/auditoria/")).data;
 export const createSaaSOrganization = async (payload) => (await api.post("/organizaciones/", payload)).data;
+export const provisionSaaSOrganization = async (payload) => (await api.post("/saas/organizaciones/provisionar/", payload)).data;

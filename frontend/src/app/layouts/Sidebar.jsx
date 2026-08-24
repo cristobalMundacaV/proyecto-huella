@@ -33,6 +33,7 @@ import { getOrganizacionObras } from "@/shared/services/api";
 import { getEnvironmentalDomain } from "@/shared/config/environmentalDomains";
 import { getWorkContext } from "@/features/obras/services/workspaceApi";
 import { usePermissions } from "@/features/auth/hooks/usePermissions";
+import { useOperationalWorkspace } from "@/features/workspace/context/OperationalWorkspaceContext";
 
 const NAV_PERMISSIONS = {
     administration: "settings.view", professionalReview: "professional_review.execute",
@@ -68,6 +69,7 @@ export default function Sidebar({
     onNavigate,
 }) {
     const { can } = usePermissions();
+    const { activeWorkspace } = useOperationalWorkspace();
     const navigate =
         useNavigate();
 
@@ -247,6 +249,9 @@ export default function Sidebar({
         onNavigate?.();
     }
 
+
+    const simplified = activeWorkspace && !["medio_ambiente", "gestion_obra"].includes(activeWorkspace.area.tipo);
+    if (simplified) return <aside className="flex min-h-full w-full shrink-0 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar)] px-3 py-5 lg:sticky lg:top-[72px] lg:h-[calc(100vh-72px)] lg:w-64"><div className="mb-6 rounded-2xl bg-emerald-50 p-4"><p className="text-xs font-black uppercase tracking-wide text-emerald-700">{activeWorkspace.area.nombre}</p><p className="mt-1 text-sm font-bold text-slate-800">{activeWorkspace.obra?.nombre || activeWorkspace.organizacion.nombre}</p></div><nav className="space-y-1"><NavLink end to="/inicio" onClick={onNavigate} className={({ isActive }) => `block rounded-xl px-3 py-2.5 text-sm font-bold ${isActive ? "bg-emerald-100 text-emerald-900" : "text-slate-700 hover:bg-slate-100"}`}>Inicio</NavLink><a href="/inicio#subir-informacion" className="block rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Subir información</a><a href="/inicio#ultimos-envios" className="block rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Documentos enviados</a><a href="/inicio#pendientes" className="block rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Pendientes</a></nav></aside>;
 
     return (
         <aside className="flex min-h-full w-full shrink-0 flex-col border-b border-[var(--sidebar-border)] bg-[var(--sidebar)] px-3 py-4 text-[var(--text-main)] shadow-[18px_0_50px_rgba(19,34,56,0.05)] lg:sticky lg:top-[72px] lg:h-[calc(100vh-72px)] lg:w-64 lg:border-b-0 lg:border-r">

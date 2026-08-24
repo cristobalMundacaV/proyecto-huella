@@ -39,7 +39,7 @@ from .views_acciones import (
     organizacion_acciones_ambientales_resumen,
 )
 from .views_organizaciones import organizacion_detail_safe
-from .views_saas import saas_audit, saas_dashboard, saas_organization_action, saas_organization_detail
+from .views_saas import saas_audit, saas_dashboard, saas_organization_action, saas_organization_detail, saas_provision_organization
 from .views_emisiones import organizacion_emisiones
 from .views_etapas import organizacion_etapas
 from .views_environmental_compliance import (
@@ -249,9 +249,22 @@ from .views_sector_flows_v1 import (
     sector_record_detail,
     sector_records,
 )
+from .views_operational_context import membership_operational_workspaces, operational_context, operational_workspaces, organization_operational_areas, upload_operational_information
+from .views_account_lifecycle import activate_account, change_password, confirm_password_reset, onboarding, request_password_reset
 
 urlpatterns = [
+    path("auth/activar/<str:uid>/<str:token>/", activate_account),
+    path("auth/password-reset/", request_password_reset),
+    path("auth/password-reset/<str:uid>/<str:token>/", confirm_password_reset),
+    path("auth/cambiar-contrasena/", change_password),
+    path("onboarding/", onboarding),
+    path("contexto-operativo/espacios/", operational_workspaces),
+    path("contexto-operativo/actual/", operational_context),
+    path("contexto-operativo/subir-informacion/", upload_operational_information),
+    path("organizaciones/<str:organizacion_id>/areas-operacionales/", organization_operational_areas),
+    path("organizaciones/<str:organizacion_id>/usuarios/<int:user_id>/espacios-operacionales/", membership_operational_workspaces),
     path("saas/resumen/", saas_dashboard),
+    path("saas/organizaciones/provisionar/", saas_provision_organization),
     path("saas/organizaciones/<str:organizacion_id>/", saas_organization_detail),
     path("saas/organizaciones/<str:organizacion_id>/acciones/", saas_organization_action),
     path("saas/auditoria/", saas_audit),

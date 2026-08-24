@@ -2,10 +2,12 @@ from django.contrib import admin
 
 from .models import (
     AlertaCumplimientoAmbiental,
+    AreaOperacional,
     ConfiguracionOrganizacion,
     Organizacion,
     DocumentoAmbiental,
     EtapaObra,
+    EspacioTrabajoOperacional,
     EvidenciaObra,
     FactorEmision,
     HistorialCambioObra,
@@ -17,6 +19,20 @@ from .models import (
     UsuarioOrganizacion,
     VariableAmbientalExtraida,
 )
+
+
+@admin.register(AreaOperacional)
+class AreaOperacionalAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "organizacion", "tipo", "activa")
+    search_fields = ("nombre", "organizacion__nombre")
+    list_filter = ("tipo", "activa")
+
+
+@admin.register(EspacioTrabajoOperacional)
+class EspacioTrabajoOperacionalAdmin(admin.ModelAdmin):
+    list_display = ("usuario_organizacion", "area", "obra", "activo")
+    search_fields = ("usuario_organizacion__user__username", "area__nombre", "obra__nombre")
+    list_filter = ("area__tipo", "activo")
 
 
 @admin.register(Organizacion)

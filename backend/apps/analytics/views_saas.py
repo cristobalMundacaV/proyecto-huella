@@ -1,17 +1,23 @@
 from datetime import timedelta
 import json
 
+from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.db.models import Max
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .models import DocumentoAmbiental, EventoAuditoriaSaaS, Obra, Observacion, Organizacion, ProblematicaAmbiental, SuscripcionSaaS, UsuarioOrganizacion
+from .services.email_service import EmailService
 
 
 def require_platform_admin(request):
@@ -65,6 +71,7 @@ def serialize_organization(organization):
         "rut": organization.rut, "rubro": organization.rubro, "preset": organization.preset,
         "email": organization.email, "telefono": organization.telefono, "direccion": organization.direccion,
         "region": organization.region, "comuna": organization.comuna, "contacto": organization.contacto,
+        "onboarding_step": organization.onboarding_step, "onboarding_completado": organization.onboarding_completado,
         "plan": item.plan, "estado": item.estado, "disponibilidad": item.disponibilidad,
         "inicio_plan": item.inicio_plan, "fin_piloto": item.fin_piloto, "proximo_vencimiento": item.proximo_vencimiento,
         "fecha_suspension": item.fecha_suspension, "fecha_cancelacion": item.fecha_cancelacion,
@@ -78,6 +85,35 @@ def audit(request, organization, action, before, after, detail=""):
     safe_before = json.loads(json.dumps(before, cls=DjangoJSONEncoder))
     safe_after = json.loads(json.dumps(after, cls=DjangoJSONEncoder))
     EventoAuditoriaSaaS.objects.create(organizacion=organization, actor=request.user, accion=action, detalle=detail, estado_anterior=safe_before, estado_nuevo=safe_after)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def saas_provision_organization(request):
+    require_platform_admin(request)
+    required = ["nombre", "sector", "plan", "estado", "admin_nombre", "admin_apellido", "admin_email"]
+    missing = [field for field in required if not str(request.data.get(field, "")).strip()]
+    if missing:
+        return Response({field: ["Este dato es necesario."] for field in missing}, status=status.HTTP_400_BAD_REQUEST)
+    email = request.data["admin_email"].strip().lower()
+    if User.objects.filter(email__iexact=email).exists():
+        return Response({"admin_email": ["Ya existe una cuenta asociada a este correo."]}, status=status.HTTP_409_CONFLICT)
+    if request.data["sector"] not in Organizacion.Preset.values: return Response({"sector": ["Selecciona un sector disponible."]}, status=status.HTTP_400_BAD_REQUEST)
+    if request.data["plan"] not in SuscripcionSaaS.Plan.values: return Response({"plan": ["Selecciona un plan disponible."]}, status=status.HTTP_400_BAD_REQUEST)
+    if request.data["estado"] not in {SuscripcionSaaS.Estado.PILOTO, SuscripcionSaaS.Estado.ACTIVO}: return Response({"estado": ["El estado inicial debe ser Piloto o Activo."]}, status=status.HTTP_400_BAD_REQUEST)
+    organization = Organizacion.objects.create(nombre=request.data["nombre"].strip(), preset=request.data["sector"], onboarding_step=1)
+    subscription_item = SuscripcionSaaS.objects.create(organizacion=organization, plan=request.data["plan"], estado=request.data["estado"], disponibilidad=SuscripcionSaaS.Disponibilidad.OPERATIVO)
+    username_root = email.split("@")[0][:130] or "administrador"; username = username_root; suffix = 2
+    while User.objects.filter(username=username).exists(): username = f"{username_root[:145]}-{suffix}"; suffix += 1
+    admin_user = User.objects.create(username=username, email=email, first_name=request.data["admin_nombre"].strip(), last_name=request.data["admin_apellido"].strip(), is_active=False)
+    admin_user.set_unusable_password(); admin_user.save(update_fields=["password"])
+    UsuarioOrganizacion.objects.create(user=admin_user, organizacion=organization, rol=UsuarioOrganizacion.Rol.ADMIN, cargo=request.data.get("admin_cargo", "").strip())
+    audit(request, organization, "alta_saas", {}, {"plan": subscription_item.plan, "estado": subscription_item.estado, "administrador": email}, "Tenant y administrador inicial provisionados.")
+    uid = urlsafe_base64_encode(force_bytes(admin_user.pk)); token = default_token_generator.make_token(admin_user)
+    frontend = settings.FRONTEND_URL.rstrip("/")
+    EmailService.send_account_activation(admin_user, organization, f"{frontend}/activar-cuenta/{uid}/{token}")
+    return Response({"organizacion_id": organization.organizacion_id, "nombre": organization.nombre, "plan": subscription_item.plan, "estado": subscription_item.estado, "administrador": email}, status=status.HTTP_201_CREATED)
 
 
 @api_view(["GET"])

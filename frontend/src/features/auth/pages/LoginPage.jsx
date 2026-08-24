@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Leaf, Lock, UserRound } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { Button } from "@/shared/ui/Button";
@@ -129,6 +129,8 @@ function LoginPage() {
                 {error}
               </p>
             )}
+
+            {!isBootstrap && <Link to="/recuperar-contrasena" className="block text-right text-sm font-bold text-emerald-200 hover:text-white">¿Olvidaste tu contraseña?</Link>}
 
             <Button
               type="submit"

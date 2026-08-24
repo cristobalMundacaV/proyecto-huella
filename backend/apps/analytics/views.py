@@ -118,6 +118,8 @@ def serialize_auth_user(user):
             "work_ids": list(perfil.accesos_obra.values_list("obra_id", flat=True)) if perfil.alcance == UsuarioOrganizacion.Alcance.OBRAS else [],
             "saas_estado": getattr(getattr(perfil.organizacion, "suscripcion_saas", None), "estado", "activo"),
             "saas_disponibilidad": getattr(getattr(perfil.organizacion, "suscripcion_saas", None), "disponibilidad", "operativo"),
+            "onboarding_step": perfil.organizacion.onboarding_step,
+            "onboarding_completado": perfil.organizacion.onboarding_completado,
         }
         for perfil in perfiles
     ]

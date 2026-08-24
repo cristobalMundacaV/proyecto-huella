@@ -1,4 +1,4 @@
-import { ArrowRight, BarChart3, Building2, Database, Factory, FileOutput, History, Leaf, Settings2, UsersRound } from "lucide-react";
+import { ArrowRight, BarChart3, Building2, Database, Factory, FileOutput, GitBranch, History, Leaf, Settings2, UsersRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import SettingsNav from "../components/SettingsNav";
@@ -8,6 +8,7 @@ const baseRows = [
   { to: "/administracion/organizacion", icon: Building2, title: "General", description: "Identidad, contacto y perfil operacional de la organización activa." },
   { to: "/administracion/equipo", icon: UsersRound, title: "Equipo y acceso", description: "Usuarios, roles y estado de acceso dentro del tenant." },
   { to: "/administracion/operacion", icon: Factory, title: "Operación", description: "Obras, etapas, activos, sensores y estructura operacional." },
+  { to: "/administracion/estructura-operacional", icon: GitBranch, title: "Áreas y flujos ambientales", description: "Edita las áreas activas y dónde se origina o administra cada flujo de información." },
   { to: "/administracion/ambiental", icon: Leaf, title: "Gestión ambiental", description: "Perfil ambiental y aplicabilidad de las capacidades por obra." },
   { to: "/administracion/calculo", icon: BarChart3, title: "Cálculo e indicadores", description: "Metodologías gobernadas, factores, indicadores y unidades de presentación." },
   { to: "/administracion/reportes", icon: FileOutput, title: "Reportes", description: "Preferencias reales de agrupación, periodo y presentación." },
@@ -15,7 +16,7 @@ const baseRows = [
   { to: "/administracion/auditoria", icon: History, title: "Auditoría", description: "Historial disponible de acciones y trazabilidad gobernada." },
 ];
 
-const sectionPermission = { organizacion: "organization.view", equipo: "team.view", operacion: "works.view", ambiental: "environmental_profile.view", calculo: "indicators.view", reportes: "reports.view", datos: "operational_data.view", auditoria: "audit.view" };
+const sectionPermission = { organizacion: "organization.view", equipo: "team.view", operacion: "works.view", "estructura-operacional": "settings.manage", ambiental: "environmental_profile.view", calculo: "indicators.view", reportes: "reports.view", datos: "operational_data.view", auditoria: "audit.view" };
 
 export default function AdministracionPage() {
   const { activeOrganizacion } = useOrganizacionActiva();

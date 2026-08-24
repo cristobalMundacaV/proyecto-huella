@@ -65,6 +65,7 @@ class Organizacion(models.Model):
 
     organizacion_id = models.CharField(max_length=80, unique=True, blank=True)
     nombre = models.CharField(max_length=180)
+    nombre_comercial = models.CharField(max_length=180, blank=True)
     rut = models.CharField(max_length=30, blank=True)
     region = models.CharField(max_length=120, blank=True)
     comuna = models.CharField(max_length=120, blank=True)
@@ -76,6 +77,10 @@ class Organizacion(models.Model):
     telefono = models.CharField(max_length=40, blank=True)
     contacto = models.CharField(max_length=160, blank=True)
     observaciones = models.TextField(blank=True)
+    pais = models.CharField(max_length=80, default="Chile")
+    onboarding_step = models.PositiveSmallIntegerField(default=1)
+    onboarding_completado = models.BooleanField(default=False, db_index=True)
+    onboarding_data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -186,6 +191,63 @@ class UsuarioObraAcceso(models.Model):
             raise ValidationError({"obra": "La obra debe pertenecer a la organización de la membresía."})
 
 
+class AreaOperacional(models.Model):
+    class Tipo(models.TextChoices):
+        BODEGA = "bodega", "Bodega"
+        MAQUINARIA_OPERACIONES = "maquinaria_operaciones", "Maquinaria y operaciones"
+        LOGISTICA_TRANSPORTE = "logistica_transporte", "Logistica y transporte"
+        ADMINISTRACION_COMPRAS = "administracion_compras", "Administracion y compras"
+        MEDIO_AMBIENTE = "medio_ambiente", "Medio ambiente"
+        GESTION_OBRA = "gestion_obra", "Gestion de obra"
+        MANTENIMIENTO = "mantenimiento", "Mantenimiento"
+        PRODUCCION = "produccion", "Produccion"
+        CALIDAD_LABORATORIO = "calidad_laboratorio", "Calidad y laboratorio"
+        OTRO = "otro", "Otro"
+
+    organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="areas_operacionales")
+    nombre = models.CharField(max_length=120)
+    tipo = models.CharField(max_length=40, choices=Tipo.choices, default=Tipo.OTRO, db_index=True)
+    descripcion = models.TextField(blank=True)
+    activa = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["nombre"]
+        constraints = [models.UniqueConstraint(fields=["organizacion", "nombre"], name="unique_area_operacional_nombre")]
+
+    def __str__(self):
+        return f"{self.organizacion.nombre} - {self.nombre}"
+
+
+class EspacioTrabajoOperacional(models.Model):
+    usuario_organizacion = models.ForeignKey(UsuarioOrganizacion, on_delete=models.CASCADE, related_name="espacios_trabajo")
+    area = models.ForeignKey(AreaOperacional, on_delete=models.PROTECT, related_name="espacios_trabajo")
+    obra = models.ForeignKey("Obra", on_delete=models.CASCADE, null=True, blank=True, related_name="espacios_operacionales")
+    nombre = models.CharField(max_length=140, blank=True)
+    activo = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["area__nombre", "obra__nombre"]
+        constraints = [models.UniqueConstraint(fields=["usuario_organizacion", "area", "obra"], name="unique_espacio_operacional_contexto")]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        membership = self.usuario_organizacion
+        if self.area.organizacion_id != membership.organizacion_id:
+            raise ValidationError({"area": "El area debe pertenecer a la organizacion de la membresia."})
+        if self.obra_id and self.obra.organizacion_id != membership.organizacion_id:
+            raise ValidationError({"obra": "La obra debe pertenecer a la organizacion de la membresia."})
+        if self.obra_id and membership.alcance == UsuarioOrganizacion.Alcance.OBRAS and not membership.accesos_obra.filter(obra_id=self.obra_id).exists():
+            raise ValidationError({"obra": "La membresia no tiene acceso a esta obra."})
+
+    def __str__(self):
+        scope = self.obra.nombre if self.obra_id else self.usuario_organizacion.organizacion.nombre
+        return self.nombre or f"{self.area.nombre} - {scope}"
+
+
 class DiagnosticoAmbientalInicial(models.Model):
     class Estado(models.TextChoices):
         PENDIENTE = "pendiente", "Pendiente"
@@ -260,12 +322,28 @@ class CapacidadOrganizacion(models.Model):
     capacidad = models.ForeignKey(CapacidadAmbiental, on_delete=models.PROTECT, related_name="organizaciones")
     estado = models.CharField(max_length=35, choices=Estado.choices, default=Estado.PENDIENTE_DIAGNOSTICO, db_index=True)
     recomendada_por_preset = models.BooleanField(default=False)
+    disponibilidad_inicial = models.CharField(max_length=20, blank=True, choices=[("regular", "Informacion regular"), ("parcial", "Informacion parcial"), ("sin_informacion", "Sin informacion"), ("no_seguro", "No estoy seguro")])
     configuracion = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["organizacion", "capacidad"], name="unique_capacidad_organizacion")]
+
+
+class AreaCapacidadAmbiental(models.Model):
+    area = models.ForeignKey(AreaOperacional, on_delete=models.CASCADE, related_name="flujos_asociados")
+    capacidad_organizacion = models.ForeignKey(CapacidadOrganizacion, on_delete=models.CASCADE, related_name="areas_origen")
+    sugerida = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["area", "capacidad_organizacion"], name="unique_area_capacidad_ambiental")]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.area_id and self.capacidad_organizacion_id and self.area.organizacion_id != self.capacidad_organizacion.organizacion_id:
+            raise ValidationError("El area y el flujo deben pertenecer a la misma organizacion.")
 
 
 class AplicabilidadCapacidadObra(models.Model):
@@ -1484,6 +1562,9 @@ class EvidenciaObra(models.Model):
         VINCULADA = "vinculada", "Vinculada"
 
     organizacion = models.ForeignKey(Organizacion, on_delete=models.CASCADE, related_name="evidencias")
+    area_origen = models.ForeignKey(AreaOperacional, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias_origen")
+    usuario_origen = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias_originadas")
+    metodo_captura = models.CharField(max_length=30, default="documento", blank=True)
     obra = models.ForeignKey(Obra, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias")
     etapa = models.ForeignKey(EtapaObra, on_delete=models.SET_NULL, null=True, blank=True, related_name="evidencias")
     registros_emision = models.ManyToManyField(RegistroEmision, blank=True, related_name="evidencias")
