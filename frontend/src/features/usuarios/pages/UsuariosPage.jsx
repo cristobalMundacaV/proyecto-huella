@@ -10,7 +10,7 @@ import PlatformLoader from "@/shared/components/PlatformLoader";
 
 const ROLE_LABELS = { admin: "Administrador", responsable_ambiental: "Responsable ambiental", analista: "Analista ambiental", operador: "Operador", revisor_ambiental: "Revisor ambiental", lector: "Lector" };
 const ROLE_DESCRIPTIONS = { admin: "Administra la configuración y estructura de la organización.", responsable_ambiental: "Gestiona y gobierna la operación ambiental.", analista: "Analiza, prepara y registra información ambiental.", operador: "Registra información operacional en las obras asignadas.", revisor_ambiental: "Revisa y valida información sin administrar la organización.", lector: "Acceso de consulta sin capacidad de modificación." };
-const emptyForm = { username: "", email: "", first_name: "", last_name: "", password: "", rol: "analista", cargo: "", alcance: "organizacion", obra_ids: [], activo: true };
+const emptyForm = { email: "", first_name: "", last_name: "", rol: "analista", cargo: "", alcance: "organizacion", obra_ids: [], activo: true };
 
 export default function UsuariosPage() {
   const { user } = useAuth();
@@ -121,14 +121,12 @@ export default function UsuariosPage() {
         title={editingMember ? "Editar acceso" : "Agregar usuario"}
         description={editingMember ? "Actualiza rol, alcance y estado de la membresía tenant." : "Este flujo crea el usuario y su acceso a la organización inmediatamente."}
         onClose={() => !saving && setDialogOpen(false)}
-        footer={<div className="flex flex-wrap justify-end gap-2"><Button variant="secondary" onClick={() => setDialogOpen(false)}>Cancelar</Button><Button loading={saving} disabled={(!editingMember && (!form.username.trim() || form.password.length < 8)) || (form.alcance === "obras" && !form.obra_ids.length)} onClick={submit}>{editingMember ? "Guardar cambios" : "Agregar usuario"}</Button></div>}
+        footer={<div className="flex flex-wrap justify-end gap-2"><Button variant="secondary" onClick={() => setDialogOpen(false)}>Cancelar</Button><Button loading={saving} disabled={(!editingMember && !form.email.trim()) || (form.alcance === "obras" && !form.obra_ids.length)} onClick={submit}>{editingMember ? "Guardar cambios" : "Agregar usuario"}</Button></div>}
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          {!editingMember && <Input label="Usuario" required value={form.username} onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))} />}
-          <Input label="Correo" type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />
+          {!editingMember && <Input label="Correo electrónico" required type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />}
           <Input label="Nombre" value={form.first_name} onChange={(event) => setForm((current) => ({ ...current, first_name: event.target.value }))} />
           <Input label="Apellido" value={form.last_name} onChange={(event) => setForm((current) => ({ ...current, last_name: event.target.value }))} />
-          {!editingMember && <Input label="Contraseña" type="password" required value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} />}
           <Input label="Cargo" value={form.cargo} onChange={(event) => setForm((current) => ({ ...current, cargo: event.target.value }))} />
           <Select label="Rol" value={form.rol} onChange={(event) => setForm((current) => ({ ...current, rol: event.target.value }))}>
             {Object.entries(ROLE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}

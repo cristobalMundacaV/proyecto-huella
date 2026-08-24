@@ -16,8 +16,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import DocumentoAmbiental, EventoAuditoriaSaaS, Obra, Observacion, Organizacion, ProblematicaAmbiental, SuscripcionSaaS, UsuarioOrganizacion
+from .models import ActividadOperacional, DocumentoAmbiental, EvidenciaObra, EventoAuditoriaSaaS, Obra, Observacion, Organizacion, ProblematicaAmbiental, ProcesoIngesta, RegistroEmision, SuscripcionSaaS, UsuarioOrganizacion
 from .services.email_service import EmailService
+from .services.identity import normalize_email_identity, provision_user_membership
 
 
 def require_platform_admin(request):
@@ -59,6 +60,25 @@ def health(organization, item, activity):
     return {"key": "saludable", "label": "Saludable", "reason": "Uso reciente y acceso operativo normal."}
 
 
+def deletion_status(organization):
+    checks = {
+        "obras": organization.obras.count(),
+        "registros ambientales": RegistroEmision.objects.filter(organizacion=organization).count(),
+        "observaciones": Observacion.objects.filter(organizacion=organization).count(),
+        "actividades operacionales": ActividadOperacional.objects.filter(organizacion=organization).count(),
+        "evidencias": EvidenciaObra.objects.filter(organizacion=organization).count(),
+        "documentos": DocumentoAmbiental.objects.filter(organizacion=organization).count(),
+        "importaciones": ProcesoIngesta.objects.filter(organizacion=organization).count(),
+        "problemáticas": ProblematicaAmbiental.objects.filter(organizacion=organization).count(),
+    }
+    blockers = [{"tipo": label, "cantidad": count} for label, count in checks.items() if count]
+    return {"permitida": not blockers, "bloqueos": blockers}
+
+
+def serialize_admins(organization):
+    return [{"membership_id": membership.id, "user_id": membership.user_id, "nombre": membership.user.get_full_name().strip() or membership.user.username, "email": membership.user.email, "cargo": membership.cargo, "activo": membership.activo and membership.user.is_active, "cuenta_activada": membership.user.is_active and membership.user.has_usable_password(), "ultimo_acceso": membership.user.last_login} for membership in organization.usuarios.filter(rol=UsuarioOrganizacion.Rol.ADMIN).select_related("user")]
+
+
 def serialize_organization(organization):
     item = subscription(organization)
     activity = latest_activity(organization)
@@ -77,6 +97,7 @@ def serialize_organization(organization):
         "fecha_suspension": item.fecha_suspension, "fecha_cancelacion": item.fecha_cancelacion,
         "responsable_comercial": item.responsable_comercial, "limites": item.limites,
         "uso": {"usuarios": active_users, "obras": active_works, "documentos": documents, "problematicas_abiertas": open_problems},
+        "administradores": serialize_admins(organization), "eliminacion": deletion_status(organization),
         "ultima_actividad": activity, "salud": health(organization, item, activity),
     }
 
@@ -96,24 +117,15 @@ def saas_provision_organization(request):
     missing = [field for field in required if not str(request.data.get(field, "")).strip()]
     if missing:
         return Response({field: ["Este dato es necesario."] for field in missing}, status=status.HTTP_400_BAD_REQUEST)
-    email = request.data["admin_email"].strip().lower()
-    if User.objects.filter(email__iexact=email).exists():
-        return Response({"admin_email": ["Ya existe una cuenta asociada a este correo."]}, status=status.HTTP_409_CONFLICT)
+    email = normalize_email_identity(request.data["admin_email"])
     if request.data["sector"] not in Organizacion.Preset.values: return Response({"sector": ["Selecciona un sector disponible."]}, status=status.HTTP_400_BAD_REQUEST)
     if request.data["plan"] not in SuscripcionSaaS.Plan.values: return Response({"plan": ["Selecciona un plan disponible."]}, status=status.HTTP_400_BAD_REQUEST)
     if request.data["estado"] not in {SuscripcionSaaS.Estado.PILOTO, SuscripcionSaaS.Estado.ACTIVO}: return Response({"estado": ["El estado inicial debe ser Piloto o Activo."]}, status=status.HTTP_400_BAD_REQUEST)
     organization = Organizacion.objects.create(nombre=request.data["nombre"].strip(), preset=request.data["sector"], onboarding_step=1)
     subscription_item = SuscripcionSaaS.objects.create(organizacion=organization, plan=request.data["plan"], estado=request.data["estado"], disponibilidad=SuscripcionSaaS.Disponibilidad.OPERATIVO)
-    username_root = email.split("@")[0][:130] or "administrador"; username = username_root; suffix = 2
-    while User.objects.filter(username=username).exists(): username = f"{username_root[:145]}-{suffix}"; suffix += 1
-    admin_user = User.objects.create(username=username, email=email, first_name=request.data["admin_nombre"].strip(), last_name=request.data["admin_apellido"].strip(), is_active=False)
-    admin_user.set_unusable_password(); admin_user.save(update_fields=["password"])
-    UsuarioOrganizacion.objects.create(user=admin_user, organizacion=organization, rol=UsuarioOrganizacion.Rol.ADMIN, cargo=request.data.get("admin_cargo", "").strip())
+    admin_user, _, identity = provision_user_membership(organization=organization, email=email, role=UsuarioOrganizacion.Rol.ADMIN, first_name=request.data["admin_nombre"], last_name=request.data["admin_apellido"], cargo=request.data.get("admin_cargo", ""))
     audit(request, organization, "alta_saas", {}, {"plan": subscription_item.plan, "estado": subscription_item.estado, "administrador": email}, "Tenant y administrador inicial provisionados.")
-    uid = urlsafe_base64_encode(force_bytes(admin_user.pk)); token = default_token_generator.make_token(admin_user)
-    frontend = settings.FRONTEND_URL.rstrip("/")
-    EmailService.send_account_activation(admin_user, organization, f"{frontend}/activar-cuenta/{uid}/{token}")
-    return Response({"organizacion_id": organization.organizacion_id, "nombre": organization.nombre, "plan": subscription_item.plan, "estado": subscription_item.estado, "administrador": email}, status=status.HTTP_201_CREATED)
+    return Response({"organizacion_id": organization.organizacion_id, "nombre": organization.nombre, "plan": subscription_item.plan, "estado": subscription_item.estado, "administrador": email, "identidad_nueva": identity["identity_created"], "mensaje_enviado": identity["message_kind"]}, status=status.HTTP_201_CREATED)
 
 
 @api_view(["GET"])
@@ -129,7 +141,7 @@ def saas_dashboard(request):
     })
 
 
-@api_view(["GET", "PATCH"])
+@api_view(["GET", "PATCH", "DELETE"])
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def saas_organization_detail(request, organizacion_id):
@@ -138,6 +150,16 @@ def saas_organization_detail(request, organizacion_id):
     item = subscription(organization)
     if request.method == "GET":
         return Response(serialize_organization(organization))
+    if request.method == "DELETE":
+        deletion = deletion_status(organization)
+        if not deletion["permitida"]:
+            summary = ", ".join(f"{row['cantidad']} {row['tipo']}" for row in deletion["bloqueos"])
+            return Response({"detail": f"No puedes eliminar esta organización porque contiene datos operacionales: {summary}.", "bloqueos": deletion["bloqueos"]}, status=status.HTTP_409_CONFLICT)
+        orphan_ids = list(organization.usuarios.values_list("user_id", flat=True))
+        name = organization.nombre
+        organization.delete()
+        User.objects.filter(id__in=orphan_ids, organizaciones_perfil__isnull=True, is_active=False).delete()
+        return Response({"detail": f"La organización {name} fue eliminada definitivamente."})
     before = serialize_organization(organization)
     allowed_org = {"nombre", "rut", "rubro", "preset", "email", "telefono", "direccion", "region", "comuna", "contacto"}
     allowed_subscription = {"plan", "inicio_plan", "fin_piloto", "proximo_vencimiento", "responsable_comercial", "limites"}
@@ -161,18 +183,19 @@ def saas_organization_action(request, organizacion_id):
     action = request.data.get("action")
     before = serialize_organization(organization)
     now = timezone.now(); today = timezone.localdate()
-    if action == "iniciar_piloto" and item.estado != SuscripcionSaaS.Estado.CANCELADO:
+    if action == "iniciar_piloto":
         item.estado = SuscripcionSaaS.Estado.PILOTO; item.disponibilidad = SuscripcionSaaS.Disponibilidad.OPERATIVO
         item.inicio_plan = today; item.fin_piloto = today + timedelta(days=int(request.data.get("days", 30)))
-    elif action == "activar" and item.estado != SuscripcionSaaS.Estado.CANCELADO:
+    elif action == "activar":
         item.estado = SuscripcionSaaS.Estado.ACTIVO; item.disponibilidad = SuscripcionSaaS.Disponibilidad.OPERATIVO
         item.inicio_plan = item.inicio_plan or today; item.plan = request.data.get("plan") or item.plan
     elif action == "pago_pendiente" and item.estado in {SuscripcionSaaS.Estado.ACTIVO, SuscripcionSaaS.Estado.PILOTO}:
         item.estado = SuscripcionSaaS.Estado.PAGO_PENDIENTE
     elif action == "suspender" and item.estado != SuscripcionSaaS.Estado.CANCELADO:
         item.estado = SuscripcionSaaS.Estado.SUSPENDIDO; item.disponibilidad = SuscripcionSaaS.Disponibilidad.BLOQUEADO; item.fecha_suspension = now
-    elif action == "reactivar" and item.estado in {SuscripcionSaaS.Estado.SUSPENDIDO, SuscripcionSaaS.Estado.PAGO_PENDIENTE}:
+    elif action == "reactivar" and item.estado in {SuscripcionSaaS.Estado.SUSPENDIDO, SuscripcionSaaS.Estado.PAGO_PENDIENTE, SuscripcionSaaS.Estado.CANCELADO}:
         item.estado = SuscripcionSaaS.Estado.ACTIVO; item.disponibilidad = SuscripcionSaaS.Disponibilidad.OPERATIVO; item.fecha_suspension = None
+        item.fecha_cancelacion = None
     elif action == "cancelar" and item.estado != SuscripcionSaaS.Estado.CANCELADO:
         item.estado = SuscripcionSaaS.Estado.CANCELADO; item.disponibilidad = SuscripcionSaaS.Disponibilidad.BLOQUEADO; item.fecha_cancelacion = now
     else:
@@ -181,6 +204,20 @@ def saas_organization_action(request, organizacion_id):
     after = serialize_organization(organization)
     audit(request, organization, action, before, after, request.data.get("detail", ""))
     return Response(after)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def saas_organization_admins(request, organizacion_id):
+    require_platform_admin(request)
+    organization = get_object_or_404(Organizacion, organizacion_id=organizacion_id)
+    email = str(request.data.get("email", "")).strip().lower()
+    first_name = str(request.data.get("nombre", "")).strip(); last_name = str(request.data.get("apellido", "")).strip()
+    if not email or "@" not in email: return Response({"email": ["Ingresa un correo electrónico válido."]}, status=status.HTTP_400_BAD_REQUEST)
+    user, membership, identity = provision_user_membership(organization=organization, email=email, role=UsuarioOrganizacion.Rol.ADMIN, first_name=first_name, last_name=last_name, cargo=request.data.get("cargo", ""))
+    audit(request, organization, "administrador_asignado", {}, {"email": email, "usuario_existente": not identity["identity_created"]}, "Se asignó o recuperó un administrador para el tenant.")
+    return Response({"detail": "Administrador asignado correctamente. Se envió la comunicación correspondiente.", "administradores": serialize_admins(organization), "mensaje_enviado": identity["message_kind"]}, status=status.HTTP_201_CREATED if identity["membership_created"] else status.HTTP_200_OK)
 
 
 @api_view(["GET"])

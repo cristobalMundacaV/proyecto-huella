@@ -149,39 +149,20 @@ class MembershipScopeMixin:
 
 class UsuarioOrganizacionCreateSerializer(MembershipScopeMixin, serializers.Serializer):
     obra_ids = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False, default=list)
-    username = serializers.CharField(max_length=150)
-    email = serializers.EmailField(required=False, allow_blank=True)
+    email = serializers.EmailField()
     first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
     last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
-    password = serializers.CharField(min_length=8, write_only=True)
     rol = serializers.ChoiceField(choices=UsuarioOrganizacion.Rol.choices, default=UsuarioOrganizacion.Rol.ANALISTA)
     alcance = serializers.ChoiceField(choices=UsuarioOrganizacion.Alcance.choices, default=UsuarioOrganizacion.Alcance.ORGANIZACION)
     cargo = serializers.CharField(max_length=120, required=False, allow_blank=True)
     activo = serializers.BooleanField(default=True)
 
-    def validate_username(self, value):
-        if User.objects.filter(username__iexact=value).exists():
-            raise serializers.ValidationError("Ya existe un usuario con este nombre.")
-        return value
-
     def create(self, validated_data):
+        from .services.identity import provision_user_membership
+
         organizacion = self.context["organizacion"]
         obra_ids = validated_data.pop("obra_ids", [])
-        user = User.objects.create_user(
-            username=validated_data["username"],
-            email=validated_data.get("email", ""),
-            password=validated_data["password"],
-            first_name=validated_data.get("first_name", ""),
-            last_name=validated_data.get("last_name", ""),
-        )
-        membership = UsuarioOrganizacion.objects.create(
-            user=user,
-            organizacion=organizacion,
-            rol=validated_data.get("rol", UsuarioOrganizacion.Rol.ANALISTA),
-            alcance=validated_data.get("alcance", UsuarioOrganizacion.Alcance.ORGANIZACION),
-            cargo=validated_data.get("cargo", ""),
-            activo=validated_data.get("activo", True),
-        )
+        _, membership, _ = provision_user_membership(organization=organizacion, email=validated_data["email"], role=validated_data.get("rol", UsuarioOrganizacion.Rol.ANALISTA), first_name=validated_data.get("first_name", ""), last_name=validated_data.get("last_name", ""), cargo=validated_data.get("cargo", ""), scope=validated_data.get("alcance", UsuarioOrganizacion.Alcance.ORGANIZACION), active=validated_data.get("activo", True))
         self.sync_work_access(membership, obra_ids)
         return membership
 

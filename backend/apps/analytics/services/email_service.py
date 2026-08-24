@@ -28,6 +28,10 @@ class EmailService:
         return cls._send(user.email, "Tu organización ya está disponible en Carbono Zero", "Tu organización ya está disponible", f"Hola {user.first_name or user.username},", f"{organization.nombre} ya tiene habilitado su espacio en Carbono Zero. Has sido registrada como administradora inicial. Completa tu acceso y configura la estructura ambiental inicial de tu organización.", "Activar mi cuenta", url)
 
     @classmethod
+    def send_organization_invitation(cls, user, organization, url):
+        return cls._send(user.email, "Tienes acceso a una nueva organización en Carbono Zero", "Nueva organización disponible", f"Hola {user.first_name or user.email},", f"Ahora tienes acceso a {organization.nombre} dentro de Carbono Zero. Utiliza el mismo correo y contraseña de tu cuenta actual.", "Ir a Carbono Zero", url)
+
+    @classmethod
     def send_password_reset(cls, user, url):
         return cls._send(user.email, "Restablece tu contraseña de Carbono Zero", "Restablece tu contraseña", f"Hola {user.first_name or user.username},", "Recibimos una solicitud para crear una nueva contraseña. Si no fuiste tú, puedes ignorar este mensaje.", "Crear nueva contraseña", url)
 

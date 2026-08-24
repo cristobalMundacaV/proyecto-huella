@@ -62,6 +62,7 @@ const ProblemDetailPage = lazy(() => import("@/features/mejora/pages/ProblemDeta
 const AdministracionPage = lazy(() => import("@/features/administracion/pages/AdministracionPage"));
 const SettingsSectionPage = lazy(() => import("@/features/administracion/pages/SettingsSectionPage"));
 const OrganizacionesPage = lazy(() => import("@/features/organizaciones/pages/OrganizacionesPage"));
+const OrganizationSelectionPage = lazy(() => import("@/features/organizaciones/pages/OrganizationSelectionPage"));
 const UsuariosPage = lazy(() => import("@/features/usuarios/pages/UsuariosPage"));
 const ConfiguracionPage = lazy(() => import("@/features/configuracion/pages/ConfiguracionPage"));
 const DiagnosticoAmbientalPage = lazy(() => import("@/features/diagnostico/pages/DiagnosticoAmbientalPage"));
@@ -86,8 +87,8 @@ const SaaSAuditPage = lazy(() => import("@/features/saas/pages/SaaSAuditPage"));
 
 function ProviderBoundary() { return <Providers><Outlet /></Providers>; }
 function RequireAuth() { const { loadingAuth, user } = useAuth(); const location = useLocation(); if (loadingAuth) return <PlatformLoader fullScreen title="Iniciando sesión" />; return user ? <Outlet /> : <Navigate to="/login" replace state={{ returnTo: location.pathname + location.search }} />; }
-function LoginRoute() { const { loadingAuth, user } = useAuth(); if (loadingAuth) return <PlatformLoader fullScreen title="Iniciando sesión" />; if (!user) return <LoginPage />; return user.organizaciones?.some((item) => item.rol === "admin" && !item.onboarding_completado) ? <Navigate to="/onboarding" replace /> : <Navigate to="/inicio" replace />; }
-function RequireOrganization() { const { activeOrganizacion, loadingOrganizaciones } = useOrganizacionActiva(); const { pathname } = useLocation(); if (loadingOrganizaciones) return <PlatformLoader fullScreen title="Cargando empresas" />; return !activeOrganizacion && pathname !== "/administracion/organizacion" ? <Navigate to="/administracion/organizacion" replace /> : <Outlet />; }
+function LoginRoute() { const { loadingAuth, user } = useAuth(); if (loadingAuth) return <PlatformLoader fullScreen title="Iniciando sesión" />; if (!user) return <LoginPage />; if (user.is_superuser) return <Navigate to="/saas" replace />; if ((user.organizaciones?.length || 0) > 1) return <Navigate to="/seleccionar-organizacion" replace />; return user.organizaciones?.some((item) => item.rol === "admin" && !item.onboarding_completado) ? <Navigate to="/onboarding" replace /> : <Navigate to="/inicio" replace />; }
+function RequireOrganization() { const { activeOrganizacion, loadingOrganizaciones } = useOrganizacionActiva(); if (loadingOrganizaciones) return <PlatformLoader fullScreen title="Cargando empresas" />; return !activeOrganizacion ? <Navigate to="/seleccionar-organizacion" replace /> : <Outlet />; }
 function RequireOnboardingComplete() { const { user } = useAuth(); const { activeOrganizacionId } = useOrganizacionActiva(); const membership = user?.organizaciones?.find((item) => String(item.organizacion_id) === String(activeOrganizacionId)); return membership?.rol === "admin" && !membership.onboarding_completado ? <Navigate to="/onboarding" replace /> : <Outlet />; }
 function RequireOperationalWorkspace() { const { loading, needsSelection } = useOperationalWorkspace(); if (loading) return <PlatformLoader fullScreen title="Preparando espacio de trabajo" />; return needsSelection ? <WorkspaceSelector /> : <Outlet />; }
 function ContextualHome() { const { activeWorkspace } = useOperationalWorkspace(); const { activeOrganizacion } = useOrganizacionActiva(); const operational = activeWorkspace && !["medio_ambiente", "gestion_obra"].includes(activeWorkspace.area.tipo); if (operational) return <OperationalHome />; return Number(activeOrganizacion?.registros_count || 0) === 0 ? <ReadyToStartPage /> : <InicioPage />; }
@@ -105,6 +106,7 @@ export default function AppRouter() {
       <Route path="/recuperar-contrasena" element={<PasswordLifecyclePage mode="request" />} />
       <Route path="/restablecer-contrasena/:uid/:token" element={<PasswordLifecyclePage mode="reset" />} />
       <Route element={<RequireAuth />}>
+        <Route path="seleccionar-organizacion" element={<OrganizationSelectionPage />} />
         <Route path="onboarding" element={<OnboardingPage />} />
         <Route path="saas" element={<RequireSuperuser><SaaSLayout /></RequireSuperuser>}><Route index element={<SaaSDashboardPage />} /><Route path="organizaciones" element={<SaaSOrganizationsPage />} /><Route path="auditoria" element={<SaaSAuditPage />} /></Route>
         <Route element={<RequireOrganization />}><Route element={<RequireOnboardingComplete />}><Route element={<RequireOperationalWorkspace />}><Route element={<AuthenticatedLayout />}>

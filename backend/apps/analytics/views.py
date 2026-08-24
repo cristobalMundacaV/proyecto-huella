@@ -53,6 +53,7 @@ from .permissions import (
 from .services.local_advisor import generar_analisis_local
 from .services.document_extraction import extract_environmental_document
 from .services.forestal_carbono import calcular_balance_neto_lote
+from .services.identity import normalize_email_identity
 
 try:
     from .services.ai_advisor import generar_analisis_ia
@@ -162,16 +163,12 @@ def auth_csrf_token(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def auth_login(request):
-    username = (request.data.get("username") or "").strip()
+    email = normalize_email_identity(request.data.get("email") or request.data.get("username"))
     password = request.data.get("password") or ""
-    user = authenticate(request, username=username, password=password)
+    user = authenticate(request, email=email, password=password)
     if not user:
         return Response(
-            {"error": "Credenciales invalidas."}, status=status.HTTP_400_BAD_REQUEST
-        )
-    if not user.is_active:
-        return Response(
-            {"error": "El usuario esta inactivo."}, status=status.HTTP_403_FORBIDDEN
+            {"error": "Correo electrónico o contraseña incorrectos."}, status=status.HTTP_400_BAD_REQUEST
         )
     login(request, user)
     return Response({"authenticated": True, "user": serialize_auth_user(user)})
@@ -194,17 +191,17 @@ def auth_bootstrap(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    username = (request.data.get("username") or "").strip()
+    email = normalize_email_identity(request.data.get("email"))
     password = request.data.get("password") or ""
-    if not username or len(password) < 8:
+    if not email or "@" not in email or len(password) < 8:
         return Response(
-            {"error": "Ingresa usuario y una clave de al menos 8 caracteres."},
+            {"error": "Ingresa un correo válido y una contraseña de al menos 8 caracteres."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     user = User.objects.create_superuser(
-        username=username,
-        email=(request.data.get("email") or "").strip(),
+        username=f"bootstrap_{User.objects.count() + 1}",
+        email=email,
         password=password,
         first_name=(request.data.get("first_name") or "").strip(),
         last_name=(request.data.get("last_name") or "").strip(),

@@ -39,7 +39,7 @@ from .views_acciones import (
     organizacion_acciones_ambientales_resumen,
 )
 from .views_organizaciones import organizacion_detail_safe
-from .views_saas import saas_audit, saas_dashboard, saas_organization_action, saas_organization_detail, saas_provision_organization
+from .views_saas import saas_audit, saas_dashboard, saas_organization_action, saas_organization_admins, saas_organization_detail, saas_provision_organization
 from .views_emisiones import organizacion_emisiones
 from .views_etapas import organizacion_etapas
 from .views_environmental_compliance import (
@@ -267,6 +267,7 @@ urlpatterns = [
     path("saas/organizaciones/provisionar/", saas_provision_organization),
     path("saas/organizaciones/<str:organizacion_id>/", saas_organization_detail),
     path("saas/organizaciones/<str:organizacion_id>/acciones/", saas_organization_action),
+    path("saas/organizaciones/<str:organizacion_id>/administradores/", saas_organization_admins),
     path("saas/auditoria/", saas_audit),
     path(
         "organizaciones/<str:organizacion_id>/puntos-ambientales/", environmental_points

@@ -18,7 +18,7 @@ class AnalyticsConstructionApiTests(APITestCase):
             comuna="Concepcion",
             rubro="Construccion",
         )
-        self.user = User.objects.create_user("analista", password="segura-test-123")
+        self.user = User.objects.create_user("analista", email="analista@example.com", password="segura-test-123")
         UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.organizacion)
         self.client.force_login(self.user)
         self.etapa = EtapaObra.objects.create(
@@ -80,7 +80,7 @@ class AnalyticsConstructionApiTests(APITestCase):
         self.client.logout()
         response = self.client.post(
             "/api/auth/login/",
-            {"username": "analista", "password": "segura-test-123"},
+            {"email": "ANALISTA@example.com", "password": "segura-test-123"},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)

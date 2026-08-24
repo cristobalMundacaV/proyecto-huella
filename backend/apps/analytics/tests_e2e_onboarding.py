@@ -1,4 +1,5 @@
 import re
+from datetime import date
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
@@ -6,14 +7,14 @@ from django.core import mail
 from django.test import override_settings, TestCase
 from rest_framework.test import APIClient
 
-from .models import AreaCapacidadAmbiental, AreaOperacional, CapacidadOrganizacion, DiagnosticoAmbientalInicial, ElementoDiagnosticoAmbiental, EventoAuditoriaSaaS, Observacion, Organizacion, ProblematicaAmbiental, RegistroEmision, SuscripcionSaaS, UsuarioOrganizacion
+from .models import AreaCapacidadAmbiental, AreaOperacional, CapacidadOrganizacion, DiagnosticoAmbientalInicial, ElementoDiagnosticoAmbiental, EventoAuditoriaSaaS, Obra, Observacion, Organizacion, ProblematicaAmbiental, RegistroEmision, SuscripcionSaaS, UsuarioOrganizacion
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend", RESEND_API_KEY="", FRONTEND_URL="http://frontend.test")
 class SaaSOnboardingE2ETests(TestCase):
     def setUp(self):
         self.platform_admin = User.objects.create_superuser("platform", "platform@example.com", "Admin-password-123")
-        self.client = APIClient(); self.client.force_authenticate(self.platform_admin)
+        self.client = APIClient(); self.client.force_login(self.platform_admin)
 
     def provision(self):
         response = self.client.post("/api/saas/organizaciones/provisionar/", {"nombre": "Constructora Andina del Biobío SpA", "sector": "construccion", "plan": "professional", "estado": "piloto", "admin_nombre": "Marcela", "admin_apellido": "Rojas", "admin_email": "marcela@example.com", "admin_cargo": "Administradora"}, format="json")
@@ -28,7 +29,7 @@ class SaaSOnboardingE2ETests(TestCase):
         match = re.search(r"/activar-cuenta/([^/]+)/([^\s<]+)", mail.outbox[0].body)
         self.assertIsNotNone(match); uid, token = match.groups()
         response = self.client.post(f"/api/auth/activar/{uid}/{token}/", {"password": "Secure-access-481!", "confirmation": "Secure-access-481!"}, format="json")
-        self.assertEqual(response.status_code, 200); admin.refresh_from_db(); self.assertTrue(admin.is_active); self.assertIsNotNone(authenticate(username=admin.username, password="Secure-access-481!"))
+        self.assertEqual(response.status_code, 200); admin.refresh_from_db(); self.assertTrue(admin.is_active); self.assertIsNotNone(authenticate(email=admin.email, password="Secure-access-481!"))
         self.client.force_authenticate(admin); headers = {"HTTP_X_ORGANIZATION_ID": organization.organizacion_id}
         steps = [
             (1, {"nombre": organization.nombre, "rut": "21.683.264-7", "pais": "Chile", "preset": "construccion", "region": "Biobío"}),
@@ -56,6 +57,30 @@ class SaaSOnboardingE2ETests(TestCase):
         response = self.client.get("/api/onboarding/", HTTP_X_ORGANIZATION_ID=first.organizacion_id)
         self.assertEqual(response.status_code, 404)
 
+    def test_cancelled_tenant_can_be_reactivated(self):
+        provisioned = self.provision(); organization_id = provisioned.data["organizacion_id"]
+        self.assertEqual(self.client.post(f"/api/saas/organizaciones/{organization_id}/acciones/", {"action": "cancelar"}, format="json").status_code, 200)
+        response = self.client.post(f"/api/saas/organizaciones/{organization_id}/acciones/", {"action": "reactivar"}, format="json")
+        self.assertEqual(response.status_code, 200, response.data); self.assertEqual(response.data["estado"], "activo"); self.assertEqual(response.data["disponibilidad"], "operativo")
+
+    def test_platform_can_assign_admin_after_provisioning(self):
+        provisioned = self.provision(); organization_id = provisioned.data["organizacion_id"]
+        response = self.client.post(f"/api/saas/organizaciones/{organization_id}/administradores/", {"nombre": "Daniel", "apellido": "Soto", "email": "daniel@example.com", "cargo": "Administrador"}, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertTrue(UsuarioOrganizacion.objects.filter(organizacion__organizacion_id=organization_id, user__email="daniel@example.com", rol="admin").exists())
+        detail = self.client.get(f"/api/saas/organizaciones/{organization_id}/")
+        self.assertEqual(len(detail.data["administradores"]), 2)
+
+    def test_identity_only_tenant_can_be_deleted_but_operational_tenant_cannot(self):
+        first = self.provision(); first_id = first.data["organizacion_id"]
+        response = self.client.delete(f"/api/saas/organizaciones/{first_id}/")
+        self.assertEqual(response.status_code, 200, response.data); self.assertFalse(Organizacion.objects.filter(organizacion_id=first_id).exists())
+        second = self.client.post("/api/saas/organizaciones/provisionar/", {"nombre": "Tenant con datos", "sector": "construccion", "plan": "starter", "estado": "activo", "admin_nombre": "Ana", "admin_apellido": "Pérez", "admin_email": "ana@example.com"}, format="json")
+        organization = Organizacion.objects.get(organizacion_id=second.data["organizacion_id"])
+        Obra.objects.create(organizacion=organization, nombre="Obra real", codigo_obra="REAL-1", fecha_inicio=date.today())
+        blocked = self.client.delete(f"/api/saas/organizaciones/{organization.organizacion_id}/")
+        self.assertEqual(blocked.status_code, 409); self.assertTrue(Organizacion.objects.filter(pk=organization.pk).exists())
+
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend", RESEND_API_KEY="", FRONTEND_URL="http://frontend.test")
 class PasswordResetE2ETests(TestCase):
@@ -71,14 +96,48 @@ class PasswordResetE2ETests(TestCase):
         first = self.client.post(f"/api/auth/password-reset/{uid}/{token}/", payload, format="json")
         second = self.client.post(f"/api/auth/password-reset/{uid}/{token}/", payload, format="json")
         self.assertEqual(first.status_code, 200); self.assertEqual(second.status_code, 400)
-        self.assertIsNone(authenticate(username="marcela", password="Old-password-123!")); self.assertIsNotNone(authenticate(username="marcela", password="New-password-456!")); self.assertEqual(len(mail.outbox), 2)
+        self.assertIsNone(authenticate(email=self.user.email, password="Old-password-123!")); self.assertIsNotNone(authenticate(email=self.user.email, password="New-password-456!")); self.assertEqual(len(mail.outbox), 2)
 
     def test_authenticated_password_change_keeps_access_and_notifies(self):
         self.client.force_authenticate(self.user)
         response = self.client.post("/api/auth/cambiar-contrasena/", {"current_password": "Old-password-123!", "password": "Safer-password-789!", "confirmation": "Safer-password-789!"}, format="json")
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertIsNotNone(authenticate(username="marcela", password="Safer-password-789!"))
+        self.assertIsNotNone(authenticate(email=self.user.email, password="Safer-password-789!"))
         self.assertEqual(len(mail.outbox), 1)
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend", RESEND_API_KEY="", FRONTEND_URL="http://frontend.test")
+class EmailIdentityAuthenticationTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("internal-name", "Marcela.Rojas@Empresa.CL", "Correct-password-123!")
+        self.organization = Organizacion.objects.create(nombre="Primera organización")
+        UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.organization, rol=UsuarioOrganizacion.Rol.ADMIN)
+        self.client = APIClient()
+
+    def test_login_uses_email_case_insensitively_and_never_requires_username(self):
+        response = self.client.post("/api/auth/login/", {"email": "  marcela.rojas@empresa.cl ", "password": "Correct-password-123!"}, format="json")
+        self.assertEqual(response.status_code, 200, response.data); self.assertEqual(response.data["user"]["id"], self.user.id)
+
+    def test_wrong_password_and_unknown_email_share_generic_message(self):
+        wrong = self.client.post("/api/auth/login/", {"email": self.user.email, "password": "wrong"}, format="json")
+        unknown = self.client.post("/api/auth/login/", {"email": "missing@example.com", "password": "wrong"}, format="json")
+        self.assertEqual(wrong.status_code, 400); self.assertEqual(wrong.data, unknown.data)
+        self.assertEqual(wrong.data["error"], "Correo electrónico o contraseña incorrectos.")
+
+    def test_inactive_identity_does_not_authenticate(self):
+        self.user.is_active = False; self.user.save(update_fields=["is_active"])
+        response = self.client.post("/api/auth/login/", {"email": self.user.email, "password": "Correct-password-123!"}, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_existing_identity_gets_second_membership_and_invitation(self):
+        platform = User.objects.create_superuser("platform-email", "platform@example.com", "Admin-password-123")
+        self.client.force_login(platform)
+        original_password = self.user.password
+        response = self.client.post("/api/saas/organizaciones/provisionar/", {"nombre": "Segunda organización", "sector": "industrial", "plan": "professional", "estado": "activo", "admin_nombre": "Otro", "admin_apellido": "Nombre", "admin_email": "MARCELA.ROJAS@empresa.cl"}, format="json")
+        self.assertEqual(response.status_code, 201, response.data); self.assertFalse(response.data["identidad_nueva"]); self.assertEqual(response.data["mensaje_enviado"], "invitation")
+        self.assertEqual(User.objects.filter(email__iexact=self.user.email).count(), 1); self.assertEqual(UsuarioOrganizacion.objects.filter(user=self.user).count(), 2)
+        self.user.refresh_from_db(); self.assertEqual(self.user.password, original_password); self.assertTrue(self.user.is_active)
+        self.assertIn("nueva organización", mail.outbox[-1].subject.lower())
 
 
 class EditableOperationalStructureTests(TestCase):

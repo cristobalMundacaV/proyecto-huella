@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { Leaf, Lock, UserRound } from "lucide-react";
+import { Leaf, Lock, Mail } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { Button } from "@/shared/ui/Button";
 
 const initialForm = {
-  username: "",
   password: "",
   email: "",
   first_name: "",
@@ -37,7 +36,7 @@ function LoginPage() {
       if (isBootstrap) {
         await bootstrap(form);
       } else {
-        await login({ username: form.username, password: form.password });
+        await login({ email: form.email, password: form.password });
       }
       navigate(location.state?.returnTo || "/inicio", { replace: true });
     } catch (requestError) {
@@ -74,7 +73,7 @@ function LoginPage() {
               <p className="mt-3 text-sm leading-6 text-slate-300">
                 {isBootstrap
                   ? "Aun no hay usuarios en el sistema. Crea una cuenta inicial para administrar organizaciones y usuarios."
-                  : "Accede al panel para gestionar emisiones, obras, reportes y trazabilidad ambiental."}
+                  : "Accede a tu organización para gestionar información, indicadores, problemáticas y trazabilidad ambiental."}
               </p>
             </div>
 
@@ -97,22 +96,14 @@ function LoginPage() {
 
             <div className="mt-4 space-y-4">
               <Field
-                icon={<UserRound size={18} />}
-                label="Usuario"
-                name="username"
+                icon={<Mail size={18} />}
+                label="Correo electrónico"
+                name="email"
                 onChange={updateForm}
+                placeholder="nombre@empresa.cl"
                 required
-                value={form.username}
+                value={form.email}
               />
-              {isBootstrap && (
-                <Field
-                  label="Email"
-                  name="email"
-                  onChange={updateForm}
-                  type="email"
-                  value={form.email}
-                />
-              )}
               <Field
                 icon={<Lock size={18} />}
                 label="Clave"
@@ -163,7 +154,7 @@ function LoginPage() {
   );
 }
 
-function Field({ icon, label, name, onChange, required = false, type = "text", value }) {
+function Field({ icon, label, name, onChange, placeholder, required = false, type = "text", value }) {
   return (
     <label className="block">
       <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -175,6 +166,7 @@ function Field({ icon, label, name, onChange, required = false, type = "text", v
           name={name}
           onChange={onChange}
           required={required}
+          placeholder={placeholder}
           type={type}
           value={value}
           className="w-full bg-transparent text-sm outline-none placeholder:text-slate-600"

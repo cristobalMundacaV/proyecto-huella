@@ -65,7 +65,7 @@ export function OrganizacionActivaProvider({ children }) {
         clearActiveOrganizacion();
       }
 
-      if (!currentOrganizacionId && normalized.length > 0) {
+      if (!currentOrganizacionId && normalized.length === 1) {
         persistActiveOrganizacionId(normalized[0].organizacion_id);
       }
 
