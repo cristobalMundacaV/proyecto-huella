@@ -7,6 +7,7 @@ import { useOrganizacionActiva } from "@/features/organizaciones/context/Organiz
 import { createOrganizacionUsuario, deleteOrganizacionUsuario, getOrganizacionObras, getOrganizacionUsuarios, updateOrganizacionUsuario } from "@/shared/services/api";
 import { Alert, Button, EmptyState, ErrorState, Input, Modal, PageHeader, Select, StatusBadge, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
 import PlatformLoader from "@/shared/components/PlatformLoader";
+import { isValidEmail, normalizeEmail } from "@/shared/utils/validators";
 
 const ROLE_LABELS = { admin: "Administrador", responsable_ambiental: "Responsable ambiental", analista: "Analista ambiental", operador: "Operador", revisor_ambiental: "Revisor ambiental", lector: "Lector" };
 const ROLE_DESCRIPTIONS = { admin: "Administra la configuración y estructura de la organización.", responsable_ambiental: "Gestiona y gobierna la operación ambiental.", analista: "Analiza, prepara y registra información ambiental.", operador: "Registra información operacional en las obras asignadas.", revisor_ambiental: "Revisa y valida información sin administrar la organización.", lector: "Acceso de consulta sin capacidad de modificación." };
@@ -24,6 +25,7 @@ export default function UsuariosPage() {
   const [saving, setSaving] = useState(false);
   const [mutationError, setMutationError] = useState("");
   const [works, setWorks] = useState([]);
+  const [emailTouched, setEmailTouched] = useState(false);
   const requestRef = useRef(0);
   const activeScopeRef = useRef(activeOrganizacionId);
 
@@ -52,6 +54,7 @@ export default function UsuariosPage() {
   }, [activeOrganizacionId]);
 
   async function submit() {
+    if (!editingMember && !isValidEmail(form.email)) { setEmailTouched(true); return; }
     const organizationId = activeOrganizacionId;
     setSaving(true);
     setMutationError("");
@@ -70,7 +73,7 @@ export default function UsuariosPage() {
     }
   }
 
-  function openCreate() { setMutationError(""); setEditingMember(null); setForm(emptyForm); setDialogOpen(true); }
+  function openCreate() { setMutationError(""); setEditingMember(null); setEmailTouched(false); setForm(emptyForm); setDialogOpen(true); }
   function openEdit(member) { setMutationError(""); setEditingMember(member); setForm({ ...emptyForm, rol: member.rol, cargo: member.cargo || "", alcance: member.alcance || "organizacion", obra_ids: member.obra_ids || [], activo: member.activo }); setDialogOpen(true); }
   async function removeMember(member) {
     if (!window.confirm(`¿Eliminar el acceso de ${member.nombre || member.username}?`)) return;
@@ -124,7 +127,7 @@ export default function UsuariosPage() {
         footer={<div className="flex flex-wrap justify-end gap-2"><Button variant="secondary" onClick={() => setDialogOpen(false)}>Cancelar</Button><Button loading={saving} disabled={(!editingMember && !form.email.trim()) || (form.alcance === "obras" && !form.obra_ids.length)} onClick={submit}>{editingMember ? "Guardar cambios" : "Agregar usuario"}</Button></div>}
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          {!editingMember && <Input label="Correo electrónico" required type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />}
+          {!editingMember && <Input label="Correo electrónico" required type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} onBlur={() => { setEmailTouched(true); setForm((current) => ({ ...current, email: normalizeEmail(current.email) })); }} error={emailTouched && !isValidEmail(form.email) ? "El formato del correo electrónico no es válido." : undefined} />}
           <Input label="Nombre" value={form.first_name} onChange={(event) => setForm((current) => ({ ...current, first_name: event.target.value }))} />
           <Input label="Apellido" value={form.last_name} onChange={(event) => setForm((current) => ({ ...current, last_name: event.target.value }))} />
           <Input label="Cargo" value={form.cargo} onChange={(event) => setForm((current) => ({ ...current, cargo: event.target.value }))} />

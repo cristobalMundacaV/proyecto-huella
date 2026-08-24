@@ -1,5 +1,8 @@
 import json
+import re
 
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db import transaction
 from django.utils import timezone
 
@@ -46,6 +49,13 @@ def apply_onboarding_step(organization, user, step, payload):
         if not organization.nombre or not organization.rut or not organization.pais or not organization.preset:
             raise ValueError("Completa razón social, RUT, país y sector.")
         if not valid_chilean_rut(organization.rut): raise ValueError("El RUT ingresado no es válido.")
+        if organization.email:
+            try: validate_email(organization.email)
+            except ValidationError as exc: raise ValueError("El formato del correo electrónico no es válido.") from exc
+        if organization.telefono:
+            digits = re.sub(r"\D", "", organization.telefono); local = digits[2:] if digits.startswith("56") else digits
+            if not re.fullmatch(r"9\d{8}", local): raise ValueError("El formato del teléfono no es válido.")
+            organization.telefono = f"+56{local}"
     elif step == 2:
         selected = payload.get("areas", [])
         existing = {item.tipo: item for item in organization.areas_operacionales.all()}

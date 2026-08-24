@@ -19,6 +19,7 @@ import {
   StatusBadge,
 } from "@/shared/ui";
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
+import { isValidEmail } from "@/shared/utils/validators";
 import {
   assignSaaSAdmin,
   deleteSaaSOrganization,
@@ -758,7 +759,6 @@ function initials(name) {
     .join("")
     .toUpperCase();
 }
-function isValidEmail(value) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(value || "").trim()); }
 function naturalCreateError(requestError) {
   const data = requestError?.response?.data;
   const raw = data?.admin_email?.[0] || data?.rut?.[0] || data?.nombre?.[0] || data?.detail;

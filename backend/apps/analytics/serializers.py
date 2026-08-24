@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError as DjangoValidationError
+import re
 from rest_framework import serializers
 
 from .models import (
@@ -23,6 +24,7 @@ from .models import (
     VariableAmbientalExtraida,
 )
 from .services.forestal_carbono import calcular_balance_neto_lote
+from .services.onboarding import valid_chilean_rut
 
 
 def normalize_carbon_percentage(value):
@@ -36,6 +38,20 @@ class OrganizacionSerializer(serializers.ModelSerializer):
     obras_count = serializers.IntegerField(source="obras.count", read_only=True)
     registros_count = serializers.IntegerField(source="registros_emision.count", read_only=True)
     evidencias_count = serializers.IntegerField(source="evidencias.count", read_only=True)
+
+    def validate_rut(self, value):
+        if value and not valid_chilean_rut(value):
+            raise serializers.ValidationError("El RUT ingresado no es válido. Revisa el número y su dígito verificador.")
+        return value
+
+    def validate_telefono(self, value):
+        if not value:
+            return value
+        digits = re.sub(r"\D", "", value)
+        local = digits[2:] if digits.startswith("56") else digits
+        if not re.fullmatch(r"9\d{8}", local):
+            raise serializers.ValidationError("El formato del teléfono no es válido.")
+        return f"+56{local}"
 
     class Meta:
         model = Organizacion

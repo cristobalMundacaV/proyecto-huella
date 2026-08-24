@@ -6,6 +6,7 @@ import { useOrganizacionActiva } from "@/features/organizaciones/context/Organiz
 import { createEtapaObra, getOrganizacionEtapas } from "@/shared/services/api";
 import { Alert, Button, EmptyState, ErrorState, Input, Modal, PageHeader, Select, StatusBadge, TableBody, TableCell, TableHead, TableShell, Textarea } from "@/shared/ui";
 import PlatformLoader from "@/shared/components/PlatformLoader";
+import ChileLocationFields from "@/shared/components/ChileLocationFields";
 
 const TYPES = ["Excavacion", "Fundaciones", "Obra gruesa", "Estructura", "Instalaciones", "Terminaciones", "Urbanizacion", "Retiro de residuos", "Logistica", "Administracion de obra", "Otro"];
 const STATES = { activa: "Activa", inactiva: "Inactiva", suspendida: "Suspendida", finalizada: "Finalizada" };
@@ -114,8 +115,7 @@ export default function EtapasPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           <Input label="Nombre" required value={form.nombre} onChange={(event) => setForm((current) => ({ ...current, nombre: event.target.value }))} />
           <Select label="Tipo" value={form.tipo} onChange={(event) => setForm((current) => ({ ...current, tipo: event.target.value }))}>{TYPES.map((value) => <option key={value} value={value}>{value}</option>)}</Select>
-          <Input label="Región" value={form.region} onChange={(event) => setForm((current) => ({ ...current, region: event.target.value }))} />
-          <Input label="Comuna" value={form.comuna} onChange={(event) => setForm((current) => ({ ...current, comuna: event.target.value }))} />
+          <ChileLocationFields region={form.region} comuna={form.comuna} onChange={(location) => setForm((current) => ({ ...current, ...location }))} />
           <Input label="Dirección" value={form.direccion} onChange={(event) => setForm((current) => ({ ...current, direccion: event.target.value }))} />
           <Select label="Estado" value={form.estado} onChange={(event) => setForm((current) => ({ ...current, estado: event.target.value, activa: event.target.value === "activa" }))}>{Object.entries(STATES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>
         </div>

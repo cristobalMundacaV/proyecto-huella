@@ -1,4 +1,6 @@
 import { Alert, Button, Input, Select, Textarea } from "@/shared/ui";
+import ChileLocationFields from "@/shared/components/ChileLocationFields";
+import { formatChileanRut, isValidChileanRut, isValidEmail, isValidPhone } from "@/shared/utils/validators";
 
 const PRESETS = [
   ["construccion", "Construcción"],
@@ -7,58 +9,6 @@ const PRESETS = [
   ["transporte", "Transporte"],
   ["industrial", "Industrial"],
 ];
-
-function normalizeRut(value = "") {
-  return String(value)
-    .replace(/[^0-9kK]/g, "")
-    .slice(0, 9)
-    .toUpperCase();
-}
-
-function formatRut(value = "") {
-  const normalized = normalizeRut(value);
-
-  if (normalized.length <= 1) return normalized;
-
-  const body = normalized.slice(0, -1);
-  const verifier = normalized.slice(-1);
-  const formattedBody = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-
-  return `${formattedBody}-${verifier}`;
-}
-
-function isValidRut(value = "") {
-  const normalized = normalizeRut(value);
-
-  if (normalized.length < 2) return false;
-
-  const body = normalized.slice(0, -1);
-  const verifier = normalized.slice(-1);
-
-  let sum = 0;
-  let multiplier = 2;
-
-  for (let index = body.length - 1; index >= 0; index -= 1) {
-    sum += Number(body[index]) * multiplier;
-    multiplier = multiplier === 7 ? 2 : multiplier + 1;
-  }
-
-  const result = 11 - (sum % 11);
-  const expected =
-    result === 11 ? "0" :
-    result === 10 ? "K" :
-    String(result);
-
-  return verifier === expected;
-}
-
-function isValidEmail(value = "") {
-  const trimmed = String(value).trim();
-
-  if (!trimmed) return true;
-
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
-}
 
 function phoneLocalDigits(value = "") {
   const digits = String(value).replace(/\D/g, "");
@@ -74,21 +24,6 @@ function toCanonicalPhone(value = "") {
   const local = normalizePhoneLocal(value);
 
   return local ? `+56${local}` : "";
-}
-
-function isValidPhone(value = "") {
-  const trimmed = String(value).trim();
-
-  if (!trimmed) return true;
-
-  const local = phoneLocalDigits(value);
-  const canonical = `+56${local}`.trim();
-
-  return (
-    local.length === 9 &&
-    canonical.length === 12 &&
-    /^\+56\d{9}$/.test(canonical)
-  );
 }
 
 export const emptyOrganizationForm = {
@@ -115,7 +50,7 @@ export default function OrganizacionForm({ value, onChange, onSubmit, onCancel, 
       event.target.type === "checkbox"
         ? event.target.checked
         : field === "rut"
-          ? formatRut(rawValue)
+          ? formatChileanRut(rawValue)
           : field === "email"
             ? rawValue.replace(/\s/g, "")
             : field === "telefono"
@@ -125,7 +60,7 @@ export default function OrganizacionForm({ value, onChange, onSubmit, onCancel, 
     onChange({ ...value, [field]: nextValue });
   };
 
-  const rutInvalid = Boolean(value.rut) && !isValidRut(value.rut);
+  const rutInvalid = Boolean(value.rut) && !isValidChileanRut(value.rut);
   const emailInvalid = !isValidEmail(value.email);
   const phoneInvalid = !isValidPhone(value.telefono);
   const phoneLocalValue = normalizePhoneLocal(value.telefono);
@@ -166,8 +101,7 @@ export default function OrganizacionForm({ value, onChange, onSubmit, onCancel, 
             )}
           </div>
           <Input label="Rubro o sector" value={value.rubro} onChange={set("rubro")} />
-          <Input label="Región" value={value.region} onChange={set("region")} />
-          <Input label="Comuna" value={value.comuna} onChange={set("comuna")} />
+          <ChileLocationFields region={value.region} comuna={value.comuna} onChange={(location) => onChange({ ...value, ...location })} />
           <Input label="Dirección" value={value.direccion} onChange={set("direccion")} />
           <Input label="Nombre contacto" value={value.contacto} onChange={set("contacto")} autoComplete="name" />
           <Input

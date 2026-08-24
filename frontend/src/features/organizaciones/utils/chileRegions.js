@@ -1,4 +1,4 @@
-﻿export const CHILE_REGIONS = [
+﻿const RAW_CHILE_REGIONS = [
   {
     region: "Arica y Parinacota",
     comunas: ["Arica", "Camarones", "Putre", "General Lagos"],
@@ -65,8 +65,17 @@
   },
 ];
 
-export const CHILE_REGION_NAMES = CHILE_REGIONS.map((item) => item.region);
+const REGION_IDENTITIES = [
+  ["15", "Región de Arica y Parinacota", 0], ["01", "Región de Tarapacá", 1], ["02", "Región de Antofagasta", 2], ["03", "Región de Atacama", 3], ["04", "Región de Coquimbo", 4], ["05", "Región de Valparaíso", 5], ["13", "Región Metropolitana de Santiago", 15], ["06", "Región del Libertador General Bernardo O’Higgins", 6], ["07", "Región del Maule", 7], ["16", "Región de Ñuble", 8], ["08", "Región del Biobío", 9], ["09", "Región de La Araucanía", 10], ["14", "Región de Los Ríos", 11], ["10", "Región de Los Lagos", 12], ["11", "Región de Aysén del General Carlos Ibáñez del Campo", 13], ["12", "Región de Magallanes y de la Antártica Chilena", 14],
+];
+const SPELLING = { Paiguano: "Paihuano", Calera: "La Calera", Llaillay: "Llay-Llay", Treguaco: "Trehuaco", "Padre las Casas": "Padre Las Casas", Coihaique: "Coyhaique", Aisén: "Aysén" };
+const repair = (value) => String(value).replaceAll("í­", "í").replaceAll("í‘", "Ñ").replaceAll("í", "Á").replaceAll("í¼", "ü");
+
+export const CHILE_REGIONS = REGION_IDENTITIES.map(([codigo, nombre, rawIndex]) => ({ codigo, nombre, region: nombre, comunas: RAW_CHILE_REGIONS[rawIndex].comunas.map((rawName, index) => { const repaired = repair(rawName); return { codigo: `${codigo}-${String(index + 1).padStart(3, "0")}`, nombre: SPELLING[repaired] || repaired }; }) }));
+export const CHILE_REGION_NAMES = CHILE_REGIONS.map((item) => item.nombre);
 
 export function getComunasByRegion(region) {
-  return CHILE_REGIONS.find((item) => item.region === region)?.comunas || [];
+  return CHILE_REGIONS.find((item) => item.nombre === region || item.codigo === region)?.comunas || [];
 }
+
+export function isValidChileLocation(region, comuna) { return getComunasByRegion(region).some((item) => item.nombre === comuna || item.codigo === comuna); }

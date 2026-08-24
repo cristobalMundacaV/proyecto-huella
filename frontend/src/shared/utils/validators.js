@@ -47,10 +47,24 @@ export function isValidChileanRut(value) {
 }
 
 export function isValidEmail(value) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+  const normalized = String(value || "").trim();
+  return !normalized || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalized);
 }
 
 export function isValidPhone(value) {
-  const normalized = String(value || "").replace(/[^\d+]/g, "");
-  return /^(\+?56)?\d{8,9}$/.test(normalized);
+  const normalized = String(value || "").trim();
+  if (!normalized) return true;
+  const digits = normalized.replace(/\D/g, "");
+  const local = digits.startsWith("56") ? digits.slice(2) : digits;
+  return /^9\d{8}$/.test(local);
 }
+
+export function formatChileanPhone(value = "") {
+  const raw = String(value).trim();
+  if (!raw) return "";
+  const digits = raw.replace(/\D/g, "");
+  const local = (digits.startsWith("56") ? digits.slice(2) : digits).slice(0, 9);
+  return /^9\d{8}$/.test(local) ? `+56 ${local[0]} ${local.slice(1, 5)} ${local.slice(5)}` : raw;
+}
+
+export function normalizeEmail(value = "") { return String(value).trim().toLowerCase(); }
