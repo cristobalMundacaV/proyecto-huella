@@ -1,12 +1,15 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { getOrganizaciones } from "@/shared/services/api";
+import { useAuth } from "@/features/auth/context/AuthContext";
+import { resolveActiveOrganizationId } from "./organizationResolution";
 
 const STORAGE_KEY = "carbono_zero.activeOrganizacionId";
 
 const OrganizacionActivaContext = createContext(null);
 
 export function OrganizacionActivaProvider({ children }) {
+  const { loadingAuth, user } = useAuth();
   const [organizaciones, setOrganizaciones] = useState([]);
   const [activeOrganizacionId, setActiveOrganizacionId] = useState(() => {
     if (typeof window === "undefined") {
@@ -58,16 +61,8 @@ export function OrganizacionActivaProvider({ children }) {
 
       setOrganizaciones(normalized);
 
-      if (
-        currentOrganizacionId &&
-        !normalized.some((organizacion) => String(organizacion.organizacion_id) === String(currentOrganizacionId))
-      ) {
-        clearActiveOrganizacion();
-      }
-
-      if (!currentOrganizacionId && normalized.length === 1) {
-        persistActiveOrganizacionId(normalized[0].organizacion_id);
-      }
+      const resolvedId = resolveActiveOrganizationId(normalized, currentOrganizacionId);
+      if (String(activeOrganizacionId || "") !== resolvedId) persistActiveOrganizacionId(resolvedId);
 
       return normalized;
     } catch (error) {
@@ -79,10 +74,21 @@ export function OrganizacionActivaProvider({ children }) {
   };
 
   useEffect(() => {
-    refreshOrganizaciones().catch(() => undefined);
-    // La carga inicial se ejecuta una vez; refresh usa el ID persistido vigente.
+    if (loadingAuth) return;
+    if (!user || user.is_demo) {
+      setOrganizaciones([]);
+      persistActiveOrganizacionId("");
+      setErrorOrganizaciones("");
+      setLoadingOrganizaciones(false);
+      return;
+    }
+    const persistedId = typeof window === "undefined" ? "" : window.localStorage.getItem(STORAGE_KEY) || "";
+    setOrganizaciones([]);
+    persistActiveOrganizacionId("");
+    refreshOrganizaciones(persistedId).catch(() => undefined);
+    // La fuente de verdad se recarga cada vez que cambia la identidad autenticada.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadingAuth, user?.id]);
 
   const value = {
       activeOrganizacion,

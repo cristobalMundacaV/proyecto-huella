@@ -8,7 +8,7 @@ const OperationalWorkspaceContext = createContext(null);
 
 export function OperationalWorkspaceProvider({ children }) {
   const { user } = useAuth();
-  const { setActiveOrganizacion } = useOrganizacionActiva();
+  const { activeOrganizacionId, setActiveOrganizacion } = useOrganizacionActiva();
   const [state, setState] = useState({ loading: true, workspaces: [], activeId: "", legacy: true });
 
   useEffect(() => {
@@ -16,12 +16,21 @@ export function OperationalWorkspaceProvider({ children }) {
     let current = true;
     api.get("/contexto-operativo/espacios/").then(({ data }) => {
       if (!current) return;
+      const workspaces = activeOrganizacionId
+        ? data.workspaces.filter((item) => String(item.organizacion?.id) === String(activeOrganizacionId))
+        : data.workspaces;
       const saved = window.localStorage.getItem(STORAGE_KEY) || "";
-      const activeId = data.workspaces.some((item) => String(item.id) === saved) ? saved : data.automatico ? String(data.workspaces[0]?.id || "") : "";
-      setState({ loading: false, workspaces: data.workspaces, activeId, legacy: data.legacy });
-    }).catch(() => current && setState({ loading: false, workspaces: [], activeId: "", legacy: true }));
+      const activeId = workspaces.some((item) => String(item.id) === saved) ? saved : data.automatico ? String(workspaces[0]?.id || "") : "";
+      if (activeId) window.localStorage.setItem(STORAGE_KEY, activeId);
+      else window.localStorage.removeItem(STORAGE_KEY);
+      setState({ loading: false, workspaces, activeId, legacy: data.legacy });
+    }).catch(() => {
+      if (!current) return;
+      window.localStorage.removeItem(STORAGE_KEY);
+      setState({ loading: false, workspaces: [], activeId: "", legacy: true });
+    });
     return () => { current = false; };
-  }, [user]);
+  }, [activeOrganizacionId, user]);
 
   const activeWorkspace = useMemo(() => state.workspaces.find((item) => String(item.id) === String(state.activeId)) || null, [state]);
   const selectWorkspace = (workspace) => {

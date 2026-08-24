@@ -6,6 +6,7 @@ import {
   loginUser,
   logoutUser,
 } from "@/shared/services/api";
+import { clearSessionNavigationContext } from "./sessionNavigation";
 
 const AuthContext = createContext(null);
 const DEMO_STORAGE_KEY = "carbono_zero.demo";
@@ -51,6 +52,7 @@ export function AuthProvider({ children }) {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(DEMO_STORAGE_KEY);
     }
+    clearSessionNavigationContext();
 
     const data = await loginUser(payload);
     setUser(data.user || null);
@@ -62,6 +64,7 @@ export function AuthProvider({ children }) {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(DEMO_STORAGE_KEY);
     }
+    clearSessionNavigationContext();
 
     const data = await bootstrapUser(payload);
     setUser(data.user || null);
@@ -73,6 +76,7 @@ export function AuthProvider({ children }) {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(DEMO_STORAGE_KEY, "true");
     }
+    clearSessionNavigationContext();
 
     setUser(demoUser);
     setHasUsers(true);
@@ -83,12 +87,17 @@ export function AuthProvider({ children }) {
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(DEMO_STORAGE_KEY);
       }
+      clearSessionNavigationContext();
       setUser(null);
       return;
     }
 
-    await logoutUser();
-    setUser(null);
+    try {
+      await logoutUser();
+    } finally {
+      clearSessionNavigationContext();
+      setUser(null);
+    }
   };
 
   const value = {

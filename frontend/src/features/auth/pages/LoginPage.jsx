@@ -3,6 +3,7 @@ import { Leaf, Lock, Mail } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { Button } from "@/shared/ui/Button";
 
 const initialForm = {
@@ -14,6 +15,7 @@ const initialForm = {
 
 function LoginPage() {
   const { bootstrap, enterDemo, hasUsers, login } = useAuth();
+  const { refreshOrganizaciones } = useOrganizacionActiva();
   const location = useLocation();
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
@@ -33,12 +35,25 @@ function LoginPage() {
     setError("");
 
     try {
-      if (isBootstrap) {
-        await bootstrap(form);
-      } else {
-        await login({ email: form.email, password: form.password });
+      const auth = isBootstrap
+        ? await bootstrap(form)
+        : await login({ email: form.email, password: form.password });
+      if (auth.user?.is_superuser) {
+        navigate("/saas", { replace: true });
+        return;
       }
-      navigate(location.state?.returnTo || "/inicio", { replace: true });
+      const organizations = await refreshOrganizaciones("");
+      if (organizations.length > 1) {
+        navigate("/seleccionar-organizacion", { replace: true });
+        return;
+      }
+      const membership = auth.user?.organizaciones?.find(
+        (item) => String(item.organizacion_id) === String(organizations[0]?.organizacion_id),
+      );
+      const destination = membership?.rol === "admin" && !membership.onboarding_completado
+        ? "/onboarding"
+        : location.state?.returnTo || "/inicio";
+      navigate(destination, { replace: true });
     } catch (requestError) {
       setError(
         requestError.response?.data?.error ||
