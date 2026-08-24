@@ -191,6 +191,10 @@ export default function SaaSOrganizationsPage() {
       });
       return;
     }
+    if (!isValidEmail(createForm.admin_email)) {
+      setToast({ id: Date.now(), tone: "error", message: "Correo electrónico incorrecto", subtitle: "Ingresa un correo válido, por ejemplo nombre@empresa.cl." });
+      return;
+    }
     setBusy(true);
     setError("");
     setToast({
@@ -713,6 +717,7 @@ export default function SaaSOrganizationsPage() {
                 label="Email"
                 required
                 type="email"
+                error={createAttempted && !isValidEmail(createForm.admin_email) ? "Ingresa un correo válido, por ejemplo nombre@empresa.cl." : undefined}
                 value={createForm.admin_email}
                 onChange={(event) =>
                   setCreateForm({
@@ -747,9 +752,11 @@ function initials(name) {
     .join("")
     .toUpperCase();
 }
+function isValidEmail(value) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(value || "").trim()); }
 function naturalCreateError(requestError) {
   const data = requestError?.response?.data;
-  const raw = data?.rut?.[0] || data?.nombre?.[0] || data?.detail;
+  const raw = data?.admin_email?.[0] || data?.rut?.[0] || data?.nombre?.[0] || data?.detail;
+  if (/correo|email/i.test(String(raw || ""))) return "Ingresa un correo válido, por ejemplo nombre@empresa.cl.";
   if (/rut|d[ií]gito|verificador/i.test(String(raw || "")))
     return "El RUT ya está registrado o su dígito verificador no corresponde.";
   if (/nombre|required|blank/i.test(String(raw || "")))

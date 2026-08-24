@@ -3,6 +3,8 @@ import json
 
 from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import validate_email
 from django.db import transaction
 from django.db.models import Max
 from django.shortcuts import get_object_or_404
@@ -118,6 +120,8 @@ def saas_provision_organization(request):
     if missing:
         return Response({field: ["Este dato es necesario."] for field in missing}, status=status.HTTP_400_BAD_REQUEST)
     email = normalize_email_identity(request.data["admin_email"])
+    try: validate_email(email)
+    except DjangoValidationError: return Response({"admin_email": ["Ingresa un correo electrónico válido, por ejemplo nombre@empresa.cl."]}, status=status.HTTP_400_BAD_REQUEST)
     if request.data["sector"] not in Organizacion.Preset.values: return Response({"sector": ["Selecciona un sector disponible."]}, status=status.HTTP_400_BAD_REQUEST)
     if request.data["plan"] not in SuscripcionSaaS.Plan.values: return Response({"plan": ["Selecciona un plan disponible."]}, status=status.HTTP_400_BAD_REQUEST)
     if request.data["estado"] not in {SuscripcionSaaS.Estado.PILOTO, SuscripcionSaaS.Estado.ACTIVO}: return Response({"estado": ["El estado inicial debe ser Piloto o Activo."]}, status=status.HTTP_400_BAD_REQUEST)
@@ -214,7 +218,8 @@ def saas_organization_admins(request, organizacion_id):
     organization = get_object_or_404(Organizacion, organizacion_id=organizacion_id)
     email = str(request.data.get("email", "")).strip().lower()
     first_name = str(request.data.get("nombre", "")).strip(); last_name = str(request.data.get("apellido", "")).strip()
-    if not email or "@" not in email: return Response({"email": ["Ingresa un correo electrónico válido."]}, status=status.HTTP_400_BAD_REQUEST)
+    try: validate_email(email)
+    except DjangoValidationError: return Response({"email": ["Ingresa un correo electrónico válido, por ejemplo nombre@empresa.cl."]}, status=status.HTTP_400_BAD_REQUEST)
     user, membership, identity = provision_user_membership(organization=organization, email=email, role=UsuarioOrganizacion.Rol.ADMIN, first_name=first_name, last_name=last_name, cargo=request.data.get("cargo", ""))
     audit(request, organization, "administrador_asignado", {}, {"email": email, "usuario_existente": not identity["identity_created"]}, "Se asignó o recuperó un administrador para el tenant.")
     return Response({"detail": "Administrador asignado correctamente. Se envió la comunicación correspondiente.", "administradores": serialize_admins(organization), "mensaje_enviado": identity["message_kind"]}, status=status.HTTP_201_CREATED if identity["membership_created"] else status.HTTP_200_OK)

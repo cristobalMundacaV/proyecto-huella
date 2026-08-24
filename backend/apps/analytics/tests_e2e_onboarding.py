@@ -20,6 +20,12 @@ class SaaSOnboardingE2ETests(TestCase):
         response = self.client.post("/api/saas/organizaciones/provisionar/", {"nombre": "Constructora Andina del Biobío SpA", "sector": "construccion", "plan": "professional", "estado": "piloto", "admin_nombre": "Marcela", "admin_apellido": "Rojas", "admin_email": "marcela@example.com", "admin_cargo": "Administradora"}, format="json")
         self.assertEqual(response.status_code, 201, response.data); return response
 
+    def test_provision_rejects_invalid_email_without_creating_tenant(self):
+        before = Organizacion.objects.count()
+        response = self.client.post("/api/saas/organizaciones/provisionar/", {"nombre": "Tenant inválido", "sector": "construccion", "plan": "starter", "estado": "piloto", "admin_nombre": "Marcela", "admin_apellido": "Rojas", "admin_email": "c"}, format="json")
+        self.assertEqual(response.status_code, 400); self.assertIn("admin_email", response.data)
+        self.assertEqual(Organizacion.objects.count(), before)
+
     def test_full_provision_activation_and_onboarding(self):
         provisioned = self.provision(); organization = Organizacion.objects.get(organizacion_id=provisioned.data["organizacion_id"])
         subscription = SuscripcionSaaS.objects.get(organizacion=organization); admin = User.objects.get(email="marcela@example.com")
