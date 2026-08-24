@@ -1,4 +1,4 @@
-import { Alert, Button, Input, Select, Textarea } from "@/shared/ui";
+import { Alert, Button, Input, SelectField, Textarea } from "@/shared/ui";
 import ChileLocationFields from "@/shared/components/ChileLocationFields";
 import { formatChileanRut, isValidChileanRut, isValidEmail, isValidPhone } from "@/shared/utils/validators";
 
@@ -72,9 +72,7 @@ export default function OrganizacionForm({ value, onChange, onSubmit, onCancel, 
       <fieldset className="space-y-4">
         <legend className="text-base font-black">Identidad</legend>
         <Input label="Nombre de la organización" required value={value.nombre} onChange={set("nombre")} />
-        <Select label="Perfil de operación" value={value.preset} onChange={set("preset")}>
-          {PRESETS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-        </Select>
+        <SelectField label="Perfil de operación" value={value.preset} options={PRESETS.map(([id, label]) => ({ value: id, label }))} onChange={(preset) => onChange({ ...value, preset })} />
         <p className="text-xs leading-5 text-[var(--text-muted)]">
           El perfil define vocabulario, navegación y composición de la experiencia. {editing ? "Cambiarlo reorganiza cómo se presenta la organización." : "Elige el que mejor representa la operación inicial."}
         </p>

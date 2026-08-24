@@ -5,7 +5,7 @@ import { useAuth } from "@/features/auth/context/AuthContext";
 import { usePermissions } from "@/features/auth/hooks/usePermissions";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { createOrganizacionUsuario, deleteOrganizacionUsuario, getOrganizacionObras, getOrganizacionUsuarios, updateOrganizacionUsuario } from "@/shared/services/api";
-import { Alert, Button, EmptyState, ErrorState, Input, Modal, PageHeader, Select, StatusBadge, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
+import { Alert, Button, EmptyState, ErrorState, Input, Modal, PageHeader, SelectField, StatusBadge, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import { isValidEmail, normalizeEmail } from "@/shared/utils/validators";
 
@@ -131,12 +131,8 @@ export default function UsuariosPage() {
           <Input label="Nombre" value={form.first_name} onChange={(event) => setForm((current) => ({ ...current, first_name: event.target.value }))} />
           <Input label="Apellido" value={form.last_name} onChange={(event) => setForm((current) => ({ ...current, last_name: event.target.value }))} />
           <Input label="Cargo" value={form.cargo} onChange={(event) => setForm((current) => ({ ...current, cargo: event.target.value }))} />
-          <Select label="Rol" value={form.rol} onChange={(event) => setForm((current) => ({ ...current, rol: event.target.value }))}>
-            {Object.entries(ROLE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </Select>
-          <Select label="Alcance" value={form.alcance} onChange={(event) => setForm((current) => ({ ...current, alcance: event.target.value, obra_ids: [] }))}>
-            <option value="organizacion">Toda la organización</option><option value="obras">Obras específicas</option>
-          </Select>
+          <SelectField label="Rol" value={form.rol} options={Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }))} onChange={(rol) => setForm((current) => ({ ...current, rol }))} />
+          <SelectField label="Alcance" value={form.alcance} options={[{ value: "organizacion", label: "Toda la organización" }, { value: "obras", label: "Obras específicas" }]} onChange={(alcance) => setForm((current) => ({ ...current, alcance, obra_ids: [] }))} />
           <p className="sm:col-span-2 text-sm text-[var(--text-muted)]">{ROLE_DESCRIPTIONS[form.rol]}</p>
           {form.alcance === "obras" && <label className="sm:col-span-2 text-sm font-bold">Obras autorizadas<select multiple className="mt-2 min-h-32 w-full rounded-[var(--radius-lg)] border border-[var(--border-default)] p-3" value={form.obra_ids.map(String)} onChange={(event) => setForm((current) => ({ ...current, obra_ids: Array.from(event.target.selectedOptions, (option) => Number(option.value)) }))}>{works.map((work) => <option key={work.id} value={work.id}>{work.nombre}</option>)}</select></label>}
           <label className="flex items-center gap-3 self-end rounded-[var(--radius-lg)] border border-[var(--border-default)] p-3 text-sm font-bold"><input type="checkbox" checked={form.activo} onChange={(event) => setForm((current) => ({ ...current, activo: event.target.checked }))} />Acceso activo</label>

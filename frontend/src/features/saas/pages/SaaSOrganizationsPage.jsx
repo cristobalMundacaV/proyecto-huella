@@ -16,6 +16,7 @@ import {
   Input,
   Modal,
   Select,
+  SelectField,
   StatusBadge,
 } from "@/shared/ui";
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
@@ -656,45 +657,48 @@ export default function SaaSOrganizationsPage() {
                   setCreateForm({ ...createForm, nombre: event.target.value })
                 }
               />
-              <Select
+              <SelectField
                 label="Sector principal"
                 required
                 value={createForm.sector}
-                onChange={(event) =>
-                  setCreateForm({ ...createForm, sector: event.target.value })
+                options={[
+                  { value: "construccion", label: "Construcción" },
+                  { value: "forestal", label: "Forestal" },
+                  { value: "aserradero", label: "Aserradero" },
+                  { value: "transporte", label: "Transporte" },
+                  { value: "industrial", label: "Industrial" },
+                ]}
+                placeholder="Selecciona un sector"
+                onChange={(sector) =>
+                  setCreateForm({ ...createForm, sector })
                 }
-              >
-                <option value="">Selecciona un sector</option>
-                <option value="construccion">Construcción</option>
-                <option value="forestal">Forestal</option>
-                <option value="aserradero">Aserradero</option>
-                <option value="transporte">Transporte</option>
-                <option value="industrial">Industrial</option>
-              </Select>
+              />
             </fieldset>
             <fieldset className="grid gap-4 sm:grid-cols-2">
               <legend className="mb-3 font-black">Servicio</legend>
-              <Select
+              <SelectField
                 label="Plan"
                 value={createForm.plan}
-                onChange={(event) =>
-                  setCreateForm({ ...createForm, plan: event.target.value })
+                options={[
+                  { value: "starter", label: "Starter" },
+                  { value: "professional", label: "Professional" },
+                  { value: "enterprise", label: "Enterprise" },
+                ]}
+                onChange={(plan) =>
+                  setCreateForm({ ...createForm, plan })
                 }
-              >
-                <option value="starter">Starter</option>
-                <option value="professional">Professional</option>
-                <option value="enterprise">Enterprise</option>
-              </Select>
-              <Select
+              />
+              <SelectField
                 label="Estado inicial"
                 value={createForm.estado}
-                onChange={(event) =>
-                  setCreateForm({ ...createForm, estado: event.target.value })
+                options={[
+                  { value: "piloto", label: "Piloto" },
+                  { value: "activo", label: "Activo" },
+                ]}
+                onChange={(estado) =>
+                  setCreateForm({ ...createForm, estado })
                 }
-              >
-                <option value="piloto">Piloto</option>
-                <option value="activo">Activo</option>
-              </Select>
+              />
             </fieldset>
             <fieldset className="grid gap-4 sm:grid-cols-2">
               <legend className="mb-3 font-black">Administrador inicial</legend>
