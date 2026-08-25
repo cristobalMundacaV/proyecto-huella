@@ -27,7 +27,7 @@ const stateStyles = {
 
   sin_datos: {
     container:
-      "border-slate-200 bg-white",
+      "border-emerald-100 bg-[linear-gradient(135deg,rgba(236,253,245,0.72),rgba(255,255,255,0.98))]",
     icon:
       "bg-slate-100 text-slate-600",
   },
@@ -234,7 +234,7 @@ export default function OperationDomainCard({
           focus-visible:shadow-[var(--focus-ring)]
         `}
       >
-        Explorar dominio
+        {state === "sin_datos" ? "Registrar información" : state === "requiere_revision" ? "Revisar ámbito" : "Explorar ámbito"}
 
         <ArrowRight
           aria-hidden="true"

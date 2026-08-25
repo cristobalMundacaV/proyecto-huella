@@ -13,6 +13,8 @@ export function EmptyState({
     primaryAction,
     secondaryAction,
     action,
+    guidance,
+    suggestions = [],
     className = "",
 }) {
     return (
@@ -30,6 +32,10 @@ export function EmptyState({
             <p className="mx-auto mt-2 max-w-xl text-sm text-[var(--text-muted)]">
                 {description}
             </p>
+
+            {guidance && <p className="mx-auto mt-3 max-w-xl text-sm font-semibold text-emerald-900">{guidance}</p>}
+
+            {suggestions.length > 0 && <div className="mx-auto mt-5 flex max-w-2xl flex-wrap justify-center gap-2">{suggestions.map((suggestion) => <span key={suggestion} className="rounded-full border border-emerald-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-emerald-900 shadow-sm">{suggestion}</span>)}</div>}
 
             {(primaryAction ||
                 secondaryAction ||

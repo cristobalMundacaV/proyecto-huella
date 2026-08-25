@@ -32,12 +32,12 @@ function SummarySignal({ label, value, tone }) { return <div className="rounded-
 export function ReportKpis({ report }) {
   const behavior = trend(report.variation);
   const rows = [
-    { label: "Emisiones del período", value: emission(report.total), helper: `${report.records} resultados`, icon: Leaf, color: "rose" },
+    { label: "Emisiones del período", value: report.records ? emission(report.total) : "Sin lectura disponible", helper: report.records ? `${report.records} resultados trazables` : "0 resultados trazables", icon: Leaf, color: "rose" },
     { label: "Comportamiento reciente", value: behavior.label, helper: report.variation === null ? "Se requieren dos períodos" : `${formatPercent(Math.abs(report.variation))} vs. mes anterior`, icon: behavior.Icon, color: report.variation > 0 ? "rose" : "emerald" },
     { label: "Período con mayor emisión", value: report.peak?.label || "Sin datos", helper: emission(report.peak?.value), icon: CalendarDays, color: "orange" },
     { label: "Fuente prioritaria", value: report.dominantSource?.name || "Sin datos", helper: emission(report.dominantSource?.value), icon: AlertTriangle, color: "amber" },
     { label: "Etapa prioritaria", value: "Sin etapa informada", helper: "El contrato actual no expone esta dimensión", icon: Factory, color: "blue" },
-    { label: "Emisión promedio", value: emission(report.average), helper: "Promedio por período agrupado", icon: Gauge, color: "slate" },
+    { label: "Emisión promedio", value: report.records ? emission(report.average) : "Sin lectura disponible", helper: report.records ? "Promedio por período agrupado" : "La ausencia de datos no equivale a cero", icon: Gauge, color: "slate" },
   ];
   return <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{rows.map(({ icon: Icon, ...row }) => <article key={row.label} className={`relative overflow-hidden rounded-[22px] border ${KPI_TONES[row.color][0]} bg-white p-5 shadow-[0_12px_34px_rgba(15,23,42,0.06)]`}><span className={`absolute inset-x-0 top-0 h-1 ${KPI_TONES[row.color][1]}`} /><div className="flex items-center gap-2 text-[var(--text-muted)]"><Icon size={18} aria-hidden="true" /><p className="text-[10px] font-black uppercase tracking-[0.13em]">{row.label}</p></div><p className="mt-5 text-xl font-black leading-tight">{row.value}</p><p className="mt-2 text-xs text-[var(--text-muted)]">{row.helper}</p></article>)}</section>;
 }

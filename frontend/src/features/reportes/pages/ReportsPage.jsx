@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Download, Filter, RefreshCw, Sparkles } from "lucide-react";
-import { useOutletContext } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import { Alert, Button, EmptyState, Input } from "@/shared/ui";
 import { buildEnvironmentalReport } from "../utils/reportAdapters";
 import { CategoryGrid, CriticalSources, ExecutiveSummary, ReportCharts, ReportKpis, SourceParticipation } from "../components/ReportBlocks";
@@ -27,7 +27,7 @@ export default function ReportsPage() {
     {impactsError ? <Alert tone="danger" title="No fue posible cargar los resultados ambientales">El reporte no reemplaza el error por cifras vacías. Actualiza la vista para volver a intentarlo.</Alert> : <>
       <ExecutiveSummary report={report} workName={workName} />
       <ReportKpis report={report} />
-      {!report.records ? <EmptyState title="Sin emisiones disponibles en el período" description="Ajusta los filtros o incorpora resultados ambientales gobernados. La ausencia de información no se presenta como una huella igual a cero." /> : <>
+      {!report.records ? <EmptyState title="Sin lectura disponible en el período" description="No existen resultados ambientales gobernados para construir este reporte. La ausencia de información no se presenta como una huella igual a cero." guidance="Agrega evidencia o registra información operacional para habilitar cálculos trazables." suggestions={["0 resultados trazables", "Sin fuente prioritaria", "Sin comparación temporal"]} primaryAction={<Link className="inline-flex min-h-11 items-center rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white" to="../evidencias">Agregar evidencia</Link>} secondaryAction={<Link className="inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-bold text-emerald-900" to="../operacion">Registrar información</Link>} /> : <>
         <CategoryGrid categories={report.categories} total={report.total} />
         <SourceParticipation report={report} />
         <CriticalSources report={report} />

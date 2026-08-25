@@ -404,6 +404,18 @@ export default function ObraResumenPage() {
       </section>
 
 
+      {obra.estado_ambiental === "configuracion" && (
+        <section className="rounded-[22px] border border-emerald-200 bg-[linear-gradient(135deg,rgba(236,253,245,0.95),rgba(240,253,250,0.78))] p-5 shadow-[0_10px_30px_rgba(6,78,59,0.06)]">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Próximos pasos recomendados</p>
+          <h2 className="mt-1 text-xl font-black">Prepara la obra para una lectura ambiental verificable</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">El perfil está en configuración. Confirma los ámbitos aplicables y agrega antecedentes reales antes de interpretar indicadores o cumplimiento.</p>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {[["1", "Confirmar cobertura", "Define qué ámbitos aplican realmente a esta obra.", `/obras/${obraId}/operacion`], ["2", "Agregar evidencia", "Incorpora documentos que respalden la operación.", `/obras/${obraId}/evidencias`], ["3", "Registrar actividad", "Ingresa la primera medición o antecedente operacional.", `/obras/${obraId}/operacion`]].map(([step, title, description, to]) => <Link key={step} to={to} className="group rounded-2xl border border-emerald-100 bg-white/85 p-4 transition hover:border-emerald-400 hover:shadow-md"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-black text-emerald-800">{step}</span><h3 className="mt-3 font-black">{title}</h3><p className="mt-1 text-xs leading-5 text-slate-500">{description}</p><span className="mt-3 inline-flex items-center gap-1 text-xs font-black text-emerald-700">Continuar <ArrowRight size={13} /></span></Link>)}
+          </div>
+        </section>
+      )}
+
+
       {/* KPIS */}
       {/* KPIS EJECUTIVOS */}
       <section
@@ -814,10 +826,7 @@ export default function ObraResumenPage() {
               )}
           </div>
         ) : (
-          <p className="mt-4 text-sm text-[var(--text-muted)]">
-            Sin información de
-            cobertura disponible.
-          </p>
+          <EmptyState icon={ShieldCheck} title="Cobertura pendiente de confirmar" description="Aún no se ha definido qué ámbitos ambientales aplican específicamente a esta obra." guidance="Confirma la aplicabilidad antes de registrar datos para evitar interpretar dimensiones que no corresponden." primaryAction={<Link className="inline-flex min-h-11 items-center rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white" to={`/obras/${obraId}/operacion`}>Configurar cobertura</Link>} />
         )}
       </section>
 

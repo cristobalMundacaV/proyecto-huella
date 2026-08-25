@@ -1,5 +1,6 @@
 import { Link, useOutletContext } from "react-router-dom";
-import { Alert, Card, CardContent, SectionHeader } from "@/shared/ui";
+import { Activity, AlertCircle, CheckCircle2, Layers3 } from "lucide-react";
+import { Alert, Card, CardContent, EmptyState, KpiCard, SectionHeader } from "@/shared/ui";
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
 import {
   applicability,
@@ -152,6 +153,7 @@ export default function OperacionOverviewPage() {
     .toSorted((left, right) => String(right.latestAt).localeCompare(String(left.latestAt)))
     .slice(0, 3);
   const activityCount = activeDomains.length;
+  const withoutDataCount = operationalDescriptors.filter((domain) => domain.state === "sin_datos").length;
   const unavailableCount = operationalDescriptors.filter((domain) => domain.state === "error").length;
   const secondaryUnavailable = operationalDescriptors.length > 0 && Boolean(
     resourceErrors?.indicators
@@ -167,36 +169,11 @@ export default function OperacionOverviewPage() {
         description="Actividad registrada, cambios recientes y ámbitos que necesitan revisión."
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
-        <Card>
-          <CardContent>
-            <p className="text-sm text-[var(--text-muted)]">
-              Ámbitos con actividad
-            </p>
-
-            <p className="mt-1 text-2xl font-black">
-              {activityCount}
-            </p>
-          </CardContent>
-        </Card>
-
-        {(attention.length > 0 || unavailableCount > 0) && (
-          <Card>
-            <CardContent>
-              <p className="text-sm text-[var(--text-muted)]">
-                {attention.length > 0
-                  ? "Ámbitos por revisar"
-                  : "Ámbitos no disponibles"}
-              </p>
-
-              <p className="mt-1 text-2xl font-black">
-                {attention.length > 0
-                  ? attention.length
-                  : unavailableCount}
-              </p>
-            </CardContent>
-          </Card>
-        )}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard icon={Layers3} label="Ámbitos aplicables" value={operationalDescriptors.length} helper="Confirmados para esta obra" />
+        <KpiCard icon={CheckCircle2} label="Ámbitos activos" value={activityCount} helper="Con actividad trazable" status={activityCount ? "success" : undefined} />
+        <KpiCard icon={Activity} label="Ámbitos sin datos" value={withoutDataCount} helper="Preparados para registrar" />
+        <KpiCard icon={AlertCircle} label="Revisión pendiente" value={attention.length + unavailableCount} helper={attention.length ? "Necesitan validación" : "Sin revisiones pendientes"} status={attention.length ? "warning" : "success"} />
       </div>
 
       {secondaryUnavailable && (
@@ -207,6 +184,7 @@ export default function OperacionOverviewPage() {
         </div>
       )}
     </section>
+    {operationalDescriptors.length > 0 && activityCount === 0 && <EmptyState icon={Activity} title="La operación está preparada para comenzar" description="Los ámbitos aplicables ya están configurados, pero todavía no existen registros o mediciones asociados a esta obra." guidance="Comienza por el ámbito con información disponible y registra su primer antecedente verificable." suggestions={["Agregar evidencia", "Registrar una medición", "Importar información"]} />}
     {(attention.length > 0 || recent.length > 0) && <section className="grid gap-4 lg:grid-cols-2">
       {attention.length > 0 && <Card><CardContent>
         <SectionHeader title="Requiere atención" description="Información que necesita revisión antes de interpretarse como normal." />

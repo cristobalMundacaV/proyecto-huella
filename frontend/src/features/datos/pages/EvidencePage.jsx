@@ -695,6 +695,8 @@ export default function EvidencePage({
               Agregar primera evidencia
             </Button> : undefined
           }
+          guidance="Cada evidencia permite reconstruir el origen de un dato, revisar su calidad y sostener futuras decisiones ambientales."
+          suggestions={["Facturas", "Certificados", "Respaldos", "Guías", "Mediciones", "Fotografías"]}
           secondaryAction={
             !workScoped ? (
               <Link
