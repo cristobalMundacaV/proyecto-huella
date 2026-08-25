@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { getOrganizaciones } from "@/shared/services/api";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { resolveActiveOrganizationId } from "./organizationResolution";
+import { createOrganizationRequestTracker } from "./organizationRequestTracker";
 
 const STORAGE_KEY = "carbono_zero.activeOrganizacionId";
 
@@ -21,7 +22,10 @@ export function OrganizacionActivaProvider({ children }) {
   const [loadingOrganizaciones, setLoadingOrganizaciones] = useState(true);
   const [errorOrganizaciones, setErrorOrganizaciones] = useState("");
   const [resolvedIdentityId, setResolvedIdentityId] = useState("");
-  const requestRef = useRef(0);
+  const requestTrackerRef = useRef(null);
+  if (requestTrackerRef.current === null) {
+    requestTrackerRef.current = createOrganizationRequestTracker();
+  }
   const currentIdentityId = user ? String(user.id ?? user.username ?? "authenticated") : "";
   const resolvingOrganizations = loadingAuth || loadingOrganizaciones || Boolean(user && !user.is_demo && resolvedIdentityId !== currentIdentityId);
 
@@ -56,15 +60,16 @@ export function OrganizacionActivaProvider({ children }) {
   };
 
   const refreshOrganizaciones = async (currentOrganizacionId = activeOrganizacionId) => {
-    const requestId = ++requestRef.current;
+    const tracker = requestTrackerRef.current;
+    const { requestId, signal } = tracker.start();
     const identityId = currentIdentityId;
     setLoadingOrganizaciones(true);
     setErrorOrganizaciones("");
 
     try {
-      const data = await getOrganizaciones();
+      const data = await getOrganizaciones({ signal, timeout: 20000 });
       const normalized = Array.isArray(data) ? data : data?.results || data?.data || [];
-      if (requestRef.current !== requestId) return normalized;
+      if (!tracker.isCurrent(requestId)) return normalized;
 
       setOrganizaciones(normalized);
 
@@ -74,19 +79,19 @@ export function OrganizacionActivaProvider({ children }) {
 
       return normalized;
     } catch (error) {
-      if (requestRef.current !== requestId) return [];
-      setErrorOrganizaciones(error.response?.data?.error || "No se pudieron cargar las empresas.");
+      if (!tracker.isCurrent(requestId)) return [];
+      setErrorOrganizaciones(error.response?.data?.error || error.response?.data?.detail || "No pudimos cargar tu organización. Inténtalo nuevamente.");
       setResolvedIdentityId(identityId);
       throw error;
     } finally {
-      if (requestRef.current === requestId) setLoadingOrganizaciones(false);
+      if (tracker.isCurrent(requestId)) setLoadingOrganizaciones(false);
     }
   };
 
   useEffect(() => {
     if (loadingAuth) return;
     if (!user || user.is_demo) {
-      requestRef.current += 1;
+      requestTrackerRef.current.invalidate();
       setOrganizaciones([]);
       persistActiveOrganizacionId("");
       setErrorOrganizaciones("");
@@ -100,6 +105,7 @@ export function OrganizacionActivaProvider({ children }) {
     setOrganizaciones([]);
     persistActiveOrganizacionId("");
     refreshOrganizaciones(persistedId).catch(() => undefined);
+    return () => requestTrackerRef.current.invalidate();
     // La fuente de verdad se recarga cada vez que cambia la identidad autenticada.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadingAuth, user?.id]);

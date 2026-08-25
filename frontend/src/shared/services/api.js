@@ -53,7 +53,7 @@ export async function getCurrentUser() { return (await api.get("/auth/me/")).dat
 export async function loginUser(payload) { return (await api.post("/auth/login/", payload)).data; }
 export async function logoutUser() { return (await api.post("/auth/logout/")).data; }
 export async function bootstrapUser(payload) { return (await api.post("/auth/bootstrap/", payload)).data; }
-export async function getOrganizaciones() { return (await api.get("/organizaciones/")).data; }
+export async function getOrganizaciones(config = {}) { return (await api.get("/organizaciones/", config)).data; }
 export async function createOrganizacion(payload) { return (await api.post("/organizaciones/", payload)).data; }
 export async function updateOrganizacion(id, payload) { return (await api.patch(organizacionPath(id, "/"), payload)).data; }
 export async function deleteOrganizacion(id) { await api.delete(organizacionPath(id, "/")); }
