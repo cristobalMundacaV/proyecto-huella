@@ -1,5 +1,6 @@
 import json
 import re
+from hashlib import sha1
 
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
@@ -17,6 +18,43 @@ FLOW_CATALOG = {
     "generacion_propia": ("Generacion propia", "Energia producida."), "procesos_productivos": ("Procesos productivos", "Procesos especificos del rubro."), "otros": ("Otros", "Otros aspectos configurables."),
 }
 AREA_FLOW_SUGGESTIONS = {"bodega": ["materiales", "residuos"], "maquinaria_operaciones": ["maquinaria", "combustibles"], "logistica_transporte": ["transporte", "combustibles"], "administracion_compras": ["materiales", "energia", "agua", "combustibles"], "calidad_laboratorio": ["ruido", "agua", "hidrica_suelo"]}
+
+AREA_CATALOGS = {
+    "construccion": [
+        ("oficina_tecnica", "Oficina técnica", True),
+        ("bodega", "Bodega", True),
+        ("administracion", "Administración", True),
+        ("compras_adquisiciones", "Compras / Adquisiciones", True),
+        ("medio_ambiente_sostenibilidad", "Medio ambiente / Sostenibilidad", True),
+        ("prevencion_riesgos_hse", "Prevención de riesgos / HSE", True),
+        ("logistica_transporte", "Logística / Transporte", False),
+        ("maquinaria_equipos", "Maquinaria / Equipos", False),
+        ("calidad_laboratorio", "Calidad / Laboratorio", False),
+        ("terreno_supervision", "Terreno / Supervisión", False),
+        ("mantenimiento", "Mantenimiento", False),
+    ],
+}
+
+DEFAULT_AREA_CATALOG = [
+    ("administracion", "Administración", True),
+    ("medio_ambiente_sostenibilidad", "Medio ambiente / Sostenibilidad", True),
+    ("logistica_transporte", "Logística / Transporte", False),
+    ("maquinaria_equipos", "Maquinaria / Equipos", False),
+    ("calidad_laboratorio", "Calidad / Laboratorio", False),
+    ("mantenimiento", "Mantenimiento", False),
+]
+
+
+def area_catalog_for(sector):
+    return [
+        {"tipo": key, "nombre": name, "recomendada": recommended}
+        for key, name, recommended in AREA_CATALOGS.get(sector, DEFAULT_AREA_CATALOG)
+    ]
+
+
+def _custom_area_type(name):
+    digest = sha1(name.casefold().encode("utf-8")).hexdigest()[:12]
+    return f"personalizada_{digest}"
 
 def ensure_flow_catalog():
     return {key: CapacidadAmbiental.objects.update_or_create(clave=key, defaults={"nombre": value[0], "descripcion": value[1], "activa": True, "orden": index})[0] for index, (key, value) in enumerate(FLOW_CATALOG.items(), 1)}
@@ -62,12 +100,36 @@ def apply_onboarding_step(organization, user, step, payload):
             organization.telefono = f"+56{local}"
     elif step == 2:
         selected = payload.get("areas", [])
-        existing = {item.tipo: item for item in organization.areas_operacionales.all()}
+        if not isinstance(selected, list) or not selected:
+            raise ValueError("Selecciona al menos un área para continuar.")
+        allowed = {row[0]: row[1] for row in AREA_CATALOGS.get(organization.preset, DEFAULT_AREA_CATALOG)}
+        normalized = []
+        seen_names = set()
         for row in selected:
-            kind = row.get("tipo") if isinstance(row, dict) else row
-            name = row.get("nombre") if isinstance(row, dict) else dict(AreaOperacional.Tipo.choices).get(kind, kind.replace("_", " ").title())
-            AreaOperacional.objects.update_or_create(organizacion=organization, nombre=name, defaults={"tipo": kind, "activa": True})
-        organization.areas_operacionales.exclude(tipo__in=[row.get("tipo") if isinstance(row, dict) else row for row in selected]).update(activa=False)
+            kind = str(row.get("tipo", "") if isinstance(row, dict) else row).strip()
+            supplied_name = str(row.get("nombre", "") if isinstance(row, dict) else "").strip()
+            if kind in allowed:
+                name = allowed[kind]
+            elif supplied_name:
+                name = supplied_name
+                existing_by_type = organization.areas_operacionales.filter(tipo=kind).first()
+                kind = existing_by_type.tipo if existing_by_type else _custom_area_type(name)
+            else:
+                raise ValueError("Una de las áreas seleccionadas no es válida.")
+            if not name or len(name) > 120:
+                raise ValueError("El nombre del área debe tener entre 1 y 120 caracteres.")
+            identity = name.casefold()
+            if identity in seen_names:
+                continue
+            seen_names.add(identity)
+            area = organization.areas_operacionales.filter(nombre__iexact=name).first() or organization.areas_operacionales.filter(tipo=kind).first()
+            if area:
+                area.tipo = kind; area.nombre = name; area.activa = True; area.save(update_fields=["tipo", "nombre", "activa", "updated_at"])
+            else:
+                AreaOperacional.objects.create(organizacion=organization, nombre=name, tipo=kind, activa=True)
+            normalized.append({"tipo": kind, "nombre": name})
+        organization.areas_operacionales.exclude(tipo__in=[row["tipo"] for row in normalized]).update(activa=False)
+        stored[str(step)] = {"areas": normalized}
     elif step == 3:
         catalog = ensure_flow_catalog(); selected = payload.get("flujos", {})
         relations = {}
