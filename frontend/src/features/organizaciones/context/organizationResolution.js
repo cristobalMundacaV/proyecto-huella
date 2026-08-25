@@ -12,8 +12,8 @@ export function resolveActiveOrganizationId(organizations, persistedId = "") {
     : "";
 }
 
-export function resolveOnboardingScreen({ organizationLoading, organizationError, activeOrganizationId, organizationCount, onboardingStatus, hasState }) {
-  if (organizationLoading) return "resolving-organization";
+export function resolveOnboardingScreen({ organizationLoading, organizationsResolved = true, organizationError, activeOrganizationId, organizationCount, onboardingStatus, hasState }) {
+  if (organizationLoading || !organizationsResolved) return "resolving-organization";
   if (organizationError) return "organization-error";
   if (!activeOrganizationId && organizationCount > 1) return "organization-selector";
   if (!activeOrganizationId) return "no-organization";

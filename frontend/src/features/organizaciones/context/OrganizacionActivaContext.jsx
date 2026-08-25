@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { getOrganizaciones } from "@/shared/services/api";
 import { useAuth } from "@/features/auth/context/AuthContext";
@@ -20,6 +20,10 @@ export function OrganizacionActivaProvider({ children }) {
   });
   const [loadingOrganizaciones, setLoadingOrganizaciones] = useState(true);
   const [errorOrganizaciones, setErrorOrganizaciones] = useState("");
+  const [resolvedIdentityId, setResolvedIdentityId] = useState("");
+  const requestRef = useRef(0);
+  const currentIdentityId = user ? String(user.id ?? user.username ?? "authenticated") : "";
+  const resolvingOrganizations = loadingAuth || loadingOrganizaciones || Boolean(user && !user.is_demo && resolvedIdentityId !== currentIdentityId);
 
   const activeOrganizacion = useMemo(
     () => organizaciones.find((organizacion) => String(organizacion.organizacion_id) === String(activeOrganizacionId)) || null,
@@ -52,37 +56,47 @@ export function OrganizacionActivaProvider({ children }) {
   };
 
   const refreshOrganizaciones = async (currentOrganizacionId = activeOrganizacionId) => {
+    const requestId = ++requestRef.current;
+    const identityId = currentIdentityId;
     setLoadingOrganizaciones(true);
     setErrorOrganizaciones("");
 
     try {
       const data = await getOrganizaciones();
       const normalized = Array.isArray(data) ? data : data?.results || data?.data || [];
+      if (requestRef.current !== requestId) return normalized;
 
       setOrganizaciones(normalized);
 
       const resolvedId = resolveActiveOrganizationId(normalized, currentOrganizacionId);
       if (String(activeOrganizacionId || "") !== resolvedId) persistActiveOrganizacionId(resolvedId);
+      setResolvedIdentityId(identityId);
 
       return normalized;
     } catch (error) {
+      if (requestRef.current !== requestId) return [];
       setErrorOrganizaciones(error.response?.data?.error || "No se pudieron cargar las empresas.");
+      setResolvedIdentityId(identityId);
       throw error;
     } finally {
-      setLoadingOrganizaciones(false);
+      if (requestRef.current === requestId) setLoadingOrganizaciones(false);
     }
   };
 
   useEffect(() => {
     if (loadingAuth) return;
     if (!user || user.is_demo) {
+      requestRef.current += 1;
       setOrganizaciones([]);
       persistActiveOrganizacionId("");
       setErrorOrganizaciones("");
+      setResolvedIdentityId(currentIdentityId);
       setLoadingOrganizaciones(false);
       return;
     }
     const persistedId = typeof window === "undefined" ? "" : window.localStorage.getItem(STORAGE_KEY) || "";
+    setResolvedIdentityId("");
+    setLoadingOrganizaciones(true);
     setOrganizaciones([]);
     persistActiveOrganizacionId("");
     refreshOrganizaciones(persistedId).catch(() => undefined);
@@ -97,6 +111,7 @@ export function OrganizacionActivaProvider({ children }) {
       organizaciones,
       errorOrganizaciones,
       loadingOrganizaciones,
+      resolvingOrganizations,
       refreshOrganizaciones,
       setActiveOrganizacion,
       setOrganizaciones,

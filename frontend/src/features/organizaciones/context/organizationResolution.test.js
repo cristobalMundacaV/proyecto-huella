@@ -36,3 +36,15 @@ test("un error de organizaciones produce una pantalla de error visible", () => {
 test("un error de onboarding no se confunde con el loader", () => {
   assert.equal(resolveOnboardingScreen({ organizationLoading: false, organizationError: "", activeOrganizationId: "B", organizationCount: 1, onboardingStatus: "error", hasState: false }), "onboarding-error");
 });
+
+test("la hidratación pendiente nunca se interpreta como usuario sin organización", () => {
+  assert.equal(resolveOnboardingScreen({ organizationLoading: false, organizationsResolved: false, organizationError: "", activeOrganizationId: "", organizationCount: 0, onboardingStatus: "idle", hasState: false }), "resolving-organization");
+});
+
+test("solo muestra estado vacío después de completar la resolución", () => {
+  assert.equal(resolveOnboardingScreen({ organizationLoading: false, organizationsResolved: true, organizationError: "", activeOrganizationId: "", organizationCount: 0, onboardingStatus: "idle", hasState: false }), "no-organization");
+});
+
+test("una organización única recupera el tenant aunque la preferencia haya expirado", () => {
+  assert.equal(resolveActiveOrganizationId([organization("tenant-vigente")], "tenant-antiguo"), "tenant-vigente");
+});
