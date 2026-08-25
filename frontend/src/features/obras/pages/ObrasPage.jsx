@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Building2, Plus } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { getActivePreset } from "@/presets/registry";
 import WorkCard from "../components/WorkCard";
@@ -24,6 +24,7 @@ const attentionRank = (status) => {
 
 export default function ObrasPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva();
   const preset = getActivePreset(activeOrganizacion?.preset || "construccion");
   const [works, setWorks] = useState([]);
@@ -68,6 +69,14 @@ export default function ObrasPage() {
     load();
     return () => { requestRef.current += 1; };
   }, [load]);
+
+  useEffect(() => {
+    if (searchParams.get("crear") !== "1") return;
+    setOpen(true);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("crear");
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
