@@ -25,6 +25,30 @@ class TenantConfigurationAuthorizationTests(APITestCase):
         self.organization.refresh_from_db()
         self.assertEqual(self.organization.contacto, "Responsable ambiental")
 
+    def test_listado_responde_y_devuelve_solo_organizaciones_autorizadas(self):
+        response = self.client.get("/api/organizaciones/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["organizacion_id"], self.organization.organizacion_id)
+        self.assertNotIn("codigo_interno", response.data[0])
+
+    def test_serializer_de_organizacion_cumple_con_el_modelo(self):
+        response = self.client.get(self.url(self.organization))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            set(response.data),
+            {
+                "id", "organizacion_id", "nombre", "nombre_comercial", "rut",
+                "region", "comuna", "direccion", "rubro", "preset", "activa",
+                "email", "telefono", "contacto", "observaciones", "pais",
+                "onboarding_step", "onboarding_completado", "etapas_count",
+                "obras_count", "registros_count", "evidencias_count", "created_at",
+                "updated_at",
+            },
+        )
+
     def test_tenant_admin_no_edita_organizacion_ajena(self):
         self.assertEqual(self.client.patch(self.url(self.other), {"nombre": "Cambio indebido"}, format="json").status_code, 404)
         self.other.refresh_from_db()
