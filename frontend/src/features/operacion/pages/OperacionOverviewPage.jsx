@@ -1,6 +1,6 @@
-import { Link, useOutletContext } from "react-router-dom";
-import { Activity, AlertCircle, CheckCircle2, Layers3 } from "lucide-react";
-import { Alert, Card, CardContent, EmptyState, KpiCard, SectionHeader } from "@/shared/ui";
+import { Link, useOutletContext, useParams } from "react-router-dom";
+import { Activity, AlertCircle, CheckCircle2, ClipboardCheck, Layers3 } from "lucide-react";
+import { Alert, ButtonLink, Card, CardContent, EmptyState, KpiCard, SectionHeader } from "@/shared/ui";
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
 import {
   applicability,
@@ -136,6 +136,7 @@ function materialsDescriptor(context, operation) {
 }
 
 export default function OperacionOverviewPage() {
+  const { obraId } = useParams();
   const { context, indicators, operation, resourceErrors } = useOutletContext();
   const descriptors = domains.map(([key, title, icon]) => {
     if (key === "transporte") return transportDescriptor(context, operation);
@@ -212,11 +213,18 @@ export default function OperacionOverviewPage() {
         description="Ámbitos donde ya existen registros o mediciones asociadas a esta obra."
       />
 
-      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {operationalDescriptors.length > 0 && <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {operationalDescriptors.map((domain) => <OperationDomainCard key={domain.key} domainKey={domain.key} icon={domain.icon} title={domain.title} state={domain.state} signal={domain.signal} detail={domain.reviewReason || (domain.latestAt ? `Último registro: ${formatDateTime(domain.latestAt)}` : "Aún no hay información registrada para este ámbito.")} to={domain.to} />)}
-      </div>
+      </div>}
 
-      {!operationalDescriptors.length && <div className="mt-4"><Alert tone="warning">El perfil ambiental de la obra aún no tiene dominios operativos confirmados. Configura su aplicabilidad para habilitarlos.</Alert></div>}
+      {!operationalDescriptors.length && <div className="mt-4"><EmptyState
+        icon={ClipboardCheck}
+        title="La operación está lista para configurar sus ámbitos"
+        description="Esta obra todavía no tiene ámbitos operativos o ambientales confirmados, por lo que aún no corresponde mostrar actividad ni interpretar ausencia de registros."
+        guidance="Revisa el perfil ambiental y confirma qué dimensiones aplican realmente a esta obra. Luego podrás comenzar a registrar información verificable."
+        suggestions={["Confirmar aplicabilidad", "Definir ámbitos de seguimiento", "Comenzar con datos reales"]}
+        primaryAction={<ButtonLink leftIcon={ClipboardCheck} to={`/obras/${obraId}/diagnostico`}>Configurar ámbitos</ButtonLink>}
+      /></div>}
 
     </section>
   </div>;
