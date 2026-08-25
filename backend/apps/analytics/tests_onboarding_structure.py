@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
 
-from .models import AreaCapacidadAmbiental, AreaOperacional, Organizacion
+from .models import AreaCapacidadAmbiental, AreaOperacional, DiagnosticoAmbientalInicial, Organizacion
 from .services.onboarding import FLOW_CATALOG, apply_onboarding_step, area_catalog_for
 
 
@@ -69,3 +69,29 @@ class OnboardingStructureTests(TestCase):
         AreaOperacional.objects.create(organizacion=self.organization, nombre="Bodega", tipo="bodega")
         apply_onboarding_step(self.organization, self.user, 3, {"flujos": {"residuos_peligrosos": "no_seguro"}})
         self.assertFalse(AreaCapacidadAmbiental.objects.filter(area__organizacion=self.organization).exists())
+
+    def _prepare_diagnostic(self):
+        apply_onboarding_step(self.organization, self.user, 3, {"flujos": {"agua": "no_seguro"}})
+        return {"flujos": {"agua": {"disponibilidad": "suficiente", "fuentes": ["documentos", "medidores"], "evidencia": "si", "trazabilidad": {"origen": "si", "fecha": "si", "responsable": "parcial", "historico": "si"}, "validacion_profesional": "no"}}}
+
+    def test_diagnostic_progress_and_multiple_sources_are_persisted(self):
+        payload = self._prepare_diagnostic()
+        apply_onboarding_step(self.organization, self.user, 4, {**payload, "subfase": 2})
+        self.organization.refresh_from_db()
+        self.assertEqual(self.organization.onboarding_step, 4)
+        self.assertEqual(self.organization.onboarding_data["4"]["flujos"]["agua"]["fuentes"], ["documentos", "medidores"])
+
+    def test_diagnostic_completion_is_idempotent_and_scoped_to_tenant(self):
+        payload = self._prepare_diagnostic()
+        apply_onboarding_step(self.organization, self.user, 4, {**payload, "subfase": 4, "completado": True})
+        apply_onboarding_step(self.organization, self.user, 4, {**payload, "subfase": 4, "completado": True})
+        self.organization.refresh_from_db()
+        self.assertEqual(self.organization.onboarding_step, 5)
+        self.assertEqual(DiagnosticoAmbientalInicial.objects.filter(organizacion=self.organization).count(), 1)
+        self.assertFalse(DiagnosticoAmbientalInicial.objects.exclude(organizacion=self.organization).exists())
+
+    def test_flow_without_information_does_not_require_sources(self):
+        apply_onboarding_step(self.organization, self.user, 3, {"flujos": {"ruido": "no_seguro"}})
+        payload = {"flujos": {"ruido": {"disponibilidad": "sin_informacion", "fuentes": [], "evidencia": "no"}}, "subfase": 4, "completado": True}
+        apply_onboarding_step(self.organization, self.user, 4, payload)
+        self.assertTrue(DiagnosticoAmbientalInicial.objects.filter(organizacion=self.organization).exists())
