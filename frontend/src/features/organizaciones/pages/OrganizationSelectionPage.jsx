@@ -8,11 +8,11 @@ import { organizationDestination, resolveOrganizationAccess } from "../context/o
 import { ErrorState } from "@/shared/ui";
 
 export default function OrganizationSelectionPage() {
-  const navigate = useNavigate(); const [searchParams] = useSearchParams(); const { user } = useAuth(); const organizationState = useOrganizacionActiva(); const { organizaciones, setActiveOrganizacion } = organizationState; const openedFromSaaS = searchParams.get("desde") === "saas"; const access = resolveOrganizationAccess({ resolving: organizationState.resolvingOrganizations, error: organizationState.errorOrganizaciones, organizations: organizaciones, activeOrganization: organizationState.activeOrganizacion });
+  const navigate = useNavigate(); const [searchParams] = useSearchParams(); const { user } = useAuth(); const organizationState = useOrganizacionActiva(); const { organizaciones, setActiveOrganizacion } = organizationState; const openedFromSaaS = searchParams.get("desde") === "saas"; const access = resolveOrganizationAccess({ status: organizationState.organizationResolutionStatus, organizations: organizaciones, activeOrganization: organizationState.activeOrganizacion });
   useEffect(() => { if (access === "ready" && organizaciones.length === 1) navigate(organizationDestination(organizaciones[0]), { replace: true }); }, [access, navigate, organizaciones]);
   if (access === "resolving") return <PlatformLoader fullScreen title="Cargando organizaciones" />;
   if (user?.is_superuser && !openedFromSaaS) return <Navigate to="/saas" replace />;
-  if (access === "error") return <main className="flex min-h-screen items-center justify-center bg-slate-100 p-5"><ErrorState title="No pudimos cargar tus organizaciones" description={organizationState.errorOrganizaciones} onRetry={() => organizationState.refreshOrganizaciones()} /></main>;
+  if (access === "error") return <main className="flex min-h-screen items-center justify-center bg-slate-100 p-5"><ErrorState title="No pudimos cargar tus organizaciones" description={organizationState.errorOrganizaciones} onRetry={() => organizationState.refreshOrganizaciones().catch(() => undefined)} /></main>;
   if (access === "no-organization") return <main className="flex min-h-screen items-center justify-center bg-slate-100 p-5"><ErrorState title="Tu cuenta no tiene una organización" description="Solicita a un administrador que vincule tu cuenta a una organización para poder continuar." /></main>;
   if (organizaciones.length === 1) return <PlatformLoader fullScreen title="Abriendo organización" />;
   if (access === "ready" && !openedFromSaaS) return <Navigate to={organizationDestination(organizationState.activeOrganizacion)} replace />;

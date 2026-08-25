@@ -71,6 +71,15 @@ test("la resolución pendiente evita un selector transitorio", () => {
   assert.equal(resolveOrganizationAccess({ resolving: true, error: "", organizations: [], activeOrganization: null }), "resolving");
 });
 
+test("la máquina explícita solo deja loading mientras la resolución está activa", () => {
+  assert.equal(resolveOrganizationAccess({ status: "idle", organizations: [], activeOrganization: null }), "resolving");
+  assert.equal(resolveOrganizationAccess({ status: "loading", organizations: [], activeOrganization: null }), "resolving");
+  assert.equal(resolveOrganizationAccess({ status: "empty", organizations: [], activeOrganization: null }), "no-organization");
+  assert.equal(resolveOrganizationAccess({ status: "error", organizations: [], activeOrganization: null }), "error");
+  assert.equal(resolveOrganizationAccess({ status: "selection_required", organizations: [organization("A"), organization("B")], activeOrganization: null }), "selection-required");
+  assert.equal(resolveOrganizationAccess({ status: "ready", organizations: [organization("A")], activeOrganization: organization("A") }), "ready");
+});
+
 test("el destino respeta onboarding pendiente o completado", () => {
   assert.equal(organizationDestination({ onboarding_completado: false }), "/onboarding");
   assert.equal(organizationDestination({ onboarding_completado: true }), "/inicio");

@@ -12,12 +12,19 @@ export function resolveActiveOrganizationId(organizations, persistedId = "") {
     : "";
 }
 
-export function resolveOrganizationAccess({ resolving, error, organizations, activeOrganization }) {
+export function resolveOrganizationAccess({ status, resolving, error, organizations, activeOrganization }) {
+  if (status) {
+    if (["idle", "loading"].includes(status)) return "resolving";
+    if (status === "error") return "error";
+    if (status === "empty") return "no-organization";
+    if (status === "selection_required") return "selection-required";
+    if (status === "ready") return "ready";
+  }
   if (resolving) return "resolving";
   if (error) return "error";
   if (!organizations.length) return "no-organization";
   if (activeOrganization) return "ready";
-  return organizations.length > 1 ? "selection-required" : "resolving";
+  return organizations.length > 1 ? "selection-required" : "no-organization";
 }
 
 export function organizationDestination(organization, fallback = "/inicio") {

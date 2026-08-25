@@ -23,3 +23,16 @@ test("invalidar una resolución impide que una respuesta tardía actualice estad
   assert.equal(request.signal.aborted, true);
   assert.equal(tracker.isCurrent(request.requestId), false);
 });
+
+test("diez resoluciones consecutivas dejan vigente únicamente la última", () => {
+  const tracker = createOrganizationRequestTracker();
+  const requests = Array.from({ length: 10 }, () => tracker.start());
+  const latest = requests.at(-1);
+
+  requests.slice(0, -1).forEach((request) => {
+    assert.equal(request.signal.aborted, true);
+    assert.equal(tracker.isCurrent(request.requestId), false);
+  });
+  assert.equal(latest.signal.aborted, false);
+  assert.equal(tracker.isCurrent(latest.requestId), true);
+});
