@@ -87,7 +87,8 @@ def _payload(organization):
     flows = [{"clave": row.capacidad.clave, "nombre": row.capacidad.nombre, "estado": row.estado, "disponibilidad": row.disponibilidad_inicial} for row in organization.capacidades_ambientales.select_related("capacidad").exclude(estado="no_aplica")]
     identity = {field: getattr(organization, field) for field in ("nombre", "nombre_comercial", "rut", "rubro", "pais", "region", "comuna", "direccion", "email", "telefono", "contacto")}; identity["sector"] = organization.preset; identity["id"] = organization.organizacion_id
     relations = {area.tipo: list(area.flujos_asociados.values_list("capacidad_organizacion__capacidad__clave", flat=True)) for area in organization.areas_operacionales.filter(activa=True)}
-    return {"organizacion": identity, "step": organization.onboarding_step, "completado": organization.onboarding_completado, "data": organization.onboarding_data, "areas": areas, "flujos": flows, "relaciones": relations, "catalogos": {"areas": area_catalog_for(organization.preset), "flujos": [{"clave": key, "nombre": value[0], "descripcion": value[1]} for key, value in FLOW_CATALOG.items()], "sugerencias": AREA_FLOW_SUGGESTIONS}}
+    visible_step = min(4, organization.onboarding_step)
+    return {"organizacion": identity, "step": visible_step, "completado": organization.onboarding_completado, "data": organization.onboarding_data, "areas": areas, "flujos": flows, "relaciones": relations, "catalogos": {"areas": area_catalog_for(organization.preset), "flujos": [{"clave": key, "nombre": value[0], "descripcion": value[1]} for key, value in FLOW_CATALOG.items()], "sugerencias": AREA_FLOW_SUGGESTIONS}}
 
 
 @api_view(["GET", "PATCH"])

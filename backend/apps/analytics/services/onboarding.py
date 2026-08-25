@@ -1,13 +1,11 @@
-import json
 import re
 from hashlib import sha1
 
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import transaction
-from django.utils import timezone
 
-from ..models import AreaCapacidadAmbiental, AreaOperacional, CapacidadAmbiental, CapacidadOrganizacion, DiagnosticoAmbientalInicial, ElementoDiagnosticoAmbiental
+from ..models import AreaCapacidadAmbiental, AreaOperacional, CapacidadAmbiental, CapacidadOrganizacion
 from .chile_locations import validate_chile_location
 
 FLOW_CATALOG = {
@@ -78,24 +76,11 @@ def valid_chilean_rut(value):
     result = 11 - total % 11; expected = "0" if result == 11 else "K" if result == 10 else str(result)
     return normalized[-1] == expected
 
-def regenerate_diagnostic(organization, user, answers):
-    diagnostic, _ = DiagnosticoAmbientalInicial.objects.update_or_create(organizacion=organization, obra=None, defaults={"estado": DiagnosticoAmbientalInicial.Estado.COMPLETADO, "fecha_inicio": timezone.localdate(), "fecha_finalizacion": timezone.localdate(), "responsable": user, "objetivo_principal": "Preparacion inicial de informacion", "descripcion_contexto": json.dumps(answers, ensure_ascii=False)})
-    diagnostic.elementos.all().delete()
-    source_labels = {"sistema_interno": "Sistema interno / ERP", "planillas": "Excel / planillas", "documentos": "Documentos", "terreno": "Registros de terreno", "medidores": "Medidores", "sensores": "Sensores", "proveedor": "Proveedor / tercero", "manual": "Registro manual", "otro": "Otro"}
-    flow_answers = answers.get("flujos", {})
-    for relation in organization.capacidades_ambientales.exclude(estado=CapacidadOrganizacion.Estado.NO_APLICA).select_related("capacidad"):
-        response = flow_answers.get(relation.capacidad.clave, {})
-        availability = response.get("disponibilidad", "no_seguro")
-        kind = ElementoDiagnosticoAmbiental.Tipo.INFORMACION_DISPONIBLE if availability == "suficiente" else ElementoDiagnosticoAmbiental.Tipo.BRECHA
-        ElementoDiagnosticoAmbiental.objects.create(diagnostico=diagnostic, tipo=kind, nombre=relation.capacidad.nombre, descripcion=json.dumps(response, ensure_ascii=False))
-        for source in response.get("fuentes", []):
-            ElementoDiagnosticoAmbiental.objects.create(diagnostico=diagnostic, tipo=ElementoDiagnosticoAmbiental.Tipo.FUENTE, nombre=f"{relation.capacidad.nombre} — {source_labels.get(source, source)}", descripcion="Fuente declarada durante el diagnóstico inicial de capacidad de información.")
-    return diagnostic
-
 @transaction.atomic
 def apply_onboarding_step(organization, user, step, payload):
     stored = dict(organization.onboarding_data or {})
-    stored[str(step)] = payload
+    if step != 4:
+        stored[str(step)] = payload
     if step == 1:
         for field in ("nombre", "nombre_comercial", "rut", "rubro", "region", "comuna", "direccion", "email", "telefono", "contacto", "preset"):
             if field in payload: setattr(organization, field, payload[field])
@@ -163,30 +148,14 @@ def apply_onboarding_step(organization, user, step, payload):
             for area in organization.areas_operacionales.filter(activa=True):
                 for key in custom.get(area.tipo, []):
                     if key in relations: AreaCapacidadAmbiental.objects.get_or_create(area=area, capacidad_organizacion=relations[key])
-        if DiagnosticoAmbientalInicial.objects.filter(organizacion=organization, obra=None).exists(): regenerate_diagnostic(organization, user, stored.get("4", {}))
     elif step == 4:
-        previous = organization.onboarding_data.get("4", {}) if organization.onboarding_data else {}
-        diagnostic = {**previous, **payload}
-        diagnostic["flujos"] = {**previous.get("flujos", {}), **payload.get("flujos", {})}
-        active_flows = set(organization.capacidades_ambientales.exclude(estado=CapacidadOrganizacion.Estado.NO_APLICA).values_list("capacidad__clave", flat=True))
-        diagnostic["flujos"] = {key: value for key, value in diagnostic["flujos"].items() if key in active_flows}
-        stored[str(step)] = diagnostic
-        if payload.get("completado"):
-            if active_flows - set(diagnostic["flujos"]):
-                raise ValueError("Completa la disponibilidad de todos los aspectos ambientales.")
-            for key, answers in diagnostic["flujos"].items():
-                availability = answers.get("disponibilidad")
-                if availability not in {"suficiente", "parcial", "sin_informacion", "no_seguro"}:
-                    raise ValueError("Una respuesta de disponibilidad no es válida.")
-                relation = organization.capacidades_ambientales.get(capacidad__clave=key)
-                relation.disponibilidad_inicial = "regular" if availability == "suficiente" else availability
-                relation.estado = CapacidadOrganizacion.Estado.APLICA if availability in {"suficiente", "parcial"} else CapacidadOrganizacion.Estado.SIN_DATOS if availability == "sin_informacion" else CapacidadOrganizacion.Estado.PENDIENTE_DIAGNOSTICO
-                relation.save(update_fields=["disponibilidad_inicial", "estado", "updated_at"])
-            regenerate_diagnostic(organization, user, diagnostic)
-    elif step == 5:
+        if not payload.get("confirmado"):
+            raise ValueError("Confirma la configuración inicial para finalizar.")
+        stored["revision"] = {"confirmado": True}
+        organization.onboarding_completado = True
+    elif step == 5:  # Compatibilidad con clientes de la progresión anterior.
         organization.onboarding_completado = True
     organization.onboarding_data = stored
-    advance_to = step if step == 4 and not payload.get("completado") else min(5, step + 1)
-    organization.onboarding_step = 5 if organization.onboarding_completado else max(organization.onboarding_step, advance_to)
+    organization.onboarding_step = 4 if organization.onboarding_completado else max(organization.onboarding_step, min(4, step + 1))
     organization.full_clean(); organization.save()
     return organization
