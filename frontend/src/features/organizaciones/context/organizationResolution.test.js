@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveActiveOrganizationId, resolveOnboardingScreen } from "./organizationResolution.js";
+import { organizationDestination, resolveActiveOrganizationId, resolveOnboardingScreen, resolveOrganizationAccess } from "./organizationResolution.js";
 
 const organization = (id) => ({ organizacion_id: id });
 
@@ -47,4 +47,31 @@ test("solo muestra estado vacío después de completar la resolución", () => {
 
 test("una organización única recupera el tenant aunque la preferencia haya expirado", () => {
   assert.equal(resolveActiveOrganizationId([organization("tenant-vigente")], "tenant-antiguo"), "tenant-vigente");
+});
+
+test("una organización resuelta nunca requiere selector", () => {
+  const organizations = [organization("A")];
+  assert.equal(resolveOrganizationAccess({ resolving: false, error: "", organizations, activeOrganization: organizations[0] }), "ready");
+});
+
+test("dos organizaciones sin activa requieren una decisión real", () => {
+  assert.equal(resolveOrganizationAccess({ resolving: false, error: "", organizations: [organization("A"), organization("B")], activeOrganization: null }), "selection-required");
+});
+
+test("dos organizaciones conservan una activa válida sin mostrar selector", () => {
+  const organizations = [organization("A"), organization("B")];
+  assert.equal(resolveOrganizationAccess({ resolving: false, error: "", organizations, activeOrganization: organizations[1] }), "ready");
+});
+
+test("cero organizaciones produce un estado explícito", () => {
+  assert.equal(resolveOrganizationAccess({ resolving: false, error: "", organizations: [], activeOrganization: null }), "no-organization");
+});
+
+test("la resolución pendiente evita un selector transitorio", () => {
+  assert.equal(resolveOrganizationAccess({ resolving: true, error: "", organizations: [], activeOrganization: null }), "resolving");
+});
+
+test("el destino respeta onboarding pendiente o completado", () => {
+  assert.equal(organizationDestination({ onboarding_completado: false }), "/onboarding");
+  assert.equal(organizationDestination({ onboarding_completado: true }), "/inicio");
 });

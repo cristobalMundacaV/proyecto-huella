@@ -12,6 +12,18 @@ export function resolveActiveOrganizationId(organizations, persistedId = "") {
     : "";
 }
 
+export function resolveOrganizationAccess({ resolving, error, organizations, activeOrganization }) {
+  if (resolving) return "resolving";
+  if (error) return "error";
+  if (!organizations.length) return "no-organization";
+  if (activeOrganization) return "ready";
+  return organizations.length > 1 ? "selection-required" : "resolving";
+}
+
+export function organizationDestination(organization, fallback = "/inicio") {
+  return organization?.onboarding_completado === false ? "/onboarding" : fallback;
+}
+
 export function resolveOnboardingScreen({ organizationLoading, organizationsResolved = true, organizationError, activeOrganizationId, organizationCount, onboardingStatus, hasState }) {
   if (organizationLoading || !organizationsResolved) return "resolving-organization";
   if (organizationError) return "organization-error";
