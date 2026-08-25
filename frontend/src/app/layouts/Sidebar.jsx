@@ -123,7 +123,7 @@ export default function Sidebar({
                 const organizationCapabilities = workspace?.context?.capacidades_organizacion;
                 const enabledKeys = new Set(
                     (Array.isArray(organizationCapabilities) ? organizationCapabilities : [])
-                        .filter((item) => !["no_aplica", "pendiente_diagnostico"].includes(item?.estado_organizacion))
+                        .filter((item) => item?.estado_organizacion !== "no_aplica")
                         .map((item) => item?.clave),
                 );
                 setWorkApplicability({

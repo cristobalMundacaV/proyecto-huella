@@ -15,8 +15,11 @@ import {
 
 import {
     useOutletContext,
+    useNavigate,
     useParams,
 } from "react-router-dom";
+
+import PlatformLoader from "@/shared/components/PlatformLoader";
 
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { usePermissions } from "@/features/auth/hooks/usePermissions";
@@ -31,7 +34,6 @@ import {
     EmptyState,
     ErrorState,
     Input,
-    LoadingState,
     SectionHeader,
     Select,
     Textarea,
@@ -95,6 +97,7 @@ export default function WorkDiagnosticPage() {
     const canManageProfile = can("environmental_profile.manage");
     const canManageApplicability = can("environmental_profile.applicability_manage");
     const { obraId } = useParams();
+    const navigate = useNavigate();
 
     const workspace =
         useOutletContext();
@@ -292,7 +295,10 @@ export default function WorkDiagnosticPage() {
             .status === "loading"
     ) {
         return (
-            <LoadingState label="Cargando perfil ambiental de la obra" />
+            <PlatformLoader
+                title="Preparando perfil ambiental"
+                description="Estamos cargando el contexto y la configuración ambiental de esta obra."
+            />
         );
     }
 
@@ -314,7 +320,7 @@ export default function WorkDiagnosticPage() {
     const workApplicability = workspace?.context?.diagnostico_obra?.aplicabilidad || [];
     const enabledCapabilityKeys = new Set(
         state.capacidades.data
-            .filter((item) => !["no_aplica", "pendiente_diagnostico"].includes(item.estado))
+            .filter((item) => item.estado !== "no_aplica")
             .map((item) => item.capacidad?.clave),
     );
     const enabledStates = Object.entries(applicabilityState).filter(([key]) => enabledCapabilityKeys.has(key));
@@ -519,31 +525,28 @@ export default function WorkDiagnosticPage() {
 
             {activeStep === 1 && <section className="space-y-4">
                 <div>
-                    <h2 className="text-lg font-black">
-                        Aplicabilidad ambiental
-                    </h2>
+                        <h2 className="text-lg font-black">Aspectos ambientales de esta obra</h2>
 
                     <p className="text-sm text-[var(--text-muted)]">
-                        Confirma cuáles de los aspectos habilitados por tu organización aplican realmente en esta obra.
+                        Estos aspectos provienen de la configuración de tu organización. Confirma cuáles aplican realmente en esta obra.
                     </p>
                 </div>
 
                 {state.capacidades
                     .status ===
                     "loading" ? (
-                    <LoadingState
-                        inline
-                        label="Cargando aplicabilidad"
-                    />
+                    <ApplicabilitySkeleton />
                 ) : state
                     .capacidades
                     .status ===
                     "error" ? (
                     <ErrorState
+                        title="No pudimos cargar la configuración ambiental"
                         description={
                             state.capacidades
                                 .error
                         }
+                        onRetry={state.reload}
                     />
                 ) : !state
                     .capacidades
@@ -625,10 +628,13 @@ export default function WorkDiagnosticPage() {
                     {activeStep === STEPS.length - 1 && !user?.is_demo && canManageProfile && (
                         <Button
                             loading={saving}
-                            disabled={!diagnostic || applicableAspects === 0}
-                            onClick={() => save({ estado: "completado" })}
+                            disabled={!diagnostic}
+                            onClick={async () => {
+                                const saved = await save({ estado: "completado" });
+                                if (saved) navigate(`/obras/${obraId}/resumen`, { replace: true });
+                            }}
                         >
-                            Finalizar perfil ambiental
+                            Finalizar perfil
                         </Button>
                     )}
                 </div>
@@ -646,6 +652,22 @@ function SummaryMetric({ label, value, tone = "slate" }) {
         <div className={`rounded-[var(--radius-lg)] border p-5 ${tones[tone]}`}>
             <p className="text-3xl font-black">{value}</p>
             <p className="mt-1 text-sm font-bold">{label}</p>
+        </div>
+    );
+}
+
+function ApplicabilitySkeleton() {
+    return (
+        <div aria-label="Cargando aspectos ambientales" role="status" className="rounded-[var(--radius-lg)] border border-emerald-100 bg-emerald-50/35 p-4">
+            <div className="mb-4 h-4 w-52 animate-pulse rounded-full bg-emerald-100" />
+            <div className="grid gap-3 md:grid-cols-2">
+                {[0, 1, 2, 3].map((item) => (
+                    <div key={item} className="flex min-h-24 animate-pulse items-center gap-3 rounded-[var(--radius-lg)] border border-slate-200 bg-white p-4">
+                        <span className="h-11 w-11 rounded-xl bg-slate-100" />
+                        <span className="h-4 w-40 rounded-full bg-slate-100" />
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }

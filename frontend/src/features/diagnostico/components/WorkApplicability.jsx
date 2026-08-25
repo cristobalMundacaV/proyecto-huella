@@ -21,8 +21,11 @@ import {
 
 import {
     Alert,
+    Button,
     StatusBadge,
 } from "@/shared/ui";
+
+import { Link } from "react-router-dom";
 
 import {
     updateWorkApplicability,
@@ -122,7 +125,7 @@ export default function WorkApplicability({
     const rows = useMemo(
         () =>
             capabilities
-                .filter((item) => !["no_aplica", "pendiente_diagnostico"].includes(item.estado))
+                .filter((item) => item.estado !== "no_aplica")
                 .map(
                 (item) => ({
                     ...item,
@@ -182,6 +185,34 @@ export default function WorkApplicability({
         }
     }
 
+    async function useOrganizationConfiguration() {
+        setSavingId("all");
+        setError("");
+
+        try {
+            await Promise.all(rows.map((item) => updateWorkApplicability(
+                organizationId,
+                workId,
+                item.capacidad.id,
+                "aplica",
+            )));
+
+            const inherited = Object.fromEntries(rows.map((item) => [item.capacidad.clave, "aplica"]));
+            setLocalState((current) => ({ ...current, ...inherited }));
+            rows.forEach((item) => {
+                const key = item.capacidad.clave;
+                onChange?.(key, "aplica");
+                window.dispatchEvent(new CustomEvent("carbono-zero:work-applicability-updated", {
+                    detail: { organizationId, workId, key, estado: "aplica" },
+                }));
+            });
+        } catch (requestError) {
+            setError(requestError.response?.data?.detail || "No pudimos aplicar la configuración de la organización. Inténtalo nuevamente.");
+        } finally {
+            setSavingId(null);
+        }
+    }
+
     return (
         <div className="space-y-3">
             {!diagnosticExists && (
@@ -196,11 +227,26 @@ export default function WorkApplicability({
                 </Alert>
             )}
 
+            {rows.length > 0 && !readOnly && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-emerald-200 bg-emerald-50/55 p-4">
+                    <div>
+                        <p className="font-black text-emerald-950">Propuesta inicial</p>
+                        <p className="mt-1 text-sm text-slate-600">Puedes heredar la configuración de la organización y ajustar cada aspecto antes de finalizar.</p>
+                    </div>
+                    <Button variant="secondary" loading={savingId === "all"} disabled={!diagnosticExists} onClick={useOrganizationConfiguration}>
+                        Usar configuración de la organización
+                    </Button>
+                </div>
+            )}
+
             <div className="grid gap-3 md:grid-cols-2">
                 {!rows.length && (
                     <div className="rounded-[var(--radius-lg)] border border-emerald-200 bg-emerald-50/60 p-6 text-center md:col-span-2">
-                        <p className="font-black text-emerald-900">No hay aspectos ambientales habilitados para esta organización</p>
-                        <p className="mt-1 text-sm text-[var(--text-muted)]">Primero habilita los aspectos que la organización necesita gestionar.</p>
+                        <p className="font-black text-emerald-900">Tu organización aún no tiene aspectos ambientales configurados</p>
+                        <p className="mt-1 text-sm text-[var(--text-muted)]">Configura primero el universo ambiental de la organización para heredarlo en esta obra.</p>
+                        <Link to="/administracion/estructura-operacional" className="mt-4 inline-flex min-h-10 items-center rounded-xl bg-emerald-700 px-4 text-sm font-black text-white shadow-sm hover:bg-emerald-800">
+                            Configurar aspectos de la organización
+                        </Link>
                     </div>
                 )}
                 {rows.map(
@@ -247,7 +293,7 @@ export default function WorkApplicability({
                             </div>
 
                             {!readOnly && (
-                                <fieldset className="mt-4" disabled={!diagnosticExists || savingId === item.id}>
+                                <fieldset className="mt-4" disabled={!diagnosticExists || savingId === item.id || savingId === "all"}>
                                     <legend className="sr-only">Aplicabilidad de {item.capacidad?.nombre || "aspecto"}</legend>
                                     <div className="grid grid-cols-3 gap-1 rounded-xl border border-white/80 bg-white/70 p-1">
                                         {STATES.map(([value, label]) => {

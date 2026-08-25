@@ -49,5 +49,5 @@ def resumen_preparacion_ambiental(organizacion):
         "capacidades_configuradas": configuradas,
         "linea_base_pendiente": linea_base_pendiente,
         "preparada_para_operacion": preparada,
-        "siguiente_paso": "Comenzar captura de datos" if preparada else ("Completar diagnostico ambiental" if not diagnostico or diagnostico.estado != "completado" else "Configurar capacidades y procesos"),
+        "siguiente_paso": "Comenzar captura de datos" if preparada else ("Completar perfil ambiental" if not diagnostico or diagnostico.estado != "completado" else "Configurar capacidades y procesos"),
     }
