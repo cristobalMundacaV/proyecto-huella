@@ -13,7 +13,7 @@ import { getOnboarding, saveOnboardingStep } from "../services/onboardingApi";
 
 const steps = ["Empresa", "Estructura", "Flujos", "Diagnóstico", "Revisión"];
 const availability = [["regular", "Tenemos información regular"], ["parcial", "Tenemos información parcial"], ["sin_informacion", "Todavía no tenemos información"], ["no_seguro", "No estoy seguro"]];
-const recommendedFlows = { construccion: ["materiales", "transporte", "combustibles", "energia", "agua", "residuos_no_peligrosos", "residuos_peligrosos", "ruido", "emisiones_atmosfericas", "suelo"] };
+const recommendedFlows = { construccion: ["materiales", "transporte", "combustibles", "energia", "agua", "residuos_no_peligrosos", "residuos_peligrosos", "ruido", "emisiones_atmosfericas"] };
 
 export default function OnboardingPage() {
   const navigate = useNavigate(); const { logout, refreshAuth } = useAuth(); const { activeOrganizacionId, organizaciones, loadingOrganizaciones, errorOrganizaciones, refreshOrganizaciones } = useOrganizacionActiva(); const [state, setState] = useState(null); const [draft, setDraft] = useState({}); const [saving, setSaving] = useState(false); const [error, setError] = useState(""); const [onboardingStatus, setOnboardingStatus] = useState("idle");
