@@ -6,15 +6,14 @@ import {
 } from "react";
 
 import {
-    BookOpenCheck,
     Boxes,
     Building2,
+    Check,
     CircleHelp,
     ClipboardCheck,
     FileWarning,
     Gauge,
     Plus,
-    ScanSearch,
     Trash2,
 } from "lucide-react";
 
@@ -63,12 +62,12 @@ const STATES = [
 ];
 
 const GROUPS = [
-    { type: "proceso", title: "Procesos identificados", icon: Boxes, tone: "cyan", emptyTitle: "Sin procesos identificados", emptyDescription: "Registra las actividades principales de la obra para reconocer sus aspectos ambientales.", namePlaceholder: "Ej.: Excavación y movimiento de tierra", descriptionPlaceholder: "Describe brevemente la actividad, etapa y equipos involucrados." },
-    { type: "informacion_disponible", title: "Información disponible", icon: ClipboardCheck, tone: "green", emptyTitle: "Sin antecedentes disponibles", emptyDescription: "Incorpora mediciones, registros o documentos que ya están disponibles para el análisis.", namePlaceholder: "Ej.: Registro mensual de consumo eléctrico", descriptionPlaceholder: "Indica período cubierto, responsable y nivel de actualización del antecedente." },
-    { type: "informacion_faltante", title: "Información pendiente", icon: FileWarning, tone: "amber", emptyTitle: "Sin información pendiente registrada", emptyDescription: "Aún no se han identificado antecedentes faltantes o brechas de información en esta categoría.", namePlaceholder: "Ej.: Certificados de disposición de residuos", descriptionPlaceholder: "Explica qué falta, quién debe proporcionarlo y para cuándo se requiere." },
-    { type: "fuente", title: "Fuentes conocidas", icon: BookOpenCheck, tone: "blue", emptyTitle: "Sin fuentes identificadas", emptyDescription: "Registra sistemas, proveedores o responsables desde donde se obtiene información ambiental.", namePlaceholder: "Ej.: Portal de empresa eléctrica", descriptionPlaceholder: "Indica qué datos entrega la fuente, frecuencia y responsable de acceso." },
-    { type: "brecha", title: "Brechas de contexto", icon: ScanSearch, tone: "rose", emptyTitle: "Sin brechas de contexto registradas", emptyDescription: "No se han documentado condiciones que limiten actualmente la evaluación ambiental de la obra.", namePlaceholder: "Ej.: Sin medición de ruido en horario nocturno", descriptionPlaceholder: "Describe el impacto de la brecha y la acción necesaria para resolverla." },
+    { type: "proceso", title: "Procesos principales", icon: Boxes, tone: "cyan", emptyTitle: "Sin procesos registrados", emptyDescription: "Agrega solo las actividades principales que ayudan a comprender qué ocurre en la obra.", namePlaceholder: "Ej.: Excavación y movimiento de tierra", descriptionPlaceholder: "Describe brevemente la actividad y su etapa." },
+    { type: "informacion_disponible", title: "Antecedentes disponibles", icon: ClipboardCheck, tone: "green", emptyTitle: "Sin antecedentes registrados", emptyDescription: "Agrega documentos, datos o mediciones disponibles. Incluye su fuente o responsable en la descripción.", namePlaceholder: "Ej.: Registro mensual de consumo eléctrico", descriptionPlaceholder: "Indica cobertura, fuente, responsable y nivel de actualización." },
+    { type: "informacion_faltante", title: "Pendientes críticos", icon: FileWarning, tone: "amber", emptyTitle: "Sin pendientes críticos", emptyDescription: "Registra solo lo que impide interpretar o gestionar correctamente la operación.", namePlaceholder: "Ej.: Certificados de disposición de residuos", descriptionPlaceholder: "Explica qué falta, quién debe proporcionarlo y para cuándo se requiere." },
 ];
+
+const STEPS = ["Contexto", "Diagnóstico", "Aplicabilidad", "Resumen"];
 
 const emptyForm = {
     estado: "pendiente",
@@ -168,6 +167,16 @@ export default function WorkDiagnosticPage() {
         setSuccess,
     ] = useState("");
 
+    const [
+        activeStep,
+        setActiveStep,
+    ] = useState(0);
+
+    const [
+        applicabilityState,
+        setApplicabilityState,
+    ] = useState({});
+
     const activeScopeRef =
         useRef(
             `${activeOrganizacionId}:${obraId}`,
@@ -226,6 +235,11 @@ export default function WorkDiagnosticPage() {
         state.diagnostico.data,
         state.diagnostico.status,
     ]);
+
+    useEffect(() => {
+        const applicability = workspace?.context?.diagnostico_obra?.aplicabilidad || [];
+        setApplicabilityState(Object.fromEntries(applicability.map((item) => [item.clave, item.estado_obra])));
+    }, [workspace?.context?.diagnostico_obra?.aplicabilidad]);
 
     const setField = (
         field,
@@ -371,7 +385,7 @@ export default function WorkDiagnosticPage() {
                 activeScopeRef.current !==
                 scopeKey
             ) {
-                return;
+                return false;
             }
 
             await state.reload();
@@ -379,6 +393,7 @@ export default function WorkDiagnosticPage() {
             setSuccess(
                 "Contexto ambiental de la obra guardado.",
             );
+            return true;
         } catch (error) {
             setMutationError(
                 error.response?.data
@@ -387,6 +402,7 @@ export default function WorkDiagnosticPage() {
                     ?.detail ||
                 "No se pudo guardar el perfil ambiental de la obra.",
             );
+            return false;
         } finally {
             setSaving(false);
         }
@@ -440,6 +456,9 @@ export default function WorkDiagnosticPage() {
     const coverage = state.preparacion.status === "ready"
         ? state.preparacion.data?.siguiente_paso || "Sin datos"
         : "Cargando…";
+    const countByType = (type) => elementos.filter((item) => item.tipo === type).length;
+    const workApplicability = workspace?.context?.diagnostico_obra?.aplicabilidad || [];
+    const confirmedAspects = Object.values(applicabilityState).filter((value) => value === "aplica").length;
 
     return (
         <section className="space-y-6">
@@ -505,7 +524,23 @@ export default function WorkDiagnosticPage() {
                 </Alert>
             )}
 
-            {state.diagnostico
+            <nav aria-label="Etapas del perfil ambiental" className="grid gap-2 rounded-[var(--radius-lg)] border border-emerald-100 bg-emerald-50/45 p-2 sm:grid-cols-4">
+                {STEPS.map((step, index) => (
+                    <button
+                        key={step}
+                        type="button"
+                        onClick={() => setActiveStep(index)}
+                        className={`flex min-h-12 items-center gap-3 rounded-[var(--radius-md)] px-3 text-left text-sm font-black transition ${activeStep === index ? "bg-white text-emerald-800 shadow-sm ring-1 ring-emerald-200" : "text-slate-600 hover:bg-white/70"}`}
+                    >
+                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs ${activeStep > index ? "bg-emerald-600 text-white" : activeStep === index ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}>
+                            {activeStep > index ? <Check size={14} aria-hidden="true" /> : index + 1}
+                        </span>
+                        {step}
+                    </button>
+                ))}
+            </nav>
+
+            {activeStep === 0 && (state.diagnostico
                 .status === "error" ? (
                 <ErrorState
                     description={
@@ -617,9 +652,9 @@ export default function WorkDiagnosticPage() {
                         </div>
                     </CardContent>
                 </Card>
-            )}
+            ))}
 
-            {state.diagnostico
+            {activeStep === 1 && state.diagnostico
                 .status ===
                 "ready" && (
                     <section className="space-y-4">
@@ -663,7 +698,7 @@ export default function WorkDiagnosticPage() {
                     </section>
                 )}
 
-            <section className="space-y-4">
+            {activeStep === 2 && <section className="space-y-4">
                 <div>
                     <h2 className="text-lg font-black">
                         Aplicabilidad ambiental
@@ -707,12 +742,8 @@ export default function WorkDiagnosticPage() {
                         capabilities={
                             state.capacidades.data
                         }
-                        applicability={
-                            workspace?.context
-                                ?.diagnostico_obra
-                                ?.aplicabilidad ||
-                            []
-                        }
+                        applicability={workApplicability}
+                        onChange={(key, value) => setApplicabilityState((current) => ({ ...current, [key]: value }))}
                         diagnosticExists={
                             Boolean(diagnostic)
                         }
@@ -721,29 +752,76 @@ export default function WorkDiagnosticPage() {
                         }
                     />
                 )}
-            </section>
+            </section>}
 
-            {!user?.is_demo && canManageProfile &&
-                state.diagnostico
-                    .status ===
-                "ready" && (
-                    <div className="flex justify-end">
-                        <Button
-                            loading={
-                                saving
-                            }
-                            disabled={
-                                !canSave
-                            }
-                            onClick={save}
-                        >
-                            {diagnostic
-                                ? "Guardar cambios"
-                                : "Guardar contexto"}
-                        </Button>
+            {activeStep === 3 && (
+                <section className="space-y-4">
+                    <div>
+                        <h2 className="text-lg font-black">Resumen del perfil</h2>
+                        <p className="text-sm text-[var(--text-muted)]">Una lectura breve del contexto registrado y de la gestión ambiental confirmada.</p>
                     </div>
-                )}
+
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <SummaryMetric label="Procesos registrados" value={countByType("proceso")} />
+                        <SummaryMetric label="Antecedentes disponibles" value={countByType("informacion_disponible")} />
+                        <SummaryMetric label="Pendientes críticos" value={countByType("informacion_faltante")} tone="amber" />
+                        <SummaryMetric label="Aspectos confirmados" value={confirmedAspects} tone="green" />
+                    </div>
+
+                    <div className="rounded-[var(--radius-lg)] border border-emerald-200 bg-emerald-50/65 p-5">
+                        <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-700">Próximo paso recomendado</p>
+                        <p className="mt-2 font-black text-slate-900">
+                            {confirmedAspects === 0
+                                ? "Confirma al menos un aspecto ambiental aplicable a esta obra."
+                                : countByType("informacion_faltante") > 0
+                                    ? "Resuelve los pendientes críticos y vincula los primeros antecedentes verificables."
+                                    : "Comienza a registrar información y evidencias para los aspectos confirmados."}
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">Carbono Zero irá enriqueciendo este perfil con datos y evidencias reales, sin extender este levantamiento inicial.</p>
+                    </div>
+                </section>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-default)] pt-5">
+                <Button variant="secondary" disabled={activeStep === 0 || saving} onClick={() => setActiveStep((step) => Math.max(0, step - 1))}>
+                    Anterior
+                </Button>
+
+                <div className="flex flex-wrap justify-end gap-2">
+                    {!user?.is_demo && canManageProfile && state.diagnostico.status === "ready" && activeStep < 2 && canSave && (
+                        <Button variant="secondary" loading={saving} onClick={save}>Guardar cambios</Button>
+                    )}
+                    {activeStep < STEPS.length - 1 && (
+                        <Button
+                            loading={saving}
+                            onClick={async () => {
+                                if (activeStep < 2 && (canSave || !diagnostic)) {
+                                    const saved = await save();
+                                    if (!saved) return;
+                                }
+                                setActiveStep((step) => Math.min(STEPS.length - 1, step + 1));
+                            }}
+                        >
+                            {activeStep === 0 ? "Guardar y continuar" : "Continuar"}
+                        </Button>
+                    )}
+                </div>
+            </div>
         </section>
+    );
+}
+
+function SummaryMetric({ label, value, tone = "slate" }) {
+    const tones = {
+        slate: "border-slate-200 bg-slate-50 text-slate-900",
+        amber: "border-amber-200 bg-amber-50 text-amber-900",
+        green: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    };
+    return (
+        <div className={`rounded-[var(--radius-lg)] border p-5 ${tones[tone]}`}>
+            <p className="text-3xl font-black">{value}</p>
+            <p className="mt-1 text-sm font-bold">{label}</p>
+        </div>
     );
 }
 

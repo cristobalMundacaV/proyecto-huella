@@ -21,7 +21,6 @@ import {
 
 import {
     Alert,
-    Select,
     StatusBadge,
 } from "@/shared/ui";
 
@@ -30,27 +29,12 @@ import {
 } from "../api/diagnosticoApi";
 
 const STATES = [
-    [
-        "no_determinado",
-        "Por definir",
-    ],
-    [
-        "pendiente",
-        "Pendiente",
-    ],
-    [
-        "aplica",
-        "Aplica",
-    ],
-    [
-        "no_aplica",
-        "No aplica",
-    ],
-    [
-        "sin_datos",
-        "Sin datos",
-    ],
+    ["aplica", "Aplica"],
+    ["pendiente", "Revisar"],
+    ["no_aplica", "No aplica"],
 ];
+
+const displayState = (value) => value === "aplica" ? "aplica" : value === "no_aplica" ? "no_aplica" : "pendiente";
 
 const tone = (value) =>
     value === "aplica"
@@ -89,6 +73,7 @@ export default function WorkApplicability({
     applicability = [],
     diagnosticExists,
     readOnly = false,
+    onChange,
 }) {
     const [
         localState,
@@ -136,7 +121,9 @@ export default function WorkApplicability({
 
     const rows = useMemo(
         () =>
-            capabilities.map(
+            capabilities
+                .filter((item) => !["no_aplica", "pendiente_diagnostico"].includes(item.estado))
+                .map(
                 (item) => ({
                     ...item,
                     workState:
@@ -176,6 +163,7 @@ export default function WorkApplicability({
                         estado,
                 }),
             );
+            onChange?.(item.capacidad.clave, estado);
         } catch (requestError) {
             setError(
                 requestError
@@ -206,6 +194,12 @@ export default function WorkApplicability({
             )}
 
             <div className="grid gap-3 md:grid-cols-2">
+                {!rows.length && (
+                    <div className="rounded-[var(--radius-lg)] border border-emerald-200 bg-emerald-50/60 p-6 text-center md:col-span-2">
+                        <p className="font-black text-emerald-900">No hay aspectos ambientales habilitados para esta organización</p>
+                        <p className="mt-1 text-sm text-[var(--text-muted)]">Primero habilita los aspectos que la organización necesita gestionar.</p>
+                    </div>
+                )}
                 {rows.map(
                     (item) => {
                         const presentation = domainPresentation(item.capacidad);
@@ -236,64 +230,39 @@ export default function WorkApplicability({
 
                                 <StatusBadge
                                     tone={tone(
-                                        item.workState,
+                                        displayState(item.workState),
                                     )}
                                 >
                                     {STATES.find(
                                         ([
                                             value,
                                         ]) =>
-                                            value ===
-                                            item.workState,
+                                            value === displayState(item.workState),
                                     )?.[1] ||
-                                        item.workState}
+                                        "Revisar"}
                                 </StatusBadge>
                             </div>
 
                             {!readOnly && (
-                                <div className="mt-4">
-                                    <Select
-                                        label={`Aplicabilidad de ${item.capacidad?.nombre || "capacidad"}`}
-                                        value={
-                                            item.workState
-                                        }
-                                        disabled={
-                                            !diagnosticExists ||
-                                            savingId ===
-                                            item.id
-                                        }
-                                        onChange={(
-                                            event,
-                                        ) =>
-                                            change(
-                                                item,
-                                                event
-                                                    .target
-                                                    .value,
-                                            )
-                                        }
-                                    >
-                                        {STATES.map(
-                                            ([
-                                                value,
-                                                label,
-                                            ]) => (
-                                                <option
-                                                    key={
-                                                        value
-                                                    }
-                                                    value={
-                                                        value
-                                                    }
+                                <fieldset className="mt-4" disabled={!diagnosticExists || savingId === item.id}>
+                                    <legend className="sr-only">Aplicabilidad de {item.capacidad?.nombre || "aspecto"}</legend>
+                                    <div className="grid grid-cols-3 gap-1 rounded-xl border border-white/80 bg-white/70 p-1">
+                                        {STATES.map(([value, label]) => {
+                                            const selected = displayState(item.workState) === value;
+                                            return (
+                                                <button
+                                                    key={value}
+                                                    type="button"
+                                                    aria-pressed={selected}
+                                                    onClick={() => change(item, value)}
+                                                    className={`rounded-lg px-2 py-2 text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${selected ? value === "aplica" ? "bg-emerald-600 text-white shadow-sm" : value === "no_aplica" ? "bg-slate-700 text-white shadow-sm" : "bg-amber-100 text-amber-900 shadow-sm" : "text-slate-600 hover:bg-white"}`}
                                                 >
-                                                    {
-                                                        label
-                                                    }
-                                                </option>
-                                            ),
-                                        )}
-                                    </Select>
-                                </div>
+                                                    {label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </fieldset>
                             )}
                         </div>
                         );
