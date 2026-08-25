@@ -32,22 +32,32 @@ def construction_materials(work):
 
 
 def environmental_timeline(work):
-    events = [{"tipo": "obra_creada", "fecha": work.created_at, "referencia_id": work.id, "titulo": "Obra creada"}]
-    events += [{"tipo": "diagnostico_inicial", "fecha": row.created_at, "referencia_id": row.id, "titulo": "Diagnostico ambiental"}
+    base = {"actor": "Sistema Carbono Zero", "origen": "Plataforma", "estado": "registrado"}
+    events = [{**base, "tipo": "obra_creada", "fecha": work.created_at, "referencia_id": work.id, "titulo": "Obra creada", "entidad": "obra", "entidad_id": work.id}]
+    events += [{**base, "tipo": "diagnostico_inicial", "fecha": row.created_at, "referencia_id": row.id, "titulo": "Diagnostico ambiental", "entidad": "diagnostico", "entidad_id": row.id}
                for row in work.diagnosticos_ambientales.all()]
-    events += [{"tipo": "evidencia", "fecha": row.created_at, "referencia_id": row.id, "titulo": row.nombre}
+    events += [{**base, "tipo": "evidencia", "fecha": row.created_at, "referencia_id": row.id, "titulo": row.nombre, "entidad": "evidencia", "entidad_id": row.id, "estado": row.estado_documental}
                for row in work.evidencias.all()]
-    events += [{"tipo": "actividad", "fecha": row.timestamp_inicio, "referencia_id": row.id, "titulo": row.nombre}
+    events += [{**base, "tipo": "actividad", "fecha": row.timestamp_inicio, "referencia_id": row.id, "titulo": row.nombre, "entidad": "actividad_operacional", "entidad_id": row.id, "estado": row.estado}
                for row in work.actividades_operacionales.all()]
+    events += [{"tipo": row.tipo, "fecha": row.created_at, "referencia_id": row.id,
+                "titulo": row.get_tipo_display(), "descripcion": row.metadata.get("descripcion", "") if isinstance(row.metadata, dict) else "",
+                "actor": row.usuario or "Sistema Carbono Zero", "origen": row.fuente or "Importación",
+                "entidad": "evidencia" if row.evidencia_id else "dato_operacional",
+                "entidad_id": row.evidencia_id, "estado": row.tipo,
+                "estado_anterior": row.raw_payload or {}, "estado_nuevo": row.normalized_payload or {},
+                "metadata": row.metadata or {}}
+               for row in work.historial_cambios.select_related("evidencia").all()]
     for problem in work.problematicas_ambientales.prefetch_related("acciones", "resultados_intervencion"):
-        events.append({"tipo": "problematica", "fecha": problem.created_at, "referencia_id": problem.id, "titulo": problem.titulo})
-        events += [{"tipo": "accion", "fecha": row.created_at, "referencia_id": row.id, "titulo": row.titulo}
+        events.append({**base, "tipo": "problematica", "fecha": problem.created_at, "referencia_id": problem.id, "titulo": problem.titulo, "entidad": "problematica", "entidad_id": problem.id, "estado": problem.estado})
+        events += [{**base, "tipo": "accion", "fecha": row.created_at, "referencia_id": row.id, "titulo": row.titulo, "entidad": "accion", "entidad_id": row.id, "estado": row.estado}
                    for row in problem.acciones.all()]
-        events += [{"tipo": "resultado", "fecha": row.created_at, "referencia_id": row.id, "titulo": row.estado}
+        events += [{**base, "tipo": "resultado", "fecha": row.created_at, "referencia_id": row.id, "titulo": row.estado, "entidad": "resultado", "entidad_id": row.id, "estado": row.estado}
                    for row in problem.resultados_intervencion.all()]
     if work.estado_ambiental == Obra.EstadoAmbiental.CERRADA and work.fecha_cierre_ambiental:
-        events.append({"tipo": "cierre_ambiental", "fecha": work.fecha_cierre_ambiental,
-                       "referencia_id": work.id, "titulo": work.get_estado_ambiental_display()})
+        events.append({**base, "tipo": "cierre_ambiental", "fecha": work.fecha_cierre_ambiental,
+                       "referencia_id": work.id, "titulo": work.get_estado_ambiental_display(),
+                       "entidad": "obra", "entidad_id": work.id, "estado": work.estado_ambiental})
     return sorted(events, key=lambda item: (str(item["fecha"]), item["tipo"]))
 
 
