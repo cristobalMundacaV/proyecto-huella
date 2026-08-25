@@ -410,6 +410,10 @@ urlpatterns = [
         capacidad_organizacion_detail,
     ),
     path(
+        "organizaciones/<str:organizacion_id>/obras/<int:obra_id>/aplicabilidades/<int:capacidad_id>/",
+        aplicabilidad_capacidad_obra,
+    ),
+    path(
         "organizaciones/<str:organizacion_id>/unidades-operacionales/",
         unidades_operacionales,
     ),

@@ -1,6 +1,7 @@
 import {
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
 
@@ -26,6 +27,7 @@ import {
 } from "@/shared/ui";
 
 import { Link } from "react-router-dom";
+import Toast from "@/shared/components/Toast";
 
 import {
     updateWorkApplicability,
@@ -97,10 +99,12 @@ export default function WorkApplicability({
         setSavingId,
     ] = useState(null);
 
-    const [
-        error,
-        setError,
-    ] = useState("");
+    const [toast, setToast] = useState(null);
+    const toastSequenceRef = useRef(0);
+    const showToast = (value) => {
+        toastSequenceRef.current += 1;
+        setToast({ ...value, id: toastSequenceRef.current });
+    };
 
     useEffect(() => {
         setLocalState(
@@ -114,7 +118,7 @@ export default function WorkApplicability({
             ),
         );
 
-        setError("");
+        setToast(null);
         setSavingId(null);
     }, [
         applicability,
@@ -148,38 +152,32 @@ export default function WorkApplicability({
         estado,
     ) {
         setSavingId(item.id);
-        setError("");
+        setToast(null);
 
         try {
-            await updateWorkApplicability(
+            const updated = await updateWorkApplicability(
                 organizationId,
                 workId,
                 item.capacidad.id,
                 estado,
             );
 
+            const persistedState = updated.estado;
             setLocalState(
                 (current) => ({
                     ...current,
                     [item.capacidad
                         .clave]:
-                        estado,
+                        persistedState,
                 }),
             );
-            onChange?.(item.capacidad.clave, estado);
+            onChange?.(item.capacidad.clave, persistedState);
             window.dispatchEvent(new CustomEvent("carbono-zero:work-applicability-updated", {
-                detail: { organizationId, workId, key: item.capacidad.clave, estado },
+                detail: { organizationId, workId, key: item.capacidad.clave, estado: persistedState },
             }));
+            showToast({ message: "Aspecto actualizado", subtitle: `${item.capacidad.nombre} quedó marcado como ${STATES.find(([value]) => value === displayState(persistedState))?.[1] || persistedState}.` });
         } catch (requestError) {
-            setError(
-                requestError
-                    .response?.data
-                    ?.detail ||
-                requestError
-                    .response?.data
-                    ?.estado?.[0] ||
-                "No se pudo actualizar la aplicabilidad de esta obra.",
-            );
+            showToast({ tone: "error", message: "No pudimos actualizar el aspecto", subtitle: requestError.response?.data?.detail || requestError.response?.data?.estado?.[0] || "Inténtalo nuevamente." });
         } finally {
             setSavingId(null);
         }
@@ -187,27 +185,28 @@ export default function WorkApplicability({
 
     async function useOrganizationConfiguration() {
         setSavingId("all");
-        setError("");
+        setToast(null);
 
         try {
-            await Promise.all(rows.map((item) => updateWorkApplicability(
+            const updates = await Promise.all(rows.map((item) => updateWorkApplicability(
                 organizationId,
                 workId,
                 item.capacidad.id,
                 "aplica",
             )));
 
-            const inherited = Object.fromEntries(rows.map((item) => [item.capacidad.clave, "aplica"]));
+            const inherited = Object.fromEntries(rows.map((item, index) => [item.capacidad.clave, updates[index].estado]));
             setLocalState((current) => ({ ...current, ...inherited }));
             rows.forEach((item) => {
                 const key = item.capacidad.clave;
-                onChange?.(key, "aplica");
+                onChange?.(key, inherited[key]);
                 window.dispatchEvent(new CustomEvent("carbono-zero:work-applicability-updated", {
-                    detail: { organizationId, workId, key, estado: "aplica" },
+                    detail: { organizationId, workId, key, estado: inherited[key] },
                 }));
             });
+            showToast({ message: "Configuración aplicada", subtitle: "Se heredaron los aspectos ambientales de la organización." });
         } catch (requestError) {
-            setError(requestError.response?.data?.detail || "No pudimos aplicar la configuración de la organización. Inténtalo nuevamente.");
+            showToast({ tone: "error", message: "No pudimos aplicar la configuración", subtitle: requestError.response?.data?.detail || "Inténtalo nuevamente." });
         } finally {
             setSavingId(null);
         }
@@ -215,15 +214,10 @@ export default function WorkApplicability({
 
     return (
         <div className="space-y-3">
+            <Toast {...toast} toastKey={toast?.id} onClose={() => setToast(null)} />
             {!diagnosticExists && (
                 <Alert>
                     Guarda primero el contexto de la obra para definir su aplicabilidad ambiental.
-                </Alert>
-            )}
-
-            {error && (
-                <Alert tone="danger">
-                    {error}
                 </Alert>
             )}
 
@@ -234,7 +228,7 @@ export default function WorkApplicability({
                         <p className="mt-1 text-sm text-slate-600">Puedes heredar la configuración de la organización y ajustar cada aspecto antes de finalizar.</p>
                     </div>
                     <Button variant="secondary" loading={savingId === "all"} disabled={!diagnosticExists} onClick={useOrganizationConfiguration}>
-                        Usar configuración de la organización
+                        {savingId === "all" ? "Aplicando configuración..." : "Usar configuración de la organización"}
                     </Button>
                 </div>
             )}
@@ -304,7 +298,7 @@ export default function WorkApplicability({
                                                     type="button"
                                                     aria-pressed={selected}
                                                     onClick={() => change(item, value)}
-                                                    className={`rounded-lg px-2 py-2 text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${selected ? value === "aplica" ? "bg-emerald-600 text-white shadow-sm" : value === "no_aplica" ? "bg-slate-700 text-white shadow-sm" : "bg-amber-100 text-amber-900 shadow-sm" : "text-slate-600 hover:bg-white"}`}
+                                                    className={`rounded-lg border px-2 py-2 text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${selected ? value === "aplica" ? "border-emerald-200 bg-emerald-50 text-emerald-800 shadow-sm" : value === "no_aplica" ? "border-slate-200 bg-slate-100 text-slate-700 shadow-sm" : "border-slate-300 bg-white text-slate-800 shadow-sm ring-1 ring-slate-200" : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-white"}`}
                                                 >
                                                     {label}
                                                 </button>

@@ -1,7 +1,9 @@
+from datetime import date
+
 from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 
-from .models import (CapacidadOrganizacion, DiagnosticoAmbientalInicial, Organizacion,
+from .models import (AplicabilidadCapacidadObra, CapacidadOrganizacion, DiagnosticoAmbientalInicial, Obra, Organizacion,
                      ElementoDiagnosticoAmbiental, ProcesoOperacional, UnidadOperacional,
                      UsuarioOrganizacion)
 from .services.foundation import inicializar_capacidades_preset, resumen_preparacion_ambiental
@@ -34,6 +36,31 @@ class FoundationApiTests(APITestCase):
         capacidad = inicializar_capacidades_preset(self.organizacion).first()
         response = self.client.patch(f"{self.base}/capacidades-ambientales/{capacidad.id}/", {"estado": "inventado"})
         self.assertEqual(response.status_code, 400)
+
+    def test_actualiza_aplicabilidad_de_obra_y_persiste_estado(self):
+        obra = Obra.objects.create(organizacion=self.organizacion, nombre="Obra aplicable", fecha_inicio=date(2026, 8, 25))
+        diagnostico = DiagnosticoAmbientalInicial.objects.create(organizacion=self.organizacion, obra=obra)
+        capacidad = inicializar_capacidades_preset(self.organizacion).first().capacidad
+        url = f"{self.base}/obras/{obra.id}/aplicabilidades/{capacidad.id}/"
+
+        for estado in ("aplica", "pendiente", "no_aplica"):
+            response = self.client.patch(url, {"estado": estado}, format="json")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["estado"], estado)
+            self.assertEqual(
+                AplicabilidadCapacidadObra.objects.get(obra=obra, capacidad=capacidad, diagnostico=diagnostico).estado,
+                estado,
+            )
+
+    def test_aplicabilidad_rechaza_obra_de_otro_tenant(self):
+        obra = Obra.objects.create(organizacion=self.otra, nombre="Obra ajena", fecha_inicio=date(2026, 8, 25))
+        capacidad = inicializar_capacidades_preset(self.organizacion).first().capacidad
+        response = self.client.patch(
+            f"{self.base}/obras/{obra.id}/aplicabilidades/{capacidad.id}/",
+            {"estado": "aplica"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 404)
 
     def test_crea_unidad_y_proceso_y_bloquea_unidad_de_otro_tenant(self):
         unidad = self.client.post(f"{self.base}/unidades-operacionales/", {"nombre": "Faena Norte", "tipo": "faena"})

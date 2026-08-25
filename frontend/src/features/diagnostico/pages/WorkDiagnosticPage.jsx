@@ -20,6 +20,7 @@ import {
 } from "react-router-dom";
 
 import PlatformLoader from "@/shared/components/PlatformLoader";
+import Toast from "@/shared/components/Toast";
 
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { usePermissions } from "@/features/auth/hooks/usePermissions";
@@ -128,15 +129,7 @@ export default function WorkDiagnosticPage() {
         setSaving,
     ] = useState(false);
 
-    const [
-        mutationError,
-        setMutationError,
-    ] = useState("");
-
-    const [
-        success,
-        setSuccess,
-    ] = useState("");
+    const [toast, setToast] = useState(null);
 
     const [
         activeStep,
@@ -211,7 +204,6 @@ export default function WorkDiagnosticPage() {
         }));
 
         setFormDirty(true);
-        setSuccess("");
     };
 
     async function save(overrides = {}) {
@@ -222,8 +214,7 @@ export default function WorkDiagnosticPage() {
             `${organizationId}:${obraId}`;
 
         setSaving(true);
-        setMutationError("");
-        setSuccess("");
+        setToast({ id: Date.now(), loading: true, message: "Guardando contexto", subtitle: "Estamos actualizando el perfil ambiental de esta obra." });
 
         try {
             const payload = {
@@ -254,18 +245,15 @@ export default function WorkDiagnosticPage() {
                 setForm((current) => ({ ...current, estado: overrides.estado }));
             }
 
-            setSuccess(
-                "Contexto ambiental de la obra guardado.",
-            );
+            setToast({ id: Date.now(), message: "Contexto guardado", subtitle: "El contexto ambiental de la obra fue actualizado." });
             return true;
         } catch (error) {
-            setMutationError(
-                error.response?.data
-                    ?.error ||
-                error.response?.data
-                    ?.detail ||
-                "No se pudo guardar el perfil ambiental de la obra.",
-            );
+            setToast({
+                id: Date.now(),
+                tone: "error",
+                message: "No pudimos guardar el contexto",
+                subtitle: error.response?.data?.error || error.response?.data?.detail || "Revisa la información e inténtalo nuevamente.",
+            });
             return false;
         } finally {
             setSaving(false);
@@ -331,6 +319,7 @@ export default function WorkDiagnosticPage() {
 
     return (
         <section className="space-y-6">
+            <Toast {...toast} toastKey={toast?.id} onClose={() => setToast(null)} />
             <SectionHeader
                 eyebrow="CONTEXTO AMBIENTAL"
                 title="Perfil ambiental de la obra"
@@ -378,18 +367,6 @@ export default function WorkDiagnosticPage() {
                 <Alert title="Solo lectura en modo demo">
                     Puedes revisar el contexto,
                     pero no modificarlo.
-                </Alert>
-            )}
-
-            {mutationError && (
-                <Alert tone="danger">
-                    {mutationError}
-                </Alert>
-            )}
-
-            {success && (
-                <Alert tone="success">
-                    {success}
                 </Alert>
             )}
 
