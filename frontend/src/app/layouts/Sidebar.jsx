@@ -120,13 +120,35 @@ export default function Sidebar({
             .then((workspace) => {
                 if (!active) return;
                 const rows = workspace?.context?.diagnostico_obra?.aplicabilidad;
-                setWorkApplicability({ scope: applicabilityScope, rows: Array.isArray(rows) ? rows : [] });
+                const organizationCapabilities = workspace?.context?.capacidades_organizacion;
+                const enabledKeys = new Set(
+                    (Array.isArray(organizationCapabilities) ? organizationCapabilities : [])
+                        .filter((item) => !["no_aplica", "pendiente_diagnostico"].includes(item?.estado_organizacion))
+                        .map((item) => item?.clave),
+                );
+                setWorkApplicability({
+                    scope: applicabilityScope,
+                    rows: (Array.isArray(rows) ? rows : []).filter((item) => enabledKeys.has(item?.clave)),
+                });
             })
             .catch(() => {
                 if (active) setWorkApplicability({ scope: applicabilityScope, rows: [] });
             });
         return () => { active = false; };
     }, [activeOrganizacionId, applicabilityScope, workId]);
+
+    useEffect(() => {
+        const updateApplicability = (event) => {
+            const detail = event.detail || {};
+            if (String(detail.organizationId) !== String(activeOrganizacionId) || String(detail.workId) !== String(workId)) return;
+            setWorkApplicability((current) => ({
+                ...current,
+                rows: current.rows.map((item) => item.clave === detail.key ? { ...item, estado_obra: detail.estado } : item),
+            }));
+        };
+        window.addEventListener("carbono-zero:work-applicability-updated", updateApplicability);
+        return () => window.removeEventListener("carbono-zero:work-applicability-updated", updateApplicability);
+    }, [activeOrganizacionId, workId]);
 
 
     const navigation =

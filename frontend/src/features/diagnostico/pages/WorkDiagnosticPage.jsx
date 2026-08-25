@@ -6,15 +6,11 @@ import {
 } from "react";
 
 import {
-    Boxes,
     Building2,
     Check,
     CircleHelp,
     ClipboardCheck,
-    FileWarning,
     Gauge,
-    Plus,
-    Trash2,
 } from "lucide-react";
 
 import {
@@ -61,13 +57,7 @@ const STATES = [
     ],
 ];
 
-const GROUPS = [
-    { type: "proceso", title: "Procesos principales", icon: Boxes, tone: "cyan", emptyTitle: "Sin procesos registrados", emptyDescription: "Agrega solo las actividades principales que ayudan a comprender qué ocurre en la obra.", namePlaceholder: "Ej.: Excavación y movimiento de tierra", descriptionPlaceholder: "Describe brevemente la actividad y su etapa." },
-    { type: "informacion_disponible", title: "Antecedentes disponibles", icon: ClipboardCheck, tone: "green", emptyTitle: "Sin antecedentes registrados", emptyDescription: "Agrega documentos, datos o mediciones disponibles. Incluye su fuente o responsable en la descripción.", namePlaceholder: "Ej.: Registro mensual de consumo eléctrico", descriptionPlaceholder: "Indica cobertura, fuente, responsable y nivel de actualización." },
-    { type: "informacion_faltante", title: "Pendientes críticos", icon: FileWarning, tone: "amber", emptyTitle: "Sin pendientes críticos", emptyDescription: "Registra solo lo que impide interpretar o gestionar correctamente la operación.", namePlaceholder: "Ej.: Certificados de disposición de residuos", descriptionPlaceholder: "Explica qué falta, quién debe proporcionarlo y para cuándo se requiere." },
-];
-
-const STEPS = ["Contexto", "Diagnóstico", "Aplicabilidad", "Resumen"];
+const STEPS = ["Contexto", "Aplicabilidad", "Resumen"];
 
 const emptyForm = {
     estado: "pendiente",
@@ -75,11 +65,6 @@ const emptyForm = {
     descripcion_contexto: "",
     observaciones: "",
 };
-
-const keyFor = (item) =>
-    item.id
-        ? `id-${item.id}`
-        : item.localId;
 
 const STATE_STYLES = {
     completado: "text-emerald-700",
@@ -129,23 +114,6 @@ export default function WorkDiagnosticPage() {
         form,
         setForm,
     ] = useState(emptyForm);
-
-    const [
-        elementos,
-        setElementos,
-    ] = useState([]);
-
-    const [
-        dirtyItems,
-        setDirtyItems,
-    ] = useState(
-        () => new Set(),
-    );
-
-    const [
-        deletedIds,
-        setDeletedIds,
-    ] = useState([]);
 
     const [
         formDirty,
@@ -219,17 +187,6 @@ export default function WorkDiagnosticPage() {
                 : emptyForm,
         );
 
-        setElementos(
-            diagnostic?.elementos ||
-            [],
-        );
-
-        setDirtyItems(
-            new Set(),
-        );
-
-        setDeletedIds([]);
-
         setFormDirty(false);
     }, [
         state.diagnostico.data,
@@ -254,74 +211,7 @@ export default function WorkDiagnosticPage() {
         setSuccess("");
     };
 
-    function addElement(tipo) {
-        const localId =
-            `new-${Date.now()}-${Math.random()}`;
-
-        setElementos((items) => [
-            ...items,
-            {
-                localId,
-                tipo,
-                nombre: "",
-                descripcion: "",
-            },
-        ]);
-
-        setDirtyItems(
-            (current) =>
-                new Set(current).add(
-                    localId,
-                ),
-        );
-    }
-
-    function updateElement(
-        item,
-        field,
-        value,
-    ) {
-        const key = keyFor(item);
-
-        setElementos((items) =>
-            items.map((current) =>
-                keyFor(current) === key
-                    ? {
-                        ...current,
-                        [field]: value,
-                    }
-                    : current,
-            ),
-        );
-
-        setDirtyItems(
-            (current) =>
-                new Set(current).add(key),
-        );
-
-        setSuccess("");
-    }
-
-    function removeElement(item) {
-        setElementos((items) =>
-            items.filter(
-                (current) =>
-                    keyFor(current) !==
-                    keyFor(item),
-            ),
-        );
-
-        if (item.id) {
-            setDeletedIds((ids) => [
-                ...ids,
-                item.id,
-            ]);
-        }
-
-        setSuccess("");
-    }
-
-    async function save() {
+    async function save(overrides = {}) {
         const organizationId =
             activeOrganizacionId;
 
@@ -333,42 +223,9 @@ export default function WorkDiagnosticPage() {
         setSuccess("");
 
         try {
-            const changed =
-                elementos
-                    .filter((item) =>
-                        dirtyItems.has(
-                            keyFor(item),
-                        ),
-                    )
-                    .map(
-                        ({
-                            id,
-                            tipo,
-                            nombre,
-                            descripcion,
-                        }) => ({
-                            ...(id
-                                ? { id }
-                                : {}),
-                            tipo,
-                            nombre,
-                            descripcion,
-                        }),
-                    );
-
             const payload = {
                 ...form,
-
-                elementos: [
-                    ...changed,
-
-                    ...deletedIds.map(
-                        (id) => ({
-                            id,
-                            eliminar: true,
-                        }),
-                    ),
-                ],
+                ...overrides,
             };
 
             await saveDiagnostico(
@@ -389,6 +246,10 @@ export default function WorkDiagnosticPage() {
             }
 
             await state.reload();
+
+            if (overrides.estado) {
+                setForm((current) => ({ ...current, estado: overrides.estado }));
+            }
 
             setSuccess(
                 "Contexto ambiental de la obra guardado.",
@@ -440,13 +301,7 @@ export default function WorkDiagnosticPage() {
 
     const canSave =
         !user?.is_demo &&
-        (
-            formDirty ||
-            dirtyItems.size >
-            0 ||
-            deletedIds.length >
-            0
-        );
+        formDirty;
 
     const diagnosticState = diagnostic?.estado || "pendiente";
     const diagnosticStateLabel = diagnostic
@@ -456,9 +311,17 @@ export default function WorkDiagnosticPage() {
     const coverage = state.preparacion.status === "ready"
         ? state.preparacion.data?.siguiente_paso || "Sin datos"
         : "Cargando…";
-    const countByType = (type) => elementos.filter((item) => item.tipo === type).length;
     const workApplicability = workspace?.context?.diagnostico_obra?.aplicabilidad || [];
-    const confirmedAspects = Object.values(applicabilityState).filter((value) => value === "aplica").length;
+    const enabledCapabilityKeys = new Set(
+        state.capacidades.data
+            .filter((item) => !["no_aplica", "pendiente_diagnostico"].includes(item.estado))
+            .map((item) => item.capacidad?.clave),
+    );
+    const enabledStates = Object.entries(applicabilityState).filter(([key]) => enabledCapabilityKeys.has(key));
+    const applicableAspects = enabledStates.filter(([, value]) => value === "aplica").length;
+    const nonApplicableAspects = enabledStates.filter(([, value]) => value === "no_aplica").length;
+    const aspectsToReview = enabledStates.length - applicableAspects - nonApplicableAspects;
+    const hasRegisteredContext = Boolean(form.objetivo_principal.trim() || form.descripcion_contexto.trim() || form.observaciones.trim());
 
     return (
         <section className="space-y-6">
@@ -524,7 +387,7 @@ export default function WorkDiagnosticPage() {
                 </Alert>
             )}
 
-            <nav aria-label="Etapas del perfil ambiental" className="grid gap-2 rounded-[var(--radius-lg)] border border-emerald-100 bg-emerald-50/45 p-2 sm:grid-cols-4">
+            <nav aria-label="Etapas del perfil ambiental" className="grid gap-2 rounded-[var(--radius-lg)] border border-emerald-100 bg-emerald-50/45 p-2 sm:grid-cols-3">
                 {STEPS.map((step, index) => (
                     <button
                         key={step}
@@ -589,8 +452,8 @@ export default function WorkDiagnosticPage() {
                             </Select>
 
                             <Input
-                                label="Objetivo o necesidad principal"
-                                placeholder="Ej.: Consolidar consumos y residuos para la gestión mensual"
+                                label="Objetivo ambiental de esta obra"
+                                placeholder="Ej.: Consolidar consumos, residuos y emisiones para detectar desviaciones y mantener trazabilidad mensual."
                                 value={
                                     form.objetivo_principal
                                 }
@@ -609,8 +472,8 @@ export default function WorkDiagnosticPage() {
                             />
 
                             <Textarea
-                                label="Contexto de la obra"
-                                placeholder="Describe la etapa constructiva, actividades críticas, ubicación y condiciones relevantes."
+                                label="Contexto operacional de la obra"
+                                placeholder="Ej.: Obra habitacional en etapa de obra gruesa, con excavaciones, transporte de materiales, maquinaria, consumo de combustibles y generación de residuos."
                                 rows={4}
                                 value={
                                     form.descripcion_contexto
@@ -630,8 +493,8 @@ export default function WorkDiagnosticPage() {
                             />
 
                             <Textarea
-                                label="Observaciones"
-                                placeholder="Registra decisiones, restricciones o antecedentes que el especialista deba considerar."
+                                label="Condiciones, restricciones o antecedentes relevantes"
+                                placeholder="Ej.: Faena cercana a sector residencial, restricciones horarias, retiro de residuos mediante terceros y maquinaria subcontratada."
                                 rows={4}
                                 value={
                                     form.observaciones
@@ -654,58 +517,14 @@ export default function WorkDiagnosticPage() {
                 </Card>
             ))}
 
-            {activeStep === 1 && state.diagnostico
-                .status ===
-                "ready" && (
-                    <section className="space-y-4">
-                        <div>
-                            <h2 className="text-lg font-black">
-                                Información disponible y pendiente
-                            </h2>
-
-                            <p className="text-sm text-[var(--text-muted)]">
-                                Registra el contexto necesario para determinar qué ámbitos aplican a esta obra.
-                            </p>
-                        </div>
-
-                        <div className="grid gap-4 lg:grid-cols-2">
-                            {GROUPS.map(
-                                (group) => (
-                                    <ElementGroup
-                                        key={group.type}
-                                        {...group}
-                                        items={elementos.filter(
-                                            (item) =>
-                                                item.tipo ===
-                                                group.type,
-                                        )}
-                                        readOnly={
-                                            user?.is_demo || !canManageProfile
-                                        }
-                                        onAdd={
-                                            addElement
-                                        }
-                                        onUpdate={
-                                            updateElement
-                                        }
-                                        onRemove={
-                                            removeElement
-                                        }
-                                    />
-                                ),
-                            )}
-                        </div>
-                    </section>
-                )}
-
-            {activeStep === 2 && <section className="space-y-4">
+            {activeStep === 1 && <section className="space-y-4">
                 <div>
                     <h2 className="text-lg font-black">
                         Aplicabilidad ambiental
                     </h2>
 
                     <p className="text-sm text-[var(--text-muted)]">
-                        Define qué capacidades ambientales aplican al contexto real de esta obra.
+                        Confirma cuáles de los aspectos habilitados por tu organización aplican realmente en esta obra.
                     </p>
                 </div>
 
@@ -754,7 +573,7 @@ export default function WorkDiagnosticPage() {
                 )}
             </section>}
 
-            {activeStep === 3 && (
+            {activeStep === 2 && (
                 <section className="space-y-4">
                     <div>
                         <h2 className="text-lg font-black">Resumen del perfil</h2>
@@ -762,20 +581,18 @@ export default function WorkDiagnosticPage() {
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <SummaryMetric label="Procesos registrados" value={countByType("proceso")} />
-                        <SummaryMetric label="Antecedentes disponibles" value={countByType("informacion_disponible")} />
-                        <SummaryMetric label="Pendientes críticos" value={countByType("informacion_faltante")} tone="amber" />
-                        <SummaryMetric label="Aspectos confirmados" value={confirmedAspects} tone="green" />
+                        <SummaryMetric label="Contexto registrado" value={hasRegisteredContext ? "Sí" : "Pendiente"} tone={hasRegisteredContext ? "green" : "amber"} />
+                        <SummaryMetric label="Aspectos aplicables" value={applicableAspects} tone="green" />
+                        <SummaryMetric label="Aspectos por revisar" value={aspectsToReview} tone="amber" />
+                        <SummaryMetric label="Aspectos no aplicables" value={nonApplicableAspects} />
                     </div>
 
                     <div className="rounded-[var(--radius-lg)] border border-emerald-200 bg-emerald-50/65 p-5">
                         <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-700">Próximo paso recomendado</p>
                         <p className="mt-2 font-black text-slate-900">
-                            {confirmedAspects === 0
+                            {applicableAspects === 0
                                 ? "Confirma al menos un aspecto ambiental aplicable a esta obra."
-                                : countByType("informacion_faltante") > 0
-                                    ? "Resuelve los pendientes críticos y vincula los primeros antecedentes verificables."
-                                    : "Comienza a registrar información y evidencias para los aspectos confirmados."}
+                                : "Comenzar a incorporar información real de la obra."}
                         </p>
                         <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">Carbono Zero irá enriqueciendo este perfil con datos y evidencias reales, sin extender este levantamiento inicial.</p>
                     </div>
@@ -788,14 +605,14 @@ export default function WorkDiagnosticPage() {
                 </Button>
 
                 <div className="flex flex-wrap justify-end gap-2">
-                    {!user?.is_demo && canManageProfile && state.diagnostico.status === "ready" && activeStep < 2 && canSave && (
+                    {!user?.is_demo && canManageProfile && state.diagnostico.status === "ready" && activeStep === 0 && canSave && (
                         <Button variant="secondary" loading={saving} onClick={save}>Guardar cambios</Button>
                     )}
                     {activeStep < STEPS.length - 1 && (
                         <Button
                             loading={saving}
                             onClick={async () => {
-                                if (activeStep < 2 && (canSave || !diagnostic)) {
+                                if (activeStep === 0 && (canSave || !diagnostic)) {
                                     const saved = await save();
                                     if (!saved) return;
                                 }
@@ -805,12 +622,20 @@ export default function WorkDiagnosticPage() {
                             {activeStep === 0 ? "Guardar y continuar" : "Continuar"}
                         </Button>
                     )}
+                    {activeStep === STEPS.length - 1 && !user?.is_demo && canManageProfile && (
+                        <Button
+                            loading={saving}
+                            disabled={!diagnostic || applicableAspects === 0}
+                            onClick={() => save({ estado: "completado" })}
+                        >
+                            Finalizar perfil ambiental
+                        </Button>
+                    )}
                 </div>
             </div>
         </section>
     );
 }
-
 function SummaryMetric({ label, value, tone = "slate" }) {
     const tones = {
         slate: "border-slate-200 bg-slate-50 text-slate-900",
@@ -838,139 +663,6 @@ function Info({ label, value, icon: Icon, tone = "cyan", valueClassName = "text-
                 <div className={`mt-2 text-xl font-black leading-tight ${valueClassName} ${emphasis ? "max-w-[18rem] text-amber-800" : ""}`}>
                     {value ??
                         "Sin datos"}
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-function ElementGroup({
-    type,
-    title,
-    icon: Icon,
-    tone,
-    emptyTitle,
-    emptyDescription,
-    namePlaceholder,
-    descriptionPlaceholder,
-    items,
-    readOnly,
-    onAdd,
-    onUpdate,
-    onRemove,
-}) {
-    const styles = TONE_STYLES[tone] || TONE_STYLES.cyan;
-    return (
-        <Card className={`${styles.card} min-h-[310px] overflow-hidden shadow-[0_14px_34px_rgba(15,23,42,0.06)]`}>
-            <CardContent className="flex h-full min-h-[310px] flex-col">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${styles.icon}`}><Icon size={19} aria-hidden="true" /></span>
-                        <h3 className="font-black">{title}</h3>
-                    </div>
-
-                    {!readOnly && (
-                        <Button
-                            size="sm"
-                            variant="secondary"
-                            leftIcon={Plus}
-                            className="shrink-0 whitespace-nowrap"
-                            onClick={() =>
-                                onAdd(type)
-                            }
-                        >
-                            Agregar
-                        </Button>
-                    )}
-                </div>
-
-                <div className={`mt-4 flex-1 ${items.length ? "space-y-3" : "flex items-center justify-center"}`}>
-                    {!items.length && (
-                        <div className="flex max-w-sm flex-col items-center justify-center px-4 py-7 text-center">
-                            <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${styles.icon}`}><Icon size={22} aria-hidden="true" /></span>
-                            <p className="mt-3 font-black text-[var(--text-primary)]">{emptyTitle}</p>
-                            <p className="mt-1.5 text-sm leading-6 text-[var(--text-muted)]">{emptyDescription}</p>
-                        </div>
-                    )}
-
-                    {items.map(
-                        (item) => (
-                            <div
-                                key={keyFor(
-                                    item,
-                                )}
-                                className={`rounded-[var(--radius-md)] border p-3 ${styles.item}`}
-                            >
-                                <div className="flex gap-2">
-                                    <input
-                                        aria-label={`Nombre en ${title}`}
-                                        value={
-                                            item.nombre ||
-                                            ""
-                                        }
-                                        disabled={
-                                            readOnly
-                                        }
-                                        placeholder={namePlaceholder}
-                                        onChange={(
-                                            event,
-                                        ) =>
-                                            onUpdate(
-                                                item,
-                                                "nombre",
-                                                event
-                                                    .target
-                                                    .value,
-                                            )
-                                        }
-                                        className="min-w-0 flex-1 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 text-sm focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50"
-                                    />
-
-                                    {!readOnly && (
-                                        <Button
-                                            variant="danger"
-                                            size="sm"
-                                            aria-label={`Eliminar ${item.nombre || title}`}
-                                            onClick={() =>
-                                                onRemove(
-                                                    item,
-                                                )
-                                            }
-                                        >
-                                            <Trash2
-                                                size={16}
-                                                aria-hidden="true"
-                                            />
-                                        </Button>
-                                    )}
-                                </div>
-
-                                <textarea
-                                    aria-label={`Descripción en ${title}`}
-                                    rows={2}
-                                    value={
-                                        item.descripcion ||
-                                        ""
-                                    }
-                                    disabled={
-                                        readOnly
-                                    }
-                                    placeholder={descriptionPlaceholder}
-                                    onChange={(
-                                        event,
-                                    ) =>
-                                        onUpdate(
-                                            item,
-                                            "descripcion",
-                                            event.target
-                                                .value,
-                                        )
-                                    }
-                                    className="mt-2 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 text-sm focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50"
-                                />
-                            </div>
-                        ),
-                    )}
                 </div>
             </CardContent>
         </Card>

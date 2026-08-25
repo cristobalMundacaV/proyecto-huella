@@ -496,7 +496,7 @@ export function getWorkNavigation({
     `/obras/${obraId}`;
   const visibleCapabilities = new Set(
     applicability
-      .filter((item) => ["aplica", "sin_datos"].includes(item?.estado_obra))
+      .filter((item) => ["aplica", "sin_datos", "pendiente", "no_determinado"].includes(item?.estado_obra))
       .map((item) => item?.clave)
       .filter(Boolean),
   );

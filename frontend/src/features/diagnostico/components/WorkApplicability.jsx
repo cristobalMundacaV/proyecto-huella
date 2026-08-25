@@ -164,6 +164,9 @@ export default function WorkApplicability({
                 }),
             );
             onChange?.(item.capacidad.clave, estado);
+            window.dispatchEvent(new CustomEvent("carbono-zero:work-applicability-updated", {
+                detail: { organizationId, workId, key: item.capacidad.clave, estado },
+            }));
         } catch (requestError) {
             setError(
                 requestError
