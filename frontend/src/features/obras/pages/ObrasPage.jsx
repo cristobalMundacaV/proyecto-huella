@@ -7,12 +7,18 @@ import WorkCard from "../components/WorkCard";
 import { createOrganizationWork, getOrganizationWorks, getWorkContext } from "../services/workspaceApi";
 import { Button, EmptyState, ErrorState, Input, Modal, SearchInput, Select } from "@/shared/ui";
 import PlatformLoader from "@/shared/components/PlatformLoader";
+import ChileLocationFields from "@/shared/components/ChileLocationFields";
+const PROJECT_TYPES = ["Edificación habitacional", "Edificación comercial", "Edificación industrial", "Infraestructura vial", "Infraestructura sanitaria", "Urbanización", "Obra pública / equipamiento", "Otro"];
 const initialForm = {
   nombre: "",
   fecha_inicio: "",
-  tipo_proyecto: "Otro",
+  fecha_termino_estimada: "",
+  region: "",
+  comuna: "",
+  tipo_proyecto: "",
   superficie_m2: "",
   ubicacion: "",
+  codigo_interno: "",
 };
 const workId = (work) => String(work?.id || work?.obra_id || work?.codigo_obra || "");
 const attentionRank = (status) => {
@@ -99,15 +105,27 @@ export default function ObrasPage() {
 
   const submit = async (event) => {
     event.preventDefault();
+    if (!form.nombre.trim() || !form.fecha_inicio || !form.region || !form.comuna || !form.tipo_proyecto) {
+      setFormError("Completa el nombre, la fecha de inicio, la región, la comuna y el tipo de proyecto para continuar.");
+      return;
+    }
+    if (form.fecha_termino_estimada && form.fecha_termino_estimada < form.fecha_inicio) {
+      setFormError("La fecha estimada de término debe ser igual o posterior a la fecha de inicio.");
+      return;
+    }
     setSaving(true);
     setFormError("");
     const payload = {
       nombre: form.nombre.trim(),
       fecha_inicio: form.fecha_inicio,
+      region: form.region,
+      comuna: form.comuna,
+      tipo_proyecto: form.tipo_proyecto,
     };
     if (form.ubicacion.trim()) payload.ubicacion = form.ubicacion.trim();
+    if (form.fecha_termino_estimada) payload.fecha_termino_estimada = form.fecha_termino_estimada;
+    if (form.codigo_interno.trim()) payload.codigo_interno = form.codigo_interno.trim();
     if (preset.key === "construccion") {
-      payload.tipo_proyecto = form.tipo_proyecto;
       if (form.superficie_m2 !== "") payload.superficie_m2 = form.superficie_m2;
     }
 
@@ -256,12 +274,17 @@ export default function ObrasPage() {
       open={open}
       onClose={closeModal}
       title={`Nueva ${preset.unitLabel.toLowerCase()}`}
-      description={`Ingresa los datos básicos de la ${preset.unitLabel.toLowerCase()}. Podrás completar la información ambiental después.`}
+      description="Define el contexto operacional básico. La configuración ambiental se completará posteriormente."
     >
       <form className="space-y-5" onSubmit={submit}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Input required label="Nombre" value={form.nombre} onChange={(event) => setForm((value) => ({ ...value, nombre: event.target.value }))} />
+          <Input required label="Nombre de la obra" value={form.nombre} onChange={(event) => setForm((value) => ({ ...value, nombre: event.target.value }))} />
           <Input required type="date" label="Fecha de inicio" value={form.fecha_inicio} onChange={(event) => setForm((value) => ({ ...value, fecha_inicio: event.target.value }))} />
+          <ChileLocationFields required region={form.region} comuna={form.comuna} onChange={({ region, comuna }) => setForm((value) => ({ ...value, region, comuna }))} />
+          <Select required label="Tipo de proyecto" value={form.tipo_proyecto} onChange={(event) => setForm((value) => ({ ...value, tipo_proyecto: event.target.value }))}>
+            <option value="" disabled>Selecciona un tipo de proyecto</option>
+            {PROJECT_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+          </Select>
         </div>
 
         <details className="group rounded-2xl border border-emerald-900/10 bg-emerald-50/40 p-4 transition open:bg-emerald-50/70">
@@ -271,7 +294,14 @@ export default function ObrasPage() {
 
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Input
-              label="Ubicación"
+              type="date"
+              min={form.fecha_inicio || undefined}
+              label="Fecha estimada de término"
+              value={form.fecha_termino_estimada}
+              onChange={(event) => setForm((value) => ({ ...value, fecha_termino_estimada: event.target.value }))}
+            />
+            <Input
+              label="Dirección / referencia"
               value={form.ubicacion}
               onChange={(event) =>
                 setForm((value) => ({
@@ -282,27 +312,6 @@ export default function ObrasPage() {
             />
 
             {preset.key === "construccion" && (
-              <>
-                <Select
-                  label="Tipo de proyecto"
-                  value={form.tipo_proyecto}
-                  onChange={(event) =>
-                    setForm((value) => ({
-                      ...value,
-                      tipo_proyecto: event.target.value,
-                    }))
-                  }
-                >
-                  <option>Vivienda</option>
-                  <option>Edificio habitacional</option>
-                  <option>Infraestructura</option>
-                  <option>Industrial</option>
-                  <option>Comercial</option>
-                  <option>Obra publica</option>
-                  <option>Urbanizacion</option>
-                  <option>Otro</option>
-                </Select>
-
                 <Input
                   min="0"
                   step="0.001"
@@ -316,8 +325,8 @@ export default function ObrasPage() {
                     }))
                   }
                 />
-              </>
             )}
+            <Input maxLength={120} label="Código interno / contrato / centro de costo" value={form.codigo_interno} onChange={(event) => setForm((value) => ({ ...value, codigo_interno: event.target.value }))} />
           </div>
         </details>
 

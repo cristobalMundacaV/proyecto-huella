@@ -1207,6 +1207,13 @@ class Obra(models.Model):
         OBRA_PUBLICA = "Obra publica", "Obra publica"
         URBANIZACION = "Urbanizacion", "Urbanizacion"
         OTRO = "Otro", "Otro"
+        EDIFICACION_HABITACIONAL = "Edificación habitacional", "Edificación habitacional"
+        EDIFICACION_COMERCIAL = "Edificación comercial", "Edificación comercial"
+        EDIFICACION_INDUSTRIAL = "Edificación industrial", "Edificación industrial"
+        INFRAESTRUCTURA_VIAL = "Infraestructura vial", "Infraestructura vial"
+        INFRAESTRUCTURA_SANITARIA = "Infraestructura sanitaria", "Infraestructura sanitaria"
+        OBRA_PUBLICA_EQUIPAMIENTO = "Obra pública / equipamiento", "Obra pública / equipamiento"
+        URBANIZACION_ACENTUADA = "Urbanización", "Urbanización"
 
     class Estado(models.TextChoices):
         PLANIFICADA = "planificada", "Planificada"
@@ -1242,6 +1249,7 @@ class Obra(models.Model):
     ubicacion = models.CharField(max_length=240, blank=True)
     region = models.CharField(max_length=120, blank=True)
     comuna = models.CharField(max_length=120, blank=True)
+    codigo_interno = models.CharField(max_length=120, blank=True)
     mandante = models.CharField(max_length=180, blank=True)
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.EN_EJECUCION)
     estado_ambiental = models.CharField(max_length=30, choices=EstadoAmbiental.choices, default=EstadoAmbiental.CONFIGURACION, db_index=True)

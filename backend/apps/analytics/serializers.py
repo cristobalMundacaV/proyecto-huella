@@ -77,6 +77,7 @@ class OrganizacionSerializer(serializers.ModelSerializer):
             "rut",
             "region",
             "comuna",
+            "codigo_interno",
             "direccion",
             "rubro",
             "preset",
