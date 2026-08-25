@@ -11,13 +11,23 @@ from ..models import AreaCapacidadAmbiental, AreaOperacional, CapacidadAmbiental
 from .chile_locations import validate_chile_location
 
 FLOW_CATALOG = {
-    "materiales": ("Materiales e insumos", "Recepcion, utilizacion y trazabilidad."), "transporte": ("Transporte y logistica", "Viajes, cargas y rutas."),
-    "combustibles": ("Combustibles", "Consumo movil y estacionario."), "maquinaria": ("Maquinaria y equipos", "Uso, horas y mantenimiento."),
-    "energia": ("Energia", "Consumo energetico."), "agua": ("Agua", "Consumo, abastecimiento y medicion."), "residuos": ("Residuos", "Generacion, valorizacion y disposicion."),
-    "ruido": ("Ruido", "Mediciones y seguimiento."), "hidrica_suelo": ("Gestion hidrica y suelo", "Drenajes, descargas e intervencion."),
-    "generacion_propia": ("Generacion propia", "Energia producida."), "procesos_productivos": ("Procesos productivos", "Procesos especificos del rubro."), "otros": ("Otros", "Otros aspectos configurables."),
+    "materiales": ("Materiales e insumos", "Uso y trazabilidad de materiales e insumos."),
+    "transporte": ("Transporte", "Traslados, viajes y movimiento de cargas."),
+    "combustibles": ("Combustibles", "Consumo de combustibles de fuentes móviles y estacionarias."),
+    "energia": ("Energía", "Consumo energético de la operación."),
+    "agua": ("Agua", "Consumo, abastecimiento y medición de agua."),
+    "residuos_no_peligrosos": ("Residuos no peligrosos", "Generación, valorización y disposición de residuos no peligrosos."),
+    "residuos_peligrosos": ("Residuos peligrosos", "Generación, almacenamiento, transporte y disposición de residuos peligrosos."),
+    "ruido": ("Ruido", "Mediciones y seguimiento de emisiones de ruido."),
+    "emisiones_atmosfericas": ("Emisiones atmosféricas", "Emisiones de fuentes móviles, estacionarias y material particulado."),
+    "suelo": ("Suelo", "Intervenciones, afectaciones y seguimiento del suelo."),
+    "sustancias_peligrosas": ("Sustancias peligrosas", "Manejo y trazabilidad de sustancias peligrosas."),
+    "biodiversidad_vegetacion": ("Biodiversidad / vegetación", "Interacción con biodiversidad, flora y vegetación."),
+    "efluentes_descargas": ("Efluentes / descargas", "Generación, control y seguimiento de efluentes y descargas."),
+    "generacion_energia": ("Generación de energía", "Energía generada dentro de la operación."),
+    "otros": ("Otros", "Otras dimensiones ambientales configurables."),
 }
-AREA_FLOW_SUGGESTIONS = {"bodega": ["materiales", "residuos"], "maquinaria_operaciones": ["maquinaria", "combustibles"], "logistica_transporte": ["transporte", "combustibles"], "administracion_compras": ["materiales", "energia", "agua", "combustibles"], "calidad_laboratorio": ["ruido", "agua", "hidrica_suelo"]}
+AREA_FLOW_SUGGESTIONS = {"bodega": ["materiales", "residuos_no_peligrosos", "residuos_peligrosos", "sustancias_peligrosas"], "maquinaria_equipos": ["combustibles", "emisiones_atmosfericas", "ruido"], "logistica_transporte": ["transporte", "combustibles", "emisiones_atmosfericas"], "administracion": ["energia", "agua"], "compras_adquisiciones": ["materiales"], "calidad_laboratorio": ["ruido", "agua", "efluentes_descargas", "suelo"]}
 
 AREA_CATALOGS = {
     "construccion": [
@@ -132,20 +142,23 @@ def apply_onboarding_step(organization, user, step, payload):
         stored[str(step)] = {"areas": normalized}
     elif step == 3:
         catalog = ensure_flow_catalog(); selected = payload.get("flujos", {})
+        if not isinstance(selected, dict) or not selected:
+            raise ValueError("Selecciona al menos un aspecto ambiental para continuar.")
         relations = {}
         for key, availability in selected.items():
             if key not in catalog: continue
             state = CapacidadOrganizacion.Estado.APLICA if availability in {"regular", "parcial"} else CapacidadOrganizacion.Estado.SIN_DATOS if availability == "sin_informacion" else CapacidadOrganizacion.Estado.PENDIENTE_DIAGNOSTICO
             relations[key] = CapacidadOrganizacion.objects.update_or_create(organizacion=organization, capacidad=catalog[key], defaults={"estado": state, "disponibilidad_inicial": availability})[0]
         organization.capacidades_ambientales.exclude(capacidad__clave__in=relations).update(estado=CapacidadOrganizacion.Estado.NO_APLICA)
-        AreaCapacidadAmbiental.objects.filter(area__organizacion=organization).delete()
-        custom = payload.get("relaciones", {})
-        active_area_types = set(organization.areas_operacionales.filter(activa=True).values_list("tipo", flat=True))
-        if set(custom) - active_area_types: raise ValueError("Una de las áreas no pertenece a la estructura activa de la organización.")
-        if any(set(keys) - set(relations) for keys in custom.values()): raise ValueError("Uno de los flujos no pertenece a la organización.")
-        for area in organization.areas_operacionales.filter(activa=True):
-            for key in custom.get(area.tipo, AREA_FLOW_SUGGESTIONS.get(area.tipo, [])):
-                if key in relations: AreaCapacidadAmbiental.objects.get_or_create(area=area, capacidad_organizacion=relations[key])
+        if "relaciones" in payload:
+            AreaCapacidadAmbiental.objects.filter(area__organizacion=organization).delete()
+            custom = payload.get("relaciones", {})
+            active_area_types = set(organization.areas_operacionales.filter(activa=True).values_list("tipo", flat=True))
+            if set(custom) - active_area_types: raise ValueError("Una de las áreas no pertenece a la estructura activa de la organización.")
+            if any(set(keys) - set(relations) for keys in custom.values()): raise ValueError("Uno de los flujos no pertenece a la organización.")
+            for area in organization.areas_operacionales.filter(activa=True):
+                for key in custom.get(area.tipo, []):
+                    if key in relations: AreaCapacidadAmbiental.objects.get_or_create(area=area, capacidad_organizacion=relations[key])
         if DiagnosticoAmbientalInicial.objects.filter(organizacion=organization, obra=None).exists(): regenerate_diagnostic(organization, user, stored.get("4", {}))
     elif step == 4:
         regenerate_diagnostic(organization, user, payload)

@@ -1,8 +1,8 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
 
-from .models import AreaOperacional, Organizacion
-from .services.onboarding import apply_onboarding_step, area_catalog_for
+from .models import AreaCapacidadAmbiental, AreaOperacional, Organizacion
+from .services.onboarding import FLOW_CATALOG, apply_onboarding_step, area_catalog_for
 
 
 class OnboardingStructureTests(TestCase):
@@ -52,3 +52,20 @@ class OnboardingStructureTests(TestCase):
         apply_onboarding_step(self.organization, self.user, 2, {"areas": [{"tipo": "bodega", "nombre": "Bodega"}]})
         self.assertTrue(self.organization.areas_operacionales.filter(nombre="Bodega").exists())
         self.assertFalse(other.areas_operacionales.exists())
+
+    def test_environmental_catalog_excludes_assets_and_processes(self):
+        self.assertNotIn("maquinaria", FLOW_CATALOG)
+        self.assertNotIn("procesos_productivos", FLOW_CATALOG)
+        self.assertIn("residuos_no_peligrosos", FLOW_CATALOG)
+        self.assertIn("residuos_peligrosos", FLOW_CATALOG)
+        self.assertIn("emisiones_atmosfericas", FLOW_CATALOG)
+        self.assertIn("suelo", FLOW_CATALOG)
+
+    def test_requires_at_least_one_environmental_aspect(self):
+        with self.assertRaisesMessage(ValueError, "Selecciona al menos un aspecto ambiental"):
+            apply_onboarding_step(self.organization, self.user, 3, {"flujos": {}})
+
+    def test_onboarding_flow_selection_does_not_assign_areas(self):
+        AreaOperacional.objects.create(organizacion=self.organization, nombre="Bodega", tipo="bodega")
+        apply_onboarding_step(self.organization, self.user, 3, {"flujos": {"residuos_peligrosos": "no_seguro"}})
+        self.assertFalse(AreaCapacidadAmbiental.objects.filter(area__organizacion=self.organization).exists())
