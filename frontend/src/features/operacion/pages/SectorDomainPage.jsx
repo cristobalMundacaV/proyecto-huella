@@ -40,8 +40,72 @@ import { getEnvironmentalDomain } from "@/shared/config/environmentalDomains";
 
 const PAGE_SIZE = 8;
 
-const qualityTone = (state) => state === "validada" ? "success" : state === "rechazada" ? "danger" : "warning";
-const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
+const qualityTone = (state) =>
+  state === "validada"
+    ? "success"
+    : state === "rechazada"
+      ? "danger"
+      : "warning";
+
+const DISPLAY_LABELS = {
+  diesel: "Diésel",
+  gasolina: "Gasolina",
+  gas_licuado: "Gas licuado",
+  gas_natural: "Gas natural",
+
+  generador: "Generador",
+  maquinaria: "Maquinaria",
+  vehiculo: "Vehículo",
+  equipo_menor: "Equipo menor",
+  calefaccion: "Calefacción",
+
+  obra: "Obra",
+  manual: "Manual",
+  declarativo: "Declarativo",
+  pendiente: "Pendiente",
+  validada: "Validada",
+  rechazada: "Rechazada",
+
+  combustible_consumido:
+    "Combustible consumido",
+};
+
+function humanize(value) {
+  if (!value) {
+    return "Sin información";
+  }
+
+  const raw =
+    String(value);
+
+  if (DISPLAY_LABELS[raw]) {
+    return DISPLAY_LABELS[raw];
+  }
+
+  const normalized =
+    raw.replaceAll(
+      "_",
+      " ",
+    );
+
+  return (
+    normalized
+      .charAt(0)
+      .toUpperCase() +
+    normalized.slice(1)
+  );
+}
+
+function resourceLabel(value) {
+  if (!value) {
+    return "Sin tipo informado";
+  }
+
+  return (
+    DISPLAY_LABELS[value] ||
+    humanize(value)
+  );
+}
 
 function measurementValue(observation) {
   if (observation.valor_numerico !== null && observation.valor_numerico !== undefined) {
@@ -115,10 +179,125 @@ export default function SectorDomainPage({ domain }) {
   const applicabilityBadge = noApplicable ? "No aplica" : unresolved ? "Aplicabilidad por definir" : "Aplica";
   useEffect(() => { setPage(1); }, [domain, measurements.length, persistedWorkId]);
   const pagedMeasurements = useMemo(() => measurements.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [measurements, page]);
+  const latestMeasurement =
+    useMemo(
+      () => {
+        if (
+          !measurements.length
+        ) {
+          return null;
+        }
+
+        return [
+          ...measurements,
+        ].sort(
+          (
+            left,
+            right,
+          ) => {
+            const leftDate =
+              left.observation
+                ?.timestamp_observacion ||
+              left.record
+                ?.periodo_inicio;
+
+            const rightDate =
+              right.observation
+                ?.timestamp_observacion ||
+              right.record
+                ?.periodo_inicio;
+
+            return (
+              new Date(
+                rightDate,
+              ) -
+              new Date(
+                leftDate,
+              )
+            );
+          },
+        )[0];
+      },
+      [measurements],
+    );
+
+  const fuelTotalMetric =
+    additive.find(
+      (metric) =>
+        metric.concepto ===
+        "combustible_consumido" &&
+        !metric.registros_ambiguos,
+    );
+
+  const heroStats =
+    domain ===
+      "combustibles" &&
+      latestMeasurement
+      ? [
+        {
+          label:
+            "Último registro",
+
+          value:
+            formatDateTime(
+              latestMeasurement
+                .observation
+                ?.timestamp_observacion ||
+              latestMeasurement
+                .record
+                ?.periodo_inicio,
+            ),
+        },
+
+        {
+          label:
+            "Consumo registrado",
+
+          value:
+            fuelTotalMetric
+              ?.total !==
+              null &&
+              fuelTotalMetric
+                ?.total !==
+              undefined
+              ? `${formatNumber(
+                fuelTotalMetric.total,
+              )} ${fuelTotalMetric.unit ||
+              ""
+                }`.trim()
+              : "Sin total disponible",
+        },
+
+        {
+          label:
+            "Último origen",
+
+          value:
+            latestMeasurement
+              .observation
+              ?.fuente_detalle
+              ?.nombre ||
+            "Sin fuente identificada",
+        },
+
+        {
+          label:
+            "Estado del dato",
+
+          value:
+            humanize(
+              latestMeasurement
+                .observation
+                ?.estado,
+            ),
+        },
+      ]
+      : [];
 
   return (
     <OperationDomainShell
       domainKey={domain}
+      heroStats={heroStats}
       title={config.label}
       description={config.question}
       badges={[applicabilityBadge, recordsReady ? (records.length ? `${records.length} ${records.length === 1 ? "registro" : "registros"}` : "Sin registros") : "Registros no disponibles", noApplicable ? "Flujo deshabilitado" : unresolved ? "Requiere definición" : "Flujo habilitado"]}
@@ -159,100 +338,339 @@ export default function SectorDomainPage({ domain }) {
 
         {noApplicable
           ? <EmptyState
-              title="No aplica a esta obra"
-              description="Este ámbito está marcado como no aplicable. La ausencia de registros no se interpreta como cero."
-            />
+            title="No aplica a esta obra"
+            description="Este ámbito está marcado como no aplicable. La ausencia de registros no se interpreta como cero."
+          />
           : unresolved
             ? <EmptyState
-                title="Aplicabilidad por definir"
-                description="Aún no existe información suficiente para determinar si este ámbito aplica a la obra."
-              />
+              title="Aplicabilidad por definir"
+              description="Aún no existe información suficiente para determinar si este ámbito aplica a la obra."
+            />
             : !records.length
               ? <EmptyState
                 title="Sin información registrada"
                 description={`Aún no hay registros de ${config.label.toLowerCase()} para esta obra. Comienza registrando información o adjuntando documentación de respaldo.`}
               />
-          : <section>
-            <SectionHeader
-              eyebrow="ACTIVIDAD REGISTRADA"
-              title={
-                domain === "ruido"
-                  ? "Mediciones acústicas"
-                  : domain === "suelo"
-                    ? "Condiciones registradas"
-                    : "Registros recientes"
-              }
-              description="Valor observado, contexto y origen se mantienen separados."
-              count={measurements.length}
-            />
-            {!measurements.length
-              ? <EmptyState title="Sin mediciones disponibles" description="Existen registros del dominio, pero no contienen observaciones visibles en el contrato actual." />
-              : <TableShell>
-                <TableHead><tr>
-                  <TableCell as="th">Fecha</TableCell>
-                  <TableCell as="th">Concepto</TableCell>
-                  <TableCell as="th">Valor</TableCell>
-                  <TableCell as="th">Contexto</TableCell>
-                  <TableCell as="th">Calidad</TableCell>
-                  <TableCell as="th">Origen</TableCell>
-                </tr></TableHead>
-                <TableBody columns={6}>{pagedMeasurements.map(({ record, observation }) => {
-                  const contextLabel = pointNames.get(String(record.punto))
-                    || record.ubicacion_contexto
-                    || humanize(record.granularidad);
-                  const hasTrace = observation.evidencia || observation.fuente_detalle;
-                  return <tr key={observation.id}>
-                    <TableCell>{formatDateTime(observation.timestamp_observacion || record.periodo_inicio)}</TableCell>
-                    <TableCell><span className="font-bold">{humanize(observation.concepto)}</span>{(record.tipo_recurso || record.metrica) && <span className="block text-xs text-[var(--text-muted)]">{record.tipo_recurso || record.metrica}</span>}</TableCell>
-                    <TableCell>{measurementValue(observation)}</TableCell>
-                    <TableCell>{contextLabel}</TableCell>
-                    <TableCell><DataQualityBadge label={humanize(observation.estado)} tone={qualityTone(observation.estado)} /></TableCell>
-                    <TableCell>{observation.sensor_detalle
-                      ? <Link className="font-bold text-[var(--brand-primary)]" to={`/operacion/sensores/${observation.sensor_detalle.id}`}>Sensor</Link>
-                      : hasTrace
-                        ? <TraceabilityLink onClick={() => setTrace(observation)} />
-                        : "Sin origen identificable"}</TableCell>
-                  </tr>;
-                })}</TableBody>
-              </TableShell>}
-            <Pagination page={page} totalItems={measurements.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel={domain === "ruido" ? "mediciones acústicas" : "registros"} />
-          </section>}
+              : <section>
+                <SectionHeader
+                  eyebrow="ACTIVIDAD REGISTRADA"
+                  title={
+                    domain === "ruido"
+                      ? "Mediciones acústicas"
+                      : domain === "suelo"
+                        ? "Condiciones registradas"
+                        : "Registros recientes"
+                  }
+                  description={
+                    domain === "combustibles"
+                      ? "Consumos registrados, uso, fuente y trazabilidad documental."
+                      : "Valor observado, contexto y origen se mantienen separados."
+                  }
+                  count={measurements.length}
+                />
+                {!measurements.length
+                  ? <EmptyState title="Sin mediciones disponibles" description="Existen registros del dominio, pero no contienen observaciones visibles en el contrato actual." />
+                  : (
+                    <TableShell>
+                      <TableHead>
+                        <tr>
+                          {domain ===
+                            "combustibles" ? (
+                            <>
+                              <TableCell as="th">
+                                Fecha
+                              </TableCell>
+
+                              <TableCell as="th">
+                                Tipo de combustible
+                              </TableCell>
+
+                              <TableCell as="th">
+                                Cantidad
+                              </TableCell>
+
+                              <TableCell as="th">
+                                Uso / destino
+                              </TableCell>
+
+                              <TableCell as="th">
+                                Calidad
+                              </TableCell>
+
+                              <TableCell as="th">
+                                Fuente
+                              </TableCell>
+
+                              <TableCell as="th">
+                                Origen
+                              </TableCell>
+                            </>
+                          ) : (
+                            <>
+                              <TableCell as="th">
+                                Fecha
+                              </TableCell>
+
+                              <TableCell as="th">
+                                Concepto
+                              </TableCell>
+
+                              <TableCell as="th">
+                                Valor
+                              </TableCell>
+
+                              <TableCell as="th">
+                                Contexto
+                              </TableCell>
+
+                              <TableCell as="th">
+                                Calidad
+                              </TableCell>
+
+                              <TableCell as="th">
+                                Origen
+                              </TableCell>
+                            </>
+                          )}
+                        </tr>
+                      </TableHead>
+
+                      <TableBody
+                        columns={
+                          domain ===
+                            "combustibles"
+                            ? 7
+                            : 6
+                        }
+                      >
+                        {pagedMeasurements.map(
+                          ({
+                            record,
+                            observation,
+                          }) => {
+                            const contextLabel =
+                              pointNames.get(
+                                String(
+                                  record.punto,
+                                ),
+                              ) ||
+                              record.ubicacion_contexto ||
+                              humanize(
+                                record.granularidad,
+                              );
+
+                            const hasTrace =
+                              observation.evidencia ||
+                              observation.fuente_detalle;
+
+                            const sourceName =
+                              observation
+                                .fuente_detalle
+                                ?.nombre ||
+                              "Sin fuente identificada";
+
+                            if (
+                              domain ===
+                              "combustibles"
+                            ) {
+                              return (
+                                <tr
+                                  key={
+                                    observation.id
+                                  }
+                                >
+                                  <TableCell>
+                                    {formatDateTime(
+                                      observation.timestamp_observacion ||
+                                      record.periodo_inicio,
+                                    )}
+                                  </TableCell>
+
+                                  <TableCell>
+                                    <span className="font-black">
+                                      {resourceLabel(
+                                        record.tipo_recurso,
+                                      )}
+                                    </span>
+                                  </TableCell>
+
+                                  <TableCell>
+                                    <span className="font-black">
+                                      {measurementValue(
+                                        observation,
+                                      )}
+                                    </span>
+                                  </TableCell>
+
+                                  <TableCell>
+                                    {humanize(
+                                      record.destino_operacional,
+                                    )}
+                                  </TableCell>
+
+                                  <TableCell>
+                                    <DataQualityBadge
+                                      label={humanize(
+                                        observation.estado,
+                                      )}
+                                      tone={qualityTone(
+                                        observation.estado,
+                                      )}
+                                    />
+                                  </TableCell>
+
+                                  <TableCell>
+                                    <span className="font-medium">
+                                      {sourceName}
+                                    </span>
+                                  </TableCell>
+
+                                  <TableCell>
+                                    {observation.sensor_detalle ? (
+                                      <Link
+                                        className="
+                                      font-bold
+                                      text-[var(--brand-primary)]
+                                    "
+                                        to={`/operacion/sensores/${observation.sensor_detalle.id}`}
+                                      >
+                                        Sensor
+                                      </Link>
+                                    ) : hasTrace ? (
+                                      <TraceabilityLink
+                                        label="Ver origen"
+                                        onClick={() =>
+                                          setTrace({
+                                            ...observation,
+                                            __record:
+                                              record,
+                                          })
+                                        }
+                                      />
+                                    ) : (
+                                      "Sin origen identificable"
+                                    )}
+                                  </TableCell>
+                                </tr>
+                              );
+                            }
+
+                            return (
+                              <tr
+                                key={
+                                  observation.id
+                                }
+                              >
+                                <TableCell>
+                                  {formatDateTime(
+                                    observation.timestamp_observacion ||
+                                    record.periodo_inicio,
+                                  )}
+                                </TableCell>
+
+                                <TableCell>
+                                  <span className="font-bold">
+                                    {humanize(
+                                      observation.concepto,
+                                    )}
+                                  </span>
+
+                                  {(record.tipo_recurso ||
+                                    record.metrica) && (
+                                      <span className="
+                                  block text-xs
+                                  text-[var(--text-muted)]
+                                ">
+                                        {resourceLabel(
+                                          record.tipo_recurso ||
+                                          record.metrica,
+                                        )}
+                                      </span>
+                                    )}
+                                </TableCell>
+
+                                <TableCell>
+                                  {measurementValue(
+                                    observation,
+                                  )}
+                                </TableCell>
+
+                                <TableCell>
+                                  {contextLabel}
+                                </TableCell>
+
+                                <TableCell>
+                                  <DataQualityBadge
+                                    label={humanize(
+                                      observation.estado,
+                                    )}
+                                    tone={qualityTone(
+                                      observation.estado,
+                                    )}
+                                  />
+                                </TableCell>
+
+                                <TableCell>
+                                  {hasTrace ? (
+                                    <TraceabilityLink
+                                      onClick={() =>
+                                        setTrace({
+                                          ...observation,
+                                          __record:
+                                            record,
+                                        })
+                                      }
+                                    />
+                                  ) : (
+                                    "Sin origen identificable"
+                                  )}
+                                </TableCell>
+                              </tr>
+                            );
+                          },
+                        )}
+                      </TableBody>
+                    </TableShell>
+                  )}
+                <Pagination page={page} totalItems={measurements.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel={domain === "ruido" ? "mediciones acústicas" : "registros"} />
+              </section>}
       </>}
       {!noApplicable && !unresolved && records.length > 0 && <>
-      <DomainSensorsPanel
-        domain={domain}
-        operation={operation}
-        organizationId={
-          activeOrganizacionId
-        }
-        workId={
-          persistedWorkId
-        }
-        onCreated={
-          reloadOperation
-        }
-      />
+        <DomainQualityPanel
+          domain={domain}
+          organizationId={
+            activeOrganizacionId
+          }
+          workId={
+            persistedWorkId
+          }
+          records={records}
+        />
 
-      <DomainQualityPanel
-        domain={domain}
-        organizationId={
-          activeOrganizacionId
-        }
-        workId={
-          persistedWorkId
-        }
-      />
+        <DomainCalculationPanel
+          domain={domain}
+          operation={operation}
+          organizationId={
+            activeOrganizacionId
+          }
+          onCalculated={
+            reloadOperation
+          }
+        />
 
-      <DomainCalculationPanel
-        domain={domain}
-        operation={operation}
-        organizationId={
-          activeOrganizacionId
-        }
-        onCalculated={
-          reloadOperation
-        }
-      />
+        <DomainSensorsPanel
+          domain={domain}
+          operation={operation}
+          organizationId={
+            activeOrganizacionId
+          }
+          workId={
+            persistedWorkId
+          }
+          onCreated={
+            reloadOperation
+          }
+        />
       </>}
 
       <TraceabilityDrawer

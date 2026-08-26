@@ -1,26 +1,444 @@
-import { Link } from "react-router-dom";
-import { Drawer, StatusBadge } from "@/shared/ui";
-import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
+import {
+  ClipboardList,
+  Database,
+  FileText,
+  ShieldCheck,
+} from "lucide-react";
 
-function Row({ label, value }) { return value === undefined || value === null || value === "" ? null : <div className="grid grid-cols-[130px_1fr] gap-3 border-b border-[var(--border-default)] py-2 text-sm"><dt className="text-[var(--text-muted)]">{label}</dt><dd className="break-words font-medium">{value}</dd></div>; }
-export default function TraceabilityDrawer({ observation, open, onClose, workId }) {
-  if (observation?.provenance_type === "sensor_reading") {
-    const reading = observation.reading;
-    return <Drawer open={open} onClose={onClose} title="Origen del dato"><div className="space-y-6">
-      <section><h3 className="font-bold">Lectura vinculada</h3><p className="mt-1 text-sm text-[var(--text-muted)]">Esta es la procedencia disponible desde el contrato de lectura. La observación asociada existe, pero su detalle completo no fue recuperado.</p><dl><Row label="Valor" value={`${formatNumber(reading.valor_numerico)} ${reading.unidad || ""}`} /><Row label="Concepto" value={reading.concepto?.replaceAll("_", " ")} /><Row label="Fecha" value={formatDateTime(reading.timestamp)} /><Row label="Medición" value="Instrumental" /><Row label="Ingreso" value={reading.metadata_tecnica?.origen_ingreso === "manual" ? "Manual" : undefined} /><Row label="Calidad técnica" value={reading.calidad_tecnica} /></dl></section>
-      <section><h3 className="font-bold">Fuente de datos</h3><dl><Row label="Nombre" value={reading.fuente_nombre || observation.sensor_name} /><Row label="Tipo" value="Sensor" /></dl></section>
-      <p className="text-xs text-[var(--text-muted)]">No se infieren estado ambiental, método de captura de la observación, naturaleza, actividad, evidencia ni confiabilidad.</p>
-    </div></Drawer>;
+import {
+  ButtonLink,
+  Drawer,
+  StatusBadge,
+} from "@/shared/ui";
+
+import {
+  formatDateTime,
+  formatNumber,
+} from "@/shared/utils/formatters";
+
+
+const LABELS = {
+  diesel: "Diésel",
+  gasolina: "Gasolina",
+  gas_licuado: "Gas licuado",
+  gas_natural: "Gas natural",
+  generador: "Generador",
+  maquinaria: "Maquinaria",
+  vehiculo: "Vehículo",
+  equipo_menor: "Equipo menor",
+  calefaccion: "Calefacción",
+  manual: "Manual",
+  declarativo: "Declarativo",
+  pendiente: "Pendiente",
+};
+
+
+function human(value) {
+  if (!value) {
+    return null;
   }
-  const source = observation?.fuente_detalle || observation?.fuente;
-  const evidence = observation?.evidencia_detalle || observation?.evidencia;
-  const version = observation?.version_evidencia_detalle || observation?.version_evidencia;
-  return <Drawer open={open} onClose={onClose} title="Origen del dato">{!observation ? <p className="text-sm text-[var(--text-muted)]">No hay trazabilidad identificable para este dato.</p> : <div className="space-y-6">
-    <section><h3 className="font-bold">Dato observado</h3><dl><Row label="Valor" value={observation.valor_numerico === null ? observation.valor_texto : `${formatNumber(observation.valor_numerico)} ${observation.unidad || ""}`} /><Row label="Concepto" value={observation.concepto?.replaceAll("_", " ")} /><Row label="Estado" value={<StatusBadge label={(observation.estado || "sin estado").replaceAll("_", " ")} />} /><Row label="Fecha" value={formatDateTime(observation.timestamp_observacion)} /></dl></section>
-    <section><h3 className="font-bold">Captura y calidad</h3><dl><Row label="Método" value={observation.metodo_captura} /><Row label="Naturaleza" value={observation.naturaleza} /><Row label="Calidad" value={observation.estado_calidad || observation.estado} /><Row label="Valor original" value={observation.valor_original} /></dl></section>
-    <section><h3 className="font-bold">Fuente de datos</h3><dl><Row label="Nombre" value={source?.nombre || (typeof source === "string" ? source : null)} /><Row label="Tipo" value={source?.tipo_fuente} /><Row label="Confiabilidad" value={source?.confiabilidad} /><Row label="Origen externo" value={source?.identificador_externo} /></dl></section>
-    {(evidence || version) && <section><h3 className="font-bold">Evidencia documental</h3><dl><Row label="Documento" value={evidence?.nombre || observation.evidencia_nombre} /><Row label="Versión" value={version?.version || observation.version_evidencia_version} /><Row label="Archivo" value={version?.nombre_original || observation.version_evidencia_nombre_original} /><Row label="Integridad" value={(version?.checksum_sha256 || observation.version_evidencia_checksum_sha256)?.slice(0, 12)} /></dl>{evidence?.id && <Link className="mt-3 inline-flex text-sm font-bold text-[var(--brand-primary)]" to={`/datos/evidencias/${evidence.id}`}>Ver evidencia</Link>}</section>}
-    {observation.registro_extraido && <section><h3 className="font-bold">Proceso de importación</h3><dl><Row label="Fila" value={observation.registro_extraido.numero_fila} /><Row label="Valor original" value={JSON.stringify(observation.registro_extraido.datos_originales)} /></dl></section>}
-    {workId && <Link className="text-sm font-bold text-[var(--brand-primary)]" to={`/obras/${workId}/operacion`}>Ver operación de la obra</Link>}
-  </div>}</Drawer>;
+
+  if (LABELS[value]) {
+    return LABELS[value];
+  }
+
+  const normalized =
+    String(value)
+      .replaceAll(
+        "_",
+        " ",
+      );
+
+  return (
+    normalized
+      .charAt(0)
+      .toUpperCase() +
+    normalized.slice(1)
+  );
+}
+
+
+function Row({
+  label,
+  value,
+}) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  return (
+    <div className="
+      grid grid-cols-[140px_1fr]
+      gap-4 py-2.5 text-sm
+    ">
+      <dt className="
+        text-[var(--text-muted)]
+      ">
+        {label}
+      </dt>
+
+      <dd className="
+        break-words
+        font-semibold
+        text-[var(--text-primary)]
+      ">
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+
+function Section({
+  icon: Icon,
+  title,
+  children,
+}) {
+  return (
+    <section className="
+      rounded-2xl
+      border border-[var(--border-default)]
+      bg-[var(--bg-surface)]
+      p-4
+    ">
+      <div className="
+        mb-2 flex
+        items-center gap-2
+      ">
+        {Icon && (
+          <span className="
+            flex h-8 w-8
+            items-center justify-center
+            rounded-lg
+            bg-[var(--bg-surface-subtle)]
+            text-[var(--brand-primary)]
+          ">
+            <Icon size={16} />
+          </span>
+        )}
+
+        <h3 className="font-black">
+          {title}
+        </h3>
+      </div>
+
+      <dl>
+        {children}
+      </dl>
+    </section>
+  );
+}
+
+
+export default function TraceabilityDrawer({
+  observation,
+  open,
+  onClose,
+  workId,
+}) {
+  if (
+    observation?.provenance_type ===
+    "sensor_reading"
+  ) {
+    const reading =
+      observation.reading;
+
+    return (
+      <Drawer
+        open={open}
+        onClose={onClose}
+        title="Origen del dato"
+      >
+        <div className="space-y-4">
+          <Section
+            icon={ClipboardList}
+            title="Lectura vinculada"
+          >
+            <Row
+              label="Valor"
+              value={`${formatNumber(
+                reading.valor_numerico,
+              )} ${reading.unidad || ""}`}
+            />
+
+            <Row
+              label="Concepto"
+              value={human(
+                reading.concepto,
+              )}
+            />
+
+            <Row
+              label="Fecha"
+              value={formatDateTime(
+                reading.timestamp,
+              )}
+            />
+
+            <Row
+              label="Medición"
+              value="Instrumental"
+            />
+
+            <Row
+              label="Calidad técnica"
+              value={human(
+                reading.calidad_tecnica,
+              )}
+            />
+          </Section>
+
+          <Section
+            icon={Database}
+            title="Fuente"
+          >
+            <Row
+              label="Nombre"
+              value={
+                reading.fuente_nombre ||
+                observation.sensor_name
+              }
+            />
+
+            <Row
+              label="Tipo"
+              value="Sensor"
+            />
+          </Section>
+        </div>
+      </Drawer>
+    );
+  }
+
+  const source =
+    observation?.fuente_detalle ||
+    observation?.fuente;
+
+  const evidence =
+    observation?.evidencia_detalle ||
+    observation?.evidencia;
+
+  const version =
+    observation
+      ?.version_evidencia_detalle ||
+    observation
+      ?.version_evidencia;
+
+  const record =
+    observation?.__record;
+
+  return (
+    <Drawer
+      open={open}
+      onClose={onClose}
+      title="Origen del dato"
+    >
+      {!observation ? (
+        <p className="
+          text-sm
+          text-[var(--text-muted)]
+        ">
+          No hay trazabilidad
+          identificable para este dato.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          <Section
+            icon={ClipboardList}
+            title="Resumen del registro"
+          >
+            <Row
+              label="Tipo"
+              value={human(
+                record?.tipo_recurso,
+              )}
+            />
+
+            <Row
+              label="Cantidad"
+              value={
+                observation.valor_numerico ===
+                  null
+                  ? observation.valor_texto
+                  : `${formatNumber(
+                    observation.valor_numerico,
+                  )} ${observation.unidad ||
+                    ""
+                    }`.trim()
+              }
+            />
+
+            <Row
+              label="Concepto"
+              value={human(
+                observation.concepto,
+              )}
+            />
+
+            <Row
+              label="Estado"
+              value={
+                <StatusBadge
+                  label={human(
+                    observation.estado ||
+                    "sin_estado",
+                  )}
+                />
+              }
+            />
+
+            <Row
+              label="Fecha"
+              value={formatDateTime(
+                observation.timestamp_observacion,
+              )}
+            />
+          </Section>
+
+          <Section
+            icon={ClipboardList}
+            title="Contexto operacional"
+          >
+            <Row
+              label="Uso / destino"
+              value={human(
+                record?.destino_operacional,
+              )}
+            />
+
+            <Row
+              label="Ubicación"
+              value={
+                record?.ubicacion_contexto ||
+                human(
+                  record?.granularidad,
+                )
+              }
+            />
+          </Section>
+
+          <Section
+            icon={ShieldCheck}
+            title="Captura y calidad"
+          >
+            <Row
+              label="Método"
+              value={human(
+                observation.metodo_captura,
+              )}
+            />
+
+            <Row
+              label="Naturaleza"
+              value={human(
+                observation.naturaleza,
+              )}
+            />
+
+            <Row
+              label="Calidad"
+              value={human(
+                observation.estado_calidad ||
+                observation.estado,
+              )}
+            />
+          </Section>
+
+          <Section
+            icon={Database}
+            title="Fuente"
+          >
+            <Row
+              label="Nombre"
+              value={
+                source?.nombre ||
+                (typeof source ===
+                  "string"
+                  ? source
+                  : null)
+              }
+            />
+
+            <Row
+              label="Tipo"
+              value={human(
+                source?.tipo ||
+                source?.tipo_fuente,
+              )}
+            />
+
+            <Row
+              label="Confiabilidad"
+              value={human(
+                source?.confiabilidad,
+              )}
+            />
+          </Section>
+
+          {(evidence ||
+            version) && (
+              <Section
+                icon={FileText}
+                title="Respaldo documental"
+              >
+                <Row
+                  label="Documento"
+                  value={
+                    evidence?.nombre ||
+                    observation.evidencia_nombre
+                  }
+                />
+
+                <Row
+                  label="Versión"
+                  value={
+                    version?.version ||
+                    observation
+                      .version_evidencia_version
+                  }
+                />
+
+                <Row
+                  label="Archivo"
+                  value={
+                    version?.nombre_original ||
+                    observation
+                      .version_evidencia_nombre_original
+                  }
+                />
+              </Section>
+            )}
+
+          <div className="
+            flex flex-wrap gap-2
+            pt-1
+          ">
+            {evidence?.id && (
+              <ButtonLink
+                variant="secondary"
+                leftIcon={FileText}
+                to={`/datos/evidencias/${evidence.id}`}
+              >
+                Ver evidencia
+              </ButtonLink>
+            )}
+
+            {workId && (
+              <ButtonLink
+                variant="secondary"
+                leftIcon={ClipboardList}
+                to={`/obras/${workId}/operacion`}
+              >
+                Ver operación de la obra
+              </ButtonLink>
+            )}
+          </div>
+        </div>
+      )}
+    </Drawer>
+  );
 }

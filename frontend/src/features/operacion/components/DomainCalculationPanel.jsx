@@ -248,8 +248,8 @@ export default function DomainCalculationPanel({
             {!rows.length ? (
                 <EmptyState
                     icon={Calculator}
-                    title="Sin actividades calculables"
-                    description="Los cálculos aparecerán cuando existan actividades con datos suficientes y gobernados."
+                    title="Aún no hay cálculo ambiental disponible"
+                    description="Este registro todavía no cuenta con una metodología y factores suficientes para generar un resultado ambiental trazable."
                 />
             ) : (
                 <TableShell>

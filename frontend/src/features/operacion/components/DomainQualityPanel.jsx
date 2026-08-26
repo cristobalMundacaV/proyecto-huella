@@ -138,6 +138,7 @@ export default function DomainQualityPanel({
     domain,
     organizationId,
     workId,
+    records = [],
 }) {
     const [
         state,
@@ -282,6 +283,62 @@ export default function DomainQualityPanel({
                 "no_calculable",
         ).length;
 
+    const recordContextByActivity =
+        useMemo(
+            () =>
+                new Map(
+                    records
+                        .map(
+                            (record) => {
+                                const activityId =
+                                    typeof record.actividad ===
+                                        "object"
+                                        ? record.actividad?.id
+                                        : record.actividad;
+
+                                return [
+                                    String(
+                                        activityId ||
+                                        "",
+                                    ),
+                                    {
+                                        resourceType:
+                                            record.tipo_recurso,
+
+                                        destination:
+                                            record.destino_operacional,
+                                    },
+                                ];
+                            },
+                        )
+                        .filter(
+                            ([activityId]) =>
+                                Boolean(
+                                    activityId,
+                                ),
+                        ),
+                ),
+            [records],
+        );
+
+    function resourceLabel(
+        value,
+    ) {
+        const labels = {
+            diesel: "Diésel",
+            gasolina: "Gasolina",
+            gas_licuado:
+                "Gas licuado",
+            gas_natural:
+                "Gas natural",
+        };
+
+        return (
+            labels[value] ||
+            human(value)
+        );
+    }
+
     async function resolve() {
         if (
             !resolution
@@ -332,49 +389,158 @@ export default function DomainQualityPanel({
                 description="Separa calidad del dato, confiabilidad de la fuente y contradicciones que requieren una decisión explícita."
             />
 
-            <div className="grid gap-3 md:grid-cols-3">
-                <div className="rounded-2xl border p-4">
-                    <div className="flex items-center gap-2">
-                        <ShieldCheck
-                            size={18}
-                        />
+            <div className="
+                grid gap-4
+                md:grid-cols-3
+            ">
+                <div className="
+                    rounded-2xl border
+                    border-[var(--border-default)]
+                    bg-[var(--bg-surface)]
+                    p-5 shadow-sm
+                ">
+                    <div className="
+                        flex items-start
+                        justify-between gap-4
+                    ">
+                        <div>
+                            <p className="
+                                text-3xl
+                                font-black
+                                tracking-tight
+                            ">
+                                {quality.length}
+                            </p>
 
-                        <b>
-                            {
-                                quality.length
-                            }{" "}
-                            evaluados
-                        </b>
+                            <p className="
+                                mt-1 font-black
+                            ">
+                                {quality.length === 1
+                                    ? "Registro evaluado"
+                                    : "Registros evaluados"}
+                            </p>
+
+                            <p className="
+                                mt-1 text-xs
+                                text-[var(--text-muted)]
+                            ">
+                                Datos con evaluación
+                                de calidad disponible.
+                            </p>
+                        </div>
+
+                        <span className="
+                            flex h-10 w-10
+                            items-center
+                            justify-center
+                            rounded-xl
+                            bg-emerald-50
+                            text-emerald-700
+                        ">
+                            <ShieldCheck
+                                size={19}
+                            />
+                        </span>
                     </div>
                 </div>
 
-                <div className="rounded-2xl border p-4">
-                    <div className="flex items-center gap-2">
-                        <AlertTriangle
-                            size={18}
-                        />
+                <div className="
+                    rounded-2xl border
+                    border-[var(--border-default)]
+                    bg-[var(--bg-surface)]
+                    p-5 shadow-sm
+                ">
+                    <div className="
+                        flex items-start
+                        justify-between gap-4
+                    ">
+                        <div>
+                            <p className="
+                                text-3xl
+                                font-black
+                                tracking-tight
+                            ">
+                                {reviewCount}
+                            </p>
 
-                        <b>
-                            {
-                                reviewCount
-                            }{" "}
-                            requieren atención
-                        </b>
+                            <p className="
+                                mt-1 font-black
+                            ">
+                                Requieren atención
+                            </p>
+
+                            <p className="
+                                mt-1 text-xs
+                                text-[var(--text-muted)]
+                            ">
+                                Registros cuya calidad
+                                requiere revisión.
+                            </p>
+                        </div>
+
+                        <span className="
+                            flex h-10 w-10
+                            items-center
+                            justify-center
+                            rounded-xl
+                            bg-amber-50
+                            text-amber-700
+                        ">
+                            <AlertTriangle
+                                size={19}
+                            />
+                        </span>
                     </div>
                 </div>
 
-                <div className="rounded-2xl border p-4">
-                    <div className="flex items-center gap-2">
-                        <CheckCircle2
-                            size={18}
-                        />
+                <div className="
+                    rounded-2xl border
+                    border-[var(--border-default)]
+                    bg-[var(--bg-surface)]
+                    p-5 shadow-sm
+                ">
+                    <div className="
+                        flex items-start
+                        justify-between gap-4
+                    ">
+                        <div>
+                            <p className="
+                                text-3xl
+                                font-black
+                                tracking-tight
+                            ">
+                                {
+                                    openDiscrepancies.length
+                                }
+                            </p>
 
-                        <b>
-                            {
-                                openDiscrepancies.length
-                            }{" "}
-                            discrepancias abiertas
-                        </b>
+                            <p className="
+                                mt-1 font-black
+                            ">
+                                Discrepancias abiertas
+                            </p>
+
+                            <p className="
+                                mt-1 text-xs
+                                text-[var(--text-muted)]
+                            ">
+                                Contradicciones todavía
+                                pendientes de resolución.
+                            </p>
+                        </div>
+
+                        <span className="
+                            flex h-10 w-10
+                            items-center
+                            justify-center
+                            rounded-xl
+                            bg-slate-50
+                            text-slate-700
+                        ">
+                            <CheckCircle2
+                                size={19}
+                            />
+                        </span>
                     </div>
                 </div>
             </div>
@@ -555,6 +721,36 @@ export default function DomainQualityPanel({
                                                 const observation =
                                                     item.observacion_detalle;
 
+                                                const activityId =
+                                                    observation
+                                                        ?.actividad
+                                                        ?.id;
+
+                                                const recordContext =
+                                                    recordContextByActivity.get(
+                                                        String(
+                                                            activityId ||
+                                                            "",
+                                                        ),
+                                                    );
+
+                                                const resourceType =
+                                                    recordContext?.resourceType;
+
+                                                const destination =
+                                                    recordContext?.destination;
+
+                                                const observedValue =
+                                                    observation?.valor !==
+                                                        null &&
+                                                        observation?.valor !==
+                                                        undefined
+                                                        ? `${formatNumber(
+                                                            observation.valor,
+                                                        )} ${observation.unidad || ""}`.trim()
+                                                        : observation?.valor_texto ||
+                                                        "Sin valor";
+
                                                 return (
                                                     <tr
                                                         key={
@@ -563,21 +759,32 @@ export default function DomainQualityPanel({
                                                     >
                                                         <TableCell>
                                                             <b>
+                                                                {[
+                                                                    resourceType
+                                                                        ? resourceLabel(
+                                                                            resourceType,
+                                                                        )
+                                                                        : null,
+
+                                                                    observedValue,
+
+                                                                    destination
+                                                                        ? human(
+                                                                            destination,
+                                                                        )
+                                                                        : null,
+                                                                ]
+                                                                    .filter(Boolean)
+                                                                    .join(" · ")}
+                                                            </b>
+
+                                                            <span className="
+        block text-xs
+        text-[var(--text-muted)]
+    ">
                                                                 {human(
                                                                     observation?.concepto,
                                                                 )}
-                                                            </b>
-
-                                                            <span className="block text-xs text-[var(--text-muted)]">
-                                                                {observation?.valor !==
-                                                                    null &&
-                                                                    observation?.valor !==
-                                                                    undefined
-                                                                    ? `${formatNumber(
-                                                                        observation.valor,
-                                                                    )} ${observation.unidad || ""}`
-                                                                    : observation?.valor_texto ||
-                                                                    "Sin valor"}
                                                             </span>
                                                         </TableCell>
 

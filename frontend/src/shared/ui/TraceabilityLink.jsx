@@ -1,2 +1,23 @@
-import {Link2}from"lucide-react";import {Button}from"./Button";
-export default function TraceabilityLink({onClick,label="Ver origen"}){return <Button variant="ghost" size="sm" leftIcon={Link2} onClick={onClick}>{label}</Button>}
+import {
+    FileText,
+} from "lucide-react";
+
+import {
+    Button,
+} from "./Button";
+
+export default function TraceabilityLink({
+    onClick,
+    label = "Ver origen",
+}) {
+    return (
+        <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={FileText}
+            onClick={onClick}
+        >
+            {label}
+        </Button>
+    );
+}
