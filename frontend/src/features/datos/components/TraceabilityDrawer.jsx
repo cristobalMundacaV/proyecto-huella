@@ -413,15 +413,18 @@ export default function TraceabilityDrawer({
               </Section>
             )}
           <div className="
-            grid grid-cols-1 gap-2
-            pt-1 sm:grid-cols-2
-          ">
+  grid grid-cols-1 gap-2
+  pt-1 sm:grid-cols-2
+">
             {evidence?.id && (
               <ButtonLink
-                variant="secondary"
+                variant="primary"
                 leftIcon={FileText}
                 to={`/datos/evidencias/${evidence.id}`}
-                className="w-full"
+                className="
+                  w-full
+                  shadow-sm
+                "
               >
                 Ver evidencia
               </ButtonLink>
@@ -432,7 +435,13 @@ export default function TraceabilityDrawer({
                 variant="secondary"
                 leftIcon={ClipboardList}
                 to={`/obras/${workId}/operacion`}
-                className="w-full"
+                className="
+                  w-full
+                  border-emerald-200
+                  bg-emerald-50
+                  text-emerald-800
+                  hover:bg-emerald-100
+                "
               >
                 Ver operación de la obra
               </ButtonLink>
