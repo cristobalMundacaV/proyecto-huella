@@ -437,6 +437,16 @@ export default function ManualFlowRecordModal({
     ] = useState(false);
 
     const [
+        showNewPointForm,
+        setShowNewPointForm,
+    ] = useState(false);
+
+    const [
+        showNewSourceForm,
+        setShowNewSourceForm,
+    ] = useState(false);
+
+    const [
         saving,
         setSaving,
     ] = useState(false);
@@ -450,6 +460,9 @@ export default function ManualFlowRecordModal({
         if (!open) {
             return;
         }
+
+        setShowNewPointForm(false);
+        setShowNewSourceForm(false);
 
         setForm({
             ...initialForm,
@@ -573,6 +586,7 @@ export default function ManualFlowRecordModal({
                     newPointLocation: "",
                 }),
             );
+            setShowNewPointForm(false);
         } catch (requestError) {
             setError(
                 requestError
@@ -634,6 +648,7 @@ export default function ManualFlowRecordModal({
                         "",
                 }),
             );
+            setShowNewSourceForm(false);
         } catch (requestError) {
             setError(
                 requestError
@@ -1135,109 +1150,89 @@ export default function ManualFlowRecordModal({
                         ),
                     )}
                 </Select>
-                <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] p-4">
-                    <p className="text-sm font-black">
-                        ¿El punto no existe?
-                    </p>
+                <div>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() =>
+                            setShowNewPointForm((current) => !current)
+                        }
+                    >
+                        {showNewPointForm
+                            ? "Ocultar creación de punto"
+                            : "+ Crear nuevo punto"}
+                    </Button>
 
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        <Input
-                            label="Nombre del punto"
-                            value={
-                                form.newPointName
-                            }
-                            onChange={(
-                                event,
-                            ) =>
-                                setForm(
-                                    (current) => ({
-                                        ...current,
-                                        newPointName:
-                                            event.target.value,
-                                    }),
-                                )
-                            }
-                        />
+                    {showNewPointForm && (
+                        <div className="mt-3 rounded-[var(--radius-lg)] border border-[var(--border-default)] p-4">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <Input
+                                    label="Nombre del punto"
+                                    value={form.newPointName}
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            newPointName: event.target.value,
+                                        }))
+                                    }
+                                />
 
-                        <Input
-                            label="Código"
-                            value={
-                                form.newPointCode
-                            }
-                            onChange={(
-                                event,
-                            ) =>
-                                setForm(
-                                    (current) => ({
-                                        ...current,
-                                        newPointCode:
-                                            event.target.value,
-                                    }),
-                                )
-                            }
-                        />
+                                <Input
+                                    label="Código"
+                                    value={form.newPointCode}
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            newPointCode: event.target.value,
+                                        }))
+                                    }
+                                />
 
-                        <Input
-                            label="Tipo"
-                            placeholder={
-                                domain === "agua"
-                                    ? "Ej: medidor_agua"
-                                    : domain === "energia"
-                                        ? "Ej: medidor_tablero_principal"
-                                        : domain === "combustibles"
-                                            ? "Ej: estanque_generador_01"
-                                            : "Ej: punto_monitoreo"
-                            }
-                            value={
-                                form.newPointType
-                            }
-                            onChange={(
-                                event,
-                            ) =>
-                                setForm(
-                                    (current) => ({
-                                        ...current,
-                                        newPointType:
-                                            event.target.value,
-                                    }),
-                                )
-                            }
-                        />
+                                <Input
+                                    label="Tipo"
+                                    placeholder={
+                                        domain === "agua"
+                                            ? "Ej: medidor_agua"
+                                            : domain === "energia"
+                                                ? "Ej: medidor_tablero_principal"
+                                                : domain === "combustibles"
+                                                    ? "Ej: estanque_generador_01"
+                                                    : "Ej: punto_monitoreo"
+                                    }
+                                    value={form.newPointType}
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            newPointType: event.target.value,
+                                        }))
+                                    }
+                                />
 
-                        <Input
-                            label="Ubicación"
-                            placeholder="Ej: acceso norte"
-                            value={
-                                form.newPointLocation
-                            }
-                            onChange={(
-                                event,
-                            ) =>
-                                setForm(
-                                    (current) => ({
-                                        ...current,
-                                        newPointLocation:
-                                            event.target.value,
-                                    }),
-                                )
-                            }
-                        />
-                    </div>
+                                <Input
+                                    label="Ubicación"
+                                    placeholder="Ej: acceso norte"
+                                    value={form.newPointLocation}
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            newPointLocation: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </div>
 
-                    <div className="mt-3">
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            loading={
-                                creatingPoint
-                            }
-                            onClick={
-                                createPoint
-                            }
-                        >
-                            Crear punto
-                        </Button>
-                    </div>
+                            <div className="mt-3">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    loading={creatingPoint}
+                                    onClick={createPoint}
+                                >
+                                    Crear punto
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <Select
@@ -1283,80 +1278,75 @@ export default function ManualFlowRecordModal({
                         ),
                     )}
                 </Select>
-                <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] p-4">
-                    <p className="text-sm font-black">
-                        ¿La fuente no existe?
-                    </p>
+                <div>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() =>
+                            setShowNewSourceForm((current) => !current)
+                        }
+                    >
+                        {showNewSourceForm
+                            ? "Ocultar creación de fuente"
+                            : "+ Crear nueva fuente"}
+                    </Button>
 
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        <Input
-                            label="Nombre de nueva fuente"
-                            value={
-                                form.newSourceName
-                            }
-                            onChange={(
-                                event,
-                            ) =>
-                                setForm(
-                                    (current) => ({
-                                        ...current,
-                                        newSourceName:
-                                            event.target.value,
-                                    }),
-                                )
-                            }
-                        />
+                    {showNewSourceForm && (
+                        <div className="mt-3 rounded-[var(--radius-lg)] border border-[var(--border-default)] p-4">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <Input
+                                    label="Nombre de nueva fuente"
+                                    value={form.newSourceName}
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            newSourceName: event.target.value,
+                                        }))
+                                    }
+                                />
 
-                        <Select
-                            label="Tipo de fuente"
-                            value={
-                                form.newSourceType
-                            }
-                            onChange={(
-                                event,
-                            ) =>
-                                setForm(
-                                    (current) => ({
-                                        ...current,
-                                        newSourceType:
-                                            event.target.value,
-                                    }),
-                                )
-                            }
-                        >
-                            <option value="manual">
-                                Registro manual
-                            </option>
+                                <Select
+                                    label="Tipo de fuente"
+                                    value={form.newSourceType}
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            newSourceType: event.target.value,
+                                        }))
+                                    }
+                                >
+                                    <option value="manual">
+                                        Registro manual
+                                    </option>
 
-                            <option value="documento">
-                                Documento
-                            </option>
+                                    <option value="documento">
+                                        Documento
+                                    </option>
 
-                            <option value="sensor">
-                                Sensor
-                            </option>
+                                    <option value="sensor">
+                                        Sensor
+                                    </option>
 
-                            <option value="integracion">
-                                Integración
-                            </option>
-                        </Select>
-                    </div>
+                                    <option value="integracion">
+                                        Integración
+                                    </option>
+                                </Select>
+                            </div>
 
-                    <div className="mt-3">
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            loading={
-                                creatingSource
-                            }
-                            onClick={
-                                createSource
-                            }
-                        >
-                            Crear fuente
-                        </Button>
-                    </div>
+                            <div className="mt-3">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    loading={creatingSource}
+                                    onClick={createSource}
+                                >
+                                    Crear fuente
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </div>
+
                 <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] p-4">
                     <p className="text-sm font-black">
                         {domain === "combustibles"
@@ -1443,75 +1433,6 @@ export default function ManualFlowRecordModal({
                         />
                     </div>
                 </div>
-                {config.resourceTypes ? (
-                    <Select
-                        required={
-                            config.requiresResourceType
-                        }
-                        label={
-                            domain === "agua"
-                                ? "Fuente de abastecimiento"
-                                : domain === "energia"
-                                    ? "Origen de la energía"
-                                    : domain === "combustibles"
-                                        ? "Tipo de combustible"
-                                        : "Tipo de recurso"
-                        }
-                        value={
-                            form.resourceType
-                        }
-                        onChange={(
-                            event,
-                        ) =>
-                            setForm(
-                                (current) => ({
-                                    ...current,
-                                    resourceType:
-                                        event.target.value,
-                                }),
-                            )
-                        }
-                    >
-                        <option value="">
-                            Selecciona un tipo
-                        </option>
-
-                        {config.resourceTypes.map(
-                            (resource) => (
-                                <option
-                                    key={
-                                        resource.value
-                                    }
-                                    value={
-                                        resource.value
-                                    }
-                                >
-                                    {
-                                        resource.label
-                                    }
-                                </option>
-                            ),
-                        )}
-                    </Select>
-                ) : (
-                    <Input
-                        label="Tipo o recurso"
-                        value={
-                            form.resourceType
-                        }
-                        onChange={(
-                            event,
-                        ) =>
-                            setForm(
-                                (current) => ({
-                                    ...current,
-                                    resourceType:
-                                        event.target.value,
-                                }),
-                            )
-                        }
-                    />
-                )}
 
                 {config.metrics ? (
                     <Select
