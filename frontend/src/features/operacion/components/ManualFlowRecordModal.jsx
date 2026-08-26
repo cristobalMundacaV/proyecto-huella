@@ -133,6 +133,14 @@ const FLOW_CONFIG = {
             true,
         defaultPointType:
             "punto_combustible",
+        uses: [
+            { value: "generador", label: "Generador" },
+            { value: "maquinaria", label: "Maquinaria" },
+            { value: "vehiculo", label: "Vehículo" },
+            { value: "equipo_menor", label: "Equipo menor" },
+            { value: "calefaccion", label: "Calefacción" },
+            { value: "otro", label: "Otro" },
+        ],
         resourceTypes: [
             {
                 value: "diesel",
@@ -155,6 +163,8 @@ const FLOW_CONFIG = {
                 label: "Otro combustible",
             },
         ],
+
+
     },
 
     residuos: {
@@ -361,6 +371,9 @@ const initialForm = {
     metric: "",
     destination: "",
 
+    recordDate: "",
+    use: "",
+
     point: "",
     newPointName: "",
     newPointCode: "",
@@ -373,6 +386,8 @@ const initialForm = {
     evidenceFile: null,
     evidenceName: "",
     evidenceType: "otro",
+
+
 };
 
 export default function ManualFlowRecordModal({
@@ -448,6 +463,8 @@ export default function ManualFlowRecordModal({
             metric:
                 config?.defaultMetric ||
                 "",
+            recordDate:
+                new Date().toISOString().slice(0, 10),
         });
 
         setError("");
@@ -639,6 +656,10 @@ export default function ManualFlowRecordModal({
                 form.value !== "" &&
                 form.source &&
                 (
+                    domain !== "combustibles" ||
+                    form.recordDate
+                ) &&
+                (
                     !config.requiresResourceType ||
                     form.resourceType
                 ) &&
@@ -649,12 +670,14 @@ export default function ManualFlowRecordModal({
                 (
                     !config.requiresMetric ||
                     form.metric
-                ),
+                )
             ),
         [
             config,
+            domain,
             form.destination,
             form.metric,
+            form.recordDate,
             form.resourceType,
             form.source,
             form.value,
@@ -676,6 +699,11 @@ export default function ManualFlowRecordModal({
         try {
             const now =
                 new Date().toISOString();
+
+            const operationalTimestamp =
+                domain === "combustibles" && form.recordDate
+                    ? `${form.recordDate}T12:00:00`
+                    : now;
             let evidenceId = null;
 
             if (form.evidenceFile) {
@@ -737,7 +765,7 @@ export default function ManualFlowRecordModal({
                         nombre:
                             `Registro manual · ${domain}`,
                         timestamp_inicio:
-                            now,
+                            operationalTimestamp,
                     },
                 );
 
@@ -760,7 +788,7 @@ export default function ManualFlowRecordModal({
                                 : domain
                     ),
                 periodo_inicio:
-                    now,
+                    operationalTimestamp,
                 granularidad:
                     form.point
                         ? "punto"
@@ -834,8 +862,12 @@ export default function ManualFlowRecordModal({
             onClose={() => { if (!saving) onClose(); }}
             eyebrow="REGISTRO OPERACIONAL"
             icon={ClipboardPlus}
-            title="Registrar información"
-            description="El registro quedará asociado a esta obra y conservará su fuente."
+            title={domain === "combustibles" ? "Registrar combustible" : "Registrar información"}
+            description={
+                domain === "combustibles"
+                    ? "Registra el consumo real de combustible y conserva su origen y trazabilidad."
+                    : "El registro quedará asociado a esta obra y conservará su fuente."
+            }
             footer={<div className="flex justify-end gap-2"><Button type="button" variant="secondary" disabled={saving} onClick={onClose}>Cancelar</Button><Button form="manual-flow-form" type="submit" loading={saving} disabled={!canSubmit}>Registrar</Button></div>}
         >
             <form
@@ -843,8 +875,233 @@ export default function ManualFlowRecordModal({
                 className="space-y-4"
                 onSubmit={submit}
             >
+                {config.resourceTypes && (
+                    <Select
+                        required={config.requiresResourceType}
+                        label={
+                            domain === "combustibles"
+                                ? "Tipo de combustible"
+                                : "Tipo de recurso"
+                        }
+                        value={form.resourceType}
+                        onChange={(event) =>
+                            setForm((current) => ({
+                                ...current,
+                                resourceType: event.target.value,
+                            }))
+                        }
+                    >
+                        <option value="">
+                            {domain === "combustibles"
+                                ? "Selecciona un combustible"
+                                : "Selecciona un tipo"}
+                        </option>
+
+                        {config.resourceTypes.map((resource) => (
+                            <option
+                                key={resource.value}
+                                value={resource.value}
+                            >
+                                {resource.label}
+                            </option>
+                        ))}
+                    </Select>
+                )}
+
+                {config.modes && (
+                    <Select
+                        label="Tipo de registro"
+                        value={
+                            form.mode
+                        }
+                        onChange={(
+                            event,
+                        ) => {
+                            const nextMode =
+                                config.modes.find(
+                                    (mode) =>
+                                        mode.value ===
+                                        event.target.value,
+                                );
+
+                            setForm(
+                                (current) => ({
+                                    ...current,
+                                    mode:
+                                        event.target.value,
+                                    value:
+                                        "",
+                                    unit:
+                                        nextMode?.unit ??
+                                        config.defaultUnit ??
+                                        "",
+                                }),
+                            );
+                        }}
+                    >
+                        {config.modes.map(
+                            (mode) => (
+                                <option
+                                    key={
+                                        mode.value
+                                    }
+                                    value={
+                                        mode.value
+                                    }
+                                >
+                                    {
+                                        mode.label
+                                    }
+                                </option>
+                            ),
+                        )}
+                    </Select>
+                )}
+                {config.destinations && (
+                    <Select
+                        required={
+                            config.requiresDestination
+                        }
+                        label="Destino del residuo"
+                        value={
+                            form.destination
+                        }
+                        onChange={(
+                            event,
+                        ) =>
+                            setForm(
+                                (current) => ({
+                                    ...current,
+                                    destination:
+                                        event.target.value,
+                                }),
+                            )
+                        }
+                    >
+                        <option value="">
+                            Selecciona un destino
+                        </option>
+
+                        {config.destinations.map(
+                            (destination) => (
+                                <option
+                                    key={
+                                        destination.value
+                                    }
+                                    value={
+                                        destination.value
+                                    }
+                                >
+                                    {
+                                        destination.label
+                                    }
+                                </option>
+                            ),
+                        )}
+                    </Select>
+                )}
+                <Input
+                    required
+                    type={
+                        config.modes?.find(
+                            (mode) =>
+                                mode.value ===
+                                form.mode,
+                        )?.valueType === "text"
+                            ? "text"
+                            : "number"
+                    }
+                    step="any"
+                    label={
+                        config.modes?.find(
+                            (mode) =>
+                                mode.value ===
+                                form.mode,
+                        )?.valueType === "text"
+                            ? "Observación"
+                            : domain === "combustibles"
+                                ? "Cantidad"
+                                : "Valor"
+                    }
+                    value={
+                        form.value
+                    }
+                    onChange={(
+                        event,
+                    ) =>
+                        setForm(
+                            (current) => ({
+                                ...current,
+                                value:
+                                    event.target
+                                        .value,
+                            }),
+                        )
+                    }
+                />
+
+                <Input
+                    label="Unidad"
+                    value={
+                        form.unit
+                    }
+                    onChange={(
+                        event,
+                    ) =>
+                        setForm(
+                            (current) => ({
+                                ...current,
+                                unit:
+                                    event.target
+                                        .value,
+                            }),
+                        )
+                    }
+                />
+
+                {domain === "combustibles" && (
+                    <Input
+                        required
+                        type="date"
+                        label="Fecha del registro"
+                        value={form.recordDate}
+                        onChange={(event) =>
+                            setForm((current) => ({
+                                ...current,
+                                recordDate: event.target.value,
+                            }))
+                        }
+                    />
+                )}
+
+                {domain === "combustibles" && config.uses && (
+                    <Select
+                        label="Uso / destino"
+                        value={form.use}
+                        onChange={(event) =>
+                            setForm((current) => ({
+                                ...current,
+                                use: event.target.value,
+                            }))
+                        }
+                    >
+                        <option value="">
+                            Selecciona un uso
+                        </option>
+
+                        {config.uses.map((use) => (
+                            <option
+                                key={use.value}
+                                value={use.value}
+                            >
+                                {use.label}
+                            </option>
+                        ))}
+                    </Select>
+                )}
+
                 <Select
-                    label="Punto ambiental"
+                    label={domain === "combustibles" ? "Punto / ubicación" : "Punto ambiental"}
                     value={
                         form.point
                     }
@@ -982,158 +1239,10 @@ export default function ManualFlowRecordModal({
                         </Button>
                     </div>
                 </div>
-                {config.modes && (
-                    <Select
-                        label="Tipo de registro"
-                        value={
-                            form.mode
-                        }
-                        onChange={(
-                            event,
-                        ) => {
-                            const nextMode =
-                                config.modes.find(
-                                    (mode) =>
-                                        mode.value ===
-                                        event.target.value,
-                                );
-
-                            setForm(
-                                (current) => ({
-                                    ...current,
-                                    mode:
-                                        event.target.value,
-                                    value:
-                                        "",
-                                    unit:
-                                        nextMode?.unit ??
-                                        config.defaultUnit ??
-                                        "",
-                                }),
-                            );
-                        }}
-                    >
-                        {config.modes.map(
-                            (mode) => (
-                                <option
-                                    key={
-                                        mode.value
-                                    }
-                                    value={
-                                        mode.value
-                                    }
-                                >
-                                    {
-                                        mode.label
-                                    }
-                                </option>
-                            ),
-                        )}
-                    </Select>
-                )}
-                {config.destinations && (
-                    <Select
-                        required={
-                            config.requiresDestination
-                        }
-                        label="Destino del residuo"
-                        value={
-                            form.destination
-                        }
-                        onChange={(
-                            event,
-                        ) =>
-                            setForm(
-                                (current) => ({
-                                    ...current,
-                                    destination:
-                                        event.target.value,
-                                }),
-                            )
-                        }
-                    >
-                        <option value="">
-                            Selecciona un destino
-                        </option>
-
-                        {config.destinations.map(
-                            (destination) => (
-                                <option
-                                    key={
-                                        destination.value
-                                    }
-                                    value={
-                                        destination.value
-                                    }
-                                >
-                                    {
-                                        destination.label
-                                    }
-                                </option>
-                            ),
-                        )}
-                    </Select>
-                )}
-                <Input
-                    required
-                    type={
-                        config.modes?.find(
-                            (mode) =>
-                                mode.value ===
-                                form.mode,
-                        )?.valueType === "text"
-                            ? "text"
-                            : "number"
-                    }
-                    step="any"
-                    label={
-                        config.modes?.find(
-                            (mode) =>
-                                mode.value ===
-                                form.mode,
-                        )?.valueType === "text"
-                            ? "Observación"
-                            : "Valor"
-                    }
-                    value={
-                        form.value
-                    }
-                    onChange={(
-                        event,
-                    ) =>
-                        setForm(
-                            (current) => ({
-                                ...current,
-                                value:
-                                    event.target
-                                        .value,
-                            }),
-                        )
-                    }
-                />
-
-                <Input
-                    label="Unidad"
-                    value={
-                        form.unit
-                    }
-                    onChange={(
-                        event,
-                    ) =>
-                        setForm(
-                            (current) => ({
-                                ...current,
-                                unit:
-                                    event.target
-                                        .value,
-                            }),
-                        )
-                    }
-                />
 
                 <Select
                     required
-                    label="Fuente del dato"
+                    label={domain === "combustibles" ? "Origen del dato" : "Fuente del dato"}
                     value={
                         form.source
                     }
@@ -1250,7 +1359,9 @@ export default function ManualFlowRecordModal({
                 </div>
                 <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] p-4">
                     <p className="text-sm font-black">
-                        Evidencia opcional
+                        {domain === "combustibles"
+                            ? "Respaldo del registro"
+                            : "Evidencia opcional"}
                     </p>
 
                     <div className="mt-3 space-y-3">
