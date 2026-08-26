@@ -1898,12 +1898,51 @@ class RegistroFlujoAmbiental(models.Model):
             errors["evento_material"] = (
                 "Un evento material solo puede enlazarse a un flujo de residuo."
             )
+        destinos_residuo = {
+            self.DestinoOperacional.RESIDUO,
+            self.DestinoOperacional.REUTILIZACION,
+            self.DestinoOperacional.RECICLAJE,
+            self.DestinoOperacional.VALORIZACION,
+            self.DestinoOperacional.DISPOSICION,
+            self.DestinoOperacional.SUBPRODUCTO_REUTILIZADO,
+        }
+
+        destinos_combustible = {
+            self.DestinoOperacional.GENERADOR,
+            self.DestinoOperacional.MAQUINARIA,
+            self.DestinoOperacional.VEHICULO,
+            self.DestinoOperacional.EQUIPO_MENOR,
+            self.DestinoOperacional.CALEFACCION,
+            self.DestinoOperacional.OTRO,
+        }
+
         if (
-            self.flujo != self.Flujo.RESIDUO
-            and self.destino_operacional != self.DestinoResiduo.SIN_CLASIFICAR
+            self.flujo == self.Flujo.RESIDUO
+            and self.destino_operacional in destinos_combustible
         ):
             errors["destino_operacional"] = (
-                "El destino operacional aplica al flujo de residuo."
+                "El destino seleccionado no corresponde a un flujo de residuos."
+            )
+
+        if (
+            self.flujo == self.Flujo.COMBUSTIBLE_ESTACIONARIO
+            and self.destino_operacional in destinos_residuo
+        ):
+            errors["destino_operacional"] = (
+                "El uso seleccionado no corresponde a un registro de combustible."
+            )
+
+        if (
+            self.flujo
+            not in {
+                self.Flujo.RESIDUO,
+                self.Flujo.COMBUSTIBLE_ESTACIONARIO,
+            }
+            and self.destino_operacional
+            != self.DestinoOperacional.SIN_CLASIFICAR
+        ):
+            errors["destino_operacional"] = (
+                "Este flujo ambiental no admite un destino operacional."
             )
         if errors:
             raise ValidationError(errors)
