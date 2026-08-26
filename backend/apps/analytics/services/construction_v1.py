@@ -4,8 +4,8 @@ from django.utils import timezone
 
 from ..models import (AplicabilidadCapacidadObra, EventoMaterial, MaterialOperacional, Obra,
                       ProblematicaAmbiental)
-from .foundation import inicializar_capacidades_preset
 from .materials_v2 import material_balance
+from .onboarding import onboarding_environmental_capabilities
 from .sector_flows_v1 import sector_summary
 from .transport_v2 import transport_indicators
 
@@ -62,7 +62,7 @@ def environmental_timeline(work):
 
 
 def work_context(work):
-    capabilities = inicializar_capacidades_preset(work.organizacion)
+    capabilities = onboarding_environmental_capabilities(work.organizacion)
     diagnosis = work.diagnosticos_ambientales.prefetch_related("elementos", "aplicabilidades_capacidades__capacidad").first()
     applicability = {row.capacidad_id: row for row in diagnosis.aplicabilidades_capacidades.all()} if diagnosis else {}
     indicators = construction_indicators(work)

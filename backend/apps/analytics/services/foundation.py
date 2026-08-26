@@ -1,15 +1,10 @@
 from django.db import transaction
 
 from ..models import CapacidadAmbiental, CapacidadOrganizacion, DiagnosticoAmbientalInicial, Organizacion
+from .onboarding import FLOW_CATALOG, onboarding_environmental_capabilities
 
 
-CAPACIDADES_CATALOGO = [
-    ("energia", "Energia"), ("agua", "Agua"), ("combustibles", "Combustibles"),
-    ("transporte", "Transporte"), ("maquinaria", "Maquinaria"), ("mantenimiento", "Mantenimiento"),
-    ("materiales", "Materiales"), ("residuos", "Residuos"),
-    ("generacion_propia", "Generacion propia"), ("continuidad_operacional", "Continuidad operacional"),
-    ("ruido", "Ruido"), ("gestion_hidrica_suelo", "Gestion hidrica y suelo"),
-]
+CAPACIDADES_CATALOGO = [(key, value[0]) for key, value in FLOW_CATALOG.items()]
 
 PRESET_CAPACIDADES = {Organizacion.Preset.CONSTRUCCION: [clave for clave, _ in CAPACIDADES_CATALOGO]}
 
@@ -28,12 +23,15 @@ def inicializar_capacidades_preset(organizacion):
         )
         if creada:
             relacion.recomendada_por_preset = True
-    return CapacidadOrganizacion.objects.filter(organizacion=organizacion).select_related("capacidad")
+    return CapacidadOrganizacion.objects.filter(
+        organizacion=organizacion,
+        capacidad__clave__in=catalogo,
+    ).select_related("capacidad")
 
 
 def resumen_preparacion_ambiental(organizacion):
     diagnostico = DiagnosticoAmbientalInicial.objects.filter(organizacion=organizacion, obra__isnull=True).first()
-    capacidades = CapacidadOrganizacion.objects.filter(organizacion=organizacion)
+    capacidades = onboarding_environmental_capabilities(organizacion)
     configuradas = capacidades.exclude(estado=CapacidadOrganizacion.Estado.PENDIENTE_DIAGNOSTICO).count()
     aplicables = capacidades.exclude(estado__in=[CapacidadOrganizacion.Estado.PENDIENTE_DIAGNOSTICO, CapacidadOrganizacion.Estado.NO_APLICA])
     linea_base_pendiente = aplicables.exclude(estado=CapacidadOrganizacion.Estado.OPERATIVA).exists()

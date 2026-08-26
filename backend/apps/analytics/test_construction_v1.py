@@ -16,6 +16,7 @@ from .services.construction_v1 import (close_environmental_work,
                                        construction_materials,
                                        environmental_timeline, work_context)
 from .services.foundation import inicializar_capacidades_preset
+from .services.onboarding import apply_onboarding_step
 from .services.indicators_v2 import generate_indicator_value
 
 
@@ -55,7 +56,8 @@ class ConstructionV1IntegrationTests(APITestCase):
         second = DiagnosticoAmbientalInicial.objects.create(organizacion=self.org, obra=self.work_b, objetivo_principal="B")
         self.assertNotEqual(first.id, second.id)
         keys = {row.capacidad.clave for row in inicializar_capacidades_preset(self.org)}
-        self.assertTrue({"ruido", "gestion_hidrica_suelo"}.issubset(keys))
+        self.assertTrue({"agua", "suelo", "residuos_no_peligrosos", "residuos_peligrosos"}.issubset(keys))
+        self.assertTrue({"maquinaria", "residuos", "gestion_hidrica_suelo"}.isdisjoint(keys))
 
     def test_work_indicator_never_mixes_concurrent_works(self):
         self.observation(self.activity(self.work_a, "ENERGY-A"), "consumo_energia", Decimal("1000"), "kWh")
@@ -85,8 +87,12 @@ class ConstructionV1IntegrationTests(APITestCase):
             nombre="Otro tenant", tipo="operacional", unidad="kWh", origen_numerador="consumo_energia")
 
     def test_work_context_separates_organization_capability_from_work_diagnosis(self):
-        capabilities = inicializar_capacidades_preset(self.org)
-        noise_org = capabilities.get(capacidad__clave="ruido")
+        apply_onboarding_step(self.org, self.user, 3, {"flujos": {
+            "ruido": "no_seguro",
+            "agua": "no_seguro",
+        }})
+        inicializar_capacidades_preset(self.org)
+        noise_org = self.org.capacidades_ambientales.get(capacidad__clave="ruido")
         noise_org.estado = "operativa"; noise_org.save(update_fields=["estado"])
         no_diagnosis = work_context(self.work_b)
         self.assertEqual(no_diagnosis["diagnostico_obra"]["estado"], "no_determinado")
@@ -101,6 +107,10 @@ class ConstructionV1IntegrationTests(APITestCase):
         self.assertEqual(noise_a["estado_obra"], "aplica")
         organization_noise = next(row for row in diagnosed["capacidades_organizacion"] if row["clave"] == "ruido")
         self.assertEqual(organization_noise["estado_organizacion"], "operativa")
+        self.assertEqual(
+            {row["clave"] for row in diagnosed["capacidades_organizacion"]},
+            {"ruido", "agua"},
+        )
 
     def test_specialized_records_cannot_contradict_activity_work(self):
         activity = self.activity(self.work_a, "FLOW-A", ActividadOperacional.Tipo.CONSUMO_ENERGIA)

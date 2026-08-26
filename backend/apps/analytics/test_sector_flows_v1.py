@@ -30,6 +30,7 @@ from .models import (
 )
 from .services.context_gateway import ContextGateway
 from .services.foundation import inicializar_capacidades_preset
+from .services.onboarding import FLOW_CATALOG
 from .services.sector_flows_v1 import sector_summary
 
 
@@ -482,24 +483,17 @@ class SectorFlowsV1Tests(APITestCase):
         self.assertNotIn("actividad", package)
         self.assertNotIn("queryset", package)
 
-    def test_capacidades_construccion_incluyen_ruido_e_hidrica(self):
+    def test_capacidades_ambientales_usan_catalogo_actual_del_onboarding(self):
         keys = {row.capacidad.clave for row in inicializar_capacidades_preset(self.org)}
-        self.assertTrue(
-            {
-                "energia",
-                "agua",
-                "combustibles",
-                "maquinaria",
-                "mantenimiento",
-                "materiales",
-                "transporte",
-                "generacion_propia",
-                "residuos",
-                "continuidad_operacional",
-                "ruido",
-                "gestion_hidrica_suelo",
-            }.issubset(keys)
-        )
+        self.assertEqual(keys, set(FLOW_CATALOG))
+        self.assertTrue({
+            "maquinaria",
+            "mantenimiento",
+            "generacion_propia",
+            "continuidad_operacional",
+            "residuos",
+            "gestion_hidrica_suelo",
+        }.isdisjoint(keys))
         self.assertTrue(CapacidadAmbiental.objects.get(clave="ruido").activa)
 
     def test_registro_no_crea_metodologias_factores_ni_calculos(self):

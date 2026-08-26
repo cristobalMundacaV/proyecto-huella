@@ -20,9 +20,9 @@ from .serializers_foundation import (
     UnidadOperacionalSerializer,
 )
 from .services.foundation import (
-    inicializar_capacidades_preset,
     resumen_preparacion_ambiental,
 )
+from .services.onboarding import onboarding_environmental_capabilities
 from .permissions import Permission, filter_works_for_user, has_tenant_permission
 
 
@@ -101,11 +101,8 @@ def aplicabilidad_capacidad_obra(
         obra=obra,
     )
 
-    inicializar_capacidades_preset(organizacion)
-
     relacion = get_object_or_404(
-        CapacidadOrganizacion,
-        organizacion=organizacion,
+        onboarding_environmental_capabilities(organizacion),
         capacidad_id=capacidad_id,
     )
 
@@ -145,7 +142,9 @@ def aplicabilidad_capacidad_obra(
 
 @api_view(["GET"])
 def capacidades_organizacion(request, organizacion_id):
-    relaciones = inicializar_capacidades_preset(_organizacion(request, organizacion_id, Permission.PROFILE_VIEW))
+    relaciones = onboarding_environmental_capabilities(
+        _organizacion(request, organizacion_id, Permission.PROFILE_VIEW)
+    )
     return Response(CapacidadOrganizacionSerializer(relaciones, many=True).data)
 
 
@@ -231,5 +230,4 @@ def proceso_operacional_detail(request, organizacion_id, proceso_id):
 @api_view(["GET"])
 def preparacion_ambiental(request, organizacion_id):
     organizacion = _organizacion(request, organizacion_id, Permission.PROFILE_VIEW)
-    inicializar_capacidades_preset(organizacion)
     return Response(resumen_preparacion_ambiental(organizacion))

@@ -3,10 +3,11 @@ from datetime import date
 from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 
-from .models import (AplicabilidadCapacidadObra, CapacidadOrganizacion, DiagnosticoAmbientalInicial, Obra, Organizacion,
+from .models import (AplicabilidadCapacidadObra, CapacidadAmbiental, CapacidadOrganizacion, DiagnosticoAmbientalInicial, Obra, Organizacion,
                      ElementoDiagnosticoAmbiental, ProcesoOperacional, UnidadOperacional,
                      UsuarioOrganizacion)
 from .services.foundation import inicializar_capacidades_preset, resumen_preparacion_ambiental
+from .services.onboarding import apply_onboarding_step
 
 
 class FoundationApiTests(APITestCase):
@@ -26,10 +27,10 @@ class FoundationApiTests(APITestCase):
 
     def test_preset_es_idempotente_y_preserva_personalizacion(self):
         primera = list(inicializar_capacidades_preset(self.organizacion))
-        self.assertEqual(len(primera), 12)
+        self.assertEqual(len(primera), 15)
         capacidad = primera[0]; capacidad.estado = CapacidadOrganizacion.Estado.OPERATIVA; capacidad.save()
         segunda = list(inicializar_capacidades_preset(self.organizacion))
-        self.assertEqual(len(segunda), 12)
+        self.assertEqual(len(segunda), 15)
         capacidad.refresh_from_db(); self.assertEqual(capacidad.estado, "operativa")
 
     def test_estado_invalido_de_capacidad_es_rechazado(self):
@@ -40,7 +41,11 @@ class FoundationApiTests(APITestCase):
     def test_actualiza_aplicabilidad_de_obra_y_persiste_estado(self):
         obra = Obra.objects.create(organizacion=self.organizacion, nombre="Obra aplicable", fecha_inicio=date(2026, 8, 25))
         diagnostico = DiagnosticoAmbientalInicial.objects.create(organizacion=self.organizacion, obra=obra)
-        capacidad = inicializar_capacidades_preset(self.organizacion).first().capacidad
+        apply_onboarding_step(self.organizacion, self.user, 3, {"flujos": {"agua": "no_seguro"}})
+        capacidad = CapacidadOrganizacion.objects.get(
+            organizacion=self.organizacion,
+            capacidad__clave="agua",
+        ).capacidad
         url = f"{self.base}/obras/{obra.id}/aplicabilidades/{capacidad.id}/"
 
         for estado in ("aplica", "pendiente", "no_aplica"):
@@ -51,6 +56,42 @@ class FoundationApiTests(APITestCase):
                 AplicabilidadCapacidadObra.objects.get(obra=obra, capacidad=capacidad, diagnostico=diagnostico).estado,
                 estado,
             )
+
+    def test_aplicabilidad_devuelve_exactamente_los_aspectos_del_onboarding(self):
+        apply_onboarding_step(self.organizacion, self.user, 3, {"flujos": {
+            "materiales": "no_seguro",
+            "agua": "no_seguro",
+            "residuos_no_peligrosos": "no_seguro",
+            "residuos_peligrosos": "no_seguro",
+            "suelo": "no_seguro",
+        }})
+        inicializar_capacidades_preset(self.organizacion)
+
+        response = self.client.get(f"{self.base}/capacidades-ambientales/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [row["capacidad"]["clave"] for row in response.data],
+            ["materiales", "agua", "residuos_no_peligrosos", "residuos_peligrosos", "suelo"],
+        )
+
+    def test_aplicabilidad_rechaza_capacidad_legacy_no_habilitada_en_onboarding(self):
+        obra = Obra.objects.create(organizacion=self.organizacion, nombre="Obra moderna", fecha_inicio=date(2026, 8, 25))
+        DiagnosticoAmbientalInicial.objects.create(organizacion=self.organizacion, obra=obra)
+        apply_onboarding_step(self.organizacion, self.user, 3, {"flujos": {"agua": "no_seguro"}})
+        legacy_capability = CapacidadAmbiental.objects.create(clave="maquinaria", nombre="Maquinaria")
+        legacy = CapacidadOrganizacion.objects.create(
+            organizacion=self.organizacion,
+            capacidad=legacy_capability,
+        )
+
+        response = self.client.patch(
+            f"{self.base}/obras/{obra.id}/aplicabilidades/{legacy.capacidad_id}/",
+            {"estado": "aplica"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 404)
 
     def test_aplicabilidad_rechaza_obra_de_otro_tenant(self):
         obra = Obra.objects.create(organizacion=self.otra, nombre="Obra ajena", fecha_inicio=date(2026, 8, 25))
@@ -72,7 +113,7 @@ class FoundationApiTests(APITestCase):
         self.assertEqual(forbidden.status_code, 400)
 
     def test_organizacion_nueva_y_flujo_preparado(self):
-        inicializar_capacidades_preset(self.organizacion)
+        apply_onboarding_step(self.organizacion, self.user, 3, {"flujos": {"agua": "no_seguro"}})
         inicial = resumen_preparacion_ambiental(self.organizacion)
         self.assertTrue(inicial["requiere_diagnostico"]); self.assertFalse(inicial["preparada_para_operacion"])
         DiagnosticoAmbientalInicial.objects.create(organizacion=self.organizacion, estado="completado")

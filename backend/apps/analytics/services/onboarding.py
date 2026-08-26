@@ -67,6 +67,32 @@ def _custom_area_type(name):
 def ensure_flow_catalog():
     return {key: CapacidadAmbiental.objects.update_or_create(clave=key, defaults={"nombre": value[0], "descripcion": value[1], "activa": True, "orden": index})[0] for index, (key, value) in enumerate(FLOW_CATALOG.items(), 1)}
 
+
+def onboarding_environmental_capability_keys(organization):
+    """Return the environmental universe explicitly selected during onboarding."""
+    onboarding_data = organization.onboarding_data or {}
+    step = onboarding_data.get("3", {}) if isinstance(onboarding_data, dict) else {}
+    selected = step.get("flujos", {}) if isinstance(step, dict) else {}
+    if not isinstance(selected, dict):
+        return []
+    return [key for key in FLOW_CATALOG if key in selected]
+
+
+def onboarding_environmental_capabilities(organization):
+    """Keep work applicability aligned with onboarding, excluding legacy capabilities."""
+    keys = onboarding_environmental_capability_keys(organization)
+    return (
+        CapacidadOrganizacion.objects
+        .filter(
+            organizacion=organization,
+            capacidad__clave__in=keys,
+            capacidad__activa=True,
+        )
+        .exclude(estado=CapacidadOrganizacion.Estado.NO_APLICA)
+        .select_related("capacidad")
+        .order_by("capacidad__orden", "capacidad__nombre")
+    )
+
 def valid_chilean_rut(value):
     normalized = "".join(character for character in str(value or "").upper() if character.isdigit() or character == "K")
     if len(normalized) != 9 or not normalized[:-1].isdigit(): return False
