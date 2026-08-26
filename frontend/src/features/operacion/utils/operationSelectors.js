@@ -20,7 +20,7 @@ export const DOMAIN_CONFIG = {
   residuos: {
     label: "Residuos",
     flows: ["residuo"],
-    capability: "residuos",
+    capabilities: ["residuos_no_peligrosos", "residuos_peligrosos"],
     question: "¿Qué residuos se están registrando?",
   },
   ruido: {
@@ -29,11 +29,17 @@ export const DOMAIN_CONFIG = {
     capability: "ruido",
     question: "¿Qué mediciones acústicas se están registrando?",
   },
-  "hidrica-suelo": {
-    label: "Hídrica y suelo",
-    flows: ["gestion_hidrica_suelo"],
-    capability: "gestion_hidrica_suelo",
-    question: "¿Qué condiciones hídricas o de suelo se están registrando?",
+  "emisiones-atmosfericas": {
+    label: "Emisiones atmosféricas",
+    flows: ["emisiones_atmosfericas"],
+    capability: "emisiones_atmosfericas",
+    question: "¿Qué emisiones atmosféricas se están registrando?",
+  },
+  suelo: {
+    label: "Suelo",
+    flows: ["suelo"],
+    capability: "suelo",
+    question: "¿Qué condiciones o afectaciones del suelo se están registrando?",
   },
 };
 
@@ -102,8 +108,13 @@ export function primaryAdditiveMetric(indicators, domain) {
 }
 
 export function applicability(context, capability) {
-  const item = context?.diagnostico_obra?.aplicabilidad?.find((row) => row.clave === capability);
-  return item?.estado_obra || "no_determinado";
+  const capabilities = Array.isArray(capability) ? capability : [capability];
+  const states = capabilities.map((key) =>
+    context?.diagnostico_obra?.aplicabilidad?.find((row) => row.clave === key)?.estado_obra || "no_determinado"
+  );
+  if (states.includes("aplica")) return "aplica";
+  if (states.every((state) => state === "no_aplica")) return "no_aplica";
+  return "pendiente";
 }
 
 export function domainState({ applicabilityState, records = [], ambiguous = false, available = true }) {

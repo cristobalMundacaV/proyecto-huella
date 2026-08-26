@@ -42,6 +42,8 @@ class SectorFlowsV1Tests(APITestCase):
         "combustible_estacionario": "consumo_combustible_estacionario",
         "residuo": "gestion_residuo",
         "ruido": "monitoreo_ruido",
+        "emisiones_atmosfericas": "monitoreo_emisiones_atmosfericas",
+        "suelo": "gestion_suelo",
         "gestion_hidrica_suelo": "gestion_hidrica_suelo",
     }
 
@@ -495,6 +497,14 @@ class SectorFlowsV1Tests(APITestCase):
             "gestion_hidrica_suelo",
         }.isdisjoint(keys))
         self.assertTrue(CapacidadAmbiental.objects.get(clave="ruido").activa)
+
+    def test_emisiones_atmosfericas_y_suelo_conservan_flujos_independientes(self):
+        emissions = self.record("emisiones_atmosfericas", tipo_recurso="material_particulado")
+        soil = self.record("suelo", tipo_recurso="erosion")
+
+        self.assertEqual(emissions.actividad.tipo, "monitoreo_emisiones_atmosfericas")
+        self.assertEqual(soil.actividad.tipo, "gestion_suelo")
+        self.assertNotEqual(emissions.flujo, soil.flujo)
 
     def test_registro_no_crea_metodologias_factores_ni_calculos(self):
         before = (

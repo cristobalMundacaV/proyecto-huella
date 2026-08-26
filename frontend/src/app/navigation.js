@@ -9,6 +9,7 @@ import {
   Gauge,
   TriangleAlert,
   CheckCircle2,
+  Cloud,
   ClipboardCheck,
   DatabaseZap,
   Factory,
@@ -225,9 +226,15 @@ const PAGE_CONTEXTS = [
   },
 
   {
-    pattern: "/obras/:obraId/operacion/hidrica-suelo",
-    title: "Hídrica y suelo",
-    description: "Condiciones y registros ambientales vinculados a agua y suelo.",
+    pattern: "/obras/:obraId/operacion/emisiones-atmosfericas",
+    title: "Emisiones atmosféricas",
+    description: "Mediciones y registros de fuentes atmosféricas asociados a esta unidad.",
+  },
+
+  {
+    pattern: "/obras/:obraId/operacion/suelo",
+    title: "Suelo",
+    description: "Condiciones, intervenciones y afectaciones del suelo registradas en esta unidad.",
   },
 
   {
@@ -601,11 +608,18 @@ export function getWorkNavigation({
           },
 
           {
-            id: "waterSoil",
-            domain: "hidrica_suelo",
-            capability: "gestion_hidrica_suelo",
-            label: "Hídrica y suelo",
-            path: `${base}/operacion/hidrica-suelo`,
+            id: "atmosphericEmissions",
+            domain: "emisiones_atmosfericas",
+            label: "Emisiones atmosféricas",
+            path: `${base}/operacion/emisiones-atmosfericas`,
+            icon: Cloud,
+          },
+
+          {
+            id: "soil",
+            domain: "suelo",
+            label: "Suelo",
+            path: `${base}/operacion/suelo`,
             icon: LandPlot,
           },
 

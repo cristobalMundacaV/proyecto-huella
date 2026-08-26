@@ -166,6 +166,18 @@ const FLOW_CONFIG = {
             "kg",
         requiresDestination:
             true,
+        requiresResourceType:
+            true,
+        resourceTypes: [
+            {
+                value: "no_peligroso",
+                label: "Residuo no peligroso",
+            },
+            {
+                value: "peligroso",
+                label: "Residuo peligroso",
+            },
+        ],
         destinations: [
             {
                 value: "residuo",
@@ -219,6 +231,67 @@ const FLOW_CONFIG = {
             {
                 value: "Lmin",
                 label: "Lmin",
+            },
+        ],
+    },
+
+    "emisiones-atmosfericas": {
+        flow:
+            "emisiones_atmosfericas",
+        activityType:
+            "monitoreo_emisiones_atmosfericas",
+        concept:
+            "concentracion_emision",
+        defaultUnit:
+            "mg/m3",
+        requiresResourceType:
+            true,
+        defaultPointType:
+            "punto_emision",
+        resourceTypes: [
+            { value: "material_particulado", label: "Material particulado / polvo" },
+            { value: "fuente_movil", label: "Fuente móvil" },
+            { value: "fuente_estacionaria", label: "Fuente estacionaria" },
+            { value: "otra", label: "Otra fuente" },
+        ],
+    },
+
+    suelo: {
+        activityType:
+            "gestion_suelo",
+        concept:
+            "superficie_intervenida",
+        defaultUnit:
+            "m2",
+        defaultPointType:
+            "punto_suelo",
+        modes: [
+            {
+                value: "superficie",
+                label: "Superficie intervenida",
+                activityType: "gestion_suelo",
+                flow: "suelo",
+                concept: "superficie_intervenida",
+                valueType: "number",
+                unit: "m2",
+            },
+            {
+                value: "erosion",
+                label: "Erosión observada",
+                activityType: "gestion_suelo",
+                flow: "suelo",
+                concept: "erosion_observada",
+                valueType: "text",
+                unit: "",
+            },
+            {
+                value: "contaminacion",
+                label: "Afectación o contaminación",
+                activityType: "gestion_suelo",
+                flow: "suelo",
+                concept: "afectacion_suelo",
+                valueType: "text",
+                unit: "",
             },
         ],
     },
@@ -365,7 +438,11 @@ export default function ManualFlowRecordModal({
 
         setForm({
             ...initialForm,
+            mode:
+                config?.modes?.[0]?.value ||
+                initialForm.mode,
             unit:
+                config?.modes?.[0]?.unit ||
                 config?.defaultUnit ||
                 "",
             metric:
@@ -671,6 +748,7 @@ export default function ManualFlowRecordModal({
                     form.point || null,
                 flujo:
                     selectedMode?.flow ||
+                    config.flow ||
                     (
                         domain ===
                             "combustibles"

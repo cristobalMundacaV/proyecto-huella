@@ -41,6 +41,7 @@ import {
 } from "@/shared/ui";
 
 import WorkApplicability from "../components/WorkApplicability";
+import { environmentalProfileLabel } from "@/features/obras/components/WorkStatus";
 
 import {
     saveDiagnostico,
@@ -75,15 +76,6 @@ const STATE_STYLES = {
     pendiente: "text-amber-700",
     requiere_actualizacion: "text-rose-700",
 };
-
-const PROFILE_LABELS = {
-    edificacion: "Edificación",
-    construccion: "Construcción",
-    infraestructura: "Infraestructura",
-    industrial: "Industrial",
-};
-
-const profileLabel = (value) => PROFILE_LABELS[value] || String(value || "Sin datos").replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
 
 const TONE_STYLES = {
     amber: { card: "border-amber-200 bg-amber-50/55", icon: "bg-amber-100 text-amber-700", item: "border-amber-100 bg-white/85" },
@@ -302,6 +294,7 @@ export default function WorkDiagnosticPage() {
         ? STATES.find(([value]) => value === diagnosticState)?.[1] || diagnosticState
         : "Perfil sin configurar";
     const workProfile = workspace?.obra?.perfil_ambiental || workspace?.obra?.perfil || workspace?.obra?.tipo_obra;
+    const workProjectType = workspace?.obra?.tipo_proyecto;
     const coverage = state.preparacion.status === "ready"
         ? state.preparacion.data?.siguiente_paso || "Sin datos"
         : "Cargando…";
@@ -358,7 +351,7 @@ export default function WorkDiagnosticPage() {
                     label="Perfil ambiental"
                     icon={ClipboardCheck}
                     tone="blue"
-                    value={profileLabel(workProfile)}
+                    value={environmentalProfileLabel(workProfile, workProjectType)}
                     valueClassName="text-blue-800"
                 />
             </div>

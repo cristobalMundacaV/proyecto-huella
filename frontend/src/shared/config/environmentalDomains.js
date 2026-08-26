@@ -1,5 +1,5 @@
 import {
-  AlertTriangle, Bolt, Boxes, CircleGauge, Droplets, FileCheck2,
+  AlertTriangle, Bolt, Boxes, CircleGauge, Cloud, Droplets, FileCheck2,
   Fuel, Hammer, LandPlot, Package, ShieldCheck, Trash2, Truck, Volume2, Wrench,
 } from "lucide-react";
 
@@ -12,6 +12,8 @@ export const ENVIRONMENTAL_DOMAINS = {
   materiales: { key: "materiales", label: "Materiales", icon: Package, text: "text-stone-700", softBg: "bg-stone-100", border: "border-stone-300", accent: "from-stone-100 via-amber-50/45 to-white" },
   residuos: { key: "residuos", label: "Residuos", icon: Trash2, text: "text-emerald-700", softBg: "bg-emerald-50", border: "border-emerald-200", accent: "from-emerald-50 via-green-50/45 to-white" },
   ruido: { key: "ruido", label: "Ruido", icon: Volume2, text: "text-violet-700", softBg: "bg-violet-50", border: "border-violet-200", accent: "from-violet-50 via-purple-50/40 to-white" },
+  emisiones_atmosfericas: { key: "emisiones_atmosfericas", label: "Emisiones atmosféricas", icon: Cloud, text: "text-sky-700", softBg: "bg-sky-50", border: "border-sky-200", accent: "from-sky-50 via-cyan-50/40 to-white" },
+  suelo: { key: "suelo", label: "Suelo", icon: LandPlot, text: "text-amber-800", softBg: "bg-amber-50", border: "border-amber-200", accent: "from-amber-50 via-orange-50/35 to-white" },
   hidrica_suelo: { key: "hidrica_suelo", label: "Hídrica y suelo", icon: LandPlot, text: "text-teal-700", softBg: "bg-teal-50", border: "border-teal-200", accent: "from-teal-50 via-cyan-50/40 to-white" },
   mantenimiento: { key: "mantenimiento", label: "Mantenimiento", icon: Wrench, text: "text-slate-700", softBg: "bg-slate-100", border: "border-slate-300", accent: "from-slate-100 via-blue-50/30 to-white" },
   generacion_propia: { key: "generacion_propia", label: "Generación propia", icon: Bolt, text: "text-amber-700", softBg: "bg-amber-50", border: "border-amber-200", accent: "from-amber-50 via-yellow-50 to-white" },
@@ -22,10 +24,10 @@ export const ENVIRONMENTAL_DOMAINS = {
   indicadores: { key: "indicadores", label: "Indicadores", icon: Boxes, text: "text-sky-700", softBg: "bg-sky-50", border: "border-sky-200", accent: "from-sky-50 via-white to-white" },
 };
 
-const aliases = { "hidrica-suelo": "hidrica_suelo", waterSoil: "hidrica_suelo", energy: "energia", water: "agua", fuel: "combustibles", transport: "transporte", materials: "materiales", waste: "residuos", noise: "ruido", compliance: "cumplimiento", problems: "problemas", evidence: "evidencias", operationOverview: "operacion", indicators: "indicadores" };
+const aliases = { "hidrica-suelo": "hidrica_suelo", "emisiones-atmosfericas": "emisiones_atmosfericas", waterSoil: "hidrica_suelo", energy: "energia", water: "agua", fuel: "combustibles", transport: "transporte", materials: "materiales", waste: "residuos", noise: "ruido", compliance: "cumplimiento", problems: "problemas", evidence: "evidencias", operationOverview: "operacion", indicators: "indicadores" };
 
 export function getEnvironmentalDomain(key) {
   return ENVIRONMENTAL_DOMAINS[aliases[key] || key] || null;
 }
 
-export const OPERATIONAL_DOMAIN_KEYS = ["energia", "agua", "combustibles", "transporte", "materiales", "residuos", "ruido", "hidrica_suelo"];
+export const OPERATIONAL_DOMAIN_KEYS = ["energia", "agua", "combustibles", "transporte", "materiales", "residuos", "ruido", "emisiones_atmosfericas", "suelo"];

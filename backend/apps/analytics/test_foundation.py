@@ -8,6 +8,7 @@ from .models import (AplicabilidadCapacidadObra, CapacidadAmbiental, CapacidadOr
                      UsuarioOrganizacion)
 from .services.foundation import inicializar_capacidades_preset, resumen_preparacion_ambiental
 from .services.onboarding import apply_onboarding_step
+from .serializers import ObraSerializer
 
 
 class FoundationApiTests(APITestCase):
@@ -24,6 +25,18 @@ class FoundationApiTests(APITestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data["objetivo_principal"], "Medir")
         self.assertEqual(self.client.get(f"/api/organizaciones/{self.otra.organizacion_id}/diagnostico-ambiental/").status_code, 404)
+
+    def test_tipo_habitacional_deriva_perfil_de_edificacion(self):
+        serializer = ObraSerializer(data={
+            "organizacion": self.organizacion.id,
+            "nombre": "Edificio habitacional",
+            "tipo_proyecto": "EdificaciÃ³n habitacional",
+            "fecha_inicio": "2026-08-25",
+        })
+        serializer.is_valid(raise_exception=True)
+        work = serializer.save()
+
+        self.assertEqual(work.perfil_ambiental, "edificacion")
 
     def test_preset_es_idempotente_y_preserva_personalizacion(self):
         primera = list(inicializar_capacidades_preset(self.organizacion))

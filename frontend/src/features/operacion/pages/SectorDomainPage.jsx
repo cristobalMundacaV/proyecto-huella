@@ -80,11 +80,11 @@ export default function SectorDomainPage({ domain }) {
     obra?.id ||
     obra?.obra_id;
   const config = DOMAIN_CONFIG[domain];
-  const applicabilityState = applicability(context, config.capability);
+  const applicabilityState = applicability(context, config.capabilities || config.capability);
   const recordsReady = isResourceReady(operation.records);
   const records = domainRecords(resourceData(operation.records, []), domain);
   const measurements = recordMeasurements(records);
-  const additive = domain === "ruido" ? [] : additiveMetrics(indicators, domain);
+  const additive = ["ruido", "emisiones-atmosfericas", "suelo"].includes(domain) ? [] : additiveMetrics(indicators, domain);
   const series = nonAdditiveMetrics(indicators, domain);
   const ambiguous = domainMetrics(indicators, domain).filter((metric) => metric.registros_ambiguos > 0);
   const pointsReady = isResourceReady(operation.points);
@@ -147,7 +147,7 @@ export default function SectorDomainPage({ domain }) {
           <SectionHeader
             eyebrow="LECTURA DEL ÁMBITO"
             title="Resumen"
-            description={domain === "ruido" || domain === "hidrica-suelo" ? "Las mediciones no aditivas se muestran como serie o rango, nunca como total acumulado." : "Sólo se agregan magnitudes que el contrato declara como sumables."} />
+            description={["ruido", "emisiones-atmosfericas", "suelo"].includes(domain) ? "Las mediciones no aditivas se muestran como serie o rango, nunca como total acumulado." : "Sólo se agregan magnitudes que el contrato declara como sumables."} />
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{metricCards.map((metric) => <KpiCard
             key={metric.key}
             label={metric.label}
@@ -178,7 +178,7 @@ export default function SectorDomainPage({ domain }) {
               title={
                 domain === "ruido"
                   ? "Mediciones acústicas"
-                  : domain === "hidrica-suelo"
+                  : domain === "suelo"
                     ? "Condiciones registradas"
                     : "Registros recientes"
               }

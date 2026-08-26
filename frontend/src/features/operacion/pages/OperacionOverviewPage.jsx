@@ -4,6 +4,7 @@ import { Alert, ButtonLink, Card, CardContent, EmptyState, KpiCard, SectionHeade
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
 import {
   applicability,
+  DOMAIN_CONFIG,
   domainMetrics,
   domainRecords,
   domainState,
@@ -14,13 +15,15 @@ import {
   resourceData,
 } from "../utils/operationSelectors";
 import OperationDomainCard from "../components/OperationDomainCard";
-import { getEnvironmentalDomain } from "@/shared/config/environmentalDomains";
+import { getEnvironmentalDomain, OPERATIONAL_DOMAIN_KEYS } from "@/shared/config/environmentalDomains";
 
-const domains = [
-  "energia", "agua", "combustibles", "transporte", "materiales", "residuos", "ruido", "hidrica-suelo",
-].map((key) => { const identity = getEnvironmentalDomain(key); return [key, identity.label, identity.icon]; });
+const domains = OPERATIONAL_DOMAIN_KEYS.map((key) => {
+  const identity = getEnvironmentalDomain(key);
+  const routeKey = key === "emisiones_atmosfericas" ? "emisiones-atmosfericas" : key;
+  return [routeKey, identity.label, identity.icon];
+});
 
-const capabilityFor = (key) => key === "hidrica-suelo" ? "gestion_hidrica_suelo" : key;
+const capabilityFor = (key) => DOMAIN_CONFIG[key]?.capabilities || DOMAIN_CONFIG[key]?.capability || key;
 
 function measurementSignal(measurement) {
   const observation = measurement?.observation;

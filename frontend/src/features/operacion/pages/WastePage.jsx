@@ -16,10 +16,32 @@ export default function WastePage() {
   const [page, setPage] = useState(1);
   const eventsReady = isResourceReady(operation.materialEvents);
   const materialWaste = resourceData(operation.materialEvents, []).filter((event) => event.tipo === "residuo");
+  const flowWaste = resourceData(operation.records, []).filter((record) => record.flujo === "residuo");
+  const nonHazardousCount = flowWaste.filter((record) => record.tipo_recurso === "no_peligroso").length;
+  const hazardousCount = flowWaste.filter((record) => record.tipo_recurso === "peligroso").length;
   useEffect(() => { setPage(1); }, [materialWaste.length]);
   const pagedWaste = useMemo(() => materialWaste.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [materialWaste, page]);
 
   return <div className="space-y-8">
+    <section>
+      <SectionHeader
+        eyebrow="SUBFLUJOS AMBIENTALES"
+        title="Clasificación de residuos"
+        description="Ambos tipos comparten este módulo, pero conservan registros, respaldos y trazabilidad diferenciados."
+      />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/55 p-4">
+          <p className="font-black text-emerald-950">Residuos no peligrosos</p>
+          <p className="mt-2 text-2xl font-black text-emerald-800">{nonHazardousCount}</p>
+          <p className="mt-1 text-sm text-emerald-900/70">registros clasificados</p>
+        </div>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/55 p-4">
+          <p className="font-black text-amber-950">Residuos peligrosos</p>
+          <p className="mt-2 text-2xl font-black text-amber-800">{hazardousCount}</p>
+          <p className="mt-1 text-sm text-amber-900/70">registros clasificados</p>
+        </div>
+      </div>
+    </section>
     <SectorDomainPage domain="residuos" />
 
     {!eventsReady && <ErrorState title="No fue posible cargar los residuos provenientes de materiales" description="Los registros de residuos del dominio principal permanecen disponibles si pudieron cargarse." />}

@@ -576,6 +576,8 @@ class ActividadOperacional(models.Model):
         GESTION_RESIDUO = "gestion_residuo", "Gestion de residuo"
         GENERACION_ENERGIA = "generacion_energia", "Generacion de energia"
         MONITOREO_RUIDO = "monitoreo_ruido", "Monitoreo de ruido"
+        MONITOREO_EMISIONES_ATMOSFERICAS = "monitoreo_emisiones_atmosfericas", "Monitoreo de emisiones atmosfericas"
+        GESTION_SUELO = "gestion_suelo", "Gestion de suelo"
         GESTION_HIDRICA_SUELO = "gestion_hidrica_suelo", "Gestion hidrica y suelo"
         PROCESO_PRODUCTIVO = "proceso_productivo", "Proceso productivo"
         OTRO = "otro", "Otro"
@@ -989,6 +991,8 @@ class RegistroFlujoAmbiental(models.Model):
         COMBUSTIBLE_ESTACIONARIO = "combustible_estacionario", "Combustible estacionario"
         RESIDUO = "residuo", "Residuo"
         RUIDO = "ruido", "Ruido"
+        EMISIONES_ATMOSFERICAS = "emisiones_atmosfericas", "Emisiones atmosfericas"
+        SUELO = "suelo", "Suelo"
         GESTION_HIDRICA_SUELO = "gestion_hidrica_suelo", "Gestion hidrica y suelo"
 
     class Granularidad(models.TextChoices):
@@ -1015,6 +1019,8 @@ class RegistroFlujoAmbiental(models.Model):
         Flujo.COMBUSTIBLE_ESTACIONARIO: ActividadOperacional.Tipo.CONSUMO_COMBUSTIBLE_ESTACIONARIO,
         Flujo.RESIDUO: ActividadOperacional.Tipo.GESTION_RESIDUO,
         Flujo.RUIDO: ActividadOperacional.Tipo.MONITOREO_RUIDO,
+        Flujo.EMISIONES_ATMOSFERICAS: ActividadOperacional.Tipo.MONITOREO_EMISIONES_ATMOSFERICAS,
+        Flujo.SUELO: ActividadOperacional.Tipo.GESTION_SUELO,
         Flujo.GESTION_HIDRICA_SUELO: ActividadOperacional.Tipo.GESTION_HIDRICA_SUELO,
     }
 

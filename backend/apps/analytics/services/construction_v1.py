@@ -70,7 +70,8 @@ def work_context(work):
     return {
         "context_type": "work",
         "references": {"organization": work.organizacion.organizacion_id, "work": work.id},
-        "obra": {"codigo": work.codigo_obra, "nombre": work.nombre, "perfil": work.perfil_ambiental,
+        "obra": {"codigo": work.codigo_obra, "nombre": work.nombre, "tipo_proyecto": work.tipo_proyecto,
+                 "perfil": work.perfil_ambiental,
                  "estado": work.estado, "estado_ambiental": work.estado_ambiental},
         "capacidades_organizacion": [{"clave": row.capacidad.clave, "estado_organizacion": row.estado,
                                        "disponible_preset": row.recomendada_por_preset} for row in capabilities],

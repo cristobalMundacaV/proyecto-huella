@@ -128,7 +128,8 @@ export default function AppRouter() {
             <Route path="materiales" element={<MaterialsPage />} />
             <Route path="residuos" element={<WastePage />} />
             <Route path="ruido" element={<SectorDomainPage domain="ruido" />} />
-            <Route path="hidrica-suelo" element={<SectorDomainPage domain="hidrica-suelo" />} />
+            <Route path="emisiones-atmosfericas" element={<SectorDomainPage domain="emisiones-atmosfericas" />} />
+            <Route path="suelo" element={<SectorDomainPage domain="suelo" />} />
           </Route>
           <Route
             path="indicadores"

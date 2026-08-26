@@ -318,7 +318,7 @@ export default function ObraWorkspaceLayout() {
                 </p>
 
                 <p className="mt-2 text-xl font-black text-white">
-                  {environmentalProfileLabel(obra.perfil_ambiental)}
+                  {environmentalProfileLabel(obra.perfil_ambiental, obra.tipo_proyecto)}
                 </p>
               </div>
             )}

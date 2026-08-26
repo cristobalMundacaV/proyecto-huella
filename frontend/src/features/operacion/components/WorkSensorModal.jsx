@@ -27,6 +27,8 @@ const SENSOR_TYPE_BY_DOMAIN = {
     materiales: "mixto",
     residuos: "ambiente",
     ruido: "ambiente",
+    "emisiones-atmosfericas": "ambiente",
+    suelo: "ambiente",
     "hidrica-suelo": "ambiente",
 };
 

@@ -38,7 +38,8 @@ const profileLabels = {
   transporte: "Transporte",
 };
 
-export function environmentalProfileLabel(value) {
+export function environmentalProfileLabel(value, projectType = "") {
+  if (projectType) return projectType;
   if (!value) return "Sin información";
   return profileLabels[value] || String(value).replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
 }

@@ -828,6 +828,34 @@ class DocumentoAmbientalSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+    @staticmethod
+    def _profile_for_project_type(project_type):
+        normalized = str(project_type or "").casefold()
+        if "edific" in normalized or normalized == "vivienda":
+            return Obra.PerfilAmbiental.EDIFICACION
+        if "vial" in normalized:
+            return Obra.PerfilAmbiental.VIAL
+        if "infraestructura" in normalized or "obra p" in normalized:
+            return Obra.PerfilAmbiental.PUENTE_INFRAESTRUCTURA
+        if "urbaniz" in normalized:
+            return Obra.PerfilAmbiental.URBANIZACION
+        if "industrial" in normalized:
+            return Obra.PerfilAmbiental.INDUSTRIAL
+        return Obra.PerfilAmbiental.OTRO
+
+    def create(self, validated_data):
+        validated_data["perfil_ambiental"] = self._profile_for_project_type(
+            validated_data.get("tipo_proyecto")
+        )
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if "tipo_proyecto" in validated_data:
+            validated_data["perfil_ambiental"] = self._profile_for_project_type(
+                validated_data["tipo_proyecto"]
+            )
+        return super().update(instance, validated_data)
+
     def validate(self, attrs):
         organizacion = attrs.get("organizacion") or getattr(self.instance, "organizacion", None) or self.context.get("organizacion")
         if organizacion:

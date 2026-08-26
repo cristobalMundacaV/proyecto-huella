@@ -67,6 +67,14 @@ const ACTIVITY_TYPES = {
         "monitoreo_ruido",
     ],
 
+    "emisiones-atmosfericas": [
+        "monitoreo_emisiones_atmosfericas",
+    ],
+
+    suelo: [
+        "gestion_suelo",
+    ],
+
     "hidrica-suelo": [
         "gestion_hidrica_suelo",
     ],
