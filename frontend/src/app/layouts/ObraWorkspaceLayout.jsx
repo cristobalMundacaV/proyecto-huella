@@ -313,7 +313,7 @@ export default function ObraWorkspaceLayout() {
             </p>
 
             <p className={`mt-3 text-2xl font-black ${statusTextClass(displayedEnvironmentalState)}`}>
-              {statusTextClass(displayedEnvironmentalState)}
+              {statusLabel(displayedEnvironmentalState)}
             </p>
 
             <p className="mt-3 text-sm leading-6 text-emerald-50/80">
