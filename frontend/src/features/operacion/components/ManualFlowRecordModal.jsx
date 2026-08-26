@@ -826,7 +826,9 @@ export default function ManualFlowRecordModal({
                 evidencia:
                     evidenceId,
                 destino_operacional:
-                    form.destination || "",
+                    domain === "combustibles"
+                        ? form.use || ""
+                        : form.destination || "",
             };
 
             if (
