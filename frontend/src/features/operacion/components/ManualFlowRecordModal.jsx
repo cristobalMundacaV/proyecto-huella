@@ -447,6 +447,11 @@ export default function ManualFlowRecordModal({
     ] = useState(false);
 
     const [
+        showEvidenceForm,
+        setShowEvidenceForm,
+    ] = useState(false);
+
+    const [
         saving,
         setSaving,
     ] = useState(false);
@@ -463,6 +468,7 @@ export default function ManualFlowRecordModal({
 
         setShowNewPointForm(false);
         setShowNewSourceForm(false);
+        setShowEvidenceForm(false);
 
         setForm({
             ...initialForm,
@@ -1349,91 +1355,86 @@ export default function ManualFlowRecordModal({
                     )}
                 </div>
 
-                <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] p-4">
-                    <p className="text-sm font-black">
-                        {domain === "combustibles"
-                            ? "Respaldo del registro"
-                            : "Evidencia opcional"}
-                    </p>
+                <div>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() =>
+                            setShowEvidenceForm((current) => !current)
+                        }
+                    >
+                        {showEvidenceForm
+                            ? "Ocultar respaldo"
+                            : "+ Agregar respaldo"}
+                    </Button>
 
-                    <div className="mt-3 space-y-3">
-                        <Input
-                            label="Nombre del documento"
-                            value={
-                                form.evidenceName
-                            }
-                            onChange={(
-                                event,
-                            ) =>
-                                setForm(
-                                    (current) => ({
-                                        ...current,
-                                        evidenceName:
-                                            event.target.value,
-                                    }),
-                                )
-                            }
-                        />
+                    {showEvidenceForm && (
+                        <div className="mt-3 rounded-[var(--radius-lg)] border border-[var(--border-default)] p-4">
+                            <p className="text-sm font-black">
+                                Respaldo del registro
+                            </p>
 
-                        <Select
-                            label="Tipo de evidencia"
-                            value={
-                                form.evidenceType
-                            }
-                            onChange={(
-                                event,
-                            ) =>
-                                setForm(
-                                    (current) => ({
-                                        ...current,
-                                        evidenceType:
-                                            event.target.value,
-                                    }),
-                                )
-                            }
-                        >
-                            <option value="otro">
-                                Otro documento
-                            </option>
+                            <div className="mt-3 space-y-3">
+                                <Input
+                                    label="Nombre del documento"
+                                    value={form.evidenceName}
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            evidenceName: event.target.value,
+                                        }))
+                                    }
+                                />
 
-                            <option value="boleta_electrica">
-                                Boleta eléctrica
-                            </option>
+                                <Select
+                                    label="Tipo de evidencia"
+                                    value={form.evidenceType}
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            evidenceType: event.target.value,
+                                        }))
+                                    }
+                                >
+                                    <option value="otro">
+                                        Otro documento
+                                    </option>
 
-                            <option value="factura_combustible">
-                                Factura de combustible
-                            </option>
+                                    <option value="boleta_electrica">
+                                        Boleta eléctrica
+                                    </option>
 
-                            <option value="registro_retiro_residuos">
-                                Retiro de residuos
-                            </option>
+                                    <option value="factura_combustible">
+                                        Factura de combustible
+                                    </option>
 
-                            <option value="ticket_pesaje">
-                                Ticket de pesaje
-                            </option>
+                                    <option value="registro_retiro_residuos">
+                                        Retiro de residuos
+                                    </option>
 
-                            <option value="documento_transporte">
-                                Documento de transporte
-                            </option>
-                        </Select>
+                                    <option value="ticket_pesaje">
+                                        Ticket de pesaje
+                                    </option>
 
-                        <Input
-                            type="file"
-                            label="Archivo"
-                            onChange={(
-                                event,
-                            ) =>
-                                setForm(
-                                    (current) => ({
-                                        ...current,
-                                        evidenceFile:
-                                            event.target.files?.[0] ||
-                                            null,
-                                    }),
-                                )
-                            }
-                        />
-                    </div>
+                                    <option value="documento_transporte">
+                                        Documento de transporte
+                                    </option>
+                                </Select>
+
+                                <Input
+                                    type="file"
+                                    label="Archivo"
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            evidenceFile:
+                                                event.target.files?.[0] || null,
+                                        }))
+                                    }
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {config.metrics ? (
