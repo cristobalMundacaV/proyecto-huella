@@ -926,7 +926,7 @@ export default function ObraResumenPage() {
                             </p>
 
                             <h3 className="mt-1 font-black text-[var(--text-primary)]">
-                              {event.titulo === "Diagnóstico ambiental"
+                              {["Diagnóstico ambiental", "Diagnostico ambiental"].includes(event.titulo)
                                 ? "Perfil ambiental configurado"
                                 : event.titulo || "Actividad registrada"}
                             </h3>
@@ -940,8 +940,8 @@ export default function ObraResumenPage() {
                         </div>
 
                         <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                          {event.titulo === "Diagnóstico ambiental"
-                            ? "perfil ambiental"
+                          {["Diagnóstico ambiental", "Diagnostico ambiental"].includes(event.titulo)
+                            ? "perfil ambiental configurado"
                             : label(event.tipo)}
                         </p>
                       </div>
