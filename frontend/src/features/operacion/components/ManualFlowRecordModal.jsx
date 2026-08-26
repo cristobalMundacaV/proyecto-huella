@@ -392,6 +392,21 @@ const initialForm = {
 
 };
 
+function getLocalDate() {
+    const now = new Date();
+
+    const year = now.getFullYear();
+    const month = String(
+        now.getMonth() + 1,
+    ).padStart(2, "0");
+    const day = String(
+        now.getDate(),
+    ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+}
+
+
 export default function ManualFlowRecordModal({
     open,
     onClose,
@@ -490,7 +505,7 @@ export default function ManualFlowRecordModal({
                 config?.defaultMetric ||
                 "",
             recordDate:
-                new Date().toISOString().slice(0, 10),
+                getLocalDate(),
         });
 
         setError("");
