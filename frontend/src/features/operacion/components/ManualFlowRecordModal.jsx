@@ -498,6 +498,7 @@ export default function ManualFlowRecordModal({
     }, [
         config?.defaultMetric,
         config?.defaultUnit,
+        config?.modes,
         open,
         organizationId,
         workId,
