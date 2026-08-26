@@ -797,6 +797,9 @@ export default function ManualFlowRecordModal({
             const valueType =
                 selectedMode?.valueType ||
                 "number";
+            const activityCode =
+                `manual-${domain}-${Date.now()}`;
+
             const activity =
                 await createOperationalActivity(
                     organizationId,
@@ -805,6 +808,8 @@ export default function ManualFlowRecordModal({
                         tipo:
                             selectedMode?.activityType ||
                             config.activityType,
+                        codigo:
+                            activityCode,
                         nombre:
                             `Registro manual · ${domain}`,
                         timestamp_inicio:
