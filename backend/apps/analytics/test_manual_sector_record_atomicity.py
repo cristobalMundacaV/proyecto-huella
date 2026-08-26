@@ -101,6 +101,10 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         self.assertEqual(evidence.area_origen, self.area)
         self.assertEqual(evidence.usuario_origen, self.user)
         self.assertEqual(evidence.metadata_extraccion["workspace_id"], self.workspace.id)
+        self.assertEqual(
+            evidence.metadata_extraccion["flujo"],
+            RegistroFlujoAmbiental.Flujo.COMBUSTIBLE_ESTACIONARIO,
+        )
         self.assertEqual(observation.evidencia, evidence)
         self.assertEqual(observation.fuente, self.source)
 

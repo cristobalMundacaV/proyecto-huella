@@ -106,6 +106,7 @@ def manual_sector_record(request, organizacion_id):
                             "workspace_id": context.espacio.id,
                             "origen_operacional": True,
                             "registro_manual": True,
+                            "flujo": flow,
                         },
                     },
                     context={"request": request},
