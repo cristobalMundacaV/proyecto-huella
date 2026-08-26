@@ -156,15 +156,22 @@ export default function SectorDomainPage({ domain }) {
   const generationRecords = domain === "energia" ? records.filter((record) => record.flujo === "generacion_propia") : [];
   const generationIdentity = getEnvironmentalDomain("generacion_propia");
   const GenerationIcon = generationIdentity.icon;
-
   const metricCards = [
     ...additive.map((metric) => ({
       key: `add-${metric.flujo}-${metric.concepto}-${metric.unidad}`,
       label: humanize(metric.concepto),
-      value: metric.registros_ambiguos ? null : metric.total,
-      unit: metric.unidad || undefined,
-      helper: metric.registros_ambiguos ? "Requiere revisión" : `${metric.mediciones} mediciones`,
+      value: metric.registros_ambiguos
+        ? null
+        : metric.total,
+      unit:
+        metric.unidad ||
+        undefined,
+      helper:
+        metric.registros_ambiguos
+          ? "Requiere revisión"
+          : `${metric.mediciones} mediciones`,
     })),
+
     ...series.map((metric) => ({
       key: `series-${metric.flujo}-${metric.concepto}-${metric.unidad}`,
       label: humanize(metric.concepto),
@@ -174,9 +181,177 @@ export default function SectorDomainPage({ domain }) {
     })),
   ].slice(0, 3);
 
+  const fuelTotalMetric =
+    additive.find(
+      (metric) =>
+        metric.concepto ===
+        "combustible_consumido" &&
+        !metric.registros_ambiguos,
+    );
+
+  const fuelSummaryCards =
+    useMemo(
+      () => {
+        if (
+          domain !==
+          "combustibles" ||
+          !records.length
+        ) {
+          return [];
+        }
+
+        const resourceCounts =
+          new Map();
+
+        const destinationCounts =
+          new Map();
+
+        for (
+          const record
+          of records
+        ) {
+          if (
+            record.tipo_recurso
+          ) {
+            resourceCounts.set(
+              record.tipo_recurso,
+              (
+                resourceCounts.get(
+                  record.tipo_recurso,
+                ) || 0
+              ) + 1,
+            );
+          }
+
+          if (
+            record.destino_operacional &&
+            record.destino_operacional !==
+            "sin_clasificar"
+          ) {
+            destinationCounts.set(
+              record.destino_operacional,
+              (
+                destinationCounts.get(
+                  record.destino_operacional,
+                ) || 0
+              ) + 1,
+            );
+          }
+        }
+
+        const mostFrequent =
+          (map) =>
+            [
+              ...map.entries(),
+            ].sort(
+              (
+                left,
+                right,
+              ) =>
+                right[1] -
+                left[1],
+            )[0] || null;
+
+        const mostUsedFuel =
+          mostFrequent(
+            resourceCounts,
+          );
+
+        const mostUsedDestination =
+          mostFrequent(
+            destinationCounts,
+          );
+
+        return [
+          {
+            key:
+              "fuel-total",
+
+            label:
+              "Consumo acumulado",
+
+            value:
+              fuelTotalMetric
+                ?.total ??
+              null,
+
+            unit:
+              fuelTotalMetric
+                ?.unidad ||
+              undefined,
+
+            helper:
+              `${records.length} ${records.length ===
+                1
+                ? "registro"
+                : "registros"
+              }`,
+          },
+
+          {
+            key:
+              "fuel-type",
+
+            label:
+              "Combustible predominante",
+
+            value:
+              mostUsedFuel
+                ? resourceLabel(
+                  mostUsedFuel[0],
+                )
+                : "Sin datos",
+
+            helper:
+              mostUsedFuel
+                ? `${mostUsedFuel[1]} ${mostUsedFuel[1] ===
+                  1
+                  ? "registro"
+                  : "registros"
+                }`
+                : "Sin registros clasificados",
+          },
+
+          {
+            key:
+              "fuel-destination",
+
+            label:
+              "Destino principal",
+
+            value:
+              mostUsedDestination
+                ? humanize(
+                  mostUsedDestination[0],
+                )
+                : "Sin datos",
+
+            helper:
+              mostUsedDestination
+                ? `${mostUsedDestination[1]} ${mostUsedDestination[1] ===
+                  1
+                  ? "registro"
+                  : "registros"
+                }`
+                : "Sin uso informado",
+          },
+        ];
+      },
+      [
+        domain,
+        records,
+        fuelTotalMetric,
+      ],
+    );
+
+  const visibleMetricCards =
+    domain ===
+      "combustibles"
+      ? fuelSummaryCards
+      : metricCards;
+
   const noApplicable = applicabilityState === "no_aplica";
   const unresolved = ["pendiente", "no_determinado"].includes(applicabilityState);
-  const applicabilityBadge = noApplicable ? "No aplica" : unresolved ? "Aplicabilidad por definir" : "Aplica";
   useEffect(() => { setPage(1); }, [domain, measurements.length, persistedWorkId]);
   const pagedMeasurements = useMemo(() => measurements.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [measurements, page]);
   const latestMeasurement =
@@ -221,14 +396,6 @@ export default function SectorDomainPage({ domain }) {
       [measurements],
     );
 
-  const fuelTotalMetric =
-    additive.find(
-      (metric) =>
-        metric.concepto ===
-        "combustible_consumido" &&
-        !metric.registros_ambiguos,
-    );
-
   const heroStats =
     domain ===
       "combustibles" &&
@@ -262,9 +429,7 @@ export default function SectorDomainPage({ domain }) {
               undefined
               ? `${formatNumber(
                 fuelTotalMetric.total,
-              )} ${fuelTotalMetric.unit ||
-              ""
-                }`.trim()
+              )} ${fuelTotalMetric.unidad || ""}`.trim()
               : "Sin total disponible",
         },
 
@@ -300,7 +465,20 @@ export default function SectorDomainPage({ domain }) {
       heroStats={heroStats}
       title={config.label}
       description={config.question}
-      badges={[applicabilityBadge, recordsReady ? (records.length ? `${records.length} ${records.length === 1 ? "registro" : "registros"}` : "Sin registros") : "Registros no disponibles", noApplicable ? "Flujo deshabilitado" : unresolved ? "Requiere definición" : "Flujo habilitado"]}
+      badges={[
+        noApplicable
+          ? "Flujo deshabilitado"
+          : "Flujo habilitado",
+
+        recordsReady
+          ? records.length
+            ? `${records.length} ${records.length === 1
+              ? "registro"
+              : "registros"
+            }`
+            : "Sin registros"
+          : "Registros no disponibles",
+      ]}
       primaryAction={!noApplicable && (unresolved ? <ButtonLink leftIcon={ClipboardCheck} to={`/obras/${obraId}/diagnostico`}>Revisar perfil ambiental</ButtonLink> : <Button leftIcon={Plus} onClick={() => setCaptureOpen(true)}>Registrar información</Button>)}
       secondaryAction={!noApplicable && <ButtonLink leftIcon={Plus} variant="secondary" to={`/obras/${obraId}/evidencias`}>{unresolved ? "Agregar evidencia" : "Agregar documento"}</ButtonLink>}
     >
@@ -322,12 +500,18 @@ export default function SectorDomainPage({ domain }) {
           <div><p className="font-black">Generación propia</p><p className="mt-1 text-sm text-[var(--text-muted)]">{generationRecords.length} {generationRecords.length === 1 ? "registro diferenciado del consumo eléctrico" : "registros diferenciados del consumo eléctrico"}.</p></div>
         </section>}
 
-        {!noApplicable && !unresolved && metricCards.length > 0 && <section>
+        {!noApplicable && !unresolved && visibleMetricCards.length > 0 && <section>
           <SectionHeader
             eyebrow="LECTURA DEL ÁMBITO"
             title="Resumen"
-            description={["ruido", "emisiones-atmosfericas", "suelo"].includes(domain) ? "Las mediciones no aditivas se muestran como serie o rango, nunca como total acumulado." : "Sólo se agregan magnitudes que el contrato declara como sumables."} />
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{metricCards.map((metric) => <KpiCard
+            description={
+              domain === "combustibles"
+                ? "Lectura rápida del consumo y uso de combustibles registrados en esta obra."
+                : ["ruido", "emisiones-atmosfericas", "suelo"].includes(domain)
+                  ? "Las mediciones no aditivas se muestran como serie o rango, nunca como total acumulado."
+                  : "Sólo se agregan magnitudes que el contrato declara como sumables."
+            } />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{visibleMetricCards.map((metric) => <KpiCard
             key={metric.key}
             label={metric.label}
             value={metric.value}
@@ -366,7 +550,12 @@ export default function SectorDomainPage({ domain }) {
                       ? "Consumos registrados, uso, fuente y trazabilidad documental."
                       : "Valor observado, contexto y origen se mantienen separados."
                   }
-                  count={measurements.length}
+                  count={
+                    domain ===
+                      "combustibles"
+                      ? undefined
+                      : measurements.length
+                  }
                 />
                 {!measurements.length
                   ? <EmptyState title="Sin mediciones disponibles" description="Existen registros del dominio, pero no contienen observaciones visibles en el contrato actual." />
@@ -539,6 +728,7 @@ export default function SectorDomainPage({ domain }) {
                                     ) : hasTrace ? (
                                       <TraceabilityLink
                                         label="Ver origen"
+                                        iconOnly
                                         onClick={() =>
                                           setTrace({
                                             ...observation,

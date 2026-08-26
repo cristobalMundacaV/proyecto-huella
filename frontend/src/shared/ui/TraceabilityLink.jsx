@@ -9,6 +9,7 @@ import {
 export default function TraceabilityLink({
     onClick,
     label = "Ver origen",
+    iconOnly = false,
 }) {
     return (
         <Button
@@ -16,8 +17,25 @@ export default function TraceabilityLink({
             size="sm"
             leftIcon={FileText}
             onClick={onClick}
+            aria-label={
+                iconOnly
+                    ? label
+                    : undefined
+            }
+            title={
+                iconOnly
+                    ? label
+                    : undefined
+            }
+            className={
+                iconOnly
+                    ? "aspect-square px-2"
+                    : ""
+            }
         >
-            {label}
+            {iconOnly
+                ? null
+                : label}
         </Button>
     );
 }
