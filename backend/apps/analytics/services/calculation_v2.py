@@ -28,7 +28,10 @@ FORMULA_HANDLERS = {
 
 
 def _apply_formula(formula, inputs, factor):
-    values = {key: observation.valor_numerico for key, (_, observation) in inputs.items()}
+    values = {
+        key: normalization["valor_normalizado"]
+        for key, (_, _, normalization) in inputs.items()
+    }
     handler = FORMULA_HANDLERS.get(formula.tipo)
     if not handler:
         raise ValidationError("La fórmula no tiene una estrategia registrada y segura.")
@@ -76,16 +79,22 @@ def calculate_activity(actividad, *, result_context=None, recalculation_of=None,
             "candidatos": [{"metodo": item["metodo"], "estado": item["estado"], "motivos": item["motivos"]}
                            for item in selection["candidatos"]],
             "inputs": [{"variable_id": variable.id, "clave": variable.clave, "observacion_id": observation.id,
-                        "valor": str(observation.valor_numerico), "unidad": observation.unidad,
+                        "valor_original": str(observation.valor_numerico), "unidad_original": observation.unidad,
+                        "valor": str(normalization["valor_normalizado"]),
+                        "unidad": normalization["unidad_normalizada"],
+                        "conversion_aplicada": normalization["conversion_aplicada"],
+                        "regla_conversion": normalization["regla"],
+                        "factor_conversion": str(normalization["factor_conversion"]),
                         "fuente_id": observation.fuente_id, "evidencia_id": observation.evidencia_id,
                         "version_evidencia_id": observation.version_evidencia_id}
-                       for variable, observation in eligibility["inputs"].values()],
+                       for variable, observation, normalization in eligibility["inputs"].values()],
         },
     )
-    for variable, observation in eligibility["inputs"].values():
+    for variable, observation, normalization in eligibility["inputs"].values():
         InputCalculoAmbiental.objects.create(
             calculo=calculation, variable=variable, observacion=observation,
-            valor_utilizado=observation.valor_numerico, unidad=observation.unidad,
+            valor_utilizado=normalization["valor_normalizado"],
+            unidad=normalization["unidad_normalizada"],
             concepto=observation.concepto, fuente=observation.fuente,
             evidencia=observation.evidencia, version_evidencia=observation.version_evidencia,
         )

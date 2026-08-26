@@ -3,6 +3,7 @@ from django.utils import timezone
 
 from ..models import Observacion, VersionFactorAmbiental
 from .observation_resolver import resolve_observation
+from .unit_conversion import UnitConversionError, convert_value
 
 
 def active_factor_version(formula, organizacion):
@@ -25,7 +26,7 @@ def active_factor_version(formula, organizacion):
 
 def evaluate_formula(actividad, formula):
     factor_version = active_factor_version(formula, actividad.organizacion)
-    reasons, warnings, inputs = [], [], {}
+    reasons, warnings, inputs, normalizations = [], [], {}, {}
     if not factor_version:
         reasons.append("No existe una version activa y aplicable del factor.")
     elif formula.tipo == "transporte_tkm" and formula.factor_ambiental.unidad_entrada.lower() not in {"t.km", "t·km", "tkm"}:
@@ -47,10 +48,22 @@ def evaluate_formula(actividad, formula):
             continue
         if observation.valor_numerico is None:
             reasons.append(f"{variable.concepto_observacion} no tiene valor numerico.")
-        elif observation.unidad.lower() != variable.unidad_esperada.lower():
-            reasons.append(f"Unidad incompatible para {variable.concepto_observacion}: {observation.unidad}.")
         else:
-            inputs[variable.clave] = (variable, observation)
+            try:
+                normalization = convert_value(
+                    observation.valor_numerico,
+                    observation.unidad,
+                    variable.unidad_esperada,
+                )
+            except UnitConversionError as error:
+                reasons.append(str(error))
+            else:
+                inputs[variable.clave] = (variable, observation, normalization)
+                normalizations[variable.clave] = {
+                    "variable_id": variable.id,
+                    "observacion_id": observation.id,
+                    **normalization,
+                }
 
     vehicle = actividad.activos.filter(tipo="vehiculo").select_related("vehiculo").first()
     if formula.tipo in {"transporte_vehiculo_km", "transporte_combustible"}:
@@ -68,5 +81,11 @@ def evaluate_formula(actividad, formula):
                     reasons.append("El factor no es compatible con el combustible del vehiculo.")
 
     status = "no_calculable" if reasons else ("calculable_incompleto" if warnings else "calculable_completo")
-    return {"estado": status, "motivos": reasons, "advertencias": warnings, "inputs": inputs,
-            "factor_version": factor_version}
+    return {
+        "estado": status,
+        "motivos": reasons,
+        "advertencias": warnings,
+        "inputs": inputs,
+        "normalizaciones": normalizations,
+        "factor_version": factor_version,
+    }
