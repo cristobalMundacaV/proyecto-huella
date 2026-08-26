@@ -17,7 +17,49 @@ function useControlProps({ id, error, helper, className = "", ...props }) {
   return { inputId, props: { id: inputId, "aria-invalid": error ? "true" : undefined, "aria-describedby": error || helper ? `${inputId}-message` : undefined, className: `${baseControl} ${error ? "border-[var(--status-danger)]" : "border-[var(--border-default)]"} ${className}`, ...props } };
 }
 
-export function Input({ label, helper, error, required, ...inputProps }) { const { inputId, props } = useControlProps({ ...inputProps, error, helper }); return <Field {...{ label, helper, error, required, inputId }}>{() => <input {...props} required={required} />}</Field>; }
+export function Input({
+  label,
+  helper,
+  error,
+  required,
+  ...inputProps
+}) {
+  const isFile = inputProps.type === "file";
+
+  const { inputId, props } = useControlProps({
+    ...inputProps,
+    error,
+    helper,
+    className: isFile
+      ? `
+          cursor-pointer
+          file:mr-3
+          file:cursor-pointer
+          file:rounded-[var(--radius-sm)]
+          file:border
+          file:border-[var(--brand-primary)]
+          file:bg-[var(--bg-surface-subtle)]
+          file:px-3
+          file:py-1.5
+          file:text-sm
+          file:font-bold
+          file:text-[var(--brand-primary)]
+          hover:file:border-[var(--border-strong)]
+        `
+      : inputProps.className || "",
+  });
+
+  return (
+    <Field {...{ label, helper, error, required, inputId }}>
+      {() => (
+        <input
+          {...props}
+          required={required}
+        />
+      )}
+    </Field>
+  );
+}
 export function Textarea({ label, helper, error, required, ...inputProps }) { const { inputId, props } = useControlProps({ ...inputProps, error, helper }); return <Field {...{ label, helper, error, required, inputId }}>{() => <textarea {...props} required={required} className={`${props.className} min-h-24 resize-y`} />}</Field>; }
 export function Select({ label, helper, error, required, children, ...inputProps }) { const { inputId, props } = useControlProps({ ...inputProps, error, helper }); return <Field {...{ label, helper, error, required, inputId }}>{() => <select {...props} required={required}>{children}</select>}</Field>; }
 export function SearchInput(props) { return <Input type="search" {...props} />; }
