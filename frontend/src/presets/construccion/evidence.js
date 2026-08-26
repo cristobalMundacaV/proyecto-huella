@@ -11,7 +11,11 @@ const requiredEvidenceTypes = [
   { key: "guia_despacho_materiales", label: "Guia de despacho de materiales", backendType: "guia_despacho" },
   { key: "factura_materiales", label: "Factura de materiales", backendType: "factura_material" },
   { key: "ficha_tecnica_material", label: "Ficha tecnica de material", backendType: "ficha_tecnica_material" },
-  { key: "registro_combustible_maquinaria", label: "Registro de combustible maquinaria", backendType: "registro_maquinaria" },
+  {
+    key: "registro_combustible_maquinaria",
+    label: "Registro de abastecimiento de combustible",
+    backendType: "registro_maquinaria"
+  },
   { key: "guia_retiro_residuos", label: "Guia de retiro de residuos", backendType: "registro_retiro_residuos" },
   { key: "certificado_disposicion_final", label: "Certificado de disposicion final", backendType: "registro_retiro_residuos" },
   { key: "registro_transporte", label: "Registro de transporte", backendType: "documento_transporte" },

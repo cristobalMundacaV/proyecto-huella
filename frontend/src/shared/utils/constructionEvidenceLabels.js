@@ -3,10 +3,9 @@ const constructionEvidenceTypeOptions = [
   ["factura_combustible", "Factura de combustible"],
   ["factura_electrica", "Boleta eléctrica"],
   ["boleta_electrica", "Boleta eléctrica"],
-  ["certificado_proveedor", "Certificado de proveedor"],  ["documento_transporte", "Documento de transporte"],
+  ["certificado_proveedor", "Certificado de proveedor"], ["documento_transporte", "Documento de transporte"],
   ["ticket_pesaje", "Ticket de pesaje"],
-  ["registro_maquinaria", "Registro de maquinaria"],
-  ["registro_maquinaria", "Registro de maquinaria"],
+  ["registro_maquinaria", "Registro de abastecimiento de combustible"],
   ["ficha_tecnica_material", "Ficha tecnica de material"],
   ["otro", "Otro"],
 ];

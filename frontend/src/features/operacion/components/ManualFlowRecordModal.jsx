@@ -878,11 +878,6 @@ export default function ManualFlowRecordModal({
                 payload,
             );
 
-            await createSectorRecord(
-                organizationId,
-                payload,
-            );
-
             await onCreated?.();
 
             setToast({
@@ -1488,6 +1483,10 @@ export default function ManualFlowRecordModal({
 
                                         <option value="factura_combustible">
                                             Factura de combustible
+                                        </option>
+
+                                        <option value="registro_maquinaria">
+                                            Registro de abastecimiento de combustible
                                         </option>
 
                                         <option value="registro_retiro_residuos">
