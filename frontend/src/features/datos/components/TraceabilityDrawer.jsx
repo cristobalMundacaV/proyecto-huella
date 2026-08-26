@@ -267,7 +267,7 @@ export default function TraceabilityDrawer({
                   : `${formatNumber(
                     observation.valor_numerico,
                   )} ${observation.unidad ||
-                    ""
+                  ""
                     }`.trim()
               }
             />
@@ -412,16 +412,16 @@ export default function TraceabilityDrawer({
                 />
               </Section>
             )}
-
           <div className="
-            flex flex-wrap gap-2
-            pt-1
+            grid grid-cols-1 gap-2
+            pt-1 sm:grid-cols-2
           ">
             {evidence?.id && (
               <ButtonLink
                 variant="secondary"
                 leftIcon={FileText}
                 to={`/datos/evidencias/${evidence.id}`}
+                className="w-full"
               >
                 Ver evidencia
               </ButtonLink>
@@ -432,6 +432,7 @@ export default function TraceabilityDrawer({
                 variant="secondary"
                 leftIcon={ClipboardList}
                 to={`/obras/${workId}/operacion`}
+                className="w-full"
               >
                 Ver operación de la obra
               </ButtonLink>
