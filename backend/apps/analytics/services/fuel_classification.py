@@ -1,3 +1,6 @@
+from django.core.exceptions import ObjectDoesNotExist
+
+
 STATIONARY_DESTINATIONS = {
     "generador": "El combustible fue destinado a un generador.",
     "calefaccion": "El combustible fue destinado a calefacción.",
@@ -91,5 +94,13 @@ def activity_fuel_classification(activity):
     if record.flujo not in FUEL_FLOWS:
         return None
     return classify_fuel(record.destino_operacional, declared_flow=record.flujo)
-from django.core.exceptions import ObjectDoesNotExist
 
+
+def activity_fuel_type(activity):
+    try:
+        record = activity.registro_flujo_ambiental
+    except ObjectDoesNotExist:
+        return ""
+    if record.flujo not in FUEL_FLOWS:
+        return ""
+    return str(record.tipo_recurso or "").strip().casefold()

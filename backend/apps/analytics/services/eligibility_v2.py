@@ -3,7 +3,8 @@ from django.utils import timezone
 
 from ..models import Observacion, VersionFactorAmbiental
 from .observation_resolver import resolve_observation
-from .fuel_classification import activity_fuel_classification
+from .fuel_classification import activity_fuel_classification, activity_fuel_type
+from .fuel_factor_selector import select_fuel_factor
 from .unit_conversion import UnitConversionError, convert_value
 
 
@@ -26,9 +27,18 @@ def active_factor_version(formula, organizacion):
 
 
 def evaluate_formula(actividad, formula):
-    factor_version = active_factor_version(formula, actividad.organizacion)
     reasons, warnings, inputs, normalizations = [], [], {}, {}
     fuel_classification = activity_fuel_classification(actividad)
+    fuel_factor_selection = None
+    if fuel_classification:
+        fuel_factor_selection = select_fuel_factor(
+            actividad.organizacion,
+            fuel_classification,
+            activity_fuel_type(actividad),
+        )
+        factor_version = fuel_factor_selection["factor_version"]
+    else:
+        factor_version = active_factor_version(formula, actividad.organizacion)
     if fuel_classification and fuel_classification.get("estado") in {
         "requiere_clasificacion",
         "requiere_revision",
@@ -38,10 +48,14 @@ def evaluate_formula(actividad, formula):
             "o estacionaria antes de calcular emisiones."
         )
     if not factor_version:
-        reasons.append("No existe una version activa y aplicable del factor.")
-    elif formula.tipo == "transporte_tkm" and formula.factor_ambiental.unidad_entrada.lower() not in {"t.km", "t·km", "tkm"}:
+        reasons.append(
+            fuel_factor_selection["razon"]
+            if fuel_factor_selection
+            else "No existe una version activa y aplicable del factor."
+        )
+    elif formula.tipo == "transporte_tkm" and factor_version.factor.unidad_entrada.lower() not in {"t.km", "t·km", "tkm"}:
         reasons.append("La unidad de entrada del factor no es compatible con t.km.")
-    elif formula.tipo in {"transporte_vehiculo_km"} and formula.factor_ambiental.unidad_entrada.lower() != "km":
+    elif formula.tipo in {"transporte_vehiculo_km"} and factor_version.factor.unidad_entrada.lower() != "km":
         reasons.append("La unidad de entrada del factor no es compatible con vehículo.km.")
     for variable in formula.variables.all():
         resolution = resolve_observation(actividad, variable.concepto_observacion)
@@ -80,7 +94,7 @@ def evaluate_formula(actividad, formula):
         if not vehicle:
             reasons.append("La actividad no tiene un vehiculo asociado.")
         elif factor_version:
-            context = formula.factor_ambiental.contexto or {}
+            context = factor_version.factor.contexto or {}
             if formula.tipo == "transporte_vehiculo_km" and context.get("tipo_vehiculo"):
                 vehicle_type = getattr(getattr(vehicle, "vehiculo", None), "tipo_vehiculo", "")
                 if vehicle_type != context["tipo_vehiculo"]:
@@ -98,5 +112,6 @@ def evaluate_formula(actividad, formula):
         "inputs": inputs,
         "normalizaciones": normalizations,
         "clasificacion_combustible": fuel_classification,
+        "seleccion_factor_combustible": fuel_factor_selection,
         "factor_version": factor_version,
     }
