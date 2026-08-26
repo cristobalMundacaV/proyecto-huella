@@ -9,6 +9,7 @@ const labels = {
   finalizada: "Finalizada",
   estable: "Estable",
   configuracion: "En configuración",
+  perfil_configurado: "Perfil configurado",
   monitoreo: "En monitoreo",
   requiere_atencion: "Requiere atención",
   mejora_en_curso: "Mejora en curso",
@@ -26,7 +27,7 @@ export function statusLabel(value) {
 export function statusTone(value) {
   if (["cerrada", "cerrado", "estable", "activa", "activo", "en_ejecucion", "finalizada"].includes(value)) return "success";
   if (["requiere_atencion", "cierre_pendiente", "pausada"].includes(value)) return "warning";
-  if (["mejora_en_curso", "monitoreo", "configuracion"].includes(value)) return "info";
+  if (["mejora_en_curso", "monitoreo", "configuracion", "perfil_configurado"].includes(value)) return "info";
   return "neutral";
 }
 

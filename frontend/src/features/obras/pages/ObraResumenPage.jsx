@@ -46,84 +46,64 @@ const date = (value) =>
     : "Fecha no disponible";
 
 
-export const selectFeaturedIndicators =
-  (indicators) => {
-    const result =
-      transportMetrics(
-        indicators?.transporte
+export const selectFeaturedIndicators = (indicators) => {
+  const transport = indicators?.transporte || {};
+
+  const hasTransportData = [
+    transport.numero_viajes,
+    transport.km_totales,
+    transport.tonelaje_transportado,
+    transport.toneladas_km,
+    transport.combustible_total,
+  ].some(
+    (value) =>
+      value !== null &&
+      value !== undefined &&
+      Number(value) !== 0
+  );
+
+  const result = hasTransportData
+    ? transportMetrics(transport)
+      .filter(
+        (metric) =>
+          metric.value !== null &&
+          metric.value !== undefined
       )
-        .filter(
-          (metric) =>
-            metric.value !==
-            null &&
-            metric.value !==
-            undefined
-        )
-        .map(
-          (metric) => ({
-            name:
-              metric.label,
-            value:
-              metric.value,
-            unit:
-              metric.unit,
-            helper:
-              "Transporte operacional",
-          })
-        );
+      .map((metric) => ({
+        name: metric.label,
+        value: metric.value,
+        unit: metric.unit,
+        helper: "Transporte operacional",
+      }))
+    : [];
 
-
-    for (
-      const metric of
-      Array.isArray(
-        indicators?.flujos
-      )
-        ? indicators.flujos
-        : []
-    ) {
-      if (
-        result.length >= 3
-      ) {
-        break;
-      }
-
-      if (
-        metric?.estrategia_agregacion !==
-        "suma" ||
-        metric.total ===
-        null ||
-        metric.total ===
-        undefined
-      ) {
-        continue;
-      }
-
-      result.push({
-        name: `${label(
-          metric.flujo
-        )} · ${label(
-          metric.concepto
-        )}`,
-
-        value:
-          metric.total,
-
-        unit:
-          metric.unidad ||
-          undefined,
-
-        helper:
-          "Flujo ambiental",
-      });
+  for (
+    const metric of Array.isArray(indicators?.flujos)
+      ? indicators.flujos
+      : []
+  ) {
+    if (result.length >= 3) {
+      break;
     }
 
+    if (
+      metric?.estrategia_agregacion !== "suma" ||
+      metric.total === null ||
+      metric.total === undefined
+    ) {
+      continue;
+    }
 
-    return result.slice(
-      0,
-      3
-    );
-  };
+    result.push({
+      name: `${label(metric.flujo)} · ${label(metric.concepto)}`,
+      value: metric.total,
+      unit: metric.unidad || undefined,
+      helper: "Flujo ambiental",
+    });
+  }
 
+  return result.slice(0, 3);
+};
 
 function activityStyle(type) {
   const value =
@@ -227,6 +207,9 @@ export default function ObraResumenPage() {
   const diagnosis =
     context?.diagnostico_obra ||
     {};
+
+  const profileCompleted =
+    diagnosis.estado === "completado";
 
 
   const problems =
@@ -385,10 +368,11 @@ export default function ObraResumenPage() {
                 <p className="mt-1 text-sm font-black text-[var(--text-primary)]">
                   {problems.length
                     ? "Requiere seguimiento"
-                    : obra.estado_ambiental ===
-                      "configuracion"
-                      ? "Cobertura en configuración"
-                      : "Sin problemas abiertos"}
+                    : profileCompleted
+                      ? "Perfil configurado · sin datos operacionales"
+                      : obra.estado_ambiental === "configuracion"
+                        ? "Cobertura en configuración"
+                        : "Sin problemas abiertos"}
                 </p>
 
                 <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
@@ -404,13 +388,57 @@ export default function ObraResumenPage() {
       </section>
 
 
-      {obra.estado_ambiental === "configuracion" && (
+      {profileCompleted && (
         <section className="rounded-[22px] border border-emerald-200 bg-[linear-gradient(135deg,rgba(236,253,245,0.95),rgba(240,253,250,0.78))] p-5 shadow-[0_10px_30px_rgba(6,78,59,0.06)]">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Próximos pasos recomendados</p>
-          <h2 className="mt-1 text-xl font-black">Prepara la obra para una lectura ambiental verificable</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">El perfil está en configuración. Confirma los ámbitos aplicables y agrega antecedentes reales antes de interpretar indicadores o cumplimiento.</p>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            {[["1", "Confirmar cobertura", "Define qué ámbitos aplican realmente a esta obra.", `/obras/${obraId}/operacion`], ["2", "Agregar evidencia", "Incorpora documentos que respalden la operación.", `/obras/${obraId}/evidencias`], ["3", "Registrar actividad", "Ingresa la primera medición o antecedente operacional.", `/obras/${obraId}/operacion`]].map(([step, title, description, to]) => <Link key={step} to={to} className="group rounded-2xl border border-emerald-100 bg-white/85 p-4 transition hover:border-emerald-400 hover:shadow-md"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-black text-emerald-800">{step}</span><h3 className="mt-3 font-black">{title}</h3><p className="mt-1 text-xs leading-5 text-slate-500">{description}</p><span className="mt-3 inline-flex items-center gap-1 text-xs font-black text-emerald-700">Continuar <ArrowRight size={13} /></span></Link>)}
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">
+            Próximos pasos recomendados
+          </p>
+
+          <h2 className="mt-1 text-xl font-black">
+            Comienza a incorporar información real de la obra
+          </h2>
+
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            El perfil ambiental ya está configurado. Incorpora antecedentes y registros operacionales para comenzar a construir lecturas verificables.
+          </p>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {[
+              [
+                "1",
+                "Agregar evidencia",
+                "Incorpora documentos que respalden la operación.",
+                `/obras/${obraId}/evidencias`,
+              ],
+              [
+                "2",
+                "Registrar actividad",
+                "Ingresa la primera medición o antecedente operacional.",
+                `/obras/${obraId}/operacion`,
+              ],
+            ].map(([step, title, description, to]) => (
+              <Link
+                key={step}
+                to={to}
+                className="group rounded-2xl border border-emerald-100 bg-white/85 p-4 transition hover:border-emerald-400 hover:shadow-md"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-black text-emerald-800">
+                  {step}
+                </span>
+
+                <h3 className="mt-3 font-black">
+                  {title}
+                </h3>
+
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  {description}
+                </p>
+
+                <span className="mt-3 inline-flex items-center gap-1 text-xs font-black text-emerald-700">
+                  Continuar <ArrowRight size={13} />
+                </span>
+              </Link>
+            ))}
           </div>
         </section>
       )}
@@ -898,8 +926,9 @@ export default function ObraResumenPage() {
                             </p>
 
                             <h3 className="mt-1 font-black text-[var(--text-primary)]">
-                              {event.titulo ||
-                                "Actividad registrada"}
+                              {event.titulo === "Diagnóstico ambiental"
+                                ? "Perfil ambiental configurado"
+                                : event.titulo || "Actividad registrada"}
                             </h3>
                           </div>
 
@@ -911,9 +940,9 @@ export default function ObraResumenPage() {
                         </div>
 
                         <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                          {label(
-                            event.tipo
-                          )}
+                          {event.titulo === "Diagnóstico ambiental"
+                            ? "perfil ambiental"
+                            : label(event.tipo)}
                         </p>
                       </div>
                     </div>

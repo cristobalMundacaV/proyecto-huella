@@ -47,6 +47,9 @@ function environmentalDescription(
     case "configuracion":
       return "La unidad todavía está construyendo su contexto y cobertura ambiental.";
 
+    case "perfil_configurado":
+      return "El perfil ambiental está configurado. Aún no existe información operacional suficiente para construir una lectura ambiental.";
+
     case "estable":
       return "La información disponible no muestra situaciones ambientales que requieran atención.";
 
@@ -214,6 +217,14 @@ export default function ObraWorkspaceLayout() {
     obra,
   } = state.workspace;
 
+  const profileCompleted =
+    state.workspace?.context?.diagnostico_obra?.estado === "completado";
+
+  const displayedEnvironmentalState =
+    profileCompleted &&
+      obra.estado_ambiental === "configuracion"
+      ? "perfil_configurado"
+      : obra.estado_ambiental;
 
   const location =
     obra.ubicacion ||
@@ -260,7 +271,7 @@ export default function ObraWorkspaceLayout() {
 
             <p className="mt-3 max-w-3xl text-sm leading-6 text-emerald-50/85">
               {environmentalDescription(
-                obra.estado_ambiental
+                displayedEnvironmentalState
               )}
             </p>
 
@@ -301,13 +312,13 @@ export default function ObraWorkspaceLayout() {
               Estado ambiental
             </p>
 
-            <p className={`mt-3 text-2xl font-black ${statusTextClass(obra.estado_ambiental)}`}>
-              {statusLabel(obra.estado_ambiental)}
+            <p className={`mt-3 text-2xl font-black ${statusTextClass(displayedEnvironmentalState)}`}>
+              {statusTextClass(displayedEnvironmentalState)}
             </p>
 
             <p className="mt-3 text-sm leading-6 text-emerald-50/80">
               {environmentalDescription(
-                obra.estado_ambiental
+                displayedEnvironmentalState
               )}
             </p>
 
