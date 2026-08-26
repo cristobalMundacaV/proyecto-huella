@@ -2,7 +2,8 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils.dateparse import parse_datetime
 
-from ...models import Organizacion, RegistroFlujoAmbiental
+from ...models import Organizacion
+from ...services.fuel_classification import FUEL_FLOWS
 
 
 class Command(BaseCommand):
@@ -34,9 +35,7 @@ class Command(BaseCommand):
         evidences = organization.evidencias.filter(
             metadata_extraccion__registro_manual=True,
             metadata_extraccion__origen_operacional=True,
-            metadata_extraccion__flujo=(
-                RegistroFlujoAmbiental.Flujo.COMBUSTIBLE_ESTACIONARIO
-            ),
+            metadata_extraccion__flujo__in=FUEL_FLOWS,
             observaciones_operacionales__isnull=True,
             eventos_materiales__isnull=True,
             registros_emision__isnull=True,

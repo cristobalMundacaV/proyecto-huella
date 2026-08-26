@@ -1655,10 +1655,12 @@ class RegistroFlujoAmbiental(models.Model):
         ENERGIA = "energia", "Energia"
         GENERACION_PROPIA = "generacion_propia", "Generacion propia"
         AGUA = "agua", "Agua"
+        COMBUSTIBLE = "combustible", "Combustible por clasificar"
         COMBUSTIBLE_ESTACIONARIO = (
             "combustible_estacionario",
             "Combustible estacionario",
         )
+        COMBUSTIBLE_MOVIL = "combustible_movil", "Combustible movil"
         RESIDUO = "residuo", "Residuo"
         RUIDO = "ruido", "Ruido"
         EMISIONES_ATMOSFERICAS = "emisiones_atmosfericas", "Emisiones atmosfericas"
@@ -1704,7 +1706,9 @@ class RegistroFlujoAmbiental(models.Model):
         Flujo.ENERGIA: ActividadOperacional.Tipo.CONSUMO_ENERGIA,
         Flujo.GENERACION_PROPIA: ActividadOperacional.Tipo.GENERACION_ENERGIA,
         Flujo.AGUA: ActividadOperacional.Tipo.CONSUMO_AGUA,
+        Flujo.COMBUSTIBLE: ActividadOperacional.Tipo.CONSUMO_COMBUSTIBLE,
         Flujo.COMBUSTIBLE_ESTACIONARIO: ActividadOperacional.Tipo.CONSUMO_COMBUSTIBLE_ESTACIONARIO,
+        Flujo.COMBUSTIBLE_MOVIL: ActividadOperacional.Tipo.CONSUMO_COMBUSTIBLE,
         Flujo.RESIDUO: ActividadOperacional.Tipo.GESTION_RESIDUO,
         Flujo.RUIDO: ActividadOperacional.Tipo.MONITOREO_RUIDO,
         Flujo.EMISIONES_ATMOSFERICAS: ActividadOperacional.Tipo.MONITOREO_EMISIONES_ATMOSFERICAS,
@@ -1925,7 +1929,11 @@ class RegistroFlujoAmbiental(models.Model):
             )
 
         if (
-            self.flujo == self.Flujo.COMBUSTIBLE_ESTACIONARIO
+            self.flujo in {
+                self.Flujo.COMBUSTIBLE,
+                self.Flujo.COMBUSTIBLE_ESTACIONARIO,
+                self.Flujo.COMBUSTIBLE_MOVIL,
+            }
             and self.destino_operacional in destinos_residuo
         ):
             errors["destino_operacional"] = (
@@ -1936,7 +1944,9 @@ class RegistroFlujoAmbiental(models.Model):
             self.flujo
             not in {
                 self.Flujo.RESIDUO,
+                self.Flujo.COMBUSTIBLE,
                 self.Flujo.COMBUSTIBLE_ESTACIONARIO,
+                self.Flujo.COMBUSTIBLE_MOVIL,
             }
             and self.destino_operacional
             != self.DestinoOperacional.SIN_CLASIFICAR

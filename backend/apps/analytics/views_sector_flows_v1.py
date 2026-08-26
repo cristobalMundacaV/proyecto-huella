@@ -7,13 +7,14 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
-from .models import (EvidenciaObra, Obra, Organizacion, PuntoAmbientalOperacional,
+from .models import (ActividadOperacional, EvidenciaObra, Obra, Organizacion, PuntoAmbientalOperacional,
                      RegistroFlujoAmbiental, UsuarioOrganizacion)
 from .permissions import Permission, filter_works_for_user, require_tenant_permission
 from .serializers import EvidenciaObraSerializer
 from .serializers_activity_core import ActividadOperacionalSerializer
 from .serializers_sector_flows_v1 import (PuntoAmbientalSerializer,
                                           RegistroFlujoAmbientalSerializer)
+from .services.fuel_classification import FUEL_FLOWS, classify_fuel
 from .services.operational_context import resolve_operational_context
 from .services.sector_flows_v1 import sector_summary
 
@@ -86,8 +87,22 @@ def manual_sector_record(request, organizacion_id):
     flow = request.data.get("flujo")
     destination = request.data.get("destino_operacional") or ""
     fuel_destinations = {"generador", "maquinaria", "vehiculo", "equipo_menor", "calefaccion", "otro"}
-    if flow == RegistroFlujoAmbiental.Flujo.COMBUSTIBLE_ESTACIONARIO and destination not in fuel_destinations:
+    if flow in FUEL_FLOWS and destination not in fuel_destinations:
         raise ValidationError({"destino_operacional": "Selecciona un uso vÃ¡lido para el combustible."})
+    fuel_classification = classify_fuel(destination) if flow in FUEL_FLOWS else None
+    classified_category = (fuel_classification or {}).get("categoria")
+    if classified_category == "combustion_estacionaria":
+        resolved_flow = RegistroFlujoAmbiental.Flujo.COMBUSTIBLE_ESTACIONARIO
+        resolved_activity_type = ActividadOperacional.Tipo.CONSUMO_COMBUSTIBLE_ESTACIONARIO
+    elif classified_category == "combustion_movil":
+        resolved_flow = RegistroFlujoAmbiental.Flujo.COMBUSTIBLE_MOVIL
+        resolved_activity_type = ActividadOperacional.Tipo.CONSUMO_COMBUSTIBLE
+    elif fuel_classification:
+        resolved_flow = RegistroFlujoAmbiental.Flujo.COMBUSTIBLE
+        resolved_activity_type = ActividadOperacional.Tipo.CONSUMO_COMBUSTIBLE
+    else:
+        resolved_flow = flow
+        resolved_activity_type = request.data.get("tipo_actividad")
 
     evidence = None
     stored_file = None
@@ -106,7 +121,7 @@ def manual_sector_record(request, organizacion_id):
                             "workspace_id": context.espacio.id,
                             "origen_operacional": True,
                             "registro_manual": True,
-                            "flujo": flow,
+                            "flujo": resolved_flow,
                         },
                     },
                     context={"request": request},
@@ -122,7 +137,7 @@ def manual_sector_record(request, organizacion_id):
             activity_serializer = ActividadOperacionalSerializer(
                 data={
                     "obra": work.id,
-                    "tipo": request.data.get("tipo_actividad"),
+                    "tipo": resolved_activity_type,
                     "codigo": request.data.get("codigo_actividad"),
                     "nombre": request.data.get("nombre_actividad"),
                     "timestamp_inicio": request.data.get("periodo_inicio"),
@@ -131,6 +146,7 @@ def manual_sector_record(request, organizacion_id):
                         "area_origen_id": context.area.id,
                         "usuario_origen_id": context.usuario.id,
                         "metodo_captura": "manual",
+                        "clasificacion_ambiental": fuel_classification,
                     },
                 },
                 context={"organizacion": context.organizacion, "request": request},
@@ -143,7 +159,7 @@ def manual_sector_record(request, organizacion_id):
                     "actividad": activity.id,
                     "obra": work.id,
                     "punto": request.data.get("punto") or None,
-                    "flujo": request.data.get("flujo"),
+                    "flujo": resolved_flow,
                     "periodo_inicio": request.data.get("periodo_inicio"),
                     "granularidad": "punto" if request.data.get("punto") else "obra",
                     "concepto": request.data.get("concepto"),
@@ -155,6 +171,10 @@ def manual_sector_record(request, organizacion_id):
                     "tipo_recurso": request.data.get("tipo_recurso") or "",
                     "metrica": request.data.get("metrica") or "",
                     "destino_operacional": request.data.get("destino_operacional") or "",
+                    "metadata": {
+                        "clasificacion_ambiental": fuel_classification,
+                        "flujo_declarado_cliente": flow,
+                    } if fuel_classification else {},
                     "metodo_captura": "manual",
                 },
                 context={"organizacion": context.organizacion, "request": request},
@@ -169,6 +189,7 @@ def manual_sector_record(request, organizacion_id):
                         context={"organizacion": context.organizacion, "request": request},
                     ).data,
                     "actividad_id": activity.id,
+                    "clasificacion_ambiental": fuel_classification,
                     "evidencia": EvidenciaObraSerializer(evidence, context={"request": request}).data if evidence else None,
                 },
                 status=status.HTTP_201_CREATED,

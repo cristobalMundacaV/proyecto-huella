@@ -3,6 +3,7 @@ from django.utils import timezone
 
 from ..models import Observacion, VersionFactorAmbiental
 from .observation_resolver import resolve_observation
+from .fuel_classification import activity_fuel_classification
 from .unit_conversion import UnitConversionError, convert_value
 
 
@@ -27,6 +28,15 @@ def active_factor_version(formula, organizacion):
 def evaluate_formula(actividad, formula):
     factor_version = active_factor_version(formula, actividad.organizacion)
     reasons, warnings, inputs, normalizations = [], [], {}, {}
+    fuel_classification = activity_fuel_classification(actividad)
+    if fuel_classification and fuel_classification.get("estado") in {
+        "requiere_clasificacion",
+        "requiere_revision",
+    }:
+        reasons.append(
+            "El uso del combustible requiere clasificación como fuente móvil "
+            "o estacionaria antes de calcular emisiones."
+        )
     if not factor_version:
         reasons.append("No existe una version activa y aplicable del factor.")
     elif formula.tipo == "transporte_tkm" and formula.factor_ambiental.unidad_entrada.lower() not in {"t.km", "t·km", "tkm"}:
@@ -87,5 +97,6 @@ def evaluate_formula(actividad, formula):
         "advertencias": warnings,
         "inputs": inputs,
         "normalizaciones": normalizations,
+        "clasificacion_combustible": fuel_classification,
         "factor_version": factor_version,
     }
