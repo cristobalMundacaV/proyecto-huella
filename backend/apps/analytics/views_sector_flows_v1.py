@@ -1,12 +1,20 @@
+from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404
-from rest_framework.decorators import api_view
+from rest_framework import status
+from rest_framework.decorators import api_view, parser_classes
+from rest_framework.exceptions import ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
-from .models import (Obra, Organizacion, PuntoAmbientalOperacional,
+from .models import (EvidenciaObra, Obra, Organizacion, PuntoAmbientalOperacional,
                      RegistroFlujoAmbiental, UsuarioOrganizacion)
+from .permissions import Permission, filter_works_for_user, require_tenant_permission
+from .serializers import EvidenciaObraSerializer
+from .serializers_activity_core import ActividadOperacionalSerializer
 from .serializers_sector_flows_v1 import (PuntoAmbientalSerializer,
                                           RegistroFlujoAmbientalSerializer)
+from .services.operational_context import resolve_operational_context
 from .services.sector_flows_v1 import sector_summary
 
 
@@ -51,6 +59,123 @@ def sector_records(request, organizacion_id):
     if request.method == "GET": return Response(RegistroFlujoAmbientalSerializer(rows, many=True, context=context).data)
     serializer = RegistroFlujoAmbientalSerializer(data=request.data, context=context); serializer.is_valid(raise_exception=True); serializer.save()
     return Response(serializer.data, status=201)
+
+
+@api_view(["POST"])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def manual_sector_record(request, organizacion_id):
+    """Create evidence, activity and environmental record atomically."""
+    context = resolve_operational_context(request, Permission.DATA_CREATE)
+    if str(context.organizacion.organizacion_id) != str(organizacion_id):
+        raise Http404("Recurso no encontrado.")
+
+    work_id = request.data.get("obra")
+    if not work_id:
+        raise ValidationError({"obra": "Selecciona la obra donde registrarÃ¡s la informaciÃ³n."})
+    work = get_object_or_404(
+        filter_works_for_user(Obra.objects.all(), request.user, context.organizacion),
+        pk=work_id,
+    )
+    if context.obra and context.obra.id != work.id:
+        raise ValidationError({"obra": "La obra no corresponde al espacio de trabajo activo."})
+
+    uploaded_file = request.FILES.get("evidencia_archivo")
+    if uploaded_file:
+        require_tenant_permission(request.user, context.organizacion, Permission.EVIDENCE_CREATE)
+
+    flow = request.data.get("flujo")
+    destination = request.data.get("destino_operacional") or ""
+    fuel_destinations = {"generador", "maquinaria", "vehiculo", "equipo_menor", "calefaccion", "otro"}
+    if flow == RegistroFlujoAmbiental.Flujo.COMBUSTIBLE_ESTACIONARIO and destination not in fuel_destinations:
+        raise ValidationError({"destino_operacional": "Selecciona un uso vÃ¡lido para el combustible."})
+
+    evidence = None
+    stored_file = None
+    try:
+        with transaction.atomic():
+            if uploaded_file:
+                evidence_serializer = EvidenciaObraSerializer(
+                    data={
+                        "organizacion": context.organizacion.id,
+                        "obra": work.id,
+                        "archivo": uploaded_file,
+                        "nombre": (request.data.get("evidencia_nombre") or uploaded_file.name)[:240],
+                        "tipo_evidencia": request.data.get("evidencia_tipo") or EvidenciaObra.TipoEvidencia.OTRO,
+                        "estado_documental": EvidenciaObra.EstadoDocumental.PENDIENTE,
+                        "metadata_extraccion": {
+                            "workspace_id": context.espacio.id,
+                            "origen_operacional": True,
+                            "registro_manual": True,
+                        },
+                    },
+                    context={"request": request},
+                )
+                evidence_serializer.is_valid(raise_exception=True)
+                evidence = evidence_serializer.save(
+                    area_origen=context.area,
+                    usuario_origen=context.usuario,
+                    metodo_captura="manual",
+                )
+                stored_file = evidence.archivo
+
+            activity_serializer = ActividadOperacionalSerializer(
+                data={
+                    "obra": work.id,
+                    "tipo": request.data.get("tipo_actividad"),
+                    "codigo": request.data.get("codigo_actividad"),
+                    "nombre": request.data.get("nombre_actividad"),
+                    "timestamp_inicio": request.data.get("periodo_inicio"),
+                    "metadata": {
+                        "workspace_id": context.espacio.id,
+                        "area_origen_id": context.area.id,
+                        "usuario_origen_id": context.usuario.id,
+                        "metodo_captura": "manual",
+                    },
+                },
+                context={"organizacion": context.organizacion, "request": request},
+            )
+            activity_serializer.is_valid(raise_exception=True)
+            activity = activity_serializer.save()
+
+            record_serializer = RegistroFlujoAmbientalSerializer(
+                data={
+                    "actividad": activity.id,
+                    "obra": work.id,
+                    "punto": request.data.get("punto") or None,
+                    "flujo": request.data.get("flujo"),
+                    "periodo_inicio": request.data.get("periodo_inicio"),
+                    "granularidad": "punto" if request.data.get("punto") else "obra",
+                    "concepto": request.data.get("concepto"),
+                    "valor_numerico": request.data.get("valor_numerico") or None,
+                    "valor_texto": request.data.get("valor_texto") or "",
+                    "unidad": request.data.get("unidad") or "",
+                    "fuente": request.data.get("fuente"),
+                    "evidencia": evidence.id if evidence else None,
+                    "tipo_recurso": request.data.get("tipo_recurso") or "",
+                    "metrica": request.data.get("metrica") or "",
+                    "destino_operacional": request.data.get("destino_operacional") or "",
+                    "metodo_captura": "manual",
+                },
+                context={"organizacion": context.organizacion, "request": request},
+            )
+            record_serializer.is_valid(raise_exception=True)
+            record = record_serializer.save()
+
+            return Response(
+                {
+                    "registro": RegistroFlujoAmbientalSerializer(
+                        record,
+                        context={"organizacion": context.organizacion, "request": request},
+                    ).data,
+                    "actividad_id": activity.id,
+                    "evidencia": EvidenciaObraSerializer(evidence, context={"request": request}).data if evidence else None,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+    except Exception:
+        if stored_file and stored_file.name:
+            stored_file.storage.delete(stored_file.name)
+        raise
 
 
 @api_view(["GET", "PATCH"])

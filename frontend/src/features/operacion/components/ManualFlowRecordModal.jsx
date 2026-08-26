@@ -15,18 +15,13 @@ import {
 } from "@/shared/ui";
 
 import {
-    createOperationalActivity,
     listDataSources,
     createDataSource,
 } from "../api/activityApi";
 
 import {
-    uploadEvidence,
-} from "@/features/datos/services/dataApi";
-
-import {
     createEnvironmentalPoint,
-    createSectorRecord,
+    createManualSectorRecord,
     listEnvironmentalPoints,
 } from "../api/sectorFlowsApi";
 
@@ -747,47 +742,6 @@ export default function ManualFlowRecordModal({
                 domain === "combustibles" && form.recordDate
                     ? `${form.recordDate}T12:00:00`
                     : now;
-            let evidenceId = null;
-
-            if (form.evidenceFile) {
-                const evidenceData =
-                    new FormData();
-
-                evidenceData.append(
-                    "archivo",
-                    form.evidenceFile,
-                );
-
-                evidenceData.append(
-                    "nombre",
-                    form.evidenceName.trim() ||
-                    form.evidenceFile.name,
-                );
-
-                evidenceData.append(
-                    "tipo_evidencia",
-                    form.evidenceType,
-                );
-
-                evidenceData.append(
-                    "estado_documental",
-                    "pendiente",
-                );
-
-                evidenceData.append(
-                    "obra",
-                    workId,
-                );
-
-                const evidence =
-                    await uploadEvidence(
-                        organizationId,
-                        evidenceData,
-                    );
-
-                evidenceId =
-                    evidence.id;
-            }
             const selectedMode =
                 config.modes?.find(
                     (mode) =>
@@ -800,88 +754,34 @@ export default function ManualFlowRecordModal({
             const activityCode =
                 `manual-${domain}-${Date.now()}`;
 
-            const activity =
-                await createOperationalActivity(
-                    organizationId,
-                    {
-                        obra: workId,
-                        tipo:
-                            selectedMode?.activityType ||
-                            config.activityType,
-                        codigo:
-                            activityCode,
-                        nombre:
-                            `Registro manual · ${domain}`,
-                        timestamp_inicio:
-                            operationalTimestamp,
-                    },
-                );
-
-            const payload = {
-                actividad:
-                    activity.id,
-                obra: workId,
-                punto:
-                    form.point || null,
-                flujo:
-                    selectedMode?.flow ||
-                    config.flow ||
-                    (
-                        domain ===
-                            "combustibles"
-                            ? "combustible_estacionario"
-                            : domain ===
-                                "hidrica-suelo"
-                                ? "gestion_hidrica_suelo"
-                                : domain
-                    ),
-                periodo_inicio:
-                    operationalTimestamp,
-                granularidad:
-                    form.point
-                        ? "punto"
-                        : "obra",
-                concepto:
-                    selectedMode?.concept ||
-                    config.concept,
-                valor_numerico:
-                    valueType === "number"
-                        ? form.value
-                        : null,
-                valor_texto:
-                    valueType === "text"
-                        ? form.value
-                        : "",
-                unidad:
-                    form.unit,
-                fuente:
-                    form.source,
-                evidencia:
-                    evidenceId,
-                destino_operacional:
-                    domain === "combustibles"
-                        ? form.use || ""
-                        : form.destination || "",
+            const payload = new FormData();
+            const append = (key, value) => {
+                if (value !== null && value !== undefined && value !== "") {
+                    payload.append(key, value);
+                }
             };
-
-            if (
-                form.resourceType.trim()
-            ) {
-                payload.tipo_recurso =
-                    form.resourceType.trim();
+            append("obra", workId);
+            append("punto", form.point);
+            append("tipo_actividad", selectedMode?.activityType || config.activityType);
+            append("codigo_actividad", activityCode);
+            append("nombre_actividad", `Registro manual · ${domain}`);
+            append("flujo", selectedMode?.flow || config.flow || (domain === "combustibles" ? "combustible_estacionario" : domain === "hidrica-suelo" ? "gestion_hidrica_suelo" : domain));
+            append("periodo_inicio", operationalTimestamp);
+            append("concepto", selectedMode?.concept || config.concept);
+            append("valor_numerico", valueType === "number" ? form.value : "");
+            append("valor_texto", valueType === "text" ? form.value : "");
+            append("unidad", form.unit);
+            append("fuente", form.source);
+            append("tipo_recurso", form.resourceType.trim());
+            append("metrica", form.metric.trim());
+            append("destino_operacional", domain === "combustibles" ? form.use : form.destination);
+            if (form.evidenceFile) {
+                append("evidencia_archivo", form.evidenceFile);
+                append("evidencia_nombre", form.evidenceName.trim() || form.evidenceFile.name);
+                append("evidencia_tipo", form.evidenceType);
             }
 
-            if (
-                form.metric.trim()
-            ) {
-                payload.metrica =
-                    form.metric.trim();
-            }
-
-            await createSectorRecord(
-                organizationId,
-                payload,
-            );
+            await createManualSectorRecord(organizationId, payload);
 
             await onCreated?.();
 

@@ -79,3 +79,14 @@ export const getSectorIndicators = async (
             { params },
         )
     ).data;
+
+export const createManualSectorRecord = async (
+    organizationId,
+    payload,
+) =>
+    (
+        await api.post(
+            `${base(organizationId)}/flujos-ambientales/registro-manual/`,
+            payload,
+        )
+    ).data;
