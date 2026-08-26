@@ -29,6 +29,12 @@ import {
   Truck,
 } from "lucide-react";
 
+import {
+  getConfirmedWorkCapabilityKeys,
+  hasPendingWorkApplicability,
+  isWorkModuleConfirmed,
+} from "@/app/workNavigationApplicability";
+
 export const NAV_ITEMS = {
   home: {
     id: "home",
@@ -494,12 +500,8 @@ export function getWorkNavigation({
 }) {
   const base =
     `/obras/${obraId}`;
-  const visibleCapabilities = new Set(
-    applicability
-      .filter((item) => ["aplica", "sin_datos", "pendiente", "no_determinado"].includes(item?.estado_obra))
-      .map((item) => item?.clave)
-      .filter(Boolean),
-  );
+  const confirmedCapabilities = getConfirmedWorkCapabilityKeys(applicability);
+  const hasPendingApplicability = hasPendingWorkApplicability(applicability);
 
   return {
     exit: {
@@ -520,6 +522,12 @@ export function getWorkNavigation({
             path: `${base}/resumen`,
             icon: Gauge,
           },
+          ...(hasPendingApplicability ? [{
+            id: "pendingApplicability",
+            label: "Aspectos pendientes de confirmar",
+            path: `${base}/diagnostico`,
+            icon: ClipboardCheck,
+          }] : []),
         ],
       },
 
@@ -578,6 +586,7 @@ export function getWorkNavigation({
           {
             id: "waste",
             domain: "residuos",
+            capabilities: ["residuos", "residuos_no_peligrosos", "residuos_peligrosos"],
             label: "Residuos",
             path: `${base}/operacion/residuos`,
             icon: Trash2,
@@ -621,7 +630,11 @@ export function getWorkNavigation({
             path: `${base}/cumplimiento`,
             icon: BarChart3,
           },
-        ].filter((item) => !item.domain || ["operacion", "indicadores", "reportes", "cumplimiento"].includes(item.domain) || visibleCapabilities.has(item.capability || item.domain)),
+        ].filter((item) =>
+          !item.domain ||
+          ["operacion", "indicadores", "reportes", "cumplimiento"].includes(item.domain) ||
+          isWorkModuleConfirmed(item, confirmedCapabilities)
+        ),
       },
 
       {
