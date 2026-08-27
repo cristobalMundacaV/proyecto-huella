@@ -90,3 +90,74 @@ volvió a presentar errores atribuibles a ARQ-02.
 ARQ-02C puede abordar Operational Context / Work / Area en una entrega separada,
 después de cerrar o aceptar explícitamente la deuda de tests preexistente. Esta entrega
 se detiene en ARQ-02A/B.
+
+## ARQ-02C — Operational Context
+
+### Modelos y owner físico
+
+ARQ-02C extrae conjuntamente a `models/operational_context.py`:
+
+- `EtapaObra`
+- `Obra`
+- `AreaOperacional`
+- `EspacioTrabajoOperacional`
+- `UnidadOperacional`
+- `ProcesoOperacional`
+
+El agrupamiento conserva la estabilidad entre Operations y Platform Context sin crear
+dos módulos mutuamente dependientes. La API pública continúa reexportando los seis
+modelos desde `apps.analytics.models`.
+
+### Dependencias
+
+El módulo depende directamente de:
+
+- `Organizacion` y `UsuarioOrganizacion` desde `models.platform`;
+- `unique_code` desde `models.utils`;
+- `Decimal` y `Sum` para conservar `Obra.emisiones_kg_co2e` sin cambios.
+
+No importa desde `models.__init__`, no requiere imports locales dinámicos y no produjo
+ciclos. Los consumers externos conservan sus imports desde la API pública.
+
+### Invariantes verificadas
+
+Los seis modelos mantienen `app_label = "analytics"`, identidad única en el registry,
+campos, relaciones, validaciones, constraints y las siguientes tablas:
+
+- `analytics_etapaobra`
+- `analytics_obra`
+- `analytics_areaoperacional`
+- `analytics_espaciotrabajooperacional`
+- `analytics_unidadoperacional`
+- `analytics_procesooperacional`
+
+El registry permanece en 94 etiquetas únicas para 94 modelos `analytics`.
+
+### Tests y gate funcional
+
+- Tests arquitectónicos ampliados: 14/14 correctos.
+- Se verificó persistencia de organización, obra, etapa, área, unidad, proceso,
+  membresía y workspace.
+- La validación cross-tenant existente del workspace continúa rechazando relaciones
+  inválidas.
+- `python manage.py check`: correcto.
+- `python manage.py makemigrations --check --dry-run`: `No changes detected`.
+
+La suite funcional específica de ARQ-02C ejecutó 108 tests y expuso los cinco fallos
+ya aprobados como deuda, más
+`ConstructionV1IntegrationTests.test_ingestion_resolves_work_into_activity`.
+Este sexto test falla con `ActividadOperacional.DoesNotExist` tanto después de ARQ-02C
+como en un worktree limpio de `40b41ad`, por lo que es preexistente y no fue corregido
+en esta fase.
+
+El gate del documento indica expresamente que la aparición de un sexto fallo impide
+declarar ARQ-02C cerrada, aunque se haya demostrado que no es una regresión. Por ello,
+la extracción queda implementada y sin regresión atribuible, pero el cierre formal queda
+pendiente de aceptar o corregir esta discrepancia adicional del baseline.
+
+### Deuda preservada y siguiente bloque
+
+- Se mantienen sin cambios los seis fallos funcionales preexistentes observados.
+- No se alteraron catálogos de onboarding, serializers, migraciones históricas,
+  services, views, IoT ni frontend.
+- No iniciar ARQ-02D hasta resolver formalmente el gate de ARQ-02C.
