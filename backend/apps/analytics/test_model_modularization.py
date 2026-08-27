@@ -15,11 +15,14 @@ from apps.analytics.models import (
     AreaOperacional,
     EspacioTrabajoOperacional,
     EtapaObra,
+    EventoMaterial,
     EventoAuditoriaSaaS,
     FactorAmbiental,
     FuenteDatos,
     CondicionOperacionalActivo,
     MantenimientoActivo,
+    LoteMaterial,
+    MaterialOperacional,
     Maquinaria,
     Organizacion,
     Observacion,
@@ -27,13 +30,14 @@ from apps.analytics.models import (
     ProcesoOperacional,
     PuntoAmbientalOperacional,
     RegistroFlujoAmbiental,
+    RutaOperacional,
     SuscripcionSaaS,
     UsuarioObraAcceso,
     UsuarioOrganizacion,
     UnidadOperacional,
     Vehiculo,
+    ViajeOperacional,
 )
-
 
 PLATFORM_MODELS = (
     Organizacion,
@@ -99,6 +103,19 @@ OPERATIONAL_DATA_TABLES = {
     Observacion: "analytics_observacion",
 }
 
+TRANSPORT_MODELS = (RutaOperacional, ViajeOperacional)
+TRANSPORT_TABLES = {
+    RutaOperacional: "analytics_rutaoperacional",
+    ViajeOperacional: "analytics_viajeoperacional",
+}
+
+MATERIAL_MODELS = (MaterialOperacional, LoteMaterial, EventoMaterial)
+MATERIAL_TABLES = {
+    MaterialOperacional: "analytics_materialoperacional",
+    LoteMaterial: "analytics_lotematerial",
+    EventoMaterial: "analytics_eventomaterial",
+}
+
 
 class ModelModularizationContractTests(SimpleTestCase):
     def test_platform_models_live_in_platform_module(self):
@@ -138,7 +155,9 @@ class ModelModularizationContractTests(SimpleTestCase):
         for model in OPERATIONAL_CONTEXT_MODELS:
             with self.subTest(model=model.__name__):
                 self.assertEqual(model._meta.app_label, "analytics")
-                self.assertEqual(model._meta.db_table, OPERATIONAL_CONTEXT_TABLES[model])
+                self.assertEqual(
+                    model._meta.db_table, OPERATIONAL_CONTEXT_TABLES[model]
+                )
 
     def test_public_api_and_registry_share_operational_context_model_identity(self):
         for model in OPERATIONAL_CONTEXT_MODELS:
@@ -182,6 +201,45 @@ class ModelModularizationContractTests(SimpleTestCase):
                 self.assertIs(getattr(public_models, model.__name__), model)
                 self.assertIs(apps.get_model("analytics", model.__name__), model)
 
+    def test_transport_models_live_in_owner_module_and_keep_contract(self):
+        for model in TRANSPORT_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model.__module__, "apps.analytics.models.transport")
+                self.assertEqual(model._meta.app_label, "analytics")
+                self.assertEqual(model._meta.db_table, TRANSPORT_TABLES[model])
+                self.assertIs(getattr(public_models, model.__name__), model)
+                self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_material_models_live_in_owner_module_and_keep_contract(self):
+        for model in MATERIAL_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model.__module__, "apps.analytics.models.materials")
+                self.assertEqual(model._meta.app_label, "analytics")
+                self.assertEqual(model._meta.db_table, MATERIAL_TABLES[model])
+                self.assertIs(getattr(public_models, model.__name__), model)
+                self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_transport_and_material_relations_keep_their_targets(self):
+        expected = {
+            (ViajeOperacional, "organizacion"): Organizacion,
+            (ViajeOperacional, "actividad"): ActividadOperacional,
+            (ViajeOperacional, "vehiculo"): Vehiculo,
+            (ViajeOperacional, "ruta"): RutaOperacional,
+            (MaterialOperacional, "organizacion"): Organizacion,
+            (LoteMaterial, "material"): MaterialOperacional,
+            (LoteMaterial, "fuente"): FuenteDatos,
+            (EventoMaterial, "material"): MaterialOperacional,
+            (EventoMaterial, "lote"): LoteMaterial,
+            (EventoMaterial, "actividad"): ActividadOperacional,
+            (EventoMaterial, "obra"): Obra,
+            (EventoMaterial, "proceso"): ProcesoOperacional,
+        }
+        for (model, field_name), target in expected.items():
+            with self.subTest(model=model.__name__, field=field_name):
+                self.assertIs(
+                    model._meta.get_field(field_name).remote_field.model, target
+                )
+
     def test_operational_data_relations_resolve_to_expected_models(self):
         expected = {
             (ActividadOperacional, "organizacion"): Organizacion,
@@ -209,7 +267,9 @@ class ModelModularizationContractTests(SimpleTestCase):
         ):
             with self.subTest(model="Observacion", field=field_name):
                 self.assertEqual(
-                    Observacion._meta.get_field(field_name).remote_field.model._meta.label,
+                    Observacion._meta.get_field(
+                        field_name
+                    ).remote_field.model._meta.label,
                     label,
                 )
 
@@ -541,3 +601,79 @@ class ModelModularizationPersistenceTests(TestCase):
             observation.full_clean()
 
         self.assertIn("fuente", context.exception.message_dict)
+
+    def test_route_and_trip_can_still_be_created(self):
+        organization, _, _, work, asset = self.create_asset_context("TRIP")
+        vehicle = Vehiculo.objects.create(activo=asset, patente="ARQ-02F")
+        activity = ActividadOperacional.objects.create(
+            organizacion=organization,
+            obra=work,
+            tipo=ActividadOperacional.Tipo.TRANSPORTE,
+            codigo="ACT-TRIP",
+            nombre="Viaje de prueba",
+            timestamp_inicio=timezone.now(),
+        )
+        route = RutaOperacional.objects.create(
+            organizacion=organization,
+            codigo="ROUTE-02F",
+            origen_nombre="Origen",
+            destino_nombre="Destino",
+        )
+        trip = ViajeOperacional.objects.create(
+            organizacion=organization,
+            actividad=activity,
+            codigo="TRIP-02F",
+            vehiculo=vehicle,
+            ruta=route,
+            origen_nombre="Origen",
+            destino_nombre="Destino",
+            fecha_salida=timezone.now(),
+        )
+
+        self.assertEqual(trip.ruta, route)
+        self.assertEqual(trip.vehiculo, vehicle)
+        self.assertEqual(trip.actividad, activity)
+
+    def test_material_lot_and_event_can_still_be_created(self):
+        organization, _, process, work, _ = self.create_asset_context("MATERIAL")
+        source = FuenteDatos.objects.create(
+            organizacion=organization,
+            nombre="Fuente material",
+        )
+        material = MaterialOperacional.objects.create(
+            organizacion=organization,
+            codigo="MAT-02F",
+            nombre="Material de prueba",
+            categoria="prueba",
+            unidad_base="kg",
+        )
+        lot = LoteMaterial.objects.create(
+            organizacion=organization,
+            material=material,
+            codigo="LOT-02F",
+            fuente=source,
+        )
+        activity = ActividadOperacional.objects.create(
+            organizacion=organization,
+            obra=work,
+            proceso_operacional=process,
+            tipo=ActividadOperacional.Tipo.MOVIMIENTO_MATERIAL,
+            codigo="ACT-MAT-02F",
+            nombre="Recepción de material",
+            timestamp_inicio=timezone.now(),
+        )
+        event = EventoMaterial.objects.create(
+            organizacion=organization,
+            material=material,
+            lote=lot,
+            actividad=activity,
+            tipo=EventoMaterial.Tipo.RECEPCION,
+            fecha_hora=timezone.now(),
+            obra=work,
+            proceso=process,
+            fuente=source,
+        )
+
+        self.assertEqual(event.material, material)
+        self.assertEqual(event.lote, lot)
+        self.assertEqual(event.actividad, activity)

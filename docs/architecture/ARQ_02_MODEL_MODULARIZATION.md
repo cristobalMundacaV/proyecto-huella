@@ -299,3 +299,71 @@ la causa y el comportamiento funcional no cambiaron.
 - No se corrigieron los seis fallos baseline.
 - No se modificaron services, views, serializers, permisos, IoT ni frontend.
 - ARQ-02F debe ejecutarse como una fase independiente.
+
+## ARQ-02F — Transport & Materials
+
+### Ownership físico
+
+ARQ-02F extrae exclusivamente los modelos modernos de transporte a
+`models/transport.py`:
+
+- `RutaOperacional`
+- `ViajeOperacional`
+
+y los modelos modernos de materiales a `models/materials.py`:
+
+- `MaterialOperacional`
+- `LoteMaterial`
+- `EventoMaterial`
+
+Los módulos importan directamente desde sus owners. Transporte depende de
+`Organizacion`, `Vehiculo`, `ActividadOperacional` y `Observacion`. Materiales depende
+de `Organizacion`, `ProcesoOperacional`, `FuenteDatos`, `ActividadOperacional` y
+`Observacion`. Las relaciones con `Obra`, `EvidenciaObra` y `VersionEvidencia`
+continúan como relaciones Django diferidas y no introducen ciclos con el package root.
+
+### Contrato conservado
+
+Los cinco modelos mantienen campos, choices, validaciones, constraints, indexes,
+relaciones, `app_label = "analytics"` y sus tablas originales:
+
+- `analytics_rutaoperacional`
+- `analytics_viajeoperacional`
+- `analytics_materialoperacional`
+- `analytics_lotematerial`
+- `analytics_eventomaterial`
+
+`apps.analytics.models`, los nuevos owner modules y Django registry exponen los mismos
+objetos de clase. El registry conserva 94 modelos y 94 etiquetas únicas. La extracción
+no genera migraciones.
+
+### Auditoría de modelos legacy preservados
+
+Permanecen deliberadamente en `models.__init__` y no fueron modificados:
+
+- `TransporteObra`: sigue activo en serializers/views legacy, administración, seeds y
+  tests; mantiene escrituras propias y su integración con `RegistroEmision`.
+- `TransporteLoteForestal`: sigue activo en el flujo forestal, serializers y seeds, con
+  persistencia y cálculo legacy propios.
+- `MaterialConstruccion`: sigue activo en administración, catálogo/views, seeds y el
+  contexto ambiental legacy.
+- `DatoACV`: sigue activo en el motor y contexto ambiental legacy, con lecturas y
+  escrituras cubiertas por sus tests.
+
+Estos modelos no son aliases ni reemplazos transparentes de los modelos modernos. Los
+tests V2 verifican expresamente que crear registros legacy no escriba en
+`ViajeOperacional` y que el catálogo `MaterialConstruccion` permanezca separado de
+`MaterialOperacional`. No se implementó sincronización ni equivalencia entre ambos
+mundos en esta fase.
+
+### Gate de ARQ-02F
+
+- Tests arquitectónicos acumulados: 34/34 correctos.
+- Se cubre creación de ruta, viaje, material, lote y evento, junto con identidad de
+  registry/API, relaciones y validaciones cross-tenant ya existentes.
+- `python manage.py check`: correcto.
+- `python manage.py makemigrations --check --dry-run`: `No changes detected`.
+
+Las suites funcionales de transporte, materiales, ingestion, construcción y dominios
+cruzados continúan consumiendo la API pública sin cambios. Los seis fallos baseline
+aprobados siguen siendo deuda previa y no forman parte de esta modularización.
