@@ -1150,3 +1150,189 @@ aparecer como contenido o referencia, no como productoras del evento actual.
 - No se modificaron services, views, serializers, permisos, frontend, IoT,
   Intelligence, Improvement, generación de PDF ni snapshots. ARQ-02N queda fuera de
   este cierre.
+
+## ARQ-02N — Legacy Isolation
+
+La auditoría del repositorio confirmó 20 modelos físicamente definidos en
+`models/legacy.py`: `DiagnosticoAmbientalInicial`, `ElementoDiagnosticoAmbiental`,
+`CapacidadAmbiental`, `CapacidadOrganizacion`, `AreaCapacidadAmbiental`,
+`AplicabilidadCapacidadObra`, `ConfiguracionOrganizacion`, `FactorEmision`,
+`MaterialConstruccion`, `EspecieMadera`, `LoteForestal`, `RegistroEmision`,
+`DocumentoAmbiental`, `LimiteNormativoAmbiental`, `VariableAmbientalExtraida`,
+`AlertaCumplimientoAmbiental`, `TransporteObra`, `TransporteLoteForestal`, `DatoACV`
+y `HistorialCambioObra`. Todos conservan tabla y `managed=True`; la API pública y el
+registry apuntan a la misma clase.
+
+`AccionAmbiental` permanece separado en `models_acciones.py`, tabla
+`analytics_accionambiental`, `managed=False`, como **UNMANAGED COMPATIBILITY**. Sus
+consumidores de acciones/decisiones/cierre/reportes siguen activos. La tabla es externa
+al conjunto canónico de 94 y su diferencia `organizacion_id` continúa siendo solo
+SQLite; no se modificó ni migró.
+
+### Consumers, replacements and deletion readiness
+
+| Legacy group | Consumers observed | Replacement | Coverage | Readiness |
+|---|---|---|---|---|
+| Foundation/diagnóstico/capacidades | Foundation, onboarding, serializers, admin | Operational Context + Environmental Flows | PARTIAL | BLOCKED |
+| `FactorEmision` | emissions API, environmental engine/records, commands | `FactorAmbiental` + `VersionFactorAmbiental` | PARTIAL | BLOCKED |
+| `RegistroEmision` | emissions API, engine, reports, serializers | Activity/Observation + Calculation/Impact | PARTIAL | BLOCKED |
+| `TransporteObra` | emissions/transport compatibility | `ViajeOperacional` + Calculation | PARTIAL | BLOCKED |
+| Forestal/`TransporteLoteForestal` | forestal API, serializers and frontend preset | Materials/Transport modern | PARTIAL | BLOCKED |
+| `MaterialConstruccion` | construction/foundation compatibility | `MaterialOperacional` | PARTIAL | BLOCKED |
+| `DocumentoAmbiental` | compliance API, serializers, reports and frontend | `EvidenciaObra` + `VersionEvidencia` | PARTIAL | BLOCKED |
+| Limits/variables/alerts | compliance and extraction compatibility | Governance/Quality/Compliance | PARTIAL | BLOCKED |
+| `DatoACV` | legacy material lifecycle consumers | material lifecycle modern | UNKNOWN | UNKNOWN |
+| `HistorialCambioObra` | work history compatibility | Reporting/Audit | PARTIAL | BLOCKED |
+| `AccionAmbiental` | actions, decision and closure services/APIs | `AccionMejoraAmbiental` | PARTIAL | BLOCKED |
+
+The CRUD audit found active production or compatibility reads/writes for the groups
+above; no model with an endpoint, writer, report, command or frontend consumer is a safe
+deletion candidate. Admin and tests add secondary consumers. Legacy endpoints remain
+public/compatibility routes for emissions, forestal, compliance, actions and Foundation;
+frontend shared APIs and `traceableActionsApi` still consume them.
+
+### Dual writes and hardcoded science
+
+`manual_sector_record` creates `EvidenciaObra`, `ActividadOperacional` and
+`RegistroFlujoAmbiental`; it does **not** create `RegistroEmision`, so it is not a dual
+write. Confirmed legacy-local synchronization remains in `TransporteObra.save()` and
+`TransporteLoteForestal.save()`, both writing `RegistroEmision`. No unverified modern ↔
+legacy dual write is asserted.
+
+The unchanged legacy science debt includes `Decimal("0.3000")` default consumption and
+`Decimal("2.680000")` / `Decimal("2.6800")` diesel factors in transport/forestry paths,
+plus the frontend forestal `DIESEL_FACTOR = 2.68`. Governance factors/methodologies are
+the modern target; ARQ-02N intentionally did not change calculations.
+
+### Registry, schema and gate
+
+PostgreSQL reports 94 canonical analytics models and 94 unique canonical labels; the
+optional unmanaged compatibility registration makes 95 including `AccionAmbiental`.
+`check` passes, `makemigrations --check --dry-run` reports no changes, and the
+architectural contract is 83/83. The official critical baseline remains 19/24 with the
+five documented PostgreSQL failures; the sixth `AccionAmbiental` issue is SQLite-only.
+
+## ARQ-02 — FINAL STATE
+
+The real owner modules are `platform`, `operational_context`, `assets`,
+`operational_data`, `transport`, `materials`, `provenance`, `ingestion`,
+`environmental_flows`, `quality`, `indicators`, `governance`, `calculations`,
+`improvement`, `intelligence`, `professional`, `reporting`, `legacy` and `utils`.
+`models/__init__.py` is the public model API; it contains imports only and no model,
+signal or utility implementation.
+
+The final contract is Platform → Operations → Ingestion → Environment → Compliance →
+Improvement. Governance supports Environment/Compliance; Intelligence reads but is not
+deterministic authority; Professional reviews; Reporting reads and freezes traceability;
+Legacy is compatibility-only.
+
+**NEW FEATURES MUST NOT INTRODUCE NEW DEPENDENCIES ON LEGACY MODELS.** Exceptions
+require explicit justification, a compatibility test and a migration/removal path.
+
+### Canonical 94-model matrix (generated from Django registry)
+
+The following matrix is generated from runtime `_meta`; domain equals the physical owner
+module. `legacy` rows are compatibility persistence and all other rows are canonical.
+
+| Model | Domain | Module | Kind | DB table | Managed | Modern replacement | Notes |
+|---|---|---|---|---|---:|---|---|
+| `AccionMejoraAmbiental` | improvement | `improvement.py` | CANONICAL | `analytics_accionmejoraambiental` | yes | — | Physical owner is canonical |
+| `ActividadOperacional` | operational_data | `operational_data.py` | CANONICAL | `analytics_actividadoperacional` | yes | — | Physical owner is canonical |
+| `ActivoOperacional` | assets | `assets.py` | CANONICAL | `analytics_activooperacional` | yes | — | Physical owner is canonical |
+| `AlcanceProblematica` | improvement | `improvement.py` | CANONICAL | `analytics_alcanceproblematica` | yes | — | Physical owner is canonical |
+| `AlertaCumplimientoAmbiental` | legacy | `legacy.py` | LEGACY | `analytics_alertacumplimientoambiental` | yes | — | Compatibility; see replacement/readiness map |
+| `AplicabilidadCapacidadObra` | legacy | `legacy.py` | LEGACY | `analytics_aplicabilidadcapacidadobra` | yes | — | Compatibility; see replacement/readiness map |
+| `AreaCapacidadAmbiental` | legacy | `legacy.py` | LEGACY | `analytics_areacapacidadambiental` | yes | — | Compatibility; see replacement/readiness map |
+| `AreaOperacional` | operational_context | `operational_context.py` | CANONICAL | `analytics_areaoperacional` | yes | — | Physical owner is canonical |
+| `CalculoAmbiental` | calculations | `calculations.py` | CANONICAL | `analytics_calculoambiental` | yes | — | Physical owner is canonical |
+| `CapacidadAmbiental` | legacy | `legacy.py` | LEGACY | `analytics_capacidadambiental` | yes | — | Compatibility; see replacement/readiness map |
+| `CapacidadOrganizacion` | legacy | `legacy.py` | LEGACY | `analytics_capacidadorganizacion` | yes | — | Compatibility; see replacement/readiness map |
+| `CasoConocimientoAmbiental` | intelligence | `intelligence.py` | CANONICAL | `analytics_casoconocimientoambiental` | yes | — | Physical owner is canonical |
+| `CicloReevaluacionProblematica` | improvement | `improvement.py` | CANONICAL | `analytics_cicloreevaluacionproblematica` | yes | — | Physical owner is canonical |
+| `ComandoCopiloto` | intelligence | `intelligence.py` | CANONICAL | `analytics_comandocopiloto` | yes | — | Physical owner is canonical |
+| `CompatibilidadVersionMetodologia` | governance | `governance.py` | CANONICAL | `analytics_compatibilidadversionmetodologia` | yes | — | Physical owner is canonical |
+| `CondicionOperacionalActivo` | assets | `assets.py` | CANONICAL | `analytics_condicionoperacionalactivo` | yes | — | Physical owner is canonical |
+| `ConfiguracionOrganizacion` | legacy | `legacy.py` | LEGACY | `analytics_configuracionorganizacion` | yes | — | Compatibility; see replacement/readiness map |
+| `CorreccionHistoricaAmbiental` | professional | `professional.py` | CANONICAL | `analytics_correccionhistoricaambiental` | yes | — | Physical owner is canonical |
+| `DatoACV` | legacy | `legacy.py` | LEGACY | `analytics_datoacv` | yes | — | Compatibility; see replacement/readiness map |
+| `DiagnosticoAmbientalInicial` | legacy | `legacy.py` | LEGACY | `analytics_diagnosticoambientalinicial` | yes | — | Compatibility; see replacement/readiness map |
+| `DiscrepanciaDato` | quality | `quality.py` | CANONICAL | `analytics_discrepanciadato` | yes | — | Physical owner is canonical |
+| `DocumentoAmbiental` | legacy | `legacy.py` | LEGACY | `analytics_documentoambiental` | yes | EvidenciaObra / VersionEvidencia | Compatibility; see replacement/readiness map |
+| `ElementoDiagnosticoAmbiental` | legacy | `legacy.py` | LEGACY | `analytics_elementodiagnosticoambiental` | yes | — | Compatibility; see replacement/readiness map |
+| `EspacioTrabajoOperacional` | operational_context | `operational_context.py` | CANONICAL | `analytics_espaciotrabajooperacional` | yes | — | Physical owner is canonical |
+| `EspecieMadera` | legacy | `legacy.py` | LEGACY | `analytics_especiemadera` | yes | — | Compatibility; see replacement/readiness map |
+| `EtapaObra` | operational_context | `operational_context.py` | CANONICAL | `analytics_etapaobra` | yes | — | Physical owner is canonical |
+| `EvaluacionCalidadDato` | quality | `quality.py` | CANONICAL | `analytics_evaluacioncalidaddato` | yes | — | Physical owner is canonical |
+| `EventoAuditoriaAmbiental` | reporting | `reporting.py` | CANONICAL | `analytics_eventoauditoriaambiental` | yes | — | Physical owner is canonical |
+| `EventoAuditoriaSaaS` | platform | `platform.py` | CANONICAL | `analytics_eventoauditoriasaas` | yes | — | Physical owner is canonical |
+| `EventoMaterial` | materials | `materials.py` | CANONICAL | `analytics_eventomaterial` | yes | — | Physical owner is canonical |
+| `EvidenciaObra` | provenance | `provenance.py` | CANONICAL | `analytics_evidenciaobra` | yes | — | Physical owner is canonical |
+| `ExpedienteAmbiental` | reporting | `reporting.py` | CANONICAL | `analytics_expedienteambiental` | yes | — | Physical owner is canonical |
+| `FactorAmbiental` | governance | `governance.py` | CANONICAL | `analytics_factorambiental` | yes | — | Physical owner is canonical |
+| `FactorEmision` | legacy | `legacy.py` | LEGACY | `analytics_factoremision` | yes | FactorAmbiental / VersionFactorAmbiental | Compatibility; see replacement/readiness map |
+| `FormulaAmbiental` | governance | `governance.py` | CANONICAL | `analytics_formulaambiental` | yes | — | Physical owner is canonical |
+| `FuenteDatos` | operational_data | `operational_data.py` | CANONICAL | `analytics_fuentedatos` | yes | — | Physical owner is canonical |
+| `HallazgoRevisionProfesional` | professional | `professional.py` | CANONICAL | `analytics_hallazgorevisionprofesional` | yes | — | Physical owner is canonical |
+| `HistorialCambioObra` | legacy | `legacy.py` | LEGACY | `analytics_historialcambioobra` | yes | — | Compatibility; see replacement/readiness map |
+| `HistorialMetaProblematica` | improvement | `improvement.py` | CANONICAL | `analytics_historialmetaproblematica` | yes | — | Physical owner is canonical |
+| `HistorialProblematicaAmbiental` | improvement | `improvement.py` | CANONICAL | `analytics_historialproblematicaambiental` | yes | — | Physical owner is canonical |
+| `HistorialRestriccionContextual` | intelligence | `intelligence.py` | CANONICAL | `analytics_historialrestriccioncontextual` | yes | — | Physical owner is canonical |
+| `HitoDecisionIA` | intelligence | `intelligence.py` | CANONICAL | `analytics_hitodecisionia` | yes | — | Physical owner is canonical |
+| `ImpactoAmbiental` | calculations | `calculations.py` | CANONICAL | `analytics_impactoambiental` | yes | — | Physical owner is canonical |
+| `IndicadorAmbiental` | indicators | `indicators.py` | CANONICAL | `analytics_indicadorambiental` | yes | — | Physical owner is canonical |
+| `IndicadorProblematica` | improvement | `improvement.py` | CANONICAL | `analytics_indicadorproblematica` | yes | — | Physical owner is canonical |
+| `InformeAmbiental` | reporting | `reporting.py` | CANONICAL | `analytics_informeambiental` | yes | — | Physical owner is canonical |
+| `InputCalculoAmbiental` | calculations | `calculations.py` | CANONICAL | `analytics_inputcalculoambiental` | yes | — | Physical owner is canonical |
+| `LimiteNormativoAmbiental` | legacy | `legacy.py` | LEGACY | `analytics_limitenormativoambiental` | yes | — | Compatibility; see replacement/readiness map |
+| `LineaBaseAmbiental` | indicators | `indicators.py` | CANONICAL | `analytics_lineabaseambiental` | yes | — | Physical owner is canonical |
+| `LoteForestal` | legacy | `legacy.py` | LEGACY | `analytics_loteforestal` | yes | — | Compatibility; see replacement/readiness map |
+| `LoteMaterial` | materials | `materials.py` | CANONICAL | `analytics_lotematerial` | yes | — | Physical owner is canonical |
+| `MantenimientoActivo` | assets | `assets.py` | CANONICAL | `analytics_mantenimientoactivo` | yes | — | Physical owner is canonical |
+| `MapeoColumna` | ingestion | `ingestion.py` | CANONICAL | `analytics_mapeocolumna` | yes | — | Physical owner is canonical |
+| `Maquinaria` | assets | `assets.py` | CANONICAL | `analytics_maquinaria` | yes | — | Physical owner is canonical |
+| `MaterialConstruccion` | legacy | `legacy.py` | LEGACY | `analytics_materialconstruccion` | yes | MaterialOperacional | Compatibility; see replacement/readiness map |
+| `MaterialOperacional` | materials | `materials.py` | CANONICAL | `analytics_materialoperacional` | yes | — | Physical owner is canonical |
+| `MedicionSeguimientoAmbiental` | improvement | `improvement.py` | CANONICAL | `analytics_medicionseguimientoambiental` | yes | — | Physical owner is canonical |
+| `MemoriaOrganizacion` | intelligence | `intelligence.py` | CANONICAL | `analytics_memoriaorganizacion` | yes | — | Physical owner is canonical |
+| `MetodologiaAmbiental` | governance | `governance.py` | CANONICAL | `analytics_metodologiaambiental` | yes | — | Physical owner is canonical |
+| `Obra` | operational_context | `operational_context.py` | CANONICAL | `analytics_obra` | yes | — | Physical owner is canonical |
+| `Observacion` | operational_data | `operational_data.py` | CANONICAL | `analytics_observacion` | yes | — | Physical owner is canonical |
+| `Organizacion` | platform | `platform.py` | CANONICAL | `analytics_organizacion` | yes | — | Physical owner is canonical |
+| `PeriodoComparable` | indicators | `indicators.py` | CANONICAL | `analytics_periodocomparable` | yes | — | Physical owner is canonical |
+| `PlantillaMapeo` | ingestion | `ingestion.py` | CANONICAL | `analytics_plantillamapeo` | yes | — | Physical owner is canonical |
+| `PoliticaConfianzaFuente` | quality | `quality.py` | CANONICAL | `analytics_politicaconfianzafuente` | yes | — | Physical owner is canonical |
+| `ProblematicaAmbiental` | improvement | `improvement.py` | CANONICAL | `analytics_problematicaambiental` | yes | — | Physical owner is canonical |
+| `ProcesoIngesta` | ingestion | `ingestion.py` | CANONICAL | `analytics_procesoingesta` | yes | — | Physical owner is canonical |
+| `ProcesoOperacional` | operational_context | `operational_context.py` | CANONICAL | `analytics_procesooperacional` | yes | — | Physical owner is canonical |
+| `PuntoAmbientalOperacional` | assets | `assets.py` | CANONICAL | `analytics_puntoambientaloperacional` | yes | — | Physical owner is canonical |
+| `RecomendacionAgenteAmbiental` | intelligence | `intelligence.py` | CANONICAL | `analytics_recomendacionagenteambiental` | yes | — | Physical owner is canonical |
+| `RegistroEmision` | legacy | `legacy.py` | LEGACY | `analytics_registroemision` | yes | ActividadOperacional / Observacion / CalculoAmbiental / ImpactoAmbiental | Compatibility; see replacement/readiness map |
+| `RegistroExtraido` | ingestion | `ingestion.py` | CANONICAL | `analytics_registroextraido` | yes | — | Physical owner is canonical |
+| `RegistroFlujoAmbiental` | environmental_flows | `environmental_flows.py` | CANONICAL | `analytics_registroflujoambiental` | yes | — | Physical owner is canonical |
+| `RestriccionContextual` | intelligence | `intelligence.py` | CANONICAL | `analytics_restriccioncontextual` | yes | — | Physical owner is canonical |
+| `ResultadoIntervencion` | improvement | `improvement.py` | CANONICAL | `analytics_resultadointervencion` | yes | — | Physical owner is canonical |
+| `RevisionProfesionalAmbiental` | professional | `professional.py` | CANONICAL | `analytics_revisionprofesionalambiental` | yes | — | Physical owner is canonical |
+| `RutaOperacional` | transport | `transport.py` | CANONICAL | `analytics_rutaoperacional` | yes | — | Physical owner is canonical |
+| `SnapshotInformeAmbiental` | reporting | `reporting.py` | CANONICAL | `analytics_snapshotinformeambiental` | yes | — | Physical owner is canonical |
+| `SnapshotIntervencion` | improvement | `improvement.py` | CANONICAL | `analytics_snapshotintervencion` | yes | — | Physical owner is canonical |
+| `SnapshotValorIndicador` | improvement | `improvement.py` | CANONICAL | `analytics_snapshotvalorindicador` | yes | — | Physical owner is canonical |
+| `SuscripcionSaaS` | platform | `platform.py` | CANONICAL | `analytics_suscripcionsaas` | yes | — | Physical owner is canonical |
+| `TransporteLoteForestal` | legacy | `legacy.py` | LEGACY | `analytics_transporteloteforestal` | yes | — | Compatibility; see replacement/readiness map |
+| `TransporteObra` | legacy | `legacy.py` | LEGACY | `analytics_transporteobra` | yes | ViajeOperacional + Calculation | Compatibility; see replacement/readiness map |
+| `UnidadOperacional` | operational_context | `operational_context.py` | CANONICAL | `analytics_unidadoperacional` | yes | — | Physical owner is canonical |
+| `UsuarioObraAcceso` | platform | `platform.py` | CANONICAL | `analytics_usuarioobraacceso` | yes | — | Physical owner is canonical |
+| `UsuarioOrganizacion` | platform | `platform.py` | CANONICAL | `analytics_usuarioorganizacion` | yes | — | Physical owner is canonical |
+| `ValorIndicador` | indicators | `indicators.py` | CANONICAL | `analytics_valorindicador` | yes | — | Physical owner is canonical |
+| `VariableAmbientalExtraida` | legacy | `legacy.py` | LEGACY | `analytics_variableambientalextraida` | yes | — | Compatibility; see replacement/readiness map |
+| `VariableFormula` | governance | `governance.py` | CANONICAL | `analytics_variableformula` | yes | — | Physical owner is canonical |
+| `Vehiculo` | assets | `assets.py` | CANONICAL | `analytics_vehiculo` | yes | — | Physical owner is canonical |
+| `VersionEvidencia` | provenance | `provenance.py` | CANONICAL | `analytics_versionevidencia` | yes | — | Physical owner is canonical |
+| `VersionFactorAmbiental` | governance | `governance.py` | CANONICAL | `analytics_versionfactorambiental` | yes | — | Physical owner is canonical |
+| `VersionMetodologia` | governance | `governance.py` | CANONICAL | `analytics_versionmetodologia` | yes | — | Physical owner is canonical |
+| `ViajeOperacional` | transport | `transport.py` | CANONICAL | `analytics_viajeoperacional` | yes | — | Physical owner is canonical |
+
+AccionAmbiental is documented separately and is intentionally excluded from these 94 rows.
+
+ARQ-02N — LEGACY ISOLATION: **CLOSED**.
+
+ARQ-02 — MODEL MODULARIZATION: **CLOSED**.
