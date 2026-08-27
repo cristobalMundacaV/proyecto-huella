@@ -26,6 +26,20 @@ def active_factor_version(formula, organizacion):
     return None
 
 
+def _fuel_required_unit(formula):
+    variables = list(formula.variables.all())
+    variable = next(
+        (
+            item
+            for item in variables
+            if item.clave == "combustible"
+            or "combustible" in item.concepto_observacion
+        ),
+        variables[0] if len(variables) == 1 else None,
+    )
+    return variable.unidad_esperada if variable else ""
+
+
 def evaluate_formula(actividad, formula):
     reasons, warnings, inputs, normalizations = [], [], {}, {}
     fuel_classification = activity_fuel_classification(actividad)
@@ -35,6 +49,8 @@ def evaluate_formula(actividad, formula):
             actividad.organizacion,
             fuel_classification,
             activity_fuel_type(actividad),
+            _fuel_required_unit(formula),
+            actividad.timestamp_inicio,
         )
         factor_version = fuel_factor_selection["factor_version"]
     else:

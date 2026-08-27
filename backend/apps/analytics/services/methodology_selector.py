@@ -25,6 +25,9 @@ def _applicability_reasons(version, activity):
 
 def _candidate_status(eligibility):
     if eligibility["estado"] == "no_calculable":
+        factor_selection = eligibility.get("seleccion_factor_combustible") or {}
+        if factor_selection.get("estado") == "requiere_revision":
+            return "requiere_revision"
         if any("requiere revision" in reason.lower() for reason in eligibility["motivos"]):
             return "requiere_revision"
         return "no_calculable"

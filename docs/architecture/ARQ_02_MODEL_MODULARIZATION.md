@@ -1,0 +1,92 @@
+# ARQ-02A/B — Modularización física de modelos
+
+## Baseline y objetivo
+
+- Baseline auditado: `6937c26aa397a99106653836372a1b2f710d4e18`.
+- Alcance implementado: scaffold del package `apps.analytics.models` y extracción exclusiva de los modelos Platform.
+- Invariante principal: reorganización física sin cambios de esquema, API o comportamiento.
+
+## Estrategia aplicada
+
+`backend/apps/analytics/models.py` se convirtió atómicamente en el package
+`backend/apps/analytics/models/`. El contenido todavía no modularizado permanece en
+`models/__init__.py`, que continúa siendo la API pública consumida por el repositorio.
+
+Los modelos extraídos se importan y reexportan explícitamente desde `models/__init__.py`.
+No existen definiciones duplicadas ni se modificaron los imports consumidores.
+
+Los helpers puros `normalize_key` y `unique_code` viven en `models/utils.py`. Se
+reexportan desde la API pública para conservar imports existentes y son utilizados por
+`platform.py` sin importar el módulo `__init__`, evitando un ciclo.
+
+## Modelos movidos
+
+Los únicos modelos trasladados a `models/platform.py` son:
+
+- `Organizacion`
+- `SuscripcionSaaS`
+- `EventoAuditoriaSaaS`
+- `UsuarioOrganizacion`
+- `UsuarioObraAcceso`
+
+`UsuarioObraAcceso.obra` conserva una relación diferida con `analytics.Obra`, ya que
+`Obra` permanece deliberadamente en la API pública durante esta fase.
+
+## Imports y ciclos
+
+- La API `apps.analytics.models` sigue exportando modelos movidos y no movidos.
+- Los imports locales de servicios existentes en el antiguo archivo se ajustaron un
+  nivel (`..services`) por la nueva ubicación física del package.
+- Las cuatro señales `pre_delete` existentes permanecen en `models/__init__.py` y se
+  registran una sola vez durante la carga normal del app.
+- `admin.py`, IoT, serializers, vistas, servicios y comandos siguen consumiendo la API
+  pública sin cambios.
+- Las migraciones históricas que importan `apps.analytics.models` continúan encontrando
+  los callbacks de archivos reexportados. No se editaron migraciones históricas.
+
+## Invariantes verificadas
+
+Los cinco modelos conservan:
+
+- `app_label = "analytics"`;
+- los mismos nombres de clase;
+- las tablas `analytics_organizacion`, `analytics_suscripcionsaas`,
+  `analytics_eventoauditoriasaas`, `analytics_usuarioorganizacion` y
+  `analytics_usuarioobraacceso`;
+- relaciones, constraints, choices, `Meta` y métodos existentes.
+
+El registry contiene 94 modelos `analytics` y 94 etiquetas únicas, sin registros
+duplicados.
+
+## Validación ejecutada
+
+- `python manage.py check`: correcto, sin incidencias.
+- `python manage.py makemigrations --check --dry-run`: `No changes detected`.
+  La conexión PostgreSQL configurada no estaba disponible y emitió un warning de
+  timeout al comprobar el historial, sin impedir la detección local del estado.
+- `python manage.py test apps.analytics.test_model_modularization` usando SQLite de
+  pruebas: 7/7 correctos, incluida persistencia de organización y membresía.
+- Suite transversal solicitada (permisos, onboarding, contexto operacional, cálculo,
+  factores y registro manual): 127 ejecutados; 122 correctos y 5 fallos preexistentes
+  ajenos a esta extracción. Los fallos restantes corresponden a catálogo legacy de
+  áreas de onboarding (3), `DocumentoAmbientalSerializer` enviando
+  `perfil_ambiental` al modelo (1) y una discrepancia histórica SQLite para
+  `AccionAmbiental.organizacion_id` (1).
+
+Durante la primera ejecución transversal se detectaron dos imports relativos de
+servicios afectados por el cambio archivo→package. Se corrigieron y la repetición no
+volvió a presentar errores atribuibles a ARQ-02.
+
+## Deuda deliberadamente no tocada
+
+- No se modularizaron otros modelos.
+- No se movieron señales a módulos dedicados.
+- No se cambiaron servicios, serializers, endpoints, permisos, IoT ni frontend.
+- No se corrigieron los cinco fallos transversales no relacionados descritos arriba.
+- No se crearon migraciones.
+
+## Siguiente bloque recomendado
+
+ARQ-02C puede abordar Operational Context / Work / Area en una entrega separada,
+después de cerrar o aceptar explícitamente la deuda de tests preexistente. Esta entrega
+se detiene en ARQ-02A/B.
