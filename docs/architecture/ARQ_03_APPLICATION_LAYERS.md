@@ -118,4 +118,67 @@ explicit justification, a compatibility test and a migration/removal path.
 
 ARQ-03A — PLATFORM / OPERATIONAL CONTEXT APPLICATION LAYERS: **CLOSED**.
 
-ARQ-03A stops here; ARQ-03B is not started.
+ARQ-03A closed at that gate; the subsequent authorized ARQ-03B slice begins below.
+
+## ARQ-03B — Operational Data / Assets
+
+### Audit and ownership changes
+
+The scoped audit found read/filter ownership in both views, mutations and tenant
+validation in both serializers, `detalle_actividad` incorrectly living in a service,
+and Vehículo/Maquinaria specialization embedded in `ActivoOperacionalSerializer`.
+
+Operational Data now uses:
+
+- `selectors/activity_core.py` for organization/source/activity/observation lookup,
+  activity filters, observation filters and the prefetched activity detail;
+- `services/activity_core.py` for activity create/update including the `activos` M2M,
+  and observation create/update including actor and activity assignment;
+- `policies/activity_core.py` for deterministic tenant/context and observation-value
+  validation.
+
+Assets now uses:
+
+- `selectors/assets.py` for organization, assets, maintenance and condition reads;
+- `services/assets.py` for asset, maintenance and condition mutations and transactional
+  Vehículo/Maquinaria specialization;
+- `policies/assets.py` for tenant validation of unit, process and source relations.
+
+Serializers retain DRF field contracts and translate policy results to the same
+`ValidationError` payloads. Views retain request parsing, serializers, HTTP response and
+status selection. Selectors contain no writes; policies import neither DRF nor AI;
+services return domain objects rather than `Response`.
+
+### Preserved behavior
+
+- `full_clean()` remains part of every extracted mutation.
+- Organization-scoped querysets preserve cross-tenant 404 behavior.
+- Invalid payload relations preserve serializer 400 behavior and messages.
+- URLs, methods, payloads, ordering, response representations and status codes are
+  unchanged.
+- `registros_emision_legacy_count` remains a prefetched, read-only compatibility field.
+- Vehículo and Maquinaria keep the existing `update_or_create` semantics.
+- `PuntoAmbientalOperacional` and sector-flows endpoints were not touched.
+
+### Validation
+
+- Activity Core + Assets: **18/18** on PostgreSQL.
+- ARQ-02 modularization + application-layer contracts + ARQ-03A + Activity/Assets:
+  **109/109** on PostgreSQL.
+- Tenant/RBAC: **10/11**; the only error is the approved historical
+  `DocumentoAmbiental(perfil_ambiental)` failure outside ARQ-03B.
+- The critical PostgreSQL baseline retains exactly its five documented failures; no
+  new or changed failure was observed.
+- Django check and migration dry-run pass with no schema changes; Black, compileall and
+  diff checks pass.
+
+### Remaining debt
+
+The generic `crear_entidad`/`actualizar_entidad` helpers remain for `FuenteDatos`, whose
+mutation has no richer orchestration. Sensor-specific reads remain representation logic
+in the observation serializer. Broader permission-module decomposition belongs to later
+slices. No legacy dependency was added.
+
+ARQ-03B — OPERATIONAL DATA / ASSETS APPLICATION LAYERS: **CLOSED**.
+
+ARQ-03B stops here; ARQ-03C is not started.

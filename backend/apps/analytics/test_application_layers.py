@@ -3,17 +3,33 @@ import inspect
 
 from django.test import SimpleTestCase
 
+from .policies import activity_core as activity_policies
+from .policies import assets as asset_policies
 from .policies import platform as platform_policies
+from .selectors import activity_core as activity_selectors
+from .selectors import assets as asset_selectors
 from .selectors import operational_context as operational_selectors
 from .selectors import platform as platform_selectors
+from .services import activity_core as activity_services
+from .services import assets as asset_services
 from .services import operational_context as operational_services
 from .services import platform as platform_services
 
 
 class ApplicationLayerContractTests(SimpleTestCase):
-    selector_modules = (platform_selectors, operational_selectors)
-    policy_modules = (platform_policies,)
-    service_modules = (platform_services, operational_services)
+    selector_modules = (
+        platform_selectors,
+        operational_selectors,
+        activity_selectors,
+        asset_selectors,
+    )
+    policy_modules = (platform_policies, activity_policies, asset_policies)
+    service_modules = (
+        platform_services,
+        operational_services,
+        activity_services,
+        asset_services,
+    )
 
     def imported_modules(self, module):
         tree = ast.parse(inspect.getsource(module))
