@@ -181,4 +181,66 @@ slices. No legacy dependency was added.
 
 ARQ-03B — OPERATIONAL DATA / ASSETS APPLICATION LAYERS: **CLOSED**.
 
-ARQ-03B stops here; ARQ-03C is not started.
+ARQ-03B closed at that gate; the subsequent authorized ARQ-03C slice begins below.
+
+## ARQ-03C — Ingestion / Provenance
+
+### Audit and ownership changes
+
+The audit confirmed that the ingestion pipeline already lived mainly in
+`services/ingestion_v2.py`, but HTTP views still owned scoped process/template queries
+and failure persistence, while the service mixed evidence/source/template lookups and
+deterministic contract/context decisions with command orchestration.
+
+ARQ-03C introduces:
+
+- `selectors/ingestion.py`: organization/process scoping, user-visible process lists,
+  templates, sources, extracted records and mapping reads;
+- `selectors/provenance.py`: tenant-scoped evidence lookup and evidence-version sequence;
+- `policies/ingestion.py`: context parsing, work-scope access, ingestion contracts,
+  structured-payload shape, context/reference/applicability checks and confirmed-state
+  immutability;
+- the existing ingestion service remains command authority for receive, evidence/version
+  creation, checksum persistence, analysis, mapping, preview mutations, confirmation and
+  failure-state mutation.
+
+The serializers remain representation-only. Technical parsing, normalization,
+classification helpers and destination handlers remain in their established modules;
+they were not wrapped or moved for cosmetic reasons.
+
+### Preserved behavior
+
+- The sequence received → analyze → map → preview → confirm is unchanged.
+- Confirmed ingestion remains immutable and confirmation remains idempotent.
+- Tenant/work 404 behavior and permission-specific hidden-resource responses remain.
+- Evidence/version provenance, version numbering, files and SHA-256 checksums remain
+  inside the original atomic transaction.
+- Suggested versus confirmed classification and confirmed/suggested context remain
+  separate.
+- Preview and confirmation retain existing response shapes, row errors and states.
+- Documentary extraction continues to report the current structured-extraction
+  limitation; no data is invented.
+- Ingestion still delegates persistence handlers and does not calculate environmental
+  impact.
+- No dependency on a legacy model was introduced.
+
+### Validation
+
+- Ingestion V2 + multisource: **28/28** on PostgreSQL.
+- Provenance/manual atomicity + modularization/application architecture: **99/99**.
+- ARQ-03A/B + tenant/RBAC sample: **28/29**; the only error is the approved historical
+  `DocumentoAmbiental(perfil_ambiental)` failure outside ARQ-03C.
+- The critical baseline retains exactly the five documented PostgreSQL failures and no
+  new or changed failure.
+- Django check and migration dry-run pass; Black, compileall and diff checks pass.
+
+### Remaining debt
+
+Preview is intentionally a mutating command despite its historical name because it
+persists normalized rows and review states. Context policies perform scoped database
+reads but no writes. Pandas parsing and destination handlers remain coupled to the
+ingestion service and should only be revisited with dedicated compatibility tests.
+
+ARQ-03C — INGESTION / PROVENANCE APPLICATION LAYERS: **CLOSED**.
+
+ARQ-03C stops here; ARQ-03D is not started.

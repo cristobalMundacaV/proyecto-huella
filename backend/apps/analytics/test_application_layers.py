@@ -5,13 +5,17 @@ from django.test import SimpleTestCase
 
 from .policies import activity_core as activity_policies
 from .policies import assets as asset_policies
+from .policies import ingestion as ingestion_policies
 from .policies import platform as platform_policies
 from .selectors import activity_core as activity_selectors
 from .selectors import assets as asset_selectors
+from .selectors import ingestion as ingestion_selectors
 from .selectors import operational_context as operational_selectors
 from .selectors import platform as platform_selectors
+from .selectors import provenance as provenance_selectors
 from .services import activity_core as activity_services
 from .services import assets as asset_services
+from .services import ingestion_v2 as ingestion_services
 from .services import operational_context as operational_services
 from .services import platform as platform_services
 
@@ -22,13 +26,21 @@ class ApplicationLayerContractTests(SimpleTestCase):
         operational_selectors,
         activity_selectors,
         asset_selectors,
+        ingestion_selectors,
+        provenance_selectors,
     )
-    policy_modules = (platform_policies, activity_policies, asset_policies)
+    policy_modules = (
+        platform_policies,
+        activity_policies,
+        asset_policies,
+        ingestion_policies,
+    )
     service_modules = (
         platform_services,
         operational_services,
         activity_services,
         asset_services,
+        ingestion_services,
     )
 
     def imported_modules(self, module):
