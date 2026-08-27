@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.apps import apps
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import transaction
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
@@ -25,6 +26,8 @@ from apps.analytics.models import (
     FormulaAmbiental,
     FuenteDatos,
     IndicadorAmbiental,
+    ImpactoAmbiental,
+    InputCalculoAmbiental,
     CondicionOperacionalActivo,
     DiscrepanciaDato,
     MantenimientoActivo,
@@ -194,6 +197,13 @@ GOVERNANCE_TABLES = {
     CompatibilidadVersionMetodologia: "analytics_compatibilidadversionmetodologia",
 }
 
+CALCULATION_MODELS = (CalculoAmbiental, InputCalculoAmbiental, ImpactoAmbiental)
+CALCULATION_TABLES = {
+    CalculoAmbiental: "analytics_calculoambiental",
+    InputCalculoAmbiental: "analytics_inputcalculoambiental",
+    ImpactoAmbiental: "analytics_impactoambiental",
+}
+
 
 class ModelModularizationContractTests(SimpleTestCase):
     def test_platform_models_live_in_platform_module(self):
@@ -351,6 +361,15 @@ class ModelModularizationContractTests(SimpleTestCase):
                 self.assertIs(getattr(public_models, model.__name__), model)
                 self.assertIs(apps.get_model("analytics", model.__name__), model)
 
+    def test_calculation_models_live_in_owner_module_and_keep_contract(self):
+        for model in CALCULATION_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model.__module__, "apps.analytics.models.calculations")
+                self.assertEqual(model._meta.app_label, "analytics")
+                self.assertEqual(model._meta.db_table, CALCULATION_TABLES[model])
+                self.assertIs(getattr(public_models, model.__name__), model)
+                self.assertIs(apps.get_model("analytics", model.__name__), model)
+
     def test_calculation_relations_still_resolve_governance_models(self):
         expected = {
             "version_metodologia": VersionMetodologia,
@@ -363,6 +382,31 @@ class ModelModularizationContractTests(SimpleTestCase):
                     CalculoAmbiental._meta.get_field(field_name).remote_field.model,
                     target,
                 )
+
+    def test_calculation_input_and_impact_relations_keep_their_targets(self):
+        expected = {
+            (CalculoAmbiental, "organizacion"): Organizacion,
+            (CalculoAmbiental, "actividad"): ActividadOperacional,
+            (CalculoAmbiental, "version_metodologia"): VersionMetodologia,
+            (CalculoAmbiental, "formula"): FormulaAmbiental,
+            (CalculoAmbiental, "version_factor"): VersionFactorAmbiental,
+            (CalculoAmbiental, "recalculo_de"): CalculoAmbiental,
+            (InputCalculoAmbiental, "calculo"): CalculoAmbiental,
+            (InputCalculoAmbiental, "variable"): VariableFormula,
+            (InputCalculoAmbiental, "observacion"): Observacion,
+            (InputCalculoAmbiental, "fuente"): FuenteDatos,
+            (InputCalculoAmbiental, "evidencia"): EvidenciaObra,
+            (InputCalculoAmbiental, "version_evidencia"): VersionEvidencia,
+            (ImpactoAmbiental, "organizacion"): Organizacion,
+            (ImpactoAmbiental, "actividad"): ActividadOperacional,
+            (ImpactoAmbiental, "calculo"): CalculoAmbiental,
+        }
+        for (model, field_name), target in expected.items():
+            with self.subTest(model=model.__name__, field=field_name):
+                field = model._meta.get_field(field_name)
+                self.assertIs(field.remote_field.model, target)
+
+        self.assertTrue(ImpactoAmbiental._meta.get_field("calculo").one_to_one)
 
     def test_governance_constraints_keep_global_tenant_and_version_contracts(self):
         expected = {
@@ -1352,3 +1396,144 @@ class ModelModularizationPersistenceTests(TestCase):
             FormulaAmbiental.objects.filter(pk=formula.pk).delete()
         with self.assertRaises(ValidationError), transaction.atomic():
             VariableFormula.objects.filter(pk=variable.pk).delete()
+
+    def create_calculation_context(self, suffix=""):
+        organization, work, source, activity, observation = (
+            self.create_observation_context(f"CALC-{suffix}")
+        )
+        methodology = MetodologiaAmbiental.objects.create(
+            organizacion=organization,
+            codigo=f"calculation-method-{suffix.lower()}",
+            nombre=f"Método de cálculo {suffix}",
+            categoria="emisiones",
+            flujo="combustible",
+        )
+        methodology_version = VersionMetodologia.objects.create(
+            metodologia=methodology,
+            version=1,
+        )
+        factor = FactorAmbiental.objects.create(
+            organizacion=organization,
+            codigo=f"calculation-factor-{suffix.lower()}",
+            nombre=f"Factor de cálculo {suffix}",
+            categoria="combustible",
+            unidad_entrada="L",
+        )
+        factor_version = VersionFactorAmbiental.objects.create(
+            factor=factor,
+            version=1,
+            valor=Decimal("2.7000000000"),
+            fuente="Fuente de prueba",
+        )
+        formula = FormulaAmbiental.objects.create(
+            version_metodologia=methodology_version,
+            factor_ambiental=factor,
+            codigo=f"calculation-formula-{suffix.lower()}",
+            tipo=FormulaAmbiental.Tipo.TRANSPORTE_COMBUSTIBLE,
+            expresion_legible="combustible x factor",
+        )
+        variable = VariableFormula.objects.create(
+            formula=formula,
+            clave="combustible",
+            concepto_observacion=observation.concepto,
+            unidad_esperada=observation.unidad,
+        )
+        evidence = EvidenciaObra.objects.create(
+            organizacion=organization,
+            obra=work,
+            archivo=SimpleUploadedFile("evidence.txt", b"evidence"),
+            nombre=f"Evidencia {suffix}",
+        )
+        evidence_version = VersionEvidencia.objects.create(
+            evidencia=evidence,
+            organizacion=organization,
+            version=1,
+            archivo=SimpleUploadedFile("evidence-v1.txt", b"evidence-v1"),
+            nombre_original="evidence-v1.txt",
+            checksum_sha256="a" * 64,
+        )
+        calculation = CalculoAmbiental.objects.create(
+            organizacion=organization,
+            actividad=activity,
+            version_metodologia=methodology_version,
+            formula=formula,
+            version_factor=factor_version,
+            resultado=Decimal("67.5000000000"),
+            unidad_resultado="kgCO2e",
+            formula_aplicada=formula.expresion_legible,
+            completitud="elegible",
+            snapshot_tecnico={"source": "architecture-test"},
+        )
+        return {
+            "organization": organization,
+            "activity": activity,
+            "source": source,
+            "observation": observation,
+            "methodology_version": methodology_version,
+            "factor_version": factor_version,
+            "formula": formula,
+            "variable": variable,
+            "evidence": evidence,
+            "evidence_version": evidence_version,
+            "calculation": calculation,
+        }
+
+    def test_calculation_input_and_impact_can_still_be_created(self):
+        context = self.create_calculation_context("CREATE")
+        calculation_input = InputCalculoAmbiental.objects.create(
+            calculo=context["calculation"],
+            variable=context["variable"],
+            observacion=context["observation"],
+            valor_utilizado=Decimal("25"),
+            unidad=context["observation"].unidad,
+            concepto=context["observation"].concepto,
+            fuente=context["source"],
+            evidencia=context["evidence"],
+            version_evidencia=context["evidence_version"],
+        )
+        impact = ImpactoAmbiental.objects.create(
+            organizacion=context["organization"],
+            actividad=context["activity"],
+            calculo=context["calculation"],
+            tipo=ImpactoAmbiental.Tipo.GENERADO,
+            categoria="emisiones",
+            valor=context["calculation"].resultado,
+            unidad=context["calculation"].unidad_resultado,
+            timestamp=context["activity"].timestamp_inicio,
+        )
+
+        self.assertEqual(calculation_input.observacion, context["observation"])
+        self.assertEqual(calculation_input.evidencia, context["evidence"])
+        self.assertEqual(
+            calculation_input.version_evidencia, context["evidence_version"]
+        )
+        self.assertEqual(impact.calculo, context["calculation"])
+        self.assertEqual(context["calculation"].impacto, impact)
+
+    def test_persisted_calculation_remains_immutable(self):
+        calculation = self.create_calculation_context("IMMUTABLE")["calculation"]
+        calculation.resultado = Decimal("999")
+
+        with self.assertRaises(ValidationError):
+            calculation.save()
+
+    def test_recalculation_contract_can_still_create_a_new_calculation(self):
+        context = self.create_calculation_context("RECALCULATION")
+        original = context["calculation"]
+        recalculation = CalculoAmbiental.objects.create(
+            organizacion=context["organization"],
+            actividad=context["activity"],
+            version_metodologia=context["methodology_version"],
+            formula=context["formula"],
+            version_factor=context["factor_version"],
+            resultado=Decimal("68.0000000000"),
+            unidad_resultado=original.unidad_resultado,
+            formula_aplicada=original.formula_aplicada,
+            completitud=original.completitud,
+            version_interna=2,
+            recalculo_de=original,
+            motivo_recalculo="Corrección documentada",
+        )
+
+        self.assertEqual(recalculation.recalculo_de, original)
+        self.assertEqual(list(original.recalculos.all()), [recalculation])

@@ -634,3 +634,107 @@ modelos y 94 labels únicos; `makemigrations --check --dry-run` no detecta cambi
   `ActividadOperacional.DoesNotExist` en Construction V1.
 - No se modificaron services, views, serializers, permisos, cálculo, frontend, modelos
   legacy ni migraciones. ARQ-02J queda fuera de este cierre.
+
+## ARQ-02J — Environmental Calculations
+
+### Modelos, ownership y dependencias
+
+ARQ-02J extrae exclusivamente a `models/calculations.py`:
+
+- `CalculoAmbiental`
+- `InputCalculoAmbiental`
+- `ImpactoAmbiental`
+
+No se encontró otro modelo cuya responsabilidad fuese exclusivamente persistir una
+ejecución de cálculo. `RegistroEmision` permanece como modelo legacy y
+`environmental_engine.py` continúa usándolo sin cambios.
+
+Calculations importa directamente Platform (`Organizacion`), Operational Data
+(`ActividadOperacional`, `FuenteDatos`, `Observacion`), Governance
+(`VersionMetodologia`, `FormulaAmbiental`, `VersionFactorAmbiental`,
+`VariableFormula`) y Provenance (`EvidenciaObra`, `VersionEvidencia`). Operational Data
+y Governance no importan Calculations; no se introdujeron ciclos ni imports desde
+`models.__init__`.
+
+### Contrato, schema, registry e inmutabilidad
+
+Los tres modelos conservan campos, choices, defaults, relaciones, `related_name`,
+`on_delete`, `Meta` y tablas históricas. `ImpactoAmbiental.calculo` continúa siendo
+`OneToOneField`; los inputs conservan referencias exactas a observación, fuente,
+evidencia y versión de evidencia.
+
+La API pública, el owner module y Django registry comparten identidad 3/3. El registry
+permanece en 94 modelos y 94 labels únicos; no se generan migraciones.
+
+`CalculoAmbiental.save()` permanece intacto: una instancia persistida no puede
+reescribirse. Un recálculo sigue siendo otro `CalculoAmbiental`, relacionado por
+`recalculo_de`, con `motivo_recalculo` y una nueva `version_interna` según el servicio
+existente. No se agregaron validaciones cross-tenant: estos tres modelos no tenían una
+regla propia adicional que preservar.
+
+### Result pipeline actual
+
+- **CREA:** `calculation_v2.calculate_activity` selecciona Governance, calcula y crea
+  `CalculoAmbiental` e `InputCalculoAmbiental`; `impact_v2.create_generated_impact`
+  crea el `ImpactoAmbiental` uno-a-uno.
+- **LEE/API:** `views_calculation_v2` y `serializers_calculation_v2` listan, detallan y
+  exponen cálculos, inputs, impactos y snapshots.
+- **RECALCULA:** `calculation_v2.recalculate` crea otro cálculo; Views Calculation V2 y
+  `professional_v2.recalculate_for_correction` invocan ese circuito.
+- **CONVIERTE EN IMPACTO:** `impact_v2` mapea `tipo_resultado` al choice de impacto y
+  copia resultado, unidad, categoría y timestamp de actividad.
+- **CONVIERTE EN INDICADOR:** `indicators_v2.generate_indicator_value` agrega impactos
+  por tenant, periodo y, cuando aplica, obra; persiste `ValorIndicador`.
+- **REPORTA:** `professional_v2` incorpora cálculos e inputs en snapshots de actividad,
+  expedientes, auditoría e informes. Calculation V2 también expone comparación y
+  snapshot técnico.
+- **USA EN IMPROVEMENT:** problemáticas/intervenciones guardan snapshots separados;
+  `professional_v2.build_dossier_references` enlaza cálculos e impactos asociados a las
+  actividades del problema.
+- **USA EN AI:** no se encontró un consumer de IA que cree o modifique directamente
+  estos tres modelos. Copilot/agentes consumen contexto y resultados derivados mediante
+  las capas de conocimiento/profesional.
+
+### Snapshot técnico real
+
+`calculation_v2` construye actualmente `CalculoAmbiental.snapshot_tecnico` con:
+
+- IDs de metodología y versión metodológica;
+- ID y tipo de fórmula;
+- IDs de factor y versión de factor;
+- valor, fuente y vigencias desde/hasta del factor;
+- tipo y unidad de resultado, más `contexto_resultado`;
+- razón de la decisión y candidatos con método, estado y motivos;
+- por cada input: variable, clave, observación, valor/unidad original, valor/unidad
+  normalizado, indicador y regla de conversión, factor de conversión, fuente, evidencia
+  y versión de evidencia.
+
+No almacena copias adicionales fuera de ese contrato. La clasificación está representada
+por metodología/fórmula y la decisión/candidatos reales; no se añadió metadata inferida.
+
+### Tipos de resultado reales
+
+`CalculoAmbiental.tipo_resultado` y `VersionMetodologia.tipo_resultado` son `CharField`
+con default `emision`, sin choices de modelo. Governance valida actualmente el conjunto:
+
+`emision`, `reduccion`, `emision_evitada`, `remocion`, `compensacion`, `otro`.
+
+El motor toma el tipo desde la versión metodológica. Existen pruebas reales para
+`emision` y `reduccion`; los demás valores tienen validación de contexto y mapping a
+Impacto, pero no se extendió ni reinterpretó su semántica.
+
+### Gate y deuda preservada
+
+- Tests arquitectónicos acumulados: 64/64 correctos.
+- Calculation V2, combustible E2E, Governance, HuellaChile, selectores, unidades,
+  Operational Data, ingestion/provenance, Quality/Indicators, Improvement, Professional
+  y consumidores AI: 247/247 correctos.
+- Suites legacy/reporting adicionales: 31/32; el único error es el `TypeError`
+  preexistente de `DocumentoAmbiental(perfil_ambiental)`.
+- Gate baseline: 24 tests; 18 correctos y exactamente los mismos seis fallos conocidos:
+  tres del catálogo de áreas, columna SQLite histórica de `AccionAmbiental`, el mismo
+  `TypeError` documental y `ActividadOperacional.DoesNotExist` en Construction V1.
+- Se preservan como deuda `RegistroEmision` y `environmental_engine.py`, la validación de
+  tipos fuera de los modelos, y la lógica de cálculo/eligibility/selectores en servicios.
+- No se modificaron services, views, serializers, permisos, IoT, frontend ni legacy.
+  ARQ-02K queda fuera de este cierre.
