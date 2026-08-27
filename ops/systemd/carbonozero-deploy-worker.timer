@@ -1,0 +1,11 @@
+[Unit]
+Description=Reconcile Carbono Zero with origin/main every two minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=2min
+Persistent=true
+Unit=carbonozero-deploy-worker.service
+
+[Install]
+WantedBy=timers.target

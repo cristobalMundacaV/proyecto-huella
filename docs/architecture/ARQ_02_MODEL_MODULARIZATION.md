@@ -879,3 +879,122 @@ queda documentada para ARQ-09; ARQ-02K no la corrige.
   incluida la columna SQLite legacy `analytics_accionambiental.organizacion_id`.
 - No se modificaron services, views, serializers, permisos, IoT, frontend, Intelligence
   ni legacy. ARQ-02L queda fuera de este cierre.
+
+## ARQ-02L — Intelligence
+
+### Modelos, ownership y dependencias
+
+ARQ-02L extrae exclusivamente a `models/intelligence.py` los siete modelos de la capa
+advisory/contextual encontrados en el repositorio:
+
+- `RecomendacionAgenteAmbiental`
+- `MemoriaOrganizacion`
+- `RestriccionContextual`
+- `HistorialRestriccionContextual`
+- `HitoDecisionIA`
+- `ComandoCopiloto`
+- `CasoConocimientoAmbiental`
+
+Intelligence importa directamente Platform (`Organizacion`) e Improvement
+(`ProblematicaAmbiental`, `ResultadoIntervencion`). No se movieron modelos de
+Improvement, Professional o Reporting. Los dominios determinísticos no importan el
+nuevo módulo para producir verdad ambiental; sus referencias inversas de Django se
+mantienen sin cambios.
+
+Las restricciones conservan ownership físico en Intelligence porque así está modelado
+el aggregate actual. Su `tipo` es texto libre y puede representar responsabilidades que
+en el futuro pertenezcan a Operations, Governance o Compliance; ARQ-02L no cambia ese
+ownership semántico.
+
+### Contrato, schema y registry
+
+Los siete modelos conservan campos, choices, defaults, relaciones, `related_name`,
+`on_delete`, constraints, indexes, `Meta`, validaciones y tablas históricas. La API
+pública, el owner module y Django registry comparten identidad 7/7. El registry
+permanece en 94 modelos y 94 labels únicos; no se generan migraciones.
+
+Las pruebas arquitectónicas crean las siete entidades y verifican relaciones con
+problemática/resultado, aislamiento tenant, historial de restricción y los estados
+reales `preparado`, `confirmado` y `rechazado` de `ComandoCopiloto`.
+
+### Contexto consumido por IA
+
+El contexto real incluye, según el servicio y categoría solicitada:
+
+- organización, preset, obra y alcance operacional;
+- actividades y observaciones operacionales, viajes, materiales y flujos sectoriales;
+- evidencias, documentos y sus estados, excluyendo archivos y texto extraído;
+- indicadores, valores recientes, metas, comparaciones y snapshots de intervención;
+- métricas determinísticas ya calculadas y registros de emisión validados;
+- reglas normativas activas y validadas;
+- problemática, acciones probadas, ciclos de reevaluación e historial resumido;
+- restricciones activas, memoria organizacional vigente y conocimiento comparable;
+- activos, condiciones/mantenimientos, sensores, calibración y lecturas recientes.
+
+El Context Builder se clasifica **PARTIAL**. `CopilotProposalService` usa el
+`ContextGateway` central y categorías permitidas explícitamente; el agente ambiental
+usa `minimal_agent_context` en `environmental_context.py`. Knowledge arma un payload
+propio desde resultados verificados. No se unificaron estos builders.
+
+### AI write paths y autoridad
+
+- Actividades, observaciones, cálculos, impactos, indicadores, cumplimiento, factores y
+  metodologías: **NONE**; no se encontraron escrituras desde la capa IA.
+- Recomendaciones, hitos y memoria contextual: **DIRECT**, limitadas a modelos
+  Intelligence y sin convertir por sí mismas verdad operacional.
+- Acción de mejora y selección de acción: **CONFIRMED-HUMAN / SERVICE-MEDIATED**;
+  `confirm_command` crea/selecciona la acción solo después de confirmar un comando
+  preparado.
+- Estado de problemática y escalamiento: **AI + HUMAN / SERVICE-MEDIATED**; solo el
+  comando confirmado delega en `select_action` o `escalate_problem`.
+- Restricciones: **AI + HUMAN** para comandos preparados; la refutación explícita del
+  usuario crea directamente una restricción y memoria, y genera una propuesta ajustada.
+- Cierre, cumplimiento, factores, metodologías y reportes finales: no existe autoridad
+  AI. Los cálculos son **DETERMINISTIC** y la validación/corrección final existente es
+  **PROFESSIONAL**.
+- Knowledge persiste casos derivados de un `ResultadoIntervencion` existente; valida
+  procedencia IA/profesional cuando se declara y no recalcula el resultado.
+
+El patrón preservado es: IA propone → comando queda preparado → humano confirma → un
+servicio ejecuta la transición permitida. No existe auto-confirmación ni side effect en
+`model.save()`.
+
+### Prompts, outputs y restricciones
+
+Los dos callers LLM reales usan `OpenAIEnvironmentalProvider`, Responses API y el modelo
+`gpt-5-mini`; la clave se obtiene desde settings y no se persiste. El agente recibe
+reglas de no invención/no cálculo y contexto JSON, exige JSON con diagnóstico separado
+en hechos, correlaciones e hipótesis, acción, justificación, indicador, resultado,
+prioridad, seguimiento y confianza. Valida campos, choices, KPI y afirmaciones de
+cumplimiento/efectividad antes de persistir.
+
+El copiloto extiende esas reglas con prohibición explícita de ejecutar o modificar
+estado. Exige JSON con título, descripción, justificación, KPIs, requisitos, riesgos,
+prioridad, hechos, limitaciones y supuestos; valida estructura, listas, prioridad y KPIs
+asociados. No existe fallback de contenido: errores del proveedor o validación se
+propagan y no persisten una propuesta válida ficticia.
+
+La clasificación observable de restricciones es:
+
+- `restriccion_operacional` y restricciones preparadas por comando: **OPERATIONAL**
+  cuando el payload humano así lo describe; el modelo no impone taxonomía.
+- `refutacion_usuario`: **AI-PREFERENCE / INTERNAL**, pues expresa feedback humano que
+  condiciona la siguiente propuesta.
+- cualquier otro valor libre: **UNKNOWN**. No hay choices suficientes para afirmar
+  categorías ENVIRONMENTAL o REGULATORY de forma determinística.
+
+### Gate y deuda preservada
+
+- Tests arquitectónicos acumulados: 75/75 correctos.
+- Intelligence, Improvement, Professional, Governance, Methodology, Calculation y los
+  consumidores Reporting existentes: 117/117 pruebas reales correctas. Reporting no
+  posee suite independiente; su cobertura está en Professional V2.
+- Gate baseline: 24 tests; 18 correctos y exactamente los mismos seis fallos conocidos:
+  tres del catálogo de áreas, columna SQLite histórica de `AccionAmbiental`, el
+  `TypeError` de `DocumentoAmbiental(perfil_ambiental)` y
+  `ActividadOperacional.DoesNotExist` en Construction V1.
+- Se preservan como deuda el Context Builder parcial, el `tipo` libre de restricciones,
+  la coexistencia de estados legacy/modernos de Improvement y los límites de autoridad
+  ya documentados. No se modificaron prompts, providers, services, views, serializers,
+  permisos, frontend ni comportamiento.
+- ARQ-02L se detiene aquí; Professional y Reporting permanecen para ARQ-02M.

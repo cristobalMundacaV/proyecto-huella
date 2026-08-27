@@ -1,0 +1,14 @@
+[Unit]
+Description=Carbono Zero deployment reconciliation worker
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/default/carbonozero-deploy
+ExecStart=/usr/local/sbin/carbonozero-deploy-worker
+TimeoutStartSec=2h
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

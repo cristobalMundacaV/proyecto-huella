@@ -16,7 +16,9 @@ from apps.analytics.models import (
     ActivoOperacional,
     AlcanceProblematica,
     CalculoAmbiental,
+    CasoConocimientoAmbiental,
     CicloReevaluacionProblematica,
+    ComandoCopiloto,
     CompatibilidadVersionMetodologia,
     AreaOperacional,
     EspacioTrabajoOperacional,
@@ -30,6 +32,8 @@ from apps.analytics.models import (
     FuenteDatos,
     HistorialMetaProblematica,
     HistorialProblematicaAmbiental,
+    HistorialRestriccionContextual,
+    HitoDecisionIA,
     IndicadorAmbiental,
     IndicadorProblematica,
     ImpactoAmbiental,
@@ -42,6 +46,7 @@ from apps.analytics.models import (
     LoteMaterial,
     MaterialOperacional,
     MedicionSeguimientoAmbiental,
+    MemoriaOrganizacion,
     Maquinaria,
     MetodologiaAmbiental,
     Organizacion,
@@ -56,6 +61,8 @@ from apps.analytics.models import (
     ProblematicaAmbiental,
     RegistroExtraido,
     RegistroFlujoAmbiental,
+    RecomendacionAgenteAmbiental,
+    RestriccionContextual,
     ResultadoIntervencion,
     RutaOperacional,
     SuscripcionSaaS,
@@ -232,6 +239,19 @@ IMPROVEMENT_TABLES = {
     model: f"analytics_{model.__name__.lower()}" for model in IMPROVEMENT_MODELS
 }
 
+INTELLIGENCE_MODELS = (
+    RecomendacionAgenteAmbiental,
+    MemoriaOrganizacion,
+    RestriccionContextual,
+    HistorialRestriccionContextual,
+    HitoDecisionIA,
+    ComandoCopiloto,
+    CasoConocimientoAmbiental,
+)
+INTELLIGENCE_TABLES = {
+    model: f"analytics_{model.__name__.lower()}" for model in INTELLIGENCE_MODELS
+}
+
 
 class ModelModularizationContractTests(SimpleTestCase):
     def test_platform_models_live_in_platform_module(self):
@@ -406,6 +426,40 @@ class ModelModularizationContractTests(SimpleTestCase):
                 self.assertEqual(model._meta.db_table, IMPROVEMENT_TABLES[model])
                 self.assertIs(getattr(public_models, model.__name__), model)
                 self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_intelligence_models_live_in_owner_module_and_keep_contract(self):
+        for model in INTELLIGENCE_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model.__module__, "apps.analytics.models.intelligence")
+                self.assertEqual(model._meta.app_label, "analytics")
+                self.assertEqual(model._meta.db_table, INTELLIGENCE_TABLES[model])
+                self.assertIs(getattr(public_models, model.__name__), model)
+                self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_intelligence_relations_keep_their_targets(self):
+        expected = {
+            (RecomendacionAgenteAmbiental, "problematica"): ProblematicaAmbiental,
+            (
+                RecomendacionAgenteAmbiental,
+                "propuesta_anterior",
+            ): RecomendacionAgenteAmbiental,
+            (MemoriaOrganizacion, "organizacion"): Organizacion,
+            (MemoriaOrganizacion, "problematica"): ProblematicaAmbiental,
+            (RestriccionContextual, "organizacion"): Organizacion,
+            (RestriccionContextual, "problematica"): ProblematicaAmbiental,
+            (HistorialRestriccionContextual, "restriccion"): RestriccionContextual,
+            (HitoDecisionIA, "propuesta"): RecomendacionAgenteAmbiental,
+            (HitoDecisionIA, "problematica"): ProblematicaAmbiental,
+            (ComandoCopiloto, "propuesta"): RecomendacionAgenteAmbiental,
+            (ComandoCopiloto, "problematica"): ProblematicaAmbiental,
+            (CasoConocimientoAmbiental, "organizacion"): Organizacion,
+            (CasoConocimientoAmbiental, "resultado_origen"): ResultadoIntervencion,
+        }
+        for (model, field_name), target in expected.items():
+            with self.subTest(model=model.__name__, field=field_name):
+                self.assertIs(
+                    model._meta.get_field(field_name).remote_field.model, target
+                )
 
     def test_improvement_relations_keep_their_targets(self):
         expected = {
@@ -1840,3 +1894,153 @@ class ModelModularizationPersistenceTests(TestCase):
             snapshot.delete()
         with self.assertRaises(ValidationError):
             value.delete()
+
+    def create_intelligence_context(self, suffix=""):
+        context = self.create_improvement_context(f"INTELLIGENCE-{suffix}")
+        base = SnapshotIntervencion.objects.create(
+            problematica=context["problem"],
+            accion=context["action"],
+            ciclo=1,
+            tipo=SnapshotIntervencion.Tipo.BASE,
+            fecha=date(2026, 8, 1),
+        )
+        result_snapshot = SnapshotIntervencion.objects.create(
+            problematica=context["problem"],
+            accion=context["action"],
+            ciclo=1,
+            tipo=SnapshotIntervencion.Tipo.RESULTADO,
+            fecha=date(2026, 8, 31),
+        )
+        result = ResultadoIntervencion.objects.create(
+            problematica=context["problem"],
+            accion=context["action"],
+            ciclo=1,
+            snapshot_base=base,
+            snapshot_resultado=result_snapshot,
+            estado=ResultadoIntervencion.Estado.POSITIVA,
+            fecha_evaluacion=date(2026, 8, 31),
+        )
+        proposal = RecomendacionAgenteAmbiental.objects.create(
+            problematica=context["problem"],
+            accion="Consolidar cargas",
+            justificacion="Reducir viajes parciales",
+            indicador_afectado=context["indicator"].codigo,
+            resultado_esperado="Reducir emisiones",
+            prioridad=RecomendacionAgenteAmbiental.Prioridad.MEDIA,
+            periodo_seguimiento="Mensual",
+            nivel_confianza=RecomendacionAgenteAmbiental.Confianza.MEDIA,
+        )
+        context.update({"result": result, "proposal": proposal})
+        return context
+
+    def test_intelligence_entities_and_human_command_states_can_still_be_created(self):
+        context = self.create_intelligence_context("CREATE")
+        user = User.objects.create_user(username="intelligence-user")
+        memory = MemoriaOrganizacion.objects.create(
+            organizacion=context["organization"],
+            problematica=context["problem"],
+            tipo=MemoriaOrganizacion.Tipo.ACCION_ACEPTADA,
+            contenido={"accion": context["action"].id},
+            fuente_origen="confirmacion_humana",
+        )
+        restriction = RestriccionContextual.objects.create(
+            organizacion=context["organization"],
+            problematica=context["problem"],
+            tipo="operacional",
+            descripcion="Ventana horaria limitada",
+            created_by=user,
+        )
+        restriction_history = HistorialRestriccionContextual.objects.create(
+            restriccion=restriction,
+            contenido_anterior={},
+            contenido_nuevo={"horario": "diurno"},
+            motivo="Confirmación operacional",
+            usuario=user,
+        )
+        milestone = HitoDecisionIA.objects.create(
+            organizacion=context["organization"],
+            problematica=context["problem"],
+            propuesta=context["proposal"],
+            tipo=HitoDecisionIA.Tipo.DECISION,
+            resumen="Propuesta confirmada por usuario",
+            usuario=user,
+        )
+        prepared = ComandoCopiloto.objects.create(
+            organizacion=context["organization"],
+            problematica=context["problem"],
+            propuesta=context["proposal"],
+            tipo=ComandoCopiloto.Tipo.ACCION,
+        )
+        confirmed = ComandoCopiloto.objects.create(
+            organizacion=context["organization"],
+            problematica=context["problem"],
+            tipo=ComandoCopiloto.Tipo.REEVALUACION,
+            estado=ComandoCopiloto.Estado.CONFIRMADO,
+            confirmado_por=user,
+        )
+        rejected = ComandoCopiloto.objects.create(
+            organizacion=context["organization"],
+            problematica=context["problem"],
+            tipo=ComandoCopiloto.Tipo.RESTRICCION,
+            estado=ComandoCopiloto.Estado.RECHAZADO,
+            confirmado_por=user,
+        )
+
+        self.assertEqual(
+            context["problem"].recomendaciones_agente.get(), context["proposal"]
+        )
+        self.assertEqual(memory.problematica, context["problem"])
+        self.assertEqual(restriction_history.restriccion, restriction)
+        self.assertEqual(milestone.propuesta, context["proposal"])
+        self.assertEqual(prepared.estado, ComandoCopiloto.Estado.PREPARADO)
+        self.assertEqual(confirmed.estado, ComandoCopiloto.Estado.CONFIRMADO)
+        self.assertEqual(rejected.estado, ComandoCopiloto.Estado.RECHAZADO)
+
+    def test_environmental_knowledge_case_can_still_be_created(self):
+        context = self.create_intelligence_context("KNOWLEDGE")
+        case = CasoConocimientoAmbiental.objects.create(
+            organizacion=context["organization"],
+            resultado_origen=context["result"],
+            preset="construccion",
+            tipo_problematica="emisiones-altas",
+            categoria_ambiental="emisiones",
+            tipo_accion="optimizacion-logistica",
+            contexto_operacional={"obra": context["work"].id},
+            resultado=CasoConocimientoAmbiental.Resultado.EXITOSO,
+            metricas_comparadas=[{"indicador": context["indicator"].id}],
+            grado_implementacion="completo",
+            viabilidad="alta",
+            fuerza_evidencia=CasoConocimientoAmbiental.Fuerza.MEDIA,
+            fundamento_evidencia=["Resultado de intervención verificable"],
+            origen_conocimiento=CasoConocimientoAmbiental.Origen.MIXTO,
+            fecha_caso=date(2026, 8, 31),
+            fingerprint="knowledge-architecture-test",
+        )
+
+        self.assertEqual(case.resultado_origen, context["result"])
+        self.assertEqual(case.estado, CasoConocimientoAmbiental.Estado.CANDIDATO)
+
+    def test_intelligence_tenant_safety_remains_unchanged(self):
+        context = self.create_intelligence_context("TENANT")
+        other = Organizacion.objects.create(nombre="Foreign intelligence tenant")
+        memory = MemoriaOrganizacion(
+            organizacion=other,
+            problematica=context["problem"],
+            tipo=MemoriaOrganizacion.Tipo.INTERVENCION,
+            contenido={},
+            fuente_origen="test",
+        )
+        restriction = RestriccionContextual(
+            organizacion=other,
+            problematica=context["problem"],
+            tipo="operational",
+            descripcion="Foreign restriction",
+        )
+
+        with self.assertRaises(ValidationError) as memory_error:
+            memory.full_clean()
+        with self.assertRaises(ValidationError) as restriction_error:
+            restriction.full_clean()
+
+        self.assertIn("problematica", memory_error.exception.message_dict)
+        self.assertIn("problematica", restriction_error.exception.message_dict)
