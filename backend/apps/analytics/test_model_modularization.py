@@ -783,9 +783,19 @@ class ModelModularizationContractTests(SimpleTestCase):
         registered = [
             model for model in apps.get_models() if model._meta.app_label == "analytics"
         ]
+
         labels = [model._meta.label_lower for model in registered]
-        self.assertEqual(len(registered), 94)
+
+        # Incluso si AccionAmbiental compatibility/unmanaged fue importado por
+        # esta suite, ningún label del registry puede estar duplicado.
         self.assertEqual(len(labels), len(set(labels)))
+
+        # AccionAmbiental es una capa de compatibilidad histórica externa al
+        # conjunto canónico de 94 modelos analytics.
+        canonical_models = [
+            model for model in registered if model is not AccionAmbiental
+        ]
+        self.assertEqual(len(canonical_models), 94)
 
     def test_legacy_models_are_isolated_without_changing_their_contract(self):
         for model in LEGACY_MODELS:
@@ -798,9 +808,7 @@ class ModelModularizationContractTests(SimpleTestCase):
                 self.assertTrue(model._meta.managed)
 
     def test_unmanaged_accion_ambiental_compatibility_contract_is_preserved(self):
-        self.assertEqual(
-            AccionAmbiental.__module__, "apps.analytics.models_acciones"
-        )
+        self.assertEqual(AccionAmbiental.__module__, "apps.analytics.models_acciones")
         self.assertIs(apps.get_model("analytics", "AccionAmbiental"), AccionAmbiental)
         self.assertEqual(AccionAmbiental._meta.db_table, "analytics_accionambiental")
         self.assertFalse(AccionAmbiental._meta.managed)
