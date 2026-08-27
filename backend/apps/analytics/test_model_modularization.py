@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.apps import apps
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
@@ -12,6 +13,7 @@ from apps.analytics.models import (
     ActividadOperacional,
     ActivoOperacional,
     CalculoAmbiental,
+    CompatibilidadVersionMetodologia,
     AreaOperacional,
     EspacioTrabajoOperacional,
     EtapaObra,
@@ -20,6 +22,7 @@ from apps.analytics.models import (
     EventoAuditoriaSaaS,
     EvaluacionCalidadDato,
     FactorAmbiental,
+    FormulaAmbiental,
     FuenteDatos,
     IndicadorAmbiental,
     CondicionOperacionalActivo,
@@ -30,6 +33,7 @@ from apps.analytics.models import (
     LoteMaterial,
     MaterialOperacional,
     Maquinaria,
+    MetodologiaAmbiental,
     Organizacion,
     Observacion,
     Obra,
@@ -46,9 +50,12 @@ from apps.analytics.models import (
     UsuarioObraAcceso,
     UsuarioOrganizacion,
     UnidadOperacional,
+    VariableFormula,
     Vehiculo,
     ValorIndicador,
     VersionEvidencia,
+    VersionFactorAmbiental,
+    VersionMetodologia,
     ViajeOperacional,
 )
 
@@ -166,6 +173,25 @@ INDICATOR_TABLES = {
     ValorIndicador: "analytics_valorindicador",
     LineaBaseAmbiental: "analytics_lineabaseambiental",
     PeriodoComparable: "analytics_periodocomparable",
+}
+
+GOVERNANCE_MODELS = (
+    MetodologiaAmbiental,
+    VersionMetodologia,
+    FactorAmbiental,
+    VersionFactorAmbiental,
+    FormulaAmbiental,
+    VariableFormula,
+    CompatibilidadVersionMetodologia,
+)
+GOVERNANCE_TABLES = {
+    MetodologiaAmbiental: "analytics_metodologiaambiental",
+    VersionMetodologia: "analytics_versionmetodologia",
+    FactorAmbiental: "analytics_factorambiental",
+    VersionFactorAmbiental: "analytics_versionfactorambiental",
+    FormulaAmbiental: "analytics_formulaambiental",
+    VariableFormula: "analytics_variableformula",
+    CompatibilidadVersionMetodologia: "analytics_compatibilidadversionmetodologia",
 }
 
 
@@ -315,6 +341,49 @@ class ModelModularizationContractTests(SimpleTestCase):
                 self.assertEqual(model._meta.db_table, INDICATOR_TABLES[model])
                 self.assertIs(getattr(public_models, model.__name__), model)
                 self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_governance_models_live_in_owner_module_and_keep_contract(self):
+        for model in GOVERNANCE_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model.__module__, "apps.analytics.models.governance")
+                self.assertEqual(model._meta.app_label, "analytics")
+                self.assertEqual(model._meta.db_table, GOVERNANCE_TABLES[model])
+                self.assertIs(getattr(public_models, model.__name__), model)
+                self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_calculation_relations_still_resolve_governance_models(self):
+        expected = {
+            "version_metodologia": VersionMetodologia,
+            "formula": FormulaAmbiental,
+            "version_factor": VersionFactorAmbiental,
+        }
+        for field_name, target in expected.items():
+            with self.subTest(field=field_name):
+                self.assertIs(
+                    CalculoAmbiental._meta.get_field(field_name).remote_field.model,
+                    target,
+                )
+
+    def test_governance_constraints_keep_global_tenant_and_version_contracts(self):
+        expected = {
+            MetodologiaAmbiental: {
+                "unique_metodologia_codigo_global",
+                "unique_metodologia_codigo_tenant",
+            },
+            FactorAmbiental: {
+                "unique_factor_ambiental_codigo_global",
+                "unique_factor_ambiental_codigo_tenant",
+            },
+            VersionMetodologia: {"unique_version_metodologia"},
+            VersionFactorAmbiental: {"unique_version_factor_ambiental"},
+            VariableFormula: {"unique_variable_formula"},
+            CompatibilidadVersionMetodologia: {
+                "unique_compatibilidad_version_metodologia"
+            },
+        }
+        for model, names in expected.items():
+            with self.subTest(model=model.__name__):
+                self.assertEqual({item.name for item in model._meta.constraints}, names)
 
     def test_environment_quality_and_indicator_relations_keep_their_targets(self):
         expected = {
@@ -1115,3 +1184,171 @@ class ModelModularizationPersistenceTests(TestCase):
             indicator.full_clean()
 
         self.assertIn("obra", context.exception.message_dict)
+
+    def create_governance_context(self, suffix=""):
+        organization = Organizacion.objects.create(nombre=f"Governance {suffix}")
+        global_methodology = MetodologiaAmbiental.objects.create(
+            codigo=f"method-global-{suffix.lower()}",
+            nombre=f"Metodología global {suffix}",
+            categoria="emisiones",
+            flujo="combustible",
+        )
+        tenant_methodology = MetodologiaAmbiental.objects.create(
+            organizacion=organization,
+            codigo=f"method-tenant-{suffix.lower()}",
+            nombre=f"Metodología tenant {suffix}",
+            categoria="emisiones",
+            flujo="combustible",
+        )
+        methodology_version = VersionMetodologia.objects.create(
+            metodologia=tenant_methodology,
+            version=1,
+            descripcion_tecnica="Versión de prueba",
+        )
+        global_factor = FactorAmbiental.objects.create(
+            codigo=f"factor-global-{suffix.lower()}",
+            nombre=f"Factor global {suffix}",
+            categoria="combustible",
+            unidad_entrada="L",
+        )
+        tenant_factor = FactorAmbiental.objects.create(
+            organizacion=organization,
+            codigo=f"factor-tenant-{suffix.lower()}",
+            nombre=f"Factor tenant {suffix}",
+            categoria="combustible",
+            unidad_entrada="L",
+        )
+        factor_version = VersionFactorAmbiental.objects.create(
+            factor=tenant_factor,
+            version=1,
+            valor=Decimal("2.7000000000"),
+            fuente="Fuente de prueba",
+        )
+        return (
+            organization,
+            global_methodology,
+            tenant_methodology,
+            methodology_version,
+            global_factor,
+            tenant_factor,
+            factor_version,
+        )
+
+    def test_global_and_tenant_governance_entities_can_still_be_created(self):
+        (
+            organization,
+            global_methodology,
+            tenant_methodology,
+            methodology_version,
+            global_factor,
+            tenant_factor,
+            factor_version,
+        ) = self.create_governance_context("CREATE")
+
+        self.assertIsNone(global_methodology.organizacion_id)
+        self.assertEqual(tenant_methodology.organizacion, organization)
+        self.assertEqual(methodology_version.metodologia, tenant_methodology)
+        self.assertIsNone(global_factor.organizacion_id)
+        self.assertEqual(tenant_factor.organizacion, organization)
+        self.assertEqual(factor_version.factor, tenant_factor)
+
+    def test_active_methodology_and_factor_versions_remain_immutable(self):
+        context = self.create_governance_context("IMMUTABLE-GOV")
+        methodology_version = context[3]
+        factor_version = context[6]
+        VersionMetodologia.objects.filter(pk=methodology_version.pk).update(
+            estado=VersionMetodologia.Estado.ACTIVA
+        )
+        VersionFactorAmbiental.objects.filter(pk=factor_version.pk).update(
+            estado=VersionFactorAmbiental.Estado.ACTIVO
+        )
+        methodology_version.refresh_from_db()
+        factor_version.refresh_from_db()
+        methodology_version.descripcion_tecnica = "Cambio no permitido"
+        factor_version.valor = Decimal("3")
+
+        with self.assertRaises(ValidationError):
+            methodology_version.save()
+        with self.assertRaises(ValidationError):
+            factor_version.save()
+
+    def test_governed_version_delete_signals_remain_registered(self):
+        context = self.create_governance_context("DELETE-GOV")
+        methodology_version = context[3]
+        factor_version = context[6]
+        VersionMetodologia.objects.filter(pk=methodology_version.pk).update(
+            estado=VersionMetodologia.Estado.VALIDADA
+        )
+        VersionFactorAmbiental.objects.filter(pk=factor_version.pk).update(
+            estado=VersionFactorAmbiental.Estado.VALIDADO
+        )
+
+        with self.assertRaises(ValidationError), transaction.atomic():
+            VersionMetodologia.objects.filter(pk=methodology_version.pk).delete()
+        with self.assertRaises(ValidationError), transaction.atomic():
+            VersionFactorAmbiental.objects.filter(pk=factor_version.pk).delete()
+
+    def test_formula_variable_and_compatibility_can_still_be_created(self):
+        context = self.create_governance_context("FORMULA")
+        tenant_methodology = context[2]
+        methodology_version = context[3]
+        tenant_factor = context[5]
+        formula = FormulaAmbiental.objects.create(
+            version_metodologia=methodology_version,
+            factor_ambiental=tenant_factor,
+            codigo="formula-transporte",
+            tipo=FormulaAmbiental.Tipo.TRANSPORTE_COMBUSTIBLE,
+            expresion_legible="combustible x factor",
+        )
+        variable = VariableFormula.objects.create(
+            formula=formula,
+            clave="combustible",
+            concepto_observacion="combustible_consumido_l",
+            unidad_esperada="L",
+        )
+        second_version = VersionMetodologia.objects.create(
+            metodologia=tenant_methodology,
+            version=2,
+        )
+        compatibility = CompatibilidadVersionMetodologia.objects.create(
+            version_origen=methodology_version,
+            version_destino=second_version,
+            estado=CompatibilidadVersionMetodologia.Estado.COMPATIBLE,
+        )
+
+        self.assertEqual(variable.formula, formula)
+        self.assertEqual(compatibility.version_origen, methodology_version)
+        self.assertEqual(compatibility.version_destino, second_version)
+
+    def test_governed_formula_and_variables_remain_protected(self):
+        context = self.create_governance_context("PROTECTED-FORMULA")
+        methodology_version = context[3]
+        formula = FormulaAmbiental.objects.create(
+            version_metodologia=methodology_version,
+            factor_ambiental=context[5],
+            codigo="formula-protegida",
+            tipo=FormulaAmbiental.Tipo.TRANSPORTE_COMBUSTIBLE,
+            expresion_legible="combustible x factor",
+        )
+        variable = VariableFormula.objects.create(
+            formula=formula,
+            clave="combustible",
+            concepto_observacion="combustible_consumido_l",
+            unidad_esperada="L",
+        )
+        VersionMetodologia.objects.filter(pk=methodology_version.pk).update(
+            estado=VersionMetodologia.Estado.ACTIVA
+        )
+        formula.refresh_from_db()
+        variable.refresh_from_db()
+
+        formula.expresion_legible = "cambio"
+        variable.descripcion = "cambio"
+        with self.assertRaises(ValidationError):
+            formula.save()
+        with self.assertRaises(ValidationError):
+            variable.save()
+        with self.assertRaises(ValidationError), transaction.atomic():
+            FormulaAmbiental.objects.filter(pk=formula.pk).delete()
+        with self.assertRaises(ValidationError), transaction.atomic():
+            VariableFormula.objects.filter(pk=variable.pk).delete()

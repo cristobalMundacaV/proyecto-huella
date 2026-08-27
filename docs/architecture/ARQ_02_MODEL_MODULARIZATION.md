@@ -555,3 +555,82 @@ cálculos ni indicadores que el repositorio no demuestre.
   de áreas y la columna SQLite histórica de `AccionAmbiental`.
 - No se cambiaron clasificación, cálculo, scoring, resolución de discrepancias,
   servicios, views, serializers, permisos, IoT ni frontend.
+
+## ARQ-02I — Governance
+
+### Modelos y ownership
+
+ARQ-02I extrae a `models/governance.py`, sin alterar su API pública:
+
+- `MetodologiaAmbiental`
+- `VersionMetodologia`
+- `FactorAmbiental`
+- `VersionFactorAmbiental`
+- `FormulaAmbiental`
+- `VariableFormula`
+- `CompatibilidadVersionMetodologia`
+
+`FactorEmision`, Calculation y Compliance permanecen deliberadamente fuera. El nuevo
+módulo depende de Platform para `Organizacion` y de `User` de Django. No importa desde
+`models.__init__` ni introduce ciclos.
+
+También se trasladaron junto con sus owners las cuatro protecciones `pre_delete` de
+versiones metodológicas activas, versiones de factor activas, fórmulas gobernadas y
+variables de fórmulas gobernadas. Conservan el mismo comportamiento tanto en borrado
+directo como por `QuerySet`.
+
+### Contrato, schema y registry
+
+Los siete modelos conservan campos, choices, defaults, relaciones, constraints,
+índices, métodos, validaciones, tablas históricas y señales. La API pública reexportada,
+los owner modules y Django registry comparten identidad. El registry permanece en 94
+modelos y 94 labels únicos; `makemigrations --check --dry-run` no detecta cambios.
+
+### Consumers de Governance
+
+- **WRITE:** endpoints y serializers Calculation V2 crean metodologías, versiones,
+  fórmulas y variables; `import_huellachile_factors` crea/actualiza factores y versiones.
+- **READ/API:** serializers y views Calculation V2 exponen metodologías, factores,
+  fórmulas, variables y sus versiones sin cambiar el contrato público.
+- **SELECT:** `methodology_selector`, `fuel_factor_selector` y
+  `methodology_compatibility` resuelven versiones activas, precedencia tenant/global y
+  compatibilidad metodológica.
+- **CALCULATE/EVALUATE:** `calculation_v2` ejecuta fórmulas gobernadas y
+  `eligibility_v2` exige una versión de factor activa aplicable.
+- **PROFESSIONAL:** `methodology_governance` gobierna transiciones y exige revisión
+  profesional; `serializers_professional_v2` representa referencias metodológicas.
+- **REPORT:** los resultados conservan sus snapshots en Calculation/Professional; no se
+  encontró un writer de reportes que deba poseer modelos Governance.
+- **AI:** no se encontró escritura autónoma de Governance por agentes. Los consumidores
+  de IA reciben resultados/contexto derivados, no gobiernan versiones científicas.
+- **LEGACY:** imports públicos desde `apps.analytics.models` permanecen soportados; no se
+  redirigieron consumidores a imports internos.
+
+### Configuración científica legacy auditada
+
+- `FactorEmision` continúa siendo el catálogo legacy usado por admin, serializers,
+  endpoints CRUD/importación y comandos de seed, limpieza y recategorización. Es un
+  circuito paralelo al selector gobernado V2 y no fue migrado ni reinterpretado.
+- `factor_electrico_default` y `permitir_registros_sin_factor` permanecen en
+  `ConfiguracionOrganizacion`. El primero conserva configuración descriptiva legacy; el
+  segundo mantiene la política de admisión de registros sin factor. Ninguno se convierte
+  en una versión gobernada durante esta fase.
+- `densidad_kg_m3` y `porcentaje_carbono` permanecen en especie/lote forestal y alimentan
+  `forestal_carbono`, con fallback desde el lote a la especie. Son parámetros científicos
+  de biomasa legacy, no factores de emisión gobernados por Calculation V2.
+- La coexistencia anterior queda registrada como deuda arquitectónica explícita: puede
+  competir conceptualmente con Governance, pero ARQ-02I no cambia precedencias, cálculos
+  ni persistencia para resolverla implícitamente.
+
+### Gate y deuda preservada
+
+- Tests arquitectónicos acumulados: 59/59 correctos, incluyendo identidad pública,
+  ownership, schema, constraints, creación global/tenant e inmutabilidad/borrado.
+- Governance, importación HuellaChile, selectores, elegibilidad, unidades, Calculation V2
+  y Professional V2: 97/97 correctos.
+- Gate baseline: 24 tests; 18 correctos y exactamente los mismos seis fallos conocidos.
+  Permanecen tres fallos del catálogo de áreas, la columna SQLite histórica de
+  `AccionAmbiental`, el `TypeError` de `perfil_ambiental` en `DocumentoAmbiental` y
+  `ActividadOperacional.DoesNotExist` en Construction V1.
+- No se modificaron services, views, serializers, permisos, cálculo, frontend, modelos
+  legacy ni migraciones. ARQ-02J queda fuera de este cierre.
