@@ -244,3 +244,44 @@ ingestion service and should only be revisited with dedicated compatibility test
 ARQ-03C — INGESTION / PROVENANCE APPLICATION LAYERS: **CLOSED**.
 
 ARQ-03C stops here; ARQ-03D is not started.
+
+## ARQ-03D — Environmental Flows / Transport / Materials
+
+### Application-layer ownership
+
+- `selectors/environmental_flows.py`, `selectors/transport.py` and
+  `selectors/materials.py` own tenant-scoped lists, details, filters and analytical
+  querysets. Selectors are read-only.
+- `policies/environmental_flows.py`, `policies/transport.py` and
+  `policies/materials.py` own deterministic tenant, work and relationship validation.
+  They return domain error mappings and have no DRF or mutation dependency.
+- The existing domain services own point/record, route/journey and
+  material/lot/event mutations, observation creation and analytical orchestration.
+  Atomic commands retain `full_clean()` before persistence.
+- Views coordinate authentication, HTTP serialization and status codes; serializers
+  delegate deterministic validation and mutations to policies and services.
+
+### Compatibility boundaries
+
+Manual sector recording preserves the atomic Evidence → Operational Activity →
+Environmental Flow Record chain, current fuel classification and stored-file cleanup.
+Transport preserves journeys, routes and derived metrics. Materials preserves lots,
+events, lineage and balance. Tenant/workspace/RBAC scoping, cross-tenant 404s, invalid
+relationship 400s, URLs, ordering, payloads and response codes remain unchanged.
+Modern flows do not write `RegistroEmision` legacy and no environmental calculation was
+moved into these domains.
+
+### Validation and remaining debt
+
+The focused Environmental Flows, Transport, Materials and manual-atomicity suite passes
+83/83 on PostgreSQL. Application architecture, modularization and tenant/RBAC gates pass
+103/103. The critical baseline reproduces only its five previously documented failures.
+Django check, migration dry-run, Black, compileall and diff checks pass.
+
+The manual multipart endpoint still assembles serializer input at the HTTP boundary;
+the atomic mutation itself remains intentionally cohesive to preserve file rollback and
+the public validation contract. Legacy flow aliases remain compatibility-only.
+
+ARQ-03D — ENVIRONMENTAL FLOWS / TRANSPORT / MATERIALS APPLICATION LAYERS: **CLOSED**.
+
+ARQ-03D stops here; ARQ-03E is not started.

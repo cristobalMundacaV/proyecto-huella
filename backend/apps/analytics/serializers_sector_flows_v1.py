@@ -1,4 +1,3 @@
-from django.db import transaction
 from rest_framework import serializers
 
 from .models import (
@@ -9,8 +8,12 @@ from .models import (
     RegistroFlujoAmbiental,
     VersionEvidencia,
 )
+from .policies.environmental_flows import (
+    environmental_record_errors,
+    point_relation_errors,
+)
 from .serializers_activity_core import ObservacionSerializer
-from .services.activity_core import actualizar_entidad, crear_entidad
+from .services.sector_flows_v1 import save_environmental_record, save_point
 
 
 class PuntoAmbientalSerializer(serializers.ModelSerializer):
@@ -20,24 +23,20 @@ class PuntoAmbientalSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
     def validate(self, attrs):
-        organization = self.context["organizacion"]
-        for field in ("activo", "unidad_operacional", "proceso_operacional", "obra"):
-            value = attrs.get(field, getattr(self.instance, field, None))
-            if value and value.organizacion_id != organization.id:
-                raise serializers.ValidationError(
-                    {field: "La referencia pertenece a otra organizacion."}
-                )
+        errors = point_relation_errors(
+            attrs, self.context["organizacion"], self.instance
+        )
+        if errors:
+            raise serializers.ValidationError(errors)
         return attrs
 
     def create(self, data):
-        return crear_entidad(
-            PuntoAmbientalOperacional,
-            organizacion=self.context["organizacion"],
-            datos=data,
+        return save_point(
+            PuntoAmbientalOperacional(), self.context["organizacion"], data
         )
 
     def update(self, instance, data):
-        return actualizar_entidad(instance, data)
+        return save_point(instance, self.context["organizacion"], data)
 
 
 class RegistroFlujoAmbientalSerializer(serializers.ModelSerializer):
@@ -90,144 +89,19 @@ class RegistroFlujoAmbientalSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
     def validate(self, attrs):
-        organization = self.context["organizacion"]
-        for field in (
-            "actividad",
-            "punto",
-            "unidad_operacional",
-            "proceso",
-            "activo",
-            "obra",
-            "evento_material",
-            "fuente",
-            "evidencia",
-            "version_evidencia",
-        ):
-            value = attrs.get(field, getattr(self.instance, field, None))
-            if value and value.organizacion_id != organization.id:
-                raise serializers.ValidationError(
-                    {field: "La referencia pertenece a otra organizacion."}
-                )
-        obra = attrs.get(
-            "obra",
-            getattr(
-                self.instance,
-                "obra",
-                None,
-            ),
+        errors = environmental_record_errors(
+            attrs, self.context["organizacion"], self.instance
         )
-
-        actividad = attrs.get(
-            "actividad",
-            getattr(
-                self.instance,
-                "actividad",
-                None,
-            ),
-        )
-
-        punto = attrs.get(
-            "punto",
-            getattr(
-                self.instance,
-                "punto",
-                None,
-            ),
-        )
-
-        evidencia = attrs.get(
-            "evidencia",
-            None,
-        )
-
-        if obra and actividad and actividad.obra_id and actividad.obra_id != obra.id:
-            raise serializers.ValidationError(
-                {
-                    "actividad": "La actividad pertenece a otra obra.",
-                }
-            )
-
-        if obra and punto and punto.obra_id and punto.obra_id != obra.id:
-            raise serializers.ValidationError(
-                {
-                    "punto": "El punto ambiental pertenece a otra obra.",
-                }
-            )
-
-        if obra and evidencia and evidencia.obra_id and evidencia.obra_id != obra.id:
-            raise serializers.ValidationError(
-                {
-                    "evidencia": "La evidencia pertenece a otra obra.",
-                }
-            )
-
-        number, text = attrs.get("valor_numerico"), attrs.get("valor_texto", "")
-        if number is not None and text:
-            raise serializers.ValidationError("Use solo un valor numerico o textual.")
-        if (number is not None or text) and not attrs.get("concepto"):
-            raise serializers.ValidationError(
-                {"concepto": "Debe indicar el concepto observado."}
-            )
-        if (number is not None or text) and not attrs.get("fuente"):
-            raise serializers.ValidationError({"fuente": "Debe indicar la fuente."})
-        version = attrs.get(
-            "version_evidencia",
-        )
-
-        evidence = attrs.get(
-            "evidencia",
-        )
-        if version and evidence and version.evidencia_id != evidence.id:
-            raise serializers.ValidationError(
-                {"version_evidencia": "La version no pertenece a la evidencia."}
-            )
+        if errors:
+            raise serializers.ValidationError(errors)
         return attrs
 
-    @transaction.atomic
     def _save(self, instance, data):
-        observation_data = {
-            key: data.pop(key, None)
-            for key in (
-                "concepto",
-                "valor_numerico",
-                "valor_texto",
-                "unidad",
-                "fuente",
-                "evidencia",
-                "version_evidencia",
-                "metodo_captura",
-                "naturaleza",
-            )
-        }
-        for field, value in data.items():
-            setattr(instance, field, value)
-        instance.organizacion = self.context["organizacion"]
-        instance.save()
-        if (
-            observation_data["valor_numerico"] is not None
-            or observation_data["valor_texto"]
-        ):
-            observation_data["valor_texto"] = observation_data["valor_texto"] or ""
-            observation_data["unidad"] = observation_data["unidad"] or ""
-            observation_data["metodo_captura"] = (
-                observation_data["metodo_captura"] or Observacion.MetodoCaptura.MANUAL
-            )
-            observation_data["naturaleza"] = (
-                observation_data["naturaleza"] or Observacion.Naturaleza.DECLARATIVO
-            )
-            request = self.context.get("request")
-            observation = Observacion(
-                organizacion=instance.organizacion,
-                actividad=instance.actividad,
-                timestamp_observacion=instance.periodo_fin or instance.periodo_inicio,
-                actor=(
-                    request.user if request and request.user.is_authenticated else None
-                ),
-                **observation_data
-            )
-            observation.full_clean()
-            observation.save()
-        return instance
+        request = self.context.get("request")
+        actor = request.user if request and request.user.is_authenticated else None
+        return save_environmental_record(
+            instance, self.context["organizacion"], data, actor
+        )
 
     def create(self, data):
         return self._save(RegistroFlujoAmbiental(), data)
