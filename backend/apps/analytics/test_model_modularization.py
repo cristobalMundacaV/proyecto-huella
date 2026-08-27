@@ -25,6 +25,7 @@ from apps.analytics.models import (
     EtapaObra,
     EvidenciaObra,
     EventoMaterial,
+    EventoAuditoriaAmbiental,
     EventoAuditoriaSaaS,
     EvaluacionCalidadDato,
     FactorAmbiental,
@@ -33,10 +34,12 @@ from apps.analytics.models import (
     HistorialMetaProblematica,
     HistorialProblematicaAmbiental,
     HistorialRestriccionContextual,
+    HallazgoRevisionProfesional,
     HitoDecisionIA,
     IndicadorAmbiental,
     IndicadorProblematica,
     ImpactoAmbiental,
+    InformeAmbiental,
     InputCalculoAmbiental,
     CondicionOperacionalActivo,
     DiscrepanciaDato,
@@ -62,11 +65,13 @@ from apps.analytics.models import (
     RegistroExtraido,
     RegistroFlujoAmbiental,
     RecomendacionAgenteAmbiental,
+    RevisionProfesionalAmbiental,
     RestriccionContextual,
     ResultadoIntervencion,
     RutaOperacional,
     SuscripcionSaaS,
     SnapshotIntervencion,
+    SnapshotInformeAmbiental,
     SnapshotValorIndicador,
     UsuarioObraAcceso,
     UsuarioOrganizacion,
@@ -78,6 +83,8 @@ from apps.analytics.models import (
     VersionFactorAmbiental,
     VersionMetodologia,
     ViajeOperacional,
+    CorreccionHistoricaAmbiental,
+    ExpedienteAmbiental,
 )
 
 PLATFORM_MODELS = (
@@ -250,6 +257,25 @@ INTELLIGENCE_MODELS = (
 )
 INTELLIGENCE_TABLES = {
     model: f"analytics_{model.__name__.lower()}" for model in INTELLIGENCE_MODELS
+}
+
+PROFESSIONAL_MODELS = (
+    RevisionProfesionalAmbiental,
+    HallazgoRevisionProfesional,
+    CorreccionHistoricaAmbiental,
+)
+PROFESSIONAL_TABLES = {
+    model: f"analytics_{model.__name__.lower()}" for model in PROFESSIONAL_MODELS
+}
+
+REPORTING_MODELS = (
+    ExpedienteAmbiental,
+    EventoAuditoriaAmbiental,
+    InformeAmbiental,
+    SnapshotInformeAmbiental,
+)
+REPORTING_TABLES = {
+    model: f"analytics_{model.__name__.lower()}" for model in REPORTING_MODELS
 }
 
 
@@ -435,6 +461,47 @@ class ModelModularizationContractTests(SimpleTestCase):
                 self.assertEqual(model._meta.db_table, INTELLIGENCE_TABLES[model])
                 self.assertIs(getattr(public_models, model.__name__), model)
                 self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_professional_models_live_in_owner_module_and_keep_contract(self):
+        for model in PROFESSIONAL_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model.__module__, "apps.analytics.models.professional")
+                self.assertEqual(model._meta.app_label, "analytics")
+                self.assertEqual(model._meta.db_table, PROFESSIONAL_TABLES[model])
+                self.assertIs(getattr(public_models, model.__name__), model)
+                self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_reporting_models_live_in_owner_module_and_keep_contract(self):
+        for model in REPORTING_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model.__module__, "apps.analytics.models.reporting")
+                self.assertEqual(model._meta.app_label, "analytics")
+                self.assertEqual(model._meta.db_table, REPORTING_TABLES[model])
+                self.assertIs(getattr(public_models, model.__name__), model)
+                self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_professional_and_reporting_relations_keep_their_targets(self):
+        expected = {
+            (RevisionProfesionalAmbiental, "expediente"): ExpedienteAmbiental,
+            (RevisionProfesionalAmbiental, "problematica"): ProblematicaAmbiental,
+            (RevisionProfesionalAmbiental, "intervencion"): ResultadoIntervencion,
+            (HallazgoRevisionProfesional, "revision"): RevisionProfesionalAmbiental,
+            (
+                CorreccionHistoricaAmbiental,
+                "revision_origen",
+            ): RevisionProfesionalAmbiental,
+            (ExpedienteAmbiental, "problematica"): ProblematicaAmbiental,
+            (InformeAmbiental, "actividad"): ActividadOperacional,
+            (InformeAmbiental, "problematica"): ProblematicaAmbiental,
+            (InformeAmbiental, "intervencion"): ResultadoIntervencion,
+            (InformeAmbiental, "expediente"): ExpedienteAmbiental,
+            (SnapshotInformeAmbiental, "informe"): InformeAmbiental,
+        }
+        for (model, field_name), target in expected.items():
+            with self.subTest(model=model.__name__, field=field_name):
+                self.assertIs(
+                    model._meta.get_field(field_name).remote_field.model, target
+                )
 
     def test_intelligence_relations_keep_their_targets(self):
         expected = {
@@ -2044,3 +2111,107 @@ class ModelModularizationPersistenceTests(TestCase):
 
         self.assertIn("problematica", memory_error.exception.message_dict)
         self.assertIn("problematica", restriction_error.exception.message_dict)
+
+    def test_professional_entities_and_review_rules_remain_unchanged(self):
+        context = self.create_intelligence_context("PROFESSIONAL")
+        user = User.objects.create_user(username="professional-architecture")
+        review = RevisionProfesionalAmbiental.objects.create(
+            organizacion=context["organization"],
+            tipo=RevisionProfesionalAmbiental.Tipo.PROBLEMATICA,
+            problematica=context["problem"],
+        )
+        finding = HallazgoRevisionProfesional.objects.create(
+            revision=review,
+            tipo=HallazgoRevisionProfesional.Tipo.INCONSISTENCIA,
+            severidad=HallazgoRevisionProfesional.Severidad.ALTA,
+            observacion="Diferencia documentada",
+        )
+        correction = CorreccionHistoricaAmbiental.objects.create(
+            organizacion=context["organization"],
+            resultado_afectado=context["result"],
+            motivo="Corrección trazable",
+            valor_estado_anterior={"estado": "parcial"},
+            propuesta_corregida={"estado": "positiva"},
+            autor=user,
+            revision_origen=review,
+        )
+
+        self.assertEqual(finding.revision, review)
+        self.assertEqual(correction.resultado_afectado, context["result"])
+
+        invalid = RevisionProfesionalAmbiental(
+            organizacion=context["organization"],
+            tipo=RevisionProfesionalAmbiental.Tipo.PROBLEMATICA,
+            problematica=context["problem"],
+            intervencion=context["result"],
+        )
+        with self.assertRaises(ValidationError):
+            invalid.full_clean()
+
+        decided = RevisionProfesionalAmbiental.objects.create(
+            organizacion=context["organization"],
+            tipo=RevisionProfesionalAmbiental.Tipo.INTERVENCION,
+            intervencion=context["result"],
+            estado=RevisionProfesionalAmbiental.Estado.VALIDADA,
+        )
+        decided.conclusion = "Intento de cambio"
+        with self.assertRaises(ValidationError):
+            decided.save()
+
+    def test_professional_cross_tenant_rules_remain_unchanged(self):
+        context = self.create_intelligence_context("PROFESSIONAL-TENANT")
+        other = Organizacion.objects.create(nombre="Foreign professional tenant")
+        review = RevisionProfesionalAmbiental(
+            organizacion=other,
+            tipo=RevisionProfesionalAmbiental.Tipo.PROBLEMATICA,
+            problematica=context["problem"],
+        )
+
+        with self.assertRaises(ValidationError):
+            review.full_clean()
+
+    def test_reporting_entities_relations_and_immutability_remain_unchanged(self):
+        context = self.create_intelligence_context("REPORTING")
+        user = User.objects.create_user(username="reporting-architecture")
+        dossier = ExpedienteAmbiental.objects.create(
+            problematica=context["problem"],
+            resumen_ejecutivo="Resumen trazable",
+            contenido_procesado={"problematica": context["problem"].id},
+        )
+        event = EventoAuditoriaAmbiental.objects.create(
+            organizacion=context["organization"],
+            tipo="generacion_informe",
+            actor=user,
+            entidad="ExpedienteAmbiental",
+            referencia=str(dossier.id),
+            resumen="Informe generado",
+        )
+        report = InformeAmbiental.objects.create(
+            organizacion=context["organization"],
+            tipo=InformeAmbiental.Tipo.EXPEDIENTE,
+            expediente=dossier,
+            version=1,
+            generado_por=user,
+        )
+        snapshot = SnapshotInformeAmbiental.objects.create(
+            informe=report,
+            contenido={"expediente": dossier.id},
+            referencias={"problematica": context["problem"].id},
+        )
+
+        self.assertEqual(dossier.problematica, context["problem"])
+        self.assertEqual(event.organizacion, context["organization"])
+        self.assertEqual(report.expediente, dossier)
+        self.assertEqual(report.snapshot, snapshot)
+
+        snapshot.contenido = {"mutated": True}
+        with self.assertRaises(ValidationError):
+            snapshot.save()
+
+        InformeAmbiental.objects.filter(pk=report.pk).update(
+            estado=InformeAmbiental.Estado.VALIDADO
+        )
+        report.refresh_from_db()
+        report.metadata = {"mutated": True}
+        with self.assertRaises(ValidationError):
+            report.save()

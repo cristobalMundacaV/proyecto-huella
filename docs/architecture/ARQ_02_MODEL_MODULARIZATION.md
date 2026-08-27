@@ -998,3 +998,155 @@ La clasificación observable de restricciones es:
   ya documentados. No se modificaron prompts, providers, services, views, serializers,
   permisos, frontend ni comportamiento.
 - ARQ-02L se detiene aquí; Professional y Reporting permanecen para ARQ-02M.
+
+## ARQ-02M — Professional, Reporting & Audit
+
+### Modelos, ownership y dependencias
+
+ARQ-02M encontró y extrajo exclusivamente los siete modelos aprobados. No apareció un
+octavo candidato inequívoco.
+
+`models/professional.py` contiene:
+
+- `RevisionProfesionalAmbiental`
+- `HallazgoRevisionProfesional`
+- `CorreccionHistoricaAmbiental`
+
+Professional importa directamente Platform, Provenance, Operational Data, Indicators,
+Governance, Calculations, Improvement y `ExpedienteAmbiental` desde Reporting.
+
+`models/reporting.py` contiene:
+
+- `ExpedienteAmbiental`
+- `EventoAuditoriaAmbiental`
+- `InformeAmbiental`
+- `SnapshotInformeAmbiental`
+
+Reporting importa Platform, Operational Data e Improvement. No importa Professional;
+la dependencia Professional → Reporting es unidireccional y no introduce ciclos.
+`EventoAuditoriaSaaS` permanece en Platform.
+
+Los siete modelos conservan fields, choices, null/blank, defaults, FK/OneToOne,
+`related_name`, `on_delete`, constraints, ordering, `clean()` e inmutabilidad en
+`save()`. La API pública, owner module y registry comparten identidad 7/7. Django
+mantiene 94 modelos y 94 labels únicos; no se generan migraciones.
+
+### Objetos revisables actuales
+
+Todas las revisiones se crean mediante la API Professional por un usuario con
+`REVIEW_PROFESSIONAL`; el mismo permiso controla la decisión. El modelo exige exactamente
+una referencia y correspondencia entre `tipo` y FK.
+
+- **Evidencia → `EvidenciaObra`:** solicitud manual; revisión informativa, no bloquea
+  actualmente otro flujo.
+- **Observación → `Observacion`:** solicitud manual; informativa, sin bloqueo automático.
+- **Cálculo → `CalculoAmbiental`:** solicitud manual; una decisión con observaciones o
+  rechazo puede originar una corrección y un recálculo nuevo, pero la revisión no es
+  requisito general del cálculo.
+- **Indicador → `IndicadorAmbiental`:** solicitud manual; informativa.
+- **Problemática → `ProblematicaAmbiental`:** solicitud manual; alimenta informes y la
+  fuerza de evidencia de Knowledge, pero no bloquea cierre por modelo.
+- **Intervención → `ResultadoIntervencion`:** solicitud manual; puede acreditar origen
+  profesional de un caso Knowledge, sin ser obligatoria para evaluar la intervención.
+- **Expediente → `ExpedienteAmbiental`:** solicitud manual y visible en el dossier; el
+  cierre/reapertura actual exige permiso profesional, no una revisión previa.
+- **Metodología → `VersionMetodologia`:** solicitud manual. Es la única revisión que
+  bloquea un flujo: cuando `requiere_revision_profesional=True`, Governance exige una
+  decisión validada o validada con observaciones, profesional y fecha trazables, antes
+  de pasar la versión a `validada`.
+
+Las revisiones en estado validada, validada con observaciones o rechazada continúan
+inmutables. Los hallazgos no crean automáticamente una problemática.
+
+### Contenido de reportes y expedientes
+
+- **Operational Data:** actividad, tipo, timestamps, observaciones, valores, unidades y
+  fuentes; el expediente referencia alcance y actividades.
+- **Evidence:** evidencia asociada, versión, nombre de archivo y checksum; el dossier
+  resume evidencias/documentos sin incluir archivos completos.
+- **Calculation:** cálculos por actividad, metodología/versión, fórmula, factor/versión,
+  inputs, resultado y unidad; el expediente conserva IDs de cálculos e impactos.
+- **Indicator:** indicadores asociados a la problemática, rol, meta y métricas congeladas
+  de ciclos/intervenciones.
+- **Compliance:** solo el expediente procesado de `environmental_dossier` incorpora
+  reglas normativas validadas y límites; el snapshot de informe no agrega evaluación de
+  cumplimiento propia.
+- **Improvement:** problemática, estado, acciones, ciclos, snapshots, resultados,
+  mediciones, escalamiento y resultados negativos.
+- **Professional:** revisiones, profesional, conclusión y hallazgos; correcciones se
+  conservan en referencias de expediente.
+- **AI:** propuestas no descartadas, decisiones humanas, hipótesis y recomendaciones
+  previas aparecen en referencias/contenido procesado del expediente; no se convierten
+  en verdad del informe.
+- **Audit:** hasta 30 eventos ambientales recientes se congelan en el snapshot.
+- **Legacy:** `environmental_dossier` sigue leyendo campos y mediciones del flujo legacy
+  de problemáticas además del aggregate moderno. ARQ-02M no lo corrige.
+
+### Grafo de trazabilidad real
+
+- Indicador → cálculo: **MISSING** como enlace directo. En un informe de problemática se
+  relacionan de forma **DERIVED** mediante alcance/actividad, pero el snapshot no guarda
+  una FK indicador-cálculo.
+- Cálculo → metodología/versión: **DIRECT** en modelo; nombre y versión quedan
+  **SNAPSHOT** en el informe.
+- Cálculo → fórmula: **DIRECT**; expresión legible queda **SNAPSHOT**.
+- Cálculo → factor/versión: **DIRECT**; nombre y versión quedan **SNAPSHOT**.
+- Cálculo → inputs: **DIRECT**; concepto, valor, unidad, observación y fuente quedan
+  **SNAPSHOT**.
+- Input → observación: **DIRECT**; ID y valor operacional quedan **SNAPSHOT**.
+- Observación/input → evidencia/versión: **DIRECT** cuando existen; nombre, versión,
+  archivo y checksum quedan **SNAPSHOT** desde la observación.
+- Origen/fuente: **DIRECT** en observación/input y **SNAPSHOT** por nombre/tipo.
+- Responsable original de la observación: **MISSING** en el snapshot de informe, aunque
+  el modelo operacional conserva `actor`.
+- Expediente → objetos relacionados: **SNAPSHOT/DERIVED** mediante listas de IDs en
+  `referencias`, no mediante M2M físicas.
+
+El informe histórico conserva suficiente trazabilidad técnica de sus actividades y
+cálculos, pero no permite recorrer directamente indicador → cálculo ni congela al actor
+original de cada observación.
+
+### Mutaciones y eventos de auditoría
+
+La generación de informe crea únicamente `InformeAmbiental`, su
+`SnapshotInformeAmbiental`, archivo PDF/checksum y `EventoAuditoriaAmbiental`. La
+validación solo actualiza el informe y crea otro evento. Crear/cerrar/reabrir expediente
+modifica Reporting y registra auditoría. `environmental_dossier` crea un expediente, sin
+mutar Operational Truth. No se encontraron DELETE ni escrituras externas provocadas por
+generación/validación de informes.
+
+Existe una mutación fuera de Reporting en el flujo Professional:
+`recalculate_for_correction` delega en Calculation para crear un nuevo
+`CalculoAmbiental`, vincula `recalculo_generado` y audita el evento. Es
+**PROFESSIONAL / SERVICE-MEDIATED**, no un side effect de report generation.
+
+`EventoAuditoriaAmbiental.tipo` permanece libre, sin choices. Sus writers reales usan:
+
+- `creacion_revision_profesional`, `revision_profesional`,
+  `correccion_historica`: **PROFESSIONAL**;
+- `recalculo`: **PROFESSIONAL**, con entidad Calculation;
+- `creacion_expediente`, `cierre_expediente`, `reapertura_expediente`,
+  `generacion_informe`, `validacion_informe`: **REPORTING**.
+
+No se encontraron writers actuales clasificados como OPERATIONAL, GOVERNANCE,
+COMPLIANCE, IMPROVEMENT, AI, SECURITY o LEGACY para este modelo. Esas capas pueden
+aparecer como contenido o referencia, no como productoras del evento actual.
+
+### Gate y deuda preservada
+
+- Tests arquitectónicos acumulados: 81/81 correctos, incluyendo reglas de referencia,
+  tenant, creación, relaciones e inmutabilidad.
+- Professional, Reporting/Audit, Governance, Calculation/Indicators, Improvement e
+  Intelligence: 230/230 correctos sobre PostgreSQL 16; runtime confirmado como
+  `connection.vendor=postgresql`.
+- Baseline PostgreSQL oficial: 24 tests, 19 correctos y los mismos cinco fallos de
+  INFRA-TEST-01: tres del catálogo de áreas, `DocumentoAmbiental(perfil_ambiental)` y
+  `ActividadOperacional.DoesNotExist`. No hay regresión ARQ-02M.
+- La referencia SQLite histórica conserva seis causas: las cinco anteriores más
+  `analytics_accionambiental.organizacion_id`, clasificada como **SQLITE-ONLY**.
+- Se preservan como deuda el enlace indicador → cálculo y actor de observación faltantes
+  en snapshots, referencias de expediente como listas de IDs, audit `tipo` libre,
+  mezcla legacy/moderna del dossier y la mutación Calculation gobernada por corrección.
+- No se modificaron services, views, serializers, permisos, frontend, IoT,
+  Intelligence, Improvement, generación de PDF ni snapshots. ARQ-02N queda fuera de
+  este cierre.
