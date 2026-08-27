@@ -86,6 +86,29 @@ from apps.analytics.models import (
     CorreccionHistoricaAmbiental,
     ExpedienteAmbiental,
 )
+from apps.analytics.models import (
+    AlertaCumplimientoAmbiental,
+    AplicabilidadCapacidadObra,
+    AreaCapacidadAmbiental,
+    CapacidadAmbiental,
+    CapacidadOrganizacion,
+    ConfiguracionOrganizacion,
+    DatoACV,
+    DiagnosticoAmbientalInicial,
+    DocumentoAmbiental,
+    ElementoDiagnosticoAmbiental,
+    EspecieMadera,
+    FactorEmision,
+    HistorialCambioObra,
+    LimiteNormativoAmbiental,
+    LoteForestal,
+    MaterialConstruccion,
+    RegistroEmision,
+    TransporteLoteForestal,
+    TransporteObra,
+    VariableAmbientalExtraida,
+)
+from apps.analytics.models_acciones import AccionAmbiental
 
 PLATFORM_MODELS = (
     Organizacion,
@@ -276,6 +299,32 @@ REPORTING_MODELS = (
 )
 REPORTING_TABLES = {
     model: f"analytics_{model.__name__.lower()}" for model in REPORTING_MODELS
+}
+
+LEGACY_MODELS = (
+    DiagnosticoAmbientalInicial,
+    ElementoDiagnosticoAmbiental,
+    CapacidadAmbiental,
+    CapacidadOrganizacion,
+    AreaCapacidadAmbiental,
+    AplicabilidadCapacidadObra,
+    ConfiguracionOrganizacion,
+    FactorEmision,
+    MaterialConstruccion,
+    EspecieMadera,
+    LoteForestal,
+    RegistroEmision,
+    DocumentoAmbiental,
+    LimiteNormativoAmbiental,
+    VariableAmbientalExtraida,
+    AlertaCumplimientoAmbiental,
+    TransporteObra,
+    TransporteLoteForestal,
+    DatoACV,
+    HistorialCambioObra,
+)
+LEGACY_TABLES = {
+    model: f"analytics_{model.__name__.lower()}" for model in LEGACY_MODELS
 }
 
 
@@ -735,7 +784,26 @@ class ModelModularizationContractTests(SimpleTestCase):
             model for model in apps.get_models() if model._meta.app_label == "analytics"
         ]
         labels = [model._meta.label_lower for model in registered]
+        self.assertEqual(len(registered), 94)
         self.assertEqual(len(labels), len(set(labels)))
+
+    def test_legacy_models_are_isolated_without_changing_their_contract(self):
+        for model in LEGACY_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model.__module__, "apps.analytics.models.legacy")
+                self.assertIs(getattr(public_models, model.__name__), model)
+                self.assertIs(apps.get_model("analytics", model.__name__), model)
+                self.assertEqual(model._meta.app_label, "analytics")
+                self.assertEqual(model._meta.db_table, LEGACY_TABLES[model])
+                self.assertTrue(model._meta.managed)
+
+    def test_unmanaged_accion_ambiental_compatibility_contract_is_preserved(self):
+        self.assertEqual(
+            AccionAmbiental.__module__, "apps.analytics.models_acciones"
+        )
+        self.assertIs(apps.get_model("analytics", "AccionAmbiental"), AccionAmbiental)
+        self.assertEqual(AccionAmbiental._meta.db_table, "analytics_accionambiental")
+        self.assertFalse(AccionAmbiental._meta.managed)
 
     def test_critical_platform_relations_resolve_to_original_models(self):
         self.assertIs(
