@@ -160,4 +160,74 @@ pendiente de aceptar o corregir esta discrepancia adicional del baseline.
 - Se mantienen sin cambios los seis fallos funcionales preexistentes observados.
 - No se alteraron catálogos de onboarding, serializers, migraciones históricas,
   services, views, IoT ni frontend.
-- No iniciar ARQ-02D hasta resolver formalmente el gate de ARQ-02C.
+- El baseline de ARQ-02D aceptó formalmente esta discrepancia como sexto fallo
+  preexistente y declaró ARQ-02C cerrado.
+
+## ARQ-02D — Assets
+
+### Modelos y ownership
+
+ARQ-02D extrae exclusivamente a `models/assets.py` los modelos pertenecientes a
+Operations / Assets:
+
+- `ActivoOperacional`
+- `Vehiculo`
+- `Maquinaria`
+- `MantenimientoActivo`
+- `CondicionOperacionalActivo`
+- `PuntoAmbientalOperacional`
+
+`PuntoAmbientalOperacional` permanece en Operations porque representa ubicación y
+contexto físico, no un resultado ambiental.
+
+### Dependencias
+
+El módulo importa directamente desde sus owners:
+
+- `Organizacion` desde `models.platform`;
+- `Obra`, `UnidadOperacional` y `ProcesoOperacional` desde
+  `models.operational_context`.
+
+La referencia de `CondicionOperacionalActivo` a `FuenteDatos`, que todavía vive en la
+API pública, se mantiene como relación Django diferida `analytics.FuenteDatos`. No hay
+imports desde `models.__init__` ni ciclos entre submódulos.
+
+### Identidad de schema y registry
+
+Los seis modelos conservan `app_label = "analytics"`, `model_name`, relaciones,
+validaciones y sus tablas originales:
+
+- `analytics_activooperacional`
+- `analytics_vehiculo`
+- `analytics_maquinaria`
+- `analytics_mantenimientoactivo`
+- `analytics_condicionoperacionalactivo`
+- `analytics_puntoambientaloperacional`
+
+La API pública, `models.assets` y Django registry apuntan a los mismos objetos de clase
+6/6. El registry permanece en 94 modelos y 94 etiquetas únicas.
+
+### Validación
+
+- Tests arquitectónicos acumulados: 22/22 correctos.
+- IoT, sensores V2, transporte y contexto operacional/RBAC: 51/51 correctos.
+- Suite crítica ampliada: 136 tests; 130 correctos y los mismos seis fallos baseline.
+- `python manage.py check`: correcto.
+- `python manage.py makemigrations --check --dry-run`: `No changes detected`.
+
+Los tests de Assets cubren creación de activo, vehículo, maquinaria, mantenimiento,
+condición operacional y punto operacional, además de las validaciones cross-tenant
+existentes. IoT y Transporte continúan consumiendo los modelos mediante
+`apps.analytics.models` sin cambios.
+
+### Deuda preservada
+
+Se mantienen separados y sin modificar los seis fallos preexistentes aprobados:
+
+- tres fallos del catálogo legacy de áreas/onboarding;
+- `DocumentoAmbientalSerializer` y `perfil_ambiental`;
+- la columna histórica SQLite `AccionAmbiental.organizacion_id`;
+- `ConstructionV1IntegrationTests.test_ingestion_resolves_work_into_activity`.
+
+No se modificaron servicios, views, serializers, permisos, IoT, transporte ni frontend.
+La siguiente fase debe ser ARQ-02E y ejecutarse como entrega independiente.

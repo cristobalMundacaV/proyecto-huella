@@ -4,24 +4,31 @@ from django.apps import apps
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase, TestCase
+from django.utils import timezone
 
 import apps.analytics.models as public_models
 from apps.analytics.models import (
     ActividadOperacional,
+    ActivoOperacional,
     CalculoAmbiental,
     AreaOperacional,
     EspacioTrabajoOperacional,
     EtapaObra,
     EventoAuditoriaSaaS,
     FactorAmbiental,
+    CondicionOperacionalActivo,
+    MantenimientoActivo,
+    Maquinaria,
     Organizacion,
     Obra,
     ProcesoOperacional,
+    PuntoAmbientalOperacional,
     RegistroFlujoAmbiental,
     SuscripcionSaaS,
     UsuarioObraAcceso,
     UsuarioOrganizacion,
     UnidadOperacional,
+    Vehiculo,
 )
 
 
@@ -57,6 +64,24 @@ OPERATIONAL_CONTEXT_TABLES = {
     EspacioTrabajoOperacional: "analytics_espaciotrabajooperacional",
     UnidadOperacional: "analytics_unidadoperacional",
     ProcesoOperacional: "analytics_procesooperacional",
+}
+
+ASSET_MODELS = (
+    ActivoOperacional,
+    Vehiculo,
+    Maquinaria,
+    MantenimientoActivo,
+    CondicionOperacionalActivo,
+    PuntoAmbientalOperacional,
+)
+
+ASSET_TABLES = {
+    ActivoOperacional: "analytics_activooperacional",
+    Vehiculo: "analytics_vehiculo",
+    Maquinaria: "analytics_maquinaria",
+    MantenimientoActivo: "analytics_mantenimientoactivo",
+    CondicionOperacionalActivo: "analytics_condicionoperacionalactivo",
+    PuntoAmbientalOperacional: "analytics_puntoambientaloperacional",
 }
 
 
@@ -106,6 +131,23 @@ class ModelModularizationContractTests(SimpleTestCase):
                 self.assertIs(getattr(public_models, model.__name__), model)
                 self.assertIs(apps.get_model("analytics", model.__name__), model)
 
+    def test_asset_models_live_in_owner_module(self):
+        for model in ASSET_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model.__module__, "apps.analytics.models.assets")
+
+    def test_asset_models_keep_app_label_and_database_table(self):
+        for model in ASSET_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model._meta.app_label, "analytics")
+                self.assertEqual(model._meta.db_table, ASSET_TABLES[model])
+
+    def test_public_api_and_registry_share_asset_model_identity(self):
+        for model in ASSET_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertIs(getattr(public_models, model.__name__), model)
+                self.assertIs(apps.get_model("analytics", model.__name__), model)
+
     def test_analytics_registry_contains_no_duplicate_model_labels(self):
         registered = [
             model for model in apps.get_models() if model._meta.app_label == "analytics"
@@ -131,6 +173,33 @@ class ModelModularizationContractTests(SimpleTestCase):
 
 
 class ModelModularizationPersistenceTests(TestCase):
+    def create_asset_context(self, suffix=""):
+        organization = Organizacion.objects.create(nombre=f"Assets {suffix}")
+        unit = UnidadOperacional.objects.create(
+            organizacion=organization,
+            nombre=f"Unidad {suffix}",
+        )
+        process = ProcesoOperacional.objects.create(
+            organizacion=organization,
+            unidad=unit,
+            nombre=f"Proceso {suffix}",
+        )
+        work = Obra.objects.create(
+            organizacion=organization,
+            nombre=f"Obra {suffix}",
+            fecha_inicio=date(2026, 8, 26),
+        )
+        asset = ActivoOperacional(
+            organizacion=organization,
+            unidad_operacional=unit,
+            proceso_operacional=process,
+            codigo=f"ACT-{suffix}",
+            nombre=f"Activo {suffix}",
+        )
+        asset.full_clean()
+        asset.save()
+        return organization, unit, process, work, asset
+
     def test_organization_and_membership_can_still_be_created(self):
         user = User.objects.create_user(username="platform-member")
         organization = Organizacion.objects.create(nombre="Organización Platform")
@@ -238,3 +307,87 @@ class ModelModularizationPersistenceTests(TestCase):
             workspace.full_clean()
 
         self.assertIn("area", context.exception.message_dict)
+
+    def test_operational_asset_and_point_can_still_be_created(self):
+        organization, unit, process, work, asset = self.create_asset_context("POINT")
+        point = PuntoAmbientalOperacional.objects.create(
+            organizacion=organization,
+            codigo="PTO-POINT",
+            nombre="Punto de medición",
+            activo=asset,
+            unidad_operacional=unit,
+            proceso_operacional=process,
+            obra=work,
+        )
+
+        self.assertEqual(point.activo, asset)
+        self.assertEqual(point.obra, work)
+
+    def test_vehicle_and_machinery_can_still_be_created(self):
+        _, _, _, _, vehicle_asset = self.create_asset_context("VEHICLE")
+        _, _, _, _, machine_asset = self.create_asset_context("MACHINE")
+        vehicle = Vehiculo.objects.create(
+            activo=vehicle_asset,
+            patente="TEST-01",
+            combustible="Diesel",
+        )
+        machinery = Maquinaria.objects.create(
+            activo=machine_asset,
+            tipo_maquinaria="Excavadora",
+            combustible="Diesel",
+        )
+
+        self.assertEqual(vehicle.activo, vehicle_asset)
+        self.assertEqual(machinery.activo, machine_asset)
+
+    def test_maintenance_and_operational_condition_can_still_be_created(self):
+        organization, _, _, _, asset = self.create_asset_context("STATE")
+        maintenance = MantenimientoActivo(
+            organizacion=organization,
+            activo=asset,
+            tipo="Preventivo",
+        )
+        maintenance.full_clean()
+        maintenance.save()
+        condition = CondicionOperacionalActivo.objects.create(
+            activo=asset,
+            timestamp_inicio=timezone.now(),
+            estado=CondicionOperacionalActivo.Estado.OPERATIVO,
+        )
+
+        self.assertEqual(maintenance.activo, asset)
+        self.assertEqual(condition.activo, asset)
+
+    def test_asset_still_rejects_cross_tenant_operational_context(self):
+        organization = Organizacion.objects.create(nombre="Asset Tenant")
+        other_organization = Organizacion.objects.create(nombre="Context Tenant")
+        foreign_unit = UnidadOperacional.objects.create(
+            organizacion=other_organization,
+            nombre="Unidad externa",
+        )
+        asset = ActivoOperacional(
+            organizacion=organization,
+            unidad_operacional=foreign_unit,
+            codigo="ACT-CROSS",
+            nombre="Activo cruzado",
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            asset.full_clean()
+
+        self.assertIn("unidad_operacional", context.exception.message_dict)
+
+    def test_point_still_rejects_cross_tenant_references(self):
+        organization, _, _, _, _ = self.create_asset_context("LOCAL")
+        _, _, _, _, foreign_asset = self.create_asset_context("FOREIGN")
+        point = PuntoAmbientalOperacional(
+            organizacion=organization,
+            codigo="PTO-CROSS",
+            nombre="Punto cruzado",
+            activo=foreign_asset,
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            point.full_clean()
+
+        self.assertIn("activo", context.exception.message_dict)
