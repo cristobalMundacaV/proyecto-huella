@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 from django.apps import apps
 from django.contrib.auth.models import User
@@ -16,10 +17,12 @@ from apps.analytics.models import (
     EtapaObra,
     EventoAuditoriaSaaS,
     FactorAmbiental,
+    FuenteDatos,
     CondicionOperacionalActivo,
     MantenimientoActivo,
     Maquinaria,
     Organizacion,
+    Observacion,
     Obra,
     ProcesoOperacional,
     PuntoAmbientalOperacional,
@@ -82,6 +85,18 @@ ASSET_TABLES = {
     MantenimientoActivo: "analytics_mantenimientoactivo",
     CondicionOperacionalActivo: "analytics_condicionoperacionalactivo",
     PuntoAmbientalOperacional: "analytics_puntoambientaloperacional",
+}
+
+OPERATIONAL_DATA_MODELS = (
+    FuenteDatos,
+    ActividadOperacional,
+    Observacion,
+)
+
+OPERATIONAL_DATA_TABLES = {
+    FuenteDatos: "analytics_fuentedatos",
+    ActividadOperacional: "analytics_actividadoperacional",
+    Observacion: "analytics_observacion",
 }
 
 
@@ -147,6 +162,56 @@ class ModelModularizationContractTests(SimpleTestCase):
             with self.subTest(model=model.__name__):
                 self.assertIs(getattr(public_models, model.__name__), model)
                 self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_operational_data_models_live_in_owner_module(self):
+        for model in OPERATIONAL_DATA_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(
+                    model.__module__, "apps.analytics.models.operational_data"
+                )
+
+    def test_operational_data_models_keep_app_label_and_database_table(self):
+        for model in OPERATIONAL_DATA_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model._meta.app_label, "analytics")
+                self.assertEqual(model._meta.db_table, OPERATIONAL_DATA_TABLES[model])
+
+    def test_public_api_and_registry_share_operational_data_model_identity(self):
+        for model in OPERATIONAL_DATA_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertIs(getattr(public_models, model.__name__), model)
+                self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_operational_data_relations_resolve_to_expected_models(self):
+        expected = {
+            (ActividadOperacional, "organizacion"): Organizacion,
+            (ActividadOperacional, "obra"): Obra,
+            (ActividadOperacional, "unidad_operacional"): UnidadOperacional,
+            (ActividadOperacional, "proceso_operacional"): ProcesoOperacional,
+            (ActividadOperacional, "activos"): ActivoOperacional,
+            (Observacion, "organizacion"): Organizacion,
+            (Observacion, "actividad"): ActividadOperacional,
+            (Observacion, "fuente"): FuenteDatos,
+            (Observacion, "actor"): User,
+            (FuenteDatos, "organizacion"): Organizacion,
+        }
+        for (model, field_name), related_model in expected.items():
+            with self.subTest(model=model.__name__, field=field_name):
+                self.assertIs(
+                    model._meta.get_field(field_name).remote_field.model,
+                    related_model,
+                )
+
+        for field_name, label in (
+            ("evidencia", "analytics.EvidenciaObra"),
+            ("version_evidencia", "analytics.VersionEvidencia"),
+            ("registro_extraido", "analytics.RegistroExtraido"),
+        ):
+            with self.subTest(model="Observacion", field=field_name):
+                self.assertEqual(
+                    Observacion._meta.get_field(field_name).remote_field.model._meta.label,
+                    label,
+                )
 
     def test_analytics_registry_contains_no_duplicate_model_labels(self):
         registered = [
@@ -391,3 +456,88 @@ class ModelModularizationPersistenceTests(TestCase):
             point.full_clean()
 
         self.assertIn("activo", context.exception.message_dict)
+
+    def test_operational_source_activity_and_observations_can_be_created(self):
+        organization, unit, process, work, asset = self.create_asset_context("DATA")
+        source = FuenteDatos.objects.create(
+            organizacion=organization,
+            nombre="Registro manual",
+        )
+        activity = ActividadOperacional(
+            organizacion=organization,
+            obra=work,
+            unidad_operacional=unit,
+            proceso_operacional=process,
+            codigo="ACT-DATA",
+            nombre="Carga de combustible",
+            timestamp_inicio=timezone.now(),
+        )
+        activity.full_clean()
+        activity.save()
+        activity.activos.add(asset)
+        numeric = Observacion(
+            organizacion=organization,
+            actividad=activity,
+            fuente=source,
+            concepto="combustible_consumido",
+            valor_numerico=Decimal("20.000000"),
+            unidad="L",
+            timestamp_observacion=timezone.now(),
+        )
+        numeric.full_clean()
+        numeric.save()
+        textual = Observacion(
+            organizacion=organization,
+            actividad=activity,
+            fuente=source,
+            concepto="estado_registro",
+            valor_texto="Confirmado",
+            timestamp_observacion=timezone.now(),
+        )
+        textual.full_clean()
+        textual.save()
+
+        self.assertEqual(numeric.actividad, activity)
+        self.assertEqual(textual.fuente, source)
+        self.assertEqual(list(activity.activos.all()), [asset])
+
+    def test_activity_still_rejects_cross_tenant_context(self):
+        organization = Organizacion.objects.create(nombre="Activity Tenant")
+        other_organization = Organizacion.objects.create(nombre="Work Tenant")
+        foreign_work = Obra.objects.create(
+            organizacion=other_organization,
+            nombre="Obra externa activity",
+            fecha_inicio=date(2026, 8, 26),
+        )
+        activity = ActividadOperacional(
+            organizacion=organization,
+            obra=foreign_work,
+            codigo="ACT-CROSS-TENANT",
+            nombre="Actividad cruzada",
+            timestamp_inicio=timezone.now(),
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            activity.full_clean()
+
+        self.assertIn("obra", context.exception.message_dict)
+
+    def test_observation_still_rejects_cross_tenant_source(self):
+        organization = Organizacion.objects.create(nombre="Observation Tenant")
+        other_organization = Organizacion.objects.create(nombre="Source Tenant")
+        foreign_source = FuenteDatos.objects.create(
+            organizacion=other_organization,
+            nombre="Fuente externa",
+        )
+        observation = Observacion(
+            organizacion=organization,
+            fuente=foreign_source,
+            concepto="dato_cruzado",
+            valor_texto="Dato",
+            timestamp_observacion=timezone.now(),
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            observation.full_clean()
+
+        self.assertIn("fuente", context.exception.message_dict)

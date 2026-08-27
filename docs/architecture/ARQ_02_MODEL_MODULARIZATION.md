@@ -231,3 +231,71 @@ Se mantienen separados y sin modificar los seis fallos preexistentes aprobados:
 
 No se modificaron servicios, views, serializers, permisos, IoT, transporte ni frontend.
 La siguiente fase debe ser ARQ-02E y ejecutarse como entrega independiente.
+
+## ARQ-02E — Operational Data Kernel
+
+### Modelos y significado aprobado
+
+ARQ-02E extrae exclusivamente a `models/operational_data.py`:
+
+- `FuenteDatos`: origen lógico del dato;
+- `ActividadOperacional`: envelope del hecho operacional;
+- `Observacion`: dato atómico conocido sobre el hecho.
+
+Esta fase solo establece ownership físico. No modifica campos, validaciones ni
+comportamiento para imponer o ampliar esa interpretación semántica.
+
+### Grafo de dependencias y relaciones
+
+`operational_data.py` importa directamente desde sus owners:
+
+- `Organizacion` desde `models.platform`;
+- `Obra`, `UnidadOperacional` y `ProcesoOperacional` desde
+  `models.operational_context`;
+- `ActivoOperacional` desde `models.assets`.
+
+Las relaciones de `Observacion` hacia `EvidenciaObra`, `VersionEvidencia` y
+`RegistroExtraido` permanecen como relaciones Django diferidas al app `analytics`, ya
+que esos modelos continúan deliberadamente en el package root. No se importa desde
+`models.__init__` ni se generaron ciclos.
+
+Se conservaron las relaciones de actividad con organización, obra, unidad, proceso y
+activos; y las relaciones de observación con organización, actividad, fuente, actor,
+evidencia, versión y registro extraído.
+
+### Schema, API y registry
+
+Los tres modelos conservan campos, constraints, indexes, `app_label = "analytics"` y
+las tablas:
+
+- `analytics_fuentedatos`
+- `analytics_actividadoperacional`
+- `analytics_observacion`
+
+La API pública, `models.operational_data` y Django registry comparten identidad 3/3.
+El registry permanece en 94 modelos y 94 etiquetas únicas.
+
+### Consumers y tests
+
+Los consumers de ingestion, IoT, cálculo, materiales, transporte y calidad continúan
+usando `apps.analytics.models` sin modificaciones.
+
+- Tests arquitectónicos acumulados: 29/29 correctos.
+- Ingestion, Activity Core, captura manual y sector flows: 72/72 correctos.
+- IoT y sensores V2: 21/21 correctos.
+- Cálculo, clasificación, factores, unidades y metodología: 74/74 correctos.
+- Materiales, transporte y calidad: 71/71 correctos.
+- Suite crítica de baseline: 136 tests; 130 correctos y los mismos seis fallos
+  preexistentes.
+
+El sexto fallo se ejecutó antes y después. Continúa fallando en la misma línea porque
+la actividad esperada no existe (`ActividadOperacional.DoesNotExist`). La ruta de la
+clase en el traceback refleja el nuevo `__module__`, como exige la modularización, pero
+la causa y el comportamiento funcional no cambiaron.
+
+### Deuda preservada
+
+- No se movieron evidencia, versiones, ingestion, transporte, materiales ni flujos.
+- No se corrigieron los seis fallos baseline.
+- No se modificaron services, views, serializers, permisos, IoT ni frontend.
+- ARQ-02F debe ejecutarse como una fase independiente.
