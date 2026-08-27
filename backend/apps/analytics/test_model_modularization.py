@@ -11,9 +11,12 @@ from django.utils import timezone
 
 import apps.analytics.models as public_models
 from apps.analytics.models import (
+    AccionMejoraAmbiental,
     ActividadOperacional,
     ActivoOperacional,
+    AlcanceProblematica,
     CalculoAmbiental,
+    CicloReevaluacionProblematica,
     CompatibilidadVersionMetodologia,
     AreaOperacional,
     EspacioTrabajoOperacional,
@@ -25,7 +28,10 @@ from apps.analytics.models import (
     FactorAmbiental,
     FormulaAmbiental,
     FuenteDatos,
+    HistorialMetaProblematica,
+    HistorialProblematicaAmbiental,
     IndicadorAmbiental,
+    IndicadorProblematica,
     ImpactoAmbiental,
     InputCalculoAmbiental,
     CondicionOperacionalActivo,
@@ -35,6 +41,7 @@ from apps.analytics.models import (
     LineaBaseAmbiental,
     LoteMaterial,
     MaterialOperacional,
+    MedicionSeguimientoAmbiental,
     Maquinaria,
     MetodologiaAmbiental,
     Organizacion,
@@ -46,10 +53,14 @@ from apps.analytics.models import (
     PeriodoComparable,
     PoliticaConfianzaFuente,
     ProcesoIngesta,
+    ProblematicaAmbiental,
     RegistroExtraido,
     RegistroFlujoAmbiental,
+    ResultadoIntervencion,
     RutaOperacional,
     SuscripcionSaaS,
+    SnapshotIntervencion,
+    SnapshotValorIndicador,
     UsuarioObraAcceso,
     UsuarioOrganizacion,
     UnidadOperacional,
@@ -202,6 +213,23 @@ CALCULATION_TABLES = {
     CalculoAmbiental: "analytics_calculoambiental",
     InputCalculoAmbiental: "analytics_inputcalculoambiental",
     ImpactoAmbiental: "analytics_impactoambiental",
+}
+
+IMPROVEMENT_MODELS = (
+    ProblematicaAmbiental,
+    AccionMejoraAmbiental,
+    MedicionSeguimientoAmbiental,
+    AlcanceProblematica,
+    IndicadorProblematica,
+    SnapshotIntervencion,
+    SnapshotValorIndicador,
+    ResultadoIntervencion,
+    CicloReevaluacionProblematica,
+    HistorialMetaProblematica,
+    HistorialProblematicaAmbiental,
+)
+IMPROVEMENT_TABLES = {
+    model: f"analytics_{model.__name__.lower()}" for model in IMPROVEMENT_MODELS
 }
 
 
@@ -369,6 +397,48 @@ class ModelModularizationContractTests(SimpleTestCase):
                 self.assertEqual(model._meta.db_table, CALCULATION_TABLES[model])
                 self.assertIs(getattr(public_models, model.__name__), model)
                 self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_improvement_models_live_in_owner_module_and_keep_contract(self):
+        for model in IMPROVEMENT_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model.__module__, "apps.analytics.models.improvement")
+                self.assertEqual(model._meta.app_label, "analytics")
+                self.assertEqual(model._meta.db_table, IMPROVEMENT_TABLES[model])
+                self.assertIs(getattr(public_models, model.__name__), model)
+                self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_improvement_relations_keep_their_targets(self):
+        expected = {
+            (ProblematicaAmbiental, "organizacion"): Organizacion,
+            (ProblematicaAmbiental, "obra"): Obra,
+            (AccionMejoraAmbiental, "problematica"): ProblematicaAmbiental,
+            (MedicionSeguimientoAmbiental, "problematica"): ProblematicaAmbiental,
+            (MedicionSeguimientoAmbiental, "accion"): AccionMejoraAmbiental,
+            (MedicionSeguimientoAmbiental, "indicador_v2"): IndicadorAmbiental,
+            (MedicionSeguimientoAmbiental, "valor_indicador"): ValorIndicador,
+            (MedicionSeguimientoAmbiental, "evidencia"): EvidenciaObra,
+            (AlcanceProblematica, "unidad_operacional"): UnidadOperacional,
+            (AlcanceProblematica, "proceso_operacional"): ProcesoOperacional,
+            (AlcanceProblematica, "activo_operacional"): ActivoOperacional,
+            (AlcanceProblematica, "actividad_operacional"): ActividadOperacional,
+            (IndicadorProblematica, "indicador"): IndicadorAmbiental,
+            (SnapshotIntervencion, "problematica"): ProblematicaAmbiental,
+            (SnapshotIntervencion, "accion"): AccionMejoraAmbiental,
+            (SnapshotValorIndicador, "snapshot"): SnapshotIntervencion,
+            (ResultadoIntervencion, "snapshot_base"): SnapshotIntervencion,
+            (ResultadoIntervencion, "snapshot_resultado"): SnapshotIntervencion,
+            (CicloReevaluacionProblematica, "resultado"): ResultadoIntervencion,
+            (
+                HistorialMetaProblematica,
+                "indicador_problematica",
+            ): IndicadorProblematica,
+            (HistorialProblematicaAmbiental, "problematica"): ProblematicaAmbiental,
+        }
+        for (model, field_name), target in expected.items():
+            with self.subTest(model=model.__name__, field=field_name):
+                self.assertIs(
+                    model._meta.get_field(field_name).remote_field.model, target
+                )
 
     def test_calculation_relations_still_resolve_governance_models(self):
         expected = {
@@ -1537,3 +1607,236 @@ class ModelModularizationPersistenceTests(TestCase):
 
         self.assertEqual(recalculation.recalculo_de, original)
         self.assertEqual(list(original.recalculos.all()), [recalculation])
+
+    def create_improvement_context(self, suffix=""):
+        organization, work, _, activity, _ = self.create_observation_context(
+            f"IMPROVEMENT-{suffix}"
+        )
+        indicator = IndicadorAmbiental.objects.create(
+            organizacion=organization,
+            codigo=f"improvement-{suffix.lower()}",
+            nombre=f"Indicador {suffix}",
+            tipo=IndicadorAmbiental.Tipo.ABSOLUTO,
+            unidad="kgCO2e",
+            origen_numerador="impactos_ambientales",
+            direccion_deseable=IndicadorAmbiental.DireccionDeseable.MENOR,
+        )
+        indicator_value = ValorIndicador.objects.create(
+            indicador=indicator,
+            periodo_inicio=date(2026, 7, 1),
+            periodo_fin=date(2026, 7, 31),
+            valor=Decimal("10"),
+            unidad=indicator.unidad,
+            fuente_calculo="architecture-test",
+        )
+        problem = ProblematicaAmbiental.objects.create(
+            organizacion=organization,
+            obra=work,
+            titulo=f"Problemática {suffix}",
+            descripcion="Desviación ambiental verificable",
+            categoria="emisiones",
+            valor_inicial=Decimal("10"),
+            objetivo_meta=Decimal("8"),
+            fecha_deteccion=date(2026, 8, 1),
+        )
+        action = AccionMejoraAmbiental.objects.create(
+            problematica=problem,
+            titulo=f"Acción {suffix}",
+            descripcion="Intervención operacional",
+        )
+        link = IndicadorProblematica.objects.create(
+            problematica=problem,
+            indicador=indicator,
+            direccion_deseada=IndicadorAmbiental.DireccionDeseable.MENOR,
+            valor_objetivo=Decimal("8"),
+        )
+        scope = AlcanceProblematica.objects.create(
+            problematica=problem,
+            actividad_operacional=activity,
+            indicador=indicator,
+        )
+        return {
+            "organization": organization,
+            "work": work,
+            "activity": activity,
+            "indicator": indicator,
+            "indicator_value": indicator_value,
+            "problem": problem,
+            "action": action,
+            "link": link,
+            "scope": scope,
+        }
+
+    def test_improvement_state_choices_remain_unchanged(self):
+        self.assertEqual(
+            set(ProblematicaAmbiental.Estado.values),
+            {
+                "detectada",
+                "analizando",
+                "propuesta",
+                "accion_seleccionada",
+                "implementando",
+                "seguimiento",
+                "evaluando",
+                "escalada_profesional",
+                "cerrada",
+                "en_analisis",
+                "accion_propuesta",
+                "en_implementacion",
+                "en_seguimiento",
+                "resuelta",
+                "mejora_insuficiente",
+                "no_resuelta",
+                "escalada",
+            },
+        )
+        self.assertEqual(
+            set(AccionMejoraAmbiental.Estado.values),
+            {
+                "propuesta",
+                "ajustada",
+                "seleccionada",
+                "en_implementacion",
+                "seguimiento",
+                "evaluada",
+                "descartada",
+                "cancelada",
+            },
+        )
+        self.assertEqual(
+            set(ResultadoIntervencion.Estado.values),
+            {
+                "no_implementada",
+                "no_viable",
+                "parcial",
+                "implementada_sin_efecto",
+                "positiva",
+                "negativa",
+                "inconclusa",
+            },
+        )
+
+    def test_complete_improvement_graph_can_still_be_created(self):
+        context = self.create_improvement_context("GRAPH")
+        measurement = MedicionSeguimientoAmbiental.objects.create(
+            problematica=context["problem"],
+            accion=context["action"],
+            fecha=date(2026, 8, 20),
+            valor=Decimal("9"),
+            unidad="kgCO2e",
+            indicador_v2=context["indicator"],
+            valor_indicador=context["indicator_value"],
+        )
+        base = SnapshotIntervencion.objects.create(
+            problematica=context["problem"],
+            accion=context["action"],
+            ciclo=1,
+            tipo=SnapshotIntervencion.Tipo.BASE,
+            fecha=date(2026, 8, 1),
+        )
+        snapshot_value = SnapshotValorIndicador.objects.create(
+            snapshot=base,
+            indicador=context["indicator"],
+            valor=Decimal("10"),
+            unidad="kgCO2e",
+            periodo_inicio=date(2026, 7, 1),
+            periodo_fin=date(2026, 7, 31),
+            valor_indicador_origen=context["indicator_value"],
+        )
+        result_snapshot = SnapshotIntervencion.objects.create(
+            problematica=context["problem"],
+            accion=context["action"],
+            ciclo=1,
+            tipo=SnapshotIntervencion.Tipo.RESULTADO,
+            fecha=date(2026, 8, 31),
+            congelado=True,
+        )
+        result = ResultadoIntervencion.objects.create(
+            problematica=context["problem"],
+            accion=context["action"],
+            ciclo=1,
+            snapshot_base=base,
+            snapshot_resultado=result_snapshot,
+            estado=ResultadoIntervencion.Estado.PARCIAL,
+            fecha_evaluacion=date(2026, 8, 31),
+        )
+        cycle = CicloReevaluacionProblematica.objects.create(
+            problematica=context["problem"],
+            numero=1,
+            accion=context["action"],
+            snapshot_base=base,
+            snapshot_resultado=result_snapshot,
+            resultado=result,
+            fecha_inicio=date(2026, 8, 1),
+            fecha_cierre=date(2026, 8, 31),
+        )
+        user = User.objects.create_user(username="improvement-history")
+        target_history = HistorialMetaProblematica.objects.create(
+            problematica=context["problem"],
+            indicador_problematica=context["link"],
+            valor_anterior=Decimal("9"),
+            valor_nuevo=Decimal("8"),
+            justificacion_tecnica="Nueva evidencia",
+            motivo="Ajuste gobernado",
+            usuario=user,
+        )
+        event_history = HistorialProblematicaAmbiental.objects.create(
+            problematica=context["problem"],
+            evento="verificacion",
+            estado_anterior=ProblematicaAmbiental.Estado.EVALUANDO,
+            estado_nuevo=ProblematicaAmbiental.Estado.CERRADA,
+        )
+
+        self.assertEqual(context["problem"].acciones.get(), context["action"])
+        self.assertEqual(measurement.valor_indicador, context["indicator_value"])
+        self.assertEqual(snapshot_value.snapshot, base)
+        self.assertEqual(cycle.resultado, result)
+        self.assertEqual(target_history.indicador_problematica, context["link"])
+        self.assertEqual(event_history.problematica, context["problem"])
+
+    def test_improvement_cross_tenant_validations_remain_unchanged(self):
+        context = self.create_improvement_context("LOCAL")
+        other = Organizacion.objects.create(nombre="Improvement foreign")
+        foreign_work = Obra.objects.create(
+            organizacion=other,
+            nombre="Foreign work",
+            fecha_inicio=date(2026, 8, 1),
+        )
+        problem = context["problem"]
+        problem.obra = foreign_work
+
+        with self.assertRaises(ValidationError) as error:
+            problem.full_clean()
+
+        self.assertIn("obra", error.exception.message_dict)
+
+    def test_frozen_improvement_snapshot_and_values_remain_immutable(self):
+        context = self.create_improvement_context("FROZEN")
+        snapshot = SnapshotIntervencion.objects.create(
+            problematica=context["problem"],
+            accion=context["action"],
+            tipo=SnapshotIntervencion.Tipo.BASE,
+            fecha=date(2026, 8, 1),
+        )
+        value = SnapshotValorIndicador.objects.create(
+            snapshot=snapshot,
+            indicador=context["indicator"],
+            valor=Decimal("10"),
+            unidad="kgCO2e",
+            periodo_inicio=date(2026, 7, 1),
+            periodo_fin=date(2026, 7, 31),
+        )
+        SnapshotIntervencion.objects.filter(pk=snapshot.pk).update(congelado=True)
+        snapshot.refresh_from_db()
+        value.refresh_from_db()
+
+        snapshot.metadata_tecnica = {"changed": True}
+        value.valor = Decimal("99")
+        with self.assertRaises(ValidationError):
+            snapshot.save()
+        with self.assertRaises(ValidationError):
+            value.save()
+        with self.assertRaises(ValidationError):
+            snapshot.delete()
+        with self.assertRaises(ValidationError):
+            value.delete()

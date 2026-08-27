@@ -738,3 +738,144 @@ Impacto, pero no se extendió ni reinterpretó su semántica.
   tipos fuera de los modelos, y la lógica de cálculo/eligibility/selectores en servicios.
 - No se modificaron services, views, serializers, permisos, IoT, frontend ni legacy.
   ARQ-02K queda fuera de este cierre.
+
+## ARQ-02K — Improvement
+
+### Modelos, ownership y exclusiones
+
+ARQ-02K extrae a `models/improvement.py` los once modelos que pertenecen
+inequívocamente al aggregate moderno Problem → Action → Verification:
+
+- `ProblematicaAmbiental`
+- `AccionMejoraAmbiental`
+- `MedicionSeguimientoAmbiental`
+- `AlcanceProblematica`
+- `IndicadorProblematica`
+- `SnapshotIntervencion`
+- `SnapshotValorIndicador`
+- `ResultadoIntervencion`
+- `CicloReevaluacionProblematica`
+- `HistorialMetaProblematica`
+- `HistorialProblematicaAmbiental`
+
+Los dos historiales permanecen en el aggregate porque registran cambios de meta y
+transiciones de la problemática canónica; uno de sus consumidores conserva lógica
+legacy, pero no constituyen modelos Intelligence o Reporting.
+
+`AccionAmbiental` permanece unmanaged/legacy en `models_acciones.py`. No se movieron
+`RecomendacionAgenteAmbiental`, memorias, comandos, hitos IA, restricciones,
+Professional ni Reporting.
+
+### Dependencias, schema y registry
+
+Improvement importa directamente Platform, Operational Context, Assets, Operational
+Data, Provenance e Indicators. No requiere importar Calculations ni Environmental Flows:
+el contrato real de `ProblematicaAmbiental` no tiene FK directa a cálculo o impacto.
+Tampoco depende estructuralmente de Intelligence o Professional; esas capas apuntan a
+Improvement desde el módulo raíz mediante la API pública.
+
+Los once modelos conservan campos, choices, defaults, FK, relaciones inversas,
+constraints, indexes, `Meta`, `clean()`, `save()` y `delete()`. La API pública, owner
+module y registry comparten identidad 11/11. El registry permanece en 94 modelos y 94
+labels únicos; no se generan migraciones.
+
+### Máquinas de estado reales
+
+**ProblematicaAmbiental** conserva estados modernos:
+
+`detectada`, `analizando`, `propuesta`, `accion_seleccionada`, `implementando`,
+`seguimiento`, `evaluando`, `escalada_profesional`, `cerrada`.
+
+Y estados legacy simultáneos:
+
+`en_analisis`, `accion_propuesta`, `en_implementacion`, `en_seguimiento`, `resuelta`,
+`mejora_insuficiente`, `no_resuelta`, `escalada`.
+
+`environmental_problems.ALLOWED_TRANSITIONS` implementa solo la máquina legacy, con
+`resuelta` terminal. El circuito moderno `intervention_v2` asigna
+`accion_seleccionada → implementando → resuelta/no_resuelta`, y escala a
+`escalada_profesional` tras tres ciclos. `propuesta` y `seguimiento` también son escritos
+por adaptadores de `environmental_problems`; no se encontró transición de servicio hacia
+`evaluando` o `cerrada`.
+
+**AccionMejoraAmbiental** conserva `propuesta`, `ajustada`, `seleccionada`,
+`en_implementacion`, `seguimiento`, `evaluada`, `descartada`, `cancelada`.
+`intervention_v2` implementa `propuesta → seleccionada → en_implementacion → evaluada`.
+Copilot puede crear propuesta y seleccionar con confirmación humana. No se encontraron
+transiciones especializadas para ajustada, seguimiento, descartada o cancelada; PATCH
+genérico puede persistir estados admitidos.
+
+**ResultadoIntervencion** conserva `no_implementada`, `no_viable`, `parcial`,
+`implementada_sin_efecto`, `positiva`, `negativa`, `inconclusa`. No es una máquina
+mutable: `evaluate_intervention` crea un resultado calculado como positiva, negativa,
+parcial, sin efecto o inconclusa; no se encontró writer actual para no implementada/no
+viable.
+
+**CicloReevaluacionProblematica** no posee campo `estado`. Su estado se deriva de
+`fecha_cierre`, snapshots y `resultado`; el límite actual es tres ciclos automáticos.
+
+### Grafo de verificación real
+
+- Problemática → Acción: **DIRECT FK**, uno-a-muchos.
+- Problemática/Acción → Medición: **DIRECT FK**; acción es opcional.
+- Problemática/Acción → Snapshot: **DIRECT FK**; tipo base o resultado por ciclo.
+- Snapshot → valores de indicador: **DIRECT FK**; cada valor puede referenciar un
+  `ValorIndicador` origen.
+- Medición → Snapshot: **MISSING** como relación directa; el servicio los conecta por
+  indicador, periodo y ciclo.
+- Resultado → Problemática/Acción/Snapshot base/Snapshot resultado: **DIRECT FK**.
+- Ciclo → Problemática/Acción/Snapshots/Resultado: **DIRECT FK**; resultado y snapshots
+  pueden estar pendientes.
+- Comparación before/after: **SERVICE LOOKUP** en `intervention_v2`, usando los valores
+  congelados de ambos snapshots.
+
+Los snapshots congelados y sus valores siguen siendo inmutables. No se añadió contenido
+ni una regla nueva de verificación.
+
+### Orígenes actuales de problemáticas
+
+- **Manual — ACTIVE:** API `views_problematicas` crea la problemática y su evento de
+  detección.
+- **Indicador — PARTIAL:** puede vincularse mediante `IndicadorProblematica`, pero no se
+  encontró creación automática desde una desviación del indicador.
+- **Calculation/Impact — MISSING:** no existe FK ni writer que cree el problema desde
+  esos resultados.
+- **Compliance — MISSING:** no se encontró pipeline de creación hacia Improvement.
+- **AI — PARTIAL:** IA recomienda/convierte acciones para una problemática existente;
+  no crea la problemática.
+- **Legacy Environmental Engine — LEGACY/PARTIAL:** calcula valores y agrega mediciones
+  a un problema existente mediante `measure_from_engine`; no crea el problema.
+- **Seeds — TEST/DEMO:** el comando histórico crea problemas y seguimientos de muestra.
+
+### Cierre actual
+
+La ruta legacy `evaluate_problem` exige estado `en_seguimiento` y una medición posterior;
+según la comparación asigna `resuelta`, `mejora_insuficiente` o `no_resuelta`. No exige
+resultado moderno ni revisión profesional.
+
+La ruta moderna `evaluate_intervention` exige un ciclo activo, crea snapshot resultado y
+`ResultadoIntervencion`; solo un resultado positivo asigna `resuelta`, los demás
+`no_resuelta`. La escalada profesional requiere tres ciclos, pero el cierre positivo no
+exige revisión profesional.
+
+El endpoint PATCH de detalle usa el serializer general y puede persistir un choice como
+`cerrada` sin que el modelo exija medición, resultado, evidencia o profesional. No se
+encontró un servicio `close` específico ni un consumer que asigne `cerrada`. Esta brecha
+queda documentada para ARQ-09; ARQ-02K no la corrige.
+
+### Consumers y gate
+
+- Serializers/views de problemáticas crean y leen el aggregate completo.
+- `environmental_problems`, `environmental_escalation` e `intervention_v2` ejecutan las
+  dos máquinas coexistentes y escriben historial.
+- Copilot convierte una recomendación confirmada en acción; contexto/knowledge/AI leen
+  problemáticas y resultados sin poseerlos.
+- Professional referencia problemáticas/resultados, genera correcciones, expedientes,
+  snapshots e informes; SaaS/Construction agregan conteos y estado abierto.
+- Tests arquitectónicos acumulados: 70/70 correctos.
+- Improvement, Indicators/Calculation, Professional, Intelligence/Copilot, Knowledge y
+  reporting: 142/142 correctos.
+- Gate baseline: 24 tests; 18 correctos y exactamente los seis fallos conocidos,
+  incluida la columna SQLite legacy `analytics_accionambiental.organizacion_id`.
+- No se modificaron services, views, serializers, permisos, IoT, frontend, Intelligence
+  ni legacy. ARQ-02L queda fuera de este cierre.
