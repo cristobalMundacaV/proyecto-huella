@@ -473,3 +473,85 @@ procesado continúa siendo inmutable.
 - No se modificaron services, views, serializers, permisos, IoT ni frontend.
 - No se agregó QR ni se movieron modelos de compliance, Quality, Governance o flujos.
 - Los seis fallos baseline aprobados permanecen fuera del alcance de ARQ-02G.
+
+## ARQ-02H — Environmental Flows, Quality & Indicators
+
+### Modelos y ownership
+
+ARQ-02H extrae a `models/environmental_flows.py`:
+
+- `RegistroFlujoAmbiental`
+
+a `models/quality.py`:
+
+- `EvaluacionCalidadDato`
+- `DiscrepanciaDato`
+- `PoliticaConfianzaFuente`
+
+y a `models/indicators.py`:
+
+- `IndicadorAmbiental`
+- `ValorIndicador`
+- `LineaBaseAmbiental`
+- `PeriodoComparable`
+
+No se encontró otro modelo cuya responsabilidad fuese exclusivamente flujo, calidad o
+indicadores y que debiera entrar automáticamente. Governance, Calculation, Compliance
+e Improvement permanecen deliberadamente fuera.
+
+### Dependencias, schema y registry
+
+Environmental Flows importa directamente Platform, Operational Context, Assets,
+Operational Data y Materials. Quality importa Platform y Operational Data, además de
+`User` de Django. Indicators importa Platform y `Obra` desde Operational Context. No
+existen imports desde `models.__init__` ni ciclos nuevos.
+
+Los ocho modelos conservan íntegramente campos, choices, defaults, relaciones,
+constraints, indexes, validaciones y tablas históricas. La API pública y Django
+registry comparten identidad con los owner modules. El registry permanece en 94
+modelos y 94 labels únicos; no se generan migraciones.
+
+### Consumers actuales
+
+- `RegistroFlujoAmbiental`: **WRITE** en serializers sectoriales, registro manual e
+  ingestion handlers; **READ/EVALUATE** en `sector_flows_v1`; **REPORT** en views de
+  flujos; **LEGACY** en agregaciones de gestión hídrica/suelo.
+- `EvaluacionCalidadDato`: **WRITE/EVALUATE** en `quality_v2`; **READ/REPORT** en views
+  y serializers Quality V2; **AI** en `knowledge_v1` como señal de calidad.
+- `IndicadorAmbiental`: **WRITE/READ** mediante serializers y views Quality V2;
+  **REPORT** en contexto/copiloto; **EVALUATE** en servicios de indicadores y
+  comparabilidad; **AI** en copilot/context gateway.
+- `ValorIndicador`: **WRITE/EVALUATE** en `indicators_v2`; **READ/REPORT** en Quality
+  V2; Improvement conserva snapshots separados para intervención y verificación.
+
+### Catálogo real de flujos
+
+| Flujo | Actividad esperada | Destinos admitidos | Especialización / cálculo / indicador | UI y evidencia E2E observada |
+|---|---|---|---|---|
+| Energía | `consumo_energia` | Solo sin clasificar | Agregación sectorial; sin indicador dedicado | CRUD genérico y tests sectoriales |
+| Generación propia | `generacion_energia` | Solo sin clasificar | Métricas generada/autoconsumida/exportada | CRUD genérico y tests sectoriales |
+| Agua | `consumo_agua` | Solo sin clasificar | Agregación sectorial; sin indicador dedicado | CRUD genérico y tests sectoriales |
+| Combustible | `consumo_combustible` | Generador, maquinaria, vehículo, equipo menor, calefacción u otro | Clasificación y cálculo de combustible | Registro manual y tests de clasificación |
+| Combustible estacionario | `consumo_combustible_estacionario` | Destinos de combustible | Selector gobernado de factores y cálculo | Tests sectoriales, factores y unidades |
+| Combustible móvil | `consumo_combustible` | Destinos de combustible | Clasificación móvil y cálculo cuando existe factor | Tests de clasificación y cálculo |
+| Residuo | `gestion_residuo` | Residuo, reutilización, reciclaje, valorización, disposición o subproducto | Puede enlazar `EventoMaterial`; balance sectorial | CRUD genérico y tests sectoriales |
+| Ruido | `monitoreo_ruido` | Solo sin clasificar | Sin cálculo o indicador dedicado encontrado | Soportado por CRUD genérico y catálogo |
+| Emisiones atmosféricas | `monitoreo_emisiones_atmosfericas` | Solo sin clasificar | Sin cálculo o indicador dedicado encontrado | Soportado por CRUD genérico y catálogo |
+| Suelo | `gestion_suelo` | Solo sin clasificar | Sin cálculo o indicador dedicado encontrado | Soportado por CRUD genérico y catálogo |
+| Gestión hídrica y suelo | `gestion_hidrica_suelo` | Solo sin clasificar | Evaluación legacy de desborde, erosión, agua y sedimentos | Consumer legacy y tests sectoriales |
+
+Todos los flujos comparten contexto opcional de obra, unidad, proceso, activo y punto
+según granularidad. Solo residuos admiten `EventoMaterial`; no se infirieron módulos,
+cálculos ni indicadores que el repositorio no demuestre.
+
+### Gate y deuda preservada
+
+- Tests arquitectónicos acumulados: 51/51 correctos.
+- Sector flows, registro manual, combustibles, unidades y Calculation V2: 103/103.
+- Quality, Indicators, Improvement, Professional y Copilot: 84/84.
+- Gate baseline: 24 tests; 18 correctos y exactamente los mismos seis fallos conocidos.
+- `DocumentoAmbiental` conserva el `TypeError` por `perfil_ambiental`; Construction V1
+  conserva `ActividadOperacional.DoesNotExist`; permanecen los tres fallos de catálogo
+  de áreas y la columna SQLite histórica de `AccionAmbiental`.
+- No se cambiaron clasificación, cálculo, scoring, resolución de discrepancias,
+  servicios, views, serializers, permisos, IoT ni frontend.

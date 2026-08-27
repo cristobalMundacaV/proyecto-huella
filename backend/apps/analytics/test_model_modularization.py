@@ -18,11 +18,15 @@ from apps.analytics.models import (
     EvidenciaObra,
     EventoMaterial,
     EventoAuditoriaSaaS,
+    EvaluacionCalidadDato,
     FactorAmbiental,
     FuenteDatos,
+    IndicadorAmbiental,
     CondicionOperacionalActivo,
+    DiscrepanciaDato,
     MantenimientoActivo,
     MapeoColumna,
+    LineaBaseAmbiental,
     LoteMaterial,
     MaterialOperacional,
     Maquinaria,
@@ -32,6 +36,8 @@ from apps.analytics.models import (
     ProcesoOperacional,
     PuntoAmbientalOperacional,
     PlantillaMapeo,
+    PeriodoComparable,
+    PoliticaConfianzaFuente,
     ProcesoIngesta,
     RegistroExtraido,
     RegistroFlujoAmbiental,
@@ -41,6 +47,7 @@ from apps.analytics.models import (
     UsuarioOrganizacion,
     UnidadOperacional,
     Vehiculo,
+    ValorIndicador,
     VersionEvidencia,
     ViajeOperacional,
 )
@@ -136,6 +143,31 @@ INGESTION_TABLES = {
     RegistroExtraido: "analytics_registroextraido",
 }
 
+ENVIRONMENTAL_FLOW_MODELS = (RegistroFlujoAmbiental,)
+ENVIRONMENTAL_FLOW_TABLES = {
+    RegistroFlujoAmbiental: "analytics_registroflujoambiental",
+}
+
+QUALITY_MODELS = (EvaluacionCalidadDato, DiscrepanciaDato, PoliticaConfianzaFuente)
+QUALITY_TABLES = {
+    EvaluacionCalidadDato: "analytics_evaluacioncalidaddato",
+    DiscrepanciaDato: "analytics_discrepanciadato",
+    PoliticaConfianzaFuente: "analytics_politicaconfianzafuente",
+}
+
+INDICATOR_MODELS = (
+    IndicadorAmbiental,
+    ValorIndicador,
+    LineaBaseAmbiental,
+    PeriodoComparable,
+)
+INDICATOR_TABLES = {
+    IndicadorAmbiental: "analytics_indicadorambiental",
+    ValorIndicador: "analytics_valorindicador",
+    LineaBaseAmbiental: "analytics_lineabaseambiental",
+    PeriodoComparable: "analytics_periodocomparable",
+}
+
 
 class ModelModularizationContractTests(SimpleTestCase):
     def test_platform_models_live_in_platform_module(self):
@@ -157,7 +189,6 @@ class ModelModularizationContractTests(SimpleTestCase):
     def test_public_models_api_still_exports_unmoved_models(self):
         for model in (
             ActividadOperacional,
-            RegistroFlujoAmbiental,
             FactorAmbiental,
             CalculoAmbiental,
         ):
@@ -256,6 +287,63 @@ class ModelModularizationContractTests(SimpleTestCase):
                 self.assertEqual(model._meta.db_table, INGESTION_TABLES[model])
                 self.assertIs(getattr(public_models, model.__name__), model)
                 self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_environmental_flow_model_lives_in_owner_module_and_keeps_contract(self):
+        for model in ENVIRONMENTAL_FLOW_MODELS:
+            self.assertEqual(
+                model.__module__, "apps.analytics.models.environmental_flows"
+            )
+            self.assertEqual(model._meta.app_label, "analytics")
+            self.assertEqual(model._meta.db_table, ENVIRONMENTAL_FLOW_TABLES[model])
+            self.assertIs(getattr(public_models, model.__name__), model)
+            self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_quality_models_live_in_owner_module_and_keep_contract(self):
+        for model in QUALITY_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model.__module__, "apps.analytics.models.quality")
+                self.assertEqual(model._meta.app_label, "analytics")
+                self.assertEqual(model._meta.db_table, QUALITY_TABLES[model])
+                self.assertIs(getattr(public_models, model.__name__), model)
+                self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_indicator_models_live_in_owner_module_and_keep_contract(self):
+        for model in INDICATOR_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model.__module__, "apps.analytics.models.indicators")
+                self.assertEqual(model._meta.app_label, "analytics")
+                self.assertEqual(model._meta.db_table, INDICATOR_TABLES[model])
+                self.assertIs(getattr(public_models, model.__name__), model)
+                self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_environment_quality_and_indicator_relations_keep_their_targets(self):
+        expected = {
+            (RegistroFlujoAmbiental, "organizacion"): Organizacion,
+            (RegistroFlujoAmbiental, "actividad"): ActividadOperacional,
+            (RegistroFlujoAmbiental, "evento_material"): EventoMaterial,
+            (EvaluacionCalidadDato, "observacion"): Observacion,
+            (DiscrepanciaDato, "actividad"): ActividadOperacional,
+            (DiscrepanciaDato, "observaciones"): Observacion,
+            (PoliticaConfianzaFuente, "organizacion"): Organizacion,
+            (IndicadorAmbiental, "organizacion"): Organizacion,
+            (IndicadorAmbiental, "obra"): Obra,
+            (ValorIndicador, "indicador"): IndicadorAmbiental,
+            (LineaBaseAmbiental, "indicador"): IndicadorAmbiental,
+            (PeriodoComparable, "indicador"): IndicadorAmbiental,
+        }
+        for (model, field_name), target in expected.items():
+            with self.subTest(model=model.__name__, field=field_name):
+                self.assertIs(
+                    model._meta.get_field(field_name).remote_field.model, target
+                )
+
+        policy_constraints = {
+            item.name for item in PoliticaConfianzaFuente._meta.constraints
+        }
+        self.assertEqual(
+            policy_constraints,
+            {"unique_politica_fuente_global", "unique_politica_fuente_tenant"},
+        )
 
     def test_provenance_and_ingestion_relations_keep_their_targets(self):
         expected = {
@@ -846,3 +934,184 @@ class ModelModularizationPersistenceTests(TestCase):
 
         with self.assertRaises(ValidationError):
             record.save()
+
+    def create_observation_context(self, suffix=""):
+        organization, _, _, work, _ = self.create_asset_context(suffix)
+        source = FuenteDatos.objects.create(
+            organizacion=organization, nombre=f"Fuente {suffix}"
+        )
+        activity = ActividadOperacional.objects.create(
+            organizacion=organization,
+            obra=work,
+            tipo=ActividadOperacional.Tipo.CONSUMO_ENERGIA,
+            codigo=f"ACT-ENV-{suffix}",
+            nombre=f"Consumo {suffix}",
+            timestamp_inicio=timezone.now(),
+        )
+        observation = Observacion.objects.create(
+            organizacion=organization,
+            actividad=activity,
+            fuente=source,
+            concepto="energia_consumida_kwh",
+            valor_numerico=Decimal("25"),
+            unidad="kWh",
+            timestamp_observacion=timezone.now(),
+        )
+        return organization, work, source, activity, observation
+
+    def test_environmental_flow_can_still_be_created(self):
+        organization, work, _, activity, _ = self.create_observation_context("FLOW")
+        flow = RegistroFlujoAmbiental.objects.create(
+            organizacion=organization,
+            actividad=activity,
+            flujo=RegistroFlujoAmbiental.Flujo.ENERGIA,
+            periodo_inicio=activity.timestamp_inicio,
+            granularidad=RegistroFlujoAmbiental.Granularidad.OBRA,
+            obra=work,
+        )
+
+        self.assertEqual(flow.actividad, activity)
+        self.assertEqual(activity.registro_flujo_ambiental, flow)
+
+    def test_environmental_flow_keeps_activity_and_tenant_validations(self):
+        organization, _, _, _, _ = self.create_observation_context("LOCAL-FLOW")
+        _, foreign_work, _, foreign_activity, _ = self.create_observation_context(
+            "FOREIGN-FLOW"
+        )
+        flow = RegistroFlujoAmbiental(
+            organizacion=organization,
+            actividad=foreign_activity,
+            flujo=RegistroFlujoAmbiental.Flujo.AGUA,
+            periodo_inicio=timezone.now(),
+            granularidad=RegistroFlujoAmbiental.Granularidad.OBRA,
+            obra=foreign_work,
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            flow.full_clean()
+
+        self.assertIn("actividad", context.exception.message_dict)
+
+    def test_environmental_flow_keeps_destination_validation(self):
+        organization, _, _, activity, _ = self.create_observation_context("DEST")
+        activity.tipo = ActividadOperacional.Tipo.CONSUMO_COMBUSTIBLE
+        activity.save(update_fields=["tipo"])
+        flow = RegistroFlujoAmbiental(
+            organizacion=organization,
+            actividad=activity,
+            flujo=RegistroFlujoAmbiental.Flujo.COMBUSTIBLE,
+            periodo_inicio=timezone.now(),
+            destino_operacional=RegistroFlujoAmbiental.DestinoOperacional.RECICLAJE,
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            flow.full_clean()
+
+        self.assertIn("destino_operacional", context.exception.message_dict)
+
+    def test_quality_entities_and_source_policies_can_still_be_created(self):
+        organization, _, _, activity, observation = self.create_observation_context(
+            "QUALITY"
+        )
+        evaluation = EvaluacionCalidadDato.objects.create(
+            organizacion=organization,
+            observacion=observation,
+            estado=EvaluacionCalidadDato.Estado.CONFIABLE,
+        )
+        discrepancy = DiscrepanciaDato.objects.create(
+            organizacion=organization,
+            actividad=activity,
+            concepto=observation.concepto,
+        )
+        discrepancy.observaciones.add(observation)
+        global_policy = PoliticaConfianzaFuente.objects.create(
+            concepto="energia_consumida_kwh",
+            tipo_fuente=FuenteDatos.Tipo.MANUAL,
+            prioridad=1,
+        )
+        tenant_policy = PoliticaConfianzaFuente.objects.create(
+            organizacion=organization,
+            concepto="energia_consumida_kwh",
+            tipo_fuente=FuenteDatos.Tipo.DOCUMENTO,
+            prioridad=2,
+        )
+
+        self.assertEqual(evaluation.observacion, observation)
+        self.assertEqual(list(discrepancy.observaciones.all()), [observation])
+        self.assertIsNone(global_policy.organizacion_id)
+        self.assertEqual(tenant_policy.organizacion, organization)
+
+    def test_indicator_value_baseline_and_comparison_can_still_be_created(self):
+        organization, work, _, _, _ = self.create_observation_context("INDICATOR")
+        corporate = IndicadorAmbiental.objects.create(
+            organizacion=organization,
+            codigo="energia-total",
+            nombre="Energía total",
+            tipo=IndicadorAmbiental.Tipo.ABSOLUTO,
+            unidad="kWh",
+            origen_numerador="energia_consumida_kwh",
+        )
+        work_indicator = IndicadorAmbiental.objects.create(
+            organizacion=organization,
+            alcance=IndicadorAmbiental.Alcance.OBRA,
+            obra=work,
+            codigo="energia-obra",
+            nombre="Energía de obra",
+            tipo=IndicadorAmbiental.Tipo.OPERACIONAL,
+            unidad="kWh",
+            origen_numerador="energia_consumida_kwh",
+        )
+        value = ValorIndicador.objects.create(
+            indicador=work_indicator,
+            periodo_inicio=date(2026, 7, 1),
+            periodo_fin=date(2026, 7, 31),
+            valor=Decimal("25"),
+            unidad="kWh",
+            fuente_calculo="test",
+        )
+        baseline = LineaBaseAmbiental.objects.create(
+            organizacion=organization,
+            indicador=work_indicator,
+            periodo_inicio=date(2026, 7, 1),
+            periodo_fin=date(2026, 7, 31),
+            valor_base=Decimal("25"),
+            cantidad_periodos=1,
+        )
+        comparison = PeriodoComparable.objects.create(
+            indicador=work_indicator,
+            periodo_actual_inicio=date(2026, 8, 1),
+            periodo_actual_fin=date(2026, 8, 31),
+            periodo_referencia_inicio=date(2026, 7, 1),
+            periodo_referencia_fin=date(2026, 7, 31),
+            regla=PeriodoComparable.Regla.ANTERIOR_EQUIVALENTE,
+            motivo_comparabilidad="Misma obra y duración equivalente.",
+        )
+
+        self.assertIsNone(corporate.obra_id)
+        self.assertEqual(value.indicador, work_indicator)
+        self.assertEqual(baseline.indicador, work_indicator)
+        self.assertEqual(comparison.indicador, work_indicator)
+
+    def test_indicator_scope_keeps_cross_tenant_validation(self):
+        organization = Organizacion.objects.create(nombre="Indicator tenant")
+        other = Organizacion.objects.create(nombre="Foreign indicator tenant")
+        foreign_work = Obra.objects.create(
+            organizacion=other,
+            nombre="Foreign indicator work",
+            fecha_inicio=date(2026, 8, 27),
+        )
+        indicator = IndicadorAmbiental(
+            organizacion=organization,
+            alcance=IndicadorAmbiental.Alcance.OBRA,
+            obra=foreign_work,
+            codigo="cross-tenant",
+            nombre="Cross tenant",
+            tipo=IndicadorAmbiental.Tipo.ABSOLUTO,
+            unidad="kg",
+            origen_numerador="masa",
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            indicator.full_clean()
+
+        self.assertIn("obra", context.exception.message_dict)
