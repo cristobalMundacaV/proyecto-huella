@@ -15,12 +15,14 @@ from apps.analytics.models import (
     AreaOperacional,
     EspacioTrabajoOperacional,
     EtapaObra,
+    EvidenciaObra,
     EventoMaterial,
     EventoAuditoriaSaaS,
     FactorAmbiental,
     FuenteDatos,
     CondicionOperacionalActivo,
     MantenimientoActivo,
+    MapeoColumna,
     LoteMaterial,
     MaterialOperacional,
     Maquinaria,
@@ -29,6 +31,9 @@ from apps.analytics.models import (
     Obra,
     ProcesoOperacional,
     PuntoAmbientalOperacional,
+    PlantillaMapeo,
+    ProcesoIngesta,
+    RegistroExtraido,
     RegistroFlujoAmbiental,
     RutaOperacional,
     SuscripcionSaaS,
@@ -36,6 +41,7 @@ from apps.analytics.models import (
     UsuarioOrganizacion,
     UnidadOperacional,
     Vehiculo,
+    VersionEvidencia,
     ViajeOperacional,
 )
 
@@ -114,6 +120,20 @@ MATERIAL_TABLES = {
     MaterialOperacional: "analytics_materialoperacional",
     LoteMaterial: "analytics_lotematerial",
     EventoMaterial: "analytics_eventomaterial",
+}
+
+PROVENANCE_MODELS = (EvidenciaObra, VersionEvidencia)
+PROVENANCE_TABLES = {
+    EvidenciaObra: "analytics_evidenciaobra",
+    VersionEvidencia: "analytics_versionevidencia",
+}
+
+INGESTION_MODELS = (PlantillaMapeo, MapeoColumna, ProcesoIngesta, RegistroExtraido)
+INGESTION_TABLES = {
+    PlantillaMapeo: "analytics_plantillamapeo",
+    MapeoColumna: "analytics_mapeocolumna",
+    ProcesoIngesta: "analytics_procesoingesta",
+    RegistroExtraido: "analytics_registroextraido",
 }
 
 
@@ -218,6 +238,51 @@ class ModelModularizationContractTests(SimpleTestCase):
                 self.assertEqual(model._meta.db_table, MATERIAL_TABLES[model])
                 self.assertIs(getattr(public_models, model.__name__), model)
                 self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_provenance_models_live_in_owner_module_and_keep_contract(self):
+        for model in PROVENANCE_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model.__module__, "apps.analytics.models.provenance")
+                self.assertEqual(model._meta.app_label, "analytics")
+                self.assertEqual(model._meta.db_table, PROVENANCE_TABLES[model])
+                self.assertIs(getattr(public_models, model.__name__), model)
+                self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_ingestion_models_live_in_owner_module_and_keep_contract(self):
+        for model in INGESTION_MODELS:
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model.__module__, "apps.analytics.models.ingestion")
+                self.assertEqual(model._meta.app_label, "analytics")
+                self.assertEqual(model._meta.db_table, INGESTION_TABLES[model])
+                self.assertIs(getattr(public_models, model.__name__), model)
+                self.assertIs(apps.get_model("analytics", model.__name__), model)
+
+    def test_provenance_and_ingestion_relations_keep_their_targets(self):
+        expected = {
+            (EvidenciaObra, "organizacion"): Organizacion,
+            (EvidenciaObra, "area_origen"): AreaOperacional,
+            (EvidenciaObra, "usuario_origen"): User,
+            (EvidenciaObra, "obra"): Obra,
+            (EvidenciaObra, "etapa"): EtapaObra,
+            (VersionEvidencia, "evidencia"): EvidenciaObra,
+            (VersionEvidencia, "organizacion"): Organizacion,
+            (PlantillaMapeo, "organizacion"): Organizacion,
+            (PlantillaMapeo, "fuente_datos"): FuenteDatos,
+            (MapeoColumna, "plantilla"): PlantillaMapeo,
+            (ProcesoIngesta, "version_evidencia"): VersionEvidencia,
+            (ProcesoIngesta, "fuente_datos"): FuenteDatos,
+            (ProcesoIngesta, "plantilla_mapeo"): PlantillaMapeo,
+            (RegistroExtraido, "proceso_ingesta"): ProcesoIngesta,
+            (RegistroExtraido, "actividad_creada"): ActividadOperacional,
+        }
+        for (model, field_name), target in expected.items():
+            with self.subTest(model=model.__name__, field=field_name):
+                self.assertIs(
+                    model._meta.get_field(field_name).remote_field.model, target
+                )
+
+        constraint_names = {item.name for item in VersionEvidencia._meta.constraints}
+        self.assertIn("unique_version_evidencia", constraint_names)
 
     def test_transport_and_material_relations_keep_their_targets(self):
         expected = {
@@ -677,3 +742,107 @@ class ModelModularizationPersistenceTests(TestCase):
         self.assertEqual(event.material, material)
         self.assertEqual(event.lote, lot)
         self.assertEqual(event.actividad, activity)
+
+    def create_provenance_context(self, suffix=""):
+        organization = Organizacion.objects.create(nombre=f"Provenance {suffix}")
+        work = Obra.objects.create(
+            organizacion=organization,
+            nombre=f"Obra provenance {suffix}",
+            fecha_inicio=date(2026, 8, 27),
+        )
+        evidence = EvidenciaObra.objects.create(
+            organizacion=organization,
+            obra=work,
+            nombre=f"Evidencia {suffix}",
+            archivo=f"evidencias/test/{suffix}.pdf",
+        )
+        version = VersionEvidencia.objects.create(
+            evidencia=evidence,
+            organizacion=organization,
+            version=1,
+            archivo=f"evidencias/test/{suffix}-v1.pdf",
+            nombre_original=f"{suffix}.pdf",
+            checksum_sha256=(suffix.lower() or "a").ljust(64, "0")[:64],
+        )
+        return organization, work, evidence, version
+
+    def test_evidence_and_version_can_still_be_created(self):
+        organization, work, evidence, version = self.create_provenance_context("VALID")
+
+        self.assertEqual(evidence.organizacion, organization)
+        self.assertEqual(evidence.obra, work)
+        self.assertEqual(version.evidencia, evidence)
+
+    def test_evidence_version_still_rejects_cross_tenant_organization(self):
+        _, _, evidence, _ = self.create_provenance_context("OWNER")
+        other = Organizacion.objects.create(nombre="Foreign provenance tenant")
+        version = VersionEvidencia(
+            evidencia=evidence,
+            organizacion=other,
+            version=2,
+            archivo="evidencias/test/foreign.pdf",
+            nombre_original="foreign.pdf",
+            checksum_sha256="f" * 64,
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            version.full_clean()
+
+        self.assertIn("organizacion", context.exception.message_dict)
+
+    def test_ingestion_entities_can_still_be_created(self):
+        organization, _, _, version = self.create_provenance_context("INGESTION")
+        source = FuenteDatos.objects.create(
+            organizacion=organization,
+            nombre="Archivo tabular",
+        )
+        template = PlantillaMapeo.objects.create(
+            organizacion=organization,
+            fuente_datos=source,
+            nombre="Plantilla ARQ-02G",
+        )
+        mapping = MapeoColumna.objects.create(
+            plantilla=template,
+            columna_origen="Cantidad",
+            columna_normalizada="cantidad",
+            concepto_normalizado="cantidad_material",
+            unidad_esperada="kg",
+        )
+        ingestion = ProcesoIngesta.objects.create(
+            organizacion=organization,
+            version_evidencia=version,
+            fuente_datos=source,
+            plantilla_mapeo=template,
+            tipo_ingesta=ProcesoIngesta.TipoIngesta.TABULAR,
+        )
+        record = RegistroExtraido.objects.create(
+            proceso_ingesta=ingestion,
+            numero_fila=1,
+            datos_originales={"Cantidad": "12"},
+        )
+
+        self.assertEqual(mapping.plantilla, template)
+        self.assertEqual(ingestion.version_evidencia, version)
+        self.assertEqual(record.proceso_ingesta, ingestion)
+
+    def test_processed_raw_record_remains_immutable(self):
+        organization, _, _, version = self.create_provenance_context("IMMUTABLE")
+        source = FuenteDatos.objects.create(
+            organizacion=organization,
+            nombre="Fuente inmutable",
+        )
+        ingestion = ProcesoIngesta.objects.create(
+            organizacion=organization,
+            version_evidencia=version,
+            fuente_datos=source,
+        )
+        record = RegistroExtraido.objects.create(
+            proceso_ingesta=ingestion,
+            numero_fila=1,
+            datos_originales={"valor": "original"},
+            estado=RegistroExtraido.Estado.PROCESADO,
+        )
+        record.datos_originales = {"valor": "alterado"}
+
+        with self.assertRaises(ValidationError):
+            record.save()
