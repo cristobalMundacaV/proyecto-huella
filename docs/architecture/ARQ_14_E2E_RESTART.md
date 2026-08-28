@@ -2,9 +2,9 @@
 
 ## Estado
 
-ARQ-14 permanece **EN PROGRESO**. Este documento registra el primer punto de
-control solicitado y el `STOP` obligatorio antes de continuar con el recorrido
-E2E completo.
+ARQ-14 permanece **EN PROGRESO**. Este documento registra los puntos de control
+ejecutados y cada `STOP` obligatorio antes de continuar con el recorrido E2E
+completo.
 
 PostgreSQL es la única baseline oficial de esta fase.
 
@@ -91,8 +91,8 @@ Estado: **PASS**.
 
 ## Fases E2E restantes
 
-Las fases 1 a 22 permanecen **NOT STARTED**. No se avanzó al onboarding ni se
-acumularon incidencias posteriores, respetando el `STOP` del primer hallazgo.
+La fase 1 está validada. Las fases 2 a 22 permanecen **NOT STARTED**. No se
+acumularon incidencias posteriores al primer hallazgo de Checkpoint 1.
 
 ## Cambios de runtime y esquema
 
@@ -100,3 +100,70 @@ acumularon incidencias posteriores, respetando el `STOP` del primer hallazgo.
 - APIs: sin cambios.
 - Esquema/migraciones: ninguno.
 - Resultados científicos: sin cambios.
+
+## Checkpoint 1 — Fases 1–4
+
+### Precondición PostgreSQL — incidencia encontrada
+
+Al crear el tenant ficticio nuevo en la base local `carbono_zero`, PostgreSQL
+rechazó la escritura porque `analytics_organizacion.nombre_comercial` no
+existía. La auditoría de migraciones confirmó que el código no requería una
+migración nueva: las migraciones existentes `0045` a `0050` estaban pendientes
+en esa base.
+
+Corrección aplicada:
+
+```text
+python backend/manage.py migrate
+```
+
+Se aplicaron correctamente:
+
+- `0045_evidenciaobra_metodo_captura_and_more`;
+- `0046_capacidadorganizacion_disponibilidad_inicial_and_more`;
+- `0047_obra_contexto_operacional`;
+- `0048_operational_atmospheric_emissions_and_soil`;
+- `0049_alter_registroflujoambiental_destino_operacional`;
+- `0050_alter_registroflujoambiental_flujo`.
+
+No se generaron migraciones ni se modificó el esquema definido en el
+repositorio; se alineó la base real con migraciones ya versionadas.
+
+### Fase 1 — Onboarding
+
+**Acción.** Se creó el tenant ficticio
+`ARQ14 Checkpoint 1 Constructora Circular SpA`, un administrador y un tenant
+ajeno de control. El administrador inició sesión mediante `/api/auth/login/` y
+ejecutó por `/api/onboarding/` las cuatro etapas actuales: empresa, estructura,
+aspectos ambientales y revisión final.
+
+**Esperado.** Login y etapas HTTP exitosas; identidad chilena, nueve áreas y
+diez aspectos persistidos; onboarding finalizado; un administrador de otro
+tenant no puede leer el onboarding.
+
+**Obtenido.** Login `200`, lectura inicial `200`, etapas 1–4 `200` y acceso del
+tenant ajeno `404`.
+
+**Datos persistidos.**
+
+- organización pública:
+  `ARQ14_CHECKPOINT_1_CONSTRUCTORA_CIRCULAR_SPA`;
+- RUT `21.683.264-7`, país `Chile`, Región del Biobío, Concepción;
+- `onboarding_step = 4` y `onboarding_completado = true`;
+- nueve áreas activas;
+- diez aspectos habilitados: materiales, transporte, combustibles, energía,
+  agua, residuos no peligrosos, residuos peligrosos, ruido, emisiones
+  atmosféricas y suelo;
+- disponibilidad inicial preservada por aspecto;
+- no se crearon relaciones área/aspecto implícitas no enviadas por el usuario.
+
+Estado de la fase: **PASS después de corregir la precondición de base**.
+
+### Fases 2–4
+
+- Fase 2, contexto operacional: **NOT STARTED**.
+- Fase 3, creación de obra: **NOT STARTED**.
+- Fase 4, perfil/aplicabilidad: **NOT STARTED**.
+
+Se aplica `STOP` después del primer defecto real encontrado y de repetir con
+éxito la fase afectada. No se inició la fase 5.
