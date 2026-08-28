@@ -1,20 +1,24 @@
-from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from .models import (
-    DiscrepanciaDato,
     EvaluacionCalidadDato,
-    IndicadorAmbiental,
-    LineaBaseAmbiental,
-    Obra,
     Organizacion,
-    PeriodoComparable,
-    PoliticaConfianzaFuente,
 )
-from .permissions import Permission, filter_works_for_user, has_tenant_permission, require_resource_work_access
+from .permissions import Permission, has_tenant_permission, require_resource_work_access
+from .selectors.quality import (
+    baselines_for_user,
+    confidence_policies,
+    discrepancies_for_organization,
+    discrepancy_for_organization,
+    indicator_comparison_period,
+    indicator_for_organization,
+    indicators_for_user,
+    observations_for_quality,
+    quality_evaluations,
+)
 from .serializers_quality_v2 import (
     DiscrepanciaSerializer,
     EvaluacionCalidadSerializer,
@@ -48,33 +52,13 @@ def calidad_observaciones(
 
     obra_id = request.query_params.get("obra")
 
-    observations = org.observaciones_operacionales.select_related(
-        "fuente",
-        "actividad",
-        "actividad__obra",
-        "evidencia",
-    )
-
-    if obra_id:
-        observations = observations.filter(actividad__obra_id=obra_id)
+    observations = observations_for_quality(org, obra_id)
 
     for observation in observations:
         if not observation.evaluaciones_calidad.exists():
             evaluate_observation_quality(observation)
 
-    queryset = (
-        EvaluacionCalidadDato.objects.filter(
-            organizacion=org,
-            observacion__in=observations,
-        )
-        .select_related(
-            "observacion__fuente",
-            "observacion__actividad",
-            "observacion__actividad__obra",
-            "observacion__evidencia",
-        )
-        .order_by("-fecha_evaluacion")
-    )
+    queryset = quality_evaluations(org, observations)
 
     return Response(
         EvaluacionCalidadSerializer(
@@ -96,17 +80,7 @@ def discrepancias(
 
     obra_id = request.query_params.get("obra")
 
-    queryset = org.discrepancias_dato.select_related(
-        "actividad",
-        "actividad__obra",
-        "observacion_seleccionada",
-    ).prefetch_related(
-        "observaciones",
-        "observaciones__fuente",
-    )
-
-    if obra_id:
-        queryset = queryset.filter(actividad__obra_id=obra_id)
+    queryset = discrepancies_for_organization(org, obra_id)
 
     return Response(
         DiscrepanciaSerializer(
@@ -119,7 +93,7 @@ def discrepancias(
 @api_view(["PATCH"])
 def discrepancia_detail(request, organizacion_id, discrepancia_id):
     org = _org(request, organizacion_id, Permission.IMPORT_REVIEW)
-    item = get_object_or_404(DiscrepanciaDato, organizacion=org, id=discrepancia_id)
+    item = get_object_or_404(discrepancy_for_organization(org, discrepancia_id))
     serializer = DiscrepanciaSerializer(item, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
     serializer.save()
@@ -129,9 +103,7 @@ def discrepancia_detail(request, organizacion_id, discrepancia_id):
 @api_view(["GET"])
 def politicas_fuente(request, organizacion_id):
     org = _org(request, organizacion_id, Permission.FACTOR_VIEW)
-    queryset = PoliticaConfianzaFuente.objects.filter(
-        Q(organizacion=org) | Q(organizacion__isnull=True), activa=True
-    ).order_by("concepto", "prioridad")
+    queryset = confidence_policies(org)
     return Response(PoliticaFuenteSerializer(queryset, many=True).data)
 
 
@@ -145,14 +117,8 @@ def indicadores(
         organizacion_id,
     )
 
-    queryset = org.indicadores_ambientales_v2.prefetch_related("valores")
-    allowed_works = filter_works_for_user(Obra.objects.all(), request.user, org)
-    queryset = queryset.filter(Q(obra__isnull=True) | Q(obra__in=allowed_works))
-
     obra_id = request.query_params.get("obra")
-
-    if obra_id:
-        queryset = queryset.filter(obra_id=obra_id)
+    queryset = indicators_for_user(org, request.user, obra_id)
 
     return Response(
         IndicadorSerializer(
@@ -174,9 +140,7 @@ def serie_indicador(
     )
 
     indicator = get_object_or_404(
-        IndicadorAmbiental,
-        organizacion=org,
-        id=indicador_id,
+        indicator_for_organization(org, indicador_id),
     )
     require_resource_work_access(request.user, org, indicator)
 
@@ -191,16 +155,12 @@ def serie_indicador(
 @api_view(["GET"])
 def comparacion_indicador(request, organizacion_id, indicador_id):
     org = _org(request, organizacion_id)
-    indicator = get_object_or_404(IndicadorAmbiental, organizacion=org, id=indicador_id)
+    indicator = get_object_or_404(indicator_for_organization(org, indicador_id))
     require_resource_work_access(request.user, org, indicator)
     current = indicator.valores.order_by("-periodo_fin", "-version").first()
     if not current:
         return Response({"estado": "sin_base", "calidad_comparacion": "sin_datos"})
-    comparable = PeriodoComparable.objects.filter(
-        indicador=indicator,
-        periodo_actual_inicio=current.periodo_inicio,
-        periodo_actual_fin=current.periodo_fin,
-    ).first()
+    comparable = indicator_comparison_period(indicator, current)
     if comparable:
         reference = (
             indicator.valores.filter(
@@ -231,16 +191,18 @@ def lineas_base(
     org = _org(
         request,
         organizacion_id,
-        Permission.INDICATOR_MANAGE if request.method == "POST" else Permission.INDICATOR_VIEW,
+        (
+            Permission.INDICATOR_MANAGE
+            if request.method == "POST"
+            else Permission.INDICATOR_VIEW
+        ),
     )
 
     obra_id = request.query_params.get("obra")
 
     if request.method == "POST":
         indicator = get_object_or_404(
-            IndicadorAmbiental,
-            organizacion=org,
-            id=request.data.get("indicador"),
+            indicator_for_organization(org, request.data.get("indicador")),
         )
         require_resource_work_access(request.user, org, indicator)
 
@@ -251,12 +213,7 @@ def lineas_base(
             status=201,
         )
 
-    queryset = org.lineas_base_ambientales.select_related("indicador")
-    allowed_works = filter_works_for_user(Obra.objects.all(), request.user, org)
-    queryset = queryset.filter(Q(indicador__obra__isnull=True) | Q(indicador__obra__in=allowed_works))
-
-    if obra_id:
-        queryset = queryset.filter(indicador__obra_id=obra_id)
+    queryset = baselines_for_user(org, request.user, obra_id)
 
     return Response(
         LineaBaseSerializer(
@@ -269,11 +226,8 @@ def lineas_base(
 @api_view(["GET"])
 def resumen_ambiental_v2(request, organizacion_id):
     org = _org(request, organizacion_id)
-    indicators = org.indicadores_ambientales_v2.prefetch_related("valores")
-    baselines = org.lineas_base_ambientales.select_related("indicador")
-    allowed_works = filter_works_for_user(Obra.objects.all(), request.user, org)
-    indicators = indicators.filter(Q(obra__isnull=True) | Q(obra__in=allowed_works))
-    baselines = baselines.filter(Q(indicador__obra__isnull=True) | Q(indicador__obra__in=allowed_works))
+    indicators = indicators_for_user(org, request.user)
+    baselines = baselines_for_user(org, request.user)
     return Response(
         {
             "mensaje": (

@@ -8,6 +8,8 @@ from .models import (
     PoliticaConfianzaFuente,
     ValorIndicador,
 )
+from .policies.quality import discrepancy_errors
+from .services.quality_v2 import update_discrepancy
 
 
 class EvaluacionCalidadSerializer(serializers.ModelSerializer):
@@ -163,48 +165,16 @@ class DiscrepanciaSerializer(serializers.ModelSerializer):
         self,
         value,
     ):
-        if value and value.organizacion_id != self.instance.organizacion_id:
-            raise serializers.ValidationError(
-                "La observacion pertenece a otra organizacion."
-            )
-
-        if value and not self.instance.observaciones.filter(pk=value.pk).exists():
-            raise serializers.ValidationError(
-                "La observacion no pertenece a esta discrepancia."
-            )
-
         return value
 
     def validate(self, attrs):
-        estado = attrs.get(
-            "estado",
-            self.instance.estado,
-        )
-
-        selected = attrs.get(
-            "observacion_seleccionada",
-            self.instance.observacion_seleccionada,
-        )
-
-        resolucion = attrs.get(
-            "resolucion",
-            self.instance.resolucion,
-        )
-
-        if estado == "resuelta":
-            if not selected:
-                raise serializers.ValidationError(
-                    {
-                        "observacion_seleccionada": "Debe seleccionar la observacion que resuelve la discrepancia."
-                    }
-                )
-
-            if not str(resolucion or "").strip():
-                raise serializers.ValidationError(
-                    {"resolucion": "Debe documentar la resolucion."}
-                )
-
+        errors = discrepancy_errors(self.instance, attrs)
+        if errors:
+            raise serializers.ValidationError(errors)
         return attrs
+
+    def update(self, instance, validated_data):
+        return update_discrepancy(instance, validated_data)
 
 
 class PoliticaFuenteSerializer(serializers.ModelSerializer):

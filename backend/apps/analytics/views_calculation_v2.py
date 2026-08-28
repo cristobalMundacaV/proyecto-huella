@@ -1,6 +1,4 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import transaction
-from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
@@ -8,19 +6,10 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from .models import (
-    CalculoAmbiental,
-    FactorAmbiental,
-    FormulaAmbiental,
-    ImpactoAmbiental,
-    MetodologiaAmbiental,
-    Obra,
     Organizacion,
-    VariableFormula,
-    VersionMetodologia,
 )
 from .permissions import (
     Permission,
-    filter_works_for_user,
     get_membership,
     has_tenant_permission,
     require_resource_work_access,
@@ -33,8 +22,28 @@ from .serializers_calculation_v2 import (
     VariableFormulaSerializer,
     VersionMetodologiaSerializer,
 )
+from .selectors.calculation import (
+    calculation_for_organization,
+    calculations_for_activity,
+    impacts_for_user,
+)
+from .selectors.governance import (
+    factor_for_organization,
+    factors_for_organization,
+    methodologies_for_organization,
+    methodology_for_organization,
+    methodology_version_for_organization,
+    professional_review_for_organization,
+)
 from .services.calculation_v2 import calculate_activity, recalculate
-from .services.methodology_governance import transition_version, validate_applicability
+from .services.methodology_governance import (
+    create_formula_variable,
+    create_methodology_version,
+    delete_formula_variable,
+    transition_version,
+    update_formula_variable,
+    validate_applicability,
+)
 from .services.methodology_compatibility import compare_calculations
 from .services.methodology_selector import select_methodology
 
@@ -50,7 +59,9 @@ def _org(request, value, permission):
 
 
 def _activity(request, org, value):
-    activity = get_object_or_404(org.actividades_operacionales.select_related("obra"), id=value)
+    activity = get_object_or_404(
+        org.actividades_operacionales.select_related("obra"), id=value
+    )
     return require_resource_work_access(request.user, org, activity)
 
 
@@ -92,24 +103,22 @@ def metodologias(request, organizacion_id):
     org = _org(request, organizacion_id, Permission.FACTOR_VIEW)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
-    queryset = MetodologiaAmbiental.objects.filter(
-        Q(organizacion=org) | Q(organizacion__isnull=True)
-    ).prefetch_related(
-        "versiones__formula__variables", "versiones__formula__factor_ambiental"
-    )
+    queryset = methodologies_for_organization(org)
     return Response(MetodologiaSerializer(queryset, many=True).data)
 
 
 @api_view(["GET", "POST"])
 def metodologia_detail(request, organizacion_id, metodologia_id):
-    permission = Permission.FACTOR_VIEW if request.method == "GET" else Permission.FACTOR_CUSTOM_CREATE
+    permission = (
+        Permission.FACTOR_VIEW
+        if request.method == "GET"
+        else Permission.FACTOR_CUSTOM_CREATE
+    )
     org = _org(request, organizacion_id, permission)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
     item = get_object_or_404(
-        MetodologiaAmbiental.objects.prefetch_related("versiones__formula__variables"),
-        Q(organizacion=org) | Q(organizacion__isnull=True),
-        id=metodologia_id,
+        methodology_for_organization(org, metodologia_id),
     )
     if request.method == "GET":
         return Response(MetodologiaSerializer(item).data)
@@ -126,47 +135,15 @@ def metodologia_detail(request, organizacion_id, metodologia_id):
         validate_applicability(payload.get("aplicabilidad", {}))
     except DjangoValidationError as exc:
         return Response({"aplicabilidad": exc.messages}, status=400)
-    with transaction.atomic():
-        version = VersionMetodologia.objects.create(
-            metodologia=item,
-            version=(
-                item.versiones.order_by("-version")
-                .values_list("version", flat=True)
-                .first()
-                or 0
-            )
-            + 1,
-            descripcion_tecnica=payload.get("descripcion_tecnica", ""),
-            fuente_referencia=payload.get("fuente_referencia", ""),
-            vigencia_desde=payload.get("vigencia_desde") or None,
-            vigencia_hasta=payload.get("vigencia_hasta") or None,
-            aplicabilidad=payload.get("aplicabilidad", {}),
-            prioridad=payload.get("prioridad", 100),
-            requiere_revision_profesional=payload.get(
-                "requiere_revision_profesional", False
-            ),
-            tipo_resultado=payload.get("tipo_resultado", "emision"),
-        )
-        factor = get_object_or_404(
-            FactorAmbiental.objects.filter(
-                Q(organizacion=org) | Q(organizacion__isnull=True)
-            ),
-            id=formula_data.get("factor_ambiental"),
-        )
-        formula = FormulaAmbiental.objects.create(
-            version_metodologia=version,
-            factor_ambiental=factor,
-            codigo=formula_data.get(
-                "codigo", f"formula-{item.codigo}-v{version.version}"
-            ),
-            tipo=formula_data.get("tipo"),
-            expresion_legible=formula_data.get("expresion_legible", ""),
-            version=formula_data.get("version", 1),
-        )
-        for row in formula_data.get("variables", []):
-            serializer = VariableFormulaSerializer(data=row)
-            serializer.is_valid(raise_exception=True)
-            serializer.save(formula=formula)
+    factor = get_object_or_404(
+        factor_for_organization(org, formula_data.get("factor_ambiental"))
+    )
+    variables = []
+    for row in formula_data.get("variables", []):
+        serializer = VariableFormulaSerializer(data=row)
+        serializer.is_valid(raise_exception=True)
+        variables.append(serializer.validated_data)
+    version = create_methodology_version(item, payload, formula_data, factor, variables)
     return Response(VersionMetodologiaSerializer(version).data, status=201)
 
 
@@ -176,11 +153,7 @@ def metodologia_transition(request, organizacion_id, metodologia_id, version_id)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
     version = get_object_or_404(
-        VersionMetodologia.objects.filter(
-            Q(metodologia__organizacion=org) | Q(metodologia__organizacion__isnull=True)
-        ),
-        id=version_id,
-        metodologia_id=metodologia_id,
+        methodology_version_for_organization(org, metodologia_id, version_id),
     )
     if version.metodologia.organizacion_id is None and not request.user.is_superuser:
         return Response(
@@ -189,12 +162,10 @@ def metodologia_transition(request, organizacion_id, metodologia_id, version_id)
         )
     professional_review = None
     if request.data.get("revision_profesional_id"):
-        from .models import RevisionProfesionalAmbiental
-
         professional_review = get_object_or_404(
-            RevisionProfesionalAmbiental,
-            id=request.data["revision_profesional_id"],
-            organizacion=org,
+            professional_review_for_organization(
+                org, request.data["revision_profesional_id"]
+            )
         )
     try:
         transition_version(
@@ -213,10 +184,9 @@ def metodologia_variables(
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
     version = get_object_or_404(
-        VersionMetodologia,
-        id=version_id,
-        metodologia_id=metodologia_id,
-        metodologia__organizacion=org,
+        methodology_version_for_organization(
+            org, metodologia_id, version_id, tenant_only=True
+        ),
     )
     if version.estado != VersionMetodologia.Estado.BORRADOR:
         return Response(
@@ -225,15 +195,15 @@ def metodologia_variables(
     if request.method == "POST":
         serializer = VariableFormulaSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(formula=version.formula)
+        create_formula_variable(version.formula, serializer.validated_data)
         return Response(serializer.data, status=201)
     variable = get_object_or_404(version.formula.variables, id=variable_id)
     if request.method == "DELETE":
-        variable.delete()
+        delete_formula_variable(variable)
         return Response(status=204)
     serializer = VariableFormulaSerializer(variable, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
-    serializer.save()
+    update_formula_variable(variable, serializer.validated_data)
     return Response(serializer.data)
 
 
@@ -242,9 +212,7 @@ def factores_ambientales(request, organizacion_id):
     org = _org(request, organizacion_id, Permission.FACTOR_VIEW)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
-    queryset = FactorAmbiental.objects.filter(
-        Q(organizacion=org) | Q(organizacion__isnull=True)
-    ).prefetch_related("versiones")
+    queryset = factors_for_organization(org)
     return Response(FactorAmbientalSerializer(queryset, many=True).data)
 
 
@@ -292,11 +260,7 @@ def calculos_actividad(request, organizacion_id, actividad_id):
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
     activity = _activity(request, org, actividad_id)
-    queryset = activity.calculos_ambientales.select_related(
-        "version_metodologia__metodologia",
-        "formula__factor_ambiental",
-        "version_factor__factor",
-    ).prefetch_related("inputs__observacion", "inputs__fuente")
+    queryset = calculations_for_activity(activity)
     return Response(CalculoAmbientalSerializer(queryset, many=True).data)
 
 
@@ -306,13 +270,7 @@ def calculo_detail(request, organizacion_id, calculo_id):
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
     item = get_object_or_404(
-        CalculoAmbiental.objects.select_related(
-            "version_metodologia__metodologia",
-            "formula__factor_ambiental",
-            "version_factor__factor",
-        ).prefetch_related("inputs__observacion", "inputs__fuente"),
-        organizacion=org,
-        id=calculo_id,
+        calculation_for_organization(org, calculo_id, detailed=True),
     )
     require_resource_work_access(request.user, org, item)
     return Response(CalculoAmbientalSerializer(item).data)
@@ -323,7 +281,11 @@ def calculo_recalculate(request, organizacion_id, calculo_id):
     org = _org(request, organizacion_id, Permission.INDICATOR_MANAGE)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
-    calculation = require_resource_work_access(request.user, org, get_object_or_404(CalculoAmbiental.objects.select_related("actividad__obra"), organizacion=org, id=calculo_id))
+    calculation = require_resource_work_access(
+        request.user,
+        org,
+        get_object_or_404(calculation_for_organization(org, calculo_id)),
+    )
     try:
         new, selection = recalculate(
             calculation,
@@ -353,7 +315,11 @@ def calculo_snapshot(request, organizacion_id, calculo_id):
     org = _org(request, organizacion_id, Permission.INDICATOR_VIEW)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
-    calculation = require_resource_work_access(request.user, org, get_object_or_404(CalculoAmbiental.objects.select_related("actividad__obra"), organizacion=org, id=calculo_id))
+    calculation = require_resource_work_access(
+        request.user,
+        org,
+        get_object_or_404(calculation_for_organization(org, calculo_id)),
+    )
     return Response(calculation.snapshot_tecnico)
 
 
@@ -362,8 +328,16 @@ def calculo_compare(request, organizacion_id, calculo_id, other_id):
     org = _org(request, organizacion_id, Permission.INDICATOR_VIEW)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
-    left = require_resource_work_access(request.user, org, get_object_or_404(CalculoAmbiental.objects.select_related("actividad__obra"), organizacion=org, id=calculo_id))
-    right = require_resource_work_access(request.user, org, get_object_or_404(CalculoAmbiental.objects.select_related("actividad__obra"), organizacion=org, id=other_id))
+    left = require_resource_work_access(
+        request.user,
+        org,
+        get_object_or_404(calculation_for_organization(org, calculo_id)),
+    )
+    right = require_resource_work_access(
+        request.user,
+        org,
+        get_object_or_404(calculation_for_organization(org, other_id)),
+    )
     return Response(compare_calculations(left, right))
 
 
@@ -384,22 +358,7 @@ def impactos_ambientales(
             status=404,
         )
 
-    queryset = org.impactos_ambientales_v2.select_related(
-        "actividad",
-        "actividad__obra",
-        "calculo",
-    ).order_by(
-        "-timestamp",
-        "-created_at",
-    )
-
-    obra_id = request.query_params.get("obra")
-
-    if obra_id:
-        queryset = queryset.filter(actividad__obra_id=obra_id)
-
-    allowed_works = filter_works_for_user(Obra.objects.all(), request.user, org)
-    queryset = queryset.filter(Q(actividad__obra__isnull=True) | Q(actividad__obra__in=allowed_works))
+    queryset = impacts_for_user(org, request.user, request.query_params.get("obra"))
 
     return Response(
         ImpactoAmbientalSerializer(

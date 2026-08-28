@@ -1,99 +1,86 @@
-from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from ..models import RevisionProfesionalAmbiental, VersionFactorAmbiental, VersionMetodologia
-from .eligibility_v2 import active_factor_version
+from ..models import FormulaAmbiental, VariableFormula, VersionMetodologia
+from ..policies.governance import (
+    structural_errors,
+    validate_applicability,
+    validate_transition,
+)
 
-
-TRANSITIONS = {
-    VersionMetodologia.Estado.BORRADOR: {VersionMetodologia.Estado.PRUEBAS},
-    VersionMetodologia.Estado.PRUEBAS: {VersionMetodologia.Estado.BORRADOR, VersionMetodologia.Estado.VALIDADA},
-    VersionMetodologia.Estado.VALIDADA: {VersionMetodologia.Estado.ACTIVA},
-    VersionMetodologia.Estado.ACTIVA: {VersionMetodologia.Estado.OBSOLETA},
-    VersionMetodologia.Estado.OBSOLETA: set(),
-}
-
-RESULT_TYPES = {"emision", "reduccion", "emision_evitada", "remocion", "compensacion", "otro"}
-
-
-def validate_applicability(value):
-    if not isinstance(value, dict):
-        raise ValidationError("La aplicabilidad debe ser un objeto JSON.")
-    allowed = {"tipos_actividad", "flujos", "regiones", "atributos", "unidad_operacional_ids"}
-    unknown = set(value) - allowed
-    if unknown:
-        raise ValidationError(f"Claves de aplicabilidad no soportadas: {', '.join(sorted(unknown))}.")
-    for key in {"tipos_actividad", "flujos", "regiones", "unidad_operacional_ids"} & set(value):
-        if not isinstance(value[key], list):
-            raise ValidationError(f"{key} debe ser una lista.")
-    if "atributos" in value and not isinstance(value["atributos"], dict):
-        raise ValidationError("atributos debe ser un objeto.")
-    allowed_attributes = {"estado", "tipo", "proceso_operacional_id", "unidad_operacional_id"}
-    if isinstance(value.get("atributos"), dict) and set(value["atributos"]) - allowed_attributes:
-        raise ValidationError("La aplicabilidad contiene atributos de actividad no soportados.")
-    return value
-
-
-def structural_errors(version):
-    errors = []
-    try:
-        formula = version.formula
-    except Exception:
-        return ["La versión no tiene fórmula."]
-    variables = list(formula.variables.all())
-    if formula.tipo not in {choice for choice, _ in formula.Tipo.choices}:
-        errors.append("La fórmula no tiene una estrategia registrada y segura.")
-    if not variables:
-        errors.append("La fórmula no tiene variables declaradas.")
-    for variable in variables:
-        if not variable.concepto_observacion or not variable.unidad_esperada:
-            errors.append(f"La variable {variable.clave} no declara concepto y unidad esperada.")
-    if not version.fuente_referencia.strip():
-        errors.append("La versión no declara fuente o referencia técnica.")
-    if version.tipo_resultado not in RESULT_TYPES:
-        errors.append("El tipo de resultado no está soportado.")
-    if version.vigencia_desde and version.vigencia_hasta and version.vigencia_desde > version.vigencia_hasta:
-        errors.append("La vigencia de la metodología es inválida.")
-    if not active_factor_version(formula, version.metodologia.organizacion):
-        errors.append("No existe un factor activo, vigente y aplicable.")
-    validate_applicability(version.aplicabilidad)
-    return errors
+__all__ = ["structural_errors", "transition_version", "validate_applicability"]
 
 
 @transaction.atomic
 def transition_version(version, target, user=None, professional_review=None):
-    if target not in TRANSITIONS.get(version.estado, set()):
-        raise ValidationError(f"Transición no permitida: {version.estado} -> {target}.")
-    if target in {VersionMetodologia.Estado.VALIDADA, VersionMetodologia.Estado.ACTIVA}:
-        errors = structural_errors(version)
-        if errors:
-            raise ValidationError(errors)
+    validate_transition(version, target, professional_review)
     if target == VersionMetodologia.Estado.VALIDADA:
-        if version.requiere_revision_profesional:
-            valid_states = {
-                RevisionProfesionalAmbiental.Estado.VALIDADA,
-                RevisionProfesionalAmbiental.Estado.VALIDADA_OBSERVACIONES,
-            }
-            valid_review = (
-                isinstance(professional_review, RevisionProfesionalAmbiental)
-                and professional_review.tipo == RevisionProfesionalAmbiental.Tipo.METODOLOGIA
-                and professional_review.version_metodologia_id == version.id
-                and (version.metodologia.organizacion_id is None or professional_review.organizacion_id == version.metodologia.organizacion_id)
-                and professional_review.estado in valid_states
-                and professional_review.profesional_id is not None
-                and professional_review.fecha is not None
-            )
-            if not valid_review:
-                raise ValidationError("Esta metodología requiere una revisión profesional válida y trazable.")
         version.validado_por = user
         version.fecha_validacion = timezone.now()
     if target == VersionMetodologia.Estado.ACTIVA:
         VersionMetodologia.objects.filter(
-            metodologia=version.metodologia, estado=VersionMetodologia.Estado.ACTIVA,
+            metodologia=version.metodologia, estado=VersionMetodologia.Estado.ACTIVA
         ).exclude(pk=version.pk).update(estado=VersionMetodologia.Estado.OBSOLETA)
     VersionMetodologia.objects.filter(pk=version.pk).update(
-        estado=target, validado_por=version.validado_por, fecha_validacion=version.fecha_validacion,
+        estado=target,
+        validado_por=version.validado_por,
+        fecha_validacion=version.fecha_validacion,
     )
     version.refresh_from_db()
     return version
+
+
+@transaction.atomic
+def create_methodology_version(methodology, payload, formula_data, factor, variables):
+    version = VersionMetodologia.objects.create(
+        metodologia=methodology,
+        version=(
+            methodology.versiones.order_by("-version")
+            .values_list("version", flat=True)
+            .first()
+            or 0
+        )
+        + 1,
+        descripcion_tecnica=payload.get("descripcion_tecnica", ""),
+        fuente_referencia=payload.get("fuente_referencia", ""),
+        vigencia_desde=payload.get("vigencia_desde") or None,
+        vigencia_hasta=payload.get("vigencia_hasta") or None,
+        aplicabilidad=payload.get("aplicabilidad", {}),
+        prioridad=payload.get("prioridad", 100),
+        requiere_revision_profesional=payload.get(
+            "requiere_revision_profesional", False
+        ),
+        tipo_resultado=payload.get("tipo_resultado", "emision"),
+    )
+    formula = FormulaAmbiental.objects.create(
+        version_metodologia=version,
+        factor_ambiental=factor,
+        codigo=formula_data.get(
+            "codigo", f"formula-{methodology.codigo}-v{version.version}"
+        ),
+        tipo=formula_data.get("tipo"),
+        expresion_legible=formula_data.get("expresion_legible", ""),
+        version=formula_data.get("version", 1),
+    )
+    for data in variables:
+        create_formula_variable(formula, data)
+    return version
+
+
+def create_formula_variable(formula, data):
+    variable = VariableFormula(formula=formula, **data)
+    variable.full_clean()
+    variable.save()
+    return variable
+
+
+def update_formula_variable(variable, data):
+    for field, value in data.items():
+        setattr(variable, field, value)
+    variable.full_clean()
+    variable.save()
+    return variable
+
+
+def delete_formula_variable(variable):
+    variable.delete()

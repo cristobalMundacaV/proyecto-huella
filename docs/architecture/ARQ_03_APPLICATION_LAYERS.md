@@ -285,3 +285,52 @@ the public validation contract. Legacy flow aliases remain compatibility-only.
 ARQ-03D — ENVIRONMENTAL FLOWS / TRANSPORT / MATERIALS APPLICATION LAYERS: **CLOSED**.
 
 ARQ-03D stops here; ARQ-03E is not started.
+
+## ARQ-03E — Governance / Calculation / Indicators / Quality
+
+### Application-layer ownership
+
+- `selectors/governance.py` owns tenant/global methodology, version, factor and
+  professional-review reads.
+- `selectors/calculation.py` owns calculation details, activity calculation series and
+  user-visible environmental impacts.
+- `selectors/quality.py` owns observations/evaluations, discrepancies, confidence
+  policies, indicators, comparable periods, baselines and indicator input querysets.
+- `policies/governance.py` owns deterministic applicability, structural eligibility,
+  transition and professional-review decisions.
+- `policies/quality.py` owns source-health, confidence/quality decisions and discrepancy
+  relation/resolution validation.
+- Existing calculation, methodology, indicator and quality services remain the command
+  boundary for calculations, recalculations, version transitions, methodology/formula
+  mutations, quality persistence, indicator generation and baseline construction.
+
+### Scientific and compatibility boundaries
+
+No formula, factor, unit conversion, factor selector, methodology rule or calculation
+strategy changed. Calculation remains deterministic and AI has no decision path. Formula,
+methodology and factor versions, technical snapshots, calculation inputs, environmental
+impacts, immutability and recalculation provenance preserve their existing contracts.
+Indicator periods, comparable periods, baselines, quality evaluations, discrepancies and
+confidence policies preserve their previous behavior. Tenant/RBAC scoping, URLs,
+payloads, responses and status codes remain unchanged.
+
+### Remaining debt
+
+Scientific selection helpers retain their established internal query access where moving
+it would split a tested scientific decision across layers. Serializer method fields remain
+representation-only. Compatibility with historical environmental records is unchanged;
+no new dependency on legacy was introduced.
+
+### Validation
+
+- Calculation, methodology/governance, factors and quality: **91/91** on PostgreSQL.
+- Focused post-selector calculation, methodology and quality gate: **58/58**.
+- Application layers, architecture, modularization and tenant/RBAC: **103/103**.
+- The critical baseline retains exactly its five documented failures; no numeric result
+  or failure signature changed.
+- Django check, migration dry-run, Black, compileall and diff checks pass.
+
+ARQ-03E — GOVERNANCE / CALCULATION / INDICATORS / QUALITY APPLICATION LAYERS:
+**CLOSED**.
+
+ARQ-03E stops here; ARQ-03F is not started.
