@@ -8,37 +8,35 @@ from apps.iot.models import DispositivoSensor
 
 from .models import (
     ActivoOperacional,
-    ComandoCopiloto,
     EvidenciaObra,
     IndicadorAmbiental,
     Organizacion,
     ProblematicaAmbiental,
-    RecomendacionAgenteAmbiental,
-    UsuarioOrganizacion,
 )
+from .selectors.intelligence import (
+    copilot_command,
+    owned_resource,
+    problem_proposals,
+    proposal_for_problem,
+    user_can_access_organization,
+)
+from .policies.intelligence import require_human_confirmation
 from .services.context_gateway import ContextGateway
 from .services.copilot_commands import confirm_command, prepare_action
 from .services.copilot_v2 import default_copilot_service
 
 
 def _can_access(user, organization):
-    return user.is_authenticated and (
-        user.is_superuser
-        or UsuarioOrganizacion.objects.filter(
-            user=user, organizacion=organization, activo=True, organizacion__activa=True
-        ).exists()
-    )
+    return user_can_access_organization(user, organization)
 
 
 def _owned(request, model, pk):
-    item = get_object_or_404(model.objects.select_related("organizacion"), pk=pk)
+    item = get_object_or_404(owned_resource(model, pk))
     return item if _can_access(request.user, item.organizacion) else None
 
 
 def _problem(request, pk):
-    item = get_object_or_404(
-        ProblematicaAmbiental.objects.select_related("organizacion"), pk=pk
-    )
+    item = get_object_or_404(owned_resource(ProblematicaAmbiental, pk))
     return item if _can_access(request.user, item.organizacion) else None
 
 
@@ -149,12 +147,7 @@ def agent_problem_proposals(request, problem_id):
     if not problem:
         return _not_found()
     if request.method == "GET":
-        return Response(
-            [
-                _proposal(row)
-                for row in problem.recomendaciones_agente.order_by("-created_at")[:20]
-            ]
-        )
+        return Response([_proposal(row) for row in problem_proposals(problem)])
     try:
         proposal = default_copilot_service().propose(
             problem,
@@ -179,9 +172,7 @@ def agent_proposal_feedback(request, problem_id, proposal_id):
     problem = _problem(request, problem_id)
     if not problem:
         return _not_found()
-    proposal = get_object_or_404(
-        RecomendacionAgenteAmbiental, problematica=problem, id=proposal_id
-    )
+    proposal = get_object_or_404(proposal_for_problem(problem, proposal_id))
     decision = request.data.get("decision")
     if decision == "aceptar":
         proposal.estado = "aceptada"
@@ -255,14 +246,13 @@ def agent_reevaluation_draft(request, problem_id):
 @api_view(["POST"])
 def confirm_copilot_command(request, command_id):
     command = get_object_or_404(
-        ComandoCopiloto.objects.select_related(
-            "organizacion", "problematica", "propuesta"
-        ),
-        id=command_id,
+        copilot_command(command_id),
     )
     if not _can_access(request.user, command.organizacion):
         return _not_found()
-    if request.data.get("confirmado") is not True:
+    try:
+        require_human_confirmation(request.data.get("confirmado"))
+    except ValidationError:
         return Response(
             {"confirmado": ["Se requiere confirmacion humana explicita."]}, status=400
         )

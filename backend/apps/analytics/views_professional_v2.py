@@ -1,5 +1,4 @@
 from django.core.exceptions import ValidationError
-from django.db.models import Q
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view
@@ -8,13 +7,20 @@ from rest_framework.response import Response
 from .models import (
     ActividadOperacional,
     ExpedienteAmbiental,
-    HallazgoRevisionProfesional,
-    InformeAmbiental,
     Obra,
     Organizacion,
     ProblematicaAmbiental,
     ResultadoIntervencion,
-    RevisionProfesionalAmbiental,
+)
+from .selectors.professional import (
+    audit_events,
+    dossier_for_organization,
+    dossiers_for_organization,
+    problem_for_dossier,
+    report_for_organization,
+    report_reference,
+    review_for_organization,
+    reviews_for_organization,
 )
 from .permissions import (
     Permission,
@@ -48,6 +54,7 @@ def _organization(request, value, permission=Permission.REVIEW_PROFESSIONAL):
         return None
     if not has_tenant_permission(request.user, organization, permission):
         from rest_framework.exceptions import PermissionDenied
+
         raise PermissionDenied("No tienes permisos para realizar esta acción.")
     return organization
 
@@ -61,7 +68,10 @@ def _work(
     if not work_id:
         return None
 
-    return get_object_or_404(filter_works_for_user(Obra.objects.all(), request.user, organization), id=work_id)
+    return get_object_or_404(
+        filter_works_for_user(Obra.objects.all(), request.user, organization),
+        id=work_id,
+    )
 
 
 def _error(exc):
@@ -78,30 +88,17 @@ def revisiones_profesionales(request, organizacion_id):
     if not organization:
         return _missing()
     if request.method == "GET":
-        queryset = organization.revisiones_profesionales.prefetch_related(
-            "hallazgos"
-        ).order_by("-created_at")
-
         work = _work(
             request,
             organization,
         )
 
-        if work is not None:
-            queryset = queryset.filter(
-                Q(evidencia__obra=work)
-                | Q(observacion__actividad__obra=work)
-                | Q(calculo__actividad__obra=work)
-                | Q(indicador__obra=work)
-                | Q(problematica__obra=work)
-                | Q(intervencion__problematica__obra=work)
-                | Q(expediente__problematica__obra=work)
-            ).distinct()
-
-        if request.query_params.get("estado"):
-            queryset = queryset.filter(estado=request.query_params["estado"])
-        if request.query_params.get("tipo"):
-            queryset = queryset.filter(tipo=request.query_params["tipo"])
+        queryset = reviews_for_organization(
+            organization,
+            work,
+            request.query_params.get("estado"),
+            request.query_params.get("tipo"),
+        )
         return Response(RevisionProfesionalSerializer(queryset, many=True).data)
     serializer = RevisionProfesionalSerializer(
         data=request.data, context={"organizacion": organization}
@@ -160,9 +157,7 @@ def revision_profesional_detail(request, organizacion_id, revision_id):
     organization = _organization(request, organizacion_id)
     if not organization:
         return _missing()
-    review = get_object_or_404(
-        RevisionProfesionalAmbiental, organizacion=organization, id=revision_id
-    )
+    review = get_object_or_404(review_for_organization(organization, revision_id))
     require_resource_work_access(request.user, organization, review)
     if request.method == "GET":
         return Response(RevisionProfesionalSerializer(review).data)
@@ -187,10 +182,7 @@ def revision_hallazgos(request, organizacion_id, revision_id):
     if not can_review(request.user, organization):
         return Response({"detail": "Sin capacidad profesional."}, status=403)
     review = get_object_or_404(
-        RevisionProfesionalAmbiental,
-        organizacion=organization,
-        id=revision_id,
-        estado="pendiente",
+        review_for_organization(organization, revision_id, "pendiente"),
     )
     require_resource_work_access(request.user, organization, review)
     serializer = HallazgoSerializer(data=request.data)
@@ -204,9 +196,7 @@ def revision_decision(request, organizacion_id, revision_id):
     organization = _organization(request, organizacion_id)
     if not organization:
         return _missing()
-    review = get_object_or_404(
-        RevisionProfesionalAmbiental, organizacion=organization, id=revision_id
-    )
+    review = get_object_or_404(review_for_organization(organization, revision_id))
     require_resource_work_access(request.user, organization, review)
     try:
         decided = decide_review(
@@ -227,33 +217,27 @@ def auditoria(request, organizacion_id):
     organization = _organization(request, organizacion_id, Permission.AUDIT_VIEW)
     if not organization:
         return _missing()
-    queryset = organization.eventos_auditoria_ambiental.select_related("actor")
-    if request.query_params.get("tipo"):
-        queryset = queryset.filter(tipo=request.query_params["tipo"])
+    queryset = audit_events(organization, request.query_params.get("tipo"))
     return Response(EventoAuditoriaSerializer(queryset[:200], many=True).data)
 
 
 @api_view(["GET", "POST"])
 def expedientes(request, organizacion_id):
-    permission = Permission.PROBLEM_VIEW if request.method == "GET" else Permission.PROBLEM_MANAGE
+    permission = (
+        Permission.PROBLEM_VIEW
+        if request.method == "GET"
+        else Permission.PROBLEM_MANAGE
+    )
     organization = _organization(request, organizacion_id, permission)
     if not organization:
         return _missing()
     if request.method == "GET":
-        queryset = ExpedienteAmbiental.objects.filter(
-            problematica__organizacion=organization
-        ).select_related(
-            "problematica",
-            "responsable",
-        )
-
         work = _work(
             request,
             organization,
         )
 
-        if work is not None:
-            queryset = queryset.filter(problematica__obra=work)
+        queryset = dossiers_for_organization(organization, work)
 
         return Response(
             ExpedienteSerializer(
@@ -261,22 +245,13 @@ def expedientes(request, organizacion_id):
                 many=True,
             ).data
         )
-    filters = {
-        "organizacion": organization,
-        "id": request.data.get("problematica"),
-    }
-
     work = _work(
         request,
         organization,
     )
 
-    if work is not None:
-        filters["obra"] = work
-
     problem = get_object_or_404(
-        ProblematicaAmbiental,
-        **filters,
+        problem_for_dossier(organization, request.data.get("problematica"), work)
     )
     return Response(
         ExpedienteSerializer(create_dossier(problem, request.user)).data, status=201
@@ -302,20 +277,8 @@ def expediente_detail(
         organization,
     )
 
-    filters = {
-        "problematica__organizacion": organization,
-        "id": expediente_id,
-    }
-
-    if work is not None:
-        filters["problematica__obra"] = work
-
     item = get_object_or_404(
-        ExpedienteAmbiental.objects.select_related(
-            "problematica",
-            "responsable",
-        ),
-        **filters,
+        dossier_for_organization(organization, expediente_id, work, detailed=True)
     )
 
     return Response(ExpedienteSerializer(item).data)
@@ -340,17 +303,8 @@ def expediente_close(
         organization,
     )
 
-    filters = {
-        "problematica__organizacion": organization,
-        "id": expediente_id,
-    }
-
-    if work is not None:
-        filters["problematica__obra"] = work
-
     item = get_object_or_404(
-        ExpedienteAmbiental,
-        **filters,
+        dossier_for_organization(organization, expediente_id, work)
     )
 
     try:
@@ -386,17 +340,8 @@ def expediente_reopen(
         organization,
     )
 
-    filters = {
-        "problematica__organizacion": organization,
-        "id": expediente_id,
-    }
-
-    if work is not None:
-        filters["problematica__obra"] = work
-
     item = get_object_or_404(
-        ExpedienteAmbiental,
-        **filters,
+        dossier_for_organization(organization, expediente_id, work)
     )
 
     try:
@@ -425,36 +370,36 @@ def informes(request, organizacion_id):
     report_type = request.data.get("tipo")
     activity = (
         get_object_or_404(
-            ActividadOperacional,
-            organizacion=organization,
-            id=request.data["actividad"],
+            report_reference(
+                organization, ActividadOperacional, request.data["actividad"]
+            )
         )
         if request.data.get("actividad")
         else None
     )
     problem = (
         get_object_or_404(
-            ProblematicaAmbiental,
-            organizacion=organization,
-            id=request.data["problematica"],
+            report_reference(
+                organization, ProblematicaAmbiental, request.data["problematica"]
+            )
         )
         if request.data.get("problematica")
         else None
     )
     intervention = (
         get_object_or_404(
-            ResultadoIntervencion,
-            problematica__organizacion=organization,
-            id=request.data["intervencion"],
+            report_reference(
+                organization, ResultadoIntervencion, request.data["intervencion"]
+            )
         )
         if request.data.get("intervencion")
         else None
     )
     dossier = (
         get_object_or_404(
-            ExpedienteAmbiental,
-            problematica__organizacion=organization,
-            id=request.data["expediente"],
+            report_reference(
+                organization, ExpedienteAmbiental, request.data["expediente"]
+            )
         )
         if request.data.get("expediente")
         else None
@@ -494,9 +439,7 @@ def informe_detail(request, organizacion_id, informe_id):
     return Response(
         InformeSerializer(
             get_object_or_404(
-                InformeAmbiental.objects.select_related("snapshot"),
-                organizacion=organization,
-                id=informe_id,
+                report_for_organization(organization, informe_id, detailed=True),
             )
         ).data
     )
@@ -507,9 +450,7 @@ def informe_pdf(request, organizacion_id, informe_id):
     organization = _organization(request, organizacion_id, Permission.REPORT_VIEW)
     if not organization:
         return _missing()
-    report = get_object_or_404(
-        InformeAmbiental, organizacion=organization, id=informe_id
-    )
+    report = get_object_or_404(report_for_organization(organization, informe_id))
     return FileResponse(
         report.archivo.open("rb"),
         content_type="application/pdf",
@@ -523,9 +464,7 @@ def informe_validate(request, organizacion_id, informe_id):
     organization = _organization(request, organizacion_id, Permission.REPORT_APPROVE)
     if not organization:
         return _missing()
-    report = get_object_or_404(
-        InformeAmbiental, organizacion=organization, id=informe_id
-    )
+    report = get_object_or_404(report_for_organization(organization, informe_id))
     try:
         return Response(InformeSerializer(validate_report(report, request.user)).data)
     except ValidationError as exc:

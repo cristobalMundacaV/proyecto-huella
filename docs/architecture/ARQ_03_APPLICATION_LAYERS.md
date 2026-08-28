@@ -381,3 +381,54 @@ not corrected.
 ARQ-03F — IMPROVEMENT / COMPLIANCE APPLICATION LAYERS: **CLOSED**.
 
 ARQ-03F stops here; ARQ-03G is not started.
+
+## ARQ-03G — Intelligence / Professional / Reporting
+
+### Application-layer ownership
+
+- `selectors/intelligence.py` owns tenant-access reads, Copilot-owned resources,
+  proposals and prepared commands.
+- `selectors/professional.py` owns reviews, audit events, dossiers, report references and
+  immutable report reads.
+- `selectors/knowledge.py` owns organization cases, source interventions and aggregate
+  comparable-case querysets.
+- `policies/intelligence.py` owns explicit human-confirmation and command-transition
+  rules without DRF or LLM dependencies.
+- `policies/professional.py` owns review decisions, dossier reopening and report-state
+  validation.
+- `policies/knowledge.py` owns deterministic result/tenant eligibility for derived
+  Knowledge.
+- Existing Copilot, professional and Knowledge services remain mutation authorities for
+  proposals, commands, reviews, corrections, dossiers, snapshots, reports, validation,
+  audit and derived cases.
+
+### Preserved authority and immutability
+
+AI continues to propose only. It does not execute commands, calculate environmental
+truth, validate reports or close professional reviews. Commands still require explicit
+human confirmation. Historical corrections, report snapshots, PDF checksums, report
+versioning, dossiers and audit events retain their current behavior. Reporting remains a
+consumer of Operational Truth and does not mutate it. Knowledge remains derived only
+from existing intervention results and keeps its evidence-strength and provenance rules.
+Tenant/RBAC, hidden-resource behavior, URLs, payloads, responses and status codes remain
+unchanged. Providers, prompts and model choices were not redesigned.
+
+### Remaining debt
+
+Snapshot assembly intentionally remains in the reporting service because it freezes a
+single auditable command result. ContextGateway and provider-specific prompt construction
+remain established Intelligence infrastructure rather than duplicated application
+layers. Legacy report/action serializers remain compatibility consumers.
+
+### Validation
+
+- Copilot/Intelligence, Professional, Reporting/Audit and Knowledge: **45/45** on
+  PostgreSQL.
+- Application layers, architecture, modularization and tenant/RBAC: **103/103**.
+- The critical baseline retains exactly its five documented failures; no new or changed
+  failure was observed.
+- Django check, migration dry-run, Black, compileall and diff checks pass.
+
+ARQ-03G — INTELLIGENCE / PROFESSIONAL / REPORTING APPLICATION LAYERS: **CLOSED**.
+
+ARQ-03G stops here; ARQ-03H is not started.
