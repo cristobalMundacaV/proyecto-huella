@@ -4,8 +4,13 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from django.shortcuts import get_object_or_404
-
-from .models import AreaOperacional, EvidenciaObra, Organizacion, UsuarioOrganizacion
+from .models import (
+    AreaOperacional,
+    EvidenciaObra,
+    Organizacion,
+    UsuarioAreaOperacional,
+    UsuarioOrganizacion,
+)
 from .permissions import Permission, require_tenant_permission
 from .selectors.operational_context import (
     areas_for_organization,
@@ -19,6 +24,7 @@ from .services.operational_context import (
     create_operational_evidence,
     resolve_operational_context,
     serialize_workspace,
+    assign_user_to_operational_area,
 )
 
 
@@ -81,6 +87,241 @@ def organization_operational_areas(request, organizacion_id):
         },
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(["GET", "PATCH", "DELETE"])
+def organization_operational_area_detail(
+    request,
+    organizacion_id,
+    area_id,
+):
+    organization = get_object_or_404(
+        Organizacion,
+        organizacion_id=organizacion_id,
+    )
+
+    permission = (
+        Permission.SETTINGS_VIEW
+        if request.method == "GET"
+        else Permission.SETTINGS_MANAGE
+    )
+
+    require_tenant_permission(
+        request.user,
+        organization,
+        permission,
+    )
+
+    area = get_object_or_404(
+        AreaOperacional,
+        pk=area_id,
+        organizacion=organization,
+    )
+
+    if request.method == "GET":
+        return Response(
+            {
+                "id": area.id,
+                "nombre": area.nombre,
+                "tipo": area.tipo,
+                "descripcion": area.descripcion,
+                "activa": area.activa,
+            }
+        )
+
+    if request.method == "PATCH":
+        if "nombre" in request.data:
+            area.nombre = request.data["nombre"].strip()
+
+        if "tipo" in request.data:
+            area.tipo = request.data["tipo"]
+
+        if "descripcion" in request.data:
+            area.descripcion = request.data["descripcion"].strip()
+
+        if "activa" in request.data:
+            area.activa = bool(request.data["activa"])
+
+        area.full_clean()
+        area.save()
+
+        return Response(
+            {
+                "id": area.id,
+                "nombre": area.nombre,
+                "tipo": area.tipo,
+                "descripcion": area.descripcion,
+                "activa": area.activa,
+            }
+        )
+
+    tiene_historial = area.usuarios_asignados.exists() or area.espacios_trabajo.exists()
+
+    if tiene_historial:
+        area.activa = False
+        area.save(
+            update_fields=[
+                "activa",
+                "updated_at",
+            ]
+        )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    area.delete()
+
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["GET", "POST"])
+def operational_area_users(
+    request,
+    organizacion_id,
+    area_id,
+):
+    organization = get_object_or_404(
+        Organizacion,
+        organizacion_id=organizacion_id,
+    )
+
+    require_tenant_permission(
+        request.user,
+        organization,
+        (Permission.TEAM_MANAGE if request.method == "POST" else Permission.TEAM_VIEW),
+    )
+
+    area = get_object_or_404(
+        AreaOperacional,
+        pk=area_id,
+        organizacion=organization,
+        activa=True,
+    )
+
+    if request.method == "GET":
+        rows = UsuarioAreaOperacional.objects.filter(
+            area=area,
+            activo=True,
+        ).select_related(
+            "usuario_organizacion__user",
+        )
+
+        return Response(
+            [
+                {
+                    "id": row.id,
+                    "user_id": row.usuario_organizacion.user_id,
+                    "nombre": row.usuario_organizacion.user.get_full_name()
+                    or row.usuario_organizacion.user.username,
+                    "email": row.usuario_organizacion.user.email,
+                    "cargo": row.cargo,
+                    "es_principal": row.es_principal,
+                }
+                for row in rows
+            ]
+        )
+
+    user_id = request.data.get("user_id")
+
+    membership = get_object_or_404(
+        UsuarioOrganizacion,
+        organizacion=organization,
+        user_id=user_id,
+    )
+
+    assignment = assign_user_to_operational_area(
+        membership=membership,
+        area=area,
+        cargo=request.data.get(
+            "cargo",
+            "",
+        ),
+        is_primary=bool(
+            request.data.get(
+                "es_principal",
+                False,
+            )
+        ),
+    )
+
+    user = membership.user
+
+    return Response(
+        {
+            "id": assignment.id,
+            "user_id": user.id,
+            "nombre": user.get_full_name() or user.username,
+            "email": user.email,
+            "cargo": assignment.cargo,
+            "es_principal": assignment.es_principal,
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["PATCH", "DELETE"])
+def operational_area_user_detail(
+    request,
+    organizacion_id,
+    area_id,
+    assignment_id,
+):
+    organization = get_object_or_404(
+        Organizacion,
+        organizacion_id=organizacion_id,
+    )
+
+    require_tenant_permission(
+        request.user,
+        organization,
+        Permission.TEAM_MANAGE,
+    )
+
+    assignment = get_object_or_404(
+        UsuarioAreaOperacional,
+        pk=assignment_id,
+        area_id=area_id,
+        area__organizacion=organization,
+    )
+
+    if request.method == "PATCH":
+        if "cargo" in request.data:
+            assignment.cargo = request.data["cargo"].strip()
+
+        if request.data.get("es_principal"):
+            UsuarioAreaOperacional.objects.filter(
+                usuario_organizacion=assignment.usuario_organizacion,
+                es_principal=True,
+                activo=True,
+            ).exclude(
+                pk=assignment.pk,
+            ).update(
+                es_principal=False,
+            )
+
+            assignment.es_principal = True
+
+        assignment.full_clean()
+        assignment.save()
+
+        return Response(
+            {
+                "id": assignment.id,
+                "cargo": assignment.cargo,
+                "es_principal": assignment.es_principal,
+            }
+        )
+
+    assignment.activo = False
+    assignment.es_principal = False
+    assignment.save(
+        update_fields=[
+            "activo",
+            "es_principal",
+            "updated_at",
+        ]
+    )
+
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["GET", "POST"])

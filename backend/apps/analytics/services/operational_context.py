@@ -3,7 +3,12 @@ from dataclasses import dataclass
 from django.http import Http404
 from rest_framework.exceptions import ValidationError
 
-from ..models import AreaOperacional, EspacioTrabajoOperacional, EvidenciaObra
+from ..models import (
+    AreaOperacional,
+    EspacioTrabajoOperacional,
+    EvidenciaObra,
+    UsuarioAreaOperacional,
+)
 from ..permissions import (
     ROLE_PERMISSIONS,
     require_tenant_permission,
@@ -134,3 +139,33 @@ def create_operational_evidence(*, context, uploaded_file, name):
             "origen_operacional": True,
         },
     )
+
+
+def assign_user_to_operational_area(
+    *,
+    membership,
+    area,
+    cargo="",
+    is_primary=False,
+):
+    if is_primary:
+        UsuarioAreaOperacional.objects.filter(
+            usuario_organizacion=membership,
+            es_principal=True,
+            activo=True,
+        ).update(
+            es_principal=False,
+        )
+
+    assignment = UsuarioAreaOperacional(
+        usuario_organizacion=membership,
+        area=area,
+        cargo=cargo.strip(),
+        es_principal=is_primary,
+        activo=True,
+    )
+
+    assignment.full_clean()
+    assignment.save()
+
+    return assignment

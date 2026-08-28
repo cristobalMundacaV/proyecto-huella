@@ -8,6 +8,7 @@ from .platform import (
 from .operational_context import (
     AreaOperacional,
     EspacioTrabajoOperacional,
+    UsuarioAreaOperacional,
     EtapaObra,
     Obra,
     ProcesoOperacional,

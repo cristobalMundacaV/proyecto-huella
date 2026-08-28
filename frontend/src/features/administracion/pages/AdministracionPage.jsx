@@ -14,6 +14,19 @@ const baseRows = [
   { to: "/administracion/reportes", icon: FileOutput, title: "Reportes", description: "Preferencias reales de agrupación, periodo y presentación." },
   { to: "/administracion/datos", icon: Database, title: "Datos", description: "Preferencias de captura y acceso al Centro de Importaciones." },
   { to: "/administracion/auditoria", icon: History, title: "Auditoría", description: "Historial disponible de acciones y trazabilidad gobernada." },
+  {
+    title:
+      "Estructura organizacional",
+
+    description:
+      "Departamentos, cargos y personas que participan en la operación.",
+
+    path:
+      "/administracion/estructura-organizacional",
+
+    icon:
+      UsersRound,
+  },
 ];
 
 const sectionPermission = { organizacion: "organization.view", equipo: "team.view", operacion: "works.view", "estructura-operacional": "settings.manage", ambiental: "environmental_profile.view", calculo: "indicators.view", reportes: "reports.view", datos: "operational_data.view", auditoria: "audit.view" };

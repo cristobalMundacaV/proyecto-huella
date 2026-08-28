@@ -39,7 +39,14 @@ from .views_acciones import (
     organizacion_acciones_ambientales_resumen,
 )
 from .views_organizaciones import organizacion_detail_safe
-from .views_saas import saas_audit, saas_dashboard, saas_organization_action, saas_organization_admins, saas_organization_detail, saas_provision_organization
+from .views_saas import (
+    saas_audit,
+    saas_dashboard,
+    saas_organization_action,
+    saas_organization_admins,
+    saas_organization_detail,
+    saas_provision_organization,
+)
 from .views_emisiones import organizacion_emisiones
 from .views_etapas import organizacion_etapas
 from .views_environmental_compliance import (
@@ -250,8 +257,21 @@ from .views_sector_flows_v1 import (
     sector_record_detail,
     sector_records,
 )
-from .views_operational_context import membership_operational_workspaces, operational_context, operational_workspaces, organization_operational_areas, upload_operational_information
-from .views_account_lifecycle import activate_account, change_password, confirm_password_reset, onboarding, request_password_reset
+from .views_operational_context import (
+    membership_operational_workspaces,
+    operational_context,
+    operational_workspaces,
+    organization_operational_areas,
+    upload_operational_information,
+)
+from .views_account_lifecycle import (
+    activate_account,
+    change_password,
+    confirm_password_reset,
+    onboarding,
+    request_password_reset,
+)
+from backend.apps.analytics import views_operational_context
 
 urlpatterns = [
     path("auth/activar/<str:uid>/<str:token>/", activate_account),
@@ -262,13 +282,36 @@ urlpatterns = [
     path("contexto-operativo/espacios/", operational_workspaces),
     path("contexto-operativo/actual/", operational_context),
     path("contexto-operativo/subir-informacion/", upload_operational_information),
-    path("organizaciones/<str:organizacion_id>/areas-operacionales/", organization_operational_areas),
-    path("organizaciones/<str:organizacion_id>/usuarios/<int:user_id>/espacios-operacionales/", membership_operational_workspaces),
+    path(
+        "organizaciones/<str:organizacion_id>/areas-operacionales/",
+        organization_operational_areas,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/areas-operacionales/<int:area_id>/",
+        views_operational_context.organization_operational_area_detail,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/areas-operacionales/<int:area_id>/usuarios/",
+        views_operational_context.operational_area_users,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/areas-operacionales/<int:area_id>/usuarios/<int:assignment_id>/",
+        views_operational_context.operational_area_user_detail,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/usuarios/<int:user_id>/espacios-operacionales/",
+        membership_operational_workspaces,
+    ),
     path("saas/resumen/", saas_dashboard),
     path("saas/organizaciones/provisionar/", saas_provision_organization),
     path("saas/organizaciones/<str:organizacion_id>/", saas_organization_detail),
-    path("saas/organizaciones/<str:organizacion_id>/acciones/", saas_organization_action),
-    path("saas/organizaciones/<str:organizacion_id>/administradores/", saas_organization_admins),
+    path(
+        "saas/organizaciones/<str:organizacion_id>/acciones/", saas_organization_action
+    ),
+    path(
+        "saas/organizaciones/<str:organizacion_id>/administradores/",
+        saas_organization_admins,
+    ),
     path("saas/auditoria/", saas_audit),
     path(
         "organizaciones/<str:organizacion_id>/puntos-ambientales/", environmental_points
@@ -618,7 +661,10 @@ urlpatterns = [
     path("organizaciones/<str:organizacion_id>/dashboard/", organizacion_dashboard),
     path("organizaciones/<str:organizacion_id>/etapas/", organizacion_etapas),
     path("organizaciones/<str:organizacion_id>/usuarios/", organizacion_usuarios),
-    path("organizaciones/<str:organizacion_id>/usuarios/<int:user_id>/", organizacion_usuario_detail),
+    path(
+        "organizaciones/<str:organizacion_id>/usuarios/<int:user_id>/",
+        organizacion_usuario_detail,
+    ),
     path("organizaciones/<str:organizacion_id>/obras/", organizacion_obras),
     path(
         "organizaciones/<str:organizacion_id>/registros-emision/",

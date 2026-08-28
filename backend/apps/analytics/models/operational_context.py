@@ -207,6 +207,86 @@ class AreaOperacional(models.Model):
         return f"{self.organizacion.nombre} - {self.nombre}"
 
 
+class UsuarioAreaOperacional(models.Model):
+    usuario_organizacion = models.ForeignKey(
+        UsuarioOrganizacion,
+        on_delete=models.CASCADE,
+        related_name="areas_operacionales_asignadas",
+    )
+
+    area = models.ForeignKey(
+        AreaOperacional,
+        on_delete=models.CASCADE,
+        related_name="usuarios_asignados",
+    )
+
+    cargo = models.CharField(
+        max_length=120,
+        blank=True,
+    )
+
+    es_principal = models.BooleanField(
+        default=False,
+        db_index=True,
+    )
+
+    activo = models.BooleanField(
+        default=True,
+        db_index=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = [
+            "-es_principal",
+            "area__nombre",
+        ]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "usuario_organizacion",
+                    "area",
+                ],
+                name="unique_usuario_area_operacional",
+            )
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.area.organizacion_id != self.usuario_organizacion.organizacion_id:
+            raise ValidationError(
+                {"area": "El área debe pertenecer a la misma organización del usuario."}
+            )
+
+        if self.es_principal:
+            conflicto = (
+                UsuarioAreaOperacional.objects.filter(
+                    usuario_organizacion=self.usuario_organizacion,
+                    es_principal=True,
+                    activo=True,
+                )
+                .exclude(pk=self.pk)
+                .exists()
+            )
+
+            if conflicto:
+                raise ValidationError(
+                    {"es_principal": "El usuario ya tiene un área principal."}
+                )
+
+    def __str__(self):
+        return f"{self.usuario_organizacion.user} - " f"{self.area.nombre}"
+
+
 class EspacioTrabajoOperacional(models.Model):
     usuario_organizacion = models.ForeignKey(
         UsuarioOrganizacion, on_delete=models.CASCADE, related_name="espacios_trabajo"
