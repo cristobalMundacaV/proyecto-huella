@@ -208,10 +208,69 @@ Workspace = contexto activo y seleccionable
 
 Estado de la fase: **PASS**.
 
-### Fases 3–4
+### Fase 3 — Creación de obra
 
-- Fase 3, creación de obra: **NOT STARTED**.
-- Fase 4, perfil/aplicabilidad: **NOT STARTED**.
+**Acción.** El administrador inició sesión y creó por
+`POST /api/organizaciones/{organizacion_id}/obras/` la obra ficticia
+`Edificio Circular Los Alerces`, enviando identidad, ubicación territorial,
+periodo, superficie, estado y tipo de proyecto. La petición se ejecutó desde uno
+de los workspaces organizacionales existentes.
 
-Se aplica `STOP` al completar la única fase autorizada por Checkpoint 2. No se
-inició la Fase 3 ni la Fase 5.
+Después se validaron el listado y detalle actuales, el acceso desde ambos
+workspaces organizacionales y la creación de un workspace de alcance obra
+mediante el endpoint vigente de contexto operacional. No se ejecutó PATCH porque
+la creación actual no lo requiere.
+
+**Esperado.** Creación `201`, persistencia íntegra dentro del tenant, lectura
+desde los contextos autorizados y ocultamiento `404` frente al tenant ajeno. La
+creación de obra no debe iniciar el perfil ambiental ni decidir aplicabilidad.
+
+**Obtenido.**
+
+- login `200`;
+- creación de obra `201`;
+- listado desde cada uno de los dos workspaces existentes `200`, incluyendo la
+  obra nueva;
+- detalle por `codigo_obra` `200`;
+- creación de workspace con scope de obra `201`;
+- resolución del nuevo contexto de obra `200`;
+- detalle, listado del tenant y workspace consultados por el usuario ajeno:
+  `404` en los tres casos.
+
+**Datos persistidos.**
+
+| Campo | Valor |
+| --- | --- |
+| ID | `7` |
+| Código | `EDIFICIO_CIRCULAR_LOS_ALERCES` |
+| Organización | `ARQ14_CHECKPOINT_1_CONSTRUCTORA_CIRCULAR_SPA` |
+| Nombre | Edificio Circular Los Alerces |
+| Ubicación | Avenida Los Carrera 2450, acceso norte de prueba |
+| Región / comuna | Región del Biobío / Concepción |
+| Inicio | 2026-09-01 |
+| Término estimado | 2028-03-31 |
+| Superficie | 18.500,000 m² |
+| Tipo de proyecto | Edificación habitacional |
+| Perfil derivado | `edificacion` |
+| Estado | `planificada` |
+| Etapa principal | `null`, opcional y no informada |
+
+El workspace `Oficina técnica — Los Alerces` quedó persistido con la membresía,
+el área Oficina técnica y `obra_id = 7`. El contexto resuelto devuelve la misma
+organización y obra.
+
+Se confirmó además:
+
+- cero diagnósticos ambientales asociados a la obra;
+- cero aplicabilidades asociadas a la obra.
+
+Por tanto, la Fase 4 no fue iniciada implícitamente.
+
+Estado de la fase: **PASS**.
+
+### Fase 4
+
+- Perfil/aplicabilidad: **NOT STARTED**.
+
+Se aplica `STOP` al completar la única fase autorizada por Checkpoint 3. No se
+inició la Fase 4 ni la Fase 5.

@@ -531,7 +531,7 @@ export function getWorkNavigation({
           },
           ...(hasPendingApplicability ? [{
             id: "pendingApplicability",
-            label: "Aspectos pendientes de confirmar",
+            label: "Diagnóstico inicial",
             path: `${base}/diagnostico`,
             icon: ClipboardCheck,
           }] : []),
