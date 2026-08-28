@@ -1,3 +1,5 @@
+import { captureStateInfo } from "@/shared/utils/canonicalDataState";
+
 const humanize = (value, fallback = "Sin información") => {
   if (value === null || value === undefined || value === "") return fallback;
   const text = String(value).replaceAll("_", " ");
@@ -32,7 +34,11 @@ const destinationLabels = {
 };
 
 export function evidenceStatusInfo(value) {
-  return evidenceStates[value] || { label: humanize(value), tone: "neutral", needsAttention: false };
+  const workflow = evidenceStates[value];
+  const canonical = captureStateInfo(value);
+  return workflow
+    ? { ...workflow, label: canonical.label, canonical: canonical.label, workflowLabel: workflow.label }
+    : { label: humanize(value), tone: "neutral", needsAttention: false, canonical: canonical.label };
 }
 
 export function evidenceNeedsAttention(item) {
@@ -40,7 +46,11 @@ export function evidenceNeedsAttention(item) {
 }
 
 export function importStatusInfo(value) {
-  return importStates[value] || { label: humanize(value), tone: "neutral" };
+  const workflow = importStates[value];
+  const canonical = captureStateInfo(value);
+  return workflow
+    ? { ...workflow, label: canonical.label, canonical: canonical.label, workflowLabel: workflow.label }
+    : { label: humanize(value), tone: "neutral", canonical: canonical.label };
 }
 
 export function importNeedsAttention(item) {

@@ -6,6 +6,7 @@ import TraceabilityDrawer from "@/features/datos/components/TraceabilityDrawer";
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import { Alert, Button, Card, CardContent, DataQualityBadge, EmptyState, ErrorState, Input, LoadingState, Modal, PageHeader, SectionHeader, Select, StatusBadge, TableBody, TableCell, TableHead, TableShell, Textarea, Timeline, TimelineItem, TraceabilityLink } from "@/shared/ui";
 import { formatDate, formatNumber } from "@/shared/utils/formatters";
+import { humanizeApiError } from "@/shared/utils/apiErrors";
 import {
   createMeasurement,
   createProblemAction,
@@ -147,7 +148,7 @@ export default function ProblemDetailPage({ workScoped = false }) {
       setFeedback(message);
       await load();
     } catch (error) {
-      const message = error?.response?.data?.detail || "No se pudo completar la operación.";
+      const message = humanizeApiError(error);
       if (dialog) setDialogError(message); else setFeedback(message);
     } finally {
       setBusy(false);

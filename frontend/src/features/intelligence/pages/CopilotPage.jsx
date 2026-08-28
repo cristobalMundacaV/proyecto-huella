@@ -19,6 +19,7 @@ import {
 import { Link } from "react-router-dom";
 
 import PlatformLoader from "@/shared/components/PlatformLoader";
+import { humanizeApiError } from "@/shared/utils/apiErrors";
 
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 
@@ -364,11 +365,7 @@ export default function CopilotPage() {
 
       await load();
     } catch (error) {
-      setActionError(
-        error?.response?.data
-          ?.detail ||
-        "No se pudo preparar una propuesta."
-      );
+      setActionError(humanizeApiError(error, "No pudimos preparar la propuesta. Inténtalo nuevamente."));
     } finally {
       setBusy(false);
     }
@@ -407,11 +404,7 @@ export default function CopilotPage() {
         await load();
       }
     } catch (error) {
-      setActionError(
-        error?.response?.data
-          ?.detail ||
-        "No se pudo registrar esta decisión."
-      );
+      setActionError(humanizeApiError(error, "No pudimos registrar esta decisión. Inténtalo nuevamente."));
     } finally {
       setBusy(false);
     }
@@ -451,11 +444,7 @@ export default function CopilotPage() {
 
       await load();
     } catch (error) {
-      setActionError(
-        error?.response?.data
-          ?.detail ||
-        "No se pudo crear la acción formal."
-      );
+      setActionError(humanizeApiError(error, "No pudimos crear la acción formal. Inténtalo nuevamente."));
     } finally {
       setBusy(false);
     }
@@ -575,6 +564,10 @@ export default function CopilotPage() {
           </Link>
         </div>
       </section>
+
+      <Alert tone="info" title="Asistencia con decisión humana">
+        El Copiloto puede analizar contexto y proponer alternativas. No calcula resultados ambientales, decide cumplimiento ni verifica o cierra problemáticas.
+      </Alert>
 
 
       {problemsState.status ===

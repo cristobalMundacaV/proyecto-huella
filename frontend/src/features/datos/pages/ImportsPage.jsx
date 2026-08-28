@@ -373,7 +373,7 @@ export default function ImportsPage() {
               size={18}
             />
 
-            Nueva importación
+            Subir información
           </Button>}
         </div>
       </section>
@@ -391,7 +391,7 @@ export default function ImportsPage() {
           <ImportModeCard icon={Boxes} title="Importación masiva" description="Procesamiento coordinado de varios archivos o estructuras." disabled badge="Próximamente" />
         </div>
         <div className="flex flex-wrap gap-3">
-          {canCreate && <Button onClick={openImportWorkflow}><UploadCloud aria-hidden="true" size={17} />Nueva importación</Button>}
+          {canCreate && <Button onClick={openImportWorkflow}><UploadCloud aria-hidden="true" size={17} />Subir información</Button>}
           <Button variant="secondary" onClick={() => setHistoryOpen(true)}><History aria-hidden="true" size={17} />Ver historial</Button>
         </div>
       </section>
@@ -460,8 +460,8 @@ export default function ImportsPage() {
               FileSpreadsheet
             }
             title="Aún no hay importaciones anteriores"
-             description="Cuando completes tu primera carga, aparecerá aquí con su estado y resultado."
-            action={canCreate ? <Button onClick={openImportWorkflow}><UploadCloud aria-hidden="true" size={17} />Nueva importación</Button> : undefined}
+             description="Cuando completes tu primera carga, aparecerá aquí con su estado, origen y resultado."
+            action={canCreate ? <Button onClick={openImportWorkflow}><UploadCloud aria-hidden="true" size={17} />Subir información</Button> : undefined}
             className="border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_40%),linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98))] shadow-[0_12px_36px_rgba(6,78,59,0.06)]"
           />
         ) : (

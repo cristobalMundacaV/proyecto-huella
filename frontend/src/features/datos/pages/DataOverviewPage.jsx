@@ -82,7 +82,7 @@ export default function DataOverviewPage() {
       description="Revisa tus documentos y los procesos que necesitan atención."
       actions={<>
         <Link className="inline-flex items-center rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm font-bold text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]" to="/datos/evidencias">Ver documentos</Link>
-        <Link className="inline-flex items-center rounded-[var(--radius-md)] bg-[var(--brand-primary)] px-3 py-2 text-sm font-bold text-white focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]" to="/datos/importaciones">Importar información</Link>
+        <Link className="inline-flex items-center rounded-[var(--radius-md)] bg-[var(--brand-primary)] px-3 py-2 text-sm font-bold text-white focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]" to="/datos/importaciones">Subir información</Link>
       </>}
     />
 

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node --test src/app/workNavigationApplicability.test.js src/features/organizaciones/context/organizationResolution.test.js src/features/organizaciones/context/organizationRequestTracker.test.js src/features/auth/context/sessionNavigation.test.js src/shared/utils/validators.test.js src/features/organizaciones/utils/chileRegions.test.js src/shared/utils/search.test.js",
+    "test": "node --test src/app/workNavigationApplicability.test.js src/features/organizaciones/context/organizationResolution.test.js src/features/organizaciones/context/organizationRequestTracker.test.js src/features/auth/context/sessionNavigation.test.js src/shared/utils/validators.test.js src/features/organizaciones/utils/chileRegions.test.js src/shared/utils/search.test.js src/shared/utils/canonicalDataState.test.js src/shared/utils/apiErrors.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -25,6 +25,7 @@ import {
     formatDateTime,
     formatNumber,
 } from "@/shared/utils/formatters";
+import { eligibilityStateInfo } from "@/shared/utils/canonicalDataState";
 
 import {
     calculateActivity,
@@ -295,6 +296,9 @@ export default function DomainCalculationPanel({
                                             .eligibility
                                             ?.metodologia_seleccionada,
                                     );
+                                const eligibilityStatus = eligibilityStateInfo(
+                                    row.eligibility,
+                                );
 
                                 return (
                                     <tr
@@ -316,18 +320,13 @@ export default function DomainCalculationPanel({
 
                                         <TableCell>
                                             <StatusBadge
-                                                tone={
-                                                    selectable
-                                                        ? "success"
-                                                        : "warning"
-                                                }
+                                                tone={eligibilityStatus.tone}
                                             >
-                                                {
-                                                    row
-                                                        .eligibility
-                                                        ?.estado
-                                                }
+                                                {eligibilityStatus.label}
                                             </StatusBadge>
+                                            <span className="mt-1 block max-w-xs text-xs text-[var(--text-muted)]">
+                                                {row.eligibility?.razon || eligibilityStatus.description}
+                                            </span>
                                         </TableCell>
 
                                         <TableCell>
@@ -408,7 +407,7 @@ export default function DomainCalculationPanel({
                                                         }
                                                     />
 
-                                                    Faltan datos
+                                                    {eligibilityStatus.label}
                                                 </span>
                                             )}
                                         </TableCell>

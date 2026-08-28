@@ -703,7 +703,7 @@ export default function EvidencePage({
                 className="inline-flex items-center rounded-[var(--radius-md)] px-3 py-2 text-sm font-bold text-[var(--text-secondary)] transition hover:bg-white/70"
                 to="/datos/importaciones"
               >
-                Importar información
+                Subir información
               </Link>
             ) : null
           }

@@ -45,14 +45,14 @@ export const DOMAIN_CONFIG = {
 
 const statePresentation = {
   con_datos: {
-    label: "Con actividad",
-    tone: "success",
-    description: "Hay actividad registrada.",
+    label: "Capturado",
+    tone: "info",
+    description: "Hay actividad registrada con trazabilidad disponible.",
   },
   sin_datos: {
-    label: "Sin información",
-    tone: "neutral",
-    description: "Sin información registrada.",
+    label: "Incompleto",
+    tone: "warning",
+    description: "Este ámbito todavía no tiene información registrada.",
   },
   no_aplica: {
     label: "No aplica",
@@ -60,9 +60,9 @@ const statePresentation = {
     description: "No aplica a esta unidad.",
   },
   por_definir: {
-    label: "Sin configurar",
+    label: "Requiere revisión",
     tone: "warning",
-    description: "La aplicabilidad aún está por definir.",
+    description: "La aplicabilidad aún debe ser confirmada por una persona.",
   },
   requiere_revision: {
     label: "Requiere revisión",
