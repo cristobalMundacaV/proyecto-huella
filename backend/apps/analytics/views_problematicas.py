@@ -198,7 +198,10 @@ def problematica_detail(request, organizacion_id, problematica_id):
         problem, data=request.data, partial=True, context={"organizacion": org}
     )
     serializer.is_valid(raise_exception=True)
-    update_problem(problem, serializer.validated_data)
+    try:
+        update_problem(problem, serializer.validated_data, requested_data=request.data)
+    except DjangoValidationError as exc:
+        return _error(exc)
     return Response(serializer.data)
 
 

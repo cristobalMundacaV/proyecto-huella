@@ -46,6 +46,19 @@ def cycles_for_problem(problem):
     return problem.ciclos_reevaluacion.select_related("resultado")
 
 
+def verified_cycles_for_problem(problem):
+    return (
+        problem.ciclos_reevaluacion.filter(
+            fecha_cierre__isnull=False,
+            snapshot_base__isnull=False,
+            snapshot_resultado__isnull=False,
+            resultado__isnull=False,
+        )
+        .select_related("accion", "snapshot_base", "snapshot_resultado", "resultado")
+        .order_by("-numero")
+    )
+
+
 def active_cycle_for_problem(problem):
     return problem.ciclos_reevaluacion.filter(fecha_cierre=None).exists()
 

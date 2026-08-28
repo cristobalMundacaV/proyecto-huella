@@ -30,6 +30,8 @@ from .services.intervention_v2 import (
     select_action,
     start_action,
 )
+from .services.improvement import update_problem
+from .selectors.improvement import verified_cycles_for_problem
 
 
 class InterventionV2Tests(APITestCase):
@@ -137,6 +139,30 @@ class InterventionV2Tests(APITestCase):
         self.assertEqual(link.indicador, indicator)
         self.assertEqual(link.rol, "principal")
 
+    def test_patch_generico_no_puede_cerrar_ni_resolver(self):
+        problem = self.problem()
+        url = f"{self.base}/problematicas/{problem.id}/"
+
+        for terminal_state in ("cerrada", "resuelta"):
+            response = self.client.patch(url, {"estado": terminal_state}, format="json")
+            self.assertEqual(response.status_code, 400)
+            problem.refresh_from_db()
+            self.assertEqual(problem.estado, "detectada")
+
+        response = self.client.patch(url, {"titulo": "Título ajustado"}, format="json")
+        self.assertEqual(response.status_code, 200)
+        problem.refresh_from_db()
+        self.assertEqual(problem.titulo, "Título ajustado")
+
+    def test_servicio_generico_tampoco_puede_saltar_verificacion(self):
+        problem = self.problem()
+
+        with self.assertRaises(ValidationError):
+            update_problem(problem, {"estado": "cerrada"})
+
+        problem.refresh_from_db()
+        self.assertEqual(problem.estado, "detectada")
+
     def test_alcance_e_indicador_cross_tenant_bloqueados_por_api(self):
         problem = self.problem()
         foreign_unit = UnidadOperacional.objects.create(
@@ -229,6 +255,11 @@ class InterventionV2Tests(APITestCase):
             Decimal(result.metricas_comparadas[0]["porcentaje"]), Decimal("-16.00")
         )
         self.assertTrue(result.snapshot_resultado.congelado)
+        cycle.refresh_from_db()
+        self.assertEqual(problem.estado, "resuelta")
+        self.assertEqual(verified_cycles_for_problem(problem).get(), cycle)
+        self.assertEqual(cycle.resultado, result)
+        self.assertIsNotNone(cycle.accion.fecha_seleccion)
 
     def test_resultado_negativo_se_conserva(self):
         problem, indicator, _, action = self.prepare()

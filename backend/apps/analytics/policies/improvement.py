@@ -14,6 +14,47 @@ ALLOWED_TRANSITIONS = {
     "resuelta": set(),
 }
 
+GENERIC_UPDATE_FORBIDDEN_STATES = {
+    ProblematicaAmbiental.Estado.CERRADA,
+    ProblematicaAmbiental.Estado.RESUELTA,
+}
+
+
+def validate_generic_problem_update(problem, payload):
+    requested_state = payload.get("estado") if payload else None
+    if requested_state in GENERIC_UPDATE_FORBIDDEN_STATES:
+        raise ValidationError(
+            {
+                "estado": (
+                    "El cierre no puede realizarse mediante una actualización "
+                    "genérica. Debe completar la reevaluación verificable."
+                )
+            }
+        )
+
+
+def validate_verified_resolution(cycle, result):
+    errors = []
+    if not cycle or not cycle.accion_id or not cycle.accion.fecha_seleccion:
+        errors.append("La acción debe haber sido seleccionada explícitamente.")
+    if not cycle or not cycle.snapshot_base_id or not cycle.snapshot_resultado_id:
+        errors.append("Se requieren snapshots BASE y RESULTADO.")
+    elif not cycle.snapshot_base.congelado or not cycle.snapshot_resultado.congelado:
+        errors.append("Los snapshots de verificación deben estar congelados.")
+    if not result or not cycle or cycle.resultado_id != result.id:
+        errors.append("El ciclo debe conservar su resultado determinístico.")
+    elif (
+        result.problematica_id != cycle.problematica_id
+        or result.accion_id != cycle.accion_id
+        or result.snapshot_base_id != cycle.snapshot_base_id
+        or result.snapshot_resultado_id != cycle.snapshot_resultado_id
+    ):
+        errors.append("El resultado no corresponde al ciclo de reevaluación.")
+    if not cycle or not cycle.fecha_cierre:
+        errors.append("El ciclo de reevaluación debe estar cerrado.")
+    if errors:
+        raise ValidationError({"estado": errors})
+
 
 def validate_problem_transition(problem, new_state):
     if new_state not in ALLOWED_TRANSITIONS.get(problem.estado, set()):

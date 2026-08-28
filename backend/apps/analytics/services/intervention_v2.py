@@ -12,7 +12,11 @@ from ..models import (
     SnapshotIntervencion,
     SnapshotValorIndicador,
 )
-from ..policies.improvement import validate_action_start, validate_cycle_selection
+from ..policies.improvement import (
+    validate_action_start,
+    validate_cycle_selection,
+    validate_verified_resolution,
+)
 
 
 def _scope_snapshot(problem):
@@ -252,6 +256,8 @@ def evaluate_intervention(problem, user=None):
         if state == ResultadoIntervencion.Estado.POSITIVA
         else problem.Estado.NO_RESUELTA
     )
+    if problem.estado == problem.Estado.RESUELTA:
+        validate_verified_resolution(cycle, result)
     problem.save(update_fields=["estado", "updated_at"])
     problem.historial.create(
         evento="evaluacion_intervencion",

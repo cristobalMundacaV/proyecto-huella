@@ -1,5 +1,7 @@
 from django.db import transaction
 
+from ..policies.improvement import validate_generic_problem_update
+
 
 @transaction.atomic
 def create_problem(organization, data, user=None):
@@ -16,8 +18,8 @@ def create_problem(organization, data, user=None):
     return problem
 
 
-def update_problem(problem, data):
-    # Compatibility: generic PATCH remains able to persist every serializer-writable field.
+def update_problem(problem, data, *, requested_data=None):
+    validate_generic_problem_update(problem, requested_data or data)
     for field, value in data.items():
         setattr(problem, field, value)
     problem.full_clean()
