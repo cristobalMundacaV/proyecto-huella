@@ -1,4 +1,5 @@
 import {
+    useCallback,
     useEffect,
     useState,
 } from "react";
@@ -51,9 +52,11 @@ export default function OrganizationStructurePage() {
         error,
         setError,
     ] = useState("");
-
-    async function load() {
+    const load = useCallback(async () => {
         if (!activeOrganizacionId) {
+            setDepartments([]);
+            setUsersByDepartment({});
+            setLoading(false);
             return;
         }
 
@@ -103,13 +106,10 @@ export default function OrganizationStructurePage() {
         } finally {
             setLoading(false);
         }
-    }
-
+    }, [activeOrganizacionId]);
     useEffect(() => {
         load();
-    }, [
-        activeOrganizacionId,
-    ]);
+    }, [load]);
 
     async function handleDelete(
         department,
