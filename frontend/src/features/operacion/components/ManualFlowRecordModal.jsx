@@ -7,6 +7,8 @@ import { ClipboardPlus } from "lucide-react";
 
 import Toast from "@/shared/components/Toast";
 
+import { useOperationalWorkspace } from "@/features/workspace/context/OperationalWorkspaceContext";
+
 import {
     Button,
     Input,
@@ -410,6 +412,11 @@ export default function ManualFlowRecordModal({
     domain,
     onCreated,
 }) {
+    const {
+        activeWorkspace,
+        needsSelection,
+    } = useOperationalWorkspace();
+
     const config =
         FLOW_CONFIG[domain];
 
@@ -731,6 +738,17 @@ export default function ManualFlowRecordModal({
             return;
         }
 
+        if (needsSelection || !activeWorkspace?.id) {
+            setToast({
+                id: Date.now(),
+                tone: "error",
+                message: "Selecciona un espacio de trabajo",
+                subtitle:
+                    "Debes seleccionar el espacio de trabajo en el que deseas registrar la información.",
+            });
+            return;
+        }
+
         setSaving(true);
         setError("");
 
@@ -760,6 +778,8 @@ export default function ManualFlowRecordModal({
                     payload.append(key, value);
                 }
             };
+
+            append("workspace_id", activeWorkspace.id);
             append("obra", workId);
             append("punto", form.point);
             append("tipo_actividad", selectedMode?.activityType || config.activityType);
