@@ -1,6 +1,7 @@
 from django.db import transaction
 
 from ..models import ActividadOperacional, Observacion
+from .capture import capture_observation
 
 
 @transaction.atomic
@@ -47,12 +48,23 @@ def update_activity(*, activity, data):
 @transaction.atomic
 def create_observation(*, organization, activity, actor, data):
     values = dict(data)
-    if actor is not None:
-        values["actor"] = actor
-    observation = Observacion(organizacion=organization, actividad=activity, **values)
-    observation.full_clean()
-    observation.save()
-    return observation
+    return capture_observation(
+        channel="manual",
+        organization=organization,
+        activity=activity,
+        actor=actor,
+        source=values.pop("fuente"),
+        concept=values.pop("concepto"),
+        timestamp=values.pop("timestamp_observacion"),
+        numeric_value=values.pop("valor_numerico", None),
+        text_value=values.pop("valor_texto", ""),
+        unit=values.pop("unidad", ""),
+        evidence=values.pop("evidencia", None),
+        evidence_version=values.pop("version_evidencia", None),
+        method=values.pop("metodo_captura", None),
+        nature=values.pop("naturaleza", None),
+        state=values.pop("estado", None),
+    )
 
 
 @transaction.atomic

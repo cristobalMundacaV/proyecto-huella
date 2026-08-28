@@ -4,7 +4,8 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from ..models import EventoMaterial, LoteMaterial, MaterialOperacional, Observacion
+from ..models import EventoMaterial, LoteMaterial, MaterialOperacional
+from .capture import capture_observation
 from ..selectors.materials import registered_material_events
 
 INCOMING = {EventoMaterial.Tipo.RECEPCION}
@@ -193,22 +194,19 @@ def save_event_quantity(
 ):
     if source.organizacion_id != event.organizacion_id:
         raise ValidationError("La fuente pertenece a otra organizacion.")
-    observation = Observacion(
-        organizacion=event.organizacion,
-        actividad=event.actividad,
-        fuente=source,
-        concepto="cantidad_material",
-        valor_numerico=amount,
-        unidad=unit,
-        timestamp_observacion=event.fecha_hora,
-        metodo_captura=Observacion.MetodoCaptura.MANUAL,
-        naturaleza=Observacion.Naturaleza.DECLARATIVO,
+    observation = capture_observation(
+        channel="manual",
+        organization=event.organizacion,
+        activity=event.actividad,
+        source=source,
+        concept="cantidad_material",
+        numeric_value=amount,
+        unit=unit,
+        timestamp=event.fecha_hora,
         actor=actor,
-        evidencia=evidence,
-        version_evidencia=evidence_version,
+        evidence=evidence,
+        evidence_version=evidence_version,
     )
-    observation.full_clean()
-    observation.save()
     event.observacion_cantidad = observation
     event.fuente = source
     event.evidencia = evidence

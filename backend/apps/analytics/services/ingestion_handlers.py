@@ -3,38 +3,92 @@ from decimal import Decimal, InvalidOperation
 import pandas as pd
 from django.utils import timezone
 
-from ..models import (ActividadOperacional, EventoMaterial, LoteMaterial, MaterialOperacional,
-                      Observacion, RegistroFlujoAmbiental, Vehiculo, ViajeOperacional)
+from ..models import (
+    ActividadOperacional,
+    EventoMaterial,
+    LoteMaterial,
+    MaterialOperacional,
+    Observacion,
+    RegistroFlujoAmbiental,
+    Vehiculo,
+    ViajeOperacional,
+)
+from ..policies.capture import ingestion_capture_channel
+from .capture import capture_observation
 
-
-CONTEXT_FIELDS = {"identificador_actividad", "fecha_actividad", "periodo_inicio", "periodo_fin", "material", "tipo_evento_material",
-                  "lote_material", "punto_medicion", "obra", "proceso", "activo", "vehiculo", "unidad", "metrica",
-                  "destino_operacional", "proveedor_gestor"}
-NUMERIC_CONCEPTS = {"distancia_recorrida_km", "masa_transportada_t", "combustible_consumido_l", "consumo_energia",
-                    "combustible_consumido",
-                    "energia_generada", "energia_autoconsumida", "energia_exportada", "cantidad_material", "cantidad_residuo",
-                    "nivel_ruido", "superficie_intervenida", "superficie_impermeabilizada", "precipitacion_observada"}
+CONTEXT_FIELDS = {
+    "identificador_actividad",
+    "fecha_actividad",
+    "periodo_inicio",
+    "periodo_fin",
+    "material",
+    "tipo_evento_material",
+    "lote_material",
+    "punto_medicion",
+    "obra",
+    "proceso",
+    "activo",
+    "vehiculo",
+    "unidad",
+    "metrica",
+    "destino_operacional",
+    "proveedor_gestor",
+}
+NUMERIC_CONCEPTS = {
+    "distancia_recorrida_km",
+    "masa_transportada_t",
+    "combustible_consumido_l",
+    "consumo_energia",
+    "combustible_consumido",
+    "energia_generada",
+    "energia_autoconsumida",
+    "energia_exportada",
+    "cantidad_material",
+    "cantidad_residuo",
+    "nivel_ruido",
+    "superficie_intervenida",
+    "superficie_impermeabilizada",
+    "precipitacion_observada",
+}
 PROVENANCE_BY_INGESTION = {
     "tabular": (Observacion.MetodoCaptura.IMPORTADO, Observacion.Naturaleza.DOCUMENTAL),
-    "documental": (Observacion.MetodoCaptura.IMPORTADO, Observacion.Naturaleza.DOCUMENTAL),
-    "manual_estructurado": (Observacion.MetodoCaptura.MANUAL, Observacion.Naturaleza.DECLARATIVO),
+    "documental": (
+        Observacion.MetodoCaptura.IMPORTADO,
+        Observacion.Naturaleza.DOCUMENTAL,
+    ),
+    "manual_estructurado": (
+        Observacion.MetodoCaptura.MANUAL,
+        Observacion.Naturaleza.DECLARATIVO,
+    ),
     "api": (Observacion.MetodoCaptura.API, Observacion.Naturaleza.EXTRAIDO),
-    "telemetria": (Observacion.MetodoCaptura.INSTRUMENTAL, Observacion.Naturaleza.INSTRUMENTAL),
-    "sensor": (Observacion.MetodoCaptura.INSTRUMENTAL, Observacion.Naturaleza.INSTRUMENTAL),
+    "telemetria": (
+        Observacion.MetodoCaptura.INSTRUMENTAL,
+        Observacion.Naturaleza.INSTRUMENTAL,
+    ),
+    "sensor": (
+        Observacion.MetodoCaptura.INSTRUMENTAL,
+        Observacion.Naturaleza.INSTRUMENTAL,
+    ),
 }
 
 
 def _timestamp(value, fallback):
     parsed = pd.to_datetime(value or fallback, errors="coerce")
-    if pd.isna(parsed): raise ValueError("fecha_invalida|fecha|La fecha no tiene un formato reconocido.")
+    if pd.isna(parsed):
+        raise ValueError(
+            "fecha_invalida|fecha|La fecha no tiene un formato reconocido."
+        )
     result = parsed.to_pydatetime()
     return timezone.make_aware(result) if timezone.is_naive(result) else result
 
 
 def _value(value):
-    if value in (None, ""): return None, ""
-    try: return Decimal(str(value)), ""
-    except (InvalidOperation, ValueError): return None, str(value)
+    if value in (None, ""):
+        return None, ""
+    try:
+        return Decimal(str(value)), ""
+    except (InvalidOperation, ValueError):
+        return None, str(value)
 
 
 def _activity(record, data, activity_type, name, timestamp):
@@ -43,15 +97,27 @@ def _activity(record, data, activity_type, name, timestamp):
     context = {**row_context, **(process.contexto_confirmado or {})}
     reference = str(data.get("identificador_actividad") or f"fila-{record.numero_fila}")
     activity = ActividadOperacional(
-        organizacion=process.organizacion, tipo=activity_type, codigo=f"ING-{process.id}-{record.numero_fila}"[:100],
-        nombre=name, timestamp_inicio=timestamp, timestamp_fin=_timestamp(data["periodo_fin"], timestamp) if data.get("periodo_fin") else None,
-        estado=ActividadOperacional.Estado.REGISTRADA, referencia_externa=reference,
+        organizacion=process.organizacion,
+        tipo=activity_type,
+        codigo=f"ING-{process.id}-{record.numero_fila}"[:100],
+        nombre=name,
+        timestamp_inicio=timestamp,
+        timestamp_fin=(
+            _timestamp(data["periodo_fin"], timestamp)
+            if data.get("periodo_fin")
+            else None
+        ),
+        estado=ActividadOperacional.Estado.REGISTRADA,
+        referencia_externa=reference,
         obra_id=context.get("obra_id"),
-        unidad_operacional_id=context.get("unidad_operacional_id"), proceso_operacional_id=context.get("proceso_operacional_id"),
+        unidad_operacional_id=context.get("unidad_operacional_id"),
+        proceso_operacional_id=context.get("proceso_operacional_id"),
         metadata={"proceso_ingesta_id": process.id, "registro_extraido_id": record.id},
     )
-    activity.full_clean(); activity.save()
-    if context.get("activo_id"): activity.activos.add(context["activo_id"])
+    activity.full_clean()
+    activity.save()
+    if context.get("activo_id"):
+        activity.activos.add(context["activo_id"])
     return activity
 
 
@@ -60,50 +126,103 @@ def _observations(record, activity, data, units, timestamp):
     capture_method, nature = PROVENANCE_BY_INGESTION[process.tipo_ingesta]
     created = {}
     for concept, raw_value in data.items():
-        if concept in CONTEXT_FIELDS or raw_value in (None, ""): continue
+        if concept in CONTEXT_FIELDS or raw_value in (None, ""):
+            continue
         numeric, textual = _value(raw_value)
         if concept in NUMERIC_CONCEPTS and numeric is None:
-            raise ValueError(f"valor_numerico_invalido|{concept}|El valor '{raw_value}' no es numérico.")
-        observation = Observacion(
-            organizacion=process.organizacion, actividad=activity, fuente=process.fuente_datos, concepto=concept,
-            valor_numerico=numeric, valor_texto=textual, unidad=units.get(concept, ""), timestamp_observacion=timestamp,
-            metodo_captura=capture_method, naturaleza=nature,
-            evidencia=process.version_evidencia.evidencia if process.version_evidencia_id else None,
-            version_evidencia=process.version_evidencia if process.version_evidencia_id else None,
-            registro_extraido=record,
+            raise ValueError(
+                f"valor_numerico_invalido|{concept}|El valor '{raw_value}' no es numérico."
+            )
+        observation = capture_observation(
+            channel=ingestion_capture_channel(process.tipo_ingesta),
+            organization=process.organizacion,
+            activity=activity,
+            source=process.fuente_datos,
+            concept=concept,
+            numeric_value=numeric,
+            text_value=textual,
+            unit=units.get(concept, ""),
+            timestamp=timestamp,
+            method=capture_method,
+            nature=nature,
+            evidence=(
+                process.version_evidencia.evidencia
+                if process.version_evidencia_id
+                else None
+            ),
+            evidence_version=(
+                process.version_evidencia if process.version_evidencia_id else None
+            ),
+            extracted_record=record,
         )
-        observation.full_clean(); observation.save(); created[concept] = observation
+        created[concept] = observation
     return created
 
 
 def generic_handler(record, data, units):
-    timestamp = _timestamp(data.get("fecha_actividad") or data.get("periodo_inicio"), record.proceso_ingesta.created_at)
-    activity = _activity(record, data, ActividadOperacional.Tipo.OTRO, "Actividad importada", timestamp)
+    timestamp = _timestamp(
+        data.get("fecha_actividad") or data.get("periodo_inicio"),
+        record.proceso_ingesta.created_at,
+    )
+    activity = _activity(
+        record, data, ActividadOperacional.Tipo.OTRO, "Actividad importada", timestamp
+    )
     observations = _observations(record, activity, data, units, timestamp)
     return activity, None, observations
 
 
 def resolve_transport_vehicle(process, data):
     reference = str(data.get("vehiculo") or "").strip()
-    if not reference: return None, "campo_critico_faltante", "Debe identificar el vehículo del viaje."
-    candidates = Vehiculo.objects.filter(activo__organizacion=process.organizacion, patente__iexact=reference).select_related("activo")
-    if candidates.count() == 0: return None, "contexto_no_resuelto", f"No existe un vehículo para '{reference}'."
-    if candidates.count() > 1: return None, "contexto_ambiguo", f"Existen múltiples vehículos para '{reference}'."
+    if not reference:
+        return None, "campo_critico_faltante", "Debe identificar el vehículo del viaje."
+    candidates = Vehiculo.objects.filter(
+        activo__organizacion=process.organizacion, patente__iexact=reference
+    ).select_related("activo")
+    if candidates.count() == 0:
+        return (
+            None,
+            "contexto_no_resuelto",
+            f"No existe un vehículo para '{reference}'.",
+        )
+    if candidates.count() > 1:
+        return (
+            None,
+            "contexto_ambiguo",
+            f"Existen múltiples vehículos para '{reference}'.",
+        )
     return candidates.first(), "", ""
 
 
 def transport_handler(record, data, units):
-    if not data.get("identificador_actividad"): raise ValueError("campo_critico_faltante|identificador_actividad|Falta el identificador del viaje.")
+    if not data.get("identificador_actividad"):
+        raise ValueError(
+            "campo_critico_faltante|identificador_actividad|Falta el identificador del viaje."
+        )
     vehicle, code, detail = resolve_transport_vehicle(record.proceso_ingesta, data)
-    if not vehicle: raise ValueError(f"{code}|vehiculo|{detail}")
-    timestamp = _timestamp(data.get("fecha_actividad"), record.proceso_ingesta.created_at)
-    activity = _activity(record, data, ActividadOperacional.Tipo.TRANSPORTE, f"Viaje {data['identificador_actividad']}", timestamp)
+    if not vehicle:
+        raise ValueError(f"{code}|vehiculo|{detail}")
+    timestamp = _timestamp(
+        data.get("fecha_actividad"), record.proceso_ingesta.created_at
+    )
+    activity = _activity(
+        record,
+        data,
+        ActividadOperacional.Tipo.TRANSPORTE,
+        f"Viaje {data['identificador_actividad']}",
+        timestamp,
+    )
     observations = _observations(record, activity, data, units, timestamp)
     journey = ViajeOperacional.objects.create(
-        organizacion=record.proceso_ingesta.organizacion, actividad=activity, codigo=activity.codigo, vehiculo=vehicle,
-        origen_nombre=str(data.get("origen") or "No informado"), destino_nombre=str(data.get("destino_operacional") or "No informado"),
-        fecha_salida=timestamp, observacion_distancia=observations.get("distancia_recorrida_km"),
-        observacion_carga=observations.get("masa_transportada_t"), observacion_combustible=observations.get("combustible_consumido_l"),
+        organizacion=record.proceso_ingesta.organizacion,
+        actividad=activity,
+        codigo=activity.codigo,
+        vehiculo=vehicle,
+        origen_nombre=str(data.get("origen") or "No informado"),
+        destino_nombre=str(data.get("destino_operacional") or "No informado"),
+        fecha_salida=timestamp,
+        observacion_distancia=observations.get("distancia_recorrida_km"),
+        observacion_carga=observations.get("masa_transportada_t"),
+        observacion_combustible=observations.get("combustible_consumido_l"),
         metadata_tecnica={"registro_extraido_id": record.id},
     )
     return activity, journey, observations
@@ -111,24 +230,70 @@ def transport_handler(record, data, units):
 
 def material_handler(record, data, units):
     process = record.proceso_ingesta
-    material_ref, event_type = str(data.get("material") or "").strip(), str(data.get("tipo_evento_material") or "").strip().lower()
-    if not material_ref: raise ValueError("campo_critico_faltante|material|Debe identificar el material.")
-    if event_type not in EventoMaterial.Tipo.values: raise ValueError("evento_material_ambiguo|tipo_evento_material|Debe declarar un tipo de evento material válido.")
-    candidates = MaterialOperacional.objects.filter(organizacion=process.organizacion).filter(codigo__iexact=material_ref)
-    if not candidates.exists(): candidates = MaterialOperacional.objects.filter(organizacion=process.organizacion, nombre__iexact=material_ref)
-    if candidates.count() != 1: raise ValueError("contexto_ambiguo|material|El material no se resolvió de forma inequívoca.")
-    material = candidates.first(); timestamp = _timestamp(data.get("fecha_actividad") or data.get("periodo_inicio"), process.created_at)
-    activity = _activity(record, data, ActividadOperacional.Tipo.MOVIMIENTO_MATERIAL, f"{event_type.title()} {material.nombre}", timestamp)
+    material_ref, event_type = (
+        str(data.get("material") or "").strip(),
+        str(data.get("tipo_evento_material") or "").strip().lower(),
+    )
+    if not material_ref:
+        raise ValueError(
+            "campo_critico_faltante|material|Debe identificar el material."
+        )
+    if event_type not in EventoMaterial.Tipo.values:
+        raise ValueError(
+            "evento_material_ambiguo|tipo_evento_material|Debe declarar un tipo de evento material válido."
+        )
+    candidates = MaterialOperacional.objects.filter(
+        organizacion=process.organizacion
+    ).filter(codigo__iexact=material_ref)
+    if not candidates.exists():
+        candidates = MaterialOperacional.objects.filter(
+            organizacion=process.organizacion, nombre__iexact=material_ref
+        )
+    if candidates.count() != 1:
+        raise ValueError(
+            "contexto_ambiguo|material|El material no se resolvió de forma inequívoca."
+        )
+    material = candidates.first()
+    timestamp = _timestamp(
+        data.get("fecha_actividad") or data.get("periodo_inicio"), process.created_at
+    )
+    activity = _activity(
+        record,
+        data,
+        ActividadOperacional.Tipo.MOVIMIENTO_MATERIAL,
+        f"{event_type.title()} {material.nombre}",
+        timestamp,
+    )
     observations = _observations(record, activity, data, units, timestamp)
     lot = None
     if data.get("lote_material"):
-        lot = LoteMaterial.objects.filter(organizacion=process.organizacion, material=material, codigo=str(data["lote_material"])).first()
-        if not lot: raise ValueError("contexto_no_resuelto|lote_material|El lote indicado no existe para el material.")
+        lot = LoteMaterial.objects.filter(
+            organizacion=process.organizacion,
+            material=material,
+            codigo=str(data["lote_material"]),
+        ).first()
+        if not lot:
+            raise ValueError(
+                "contexto_no_resuelto|lote_material|El lote indicado no existe para el material."
+            )
     event = EventoMaterial.objects.create(
-        organizacion=process.organizacion, material=material, lote=lot, actividad=activity, tipo=event_type,
-        fecha_hora=timestamp, observacion_cantidad=observations.get("cantidad_material"), fuente=process.fuente_datos,
-        obra=activity.obra, evidencia=process.version_evidencia.evidencia if process.version_evidencia_id else None,
-        version_evidencia=process.version_evidencia if process.version_evidencia_id else None,
+        organizacion=process.organizacion,
+        material=material,
+        lote=lot,
+        actividad=activity,
+        tipo=event_type,
+        fecha_hora=timestamp,
+        observacion_cantidad=observations.get("cantidad_material"),
+        fuente=process.fuente_datos,
+        obra=activity.obra,
+        evidencia=(
+            process.version_evidencia.evidencia
+            if process.version_evidencia_id
+            else None
+        ),
+        version_evidencia=(
+            process.version_evidencia if process.version_evidencia_id else None
+        ),
         metadata={"registro_extraido_id": record.id},
     )
     return activity, event, observations
@@ -136,32 +301,78 @@ def material_handler(record, data, units):
 
 def sector_flow_handler(record, data, units):
     process = record.proceso_ingesta
-    if process.flujo not in RegistroFlujoAmbiental.Flujo.values: raise ValueError("flujo_desconocido|flujo|Debe seleccionar un flujo ambiental válido.")
+    if process.flujo not in RegistroFlujoAmbiental.Flujo.values:
+        raise ValueError(
+            "flujo_desconocido|flujo|Debe seleccionar un flujo ambiental válido."
+        )
     activity_type = RegistroFlujoAmbiental.EXPECTED_ACTIVITY_TYPES[process.flujo]
-    timestamp = _timestamp(data.get("periodo_inicio") or data.get("fecha_actividad"), process.created_at)
-    activity = _activity(record, data, activity_type, f"Registro {process.flujo}", timestamp)
+    timestamp = _timestamp(
+        data.get("periodo_inicio") or data.get("fecha_actividad"), process.created_at
+    )
+    activity = _activity(
+        record, data, activity_type, f"Registro {process.flujo}", timestamp
+    )
     observations = _observations(record, activity, data, units, timestamp)
-    if not observations: raise ValueError("campo_critico_faltante|observaciones|El registro no contiene hechos ambientales observables.")
-    context = {**((record.datos_normalizados or {}).get("contexto_sugerido", {})), **(process.contexto_confirmado or {})}
+    if not observations:
+        raise ValueError(
+            "campo_critico_faltante|observaciones|El registro no contiene hechos ambientales observables."
+        )
+    context = {
+        **((record.datos_normalizados or {}).get("contexto_sugerido", {})),
+        **(process.contexto_confirmado or {}),
+    }
     granularity = context.get("granularidad")
     if not granularity:
-        granularity = (RegistroFlujoAmbiental.Granularidad.PUNTO if context.get("punto_id") else
-                       RegistroFlujoAmbiental.Granularidad.ACTIVO if context.get("activo_id") else
-                       RegistroFlujoAmbiental.Granularidad.PROCESO if context.get("proceso_operacional_id") else
-                       RegistroFlujoAmbiental.Granularidad.OBRA if context.get("obra_id") else
-                       RegistroFlujoAmbiental.Granularidad.INSTALACION if context.get("unidad_operacional_id") else
-                       RegistroFlujoAmbiental.Granularidad.ORGANIZACION)
+        granularity = (
+            RegistroFlujoAmbiental.Granularidad.PUNTO
+            if context.get("punto_id")
+            else (
+                RegistroFlujoAmbiental.Granularidad.ACTIVO
+                if context.get("activo_id")
+                else (
+                    RegistroFlujoAmbiental.Granularidad.PROCESO
+                    if context.get("proceso_operacional_id")
+                    else (
+                        RegistroFlujoAmbiental.Granularidad.OBRA
+                        if context.get("obra_id")
+                        else (
+                            RegistroFlujoAmbiental.Granularidad.INSTALACION
+                            if context.get("unidad_operacional_id")
+                            else RegistroFlujoAmbiental.Granularidad.ORGANIZACION
+                        )
+                    )
+                )
+            )
+        )
     flow = RegistroFlujoAmbiental(
-        organizacion=process.organizacion, actividad=activity, flujo=process.flujo, periodo_inicio=timestamp,
-        periodo_fin=_timestamp(data["periodo_fin"], timestamp) if data.get("periodo_fin") else None,
-        granularidad=granularity, punto_id=context.get("punto_id"), unidad_operacional_id=context.get("unidad_operacional_id"),
-        proceso_id=context.get("proceso_operacional_id"), activo_id=context.get("activo_id"), obra_id=context.get("obra_id"),
-        metrica=str(data.get("metrica") or ""), destino_operacional=str(data.get("destino_operacional") or "sin_clasificar"),
-        proveedor_gestor=str(data.get("proveedor_gestor") or ""), metadata={"registro_extraido_id": record.id},
+        organizacion=process.organizacion,
+        actividad=activity,
+        flujo=process.flujo,
+        periodo_inicio=timestamp,
+        periodo_fin=(
+            _timestamp(data["periodo_fin"], timestamp)
+            if data.get("periodo_fin")
+            else None
+        ),
+        granularidad=granularity,
+        punto_id=context.get("punto_id"),
+        unidad_operacional_id=context.get("unidad_operacional_id"),
+        proceso_id=context.get("proceso_operacional_id"),
+        activo_id=context.get("activo_id"),
+        obra_id=context.get("obra_id"),
+        metrica=str(data.get("metrica") or ""),
+        destino_operacional=str(data.get("destino_operacional") or "sin_clasificar"),
+        proveedor_gestor=str(data.get("proveedor_gestor") or ""),
+        metadata={"registro_extraido_id": record.id},
     )
-    flow.full_clean(); flow.save()
+    flow.full_clean()
+    flow.save()
     return activity, flow, observations
 
 
-INGESTION_HANDLERS = {"transporte": transport_handler, "material": material_handler,
-                      "flujo_ambiental": sector_flow_handler, "actividad_generica": generic_handler}
+INGESTION_HANDLERS = {
+    "transporte": transport_handler,
+    "material": material_handler,
+    "flujo_ambiental": sector_flow_handler,
+    "actividad_generica": generic_handler,
+}

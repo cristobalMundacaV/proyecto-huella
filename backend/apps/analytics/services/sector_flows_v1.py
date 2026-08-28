@@ -5,6 +5,7 @@ from django.db import transaction
 
 from ..models import Observacion, RegistroFlujoAmbiental
 from ..selectors.environmental_flows import environmental_records_for_organization
+from .capture import capture_observation
 
 ADDITIVE_CONCEPTS = {
     (RegistroFlujoAmbiental.Flujo.ENERGIA, "consumo_energia"),
@@ -82,15 +83,22 @@ def save_environmental_record(instance, organization, data, actor=None):
         observation_data["naturaleza"] = (
             observation_data["naturaleza"] or Observacion.Naturaleza.DECLARATIVO
         )
-        observation = Observacion(
-            organizacion=organization,
-            actividad=instance.actividad,
-            timestamp_observacion=instance.periodo_fin or instance.periodo_inicio,
+        capture_observation(
+            channel="manual",
+            organization=organization,
+            activity=instance.actividad,
+            timestamp=instance.periodo_fin or instance.periodo_inicio,
             actor=actor,
-            **observation_data,
+            source=observation_data["fuente"],
+            concept=observation_data["concepto"],
+            numeric_value=observation_data["valor_numerico"],
+            text_value=observation_data["valor_texto"],
+            unit=observation_data["unidad"],
+            evidence=observation_data["evidencia"],
+            evidence_version=observation_data["version_evidencia"],
+            method=observation_data["metodo_captura"],
+            nature=observation_data["naturaleza"],
         )
-        observation.full_clean()
-        observation.save()
     return instance
 
 

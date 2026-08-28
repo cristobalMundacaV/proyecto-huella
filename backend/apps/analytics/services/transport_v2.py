@@ -3,7 +3,8 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from ..models import Observacion, RutaOperacional, ViajeOperacional
+from ..models import RutaOperacional, ViajeOperacional
+from .capture import capture_observation
 from ..selectors.transport import completed_journeys
 
 CONCEPTS = {
@@ -137,21 +138,18 @@ def save_journey_observations(
         if value is None:
             continue
         concept, unit = CONCEPTS[kind]
-        observation = Observacion(
-            organizacion=journey.organizacion,
-            actividad=journey.actividad,
-            fuente=source,
-            concepto=concept,
-            valor_numerico=value,
-            unidad=unit,
-            timestamp_observacion=journey.fecha_llegada or journey.fecha_salida,
-            metodo_captura="manual",
-            naturaleza="declarativo",
-            evidencia=evidence,
-            version_evidencia=evidence_version,
+        observation = capture_observation(
+            channel="manual",
+            organization=journey.organizacion,
+            activity=journey.actividad,
+            source=source,
+            concept=concept,
+            numeric_value=value,
+            unit=unit,
+            timestamp=journey.fecha_llegada or journey.fecha_salida,
+            evidence=evidence,
+            evidence_version=evidence_version,
         )
-        observation.full_clean()
-        observation.save()
         setattr(journey, f"observacion_{kind}", observation)
     journey.save()
     return journey
