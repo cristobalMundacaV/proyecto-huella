@@ -432,3 +432,81 @@ layers. Legacy report/action serializers remain compatibility consumers.
 ARQ-03G — INTELLIGENCE / PROFESSIONAL / REPORTING APPLICATION LAYERS: **CLOSED**.
 
 ARQ-03G stops here; ARQ-03H is not started.
+
+## ARQ-03H — Legacy Boundary Audit
+
+### Audited boundary
+
+The audit covered every selector and policy introduced by ARQ-03A–G, the new service
+boundaries, modern views/serializers and the compatibility consumers recorded by ARQ-02.
+It also compared the ARQ-03 final tree with the ARQ-02 closing commit (`c8628b1`) so a
+moved dependency could be distinguished from an expanded dependency.
+
+| Dependency | Classification | Current boundary and justification |
+|---|---|---|
+| Foundation/onboarding capability models (`CapacidadAmbiental`, `CapacidadOrganizacion`, `AreaCapacidadAmbiental`, `AplicabilidadCapacidadObra`) | REQUIRED COMPATIBILITY | They remain the persisted organization/work applicability contract. In ARQ-03, ingestion only reads `AplicabilidadCapacidadObra` to validate an already-established domain context. |
+| Compliance models (`DocumentoAmbiental`, `VariableAmbientalExtraida`, `LimiteNormativoAmbiental`, `AlertaCumplimientoAmbiental`) | REQUIRED COMPATIBILITY / READ-ONLY COMPATIBILITY | `selectors/compliance.py` centralizes the same scoped reads previously performed by compliance views. Existing serializers/services retain their historical mutations. |
+| `AccionAmbiental` | REQUIRED COMPATIBILITY / WRITE COMPATIBILITY | The compatibility decision/action and closure endpoints still create and transition this unmanaged model. `selectors/improvement.py` only centralizes its tenant-aware lookup; modern `AccionMejoraAmbiental` is not replaced or dual-written. |
+| `RegistroEmision` | READ-ONLY COMPATIBILITY / WRITE COMPATIBILITY | Legacy emissions APIs, imports and `environmental_records` retain their own writes. Reports, intelligence and compatibility counters retain reads. Modern sector flows, ingestion and Calculation do not write it. Organization deletion removes existing rows as part of the pre-existing atomic cleanup contract. |
+| `FactorEmision` | WRITE COMPATIBILITY | Legacy factor API/import commands retain their catalog writes. Governance/Calculation V2 continue using versioned modern factor models and did not acquire this dependency. |
+| `TransporteObra` | WRITE COMPATIBILITY | Legacy transport endpoints and model-local synchronization remain unchanged. Transport V2 uses `ViajeOperacional`; its only ARQ-03 reference is tenant deletion cleanup. |
+| Forestry/material compatibility (`MaterialConstruccion`, `EspecieMadera`, `LoteForestal`, `TransporteLoteForestal`, `DatoACV`) | REQUIRED COMPATIBILITY | Existing forestry, scenario, KPI and legacy lifecycle consumers remain intact. Materials V2 did not acquire writes to them. |
+| Remaining diagnostic/history legacy models | REQUIRED COMPATIBILITY or READ-ONLY COMPATIBILITY | Existing Foundation, SaaS and historical endpoints remain consumers; no ARQ-03 selector/service/policy added a mutation path. |
+| Test references to legacy registry/contracts | TEST ONLY | Modularization and compatibility tests import legacy models to verify module ownership, table identity and unmanaged status. |
+| Proven dead dependencies | DEAD: none | No runtime dependency was removed merely because its replacement is partial; absence of a proven consumer was not inferred from model age. |
+| Unresolved dependencies | UNKNOWN: none | Every runtime reference found in the audited scope has an identified compatibility consumer and mutation/read authority. |
+
+### Enforcement and findings
+
+`test_application_layers.py` now freezes the only direct legacy imports allowed in the
+new ARQ-03 boundary: the ingestion applicability read, compliance reads, environmental
+action lookup and platform deletion cleanup. Any additional direct legacy model import
+in selectors or policies, or expansion of the platform cleanup dependency, fails the
+architecture gate.
+
+The commit-level comparison found no ARQ-03 addition of `FactorEmision`,
+`RegistroEmision` or `TransporteObra` writes to a modern domain. The apparent additions
+are moved reads or the moved organization-deletion command. `AccionAmbiental` remains a
+deliberate compatibility write authority used by its existing endpoints. ARQ-02's rule
+that modern environmental flows write `RegistroFlujoAmbiental`, never
+`RegistroEmision`, remains satisfied.
+
+No runtime code was changed. URLs, payloads, responses, status codes, tenant/RBAC,
+legacy endpoints and persistence behavior are unchanged.
+
+### Remaining debt
+
+Legacy emissions, factors, transport, compliance documents and environmental actions
+still have active compatibility writers. Their migration/removal requires data and API
+cutover work outside ARQ-03. The generic legacy action/serializer debts documented in
+ARQ-02 and ARQ-03F remain assigned to later phases.
+
+### Validation
+
+- Complete application-layer, architecture, modularization and tenant/RBAC gate:
+  **104/104** on PostgreSQL.
+- The critical baseline retained exactly its five documented failures: three obsolete
+  onboarding area-catalog expectations, the `DocumentoAmbiental(perfil_ambiental)`
+  serializer error and the missing Construction V1 ingestion activity. No new failure
+  or changed signature appeared.
+- Django check, migration dry-run, compileall and `git diff --check` pass.
+- Black passes for the changed Python file. The repository-wide Black check still lists
+  133 pre-existing unformatted files; ARQ-03H does not rewrite them because that would
+  exceed the legacy-boundary-only scope.
+
+ARQ-03H — LEGACY BOUNDARY AUDIT: **CLOSED**.
+
+## ARQ-03 — FINAL STATE
+
+ARQ-03A–G establish explicit API, selector, policy and service responsibilities across
+Platform, Operations, Ingestion, Environmental Flows, Governance, Improvement,
+Intelligence, Professional and Reporting. ARQ-03H closes the final compatibility
+boundary with an executable allowlist.
+
+The modern architecture has no new unjustified legacy dependency and no new legacy
+write from a modern domain. All retained crossings are classified above, remain bounded
+to existing compatibility contracts and preserve ARQ-02 isolation rules.
+
+ARQ-03 — APPLICATION LAYERS: **CLOSED**.
+
+ARQ-03 stops here; ARQ-04 is not started.

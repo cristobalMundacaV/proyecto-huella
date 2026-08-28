@@ -1,5 +1,6 @@
 import ast
 import inspect
+from pathlib import Path
 
 from django.test import SimpleTestCase
 
@@ -21,6 +22,40 @@ from .services import platform as platform_services
 
 
 class ApplicationLayerContractTests(SimpleTestCase):
+    legacy_model_names = {
+        "AccionAmbiental",
+        "AlertaCumplimientoAmbiental",
+        "AplicabilidadCapacidadObra",
+        "AreaCapacidadAmbiental",
+        "CapacidadAmbiental",
+        "CapacidadOrganizacion",
+        "ConfiguracionOrganizacion",
+        "DatoACV",
+        "DiagnosticoAmbientalInicial",
+        "DocumentoAmbiental",
+        "ElementoDiagnosticoAmbiental",
+        "EspecieMadera",
+        "FactorEmision",
+        "HistorialCambioObra",
+        "LimiteNormativoAmbiental",
+        "LoteForestal",
+        "MaterialConstruccion",
+        "RegistroEmision",
+        "TransporteLoteForestal",
+        "TransporteObra",
+        "VariableAmbientalExtraida",
+    }
+    arq03_legacy_allowlist = {
+        "policies/ingestion.py": {"AplicabilidadCapacidadObra"},
+        "selectors/compliance.py": {
+            "AlertaCumplimientoAmbiental",
+            "DocumentoAmbiental",
+            "LimiteNormativoAmbiental",
+            "VariableAmbientalExtraida",
+        },
+        "selectors/improvement.py": {"AccionAmbiental"},
+        "services/platform.py": {"RegistroEmision", "TransporteObra"},
+    }
     selector_modules = (
         platform_selectors,
         operational_selectors,
@@ -85,3 +120,31 @@ class ApplicationLayerContractTests(SimpleTestCase):
                 any(name.startswith("rest_framework.response") for name in imports),
                 module.__name__,
             )
+
+    def test_arq03_legacy_boundary_does_not_expand(self):
+        package_root = Path(__file__).parent
+        dependencies = {}
+        for layer in ("selectors", "policies"):
+            for path in (package_root / layer).glob("*.py"):
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+                imported = {
+                    alias.name
+                    for node in ast.walk(tree)
+                    if isinstance(node, ast.ImportFrom)
+                    for alias in node.names
+                }
+                legacy = imported & self.legacy_model_names
+                if legacy:
+                    dependencies[path.relative_to(package_root).as_posix()] = legacy
+
+        platform_service = package_root / "services" / "platform.py"
+        tree = ast.parse(platform_service.read_text(encoding="utf-8"))
+        imported = {
+            alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+            for alias in node.names
+        }
+        dependencies["services/platform.py"] = imported & self.legacy_model_names
+
+        self.assertEqual(dependencies, self.arq03_legacy_allowlist)
