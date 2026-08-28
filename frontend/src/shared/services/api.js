@@ -76,7 +76,6 @@ export async function getEtapasObra(params = {}) { return params.organizacion_id
 export async function getObras() { return (await api.get("/obras/")).data; }
 export async function getOrganizacionObras(id) { return (await api.get(organizacionPath(id, "/obras/"))).data; }
 export async function createObra(payload) { const id = payload.organizacion_id || payload.organizacion; return (await api.post(id ? organizacionPath(id, "/obras/") : "/obras/", payload)).data; }
-export async function getObraDetail(codigo) { const [obra, registros, evidencias, transportes] = await Promise.all([api.get(obraPath(codigo, "/")), api.get(obraPath(codigo, "/registros-emision/")), api.get(obraPath(codigo, "/evidencias/")), api.get(obraPath(codigo, "/transportes/"))]); return { ...obra.data, registros_emision: registros.data, evidencias: evidencias.data, transportes: transportes.data }; }
 export async function getObraBalanceAmbiental(codigo) { return (await api.get(obraPath(codigo, "/"))).data.analisis_ambiental || {}; }
 export async function getOrganizacionRegistrosEmision(id) { return (await api.get(organizacionPath(id, "/registros-emision/"))).data; }
 export async function createOrganizacionRegistroEmision(id, payload) { return (await api.post(organizacionPath(id, "/registros-emision/"), payload)).data; }
@@ -105,16 +104,12 @@ export async function extraerEvidenciaDocumento(id, file) {
   })).data;
 }
 export async function uploadObraEvidencia(codigo, payload) { const fd = new FormData(); fd.append("tipo_evidencia", payload.tipo_evidencia || "otro"); fd.append("fecha_evidencia", payload.fecha_evidencia || ""); fd.append("nombre", payload.nombre || payload.archivo?.name || "Evidencia de obra"); fd.append("archivo", payload.archivo); if (payload.observaciones) fd.append("observaciones", payload.observaciones); return (await api.post(obraPath(codigo, "/evidencias/"), fd, { headers: { "Content-Type": "multipart/form-data" } })).data; }
-export async function createTransporteObra(codigo, payload) { return (await api.post(obraPath(codigo, "/transportes/"), payload)).data; }
 export async function getOrganizacionReportes(id, params = {}) { return (await api.get(organizacionPath(id, `/reportes/${query(params)}`))).data; }
 export async function getReporteEmisionesTiempo(id, params = {}) { return getOrganizacionReportes(id, params); }
 export async function getSistemaEstado() { return (await api.get("/sistema/estado/")).data; }
 export async function getIotKpis(id) { return (await api.get("/iot/kpis/", { params: id ? { organizacion_id: id } : {} })).data; }
 export async function getIotUltimasLecturas(id) { return (await api.get("/iot/lecturas/ultimas/", { params: id ? { organizacion_id: id } : {} })).data; }
 export async function getFactoresEmision(params = {}) { return (await api.get("/factores-emision/", { params })).data; }
-export async function createFactorEmision(payload) { return (await api.post("/factores-emision/", payload)).data; }
-export async function updateFactorEmision(id, payload) { return (await api.patch(`/factores-emision/${encodeURIComponent(id)}/`, payload)).data; }
-export async function aplicarFactorRegistroEmision(organizacionId, registroId, payload) { return (await api.post(organizacionPath(organizacionId, `/registros-emision/${encodeURIComponent(registroId)}/aplicar-factor/`), payload)).data; }
 export async function getMetodologiasAmbientales(id) { return (await api.get(organizacionPath(id, "/metodologias/"))).data; }
 export async function getFactoresAmbientalesV2(id) { return (await api.get(organizacionPath(id, "/factores-ambientales/"))).data; }
 export async function createVersionMetodologia(id, metodologiaId, payload) { return (await api.post(organizacionPath(id, `/metodologias/${encodeURIComponent(metodologiaId)}/`), payload)).data; }
@@ -164,10 +159,6 @@ export async function previewImportEtapasForOrganizacion(id, file) { return prev
 export async function confirmarImportEtapasForOrganizacion(id, payload) { return confirmImport("etapas", payload, id); }
 export async function previewImportObrasForOrganizacion(id, file) { return previewImport("obras", file, id); }
 export async function confirmarImportObrasForOrganizacion(id, payload) { return confirmImport("obras", payload, id); }
-export async function previewRegistroEmisionImport(file) { return previewImport("registros", file); }
-export async function confirmRegistroEmisionImport(payload) { return confirmImport("registros", payload); }
-export async function previewRegistroEmisionImportForOrganizacion(id, file) { return previewImport("registros", file, id); }
-export async function confirmRegistroEmisionImportForOrganizacion(id, payload) { return confirmImport("registros", payload, id); }
 export async function previewImportacionCompletaConstruccion(file) { return (await api.post("/importaciones/completa/preview/", filePayload(file), { headers: { "Content-Type": "multipart/form-data" } })).data; }
 export async function confirmarImportacionCompletaConstruccion(payload) { return (await api.post("/importaciones/completa/confirm/", payload)).data; }
 export const previewImportObras = previewImportObrasForOrganizacion;
