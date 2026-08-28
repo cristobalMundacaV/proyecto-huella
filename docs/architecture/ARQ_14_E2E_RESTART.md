@@ -159,11 +159,59 @@ tenant ajeno `404`.
 
 Estado de la fase: **PASS después de corregir la precondición de base**.
 
-### Fases 2–4
+### Fase 2 — Contexto operacional
 
-- Fase 2, contexto operacional: **NOT STARTED**.
+**Acción.** El administrador inició sesión mediante `/api/auth/login/`, consultó
+`/api/contexto-operativo/espacios/` y creó dos espacios mediante el endpoint de
+espacios operacionales de su membresía. Se resolvió el contexto actual primero
+de forma automática y luego seleccionando explícitamente cada workspace con
+`X-Workspace-ID`.
+
+**Esperado.** Sin espacios, el endpoint declara compatibilidad legacy; con uno,
+lo selecciona automáticamente; con más de uno, exige una selección real. Cada
+contexto conserva rol, scope, área y tenant, y un usuario ajeno no puede resolver
+el workspace.
+
+**Obtenido.**
+
+- login `200`;
+- consulta inicial de espacios `200`, sin resultados, `legacy = true`;
+- creación del primer workspace `201`;
+- resolución automática con un workspace `200`;
+- creación del segundo workspace `201`;
+- consulta con dos workspaces `200`, `automatico = false`;
+- resolución sin selección con múltiples workspaces `400` y error en
+  `workspace_id`;
+- selección explícita de cada workspace `200`;
+- selección del workspace por un usuario de otro tenant `404`;
+- el usuario ajeno obtiene cero espacios propios en este escenario.
+
+**Datos persistidos.**
+
+| Workspace | Área operacional | Organización | Obra | Estado |
+| --- | --- | --- | --- | --- |
+| Oficina técnica corporativa | Oficina técnica | `ARQ14_CHECKPOINT_1_CONSTRUCTORA_CIRCULAR_SPA` | `null` | Activo |
+| Gestión ambiental corporativa | Medio ambiente / Sostenibilidad | `ARQ14_CHECKPOINT_1_CONSTRUCTORA_CIRCULAR_SPA` | `null` | Activo |
+
+El alcance de la membresía permanece `organizacion`. `obra = null` es el scope
+correcto en este punto: la Fase 3 todavía no ha creado una obra y no se fabricó
+una relación anticipada para hacer pasar el checkpoint.
+
+El contrato quedó comprobado como:
+
+```text
+Role      = admin y su conjunto de permisos
+Scope     = organización; sin obra antes de Fase 3
+Area      = origen operacional seleccionado
+Workspace = contexto activo y seleccionable
+```
+
+Estado de la fase: **PASS**.
+
+### Fases 3–4
+
 - Fase 3, creación de obra: **NOT STARTED**.
 - Fase 4, perfil/aplicabilidad: **NOT STARTED**.
 
-Se aplica `STOP` después del primer defecto real encontrado y de repetir con
-éxito la fase afectada. No se inició la fase 5.
+Se aplica `STOP` al completar la única fase autorizada por Checkpoint 2. No se
+inició la Fase 3 ni la Fase 5.
