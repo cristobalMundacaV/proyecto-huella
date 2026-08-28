@@ -8,7 +8,7 @@ from django.core import mail
 from django.test import override_settings, TestCase
 from rest_framework.test import APIClient
 
-from .models import AreaCapacidadAmbiental, AreaOperacional, CapacidadOrganizacion, DiagnosticoAmbientalInicial, ElementoDiagnosticoAmbiental, EventoAuditoriaSaaS, Obra, Observacion, Organizacion, ProblematicaAmbiental, RegistroEmision, SuscripcionSaaS, UsuarioOrganizacion
+from .models import AreaCapacidadAmbiental, AreaOperacional, CapacidadOrganizacion, DiagnosticoAmbientalInicial, EventoAuditoriaSaaS, Obra, Observacion, Organizacion, ProblematicaAmbiental, RegistroEmision, SuscripcionSaaS, UsuarioOrganizacion
 from .services.email_service import EmailDeliveryError
 
 
@@ -74,10 +74,9 @@ class SaaSOnboardingE2ETests(TestCase):
         self.client.force_authenticate(admin); headers = {"HTTP_X_ORGANIZATION_ID": organization.organizacion_id}
         steps = [
             (1, {"nombre": organization.nombre, "rut": "21.683.264-7", "preset": "construccion", "region": "Región del Biobío", "comuna": "Concepción"}),
-            (2, {"areas": ["bodega", "maquinaria_operaciones", "logistica_transporte", "administracion_compras", "medio_ambiente", "gestion_obra"]}),
-            (3, {"flujos": {"materiales": "regular", "combustibles": "regular", "energia": "parcial", "agua": "sin_informacion", "residuos": "regular"}}),
-            (4, {"metodos": "PDF, Excel", "centralizacion": "parcial", "revision": "medio_ambiente", "frecuencia": "mensual"}),
-            (5, {"confirmado": True}),
+            (2, {"areas": ["bodega", "maquinaria_equipos", "logistica_transporte", "administracion", "medio_ambiente_sostenibilidad", "terreno_supervision"]}),
+            (3, {"flujos": {"materiales": "regular", "combustibles": "regular", "energia": "parcial", "agua": "sin_informacion", "residuos_no_peligrosos": "regular"}}),
+            (4, {"confirmado": True}),
         ]
         for step, data in steps:
             response = self.client.patch("/api/onboarding/", {"step": step, "data": data}, format="json", **headers)
@@ -85,9 +84,8 @@ class SaaSOnboardingE2ETests(TestCase):
         organization.refresh_from_db(); self.assertTrue(organization.onboarding_completado)
         self.assertEqual(AreaOperacional.objects.filter(organizacion=organization, activa=True).count(), 6)
         self.assertEqual(CapacidadOrganizacion.objects.filter(organizacion=organization).exclude(estado="no_aplica").count(), 5)
-        self.assertGreater(AreaCapacidadAmbiental.objects.filter(area__organizacion=organization).count(), 0)
-        diagnostic = DiagnosticoAmbientalInicial.objects.get(organizacion=organization, obra=None)
-        self.assertGreater(ElementoDiagnosticoAmbiental.objects.filter(diagnostico=diagnostic).count(), 0)
+        self.assertFalse(AreaCapacidadAmbiental.objects.filter(area__organizacion=organization).exists())
+        self.assertFalse(DiagnosticoAmbientalInicial.objects.filter(organizacion=organization, obra=None).exists())
         self.assertFalse(RegistroEmision.objects.filter(organizacion=organization).exists()); self.assertFalse(Observacion.objects.filter(organizacion=organization).exists()); self.assertFalse(ProblematicaAmbiental.objects.filter(organizacion=organization).exists())
 
     def test_onboarding_forces_chile_and_rejects_incompatible_commune(self):
@@ -205,8 +203,8 @@ class EditableOperationalStructureTests(TestCase):
         return response
 
     def test_matrix_is_editable_idempotent_and_tenant_safe(self):
-        areas = {"areas": ["bodega", "administracion_compras"]}
-        flows = {"flujos": {"materiales": "regular", "energia": "parcial"}, "relaciones": {"bodega": ["materiales"], "administracion_compras": ["energia"]}}
+        areas = {"areas": ["bodega", "administracion"]}
+        flows = {"flujos": {"materiales": "regular", "energia": "parcial"}, "relaciones": {"bodega": ["materiales"], "administracion": ["energia"]}}
         self.save(2, areas); self.save(2, areas); self.save(3, flows); self.save(3, flows)
         self.assertEqual(AreaOperacional.objects.filter(organizacion=self.organization, activa=True).count(), 2)
         self.assertEqual(CapacidadOrganizacion.objects.filter(organizacion=self.organization).exclude(estado="no_aplica").count(), 2)
@@ -216,14 +214,14 @@ class EditableOperationalStructureTests(TestCase):
         self.save(3, {"flujos": flows["flujos"], "relaciones": {"area_ajena": ["materiales"]}}, expected=400)
         self.assertEqual(AreaCapacidadAmbiental.objects.filter(area__organizacion=self.organization).count(), 2)
 
-    def test_configuration_change_regenerates_diagnostic_without_obsolete_rows(self):
-        self.save(2, {"areas": ["bodega", "administracion_compras"]})
-        self.save(3, {"flujos": {"materiales": "regular", "energia": "parcial"}, "relaciones": {"bodega": ["materiales"], "administracion_compras": ["energia"]}})
-        self.save(4, {"metodos": "Excel", "centralizacion": "parcial"})
-        diagnostic = DiagnosticoAmbientalInicial.objects.get(organizacion=self.organization, obra=None)
-        self.assertEqual(diagnostic.elementos.count(), 6)
-        self.save(3, {"flujos": {"agua": "sin_informacion"}, "relaciones": {"bodega": ["agua"], "administracion_compras": []}})
-        diagnostic.refresh_from_db()
-        self.assertEqual(diagnostic.elementos.count(), 4)
-        self.assertFalse(diagnostic.elementos.filter(nombre__in=["Materiales e insumos", "Energia"]).exists())
-        self.assertEqual(diagnostic.elementos.filter(nombre="Agua").count(), 2)
+    def test_configuration_change_replaces_obsolete_environmental_relations(self):
+        self.save(2, {"areas": ["bodega", "administracion"]})
+        self.save(3, {"flujos": {"materiales": "regular", "energia": "parcial"}, "relaciones": {"bodega": ["materiales"], "administracion": ["energia"]}})
+        self.assertEqual(AreaCapacidadAmbiental.objects.filter(area__organizacion=self.organization).count(), 2)
+        self.save(3, {"flujos": {"agua": "sin_informacion"}, "relaciones": {"bodega": ["agua"], "administracion": []}})
+        self.assertEqual(AreaCapacidadAmbiental.objects.filter(area__organizacion=self.organization).count(), 1)
+        self.assertEqual(
+            CapacidadOrganizacion.objects.filter(organizacion=self.organization).exclude(estado="no_aplica").count(),
+            1,
+        )
+        self.assertFalse(DiagnosticoAmbientalInicial.objects.filter(organizacion=self.organization, obra=None).exists())

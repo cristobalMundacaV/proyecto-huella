@@ -30,7 +30,7 @@ class FoundationApiTests(APITestCase):
         serializer = ObraSerializer(data={
             "organizacion": self.organizacion.id,
             "nombre": "Edificio habitacional",
-            "tipo_proyecto": "EdificaciÃ³n habitacional",
+            "tipo_proyecto": "Edificación habitacional",
             "fecha_inicio": "2026-08-25",
         })
         serializer.is_valid(raise_exception=True)
