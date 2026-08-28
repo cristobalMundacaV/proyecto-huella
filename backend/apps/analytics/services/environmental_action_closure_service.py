@@ -3,6 +3,7 @@ from django.utils import timezone
 from apps.analytics.models import DocumentoAmbiental, EvidenciaObra
 from apps.analytics.models_acciones import AccionAmbiental
 from apps.analytics.views_acciones import serialize_action
+from apps.analytics.policies.compliance import closure_errors
 
 
 def build_action_closure_status(action):
@@ -11,15 +12,27 @@ def build_action_closure_status(action):
     linked_documents = build_linked_documents(action, metadata)
     notes = metadata.get("closure_notes", [])
     references = metadata.get("closure_references", [])
-    required_evidence = action.evidence or metadata.get("required_evidence") or "Evidencia ambiental trazable"
+    required_evidence = (
+        action.evidence
+        or metadata.get("required_evidence")
+        or "Evidencia ambiental trazable"
+    )
     has_support = bool(linked_evidence or linked_documents or notes or references)
     missing_items = []
     warnings = []
 
     if not has_support:
-        missing_items.append("Vincular evidencia, documento, nota o referencia antes de cerrar.")
-    if action.status != AccionAmbiental.Estado.COMPLETADA and action.due_date and action.due_date < timezone.localdate():
-        warnings.append("La accion esta vencida; registrar resultado y evidencia antes del cierre.")
+        missing_items.append(
+            "Vincular evidencia, documento, nota o referencia antes de cerrar."
+        )
+    if (
+        action.status != AccionAmbiental.Estado.COMPLETADA
+        and action.due_date
+        and action.due_date < timezone.localdate()
+    ):
+        warnings.append(
+            "La accion esta vencida; registrar resultado y evidencia antes del cierre."
+        )
 
     return {
         "action_id": action.id,
@@ -29,14 +42,22 @@ def build_action_closure_status(action):
         "linked_evidence": linked_evidence,
         "linked_documents": linked_documents,
         "closure_readiness": {
-            "can_close": has_support or action.status == AccionAmbiental.Estado.COMPLETADA,
+            "can_close": has_support
+            or action.status == AccionAmbiental.Estado.COMPLETADA,
             "missing_items": missing_items,
             "warnings": warnings,
         },
         "technical_context": {
-            "source_decision": metadata.get("priority_id") or metadata.get("decision") or action.source_card_id or "",
-            "expected_impact": metadata.get("expected_impact") or metadata.get("impact_observed") or "",
-            "recommended_next_step": metadata.get("recommended_next_step") or action.tracking_kpi or "",
+            "source_decision": metadata.get("priority_id")
+            or metadata.get("decision")
+            or action.source_card_id
+            or "",
+            "expected_impact": metadata.get("expected_impact")
+            or metadata.get("impact_observed")
+            or "",
+            "recommended_next_step": metadata.get("recommended_next_step")
+            or action.tracking_kpi
+            or "",
         },
         "closure": metadata.get("closure", {}),
     }
@@ -55,22 +76,44 @@ def attach_evidence_to_action(action, payload):
     reference = clean_text(payload.get("reference"))
 
     if evidence_id:
-        evidence = EvidenciaObra.objects.filter(id=evidence_id, organizacion=action.organizacion).first()
+        evidence = EvidenciaObra.objects.filter(
+            id=evidence_id, organizacion=action.organizacion
+        ).first()
         if not evidence:
             raise ValueError("Evidencia no encontrada para esta empresa.")
         action.evidencia = evidence
-        upsert_ref(metadata["linked_evidence"], {"id": evidence.id, "label": evidence.nombre, "type": evidence.tipo_evidencia})
+        upsert_ref(
+            metadata["linked_evidence"],
+            {
+                "id": evidence.id,
+                "label": evidence.nombre,
+                "type": evidence.tipo_evidencia,
+            },
+        )
 
     if document_id:
-        document = DocumentoAmbiental.objects.filter(id=document_id, organizacion=action.organizacion).first()
+        document = DocumentoAmbiental.objects.filter(
+            id=document_id, organizacion=action.organizacion
+        ).first()
         if not document:
             raise ValueError("Documento ambiental no encontrado para esta empresa.")
-        upsert_ref(metadata["linked_documents"], {"id": document.id, "label": document.nombre, "type": document.tipo_documento})
+        upsert_ref(
+            metadata["linked_documents"],
+            {
+                "id": document.id,
+                "label": document.nombre,
+                "type": document.tipo_documento,
+            },
+        )
 
     if note:
-        metadata["closure_notes"].append({"text": note, "created_at": timezone.now().isoformat()})
+        metadata["closure_notes"].append(
+            {"text": note, "created_at": timezone.now().isoformat()}
+        )
     if reference:
-        metadata["closure_references"].append({"text": reference, "created_at": timezone.now().isoformat()})
+        metadata["closure_references"].append(
+            {"text": reference, "created_at": timezone.now().isoformat()}
+        )
 
     metadata["last_evidence_update_at"] = timezone.now().isoformat()
     action.metadata = metadata
@@ -91,10 +134,9 @@ def close_environmental_action(action, payload):
     evidence_summary = clean_text(payload.get("evidence_summary"))
     impact_observed = clean_text(payload.get("impact_observed"))
 
-    if not status["closure_readiness"]["can_close"] and not close_with_warning:
-        raise ValueError("Falta evidencia o justificacion para cerrar la accion.")
-    if close_with_warning and not closure_result:
-        raise ValueError("Para cerrar con advertencia debes registrar un resultado de cierre.")
+    errors = closure_errors(status, payload)
+    if errors:
+        raise ValueError(errors[0])
 
     closure = {
         "closed_at": timezone.now().isoformat(),
@@ -123,8 +165,17 @@ def close_environmental_action(action, payload):
 
 def build_linked_evidence(action, metadata):
     refs = list(metadata.get("linked_evidence", []))
-    if action.evidencia_id and not any(str(item.get("id")) == str(action.evidencia_id) for item in refs):
-        refs.insert(0, {"id": action.evidencia_id, "label": action.evidencia.nombre, "type": action.evidencia.tipo_evidencia})
+    if action.evidencia_id and not any(
+        str(item.get("id")) == str(action.evidencia_id) for item in refs
+    ):
+        refs.insert(
+            0,
+            {
+                "id": action.evidencia_id,
+                "label": action.evidencia.nombre,
+                "type": action.evidencia.tipo_evidencia,
+            },
+        )
     return refs
 
 

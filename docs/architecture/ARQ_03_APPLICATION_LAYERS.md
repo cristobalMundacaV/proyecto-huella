@@ -334,3 +334,50 @@ ARQ-03E — GOVERNANCE / CALCULATION / INDICATORS / QUALITY APPLICATION LAYERS:
 **CLOSED**.
 
 ARQ-03E stops here; ARQ-03F is not started.
+
+## ARQ-03F — Improvement / Compliance
+
+### Application-layer ownership
+
+- `selectors/improvement.py` owns problem, action, measurement, history, scope,
+  indicator, snapshot and reevaluation-cycle reads.
+- `selectors/compliance.py` owns document, extracted-variable, normative-limit, alert,
+  work-scope and compliance-summary querysets.
+- `policies/improvement.py` owns deterministic problem transitions, action selection,
+  measurement chronology, evaluation prerequisites and cycle-start rules.
+- `policies/compliance.py` owns minimum closure evidence and scoped-work payload rules.
+- Improvement services own problem/action/measurement/history mutations and the complete
+  Action → BASE Snapshot → RESULT Snapshot → Result → Cycle orchestration.
+- Compliance services own mutable compliance entities; the established document
+  serializer path remains intact for multipart/M2M compatibility.
+
+### Preserved behavior
+
+Problem → Action → Measurement → Snapshot → Result → Cycle remains unchanged. Modern
+closure still depends on deterministic reevaluation, frozen snapshots and results. AI may
+propose but cannot verify, transition or close. Existing legacy behavior, requirement
+classes, tenant/work RBAC, hidden-resource 404s, invalid-payload 400s, URLs, response
+shapes and status codes are preserved. No operational truth or scientific calculation was
+moved into Improvement.
+
+### Known debt
+
+The generic problem PATCH can still persist `cerrada` when exposed as serializer-writable
+state. This behavior is intentionally preserved by ARQ-03F and is assigned to ARQ-09.
+`DocumentoAmbientalSerializer` continues to inject the historical unsupported
+`perfil_ambiental` argument; its existing PostgreSQL failure is outside this slice and was
+not corrected.
+
+### Validation
+
+- Problems, intervention, reevaluation/snapshots/results and compliance: **39/40** on
+  PostgreSQL; the only error is the documented `DocumentoAmbiental(perfil_ambiental)`
+  failure outside ARQ-03F.
+- Application layers, architecture, modularization and tenant/RBAC: **103/103**.
+- The critical baseline retains exactly its five documented failures; no new or changed
+  failure was observed.
+- Django check, migration dry-run, Black, compileall and diff checks pass.
+
+ARQ-03F — IMPROVEMENT / COMPLIANCE APPLICATION LAYERS: **CLOSED**.
+
+ARQ-03F stops here; ARQ-03G is not started.
