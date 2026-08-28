@@ -29,7 +29,7 @@ class ConstructionV1IntegrationTests(APITestCase):
         self.foreign_work = Obra.objects.create(organizacion=self.other, nombre="Ajena", fecha_inicio=date(2026, 1, 1))
         self.source = FuenteDatos.objects.create(organizacion=self.org, nombre="Medicion obra")
         self.user = User.objects.create_user("construction-v1", password="test")
-        UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.org)
+        UsuarioOrganizacion.objects.create(user=self.user, organizacion=self.org, rol=UsuarioOrganizacion.Rol.ADMIN)
         self.client.force_login(self.user)
         self.base = f"/api/organizaciones/{self.org.organizacion_id}"
 
@@ -141,10 +141,14 @@ class ConstructionV1IntegrationTests(APITestCase):
         mappings = analysis.data["columnas"]
         for item in mappings:
             if not item["concepto_normalizado"]: item["concepto_normalizado"] = item["columna_normalizada"]
-        self.client.post(f"{self.base}/ingestas/{process_id}/mapeo/", {"mapeos": mappings}, format="json")
+        mapping = self.client.post(f"{self.base}/ingestas/{process_id}/mapeo/", {"mapeos": mappings}, format="json")
+        self.assertEqual(mapping.status_code, 200, mapping.data)
         preview = self.client.get(f"{self.base}/ingestas/{process_id}/preview/")
         self.assertEqual(preview.data["filas_validas"], 1)
-        self.client.post(f"{self.base}/ingestas/{process_id}/confirmar/", {}, format="json")
+        confirmation = self.client.post(f"{self.base}/ingestas/{process_id}/confirmar/", {}, format="json")
+        self.assertEqual(confirmation.status_code, 200, confirmation.data)
+        self.assertEqual(confirmation.data["filas_con_error"], 0, confirmation.data)
+        self.assertEqual(confirmation.data["actividades_creadas"], 1, confirmation.data)
         self.assertEqual(ActividadOperacional.objects.get(codigo=f"ING-{process_id}-1").obra, self.work_a)
 
     def test_timeline_context_and_close_preserve_history(self):
