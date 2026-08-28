@@ -12,6 +12,11 @@ from ..models import (
 from .context_gateway import ContextGateway
 from .environmental_agent import SYSTEM_RULES
 from .environmental_agent import OpenAIEnvironmentalProvider
+from ..policies.intelligence import (
+    IntelligenceOperation,
+    validate_ai_operation,
+    validate_structured_proposal,
+)
 
 PROPOSAL_FIELDS = {
     "titulo",
@@ -71,6 +76,7 @@ class CopilotProposalService:
     def propose(
         self, problem, message="", user=None, previous=None, context_categories=None
     ):
+        validate_ai_operation(IntelligenceOperation.SUGGEST)
         context = self.gateway.problem(problem, problem.organizacion)
         additional = {}
         for category in context_categories or []:
@@ -188,34 +194,15 @@ class CopilotProposalService:
 
     @staticmethod
     def _validate(payload, problem):
-        if not isinstance(payload, dict) or not PROPOSAL_FIELDS.issubset(payload):
-            raise ValidationError(
-                "El proveedor no devolvio una propuesta estructurada valida."
-            )
-
-        for field in (
-            "kpis_afectados",
-            "requisitos",
-            "riesgos",
-            "hechos_utilizados",
-            "limitaciones",
-            "supuestos",
-        ):
-            if not isinstance(
-                payload[field],
-                list,
-            ):
-                raise ValidationError({field: "Debe ser una lista."})
-
-        if payload["prioridad"] not in RecomendacionAgenteAmbiental.Prioridad.values:
-            raise ValidationError({"prioridad": "Valor invalido."})
         allowed = set(
             problem.indicadores_v2.values_list("indicador__codigo", flat=True)
         ) or {problem.indicador}
-        if not set(payload["kpis_afectados"]).issubset(allowed):
-            raise ValidationError(
-                "La propuesta referencia KPIs no asociados a la problematica."
-            )
+        validate_structured_proposal(
+            payload,
+            required_fields=PROPOSAL_FIELDS,
+            priorities=set(RecomendacionAgenteAmbiental.Prioridad.values),
+            allowed_kpis=allowed,
+        )
 
 
 def default_copilot_service():

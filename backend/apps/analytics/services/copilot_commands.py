@@ -10,7 +10,7 @@ from ..models import (
     RestriccionContextual,
 )
 from .intervention_v2 import escalate_problem, select_action
-from ..policies.intelligence import validate_command_transition
+from ..policies.intelligence import validate_command_execution
 
 
 def prepare_action(proposal):
@@ -57,8 +57,8 @@ def prepare_escalation(problem, reason):
 
 
 @transaction.atomic
-def confirm_command(command, user):
-    validate_command_transition(command)
+def confirm_command(command, user, *, confirmed=False):
+    validate_command_execution(command, confirmed=confirmed, user=user)
     if command.tipo == ComandoCopiloto.Tipo.ACCION:
         action = AccionMejoraAmbiental.objects.create(
             problematica=command.problematica, estado="propuesta", **command.payload

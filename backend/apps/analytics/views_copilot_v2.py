@@ -257,6 +257,8 @@ def confirm_copilot_command(request, command_id):
             {"confirmado": ["Se requiere confirmacion humana explicita."]}, status=400
         )
     try:
-        return Response(confirm_command(command, request.user), status=201)
+        return Response(
+            confirm_command(command, request.user, confirmed=True), status=201
+        )
     except ValidationError as exc:
         return Response({"detail": exc.messages}, status=400)

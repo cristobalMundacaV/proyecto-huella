@@ -335,7 +335,10 @@ class CopilotV2Tests(APITestCase):
         )
         command = prepare_action(proposal)
         self.assertEqual(AccionMejoraAmbiental.objects.count(), 0)
-        result = confirm_command(command, self.user)
+        with self.assertRaises(ValidationError):
+            confirm_command(command, self.user)
+        self.assertEqual(AccionMejoraAmbiental.objects.count(), 0)
+        result = confirm_command(command, self.user, confirmed=True)
         self.assertEqual(result["ciclo"], 1)
         self.assertEqual(AccionMejoraAmbiental.objects.get().estado, "seleccionada")
         proposal.refresh_from_db()
