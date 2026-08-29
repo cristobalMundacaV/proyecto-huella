@@ -1,17 +1,62 @@
 import {
+    BriefcaseBusiness,
     Boxes,
     Building2,
     ClipboardCheck,
+    ClipboardList,
     Factory,
+    HardHat,
     Leaf,
     Package,
     Settings,
+    ShieldAlert,
     ShoppingCart,
     Truck,
     Wrench,
 } from "lucide-react";
 
+const style = (icon, headerClass, iconClass) => ({
+    icon,
+    headerClass,
+    iconClass,
+});
+
 export const DEPARTMENT_PRESENTATION = {
+    administracion: style(
+        BriefcaseBusiness,
+        "bg-slate-50 border-slate-200",
+        "bg-slate-200/70 text-slate-700",
+    ),
+    compras_adquisiciones: style(
+        ShoppingCart,
+        "bg-zinc-50 border-zinc-200",
+        "bg-zinc-200/70 text-zinc-700",
+    ),
+    maquinaria_equipos: style(
+        Settings,
+        "bg-stone-50 border-stone-200",
+        "bg-stone-200/70 text-stone-700",
+    ),
+    medio_ambiente_sostenibilidad: style(
+        Leaf,
+        "bg-emerald-50 border-emerald-200",
+        "bg-emerald-100 text-emerald-700",
+    ),
+    oficina_tecnica: style(
+        ClipboardList,
+        "bg-blue-50 border-blue-200",
+        "bg-blue-100 text-blue-700",
+    ),
+    prevencion_riesgos_hse: style(
+        ShieldAlert,
+        "bg-red-50 border-red-200",
+        "bg-red-100 text-red-700",
+    ),
+    terreno_supervision: style(
+        HardHat,
+        "bg-cyan-50 border-cyan-200",
+        "bg-cyan-100 text-cyan-700",
+    ),
     medio_ambiente: {
         icon: Leaf,
         headerClass:
@@ -92,3 +137,16 @@ export const DEPARTMENT_PRESENTATION = {
             "bg-gray-100 text-gray-700",
     },
 };
+
+export const DEPARTMENT_TYPE_OPTIONS = [
+    ["administracion_compras", "Administración y compras"],
+    ["bodega", "Bodega"],
+    ["logistica_transporte", "Logística y transporte"],
+    ["maquinaria_operaciones", "Maquinaria y operaciones"],
+    ["medio_ambiente", "Medio ambiente"],
+    ["gestion_obra", "Gestión de obra"],
+    ["mantenimiento", "Mantenimiento"],
+    ["produccion", "Producción"],
+    ["calidad_laboratorio", "Calidad y laboratorio"],
+    ["otro", "Otro"],
+];

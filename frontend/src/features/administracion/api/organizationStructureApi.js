@@ -96,3 +96,15 @@ export async function removeDepartmentUser(
         )}/areas-operacionales/${departmentId}/usuarios/${assignmentId}/`,
     );
 }
+
+export async function getOrganizationUsers(
+    organizationId,
+) {
+    return (
+        await api.get(
+            `${base(
+                organizationId,
+            )}/usuarios/`,
+        )
+    ).data;
+}
