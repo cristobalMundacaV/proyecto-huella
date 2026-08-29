@@ -271,7 +271,7 @@ from .views_account_lifecycle import (
     onboarding,
     request_password_reset,
 )
-from backend.apps.analytics import views_operational_context
+from . import views_operational_context
 
 urlpatterns = [
     path("auth/activar/<str:uid>/<str:token>/", activate_account),
