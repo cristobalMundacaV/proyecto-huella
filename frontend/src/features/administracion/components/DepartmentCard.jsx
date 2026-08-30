@@ -56,7 +56,14 @@ export default function DepartmentCard({
                                     <UserRound aria-hidden="true" size={18} />
                                 </span>
                                 <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-bold text-slate-950">{user.nombre}</p>
+                                    <div className="flex min-w-0 items-center gap-2">
+                                        <p className="truncate text-sm font-bold text-slate-950">{user.nombre}</p>
+                                        {user.es_principal && (
+                                            <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800">
+                                                Principal
+                                            </span>
+                                        )}
+                                    </div>
                                     <p className="truncate text-xs text-slate-500">
                                         {user.cargo || "Sin cargo informado"}
                                         {user.email ? ` · ${user.email}` : ""}

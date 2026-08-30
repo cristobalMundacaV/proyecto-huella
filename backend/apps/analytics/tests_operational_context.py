@@ -5,7 +5,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from .models import AreaOperacional, EspacioTrabajoOperacional, EvidenciaObra, Obra, Organizacion, UsuarioObraAcceso, UsuarioOrganizacion
+from .models import AreaOperacional, EspacioTrabajoOperacional, EvidenciaObra, Obra, Organizacion, UsuarioAreaOperacional, UsuarioObraAcceso, UsuarioOrganizacion
 from .services.operational_context import resolve_operational_context
 
 
@@ -56,3 +56,69 @@ class OperationalContextTests(TestCase):
         self.assertEqual(evidence.obra, self.work)
         self.assertEqual(evidence.area_origen, self.area)
         self.assertEqual(evidence.usuario_origen, self.user)
+
+
+class OperationalAreaPrimaryAssignmentTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.organization = Organizacion.objects.create(nombre="Carbono Zero")
+        self.admin = User.objects.create_user("admin-estructura")
+        UsuarioOrganizacion.objects.create(
+            user=self.admin,
+            organizacion=self.organization,
+            rol=UsuarioOrganizacion.Rol.ADMIN,
+        )
+        self.marcela = User.objects.create_user(
+            "marcela",
+            first_name="Marcela",
+            last_name="Rojas",
+        )
+        self.membership = UsuarioOrganizacion.objects.create(
+            user=self.marcela,
+            organizacion=self.organization,
+        )
+        self.administration = AreaOperacional.objects.create(
+            organizacion=self.organization,
+            nombre="Administración",
+        )
+        self.logistics = AreaOperacional.objects.create(
+            organizacion=self.organization,
+            nombre="Logística / Transporte",
+        )
+        # El middleware de tenant valida al usuario antes de la autenticación de DRF.
+        self.client.force_login(self.admin)
+
+    def assignment_url(self, area):
+        return (
+            f"/api/organizaciones/{self.organization.organizacion_id}"
+            f"/areas-operacionales/{area.id}/usuarios/"
+        )
+
+    def test_changing_primary_area_leaves_only_one_for_user(self):
+        first = self.client.post(
+            self.assignment_url(self.administration),
+            {"user_id": self.marcela.id, "cargo": "Administradora", "es_principal": True},
+            format="json",
+        )
+        self.assertEqual(first.status_code, 201)
+
+        second = self.client.post(
+            self.assignment_url(self.logistics),
+            {"user_id": self.marcela.id, "cargo": "Coordinadora", "es_principal": True},
+            format="json",
+        )
+        self.assertEqual(second.status_code, 201)
+
+        assignments = UsuarioAreaOperacional.objects.filter(
+            usuario_organizacion=self.membership,
+            activo=True,
+        )
+        self.assertEqual(assignments.count(), 2)
+        self.assertEqual(assignments.filter(es_principal=True).count(), 1)
+        self.assertFalse(assignments.get(area=self.administration).es_principal)
+        self.assertTrue(assignments.get(area=self.logistics).es_principal)
+
+        administration_users = self.client.get(self.assignment_url(self.administration))
+        logistics_users = self.client.get(self.assignment_url(self.logistics))
+        self.assertFalse(administration_users.data[0]["es_principal"])
+        self.assertTrue(logistics_users.data[0]["es_principal"])

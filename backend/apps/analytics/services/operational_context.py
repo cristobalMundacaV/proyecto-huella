@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from django.http import Http404
+from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
 from ..models import (
@@ -141,6 +142,7 @@ def create_operational_evidence(*, context, uploaded_file, name):
     )
 
 
+@transaction.atomic
 def assign_user_to_operational_area(
     *,
     membership,
@@ -148,6 +150,10 @@ def assign_user_to_operational_area(
     cargo="",
     is_primary=False,
 ):
+    # Serializa las asignaciones de una misma membresía para preservar una sola
+    # área principal incluso ante solicitudes concurrentes.
+    membership.__class__.objects.select_for_update().get(pk=membership.pk)
+
     if is_primary:
         UsuarioAreaOperacional.objects.filter(
             usuario_organizacion=membership,
