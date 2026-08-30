@@ -157,13 +157,22 @@ def assign_user_to_operational_area(
             es_principal=False,
         )
 
-    assignment = UsuarioAreaOperacional(
-        usuario_organizacion=membership,
-        area=area,
-        cargo=cargo.strip(),
-        es_principal=is_primary,
-        activo=True,
+    assignment, created = (
+        UsuarioAreaOperacional.objects.get_or_create(
+            usuario_organizacion=membership,
+            area=area,
+            defaults={
+                "cargo": cargo.strip(),
+                "es_principal": is_primary,
+                "activo": True,
+            },
+        )
     )
+
+    if not created:
+        assignment.cargo = cargo.strip()
+        assignment.es_principal = is_primary
+        assignment.activo = True
 
     assignment.full_clean()
     assignment.save()
