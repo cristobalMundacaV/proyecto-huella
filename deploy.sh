@@ -45,6 +45,9 @@ DEPLOY_SHA="$(git rev-parse --short HEAD)"
 log "Desplegando commit $DEPLOY_SHA"
 
 log "Construyendo y levantando servicios Docker"
+
+docker compose down --remove-orphans || true
+docker container prune -f >/dev/null 2>&1 || true
 docker compose up -d --build --remove-orphans
 
 log "Esperando al backend"
