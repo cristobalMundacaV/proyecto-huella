@@ -1,5 +1,6 @@
 import {
     Plus,
+    Star,
     Trash2,
     UserRound,
     UserRoundPlus,
@@ -16,6 +17,7 @@ export default function DepartmentCard({
     department,
     onAddUser,
     onDelete,
+    onSetPrimary,
     onRemoveUser,
     users = [],
 }) {
@@ -69,16 +71,33 @@ export default function DepartmentCard({
                                         {user.email ? ` · ${user.email}` : ""}
                                     </p>
                                 </div>
-                                <IconButton
-                                    type="button"
-                                    icon={X}
-                                    size="sm"
-                                    disabled={busy}
-                                    aria-label={`Quitar a ${user.nombre} de ${department.nombre}`}
-                                    title="Quitar del departamento"
-                                    className="h-9 w-9 shrink-0 rounded-full text-slate-400 hover:bg-red-50 hover:text-red-600"
-                                    onClick={() => onRemoveUser(department, user)}
-                                />
+                                <div className="flex shrink-0 items-center gap-1">
+                                    <IconButton
+                                        type="button"
+                                        icon={Star}
+                                        size="sm"
+                                        disabled={busy}
+                                        aria-pressed={user.es_principal}
+                                        aria-label={user.es_principal
+                                            ? `Quitar ${department.nombre} como área principal de ${user.nombre}`
+                                            : `Definir ${department.nombre} como área principal de ${user.nombre}`}
+                                        title={user.es_principal ? "Quitar como área principal" : "Definir como área principal"}
+                                        className={`h-9 w-9 rounded-full transition ${user.es_principal
+                                            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 [&_svg]:fill-current"
+                                            : "text-slate-400 hover:bg-emerald-50 hover:text-emerald-700"}`}
+                                        onClick={() => onSetPrimary(department, user, !user.es_principal)}
+                                    />
+                                    <IconButton
+                                        type="button"
+                                        icon={X}
+                                        size="sm"
+                                        disabled={busy}
+                                        aria-label={`Quitar a ${user.nombre} de ${department.nombre}`}
+                                        title="Quitar del departamento"
+                                        className="h-9 w-9 rounded-full text-slate-400 hover:bg-red-50 hover:text-red-600"
+                                        onClick={() => onRemoveUser(department, user)}
+                                    />
+                                </div>
                             </div>
                         ))}
                     </div>

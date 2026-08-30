@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from .models import (
     AreaOperacional,
@@ -259,6 +260,7 @@ def operational_area_users(
 
 
 @api_view(["PATCH", "DELETE"])
+@transaction.atomic
 def operational_area_user_detail(
     request,
     organizacion_id,
@@ -277,7 +279,7 @@ def operational_area_user_detail(
     )
 
     assignment = get_object_or_404(
-        UsuarioAreaOperacional,
+        UsuarioAreaOperacional.objects.select_for_update(),
         pk=assignment_id,
         area_id=area_id,
         area__organizacion=organization,
@@ -287,18 +289,24 @@ def operational_area_user_detail(
         if "cargo" in request.data:
             assignment.cargo = request.data["cargo"].strip()
 
-        if request.data.get("es_principal"):
-            UsuarioAreaOperacional.objects.filter(
-                usuario_organizacion=assignment.usuario_organizacion,
-                es_principal=True,
-                activo=True,
-            ).exclude(
-                pk=assignment.pk,
-            ).update(
-                es_principal=False,
-            )
+        if "es_principal" in request.data:
+            is_primary = bool(request.data["es_principal"])
 
-            assignment.es_principal = True
+            if is_primary:
+                assignment.usuario_organizacion.__class__.objects.select_for_update().get(
+                    pk=assignment.usuario_organizacion_id,
+                )
+                UsuarioAreaOperacional.objects.filter(
+                    usuario_organizacion=assignment.usuario_organizacion,
+                    es_principal=True,
+                    activo=True,
+                ).exclude(
+                    pk=assignment.pk,
+                ).update(
+                    es_principal=False,
+                )
+
+            assignment.es_principal = is_primary
 
         assignment.full_clean()
         assignment.save()

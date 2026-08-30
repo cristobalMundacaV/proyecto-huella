@@ -81,9 +81,9 @@ class OperationalAreaPrimaryAssignmentTests(TestCase):
             organizacion=self.organization,
             nombre="Administración",
         )
-        self.logistics = AreaOperacional.objects.create(
+        self.environment = AreaOperacional.objects.create(
             organizacion=self.organization,
-            nombre="Logística / Transporte",
+            nombre="Medio ambiente",
         )
         # El middleware de tenant valida al usuario antes de la autenticación de DRF.
         self.client.force_login(self.admin)
@@ -94,20 +94,37 @@ class OperationalAreaPrimaryAssignmentTests(TestCase):
             f"/areas-operacionales/{area.id}/usuarios/"
         )
 
+    def assignment_detail_url(self, area, assignment_id):
+        return f"{self.assignment_url(area)}{assignment_id}/"
+
     def test_changing_primary_area_leaves_only_one_for_user(self):
         first = self.client.post(
             self.assignment_url(self.administration),
-            {"user_id": self.marcela.id, "cargo": "Administradora", "es_principal": True},
+            {"user_id": self.marcela.id, "cargo": "Administradora", "es_principal": False},
             format="json",
         )
         self.assertEqual(first.status_code, 201)
 
         second = self.client.post(
-            self.assignment_url(self.logistics),
-            {"user_id": self.marcela.id, "cargo": "Coordinadora", "es_principal": True},
+            self.assignment_url(self.environment),
+            {"user_id": self.marcela.id, "cargo": "Encargada ambiental", "es_principal": False},
             format="json",
         )
         self.assertEqual(second.status_code, 201)
+
+        environment_primary = self.client.patch(
+            self.assignment_detail_url(self.environment, second.data["id"]),
+            {"es_principal": True},
+            format="json",
+        )
+        self.assertEqual(environment_primary.status_code, 200)
+
+        administration_primary = self.client.patch(
+            self.assignment_detail_url(self.administration, first.data["id"]),
+            {"es_principal": True},
+            format="json",
+        )
+        self.assertEqual(administration_primary.status_code, 200)
 
         assignments = UsuarioAreaOperacional.objects.filter(
             usuario_organizacion=self.membership,
@@ -115,10 +132,32 @@ class OperationalAreaPrimaryAssignmentTests(TestCase):
         )
         self.assertEqual(assignments.count(), 2)
         self.assertEqual(assignments.filter(es_principal=True).count(), 1)
-        self.assertFalse(assignments.get(area=self.administration).es_principal)
-        self.assertTrue(assignments.get(area=self.logistics).es_principal)
+        administration = assignments.get(area=self.administration)
+        environment = assignments.get(area=self.environment)
+        self.assertEqual(administration.id, first.data["id"])
+        self.assertEqual(environment.id, second.data["id"])
+        self.assertEqual(administration.cargo, "Administradora")
+        self.assertEqual(environment.cargo, "Encargada ambiental")
+        self.assertTrue(administration.es_principal)
+        self.assertFalse(environment.es_principal)
 
         administration_users = self.client.get(self.assignment_url(self.administration))
-        logistics_users = self.client.get(self.assignment_url(self.logistics))
-        self.assertFalse(administration_users.data[0]["es_principal"])
-        self.assertTrue(logistics_users.data[0]["es_principal"])
+        environment_users = self.client.get(self.assignment_url(self.environment))
+        self.assertTrue(administration_users.data[0]["es_principal"])
+        self.assertFalse(environment_users.data[0]["es_principal"])
+
+    def test_patch_can_explicitly_unmark_primary_assignment(self):
+        created = self.client.post(
+            self.assignment_url(self.administration),
+            {"user_id": self.marcela.id, "cargo": "Administradora", "es_principal": True},
+            format="json",
+        )
+
+        response = self.client.patch(
+            self.assignment_detail_url(self.administration, created.data["id"]),
+            {"es_principal": False},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data["es_principal"])

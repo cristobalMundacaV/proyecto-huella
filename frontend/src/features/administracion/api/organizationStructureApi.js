@@ -85,6 +85,22 @@ export async function addDepartmentUser(
     ).data;
 }
 
+export async function updateDepartmentUser(
+    organizationId,
+    departmentId,
+    assignmentId,
+    payload,
+) {
+    return (
+        await api.patch(
+            `${base(
+                organizationId,
+            )}/areas-operacionales/${departmentId}/usuarios/${assignmentId}/`,
+            payload,
+        )
+    ).data;
+}
+
 export async function removeDepartmentUser(
     organizationId,
     departmentId,

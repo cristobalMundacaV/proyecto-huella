@@ -14,6 +14,7 @@ import {
     getDepartments,
     getOrganizationUsers,
     removeDepartmentUser,
+    updateDepartmentUser,
 } from "../api/organizationStructureApi";
 import AssignDepartmentMemberModal from "../components/AssignDepartmentMemberModal";
 import CreateDepartmentModal from "../components/CreateDepartmentModal";
@@ -102,6 +103,23 @@ export default function OrganizationStructurePage() {
         );
     }
 
+    function handleSetPrimary(department, user, isPrimary) {
+        return mutate(
+            () => updateDepartmentUser(
+                activeOrganizacionId,
+                department.id,
+                user.id,
+                { es_principal: isPrimary },
+            ),
+            {
+                title: isPrimary ? "Área principal actualizada" : "Área principal desmarcada",
+                subtitle: isPrimary
+                    ? `${department.nombre} ahora es el área principal de ${user.nombre}.`
+                    : `${department.nombre} dejó de ser el área principal de ${user.nombre}.`,
+            },
+        );
+    }
+
     function confirmAction() {
         if (confirmation.kind === "department") {
             return mutate(
@@ -181,6 +199,7 @@ export default function OrganizationStructurePage() {
                                 department: selected,
                                 users: usersByDepartment[selected.id] || [],
                             })}
+                            onSetPrimary={handleSetPrimary}
                             onRemoveUser={(selected, user) => setConfirmation({
                                 kind: "user",
                                 department: selected,
