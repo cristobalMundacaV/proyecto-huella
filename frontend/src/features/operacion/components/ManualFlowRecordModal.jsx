@@ -1083,46 +1083,6 @@ export default function ManualFlowRecordModal({
                             )}
                         </Select>
                     )}
-                    <Input
-                        required
-                        type={
-                            config.modes?.find(
-                                (mode) =>
-                                    mode.value ===
-                                    form.mode,
-                            )?.valueType === "text"
-                                ? "text"
-                                : "number"
-                        }
-                        step="any"
-                        label={
-                            config.modes?.find(
-                                (mode) =>
-                                    mode.value ===
-                                    form.mode,
-                            )?.valueType === "text"
-                                ? "Observación"
-                                : domain === "combustibles"
-                                    ? "Cantidad"
-                                    : "Valor"
-                        }
-                        value={
-                            form.value
-                        }
-                        onChange={(
-                            event,
-                        ) =>
-                            setForm(
-                                (current) => ({
-                                    ...current,
-                                    value:
-                                        event.target
-                                            .value,
-                                }),
-                            )
-                        }
-                    />
-
                     {unitOptions.length > 0 && (
                         <Select
                             required
@@ -1142,6 +1102,25 @@ export default function ManualFlowRecordModal({
                             ))}
                         </Select>
                     )}
+
+                    <Input
+                        required
+                        type={selectedMode?.valueType === "text" ? "text" : "number"}
+                        step="any"
+                        label={selectedMode?.valueType === "text"
+                            ? "Observación"
+                            : domain === "combustibles"
+                                ? "Cantidad"
+                                : "Valor"}
+                        suffix={selectedMode?.valueType === "text" ? undefined : form.unit}
+                        value={form.value}
+                        onChange={(event) =>
+                            setForm((current) => ({
+                                ...current,
+                                value: event.target.value,
+                            }))
+                        }
+                    />
 
                     {domain === "combustibles" && (
                         <Input

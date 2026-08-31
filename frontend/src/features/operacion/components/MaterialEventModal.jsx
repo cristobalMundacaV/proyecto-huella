@@ -231,21 +231,6 @@ export default function MaterialEventModal({
                     </option>
                 </Select>
 
-                <Input
-                    required
-                    type="number"
-                    step="any"
-                    label="Cantidad"
-                    value={form.amount}
-                    onChange={(event) =>
-                        setForm((current) => ({
-                            ...current,
-                            amount:
-                                event.target.value,
-                        }))
-                    }
-                />
-
                 <Select
                     required
                     label="Unidad de medida"
@@ -264,6 +249,22 @@ export default function MaterialEventModal({
                         <option value="">Selecciona primero un material</option>
                     )}
                 </Select>
+
+                <Input
+                    required
+                    type="number"
+                    step="any"
+                    label="Cantidad"
+                    suffix={form.unit}
+                    value={form.amount}
+                    onChange={(event) =>
+                        setForm((current) => ({
+                            ...current,
+                            amount:
+                                event.target.value,
+                        }))
+                    }
+                />
 
                 <Select
                     required

@@ -22,6 +22,7 @@ export function Input({
   helper,
   error,
   required,
+  suffix,
   ...inputProps
 }) {
   const isFile = inputProps.type === "file";
@@ -46,16 +47,20 @@ export function Input({
           file:text-[var(--brand-primary)]
           hover:file:border-[var(--border-strong)]
         `
-      : inputProps.className || "",
+      : `${inputProps.className || ""} ${suffix ? "pr-20" : ""}`,
   });
 
   return (
     <Field {...{ label, helper, error, required, inputId }}>
-      {() => (
-        <input
-          {...props}
-          required={required}
-        />
+      {() => suffix ? (
+        <span className="relative block">
+          <input {...props} required={required} />
+          <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 flex max-w-20 items-center border-l border-[var(--border-default)] bg-[var(--bg-surface-subtle)] px-3 text-xs font-bold text-[var(--text-secondary)]">
+            {suffix}
+          </span>
+        </span>
+      ) : (
+        <input {...props} required={required} />
       )}
     </Field>
   );
