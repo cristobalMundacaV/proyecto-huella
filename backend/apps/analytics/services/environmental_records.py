@@ -226,9 +226,6 @@ def link_evidence_to_records(evidence, records, *, organizacion):
     if any(record.organizacion_id != organizacion.id for record in records):
         raise ValidationError({"registros": "Deben pertenecer a la misma organizacion."})
     evidence.registros_emision.add(*records)
-    if hasattr(evidence, "estado_documental") and evidence.estado_documental in {"", "pendiente", "sin_vinculo"}:
-        evidence.estado_documental = "vinculada"
-        evidence.save(update_fields=["estado_documental", "updated_at"])
     return evidence
 
 

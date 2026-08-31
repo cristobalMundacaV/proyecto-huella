@@ -10,6 +10,7 @@ from .models import (
 )
 from .policies.quality import discrepancy_errors
 from .services.quality_v2 import update_discrepancy
+from .services.evidence_documents import current_document_result, current_evidence_version
 
 
 class EvaluacionCalidadSerializer(serializers.ModelSerializer):
@@ -42,10 +43,9 @@ class EvaluacionCalidadSerializer(serializers.ModelSerializer):
                 {
                     "id": item.evidencia_id,
                     "nombre": item.evidencia.nombre,
-                    "estado_documental": item.evidencia.estado_documental,
-                    "validacion_documental": (
-                        item.evidencia.metadata_extraccion or {}
-                    ).get("validacion_documental"),
+                    "estado_documental": current_document_result(item.evidencia, item).get("veredicto"),
+                    "estado_procesamiento": getattr(current_evidence_version(item.evidencia, item), "estado_procesamiento", None),
+                    "validacion_documental": current_document_result(item.evidencia, item),
                 }
                 if item.evidencia_id
                 else None

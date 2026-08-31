@@ -32,11 +32,12 @@ def construction_materials(work):
 
 
 def environmental_timeline(work):
+    from .evidence_documents import current_document_result
     base = {"actor": "Sistema Carbono Zero", "origen": "Plataforma", "estado": "registrado"}
     events = [{**base, "tipo": "obra_creada", "fecha": work.created_at, "referencia_id": work.id, "titulo": "Obra creada", "entidad": "obra", "entidad_id": work.id}]
     events += [{**base, "tipo": "diagnostico_inicial", "fecha": row.created_at, "referencia_id": row.id, "titulo": "Diagnostico ambiental", "entidad": "diagnostico", "entidad_id": row.id}
                for row in work.diagnosticos_ambientales.all()]
-    events += [{**base, "tipo": "evidencia", "fecha": row.created_at, "referencia_id": row.id, "titulo": row.nombre, "entidad": "evidencia", "entidad_id": row.id, "estado": row.estado_documental}
+    events += [{**base, "tipo": "evidencia", "fecha": row.created_at, "referencia_id": row.id, "titulo": row.nombre, "entidad": "evidencia", "entidad_id": row.id, "estado": current_document_result(row).get("veredicto")}
                for row in work.evidencias.all()]
     events += [{**base, "tipo": "actividad", "fecha": row.timestamp_inicio, "referencia_id": row.id, "titulo": row.nombre, "entidad": "actividad_operacional", "entidad_id": row.id, "estado": row.estado}
                for row in work.actividades_operacionales.all()]

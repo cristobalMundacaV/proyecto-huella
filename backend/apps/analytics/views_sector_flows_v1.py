@@ -16,8 +16,6 @@ from .serializers_sector_flows_v1 import (
     RegistroFlujoAmbientalSerializer,
 )
 from .services.fuel_classification import FUEL_FLOWS, classify_fuel
-from .services.document_extraction import extract_environmental_document
-from .services.evidence_validation import validate_observation_evidence
 from .services.operational_context import resolve_operational_context
 from .services.quality_v2 import ensure_current_quality_evaluation
 from .services.sector_flows_v1 import sector_summary
@@ -101,14 +99,9 @@ def manual_sector_record(request, organizacion_id):
     )
 
     uploaded_file = request.FILES.get("evidencia_archivo")
-    document_extraction = None
     if uploaded_file:
         require_tenant_permission(
             request.user, context.organizacion, Permission.EVIDENCE_CREATE
-        )
-        document_extraction = extract_environmental_document(
-            uploaded_file,
-            preset=context.organizacion.preset,
         )
 
     flow = request.data.get("flujo")
@@ -144,6 +137,7 @@ def manual_sector_record(request, organizacion_id):
 
     evidence = None
     stored_file = None
+    stored_version_file = None
     try:
         with transaction.atomic():
             if uploaded_file:
@@ -175,7 +169,11 @@ def manual_sector_record(request, organizacion_id):
                     usuario_origen=context.usuario,
                     metodo_captura="manual",
                 )
+                evidence_version = evidence._created_version
                 stored_file = evidence.archivo
+                stored_version_file = evidence_version.archivo
+            else:
+                evidence_version = None
 
             activity_serializer = ActividadOperacionalSerializer(
                 data={
@@ -211,6 +209,7 @@ def manual_sector_record(request, organizacion_id):
                     "unidad": request.data.get("unidad") or "",
                     "fuente": request.data.get("fuente"),
                     "evidencia": evidence.id if evidence else None,
+                    "version_evidencia": evidence_version.id if evidence_version else None,
                     "tipo_recurso": request.data.get("tipo_recurso") or "",
                     "metrica": request.data.get("metrica") or "",
                     "destino_operacional": request.data.get("destino_operacional")
@@ -229,15 +228,9 @@ def manual_sector_record(request, organizacion_id):
             )
             record_serializer.is_valid(raise_exception=True)
             record = record_serializer.save()
-            document_validation = None
             quality_evaluation = None
             if evidence:
                 observation = record.actividad.observaciones.get(evidencia=evidence)
-                document_validation = validate_observation_evidence(
-                    observation,
-                    document_extraction,
-                    context={"tipo_recurso": record.tipo_recurso},
-                )
                 quality_evaluation = ensure_current_quality_evaluation(observation)
 
             return Response(
@@ -251,7 +244,11 @@ def manual_sector_record(request, organizacion_id):
                     ).data,
                     "actividad_id": activity.id,
                     "clasificacion_ambiental": fuel_classification,
-                    "validacion_documental": document_validation,
+                    "validacion_documental": {
+                        "veredicto": "indeterminada",
+                        "estado_procesamiento": evidence_version.estado_procesamiento,
+                        "motivos": ["El respaldo fue guardado y quedó pendiente de procesamiento documental."],
+                    } if evidence_version else None,
                     "evaluacion_calidad": (
                         {
                             "id": quality_evaluation.id,
@@ -273,6 +270,8 @@ def manual_sector_record(request, organizacion_id):
                 status=status.HTTP_201_CREATED,
             )
     except Exception:
+        if stored_version_file and stored_version_file.name:
+            stored_version_file.storage.delete(stored_version_file.name)
         if stored_file and stored_file.name:
             stored_file.storage.delete(stored_file.name)
         raise

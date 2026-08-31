@@ -2,11 +2,11 @@ import { createElement, useEffect, useRef, useState } from "react";
 import { ArrowLeft, BadgeCheck, FileCheck2, FileText, History, MessageSquareText, Receipt, ShieldCheck } from "lucide-react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
-import { Alert, ButtonLink, EmptyState, ErrorState, SectionHeader, StatusBadge, Timeline, TimelineItem } from "@/shared/ui";
+import { Alert, Button, ButtonLink, EmptyState, ErrorState, SectionHeader, StatusBadge, Timeline, TimelineItem } from "@/shared/ui";
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import { formatDate, formatDateTime } from "@/shared/utils/formatters";
 import EvidenceDocumentViewer, { documentPresentation, FileActions } from "../components/EvidenceDocumentViewer";
-import { evidenceContext, evidenceFile, listEvidence, listImports } from "../services/dataApi";
+import { evidenceContext, evidenceFile, listEvidence, listImports, processEvidenceVersion } from "../services/dataApi";
 import { evidenceStatusInfo, evidenceTypeLabel, importDisplayName } from "../utils/dataPresentation";
 
 const evidenceIcon = (type, presentation) => {
@@ -24,6 +24,7 @@ export default function EvidenceDetailPage() {
   const scopeKey = `${activeOrganizacionId || ""}:${evidenceId}`;
   const [state, setState] = useState({ scope: null, status: "loading", data: null, document: null, linkedImport: null, supplementalError: false });
   const [authenticatedFileUrl, setAuthenticatedFileUrl] = useState("");
+  const [retrying, setRetrying] = useState(false);
   const requestRef = useRef(0);
 
   useEffect(() => {
@@ -66,12 +67,14 @@ export default function EvidenceDetailPage() {
   const evidence = state.data.evidencia;
   const versions = state.data.versiones || [];
   const document = state.document || {};
-  const status = evidenceStatusInfo(evidence.estado || document.estado_documental);
+  const result = evidence.resultado_documental || document.resultado_documental || {};
+  const processingState = evidence.estado_procesamiento || document.estado_procesamiento || "recibida";
+  const status = evidenceStatusInfo(result.veredicto || evidence.estado || document.estado_documental);
   const type = evidence.tipo || document.tipo_evidencia;
   const typeLabel = evidenceTypeLabel(type);
   const scopeLabel = document.obra_nombre || document.organizacion_nombre || "Organización activa";
   const documentDate = evidence.fecha_documento || document.fecha_documento;
-  const extractedDate = document.metadata_extraccion?.validacion_documental?.comparaciones?.find((item) => item.campo === "fecha")?.documental || document.metadata_extraccion?.extraccion_documental?.claims?.fecha;
+  const extractedDate = result.comparaciones?.find((item) => item.campo === "fecha")?.documental || result.claims?.fecha;
   const latestVersion = versions[0];
   const fileUrl = document.archivo_url || evidence.archivo_url || "";
   const displayFileUrl = authenticatedFileUrl || fileUrl;
@@ -88,6 +91,12 @@ export default function EvidenceDetailPage() {
     </div>
     <header className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border-default)] pb-5"><div className="flex min-w-0 items-start gap-3"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">{createElement(evidenceIcon(type, presentation), { "aria-hidden": true, size: 23 })}</span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-black text-[var(--text-primary)]">{evidence.nombre || document.nombre || "Documento"}</h1><StatusBadge tone={status.tone}>{status.label}</StatusBadge></div><p className="mt-1 text-sm text-[var(--text-secondary)]">{typeLabel} · {scopeLabel}</p><p className="mt-1 text-xs text-[var(--text-muted)]">{documentDate ? `Fecha informada: ${formatDate(documentDate)}` : extractedDate ? `Fecha encontrada en documento: ${formatDate(extractedDate)}` : "Fecha no extraída"}</p></div></div><FileActions url={displayFileUrl} name={fileName} /></header>
     {state.supplementalError && <Alert tone="info" title="Detalle parcial">El documento está disponible, pero parte de su contexto relacionado no pudo consultarse.</Alert>}
+    <section className="rounded-[22px] border border-[var(--border-default)] bg-white p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Procesamiento documental</p><h2 className="mt-1 text-lg font-black">{processingState === "analizando" ? "Procesando" : processingState === "error" ? "Error técnico" : processingState === "procesada" ? status.label : "Pendiente"}</h2><p className="mt-1 text-sm text-[var(--text-secondary)]">Tipo declarado: {typeLabel} · Tipo detectado: {(evidence.tipo_detectado || document.tipo_detectado) ? evidenceTypeLabel(evidence.tipo_detectado || document.tipo_detectado) : "Aún no detectado"}</p></div>{latestVersion && ["error", "recibida"].includes(processingState) && <Button disabled={retrying} onClick={async () => { setRetrying(true); try { await processEvidenceVersion(activeOrganizacionId, evidenceId, latestVersion.id); window.location.reload(); } finally { setRetrying(false); } }}>{retrying ? "Procesando…" : processingState === "error" ? "Reintentar" : "Procesar ahora"}</Button>}</div>
+      {result.motivos?.length > 0 && <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-[var(--text-secondary)]">{result.motivos.map((reason) => <li key={reason}>{reason}</li>)}</ul>}
+      {Object.keys(result.claims || {}).length > 0 && <div className="mt-4 grid gap-3 sm:grid-cols-2">{Object.entries(result.claims).map(([key, value]) => <Trace key={key} label={`Claim observado · ${key.replaceAll("_", " ")}`} value={String(value)} />)}</div>}
+      {result.comparaciones?.length > 0 && <div className="mt-4 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b"><th className="py-2">Campo</th><th>Declarado</th><th>Documento</th><th>Comparación</th></tr></thead><tbody>{result.comparaciones.map((comparison) => <tr className="border-b last:border-0" key={comparison.campo}><td className="py-2 font-bold">{comparison.campo}</td><td>{comparison.declarado ?? "—"}</td><td>{comparison.documental ?? "No disponible"}</td><td>{comparison.estado}</td></tr>)}</tbody></table></div>}
+    </section>
 
     <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
       <EvidenceDocumentViewer url={displayFileUrl} name={fileName} mime={mime} />

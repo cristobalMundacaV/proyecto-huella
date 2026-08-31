@@ -91,3 +91,11 @@ export const createManualSectorRecord = async (
             { skipOperationalWorkspace: true },
         )
     ).data;
+
+export const processEvidenceVersion = async (organizationId, evidenceId, versionId) =>
+    (
+        await api.post(
+            `${base(organizationId)}/evidencias/${encodeURIComponent(evidenceId)}/versiones/${encodeURIComponent(versionId)}/procesar/`,
+            {},
+        )
+    ).data;

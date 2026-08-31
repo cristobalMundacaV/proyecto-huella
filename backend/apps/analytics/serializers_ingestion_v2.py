@@ -76,8 +76,14 @@ class VersionEvidenciaSerializer(serializers.ModelSerializer):
             "checksum_sha256",
             "estado_procesamiento",
             "metadata_tecnica",
+            "resultado_documental",
             "created_at",
         ]
+
+    resultado_documental = serializers.SerializerMethodField()
+
+    def get_resultado_documental(self, instance):
+        return (instance.metadata_tecnica or {}).get("document_result")
 
 
 class ProcesoIngestaSerializer(serializers.ModelSerializer):

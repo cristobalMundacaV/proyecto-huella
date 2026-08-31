@@ -52,6 +52,7 @@ import {
   listEvidence,
   listWorkEvidence,
   uploadEvidence,
+  processEvidenceVersion,
   uploadWorkEvidence,
 } from "../services/dataApi";
 
@@ -477,7 +478,7 @@ export default function EvidencePage({
     setUploadFeedback("");
 
     try {
-      await (
+      const createdEvidence = await (
         workScoped
           ? uploadWorkEvidence(
             workAtStart,
@@ -488,6 +489,14 @@ export default function EvidencePage({
             data
           )
       );
+
+      if (createdEvidence?.id && createdEvidence?.version_actual) {
+        void processEvidenceVersion(
+          organizationAtStart,
+          createdEvidence.id,
+          createdEvidence.version_actual
+        ).then(load).catch(() => undefined);
+      }
 
       if (
         scopeGenerationRef.current !==

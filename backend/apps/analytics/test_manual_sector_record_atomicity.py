@@ -19,6 +19,7 @@ from .models import (
     RegistroFlujoAmbiental,
     UsuarioAreaOperacional,
     UsuarioOrganizacion,
+    VersionEvidencia,
 )
 
 
@@ -82,6 +83,14 @@ class ManualSectorRecordAtomicityTests(APITestCase):
             HTTP_X_WORKSPACE_ID=str(self.workspace.id),
         )
 
+    def process_document(self, response):
+        evidence = response.data["evidencia"]
+        return self.client.post(
+            f"/api/organizaciones/{self.organization.organizacion_id}/evidencias/{evidence['id']}/versiones/{evidence['version_actual']}/procesar/",
+            {},
+            format="json",
+        )
+
     def test_registro_sin_evidencia_crea_actividad_y_registro(self):
         response = self.post(self.payload())
 
@@ -132,6 +141,8 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         )
         self.assertEqual(observation.evidencia, evidence)
         self.assertEqual(observation.fuente, self.source)
+        self.assertIsNotNone(observation.version_evidencia)
+        self.assertEqual(VersionEvidencia.objects.filter(evidencia=evidence).count(), 1)
 
     def test_archivo_de_evidencia_se_entrega_autenticado_inline(self):
         content = b"\x89PNG\r\n\x1a\ncontenido-prueba"
@@ -163,9 +174,13 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         ))
 
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertEqual(response.data["validacion_documental"]["estado"], "verificada")
-        self.assertEqual(response.data["evaluacion_calidad"]["estado"], "confiable")
-        self.assertEqual(EvidenciaObra.objects.get().estado_documental, "validada")
+        self.assertEqual(response.data["validacion_documental"]["estado_procesamiento"], "recibida")
+        processed = self.process_document(response)
+        self.assertEqual(processed.status_code, 200, processed.data)
+        self.assertEqual(processed.data["resultado_documental"]["veredicto"], "verificada")
+        self.assertEqual(Observacion.objects.get().evaluaciones_calidad.latest("id").estado, "confiable")
+        version = VersionEvidencia.objects.get()
+        self.assertEqual(version.metadata_tecnica["document_result"]["veredicto"], "verificada")
 
     def test_factura_con_cantidad_distinta_crea_discrepancia(self):
         response = self.post(self.payload(
@@ -181,11 +196,12 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         ))
 
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertEqual(response.data["validacion_documental"]["estado"], "contradiccion")
+        processed = self.process_document(response)
+        self.assertEqual(processed.data["resultado_documental"]["veredicto"], "contradiccion")
         discrepancy = DiscrepanciaDato.objects.get(concepto="evidencia_cantidad")
         self.assertEqual(discrepancy.severidad, DiscrepanciaDato.Severidad.ALTA)
-        self.assertIn('"documental": "120 litros diesel"', discrepancy.motivo)
-        self.assertEqual(response.data["evaluacion_calidad"]["estado"], "requiere_revision")
+        self.assertIn('"documental": "120 L"', discrepancy.motivo)
+        self.assertEqual(Observacion.objects.get().evaluaciones_calidad.latest("id").estado, "requiere_revision")
 
     def test_factura_con_recurso_distinto_crea_solo_discrepancia_de_recurso(self):
         response = self.post(self.payload(
@@ -201,7 +217,8 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         ))
 
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertEqual(response.data["validacion_documental"]["estado"], "contradiccion")
+        processed = self.process_document(response)
+        self.assertEqual(processed.data["resultado_documental"]["veredicto"], "contradiccion")
         self.assertEqual(
             list(DiscrepanciaDato.objects.values_list("concepto", flat=True)),
             ["evidencia_tipo_recurso"],
@@ -221,13 +238,53 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         ))
 
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertEqual(response.data["validacion_documental"]["estado"], "compatible_incompleta")
+        processed = self.process_document(response)
+        self.assertEqual(processed.data["resultado_documental"]["veredicto"], "compatible_incompleta")
         quantity = next(
-            item for item in response.data["validacion_documental"]["comparaciones"]
+            item for item in processed.data["resultado_documental"]["comparaciones"]
             if item["campo"] == "cantidad"
         )
         self.assertEqual(quantity["estado"], "no_disponible")
         self.assertFalse(DiscrepanciaDato.objects.exists())
+
+    def test_procesamiento_es_idempotente_y_no_duplica_verdad_derivada(self):
+        response = self.post(self.payload(
+            periodo_inicio="2026-09-03T12:00:00",
+            valor_numerico="180",
+            evidencia_archivo=SimpleUploadedFile(
+                "factura.txt", b"Factura combustible diesel 120 L 03-09-2026", content_type="text/plain"
+            ),
+            evidencia_tipo="factura_combustible",
+        ))
+        first = self.process_document(response)
+        discrepancy_count = DiscrepanciaDato.objects.count()
+        quality_count = Observacion.objects.get().evaluaciones_calidad.count()
+        second = self.process_document(response)
+
+        self.assertEqual(first.data["resultado_documental"], second.data["resultado_documental"])
+        self.assertEqual(DiscrepanciaDato.objects.count(), discrepancy_count)
+        self.assertEqual(Observacion.objects.get().evaluaciones_calidad.count(), quality_count)
+
+    def test_timeout_no_revierte_registro_y_retry_reprocesa_version(self):
+        response = self.post(self.payload(
+            periodo_inicio="2026-09-03T12:00:00",
+            valor_numerico="180",
+            evidencia_archivo=SimpleUploadedFile(
+                "factura.txt", b"Factura combustible diesel 180 L 03-09-2026", content_type="text/plain"
+            ),
+            evidencia_tipo="factura_combustible",
+        ))
+        technical_failure = {
+            "execution_status": "failed", "failure_code": "provider_timeout",
+            "claims": {}, "claims_trazables": {}, "claims_count": 0, "texto_extraido": "",
+        }
+        with patch("apps.analytics.services.evidence_processing.extract_environmental_document", return_value=technical_failure):
+            failed = self.process_document(response)
+        self.assertEqual(failed.data["estado_procesamiento"], "error")
+        self.assertEqual(RegistroFlujoAmbiental.objects.count(), 1)
+        retried = self.process_document(response)
+        self.assertEqual(retried.data["estado_procesamiento"], "procesada")
+        self.assertEqual(retried.data["resultado_documental"]["veredicto"], "verificada")
 
     def test_fallo_al_crear_registro_revierte_actividad_y_evidencia(self):
         counts_before = (

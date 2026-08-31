@@ -7,6 +7,11 @@ const humanize = (value, fallback = "Sin información") => {
 };
 
 const evidenceStates = {
+  verificada: { label: "Verificada", tone: "success", needsAttention: false },
+  compatible_incompleta: { label: "Compatible incompleta", tone: "warning", needsAttention: true },
+  contradiccion: { label: "Contradicción", tone: "danger", needsAttention: true },
+  no_pertinente: { label: "No pertinente", tone: "danger", needsAttention: true },
+  indeterminada: { label: "Indeterminada", tone: "neutral", needsAttention: true },
   pendiente: { label: "Pendiente de revisión", tone: "warning", needsAttention: true },
   validada: { label: "Validada", tone: "success", needsAttention: false },
   observada: { label: "Requiere revisión", tone: "warning", needsAttention: true },

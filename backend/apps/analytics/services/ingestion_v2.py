@@ -189,11 +189,14 @@ def crear_ingesta(
         version=number,
         archivo=ContentFile(content, name=upload.name),
         nombre_original=upload.name,
-        tipo_documental=clasificacion_confirmada or suggested,
+        # The suggestion/confirmation is context, never an observed document type.
+        tipo_documental="",
         checksum_sha256=checksum,
         metadata_tecnica={
             "size_bytes": len(content),
             "clasificacion_sugerida": suggested,
+            "document_hint": clasificacion_confirmada or suggested,
+            **({"document_result_version": "document-result-v2"} if tipo_ingesta == "documental" else {}),
         },
     )
     version.full_clean()

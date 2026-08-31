@@ -14,6 +14,7 @@ from .services.activity_core import (
     update_activity,
     update_observation,
 )
+from .services.evidence_documents import current_document_result, current_evidence_version
 
 
 class FuenteDatosSerializer(serializers.ModelSerializer):
@@ -127,10 +128,9 @@ class ObservacionSerializer(serializers.ModelSerializer):
             "id": observacion.evidencia_id,
             "nombre": observacion.evidencia.nombre,
             "tipo_evidencia": observacion.evidencia.tipo_evidencia,
-            "estado_documental": observacion.evidencia.estado_documental,
-            "validacion_documental": (
-                observacion.evidencia.metadata_extraccion or {}
-            ).get("validacion_documental"),
+            "estado_documental": current_document_result(observacion.evidencia, observacion).get("veredicto"),
+            "estado_procesamiento": getattr(current_evidence_version(observacion.evidencia, observacion), "estado_procesamiento", None),
+            "validacion_documental": current_document_result(observacion.evidencia, observacion),
         }
 
     def get_version_evidencia_detalle(self, observacion):
@@ -142,6 +142,8 @@ class ObservacionSerializer(serializers.ModelSerializer):
             "version": version.version,
             "nombre_original": version.nombre_original,
             "checksum_sha256": version.checksum_sha256,
+            "estado_procesamiento": version.estado_procesamiento,
+            "resultado_documental": (version.metadata_tecnica or {}).get("document_result"),
         }
 
     def get_sensor_detalle(self, observacion):

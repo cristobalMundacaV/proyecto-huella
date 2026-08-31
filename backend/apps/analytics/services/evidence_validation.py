@@ -4,7 +4,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 
-from ..models import DiscrepanciaDato, EvidenciaObra
+from ..models import DiscrepanciaDato
 from .document_extraction import normalize_text
 from .unit_conversion import UnitConversionError, canonicalize_unit, convert_value
 
@@ -55,7 +55,6 @@ def technical_extraction_validation(extraction):
     execution_status = extraction.get("execution_status")
     if execution_status == "success" or not execution_status:
         return None
-    validation_status = "pending_processing" if execution_status == "unavailable" else "technical_review"
     messages = {
         "unavailable": "La extracción automática no está disponible; el respaldo queda pendiente de procesamiento.",
         "failed": "La extracción automática falló técnicamente; el respaldo requiere revisión técnica.",
@@ -63,7 +62,8 @@ def technical_extraction_validation(extraction):
         "empty": "No se obtuvo contenido procesable del archivo; el respaldo requiere revisión técnica.",
     }
     return {
-        "estado": validation_status,
+        "estado": "indeterminada",
+        "veredicto": "indeterminada",
         "relevancia": None,
         "comparaciones": [],
         "motivos": [messages.get(execution_status, messages["failed"])],
@@ -71,7 +71,7 @@ def technical_extraction_validation(extraction):
             key: extraction.get(key)
             for key in ("execution_status", "extractor_used", "provider_used", "model_used", "failure_code", "claims_count")
         },
-        "version_contrato": "validacion-documental-v1",
+        "version_contrato": "validacion-documental-v2",
     }
 
 
@@ -92,7 +92,7 @@ def _quantity_comparison(observation, claims):
         declared = Decimal(str(observation.valor_numerico))
         documental = converted["valor_normalizado"]
     except (UnitConversionError, InvalidOperation):
-        return {"campo": "cantidad", "estado": "indeterminado", "declarado": f"{observation.valor_numerico} {observation.unidad}".strip(), "documental": f"{extracted} {extracted_unit}".strip(), "motivo": "No existe una conversión determinística segura entre las unidades."}
+        return {"campo": "cantidad", "estado": "requiere_revision", "declarado": f"{observation.valor_numerico} {observation.unidad}".strip(), "documental": f"{extracted} {extracted_unit}".strip(), "motivo": "No existe una conversión determinística segura entre las unidades."}
     tolerance = max(abs(declared) * Decimal("0.005"), Decimal("0.000001"))
     matches = abs(declared - documental) <= tolerance
     state = "compatible_por_conversion" if matches and converted["conversion_aplicada"] else ("coincide" if matches else "contradice")
@@ -116,7 +116,7 @@ def compare_evidence_to_observation(observation, claims, context=None):
                     convert_value(1, normalized_unit, declared_unit)
                     state = "compatible_por_conversion"
             except UnitConversionError:
-                state = "indeterminado"
+                state = "requiere_revision"
             comparisons.append({"campo": "unidad", "estado": state, "declarado": observation.unidad, "documental": document_unit})
     declared_resource = context.get("tipo_recurso")
     if declared_resource:
@@ -131,7 +131,7 @@ def compare_evidence_to_observation(observation, claims, context=None):
                 delta = abs((date.fromisoformat(document_date) - date.fromisoformat(declared_date)).days)
                 comparisons.append({"campo": "fecha", "estado": "coincide" if delta == 0 else "contradice", "declarado": declared_date, "documental": document_date, "diferencia_dias": delta})
             except ValueError:
-                comparisons.append({"campo": "fecha", "estado": "indeterminado", "declarado": declared_date, "documental": document_date})
+                comparisons.append({"campo": "fecha", "estado": "requiere_revision", "declarado": declared_date, "documental": document_date})
     trace = context.get("claims_trazables") or {}
     for comparison in comparisons:
         if comparison["campo"] in trace:
@@ -148,7 +148,7 @@ def evaluate_evidence_validation(relevance, comparisons):
         state = "contradiccion"
     elif relevance["estado"] == "parcialmente_pertinente":
         state = "compatible_incompleta"
-    elif any(item["estado"] in {"no_disponible", "indeterminado"} for item in comparisons):
+    elif any(item["estado"] in {"no_disponible", "requiere_revision"} for item in comparisons):
         state = "compatible_incompleta"
     elif comparisons:
         state = "verificada"
@@ -156,10 +156,11 @@ def evaluate_evidence_validation(relevance, comparisons):
         state = "indeterminada"
     return {
         "estado": state,
+        "veredicto": state,
         "relevancia": relevance,
         "comparaciones": comparisons,
         "motivos": [relevance["motivo"]] + [item.get("motivo") or f"{item['campo']}: {item['estado']}." for item in comparisons],
-        "version_contrato": "validacion-documental-v1",
+        "version_contrato": "validacion-documental-v2",
     }
 
 
@@ -191,7 +192,7 @@ def _sync_discrepancies(observation, validation):
 
 
 @transaction.atomic
-def validate_observation_evidence(observation, extraction, context=None):
+def validate_observation_evidence(observation, extraction, context=None, version=None):
     context = context or {}
     extraction = dict(extraction or {})
     extraction["expected"] = {
@@ -203,13 +204,6 @@ def validate_observation_evidence(observation, extraction, context=None):
     technical_validation = technical_extraction_validation(extraction)
     if technical_validation:
         validation = technical_validation
-        evidence = observation.evidencia
-        metadata = dict(evidence.metadata_extraccion or {})
-        metadata.update({"extraccion_documental": extraction, "validacion_documental": validation})
-        evidence.metadata_extraccion = metadata
-        evidence.texto_extraido = extraction.get("texto_extraido", "")
-        evidence.estado_documental = EvidenciaObra.EstadoDocumental.PENDIENTE
-        evidence.save(update_fields=["metadata_extraccion", "texto_extraido", "estado_documental", "updated_at"])
         _sync_discrepancies(observation, validation)
         return validation
     relevance = classify_evidence_relevance(extraction, observation)
@@ -217,15 +211,5 @@ def validate_observation_evidence(observation, extraction, context=None):
     context = {**context, "claims_trazables": extraction.get("claims_trazables") or {}}
     comparisons = compare_evidence_to_observation(observation, claims, context)
     validation = evaluate_evidence_validation(relevance, comparisons)
-    evidence = observation.evidencia
-    metadata = dict(evidence.metadata_extraccion or {})
-    metadata.update({"extraccion_documental": extraction, "validacion_documental": validation})
-    evidence.metadata_extraccion = metadata
-    evidence.texto_extraido = extraction.get("texto_extraido", "")
-    evidence.estado_documental = {
-        "verificada": EvidenciaObra.EstadoDocumental.VALIDADA,
-        "no_pertinente": EvidenciaObra.EstadoDocumental.RECHAZADA,
-    }.get(validation["estado"], EvidenciaObra.EstadoDocumental.OBSERVADA)
-    evidence.save(update_fields=["metadata_extraccion", "texto_extraido", "estado_documental", "updated_at"])
     _sync_discrepancies(observation, validation)
     return validation

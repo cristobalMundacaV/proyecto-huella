@@ -278,9 +278,12 @@ class ContextGateway:
 
     def evidence(self, evidence, organization):
         self._tenant(evidence, organization)
+        from .evidence_documents import current_document_result
         versions = evidence.versiones.values(
-            "id", "version", "nombre_original", "checksum_sha256", "created_at"
+            "id", "version", "nombre_original", "checksum_sha256", "estado_procesamiento",
+            "tipo_documental", "metadata_tecnica", "created_at"
         ).order_by("-version")[:5]
+        result = current_document_result(evidence)
         return {
             "context_type": "evidence",
             "references": {
@@ -290,7 +293,10 @@ class ContextGateway:
             "evidencia": {
                 "nombre": evidence.nombre,
                 "tipo": evidence.tipo_evidencia,
-                "estado": evidence.estado_documental,
+                "estado": result.get("veredicto"),
+                "estado_procesamiento": versions[0]["estado_procesamiento"] if versions else "recibida",
+                "tipo_detectado": result.get("tipo_detectado"),
+                "resultado_documental": result,
                 "fecha_documento": evidence.fecha_documento,
             },
             "versiones": list(versions),

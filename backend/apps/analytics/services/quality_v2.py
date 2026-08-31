@@ -1,25 +1,19 @@
 from ..models import EvaluacionCalidadDato
 from ..policies.quality import quality_assessment, source_health
+from .evidence_documents import current_document_result, current_evidence_version
 
 RULES_VERSION = "calidad-v2-evidencia"
 
 
 def quality_input_fingerprint(observation):
     evidence = observation.evidencia
-    evidence_version = observation.version_evidencia
-    if evidence and not evidence_version:
-        evidence_version = evidence.versiones.order_by("-version").first()
+    evidence_version = current_evidence_version(evidence, observation)
     return {
         "observacion_actualizada": observation.updated_at.isoformat(),
         "estado_observacion": observation.estado,
         "fuente_activa": observation.fuente.activa,
         "evidencia_id": observation.evidencia_id,
-        "estado_evidencia": evidence.estado_documental if evidence else None,
-        "validacion_documental": (
-            (evidence.metadata_extraccion or {}).get("validacion_documental")
-            if evidence
-            else None
-        ),
+        "resultado_documental": current_document_result(evidence, observation) if evidence else None,
         "evidencia_actualizada": evidence.updated_at.isoformat() if evidence else None,
         "version_evidencia_id": evidence_version.id if evidence_version else None,
         "estado_procesamiento": (

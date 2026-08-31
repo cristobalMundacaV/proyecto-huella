@@ -309,7 +309,7 @@ class EvidenceValidationContractTests(SimpleTestCase):
         self.assertEqual(result["execution_status"], "empty")
         self.assertEqual(result["failure_code"], "no_claims_detected")
 
-    def test_fallo_tecnico_no_se_clasifica_como_documento_indeterminado(self):
+    def test_fallo_tecnico_mantiene_veredicto_separado_del_procesamiento(self):
         pending = technical_extraction_validation({
             "execution_status": "unavailable",
             "extractor_used": "VisualAIExtractor",
@@ -324,9 +324,11 @@ class EvidenceValidationContractTests(SimpleTestCase):
             "failure_code": "provider_error",
             "claims_count": 0,
         })
-        self.assertEqual(pending["estado"], "pending_processing")
-        self.assertEqual(failed["estado"], "technical_review")
-        self.assertNotIn(pending["estado"], {"indeterminada", "no_pertinente"})
+        self.assertEqual(pending["veredicto"], "indeterminada")
+        self.assertEqual(failed["veredicto"], "indeterminada")
+        self.assertEqual(pending["resultado_extraccion"]["execution_status"], "unavailable")
+        self.assertEqual(failed["resultado_extraccion"]["execution_status"], "failed")
+        self.assertNotEqual(pending["resultado_extraccion"], failed["resultado_extraccion"])
 
     def test_logica_ambiental_no_importa_openai(self):
         services = Path(__file__).parent / "services"

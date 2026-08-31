@@ -7,6 +7,7 @@ export const uploadEvidence = async (organizationId, data) => (await api.post(`$
 export const uploadWorkEvidence = async (workCode, data) => (await api.post(`/obras/${encodeURIComponent(workCode)}/evidencias/`, data)).data;
 export const evidenceContext = async (id) => (await api.get(`/context/evidence/${encodeURIComponent(id)}/`)).data;
 export const evidenceFile = async (id) => (await api.get(`/context/evidence/${encodeURIComponent(id)}/file/`, { responseType: "blob" })).data;
+export const processEvidenceVersion = async (organizationId, evidenceId, versionId) => (await api.post(`${orgRoot(organizationId)}/evidencias/${encodeURIComponent(evidenceId)}/versiones/${encodeURIComponent(versionId)}/procesar/`, {})).data;
 export const listImports = async (organizationId) => (await api.get(`${importRoot(organizationId)}/`)).data;
 export const getImport = async (organizationId, id) => (await api.get(`${importRoot(organizationId)}/${encodeURIComponent(id)}/`)).data;
 export const createImport = async (organizationId, file, source, options = {}) => { const data = new FormData(); data.append("archivo", file); data.append("fuente_nombre", source); data.append("tipo_ingesta", "tabular"); data.append("destino_operacional", options.destination || "actividad_generica"); data.append("contexto", JSON.stringify(options.context || { alcance: "organizacion" })); if (options.flow) data.append("flujo", options.flow); return (await api.post(`${importRoot(organizationId)}/`, data)).data; };

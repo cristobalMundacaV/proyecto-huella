@@ -1,4 +1,5 @@
 from django.db.models import Count, Sum
+from collections import Counter
 
 from apps.analytics.models import (
     DatoACV, DocumentoAmbiental, EvidenciaObra,
@@ -72,11 +73,19 @@ def previous_actions(problem):
 
 
 def evidence_summary(problem):
+    from apps.analytics.services.evidence_documents import current_document_result
     records = problem.organizacion.registros_emision.filter(categoria__iexact=problem.categoria)
     evidences = EvidenciaObra.objects.filter(organizacion=problem.organizacion, registros_emision__in=records).distinct()
     documents = DocumentoAmbiental.objects.filter(organizacion=problem.organizacion, registros_emision__in=records).distinct()
+    evidence_counts = Counter(
+        (row.tipo_evidencia, current_document_result(row).get("veredicto"))
+        for row in evidences.prefetch_related("versiones")
+    )
     return {
-        "evidencias": list(evidences.values("tipo_evidencia", "estado_documental").annotate(total=Count("id"))[:MAX_ITEMS]),
+        "evidencias": [
+            {"tipo_evidencia": kind, "estado_documental": verdict, "total": total}
+            for (kind, verdict), total in evidence_counts.most_common(MAX_ITEMS)
+        ],
         "documentos": list(documents.values("tipo_documento", "estado_validacion").annotate(total=Count("id"))[:MAX_ITEMS]),
         "totales": {"evidencias": evidences.count(), "documentos": documents.count()},
         "contenido_excluido": ["archivo", "texto_extraido", "metadata_extraccion", "metadata"],

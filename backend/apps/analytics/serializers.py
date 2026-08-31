@@ -473,6 +473,7 @@ class RegistroEmisionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(getattr(exc, "message_dict", {"detail": exc.messages}))
 
     def get_evidencia_asociada(self, registro):
+        from .services.evidence_documents import current_document_result
         evidencia = registro.evidencias.order_by("-created_at").first()
         if not evidencia:
             return None
@@ -480,11 +481,12 @@ class RegistroEmisionSerializer(serializers.ModelSerializer):
             "id": evidencia.id,
             "nombre": evidencia.nombre,
             "tipo_evidencia": evidencia.tipo_evidencia,
-            "estado_documental": evidencia.estado_documental,
+            "estado_documental": current_document_result(evidencia).get("veredicto"),
         }
 
 
 class EvidenciaObraSerializer(serializers.ModelSerializer):
+    estado_documental = serializers.SerializerMethodField()
     archivo_url = serializers.SerializerMethodField()
     lote_id = serializers.CharField(write_only=True, required=False, allow_blank=True)
     organizacion_id = serializers.CharField(source="organizacion.organizacion_id", read_only=True)
@@ -496,6 +498,10 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
     lote_forestal_id = serializers.CharField(source="lote_forestal.lote_id", read_only=True)
     area_origen_nombre = serializers.CharField(source="area_origen.nombre", read_only=True)
     usuario_origen_nombre = serializers.SerializerMethodField()
+    resultado_documental = serializers.SerializerMethodField()
+    version_actual = serializers.SerializerMethodField()
+    estado_procesamiento = serializers.SerializerMethodField()
+    tipo_detectado = serializers.SerializerMethodField()
 
     class Meta:
         model = EvidenciaObra
@@ -521,6 +527,10 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
             "metodo_captura",
             "tipo_evidencia",
             "estado_documental",
+            "estado_procesamiento",
+            "resultado_documental",
+            "version_actual",
+            "tipo_detectado",
             "fecha_documento",
             "archivo",
             "archivo_url",
@@ -584,6 +594,44 @@ class EvidenciaObraSerializer(serializers.ModelSerializer):
         if request:
             return request.build_absolute_uri(evidencia.archivo.url)
         return evidencia.archivo.url
+
+    def _current_version(self, instance):
+        cache = getattr(instance, "_current_document_version", None)
+        if cache is None:
+            cache = instance.versiones.order_by("-version", "-id").first()
+            instance._current_document_version = cache
+        return cache
+
+    def get_resultado_documental(self, instance):
+        from .services.evidence_documents import current_document_result
+        return current_document_result(instance)
+
+    def get_estado_documental(self, instance):
+        return self.get_resultado_documental(instance).get("veredicto")
+
+    def get_version_actual(self, instance):
+        version = self._current_version(instance)
+        return version.id if version else None
+
+    def get_estado_procesamiento(self, instance):
+        version = self._current_version(instance)
+        return version.estado_procesamiento if version else "recibida"
+
+    def get_tipo_detectado(self, instance):
+        return self.get_resultado_documental(instance).get("tipo_detectado")
+
+    def create(self, validated_data):
+        evidence = super().create(validated_data)
+        from .services.evidence_documents import create_evidence_version
+        request = self.context.get("request")
+        version, _ = create_evidence_version(
+            evidence,
+            mime_type=(evidence.metadata_extraccion or {}).get("mime_type", ""),
+            actor=getattr(request, "user", None),
+        )
+        evidence._created_version = version
+        evidence._current_document_version = version
+        return evidence
 
 
 class TransporteObraSerializer(serializers.ModelSerializer):
@@ -844,6 +892,7 @@ class DocumentoAmbientalSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
         read_only_fields = [
             "id",
             "organizacion_id",

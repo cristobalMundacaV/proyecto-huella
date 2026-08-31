@@ -22,6 +22,7 @@ import {
 import {
     createEnvironmentalPoint,
     createManualSectorRecord,
+    processEvidenceVersion,
     listEnvironmentalPoints,
 } from "../api/sectorFlowsApi";
 
@@ -831,7 +832,15 @@ export default function ManualFlowRecordModal({
                 append("evidencia_tipo", form.evidenceType);
             }
 
-            await createManualSectorRecord(organizationId, payload);
+            const created = await createManualSectorRecord(organizationId, payload);
+
+            if (created.evidencia?.id && created.evidencia?.version_actual) {
+                void processEvidenceVersion(
+                    organizationId,
+                    created.evidencia.id,
+                    created.evidencia.version_actual,
+                ).then(() => onCreated?.()).catch(() => undefined);
+            }
 
             await onCreated?.();
 

@@ -1,15 +1,35 @@
 from ..models import EvaluacionCalidadDato, Observacion
+from ..services.evidence_documents import current_document_result, current_evidence_version
 
 
 def evidence_health(observation):
     evidence = observation.evidencia
     if not evidence:
-        return "sin_evidencia", "El dato no tiene respaldo documental adjunto."
-    validation = (evidence.metadata_extraccion or {}).get("validacion_documental") or {}
-    validation_state = validation.get("estado")
+        return "sin_evidencia", "Sin evidencia documental adjunta; la procedencia permanece declarativa."
+    version = current_evidence_version(evidence, observation)
+    if not version:
+        state = evidence.estado_documental
+        if state == evidence.EstadoDocumental.VALIDADA:
+            return "validada", "La evidencia histórica fue validada y fortalece la procedencia del dato."
+        if state == evidence.EstadoDocumental.RECHAZADA:
+            return "rechazada", "La evidencia histórica fue rechazada; el dato manual se conserva y requiere revisión."
+        if state == evidence.EstadoDocumental.OBSERVADA:
+            return "observada", "La evidencia histórica tiene observaciones y requiere revisión."
+        return "pendiente", "La evidencia histórica está adjunta, pero su validación documental continúa pendiente."
+    validation = current_document_result(evidence, observation)
+    validation_state = validation.get("veredicto")
+    if version and version.estado_procesamiento in {"recibida", "analizando"}:
+        return "pendiente_procesamiento", "El respaldo está adjunto y su procesamiento documental continúa en segundo plano."
+    if version and version.estado_procesamiento == "error":
+        return "revision_tecnica", "El procesamiento del respaldo presentó un fallo técnico; el dato manual se conserva y el documento puede reintentarse."
     if validation_state == "verificada":
         return "verificada", "El respaldo fue contrastado con el dato declarado y sus campos relevantes son compatibles."
     if validation_state == "contradiccion":
+        unresolved = observation.discrepancias.exclude(
+            estado__in=["resuelta", "descartada"]
+        ).filter(concepto__startswith="evidencia_").exists()
+        if not unresolved:
+            return "compatible_incompleta", "Las contradicciones documentales fueron revisadas y resueltas; se conserva la decisión humana auditada."
         return "contradiccion", "El respaldo documental contradice uno o más campos declarados; el dato requiere revisión prioritaria."
     if validation_state == "no_pertinente":
         return "no_pertinente", "El archivo no corresponde al tipo de respaldo esperado y no mejora la calidad del dato."

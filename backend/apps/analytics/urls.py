@@ -13,6 +13,7 @@ from .views import (
     organizacion_estado,
     organizacion_evidencias,
     organizacion_evidencia_extraer,
+    organizacion_evidencia_procesar,
     organizacion_obras,
     organizacion_registro_aplicar_factor,
     organizacion_registros_emision,
@@ -709,6 +710,10 @@ urlpatterns = [
     path(
         "organizaciones/<str:organizacion_id>/evidencias/extraer/",
         organizacion_evidencia_extraer,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/evidencias/<int:evidencia_id>/versiones/<int:version_id>/procesar/",
+        organizacion_evidencia_procesar,
     ),
     path("organizaciones/<str:organizacion_id>/reportes/", organizacion_reportes),
     path(

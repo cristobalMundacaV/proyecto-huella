@@ -27,6 +27,7 @@ from .models import (
     SuscripcionSaaS,
     TransporteObra,
     UsuarioOrganizacion,
+    VersionEvidencia,
 )
 from .serializers import (
     ConfiguracionOrganizacionSerializer,
@@ -709,6 +710,26 @@ def organizacion_evidencia_extraer(request, organizacion_id):
 
     result = extract_environmental_document(upload, preset=organizacion.preset)
     return Response(result)
+
+
+@api_view(["POST"])
+def organizacion_evidencia_procesar(request, organizacion_id, evidencia_id, version_id):
+    organizacion = get_user_organizacion_or_404(request, organizacion_id)
+    require_tenant_permission(request.user, organizacion, Permission.EVIDENCE_CREATE)
+    version = get_object_or_404(
+        VersionEvidencia.objects.select_related("evidencia", "organizacion"),
+        pk=version_id,
+        evidencia_id=evidencia_id,
+        organizacion=organizacion,
+    )
+    from .services.evidence_processing import process_evidence_version
+    result = process_evidence_version(version.id, force=version.estado_procesamiento == VersionEvidencia.EstadoProcesamiento.ERROR)
+    version.refresh_from_db()
+    return Response({
+        "version_id": version.id,
+        "estado_procesamiento": version.estado_procesamiento,
+        "resultado_documental": result,
+    })
 
 
 @api_view(["GET", "POST"])
