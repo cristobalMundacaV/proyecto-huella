@@ -4,6 +4,7 @@ import { useAuth } from "@/features/auth/context/AuthContext";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 
 const STORAGE_KEY = "carbono_zero.operationalWorkspaceId";
+const GENERAL_VIEW = "__general__";
 const OperationalWorkspaceContext = createContext(null);
 
 export function OperationalWorkspaceProvider({ children }) {
@@ -20,9 +21,15 @@ export function OperationalWorkspaceProvider({ children }) {
         ? data.workspaces.filter((item) => String(item.organizacion?.id) === String(activeOrganizacionId))
         : data.workspaces;
       const saved = window.localStorage.getItem(STORAGE_KEY) || "";
-      const activeId = workspaces.some((item) => String(item.id) === saved) ? saved : data.automatico ? String(workspaces[0]?.id || "") : "";
+      const activeId = workspaces.some((item) => String(item.id) === saved)
+        ? saved
+        : saved === GENERAL_VIEW
+          ? ""
+          : data.automatico
+            ? String(workspaces[0]?.id || "")
+            : "";
       if (activeId) window.localStorage.setItem(STORAGE_KEY, activeId);
-      else window.localStorage.removeItem(STORAGE_KEY);
+      else if (saved !== GENERAL_VIEW) window.localStorage.removeItem(STORAGE_KEY);
       setState({ loading: false, workspaces, activeId, legacy: data.legacy });
     }).catch(() => {
       if (!current) return;
@@ -39,6 +46,10 @@ export function OperationalWorkspaceProvider({ children }) {
     if (id) window.localStorage.setItem(STORAGE_KEY, id); else window.localStorage.removeItem(STORAGE_KEY);
     if (workspace?.organizacion) setActiveOrganizacion({ organizacion_id: workspace.organizacion.id });
   };
+  const exitWorkspace = () => {
+    setState((current) => ({ ...current, activeId: "" }));
+    window.localStorage.setItem(STORAGE_KEY, GENERAL_VIEW);
+  };
 
   useEffect(() => {
     const interceptor = api.interceptors.request.use((config) => {
@@ -48,7 +59,7 @@ export function OperationalWorkspaceProvider({ children }) {
     return () => api.interceptors.request.eject(interceptor);
   }, [state.activeId]);
 
-  return <OperationalWorkspaceContext.Provider value={{ ...state, activeWorkspace, selectWorkspace, needsSelection: !state.loading && state.workspaces.length > 1 && !activeWorkspace }}>{children}</OperationalWorkspaceContext.Provider>;
+  return <OperationalWorkspaceContext.Provider value={{ ...state, activeWorkspace, selectWorkspace, exitWorkspace, needsSelection: !state.loading && state.workspaces.length > 1 && !activeWorkspace }}>{children}</OperationalWorkspaceContext.Provider>;
 }
 
 export function useOperationalWorkspace() {

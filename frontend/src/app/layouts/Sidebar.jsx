@@ -1,4 +1,5 @@
 import {
+    ArrowLeft,
     Building2,
     ChevronDown,
     Loader2,
@@ -69,7 +70,7 @@ export default function Sidebar({
     onNavigate,
 }) {
     const { can } = usePermissions();
-    const { activeWorkspace } = useOperationalWorkspace();
+    const { activeWorkspace, exitWorkspace } = useOperationalWorkspace();
     const navigate =
         useNavigate();
 
@@ -271,9 +272,14 @@ export default function Sidebar({
         onNavigate?.();
     }
 
+    function returnToGeneralView() {
+        exitWorkspace();
+        navigate("/inicio");
+        onNavigate?.();
+    }
 
-    const simplified = activeWorkspace && !["medio_ambiente", "gestion_obra"].includes(activeWorkspace.area.tipo);
-    if (simplified) return <aside className="flex min-h-full w-full shrink-0 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar)] px-3 py-5 lg:sticky lg:top-[72px] lg:h-[calc(100vh-72px)] lg:w-64"><div className="mb-6 rounded-2xl bg-emerald-50 p-4"><p className="text-xs font-black uppercase tracking-wide text-emerald-700">{activeWorkspace.area.nombre}</p><p className="mt-1 text-sm font-bold text-slate-800">{activeWorkspace.obra?.nombre || activeWorkspace.organizacion.nombre}</p></div><nav className="space-y-1"><NavLink end to="/inicio" onClick={onNavigate} className={({ isActive }) => `block rounded-xl px-3 py-2.5 text-sm font-bold ${isActive ? "bg-emerald-100 text-emerald-900" : "text-slate-700 hover:bg-slate-100"}`}>Inicio</NavLink><a href="/inicio#subir-informacion" className="block rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Subir información</a><a href="/inicio#ultimos-envios" className="block rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Documentos enviados</a><a href="/inicio#pendientes" className="block rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Pendientes</a></nav></aside>;
+    const simplified = activeWorkspace && !workId && !["medio_ambiente", "gestion_obra"].includes(activeWorkspace.area.tipo);
+    if (simplified) return <aside className="flex min-h-full w-full shrink-0 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar)] px-3 py-5 lg:sticky lg:top-[72px] lg:h-[calc(100vh-72px)] lg:w-64"><button type="button" onClick={returnToGeneralView} className="mb-4 flex w-full items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-left text-sm font-black text-emerald-800 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"><ArrowLeft aria-hidden="true" size={17} />Volver a vista general</button><div className="mb-6 rounded-2xl bg-emerald-50 p-4"><p className="text-xs font-black uppercase tracking-wide text-emerald-700">{activeWorkspace.area.nombre}</p><p className="mt-1 text-sm font-bold text-slate-800">{activeWorkspace.obra?.nombre || activeWorkspace.organizacion.nombre}</p></div><nav className="space-y-1"><NavLink end to="/inicio" onClick={onNavigate} className={({ isActive }) => `block rounded-xl px-3 py-2.5 text-sm font-bold ${isActive ? "bg-emerald-100 text-emerald-900" : "text-slate-700 hover:bg-slate-100"}`}>Inicio</NavLink><a href="/inicio#subir-informacion" className="block rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Subir información</a><a href="/inicio#ultimos-envios" className="block rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Documentos enviados</a><a href="/inicio#pendientes" className="block rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Pendientes</a></nav></aside>;
 
     return (
         <aside className="flex min-h-full w-full shrink-0 flex-col border-b border-[var(--sidebar-border)] bg-[var(--sidebar)] px-3 py-4 text-[var(--text-main)] shadow-[18px_0_50px_rgba(19,34,56,0.05)] lg:sticky lg:top-[72px] lg:h-[calc(100vh-72px)] lg:w-64 lg:border-b-0 lg:border-r">
@@ -284,6 +290,7 @@ export default function Sidebar({
                     preset={preset}
                     workId={workId}
                     onNavigate={onNavigate}
+                    onExit={returnToGeneralView}
                 />
             ) : (
                 <>
@@ -333,6 +340,7 @@ function WorkSidebar({
     preset,
     workId,
     onNavigate,
+    onExit,
 }) {
     const navigate = useNavigate();
     const { pathname } = useLocation();
@@ -377,9 +385,9 @@ function WorkSidebar({
 
     return (
         <>
-            <NavLink
-                to={navigation.exit.path}
-                onClick={onNavigate}
+            <button
+                type="button"
+                onClick={onExit}
                 className="
                     mb-5 flex items-center gap-2
                     rounded-[var(--radius-md)]
@@ -402,7 +410,7 @@ function WorkSidebar({
                 />
 
                 Volver a visión general
-            </NavLink>
+            </button>
 
             <div className="relative mb-5 px-1">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">
