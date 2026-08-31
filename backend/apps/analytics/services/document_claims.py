@@ -16,6 +16,7 @@ class DocumentClaims:
     execution_status: str = "empty"
     extractor_used: str = "safe_fallback"
     provider_used: str = "none"
+    model_used: str = ""
     failure_code: str = "no_claims_detected"
     claims_count: int = 0
     extraction_metadata: dict = field(default_factory=dict)
@@ -26,7 +27,7 @@ class DocumentClaims:
 
 def safe_document_claims(
     *, text="", origin="fallback_seguro", status="empty",
-    extractor="safe_fallback", provider="none", failure_code="no_claims_detected",
+    extractor="safe_fallback", provider="none", model="", failure_code="no_claims_detected",
     metadata=None,
 ):
     return DocumentClaims(
@@ -35,6 +36,7 @@ def safe_document_claims(
         execution_status=status,
         extractor_used=extractor,
         provider_used=provider,
+        model_used=model,
         failure_code=failure_code,
         claims_count=0,
         extraction_metadata=metadata or {},

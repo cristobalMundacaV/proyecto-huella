@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from .openai_document_provider import OpenAIDocumentProvider
+from .document_provider_registry import get_document_ai_provider
 
 try:
     from pypdf import PdfReader
@@ -179,33 +179,8 @@ def inferir_evidencia_desde_texto(texto):
     }
 
 
-def _normalize_ai_output(data, fallback):
-    normalized = {
-        "tipo_evidencia": data.get("tipo_evidencia") or fallback["tipo_evidencia"],
-        "fecha": _normalize_date(data.get("fecha") or fallback["fecha"]),
-        "cantidad": data.get("cantidad", fallback["cantidad"]),
-        "litros_combustible": data.get("litros_combustible", fallback["litros_combustible"]),
-        "patente": data.get("patente") or fallback["patente"],
-        "codigo_obra": data.get("codigo_obra") or fallback["codigo_obra"],
-        "proveedor": data.get("proveedor") or fallback["proveedor"],
-        "confianza": data.get("confianza", fallback["confianza"]),
-        "fuente": data.get("fuente") or fallback["fuente"],
-    }
-    try:
-        normalized["confianza"] = float(normalized["confianza"])
-    except (TypeError, ValueError):
-        normalized["confianza"] = fallback["confianza"]
-    return normalized
-
-
 def extraer_evidencia_estructurada(texto):
-    fallback = inferir_evidencia_desde_texto(texto)
-    extracted = OpenAIDocumentProvider().extract_text(texto)
-    if not extracted:
-        return fallback
-    normalized = _normalize_ai_output(extracted, fallback)
-    normalized["fuente"] = "ia"
-    return normalized
+    return inferir_evidencia_desde_texto(texto)
 
 
 def extraer_evidencia_desde_archivo(archivo):
@@ -221,5 +196,5 @@ def extraer_evidencia_desde_archivo(archivo):
 
 
 def analizar_archivo_visual(archivo):
-    """Fachada compatible; el SDK vive en el adaptador de proveedor."""
-    return OpenAIDocumentProvider().extract_visual(archivo)
+    """Fachada compatible; la selección del proveedor queda en el registry."""
+    return get_document_ai_provider().extract_visual(archivo)

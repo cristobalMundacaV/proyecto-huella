@@ -69,7 +69,7 @@ def technical_extraction_validation(extraction):
         "motivos": [messages.get(execution_status, messages["failed"])],
         "resultado_extraccion": {
             key: extraction.get(key)
-            for key in ("execution_status", "extractor_used", "provider_used", "failure_code", "claims_count")
+            for key in ("execution_status", "extractor_used", "provider_used", "model_used", "failure_code", "claims_count")
         },
         "version_contrato": "validacion-documental-v1",
     }

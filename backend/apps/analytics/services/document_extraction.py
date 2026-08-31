@@ -447,6 +447,7 @@ def extract_environmental_document(upload, preset="construccion"):
         "execution_status": document_claims["execution_status"],
         "extractor_used": document_claims["extractor_used"],
         "provider_used": document_claims["provider_used"],
+        "model_used": document_claims["model_used"],
         "failure_code": document_claims["failure_code"],
         "claims_count": document_claims["claims_count"],
         "campos_faltantes": [],
@@ -459,6 +460,7 @@ def extract_environmental_document(upload, preset="construccion"):
         "metadata": {
             "extraction_engine": document_claims["extractor_used"],
             "provider": document_claims["provider_used"],
+            "model": document_claims["model_used"],
             "detected_by": "observed_content",
             "score": detected.get("score", 0),
             "requires_human_review": confidence < 0.75,

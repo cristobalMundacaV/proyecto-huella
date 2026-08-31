@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 from pathlib import Path
 
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 
 from .services.evidence_validation import (
     classify_evidence_relevance,
@@ -26,6 +26,13 @@ PNG_BYTES = (
 )
 
 
+@override_settings(
+    DOCUMENT_AI_PROVIDER="openai",
+    DOCUMENT_AI_MODEL="gpt-5-mini",
+    DOCUMENT_AI_FALLBACK_PROVIDER="",
+    DOCUMENT_AI_FALLBACK_MODEL="",
+    OPENROUTER_API_KEY="",
+)
 class EvidenceValidationContractTests(SimpleTestCase):
     def observation(self):
         return SimpleNamespace(
