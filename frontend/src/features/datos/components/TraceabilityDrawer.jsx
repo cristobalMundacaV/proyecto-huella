@@ -4,6 +4,7 @@ import {
   FileText,
   ShieldCheck,
 } from "lucide-react";
+import { evidenceDetailPath } from "../utils/evidencePaths";
 
 import {
   ButtonLink,
@@ -420,7 +421,7 @@ export default function TraceabilityDrawer({
               <ButtonLink
                 variant="primary"
                 leftIcon={FileText}
-                to={`/datos/evidencias/${evidence.id}`}
+                to={evidenceDetailPath(evidence.id, workId)}
                 className="
                   w-full
                   shadow-sm

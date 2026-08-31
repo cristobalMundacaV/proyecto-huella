@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import base64
+import mimetypes
 import re
 from datetime import datetime
 from pathlib import Path
@@ -269,3 +271,42 @@ def extraer_evidencia_desde_archivo(archivo):
         **structured,
         "texto_extraido": texto,
     }
+
+
+def analizar_archivo_visual(archivo):
+    """Analiza imágenes/PDF sin usar los datos declarados como contexto."""
+    if not settings.OPENAI_API_KEY:
+        return None
+    filename = getattr(archivo, "name", "documento") or "documento"
+    content_type = getattr(archivo, "content_type", "") or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    content = _read_bytes(archivo)
+    if not content:
+        return None
+    encoded = base64.b64encode(content).decode("ascii")
+    if content_type.startswith("image/"):
+        attachment = {"type": "input_image", "image_url": f"data:{content_type};base64,{encoded}"}
+    elif content_type == "application/pdf" or filename.lower().endswith(".pdf"):
+        attachment = {"type": "input_file", "filename": filename, "file_data": f"data:application/pdf;base64,{encoded}"}
+    else:
+        return None
+    prompt = """
+Analiza exclusivamente el archivo adjunto como evidencia operacional. No inventes datos.
+Devuelve SOLO JSON válido con:
+tipo_documento, relevancia_detectada, motivo_relevancia, confianza_clasificacion,
+legibilidad, confianza_extraccion y claims.
+claims puede contener tipo_recurso, cantidad, unidad, fecha, identificador_documento.
+Cada claim debe tener valor_original, valor_normalizado y confianza.
+Para combustible normaliza Diésel Grado B a diesel y Litros a L. Fechas a YYYY-MM-DD.
+Relevancia: pertinente, parcialmente_pertinente, no_pertinente o indeterminado.
+Si el campo no es visible, omítelo. Una imagen irrelevante puede ser no_pertinente;
+un documento pertinente pero ilegible debe ser indeterminado.
+"""
+    try:
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        response = client.responses.create(
+            model="gpt-5-mini",
+            input=[{"role": "user", "content": [{"type": "input_text", "text": prompt}, attachment]}],
+        )
+        return _parse_json_blob(response.output_text)
+    except (APIConnectionError, APIStatusError, ValueError, json.JSONDecodeError):
+        return None

@@ -34,6 +34,17 @@ def _candidate_status(eligibility):
     return "aplicable"
 
 
+def _implicit_flow_match(version, activity):
+    record = getattr(activity, "registro_flujo_ambiental", None)
+    if record:
+        methodology_flow = version.metodologia.flujo
+        if methodology_flow == record.flujo:
+            return True
+        if methodology_flow == "combustible" and record.flujo.startswith("combustible"):
+            return True
+    return activity.tipo == "transporte" and version.formula.tipo.startswith("transporte_")
+
+
 def select_methodology(actividad):
     today = timezone.localdate()
     versions = VersionMetodologia.objects.filter(
@@ -47,7 +58,7 @@ def select_methodology(actividad):
     candidates = []
     for version in versions:
         applicability_reasons = _applicability_reasons(version, actividad)
-        legacy_match = actividad.tipo == "transporte" and version.formula.tipo.startswith("transporte_")
+        legacy_match = _implicit_flow_match(version, actividad)
         if (version.aplicabilidad and applicability_reasons) or (not version.aplicabilidad and not legacy_match):
             candidates.append({"metodo": version.metodologia.flujo, "version_metodologia": version,
                                "estado": "no_aplicable", "motivos": applicability_reasons or ["Flujo no aplicable a la actividad."]})

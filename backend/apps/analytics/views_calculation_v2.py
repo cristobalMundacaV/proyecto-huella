@@ -78,6 +78,12 @@ def _serialize_selection(selection):
             )
         )
     )
+    if not reasons:
+        reasons = [
+            "No existe una metodología activa y vigente configurada para esta actividad."
+            if not selection["candidatos"]
+            else selection["razon"]
+        ]
     return {
         "estado": selection["estado"],
         "metodologia_seleccionada": (

@@ -1,4 +1,5 @@
 from decimal import Decimal
+from datetime import datetime
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -236,6 +237,21 @@ class SectorFlowsV1Tests(APITestCase):
 
         self.assertEqual(totals[("combustible_consumido", "L")], Decimal("300"))
         self.assertEqual(totals[("combustible_consumido", "kg")], Decimal("25"))
+
+    def test_registro_historico_fuera_de_periodo_se_conserva_sin_contaminar_kpi(self):
+        valid = self.record("combustible_estacionario", obra=self.work)
+        invalid = self.record("combustible_estacionario", obra=self.work)
+        invalid.periodo_inicio = timezone.make_aware(datetime(2025, 12, 30, 12))
+        invalid.save(update_fields=["periodo_inicio"])
+        self.observation(valid, "combustible_consumido", 250, "L")
+        self.observation(invalid, "combustible_consumido", 20, "L")
+
+        result = sector_summary(self.org, work=self.work)
+        total = next(item for item in result["totales_compatibles"] if item["unidad"] == "L")
+
+        self.assertEqual(total["total"], Decimal("250"))
+        self.assertEqual(len(result["registros"]), 2)
+        self.assertTrue(any(item["tipo"] == "registro_fuera_periodo" for item in result["senales"]))
 
     def test_residuo_destino_y_evidencia_trazables(self):
         evidence = EvidenciaObra.objects.create(

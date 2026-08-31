@@ -115,8 +115,21 @@ def _scope(record):
     }
 
 
+def _period_issue(record):
+    work = record.obra
+    if not work:
+        return None
+    record_date = record.periodo_inicio.date()
+    if work.fecha_inicio and record_date < work.fecha_inicio:
+        return "El registro es anterior al inicio de la obra y se conserva solo para revisión."
+    if work.fecha_termino_estimada and record_date > work.fecha_termino_estimada:
+        return "El registro es posterior al término de la obra y se conserva solo para revisión."
+    return None
+
+
 def record_summary(record):
     observations = list(record.actividad.observaciones.all())
+    period_issue = _period_issue(record)
     return {
         "id": record.id,
         "flujo": record.flujo,
@@ -126,6 +139,8 @@ def record_summary(record):
         "tipo_recurso": record.tipo_recurso,
         "metrica": record.metrica,
         "destino_operacional": record.destino_operacional,
+        "vigencia_periodo": "fuera_periodo" if period_issue else "vigente",
+        "motivo_vigencia": period_issue,
         "mediciones": [
             {
                 "id": row.id,
@@ -162,6 +177,16 @@ def sector_summary(organization, **filters):
     signals = []
     for record in _rows(organization, **filters):
         records.append(record_summary(record))
+        period_issue = _period_issue(record)
+        if period_issue:
+            signals.append(
+                {
+                    "tipo": "registro_fuera_periodo",
+                    "registro_id": record.id,
+                    "motivo": period_issue,
+                }
+            )
+            continue
         per_activity = defaultdict(list)
         for observation in record.actividad.observaciones.all():
             if observation.valor_numerico is not None:

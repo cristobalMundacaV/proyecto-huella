@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase
 
 from .services.evidence_validation import (
@@ -11,6 +13,7 @@ from .services.evidence_validation import (
     extract_evidence_claims,
 )
 from .services.document_extraction import extract_number_near_units
+from .services.document_extraction import extract_environmental_document
 
 
 class EvidenceValidationContractTests(SimpleTestCase):
@@ -108,4 +111,48 @@ class EvidenceValidationContractTests(SimpleTestCase):
         self.assertEqual(
             extract_number_near_units("Factura diesel 1.800 L")["cantidad_sugerida"],
             "1800",
+        )
+
+    def test_png_recibe_claims_reales_del_analisis_visual(self):
+        visual_result = {
+            "tipo_documento": "factura_combustible",
+            "relevancia_detectada": "pertinente",
+            "motivo_relevancia": "Factura de combustible legible.",
+            "confianza_clasificacion": 0.97,
+            "legibilidad": "legible",
+            "confianza_extraccion": 0.96,
+            "claims": {
+                "tipo_recurso": {"valor_original": "Diésel Grado B", "valor_normalizado": "diesel", "confianza": 0.98},
+                "cantidad": {"valor_original": "250,00", "valor_normalizado": "250", "confianza": 0.99},
+                "unidad": {"valor_original": "Litros", "valor_normalizado": "L", "confianza": 0.99},
+                "fecha": {"valor_original": "04-09-2026", "valor_normalizado": "2026-09-04", "confianza": 0.98},
+            },
+        }
+        response = Mock(output_text=__import__("json").dumps(visual_result))
+        client = Mock()
+        client.responses.create.return_value = response
+        upload = SimpleUploadedFile("factura.png", b"\x89PNG\r\n", content_type="image/png")
+        with self.settings(OPENAI_API_KEY="test"), patch(
+            "apps.analytics.services.documentos_obra.OpenAI", return_value=client
+        ):
+            extraction = extract_environmental_document(upload)
+
+        self.assertEqual(extraction["claims"]["cantidad"], "250")
+        self.assertEqual(extraction["claims"]["tipo_recurso"], "diesel")
+        self.assertEqual(extraction["claims_trazables"]["cantidad"]["valor_original"], "250,00")
+        observation = self.observation()
+        observation.valor_numerico = Decimal("250")
+        relevance = classify_evidence_relevance(extraction, observation)
+        comparisons = compare_evidence_to_observation(
+            observation,
+            extract_evidence_claims(extraction),
+            {"tipo_recurso": "diesel", "claims_trazables": extraction["claims_trazables"]},
+        )
+        result = evaluate_evidence_validation(relevance, comparisons)
+        date_comparison = next(item for item in result["comparaciones"] if item["campo"] == "fecha")
+        self.assertEqual(result["estado"], "contradiccion")
+        self.assertEqual(date_comparison["estado"], "contradice")
+        self.assertEqual(
+            [item["campo"] for item in result["comparaciones"] if item["estado"] == "contradice"],
+            ["fecha"],
         )

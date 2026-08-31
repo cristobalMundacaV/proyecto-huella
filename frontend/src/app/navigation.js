@@ -261,6 +261,12 @@ const PAGE_CONTEXTS = [
   },
 
   {
+    pattern: "/obras/:obraId/evidencias/:evidenceId",
+    title: "Detalle de evidencia de la unidad",
+    description: "Revisa el documento y su trazabilidad sin perder el contexto de la unidad.",
+  },
+
+  {
     pattern: "/obras/:obraId/evidencias",
     title: "Evidencias de la unidad",
     description: "Antecedentes y documentos vinculados a esta unidad.",

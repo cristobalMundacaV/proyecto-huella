@@ -43,6 +43,13 @@ def _fuel_required_unit(formula):
 
 def evaluate_formula(actividad, formula):
     reasons, warnings, inputs, normalizations = [], [], {}, {}
+    record = getattr(actividad, "registro_flujo_ambiental", None)
+    work = record.obra if record else actividad.obra
+    record_date = record.periodo_inicio.date() if record else actividad.timestamp_inicio.date()
+    if work and work.fecha_inicio and record_date < work.fecha_inicio:
+        reasons.append("El registro es anterior al inicio de la obra y no puede alimentar cálculos ambientales.")
+    if work and work.fecha_termino_estimada and record_date > work.fecha_termino_estimada:
+        reasons.append("El registro es posterior al término de la obra y no puede alimentar cálculos ambientales.")
     fuel_classification = activity_fuel_classification(actividad)
     fuel_factor_selection = None
     if fuel_classification:

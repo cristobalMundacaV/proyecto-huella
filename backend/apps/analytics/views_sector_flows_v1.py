@@ -163,6 +163,8 @@ def manual_sector_record(request, organizacion_id):
                             "origen_operacional": True,
                             "registro_manual": True,
                             "flujo": resolved_flow,
+                            "mime_type": uploaded_file.content_type or "",
+                            "nombre_original": uploaded_file.name,
                         },
                     },
                     context={"request": request},

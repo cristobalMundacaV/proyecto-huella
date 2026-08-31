@@ -153,6 +153,7 @@ export default function AppRouter() {
             />
             <Route path="problemas/:problemId" element={<ProblemDetailPage workScoped />} />
             <Route path="evidencias" element={<RequireCapability permission="evidence.view"><EvidencePage workScoped /></RequireCapability>} />
+            <Route path="evidencias/:evidenceId" element={<RequireCapability permission="evidence.view"><EvidenceDetailPage /></RequireCapability>} />
             <Route path="timeline" element={<ObraTimelinePage />} />
             <Route
               path="diagnostico"

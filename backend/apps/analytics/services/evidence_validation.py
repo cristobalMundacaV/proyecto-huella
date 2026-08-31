@@ -6,7 +6,7 @@ from django.db import transaction
 
 from ..models import DiscrepanciaDato, EvidenciaObra
 from .document_extraction import normalize_text
-from .unit_conversion import UnitConversionError, convert_value
+from .unit_conversion import UnitConversionError, canonicalize_unit, convert_value
 
 
 DOCUMENT_EXPECTATIONS = {
@@ -71,7 +71,7 @@ def _quantity_comparison(observation, claims):
         declared = Decimal(str(observation.valor_numerico))
         documental = converted["valor_normalizado"]
     except (UnitConversionError, InvalidOperation):
-        return {"campo": "cantidad", "estado": "requiere_revision", "declarado": f"{observation.valor_numerico} {observation.unidad}".strip(), "documental": f"{extracted} {extracted_unit}".strip(), "motivo": "No existe una conversión determinística segura entre las unidades."}
+        return {"campo": "cantidad", "estado": "indeterminado", "declarado": f"{observation.valor_numerico} {observation.unidad}".strip(), "documental": f"{extracted} {extracted_unit}".strip(), "motivo": "No existe una conversión determinística segura entre las unidades."}
     tolerance = max(abs(declared) * Decimal("0.005"), Decimal("0.000001"))
     matches = abs(declared - documental) <= tolerance
     state = "compatible_por_conversion" if matches and converted["conversion_aplicada"] else ("coincide" if matches else "contradice")
@@ -81,6 +81,22 @@ def _quantity_comparison(observation, claims):
 def compare_evidence_to_observation(observation, claims, context=None):
     context = context or {}
     comparisons = [_quantity_comparison(observation, claims)] if observation.valor_numerico is not None else []
+    document_unit = claims.get("unidad")
+    if observation.unidad:
+        if not document_unit:
+            comparisons.append({"campo": "unidad", "estado": "no_disponible", "declarado": observation.unidad, "documental": None})
+        else:
+            try:
+                declared_unit = canonicalize_unit(observation.unidad)
+                normalized_unit = canonicalize_unit(document_unit)
+                if declared_unit == normalized_unit:
+                    state = "coincide"
+                else:
+                    convert_value(1, normalized_unit, declared_unit)
+                    state = "compatible_por_conversion"
+            except UnitConversionError:
+                state = "indeterminado"
+            comparisons.append({"campo": "unidad", "estado": state, "declarado": observation.unidad, "documental": document_unit})
     declared_resource = context.get("tipo_recurso")
     if declared_resource:
         comparisons.append(_text_comparison("tipo_recurso", declared_resource, claims.get("tipo_recurso")))
@@ -92,9 +108,13 @@ def compare_evidence_to_observation(observation, claims, context=None):
         else:
             try:
                 delta = abs((date.fromisoformat(document_date) - date.fromisoformat(declared_date)).days)
-                comparisons.append({"campo": "fecha", "estado": "coincide" if delta == 0 else ("requiere_revision" if delta <= 31 else "contradice"), "declarado": declared_date, "documental": document_date, "diferencia_dias": delta})
+                comparisons.append({"campo": "fecha", "estado": "coincide" if delta == 0 else "contradice", "declarado": declared_date, "documental": document_date, "diferencia_dias": delta})
             except ValueError:
-                comparisons.append({"campo": "fecha", "estado": "requiere_revision", "declarado": declared_date, "documental": document_date})
+                comparisons.append({"campo": "fecha", "estado": "indeterminado", "declarado": declared_date, "documental": document_date})
+    trace = context.get("claims_trazables") or {}
+    for comparison in comparisons:
+        if comparison["campo"] in trace:
+            comparison["trazabilidad_documental"] = trace[comparison["campo"]]
     return comparisons
 
 
@@ -107,7 +127,7 @@ def evaluate_evidence_validation(relevance, comparisons):
         state = "contradiccion"
     elif relevance["estado"] == "parcialmente_pertinente":
         state = "compatible_incompleta"
-    elif any(item["estado"] in {"no_disponible", "requiere_revision"} for item in comparisons):
+    elif any(item["estado"] in {"no_disponible", "indeterminado"} for item in comparisons):
         state = "compatible_incompleta"
     elif comparisons:
         state = "verificada"
@@ -153,6 +173,7 @@ def _sync_discrepancies(observation, validation):
 def validate_observation_evidence(observation, extraction, context=None):
     relevance = classify_evidence_relevance(extraction, observation)
     claims = extract_evidence_claims(extraction)
+    context = {**(context or {}), "claims_trazables": extraction.get("claims_trazables") or {}}
     comparisons = compare_evidence_to_observation(observation, claims, context)
     validation = evaluate_evidence_validation(relevance, comparisons)
     evidence = observation.evidencia
