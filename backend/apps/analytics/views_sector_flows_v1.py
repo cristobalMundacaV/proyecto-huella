@@ -79,23 +79,23 @@ def sector_records(request, organizacion_id):
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def manual_sector_record(request, organizacion_id):
     """Create evidence, activity and environmental record atomically."""
-    context = resolve_operational_context(request, Permission.DATA_CREATE)
-    if str(context.organizacion.organizacion_id) != str(organizacion_id):
+    organization = _organization(request, organizacion_id)
+    if not organization:
         raise Http404("Recurso no encontrado.")
-
     work_id = request.data.get("obra")
     if not work_id:
         raise ValidationError(
             {"obra": "Selecciona la obra donde registrarÃ¡s la informaciÃ³n."}
         )
     work = get_object_or_404(
-        filter_works_for_user(Obra.objects.all(), request.user, context.organizacion),
+        filter_works_for_user(Obra.objects.all(), request.user, organization),
         pk=work_id,
     )
-    if context.obra and context.obra.id != work.id:
-        raise ValidationError(
-            {"obra": "La obra no corresponde al espacio de trabajo activo."}
-        )
+    context = resolve_operational_context(
+        request,
+        Permission.DATA_CREATE,
+        target_work=work,
+    )
 
     uploaded_file = request.FILES.get("evidencia_archivo")
     if uploaded_file:

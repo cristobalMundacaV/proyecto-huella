@@ -88,5 +88,6 @@ export const createManualSectorRecord = async (
         await api.post(
             `${base(organizationId)}/flujos-ambientales/registro-manual/`,
             payload,
+            { skipOperationalWorkspace: true },
         )
     ).data;

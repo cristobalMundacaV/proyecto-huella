@@ -42,7 +42,7 @@ export function OperationalWorkspaceProvider({ children }) {
 
   useEffect(() => {
     const interceptor = api.interceptors.request.use((config) => {
-      if (state.activeId) config.headers["X-Workspace-ID"] = state.activeId;
+      if (state.activeId && !config.skipOperationalWorkspace) config.headers["X-Workspace-ID"] = state.activeId;
       return config;
     });
     return () => api.interceptors.request.eject(interceptor);

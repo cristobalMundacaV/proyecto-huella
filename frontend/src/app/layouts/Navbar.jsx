@@ -19,8 +19,6 @@ import { useAuth } from "@/features/auth/context/AuthContext";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { getActivePreset } from "@/presets/registry";
 import { IconButton } from "@/shared/ui/Button";
-import WorkspaceSelector from "@/features/workspace/components/WorkspaceSelector";
-import { useOperationalWorkspace } from "@/features/workspace/context/OperationalWorkspaceContext";
 
 export default function Navbar({
   onOpenMobileMenu,
@@ -35,7 +33,6 @@ export default function Navbar({
   const navigate = useNavigate();
 
   const [open, setOpen] = useState(false);
-  const { workspaces } = useOperationalWorkspace();
 
   const displayName =
     user?.first_name ||
@@ -99,7 +96,6 @@ export default function Navbar({
           </p>
         </div>
 
-        {workspaces.length > 1 && <WorkspaceSelector compact />}
         <div className="relative ml-auto">
           <button
             type="button"

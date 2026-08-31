@@ -16,13 +16,14 @@ from .models import (
     Observacion,
     Organizacion,
     RegistroFlujoAmbiental,
+    UsuarioAreaOperacional,
     UsuarioOrganizacion,
 )
 
 
 class ManualSectorRecordAtomicityTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user("operador-manual", password="test-pass")
+        self.user = User.objects.create_user("marcela", first_name="Marcela", password="test-pass")
         self.organization = Organizacion.objects.create(nombre="Constructora Atomicidad", preset="construccion")
         self.membership = UsuarioOrganizacion.objects.create(
             user=self.user,
@@ -30,6 +31,7 @@ class ManualSectorRecordAtomicityTests(APITestCase):
             rol=UsuarioOrganizacion.Rol.OPERADOR,
         )
         self.work = Obra.objects.create(
+            id=71,
             organizacion=self.organization,
             nombre="Edificio Los Robles",
             fecha_inicio="2026-08-25",
@@ -86,6 +88,28 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         self.assertEqual(ActividadOperacional.objects.count(), 1)
         self.assertEqual(RegistroFlujoAmbiental.objects.count(), 1)
         self.assertEqual(EvidenciaObra.objects.count(), 0)
+
+    def test_area_principal_resuelve_y_crea_contexto_sin_workspace_expuesto(self):
+        self.workspace.delete()
+        UsuarioAreaOperacional.objects.create(
+            usuario_organizacion=self.membership,
+            area=self.area,
+            cargo="Encargada ambiental",
+            es_principal=True,
+        )
+
+        response = self.client.post(
+            self.url,
+            self.payload(periodo_inicio="2026-09-03T12:00:00"),
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        workspace = EspacioTrabajoOperacional.objects.get()
+        self.assertEqual(workspace.usuario_organizacion, self.membership)
+        self.assertEqual(workspace.area, self.area)
+        self.assertEqual(workspace.obra_id, 71)
+        self.assertEqual(ActividadOperacional.objects.get().timestamp_inicio.date().isoformat(), "2026-09-03")
 
     def test_registro_con_evidencia_conserva_todos_los_vinculos(self):
         response = self.post(self.payload(

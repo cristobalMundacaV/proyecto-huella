@@ -9,6 +9,7 @@ from ..models import (
     EspacioTrabajoOperacional,
     EvidenciaObra,
     UsuarioAreaOperacional,
+    UsuarioOrganizacion,
 )
 from ..permissions import (
     ROLE_PERMISSIONS,
@@ -68,25 +69,68 @@ def requested_workspace_id(request):
     return value
 
 
-def resolve_operational_context(request, permission=None, allow_automatic=True):
+@transaction.atomic
+def resolve_operational_context(request, permission=None, allow_automatic=True, target_work=None):
     queryset = workspaces_for_user(request.user)
     workspace_id = requested_workspace_id(request)
     if workspace_id:
         workspace = queryset.filter(pk=workspace_id).first()
         if not workspace:
-            raise Http404("Espacio de trabajo no encontrado.")
+            raise Http404("Contexto operacional no encontrado.")
+    elif target_work is not None:
+        organization = target_work.organizacion
+        require_work_access(request.user, organization, target_work)
+        membership = UsuarioOrganizacion.objects.select_for_update().filter(
+            user=request.user,
+            organizacion=organization,
+            activo=True,
+        ).first()
+        if not membership:
+            raise Http404("Recurso no encontrado.")
+
+        assignments = UsuarioAreaOperacional.objects.filter(
+            usuario_organizacion=membership,
+            activo=True,
+            area__activa=True,
+        ).select_related("area")
+        primary = assignments.filter(es_principal=True).first()
+        if primary:
+            assignment = primary
+        elif assignments.count() == 1:
+            assignment = assignments.first()
+        elif assignments.exists():
+            raise ValidationError(
+                {"area_principal": "Configura un área principal para registrar información cuando perteneces a más de un área operacional."}
+            )
+        else:
+            raise ValidationError(
+                {"area_principal": "Debes tener un área operacional activa para registrar información."}
+            )
+
+        workspace, _ = EspacioTrabajoOperacional.objects.get_or_create(
+            usuario_organizacion=membership,
+            area=assignment.area,
+            obra=target_work,
+        )
+        if not workspace.activo:
+            workspace.activo = True
+            workspace.save(update_fields=["activo", "updated_at"])
     elif allow_automatic and queryset.count() == 1:
         workspace = queryset.first()
     else:
         raise ValidationError(
             {
-                "workspace_id": "Selecciona el espacio de trabajo en el que deseas continuar."
+                "area_principal": "Configura un área principal para resolver automáticamente tu contexto operacional."
             }
         )
 
     membership = workspace.usuario_organizacion
     organization = membership.organizacion
     require_work_access(request.user, organization, workspace.obra)
+    if target_work is not None and workspace.obra_id != target_work.id:
+        raise ValidationError(
+            {"obra": "La obra solicitada no corresponde al contexto operacional activo."}
+        )
     if permission:
         require_tenant_permission(request.user, organization, permission)
     return ContextoOperativo(
