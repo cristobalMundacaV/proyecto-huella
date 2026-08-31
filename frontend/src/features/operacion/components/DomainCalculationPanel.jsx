@@ -34,66 +34,9 @@ import {
 } from "../api/calculationApi";
 
 import {
+    domainActivities,
     resourceData,
 } from "../utils/operationSelectors";
-
-
-const TYPES = {
-    energia: [
-        "consumo_energia",
-        "generacion_energia",
-    ],
-
-    agua: [
-        "consumo_agua",
-    ],
-
-    combustibles: [
-        "consumo_combustible_estacionario",
-    ],
-
-    transporte: [
-        "transporte",
-    ],
-
-    materiales: [
-        "movimiento_material",
-    ],
-
-    residuos: [
-        "gestion_residuo",
-    ],
-
-    ruido: [
-        "monitoreo_ruido",
-    ],
-
-    "emisiones-atmosfericas": [
-        "monitoreo_emisiones_atmosfericas",
-    ],
-
-    suelo: [
-        "gestion_suelo",
-    ],
-
-    "hidrica-suelo": [
-        "gestion_hidrica_suelo",
-    ],
-};
-
-
-function belongs(
-    activity,
-    domain,
-) {
-    return (
-        TYPES[
-        domain
-        ] || []
-    ).includes(
-        activity.tipo
-    );
-}
 
 
 export default function DomainCalculationPanel({
@@ -105,22 +48,10 @@ export default function DomainCalculationPanel({
     const activities =
         useMemo(
             () =>
-                resourceData(
-                    operation.records,
-                    [],
-                )
-                    .map(
-                        (item) =>
-                            item.actividad,
-                    )
-                    .filter(Boolean)
-                    .filter(
-                        (activity) =>
-                            belongs(
-                                activity,
-                                domain,
-                            ),
-                    ),
+                domainActivities(
+                    resourceData(operation.records, []),
+                    domain,
+                ),
             [
                 operation.records,
                 domain,
@@ -148,11 +79,8 @@ export default function DomainCalculationPanel({
                             async (
                                 activity,
                             ) => {
-                                const [
-                                    eligibility,
-                                    calculations,
-                                ] =
-                                    await Promise.all([
+                                const [eligibilityResult, calculationsResult] =
+                                    await Promise.allSettled([
                                         getActivityEligibility(
                                             organizationId,
                                             activity.id,
@@ -164,10 +92,17 @@ export default function DomainCalculationPanel({
                                         ),
                                     ]);
 
+                                const eligibility = eligibilityResult.status === "fulfilled"
+                                    ? eligibilityResult.value
+                                    : {
+                                        estado: "no_calculable",
+                                        razon: "No fue posible evaluar esta actividad.",
+                                        motivos: [eligibilityResult.reason?.response?.data?.detail || "La elegibilidad no está disponible."],
+                                    };
                                 return {
                                     activity,
                                     eligibility,
-                                    calculations,
+                                    calculations: calculationsResult.status === "fulfilled" ? calculationsResult.value : [],
                                 };
                             },
                         ),
@@ -246,12 +181,14 @@ export default function DomainCalculationPanel({
                 description="La metodología, los factores y los datos utilizados permanecen trazables y versionados."
             />
 
-            {!rows.length ? (
+            {!activities.length ? (
                 <EmptyState
                     icon={Calculator}
-                    title="Aún no hay cálculo ambiental disponible"
-                    description="Este registro todavía no cuenta con una metodología y factores suficientes para generar un resultado ambiental trazable."
+                    title="Sin actividades para evaluar"
+                    description="No existen actividades registradas en este dominio para evaluar."
                 />
+            ) : !rows.length ? (
+                <p className="text-sm text-[var(--text-muted)]">Evaluando elegibilidad y factores aplicables...</p>
             ) : (
                 <TableShell>
                     <TableHead>
@@ -325,7 +262,7 @@ export default function DomainCalculationPanel({
                                                 {eligibilityStatus.label}
                                             </StatusBadge>
                                             <span className="mt-1 block max-w-xs text-xs text-[var(--text-muted)]">
-                                                {row.eligibility?.razon || eligibilityStatus.description}
+                                                {row.eligibility?.motivos?.[0] || row.eligibility?.razon || eligibilityStatus.description}
                                             </span>
                                         </TableCell>
 

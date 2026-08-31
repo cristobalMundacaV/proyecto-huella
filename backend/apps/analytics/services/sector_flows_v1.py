@@ -13,7 +13,9 @@ ADDITIVE_CONCEPTS = {
     (RegistroFlujoAmbiental.Flujo.GENERACION_PROPIA, "energia_autoconsumida"),
     (RegistroFlujoAmbiental.Flujo.GENERACION_PROPIA, "energia_exportada"),
     (RegistroFlujoAmbiental.Flujo.AGUA, "consumo_agua"),
+    (RegistroFlujoAmbiental.Flujo.COMBUSTIBLE, "combustible_consumido"),
     (RegistroFlujoAmbiental.Flujo.COMBUSTIBLE_ESTACIONARIO, "combustible_consumido"),
+    (RegistroFlujoAmbiental.Flujo.COMBUSTIBLE_MOVIL, "combustible_consumido"),
     (RegistroFlujoAmbiental.Flujo.RESIDUO, "cantidad_residuo"),
 }
 
@@ -251,9 +253,51 @@ def sector_summary(organization, **filters):
                 **values,
             }
         )
+    compatible_totals = defaultdict(
+        lambda: {"total": Decimal("0"), "mediciones": 0, "registros_ambiguos": 0}
+    )
+    for indicator in indicators:
+        if indicator["estrategia_agregacion"] != "suma":
+            continue
+        scope = indicator["alcance"]
+        key = (
+            indicator["concepto"],
+            indicator["unidad"],
+            scope["granularidad"],
+            scope["unidad_operacional_id"],
+            scope["obra_id"],
+            scope["proceso_id"],
+            scope["activo_id"],
+            scope["punto_id"],
+        )
+        total = compatible_totals[key]
+        if indicator["total"] is not None:
+            total["total"] += indicator["total"]
+        total["mediciones"] += indicator["mediciones"]
+        total["registros_ambiguos"] += indicator["registros_ambiguos"]
+    compatible_rows = []
+    for key, values in compatible_totals.items():
+        concept, unit, granularity, unit_id, work_id, process_id, asset_id, point_id = key
+        compatible_rows.append(
+            {
+                "concepto": concept,
+                "unidad": unit,
+                "estrategia_agregacion": "suma",
+                "alcance": {
+                    "granularidad": granularity,
+                    "unidad_operacional_id": unit_id,
+                    "obra_id": work_id,
+                    "proceso_id": process_id,
+                    "activo_id": asset_id,
+                    "punto_id": point_id,
+                },
+                **values,
+            }
+        )
     return {
         "organizacion_id": organization.organizacion_id,
         "indicadores": indicators,
+        "totales_compatibles": compatible_rows,
         "senales": signals,
         "registros": records[:20],
         "cumplimiento_normativo": None,

@@ -200,3 +200,14 @@ class ManualSectorRecordAtomicityTests(APITestCase):
 
         self.assertEqual(response.status_code, 201, response.data)
         self.assertIsNone(Observacion.objects.get().evidencia_id)
+
+    def test_fecha_anterior_al_inicio_de_obra_es_rechazada(self):
+        response = self.post(self.payload(
+            codigo_actividad="manual-combustibles-fecha-invalida",
+            periodo_inicio="2026-08-24T12:00:00",
+        ))
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("inicio de la obra", str(response.data).lower())
+        self.assertFalse(ActividadOperacional.objects.exists())
+        self.assertFalse(RegistroFlujoAmbiental.objects.exists())

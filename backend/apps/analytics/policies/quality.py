@@ -1,6 +1,20 @@
 from ..models import EvaluacionCalidadDato, Observacion
 
 
+def evidence_health(observation):
+    evidence = observation.evidencia
+    if not evidence:
+        return "sin_evidencia", "El dato no tiene respaldo documental adjunto."
+    state = evidence.estado_documental
+    if state == evidence.EstadoDocumental.VALIDADA:
+        return "validada", "La evidencia adjunta fue validada y fortalece la procedencia del dato."
+    if state == evidence.EstadoDocumental.RECHAZADA:
+        return "rechazada", "La evidencia adjunta fue rechazada; el dato requiere revisión."
+    if state == evidence.EstadoDocumental.OBSERVADA:
+        return "observada", "La evidencia adjunta tiene observaciones y requiere revisión."
+    return "pendiente", "La evidencia está adjunta, pero su validación documental continúa pendiente."
+
+
 def source_health(observation):
     source = observation.fuente
     if not source.activa:
@@ -30,7 +44,8 @@ def source_health(observation):
 
 def quality_assessment(observation, reviewed_by_user=False):
     health, reason = source_health(observation)
-    reasons = [reason]
+    evidence_state, evidence_reason = evidence_health(observation)
+    reasons = [reason, evidence_reason]
     if observation.estado == Observacion.Estado.RECHAZADA:
         state = EvaluacionCalidadDato.Estado.NO_CONFIABLE
         reasons.append("La observacion fue rechazada.")
@@ -41,7 +56,15 @@ def quality_assessment(observation, reviewed_by_user=False):
         state = EvaluacionCalidadDato.Estado.NO_CONFIABLE
     elif health in {"calibracion_vencida", "requiere_revision"}:
         state = EvaluacionCalidadDato.Estado.REQUIERE_REVISION
-    elif health == "declarativa" or observation.estado == Observacion.Estado.PENDIENTE:
+    elif evidence_state in {"rechazada", "observada"}:
+        state = EvaluacionCalidadDato.Estado.REQUIERE_REVISION
+    elif evidence_state == "validada":
+        state = EvaluacionCalidadDato.Estado.CONFIABLE
+    elif (
+        health == "declarativa"
+        or evidence_state == "pendiente"
+        or observation.estado == Observacion.Estado.PENDIENTE
+    ):
         state = EvaluacionCalidadDato.Estado.CONFIABLE_OBSERVACIONES
     else:
         state = EvaluacionCalidadDato.Estado.CONFIABLE
@@ -49,8 +72,15 @@ def quality_assessment(observation, reviewed_by_user=False):
         "estado": state,
         "motivos": reasons,
         "dimensiones": {
-            "procedencia": observation.naturaleza,
+            "procedencia": (
+                "documental_validada"
+                if evidence_state == "validada"
+                else observation.naturaleza
+            ),
             "estado_fuente": health,
+            "estado_observacion": observation.estado,
+            "respaldo_documental": evidence_state,
+            "efecto_respaldo": evidence_reason,
             "completitud": (
                 "completa"
                 if observation.valor_numerico is not None or observation.valor_texto

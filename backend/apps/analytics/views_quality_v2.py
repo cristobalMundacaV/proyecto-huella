@@ -17,7 +17,6 @@ from .selectors.quality import (
     indicator_for_organization,
     indicators_for_user,
     observations_for_quality,
-    quality_evaluations,
 )
 from .serializers_quality_v2 import (
     DiscrepanciaSerializer,
@@ -29,7 +28,7 @@ from .serializers_quality_v2 import (
 )
 from .services.comparison_v2 import compare_values
 from .services.indicators_v2 import build_baseline
-from .services.quality_v2 import evaluate_observation_quality
+from .services.quality_v2 import ensure_current_quality_evaluation
 
 
 def _org(request, value, permission=Permission.INDICATOR_VIEW):
@@ -54,11 +53,7 @@ def calidad_observaciones(
 
     observations = observations_for_quality(org, obra_id)
 
-    for observation in observations:
-        if not observation.evaluaciones_calidad.exists():
-            evaluate_observation_quality(observation)
-
-    queryset = quality_evaluations(org, observations)
+    queryset = [ensure_current_quality_evaluation(observation) for observation in observations]
 
     return Response(
         EvaluacionCalidadSerializer(

@@ -276,4 +276,10 @@ def sector_indicators(request, organizacion_id):
         for key in ("flow", "start", "end")
         if request.query_params.get(key)
     }
+    work_id = request.query_params.get("obra")
+    if work_id:
+        filters["work"] = get_object_or_404(
+            filter_works_for_user(Obra.objects.all(), request.user, organization),
+            pk=work_id,
+        )
     return Response(sector_summary(organization, **filters))

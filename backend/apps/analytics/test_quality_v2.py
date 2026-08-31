@@ -2,6 +2,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
@@ -11,6 +12,7 @@ from .models import (
     ActividadOperacional,
     DiscrepanciaDato,
     EvaluacionCalidadDato,
+    EvidenciaObra,
     FuenteDatos,
     IndicadorAmbiental,
     LineaBaseAmbiental,
@@ -29,7 +31,7 @@ from .services.observation_resolver import (
     is_technical_duplicate,
     resolve_observation,
 )
-from .services.quality_v2 import evaluate_observation_quality
+from .services.quality_v2 import ensure_current_quality_evaluation, evaluate_observation_quality
 
 
 class QualityIndicatorsV2Tests(APITestCase):
@@ -75,7 +77,38 @@ class QualityIndicatorsV2Tests(APITestCase):
         evaluation = evaluate_observation_quality(self.observation(self.manual, "132"))
         self.assertEqual(evaluation.estado, "confiable_con_observaciones")
         self.assertEqual(evaluation.dimensiones["procedencia"], "declarativo")
+        self.assertEqual(evaluation.dimensiones["respaldo_documental"], "sin_evidencia")
+        self.assertTrue(any("Sin evidencia" in reason for reason in evaluation.motivos))
         self.assertFalse(hasattr(evaluation, "score"))
+
+    def test_estado_evidencia_reevalua_sin_borrar_historial(self):
+        evidence = EvidenciaObra.objects.create(
+            organizacion=self.org,
+            nombre="Vale combustible",
+            archivo=SimpleUploadedFile("vale.txt", b"respaldo"),
+        )
+        observation = self.observation(self.manual, "132")
+        observation.evidencia = evidence
+        observation.save(update_fields=["evidencia", "updated_at"])
+
+        pending = ensure_current_quality_evaluation(observation)
+        self.assertEqual(pending.estado, "confiable_con_observaciones")
+        self.assertEqual(pending.dimensiones["respaldo_documental"], "pendiente")
+        self.assertTrue(any("pendiente" in reason.lower() for reason in pending.motivos))
+
+        evidence.estado_documental = EvidenciaObra.EstadoDocumental.VALIDADA
+        evidence.save(update_fields=["estado_documental", "updated_at"])
+        validated = ensure_current_quality_evaluation(observation)
+        self.assertEqual(validated.estado, "confiable")
+        self.assertEqual(validated.dimensiones["procedencia"], "documental_validada")
+        self.assertEqual(EvaluacionCalidadDato.objects.filter(observacion=observation).count(), 2)
+
+        evidence.estado_documental = EvidenciaObra.EstadoDocumental.RECHAZADA
+        evidence.save(update_fields=["estado_documental", "updated_at"])
+        rejected = ensure_current_quality_evaluation(observation)
+        self.assertEqual(rejected.estado, "requiere_revision")
+        self.assertTrue(any("rechazada" in reason.lower() for reason in rejected.motivos))
+        self.assertEqual(EvaluacionCalidadDato.objects.filter(observacion=observation).count(), 3)
 
     def test_sensor_operativo_y_fuera_servicio(self):
         source = FuenteDatos.objects.create(

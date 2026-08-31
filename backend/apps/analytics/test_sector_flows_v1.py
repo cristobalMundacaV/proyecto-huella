@@ -216,6 +216,27 @@ class SectorFlowsV1Tests(APITestCase):
         self.assertEqual(record.activo, self.asset)
         self.assertEqual(ViajeOperacional.objects.count(), 0)
 
+    def test_combustibles_compatibles_se_suman_sin_mezclar_unidades(self):
+        stationary = self.record("combustible_estacionario", obra=self.work)
+        mobile_activity = ActividadOperacional.objects.create(
+            organizacion=self.org,
+            tipo="consumo_combustible",
+            codigo="FL-MOBILE",
+            nombre="Combustible movil",
+            timestamp_inicio=timezone.now(),
+        )
+        mobile = self.record("combustible_movil", actividad=mobile_activity, obra=self.work)
+        kilograms = self.record("combustible_estacionario", obra=self.work)
+        self.observation(stationary, "combustible_consumido", 120, "L")
+        self.observation(mobile, "combustible_consumido", 180, "L")
+        self.observation(kilograms, "combustible_consumido", 25, "kg")
+
+        result = sector_summary(self.org, work=self.work)
+        totals = {(item["concepto"], item["unidad"]): item["total"] for item in result["totales_compatibles"]}
+
+        self.assertEqual(totals[("combustible_consumido", "L")], Decimal("300"))
+        self.assertEqual(totals[("combustible_consumido", "kg")], Decimal("25"))
+
     def test_residuo_destino_y_evidencia_trazables(self):
         evidence = EvidenciaObra.objects.create(
             organizacion=self.org,

@@ -129,6 +129,16 @@ export default function OperationLayout() {
     <Outlet
       context={{
         ...workspace,
+        indicators: state.data.sectorIndicators.status === "ready"
+          ? {
+            flujos: state.data.sectorIndicators.data?.indicadores || [],
+            totales_compatibles: state.data.sectorIndicators.data?.totales_compatibles || [],
+          }
+          : { flujos: [], totales_compatibles: [] },
+        resourceErrors: {
+          ...workspace.resourceErrors,
+          indicators: state.data.sectorIndicators.status !== "ready",
+        },
         operation:
           state.data,
         reloadOperation:

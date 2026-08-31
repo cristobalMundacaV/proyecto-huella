@@ -13,7 +13,7 @@ export const DOMAIN_CONFIG = {
   },
   combustibles: {
     label: "Combustibles",
-    flows: ["combustible_estacionario"],
+    flows: ["combustible", "combustible_movil", "combustible_estacionario"],
     capability: "combustibles",
     question: "¿Qué combustible se está utilizando?",
   },
@@ -42,6 +42,35 @@ export const DOMAIN_CONFIG = {
     question: "¿Qué condiciones o afectaciones del suelo se están registrando?",
   },
 };
+
+export const DOMAIN_ACTIVITY_TYPES = {
+  energia: ["consumo_energia", "generacion_energia"],
+  agua: ["consumo_agua"],
+  combustibles: ["consumo_combustible", "consumo_combustible_estacionario"],
+  transporte: ["transporte"],
+  materiales: ["movimiento_material"],
+  residuos: ["gestion_residuo"],
+  ruido: ["monitoreo_ruido"],
+  "emisiones-atmosfericas": ["monitoreo_emisiones_atmosfericas"],
+  suelo: ["gestion_suelo"],
+  "hidrica-suelo": ["gestion_hidrica_suelo"],
+};
+
+export function activityBelongsToDomain(activity, domain) {
+  return (DOMAIN_ACTIVITY_TYPES[domain] || []).includes(activity?.tipo);
+}
+
+export function domainActivities(records, domain) {
+  const seen = new Set();
+  return (records || [])
+    .map((record) => record.actividad_detalle)
+    .filter((activity) => activityBelongsToDomain(activity, domain))
+    .filter((activity) => {
+      if (seen.has(activity.id)) return false;
+      seen.add(activity.id);
+      return true;
+    });
+}
 
 const statePresentation = {
   con_datos: {
@@ -115,6 +144,11 @@ export function applicability(context, capability) {
   if (states.includes("aplica")) return "aplica";
   if (states.every((state) => state === "no_aplica")) return "no_aplica";
   return "pendiente";
+}
+
+export function compatibleDomainTotals(indicators, domain) {
+  const concepts = new Set(domainMetrics(indicators, domain).map((metric) => metric.concepto));
+  return (indicators?.totales_compatibles || []).filter((metric) => concepts.has(metric.concepto));
 }
 
 export function domainState({ applicabilityState, records = [], ambiguous = false, available = true }) {

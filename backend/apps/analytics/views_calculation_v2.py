@@ -67,6 +67,17 @@ def _activity(request, org, value):
 
 def _serialize_selection(selection):
     selected = selection["seleccion"]
+    reasons = (
+        selected["elegibilidad"]["motivos"]
+        if selected
+        else list(
+            dict.fromkeys(
+                reason
+                for candidate in selection["candidatos"]
+                for reason in candidate.get("motivos", [])
+            )
+        )
+    )
     return {
         "estado": selection["estado"],
         "metodologia_seleccionada": (
@@ -81,6 +92,7 @@ def _serialize_selection(selection):
             else None
         ),
         "razon": selection["razon"],
+        "motivos": reasons,
         "alternativos": [
             {"metodo": item["metodo"], "estado": item["estado"]}
             for item in selection["alternativos"]

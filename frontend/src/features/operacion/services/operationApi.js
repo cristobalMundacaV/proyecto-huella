@@ -7,6 +7,7 @@ export async function getWorkOperation(organizationId, workId) {
   const results = await Promise.allSettled([
     api.get(`${base(organizationId)}/flujos-ambientales/`, { params }),
     api.get(`${base(organizationId)}/puntos-ambientales/`, { params }),
+    api.get(`${base(organizationId)}/flujos-ambientales/indicadores/`, { params }),
     api.get(`${base(organizationId)}/viajes-operacionales/`, { params }),
     api.get(`${base(organizationId)}/viajes-operacionales/indicadores/`, { params }),
     api.get(`${base(organizationId)}/obras/${encodeURIComponent(workId)}/materiales/`),
@@ -22,6 +23,7 @@ export async function getWorkOperation(organizationId, workId) {
   const [
     records,
     points,
+    sectorIndicators,
     journeys,
     transport,
     materials,
@@ -32,6 +34,7 @@ export async function getWorkOperation(organizationId, workId) {
   return {
     records,
     points,
+    sectorIndicators,
     journeys,
     transport,
     materials,

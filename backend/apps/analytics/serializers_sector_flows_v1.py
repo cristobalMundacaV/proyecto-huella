@@ -40,6 +40,7 @@ class PuntoAmbientalSerializer(serializers.ModelSerializer):
 
 
 class RegistroFlujoAmbientalSerializer(serializers.ModelSerializer):
+    actividad_detalle = serializers.SerializerMethodField()
     concepto = serializers.SlugField(max_length=120, required=False, write_only=True)
     valor_numerico = serializers.DecimalField(
         max_digits=20,
@@ -82,6 +83,15 @@ class RegistroFlujoAmbientalSerializer(serializers.ModelSerializer):
     observaciones = ObservacionSerializer(
         source="actividad.observaciones", many=True, read_only=True
     )
+
+    def get_actividad_detalle(self, record):
+        activity = record.actividad
+        return {
+            "id": activity.id,
+            "tipo": activity.tipo,
+            "nombre": activity.nombre,
+            "timestamp_inicio": activity.timestamp_inicio,
+        }
 
     class Meta:
         model = RegistroFlujoAmbiental

@@ -1,4 +1,8 @@
 import {
+    activityBelongsToDomain,
+} from "../utils/operationSelectors";
+
+import {
     useCallback,
     useEffect,
     useMemo,
@@ -35,62 +39,6 @@ import {
     formatDateTime,
     formatNumber,
 } from "@/shared/utils/formatters";
-
-
-const ACTIVITY_TYPES = {
-    energia: [
-        "consumo_energia",
-        "generacion_energia",
-    ],
-
-    agua: [
-        "consumo_agua",
-    ],
-
-    combustibles: [
-        "consumo_combustible_estacionario",
-    ],
-
-    transporte: [
-        "transporte",
-    ],
-
-    materiales: [
-        "movimiento_material",
-    ],
-
-    residuos: [
-        "gestion_residuo",
-    ],
-
-    ruido: [
-        "monitoreo_ruido",
-    ],
-
-    "emisiones-atmosfericas": [
-        "monitoreo_emisiones_atmosfericas",
-    ],
-
-    suelo: [
-        "gestion_suelo",
-    ],
-
-    "hidrica-suelo": [
-        "gestion_hidrica_suelo",
-    ],
-};
-
-
-function belongsToDomain(
-    type,
-    domain,
-) {
-    return (
-        ACTIVITY_TYPES[
-        domain
-        ] || []
-    ).includes(type);
-}
 
 
 function human(value) {
@@ -231,11 +179,8 @@ export default function DomainQualityPanel({
             () =>
                 state.quality.filter(
                     (item) =>
-                        belongsToDomain(
-                            item
-                                .observacion_detalle
-                                ?.actividad
-                                ?.tipo,
+                        activityBelongsToDomain(
+                            item.observacion_detalle?.actividad,
                             domain,
                         ),
                 ),
@@ -250,10 +195,8 @@ export default function DomainQualityPanel({
             () =>
                 state.discrepancies.filter(
                     (item) =>
-                        belongsToDomain(
-                            item
-                                .actividad_detalle
-                                ?.tipo,
+                        activityBelongsToDomain(
+                            item.actividad_detalle,
                             domain,
                         ),
                 ),
@@ -698,11 +641,11 @@ export default function DomainQualityPanel({
                                             </TableCell>
 
                                             <TableCell as="th">
-                                                Fuente
+                                                Respaldo documental
                                             </TableCell>
 
                                             <TableCell as="th">
-                                                Captura
+                                                Fuente / captura
                                             </TableCell>
 
                                             <TableCell as="th">
@@ -798,28 +741,30 @@ export default function DomainQualityPanel({
                                                                     item.estado,
                                                                 )}
                                                             </StatusBadge>
-                                                        </TableCell>
-
-                                                        <TableCell>
-                                                            {
-                                                                observation
-                                                                    ?.fuente
-                                                                    ?.nombre
-                                                            }
-
-                                                            <span className="block text-xs text-[var(--text-muted)]">
-                                                                {human(
-                                                                    observation
-                                                                        ?.fuente
-                                                                        ?.tipo,
-                                                                )}
+                                                            <span className="mt-1 block max-w-xs text-xs text-[var(--text-muted)]">
+                                                                {item.motivos?.join(" ")}
+                                                            </span>
+                                                            <span className="mt-1 block text-xs text-[var(--text-muted)]">
+                                                                Estado del dato: {human(observation?.estado)}
                                                             </span>
                                                         </TableCell>
 
                                                         <TableCell>
-                                                            {human(
-                                                                observation?.metodo_captura,
-                                                            )}
+                                                            {observation?.evidencia ? (
+                                                                <>
+                                                                    <b>{observation.evidencia.nombre}</b>
+                                                                    <span className="block text-xs text-[var(--text-muted)]">
+                                                                        {human(observation.evidencia.estado_documental)}
+                                                                    </span>
+                                                                </>
+                                                            ) : "Sin evidencia adjunta"}
+                                                        </TableCell>
+
+                                                        <TableCell>
+                                                            {observation?.fuente?.nombre}
+                                                            <span className="block text-xs text-[var(--text-muted)]">
+                                                                Captura {human(observation?.metodo_captura)}
+                                                            </span>
                                                         </TableCell>
 
                                                         <TableCell>

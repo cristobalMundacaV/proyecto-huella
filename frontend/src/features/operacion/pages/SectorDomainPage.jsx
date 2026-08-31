@@ -23,6 +23,7 @@ import DomainCalculationPanel from "../components/DomainCalculationPanel";
 import {
   additiveMetrics,
   applicability,
+  compatibleDomainTotals,
   DOMAIN_CONFIG,
   domainMetrics,
   domainRecords,
@@ -149,6 +150,7 @@ export default function SectorDomainPage({ domain }) {
   const records = domainRecords(resourceData(operation.records, []), domain);
   const measurements = recordMeasurements(records);
   const additive = ["ruido", "emisiones-atmosfericas", "suelo"].includes(domain) ? [] : additiveMetrics(indicators, domain);
+  const compatibleTotals = compatibleDomainTotals(indicators, domain);
   const series = nonAdditiveMetrics(indicators, domain);
   const ambiguous = domainMetrics(indicators, domain).filter((metric) => metric.registros_ambiguos > 0);
   const pointsReady = isResourceReady(operation.points);
@@ -182,7 +184,7 @@ export default function SectorDomainPage({ domain }) {
   ].slice(0, 3);
 
   const fuelTotalMetric =
-    additive.find(
+    compatibleTotals.find(
       (metric) =>
         metric.concepto ===
         "combustible_consumido" &&
@@ -583,7 +585,7 @@ export default function SectorDomainPage({ domain }) {
                               </TableCell>
 
                               <TableCell as="th">
-                                Calidad
+                                Estado del dato
                               </TableCell>
 
                               <TableCell as="th">
@@ -613,7 +615,7 @@ export default function SectorDomainPage({ domain }) {
                               </TableCell>
 
                               <TableCell as="th">
-                                Calidad
+                                Estado del dato
                               </TableCell>
 
                               <TableCell as="th">
@@ -712,6 +714,11 @@ export default function SectorDomainPage({ domain }) {
                                     <span className="font-medium">
                                       {sourceName}
                                     </span>
+                                    {observation.evidencia_detalle && (
+                                      <span className="block text-xs text-[var(--text-muted)]">
+                                        Respaldo: {humanize(observation.evidencia_detalle.estado_documental)}
+                                      </span>
+                                    )}
                                   </TableCell>
 
                                   <TableCell>

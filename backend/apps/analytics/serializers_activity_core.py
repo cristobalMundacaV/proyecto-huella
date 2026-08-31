@@ -127,6 +127,7 @@ class ObservacionSerializer(serializers.ModelSerializer):
             "id": observacion.evidencia_id,
             "nombre": observacion.evidencia.nombre,
             "tipo_evidencia": observacion.evidencia.tipo_evidencia,
+            "estado_documental": observacion.evidencia.estado_documental,
         }
 
     def get_version_evidencia_detalle(self, observacion):
