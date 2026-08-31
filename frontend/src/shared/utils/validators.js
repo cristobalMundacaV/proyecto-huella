@@ -56,7 +56,7 @@ export function isValidPhone(value) {
   if (!normalized) return true;
   const digits = normalized.replace(/\D/g, "");
   const local = digits.startsWith("56") ? digits.slice(2) : digits;
-  return /^9\d{8}$/.test(local);
+  return /^[2-9]\d{8}$/.test(local);
 }
 
 export function formatChileanPhone(value = "") {
@@ -64,7 +64,11 @@ export function formatChileanPhone(value = "") {
   if (!raw) return "";
   const digits = raw.replace(/\D/g, "");
   const local = (digits.startsWith("56") ? digits.slice(2) : digits).slice(0, 9);
-  return /^9\d{8}$/.test(local) ? `+56 ${local[0]} ${local.slice(1, 5)} ${local.slice(5)}` : raw;
+  if (!/^[2-9]\d{8}$/.test(local)) return raw;
+  if (local.startsWith("9") || local.startsWith("2")) {
+    return `+56 ${local[0]} ${local.slice(1, 5)} ${local.slice(5)}`;
+  }
+  return `+56 ${local.slice(0, 2)} ${local.slice(2, 5)} ${local.slice(5)}`;
 }
 
 export function normalizeEmail(value = "") { return String(value).trim().toLowerCase(); }

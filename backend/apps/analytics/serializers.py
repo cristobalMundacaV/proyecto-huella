@@ -50,7 +50,7 @@ class OrganizacionSerializer(serializers.ModelSerializer):
             return value
         digits = re.sub(r"\D", "", value)
         local = digits[2:] if digits.startswith("56") else digits
-        if not re.fullmatch(r"9\d{8}", local):
+        if not re.fullmatch(r"[2-9]\d{8}", local):
             raise serializers.ValidationError("El formato del teléfono no es válido.")
         return f"+56{local}"
 

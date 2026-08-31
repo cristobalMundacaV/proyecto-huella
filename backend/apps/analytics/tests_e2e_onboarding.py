@@ -98,6 +98,18 @@ class SaaSOnboardingE2ETests(TestCase):
         self.assertEqual(valid.status_code, 200, valid.data)
         organization.refresh_from_db(); self.assertEqual(organization.pais, "Chile"); self.assertEqual(organization.comuna, "Concepción")
 
+    def test_onboarding_accepts_chilean_landline(self):
+        provisioned = self.provision(); organization = Organizacion.objects.get(organizacion_id=provisioned.data["organizacion_id"])
+        admin = User.objects.get(email="marcela@example.com"); self.client.force_authenticate(admin)
+        response = self.client.patch(
+            "/api/onboarding/",
+            {"step": 1, "data": {"nombre": organization.nombre, "rut": "21.683.264-7", "preset": "construccion", "region": "Región del Biobío", "comuna": "Concepción", "telefono": "+56 41 245 7810"}},
+            format="json",
+            HTTP_X_ORGANIZATION_ID=organization.organizacion_id,
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        organization.refresh_from_db(); self.assertEqual(organization.telefono, "+56412457810")
+
     def test_onboarding_is_tenant_isolated(self):
         self.provision(); first = Organizacion.objects.get(nombre__startswith="Constructora")
         other = Organizacion.objects.create(nombre="Otra empresa"); user = User.objects.create_user("other-admin", password="password")
