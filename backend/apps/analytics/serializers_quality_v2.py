@@ -43,6 +43,9 @@ class EvaluacionCalidadSerializer(serializers.ModelSerializer):
                     "id": item.evidencia_id,
                     "nombre": item.evidencia.nombre,
                     "estado_documental": item.evidencia.estado_documental,
+                    "validacion_documental": (
+                        item.evidencia.metadata_extraccion or {}
+                    ).get("validacion_documental"),
                 }
                 if item.evidencia_id
                 else None

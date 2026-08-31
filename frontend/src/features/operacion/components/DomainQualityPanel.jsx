@@ -81,6 +81,46 @@ function qualityTone(state) {
     return "warning";
 }
 
+function documentaryLabel(validation, fallback) {
+    const labels = {
+        verificada: "Verificado",
+        compatible_incompleta: "Compatible, requiere revisión",
+        contradiccion: "Contradice el dato declarado",
+        no_pertinente: "No pertinente",
+        indeterminada: "En revisión",
+        pendiente_procesamiento: "Procesando",
+    };
+    return labels[validation?.estado] || human(fallback);
+}
+
+function DocumentaryValidation({ evidence }) {
+    const validation = evidence?.validacion_documental;
+    if (!evidence) return "Sin evidencia adjunta";
+    return (
+        <>
+            <b>{evidence.nombre}</b>
+            <span className="block text-xs text-[var(--text-muted)]">
+                Estado: {documentaryLabel(validation, evidence.estado_documental)}
+            </span>
+            {validation?.estado === "no_pertinente" && (
+                <span className="mt-1 block text-xs text-[var(--danger)]">
+                    Este archivo no parece corresponder al respaldo esperado para el dato.
+                </span>
+            )}
+            {validation?.comparaciones?.map((comparison) => (
+                <span
+                    className="mt-1 block text-xs text-[var(--text-muted)]"
+                    key={comparison.campo}
+                >
+                    {comparison.estado === "contradice" ? "✕" : comparison.estado === "coincide" || comparison.estado === "compatible_por_conversion" ? "✓" : "•"}{" "}
+                    {human(comparison.campo)}: {comparison.declarado || "No declarado"}
+                    {comparison.documental ? ` / Documento: ${comparison.documental}` : " / No disponible en documento"}
+                </span>
+            ))}
+        </>
+    );
+}
+
 
 export default function DomainQualityPanel({
     domain,
@@ -750,14 +790,7 @@ export default function DomainQualityPanel({
                                                         </TableCell>
 
                                                         <TableCell>
-                                                            {observation?.evidencia ? (
-                                                                <>
-                                                                    <b>{observation.evidencia.nombre}</b>
-                                                                    <span className="block text-xs text-[var(--text-muted)]">
-                                                                        {human(observation.evidencia.estado_documental)}
-                                                                    </span>
-                                                                </>
-                                                            ) : "Sin evidencia adjunta"}
+                                                            <DocumentaryValidation evidence={observation?.evidencia} />
                                                         </TableCell>
 
                                                         <TableCell>

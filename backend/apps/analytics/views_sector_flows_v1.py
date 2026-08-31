@@ -16,7 +16,10 @@ from .serializers_sector_flows_v1 import (
     RegistroFlujoAmbientalSerializer,
 )
 from .services.fuel_classification import FUEL_FLOWS, classify_fuel
+from .services.document_extraction import extract_environmental_document
+from .services.evidence_validation import validate_observation_evidence
 from .services.operational_context import resolve_operational_context
+from .services.quality_v2 import ensure_current_quality_evaluation
 from .services.sector_flows_v1 import sector_summary
 from .selectors.environmental_flows import (
     environmental_points_for_organization,
@@ -98,9 +101,14 @@ def manual_sector_record(request, organizacion_id):
     )
 
     uploaded_file = request.FILES.get("evidencia_archivo")
+    document_extraction = None
     if uploaded_file:
         require_tenant_permission(
             request.user, context.organizacion, Permission.EVIDENCE_CREATE
+        )
+        document_extraction = extract_environmental_document(
+            uploaded_file,
+            preset=context.organizacion.preset,
         )
 
     flow = request.data.get("flujo")
@@ -219,6 +227,16 @@ def manual_sector_record(request, organizacion_id):
             )
             record_serializer.is_valid(raise_exception=True)
             record = record_serializer.save()
+            document_validation = None
+            quality_evaluation = None
+            if evidence:
+                observation = record.actividad.observaciones.get(evidencia=evidence)
+                document_validation = validate_observation_evidence(
+                    observation,
+                    document_extraction,
+                    context={"tipo_recurso": record.tipo_recurso},
+                )
+                quality_evaluation = ensure_current_quality_evaluation(observation)
 
             return Response(
                 {
@@ -231,6 +249,17 @@ def manual_sector_record(request, organizacion_id):
                     ).data,
                     "actividad_id": activity.id,
                     "clasificacion_ambiental": fuel_classification,
+                    "validacion_documental": document_validation,
+                    "evaluacion_calidad": (
+                        {
+                            "id": quality_evaluation.id,
+                            "estado": quality_evaluation.estado,
+                            "motivos": quality_evaluation.motivos,
+                            "version_reglas": quality_evaluation.version_reglas,
+                        }
+                        if quality_evaluation
+                        else None
+                    ),
                     "evidencia": (
                         EvidenciaObraSerializer(
                             evidence, context={"request": request}

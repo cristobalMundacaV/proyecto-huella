@@ -6,13 +6,29 @@ RULES_VERSION = "calidad-v2-evidencia"
 
 def quality_input_fingerprint(observation):
     evidence = observation.evidencia
+    evidence_version = observation.version_evidencia
+    if evidence and not evidence_version:
+        evidence_version = evidence.versiones.order_by("-version").first()
     return {
         "observacion_actualizada": observation.updated_at.isoformat(),
         "estado_observacion": observation.estado,
         "fuente_activa": observation.fuente.activa,
         "evidencia_id": observation.evidencia_id,
         "estado_evidencia": evidence.estado_documental if evidence else None,
+        "validacion_documental": (
+            (evidence.metadata_extraccion or {}).get("validacion_documental")
+            if evidence
+            else None
+        ),
         "evidencia_actualizada": evidence.updated_at.isoformat() if evidence else None,
+        "version_evidencia_id": evidence_version.id if evidence_version else None,
+        "estado_procesamiento": (
+            evidence_version.estado_procesamiento if evidence_version else None
+        ),
+        "version_evidencia_actualizada": (
+            evidence_version.updated_at.isoformat() if evidence_version else None
+        ),
+        "metadata_version": evidence_version.metadata_tecnica if evidence_version else None,
     }
 
 

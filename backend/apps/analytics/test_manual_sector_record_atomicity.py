@@ -10,6 +10,7 @@ from .models import (
     ActividadOperacional,
     AreaOperacional,
     EspacioTrabajoOperacional,
+    DiscrepanciaDato,
     EvidenciaObra,
     FuenteDatos,
     Obra,
@@ -131,6 +132,44 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         )
         self.assertEqual(observation.evidencia, evidence)
         self.assertEqual(observation.fuente, self.source)
+
+    def test_factura_coincidente_verifica_documento_y_mejora_calidad(self):
+        response = self.post(self.payload(
+            codigo_actividad="manual-combustible-verificado",
+            periodo_inicio="2026-09-03T12:00:00",
+            valor_numerico="180",
+            evidencia_archivo=SimpleUploadedFile(
+                "factura-diesel.txt",
+                b"Factura combustible diesel 180 litros 03-09-2026",
+                content_type="text/plain",
+            ),
+            evidencia_tipo="factura_combustible",
+        ))
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data["validacion_documental"]["estado"], "verificada")
+        self.assertEqual(response.data["evaluacion_calidad"]["estado"], "confiable")
+        self.assertEqual(EvidenciaObra.objects.get().estado_documental, "validada")
+
+    def test_factura_con_cantidad_distinta_crea_discrepancia(self):
+        response = self.post(self.payload(
+            codigo_actividad="manual-combustible-contradictorio",
+            periodo_inicio="2026-09-03T12:00:00",
+            valor_numerico="180",
+            evidencia_archivo=SimpleUploadedFile(
+                "factura-diesel.txt",
+                b"Factura combustible diesel 120 litros 03-09-2026",
+                content_type="text/plain",
+            ),
+            evidencia_tipo="factura_combustible",
+        ))
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data["validacion_documental"]["estado"], "contradiccion")
+        discrepancy = DiscrepanciaDato.objects.get(concepto="evidencia_cantidad")
+        self.assertEqual(discrepancy.severidad, DiscrepanciaDato.Severidad.ALTA)
+        self.assertIn('"documental": "120 litros diesel"', discrepancy.motivo)
+        self.assertEqual(response.data["evaluacion_calidad"]["estado"], "requiere_revision")
 
     def test_fallo_al_crear_registro_revierte_actividad_y_evidencia(self):
         counts_before = (

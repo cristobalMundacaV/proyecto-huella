@@ -5,6 +5,18 @@ def evidence_health(observation):
     evidence = observation.evidencia
     if not evidence:
         return "sin_evidencia", "El dato no tiene respaldo documental adjunto."
+    validation = (evidence.metadata_extraccion or {}).get("validacion_documental") or {}
+    validation_state = validation.get("estado")
+    if validation_state == "verificada":
+        return "verificada", "El respaldo fue contrastado con el dato declarado y sus campos relevantes son compatibles."
+    if validation_state == "contradiccion":
+        return "contradiccion", "El respaldo documental contradice uno o más campos declarados; el dato requiere revisión prioritaria."
+    if validation_state == "no_pertinente":
+        return "no_pertinente", "El archivo no corresponde al tipo de respaldo esperado y no mejora la calidad del dato."
+    if validation_state == "compatible_incompleta":
+        return "compatible_incompleta", "El respaldo es compatible, pero no contiene todos los campos necesarios para verificar el dato completamente."
+    if validation_state == "indeterminada":
+        return "indeterminada", "No fue posible verificar de forma segura el contenido del respaldo documental."
     state = evidence.estado_documental
     if state == evidence.EstadoDocumental.VALIDADA:
         return "validada", "La evidencia adjunta fue validada y fortalece la procedencia del dato."
@@ -56,9 +68,9 @@ def quality_assessment(observation, reviewed_by_user=False):
         state = EvaluacionCalidadDato.Estado.NO_CONFIABLE
     elif health in {"calibracion_vencida", "requiere_revision"}:
         state = EvaluacionCalidadDato.Estado.REQUIERE_REVISION
-    elif evidence_state in {"rechazada", "observada"}:
+    elif evidence_state in {"rechazada", "observada", "contradiccion", "no_pertinente", "indeterminada"}:
         state = EvaluacionCalidadDato.Estado.REQUIERE_REVISION
-    elif evidence_state == "validada":
+    elif evidence_state in {"validada", "verificada"}:
         state = EvaluacionCalidadDato.Estado.CONFIABLE
     elif (
         health == "declarativa"
@@ -74,7 +86,7 @@ def quality_assessment(observation, reviewed_by_user=False):
         "dimensiones": {
             "procedencia": (
                 "documental_validada"
-                if evidence_state == "validada"
+                if evidence_state in {"validada", "verificada"}
                 else observation.naturaleza
             ),
             "estado_fuente": health,

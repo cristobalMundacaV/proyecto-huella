@@ -9,6 +9,7 @@ UNIT_ALIASES = {
     "l": "L",
     "litro": "L",
     "litros": "L",
+    "litros diesel": "L",
     "m3": "m3",
     "m³": "m3",
     "kg": "kg",

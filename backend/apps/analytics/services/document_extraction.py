@@ -268,8 +268,15 @@ def extract_number_near_units(text):
     for unit, pattern in unit_patterns:
         match = re.search(pattern, normalized)
         if match:
+            raw_number = match.group(1)
+            separator_match = re.fullmatch(r"([1-9]\d{0,2})[.,](\d{3})", raw_number)
+            normalized_number = (
+                "".join(separator_match.groups())
+                if separator_match
+                else raw_number.replace(",", ".")
+            )
             return {
-                "cantidad_sugerida": match.group(1).replace(",", "."),
+                "cantidad_sugerida": normalized_number,
                 "unidad_sugerida": unit,
             }
 
@@ -300,6 +307,30 @@ def extract_provider(text, filename):
 
     filename_without_ext = re.sub(r"\.[a-zA-Z0-9]+$", "", filename or "")
     return filename_without_ext.replace("_", " ").replace("-", " ").strip()[:120]
+
+
+def extract_operational_claims(text, detected_type, quantity, document_date):
+    normalized = normalize_text(text)
+    claims = {}
+    if quantity.get("cantidad_sugerida"):
+        claims["cantidad"] = quantity["cantidad_sugerida"]
+        claims["unidad"] = quantity.get("unidad_sugerida", "")
+    if document_date:
+        claims["fecha"] = document_date
+    if detected_type == "factura_combustible":
+        fuels = {
+            "diesel": ("diesel", "diésel", "petroleo diesel", "petróleo diésel"),
+            "gasolina": ("gasolina", "bencina"),
+            "gas_licuado": ("gas licuado", "glp"),
+            "gas_natural": ("gas natural", "gnc"),
+        }
+        matches = [key for key, aliases in fuels.items() if any(normalize_text(alias) in normalized for alias in aliases)]
+        if len(matches) == 1:
+            claims["tipo_recurso"] = matches[0]
+    identifier = re.search(r"\b(?:factura|folio|documento|n[°ºo])\s*[:#-]?\s*([a-z0-9-]{3,30})", normalized)
+    if identifier:
+        claims["identificador_documento"] = identifier.group(1)
+    return claims
 
 
 def build_missing_fields(payload):
@@ -335,6 +366,7 @@ def extract_environmental_document(upload, preset="construccion"):
     if not text:
         confidence = min(confidence, 0.55)
 
+    document_date = extract_date(combined_text)
     payload = {
         "filename": filename,
         "content_type": content_type,
@@ -342,7 +374,7 @@ def extract_environmental_document(upload, preset="construccion"):
         "tipo_documento": detected["tipo_documento"],
         "tipo_documento_label": detected["label"],
         "proveedor": extract_provider(text, filename),
-        "fecha": extract_date(combined_text),
+        "fecha": document_date,
         "categoria_sugerida": detected["categoria_sugerida"],
         "fuente_emision_sugerida": detected["fuente_emision_sugerida"],
         "cantidad_sugerida": quantity.get("cantidad_sugerida", ""),
@@ -350,6 +382,12 @@ def extract_environmental_document(upload, preset="construccion"):
         "factor_sugerido": "",
         "confianza": round(confidence, 2),
         "texto_extraido": text[:8000],
+        "claims": extract_operational_claims(
+            combined_text,
+            detected["tipo_documento"],
+            quantity,
+            document_date,
+        ),
         "campos_faltantes": [],
         "metadata": {
             "extraction_engine": "heuristic_v1",

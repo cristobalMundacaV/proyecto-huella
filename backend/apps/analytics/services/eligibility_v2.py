@@ -1,11 +1,12 @@
 from django.db.models import Q
 from django.utils import timezone
 
-from ..models import Observacion, VersionFactorAmbiental
+from ..models import EvaluacionCalidadDato, Observacion, VersionFactorAmbiental
 from .observation_resolver import resolve_observation
 from .fuel_classification import activity_fuel_classification, activity_fuel_type
 from .fuel_factor_selector import select_fuel_factor
 from .unit_conversion import UnitConversionError, convert_value
+from .quality_v2 import ensure_current_quality_evaluation
 
 
 def active_factor_version(formula, organizacion):
@@ -85,6 +86,17 @@ def evaluate_formula(actividad, formula):
                 reasons.append(f"Falta la variable critica {variable.concepto_observacion}.")
             elif criticality == "complementaria":
                 warnings.append(f"Falta la variable complementaria {variable.concepto_observacion}.")
+            continue
+        quality = ensure_current_quality_evaluation(observation)
+        if quality.estado in {
+            EvaluacionCalidadDato.Estado.REQUIERE_REVISION,
+            EvaluacionCalidadDato.Estado.NO_CONFIABLE,
+            EvaluacionCalidadDato.Estado.NO_CALCULABLE,
+        }:
+            reasons.append(
+                f"{variable.concepto_observacion} no puede calcularse mientras su calidad requiera revisión: "
+                + " ".join(quality.motivos)
+            )
             continue
         if observation.valor_numerico is None:
             reasons.append(f"{variable.concepto_observacion} no tiene valor numerico.")
