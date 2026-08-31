@@ -6,7 +6,7 @@ import { Alert, ButtonLink, EmptyState, ErrorState, SectionHeader, StatusBadge, 
 import PlatformLoader from "@/shared/components/PlatformLoader";
 import { formatDate, formatDateTime } from "@/shared/utils/formatters";
 import EvidenceDocumentViewer, { documentPresentation, FileActions } from "../components/EvidenceDocumentViewer";
-import { evidenceContext, listEvidence, listImports } from "../services/dataApi";
+import { evidenceContext, evidenceFile, listEvidence, listImports } from "../services/dataApi";
 import { evidenceStatusInfo, evidenceTypeLabel, importDisplayName } from "../utils/dataPresentation";
 
 const evidenceIcon = (type, presentation) => {
@@ -23,6 +23,7 @@ export default function EvidenceDetailPage() {
   const { activeOrganizacionId } = useOrganizacionActiva();
   const scopeKey = `${activeOrganizacionId || ""}:${evidenceId}`;
   const [state, setState] = useState({ scope: null, status: "loading", data: null, document: null, linkedImport: null, supplementalError: false });
+  const [authenticatedFileUrl, setAuthenticatedFileUrl] = useState("");
   const requestRef = useRef(0);
 
   useEffect(() => {
@@ -43,6 +44,21 @@ export default function EvidenceDetailPage() {
     return () => { requestRef.current += 1; };
   }, [activeOrganizacionId, evidenceId, obraId, scopeKey]);
 
+  useEffect(() => {
+    let objectUrl = "";
+    let current = true;
+    setAuthenticatedFileUrl("");
+    evidenceFile(evidenceId).then((blob) => {
+      if (!current) return;
+      objectUrl = URL.createObjectURL(blob);
+      setAuthenticatedFileUrl(objectUrl);
+    }).catch(() => {});
+    return () => {
+      current = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [evidenceId]);
+
   if (state.scope !== scopeKey || state.status === "loading") return <PlatformLoader title="Cargando documento" description="Estamos reuniendo el archivo, sus versiones y relaciones de trazabilidad." />;
   if (state.status === "missing") return <ErrorState description="El documento no está disponible en la organización activa." />;
   if (state.status === "error") return <ErrorState description="El documento no existe o no está disponible para tu usuario." />;
@@ -58,9 +74,10 @@ export default function EvidenceDetailPage() {
   const extractedDate = document.metadata_extraccion?.validacion_documental?.comparaciones?.find((item) => item.campo === "fecha")?.documental || document.metadata_extraccion?.extraccion_documental?.claims?.fecha;
   const latestVersion = versions[0];
   const fileUrl = document.archivo_url || evidence.archivo_url || "";
+  const displayFileUrl = authenticatedFileUrl || fileUrl;
   const fileName = latestVersion?.nombre_original || document.archivo?.split("/").pop() || evidence.nombre || document.nombre || "Documento original";
   const mime = latestVersion?.metadata_tecnica?.mime_type || document.metadata_extraccion?.mime_type;
-  const presentation = documentPresentation({ url: fileUrl, name: fileName, mime });
+  const presentation = documentPresentation({ url: displayFileUrl, name: fileName, mime });
   const observations = evidence.observaciones || evidence.descripcion || document.observaciones;
 
   return <main className="space-y-6">
@@ -69,11 +86,11 @@ export default function EvidenceDetailPage() {
       <span aria-hidden="true">→</span><Link to={obraId ? `/obras/${obraId}/evidencias` : "/datos/evidencias"}>Evidencias</Link>
       <span aria-hidden="true">→</span><span>{evidence.nombre || document.nombre || "Documento"}</span>
     </div>
-    <header className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border-default)] pb-5"><div className="flex min-w-0 items-start gap-3"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">{createElement(evidenceIcon(type, presentation), { "aria-hidden": true, size: 23 })}</span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-black text-[var(--text-primary)]">{evidence.nombre || document.nombre || "Documento"}</h1><StatusBadge tone={status.tone}>{status.label}</StatusBadge></div><p className="mt-1 text-sm text-[var(--text-secondary)]">{typeLabel} · {scopeLabel}</p><p className="mt-1 text-xs text-[var(--text-muted)]">{documentDate ? `Fecha informada: ${formatDate(documentDate)}` : extractedDate ? `Fecha encontrada en documento: ${formatDate(extractedDate)}` : "Fecha no extraída"}</p></div></div><FileActions url={fileUrl} name={fileName} /></header>
+    <header className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border-default)] pb-5"><div className="flex min-w-0 items-start gap-3"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">{createElement(evidenceIcon(type, presentation), { "aria-hidden": true, size: 23 })}</span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-black text-[var(--text-primary)]">{evidence.nombre || document.nombre || "Documento"}</h1><StatusBadge tone={status.tone}>{status.label}</StatusBadge></div><p className="mt-1 text-sm text-[var(--text-secondary)]">{typeLabel} · {scopeLabel}</p><p className="mt-1 text-xs text-[var(--text-muted)]">{documentDate ? `Fecha informada: ${formatDate(documentDate)}` : extractedDate ? `Fecha encontrada en documento: ${formatDate(extractedDate)}` : "Fecha no extraída"}</p></div></div><FileActions url={displayFileUrl} name={fileName} /></header>
     {state.supplementalError && <Alert tone="info" title="Detalle parcial">El documento está disponible, pero parte de su contexto relacionado no pudo consultarse.</Alert>}
 
     <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
-      <EvidenceDocumentViewer url={fileUrl} name={fileName} mime={mime} />
+      <EvidenceDocumentViewer url={displayFileUrl} name={fileName} mime={mime} />
       <aside className="rounded-[24px] border border-[var(--border-default)] bg-white p-5 shadow-[0_12px_32px_rgba(15,23,42,0.05)] lg:sticky lg:top-24"><p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Información</p><dl className="mt-4 space-y-4 text-sm"><div><dt className="text-[var(--text-muted)]">Tipo</dt><dd className="font-bold">{typeLabel}</dd></div><div><dt className="text-[var(--text-muted)]">Estado</dt><dd className="font-bold">{status.label}</dd></div><div><dt className="text-[var(--text-muted)]">Fecha informada en metadata</dt><dd className="font-bold">{documentDate ? formatDate(documentDate) : "Sin datos"}</dd></div><div><dt className="text-[var(--text-muted)]">Fecha encontrada en documento</dt><dd className="font-bold">{extractedDate ? formatDate(extractedDate) : "No extraída"}</dd></div><div><dt className="text-[var(--text-muted)]">Obra o alcance</dt><dd className="font-bold">{scopeLabel}</dd></div>{document.organizacion_nombre && <div><dt className="text-[var(--text-muted)]">Organización</dt><dd className="font-bold">{document.organizacion_nombre}</dd></div>}</dl>{obraId && <ButtonLink className="mt-5" variant="secondary" to={`/obras/${obraId}/operacion`}>Ver operación relacionada →</ButtonLink>}{state.linkedImport && <div className="mt-6 border-t border-[var(--border-default)] pt-5"><p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">Origen de incorporación</p><p className="mt-2 text-sm font-bold">{importDisplayName(state.linkedImport)}</p><ButtonLink className="mt-3" variant="secondary" to={`/datos/importaciones/${state.linkedImport.id}`}>Ver importación →</ButtonLink></div>}</aside>
     </div>
 

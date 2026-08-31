@@ -44,14 +44,35 @@ def classify_evidence_relevance(extraction, observation):
 
 
 def extract_evidence_claims(extraction):
-    claims = dict(extraction.get("claims") or {})
-    if extraction.get("cantidad_sugerida"):
-        claims.setdefault("cantidad", extraction["cantidad_sugerida"])
-    if extraction.get("unidad_sugerida"):
-        claims.setdefault("unidad", extraction["unidad_sugerida"])
-    if extraction.get("fecha"):
-        claims.setdefault("fecha", extraction["fecha"])
-    return {key: value for key, value in claims.items() if value not in (None, "")}
+    return {
+        key: value
+        for key, value in dict(extraction.get("claims") or {}).items()
+        if value not in (None, "")
+    }
+
+
+def technical_extraction_validation(extraction):
+    execution_status = extraction.get("execution_status")
+    if execution_status == "success" or not execution_status:
+        return None
+    validation_status = "pending_processing" if execution_status == "unavailable" else "technical_review"
+    messages = {
+        "unavailable": "La extracción automática no está disponible; el respaldo queda pendiente de procesamiento.",
+        "failed": "La extracción automática falló técnicamente; el respaldo requiere revisión técnica.",
+        "unsupported": "El formato no puede procesarse automáticamente; el respaldo requiere revisión técnica.",
+        "empty": "No se obtuvo contenido procesable del archivo; el respaldo requiere revisión técnica.",
+    }
+    return {
+        "estado": validation_status,
+        "relevancia": None,
+        "comparaciones": [],
+        "motivos": [messages.get(execution_status, messages["failed"])],
+        "resultado_extraccion": {
+            key: extraction.get(key)
+            for key in ("execution_status", "extractor_used", "provider_used", "failure_code", "claims_count")
+        },
+        "version_contrato": "validacion-documental-v1",
+    }
 
 
 def _text_comparison(field, declared, extracted):
@@ -171,9 +192,29 @@ def _sync_discrepancies(observation, validation):
 
 @transaction.atomic
 def validate_observation_evidence(observation, extraction, context=None):
+    context = context or {}
+    extraction = dict(extraction or {})
+    extraction["expected"] = {
+        "cantidad": str(observation.valor_numerico) if observation.valor_numerico is not None else None,
+        "unidad": observation.unidad or None,
+        "fecha": observation.timestamp_observacion.date().isoformat() if observation.timestamp_observacion else None,
+        "tipo_recurso": context.get("tipo_recurso") or None,
+    }
+    technical_validation = technical_extraction_validation(extraction)
+    if technical_validation:
+        validation = technical_validation
+        evidence = observation.evidencia
+        metadata = dict(evidence.metadata_extraccion or {})
+        metadata.update({"extraccion_documental": extraction, "validacion_documental": validation})
+        evidence.metadata_extraccion = metadata
+        evidence.texto_extraido = extraction.get("texto_extraido", "")
+        evidence.estado_documental = EvidenciaObra.EstadoDocumental.PENDIENTE
+        evidence.save(update_fields=["metadata_extraccion", "texto_extraido", "estado_documental", "updated_at"])
+        _sync_discrepancies(observation, validation)
+        return validation
     relevance = classify_evidence_relevance(extraction, observation)
     claims = extract_evidence_claims(extraction)
-    context = {**(context or {}), "claims_trazables": extraction.get("claims_trazables") or {}}
+    context = {**context, "claims_trazables": extraction.get("claims_trazables") or {}}
     comparisons = compare_evidence_to_observation(observation, claims, context)
     validation = evaluate_evidence_validation(relevance, comparisons)
     evidence = observation.evidencia

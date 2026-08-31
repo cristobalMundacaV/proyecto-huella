@@ -60,7 +60,9 @@ def normalize_provider_claims(raw_claims, origin):
     for field, raw_claim in (raw_claims or {}).items():
         claim = raw_claim if isinstance(raw_claim, dict) else {"valor_original": raw_claim}
         original = claim.get("valor_original")
-        normalized = normalize_claim(field, original, claim.get("valor_normalizado"))
+        if original in (None, ""):
+            continue
+        normalized = normalize_claim(field, original)
         if normalized in (None, ""):
             continue
         claims[field] = normalized

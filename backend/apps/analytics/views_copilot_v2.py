@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -129,6 +130,22 @@ def context_evidence(request, evidence_id):
         if evidence
         else _not_found()
     )
+
+
+@api_view(["GET"])
+def context_evidence_file(request, evidence_id):
+    evidence = _owned(request, EvidenciaObra, evidence_id)
+    if not evidence or not evidence.archivo:
+        return _not_found()
+    evidence.archivo.open("rb")
+    filename = evidence.archivo.name.rsplit("/", 1)[-1]
+    response = FileResponse(
+        evidence.archivo,
+        content_type=(evidence.metadata_extraccion or {}).get("mime_type") or "application/octet-stream",
+        filename=filename,
+    )
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @api_view(["GET"])

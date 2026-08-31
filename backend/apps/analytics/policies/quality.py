@@ -17,6 +17,10 @@ def evidence_health(observation):
         return "compatible_incompleta", "El respaldo es compatible, pero no contiene todos los campos necesarios para verificar el dato completamente."
     if validation_state == "indeterminada":
         return "indeterminada", "No fue posible verificar de forma segura el contenido del respaldo documental."
+    if validation_state == "pending_processing":
+        return "pendiente_procesamiento", "El respaldo está adjunto, pero la extracción automática no está disponible y continúa pendiente de procesamiento."
+    if validation_state == "technical_review":
+        return "revision_tecnica", "El procesamiento del respaldo presentó un fallo técnico y requiere revisión técnica; no se infiere una conclusión sobre su contenido."
     state = evidence.estado_documental
     if state == evidence.EstadoDocumental.VALIDADA:
         return "validada", "La evidencia adjunta fue validada y fortalece la procedencia del dato."
@@ -68,13 +72,13 @@ def quality_assessment(observation, reviewed_by_user=False):
         state = EvaluacionCalidadDato.Estado.NO_CONFIABLE
     elif health in {"calibracion_vencida", "requiere_revision"}:
         state = EvaluacionCalidadDato.Estado.REQUIERE_REVISION
-    elif evidence_state in {"rechazada", "observada", "contradiccion", "no_pertinente", "indeterminada"}:
+    elif evidence_state in {"rechazada", "observada", "contradiccion", "no_pertinente", "indeterminada", "revision_tecnica"}:
         state = EvaluacionCalidadDato.Estado.REQUIERE_REVISION
     elif evidence_state in {"validada", "verificada"}:
         state = EvaluacionCalidadDato.Estado.CONFIABLE
     elif (
         health == "declarativa"
-        or evidence_state == "pendiente"
+        or evidence_state in {"pendiente", "pendiente_procesamiento"}
         or observation.estado == Observacion.Estado.PENDIENTE
     ):
         state = EvaluacionCalidadDato.Estado.CONFIABLE_OBSERVACIONES

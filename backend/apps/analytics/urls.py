@@ -214,6 +214,7 @@ from .views_copilot_v2 import (
     context_asset,
     context_asset_maintenance,
     context_evidence,
+    context_evidence_file,
     context_indicator_history,
     context_organization_memory,
     context_problem,
@@ -423,6 +424,7 @@ urlpatterns = [
     path("context/sensors/<int:sensor_id>/health/", context_sensor_health),
     path("context/indicators/<int:indicator_id>/history/", context_indicator_history),
     path("context/evidence/<int:evidence_id>/", context_evidence),
+    path("context/evidence/<int:evidence_id>/file/", context_evidence_file),
     path(
         "context/organizations/<str:organization_id>/memory/",
         context_organization_memory,

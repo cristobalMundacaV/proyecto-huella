@@ -133,6 +133,22 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         self.assertEqual(observation.evidencia, evidence)
         self.assertEqual(observation.fuente, self.source)
 
+    def test_archivo_de_evidencia_se_entrega_autenticado_inline(self):
+        content = b"\x89PNG\r\n\x1a\ncontenido-prueba"
+        response = self.post(self.payload(
+            evidencia_archivo=SimpleUploadedFile("factura.png", content, content_type="image/png"),
+            evidencia_tipo="factura_combustible",
+        ))
+        self.assertEqual(response.status_code, 201, response.data)
+        evidence = EvidenciaObra.objects.get()
+
+        file_response = self.client.get(f"/api/context/evidence/{evidence.id}/file/")
+
+        self.assertEqual(file_response.status_code, 200)
+        self.assertEqual(file_response["Content-Type"], "image/png")
+        self.assertIn("inline", file_response["Content-Disposition"])
+        self.assertEqual(b"".join(file_response.streaming_content), content)
+
     def test_factura_coincidente_verifica_documento_y_mejora_calidad(self):
         response = self.post(self.payload(
             codigo_actividad="manual-combustible-verificado",
@@ -170,6 +186,48 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         self.assertEqual(discrepancy.severidad, DiscrepanciaDato.Severidad.ALTA)
         self.assertIn('"documental": "120 litros diesel"', discrepancy.motivo)
         self.assertEqual(response.data["evaluacion_calidad"]["estado"], "requiere_revision")
+
+    def test_factura_con_recurso_distinto_crea_solo_discrepancia_de_recurso(self):
+        response = self.post(self.payload(
+            codigo_actividad="manual-combustible-recurso-contradictorio",
+            periodo_inicio="2026-09-06T12:00:00",
+            valor_numerico="250",
+            evidencia_archivo=SimpleUploadedFile(
+                "factura.txt",
+                b"Factura combustible Gasolina 250 L 06-09-2026",
+                content_type="text/plain",
+            ),
+            evidencia_tipo="factura_combustible",
+        ))
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data["validacion_documental"]["estado"], "contradiccion")
+        self.assertEqual(
+            list(DiscrepanciaDato.objects.values_list("concepto", flat=True)),
+            ["evidencia_tipo_recurso"],
+        )
+
+    def test_factura_sin_cantidad_es_incompleta_y_no_crea_discrepancia(self):
+        response = self.post(self.payload(
+            codigo_actividad="manual-combustible-incompleto",
+            periodo_inicio="2026-09-06T12:00:00",
+            valor_numerico="250",
+            evidencia_archivo=SimpleUploadedFile(
+                "factura.txt",
+                b"Factura combustible Diesel Grado B 06-09-2026",
+                content_type="text/plain",
+            ),
+            evidencia_tipo="factura_combustible",
+        ))
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data["validacion_documental"]["estado"], "compatible_incompleta")
+        quantity = next(
+            item for item in response.data["validacion_documental"]["comparaciones"]
+            if item["campo"] == "cantidad"
+        )
+        self.assertEqual(quantity["estado"], "no_disponible")
+        self.assertFalse(DiscrepanciaDato.objects.exists())
 
     def test_fallo_al_crear_registro_revierte_actividad_y_evidencia(self):
         counts_before = (

@@ -315,8 +315,7 @@ def extract_provider(text, filename):
             if cleaned:
                 return cleaned[:120]
 
-    filename_without_ext = re.sub(r"\.[a-zA-Z0-9]+$", "", filename or "")
-    return filename_without_ext.replace("_", " ").replace("-", " ").strip()[:120]
+    return ""
 
 
 def extract_operational_claims(text, detected_type, quantity, document_date):
@@ -365,20 +364,17 @@ def extract_environmental_document(upload, preset="construccion"):
     filename = getattr(upload, "name", "") or "documento"
     content_type = getattr(upload, "content_type", "") or ""
     text = read_upload_text(upload)
-    combined_text = f"{filename}\n{text}"
-    detected = detect_document_type(combined_text)
-    quantity = extract_number_near_units(combined_text)
+    detected = detect_document_type(text)
+    document_hint = detect_document_type(filename)
+    quantity = extract_number_near_units(text)
 
-    unidad = (
-        quantity.get("unidad_sugerida") or detected.get("unidad_sugerida") or "unidad"
-    )
     confidence = min(0.95, 0.35 + (detected.get("score", 0) * 0.15))
     if not text:
         confidence = min(confidence, 0.55)
 
-    document_date = extract_date(combined_text)
+    document_date = extract_date(text)
     heuristic_claims = extract_operational_claims(
-        combined_text,
+        text,
         detected["tipo_documento"],
         quantity,
         document_date,
@@ -397,11 +393,35 @@ def extract_environmental_document(upload, preset="construccion"):
             "claims": heuristic_claims,
         }
 
-    document_claims = select_document_extractor(text=text).extract(
-        upload,
-        text=text[:8000],
-        heuristic=heuristic_contract,
-    ).to_dict()
+    empty_file = getattr(upload, "size", None) == 0
+    extractor = select_document_extractor(upload=upload, text=text) if not empty_file else None
+    if empty_file:
+        from .document_claims import safe_document_claims
+
+        document_claims = safe_document_claims(
+            text=text,
+            origin="archivo_vacio",
+            status="empty",
+            extractor="selector",
+            failure_code="empty_file",
+        ).to_dict()
+    elif extractor is None:
+        from .document_claims import safe_document_claims
+
+        document_claims = safe_document_claims(
+            text=text,
+            origin="formato_no_soportado",
+            status="unsupported",
+            extractor="selector",
+            failure_code="unsupported_mime",
+        ).to_dict()
+    else:
+        document_claims = extractor.extract(
+            upload,
+            text=text[:8000],
+            heuristic=heuristic_contract,
+        ).to_dict()
+    observed_claims = document_claims["claims"]
     payload = {
         "filename": filename,
         "content_type": content_type,
@@ -409,11 +429,11 @@ def extract_environmental_document(upload, preset="construccion"):
         "tipo_documento": document_claims["tipo_documento"],
         "tipo_documento_label": detected["label"],
         "proveedor": extract_provider(text, filename),
-        "fecha": document_date,
+        "fecha": observed_claims.get("fecha", ""),
         "categoria_sugerida": detected["categoria_sugerida"],
         "fuente_emision_sugerida": detected["fuente_emision_sugerida"],
-        "cantidad_sugerida": quantity.get("cantidad_sugerida", ""),
-        "unidad_sugerida": unidad,
+        "cantidad_sugerida": observed_claims.get("cantidad", ""),
+        "unidad_sugerida": observed_claims.get("unidad", ""),
         "factor_sugerido": "",
         "confianza": document_claims["confianza"],
         "texto_extraido": document_claims["texto_extraido"],
@@ -424,12 +444,25 @@ def extract_environmental_document(upload, preset="construccion"):
         "motivo_relevancia": document_claims["motivo_relevancia"],
         "legibilidad": document_claims["legibilidad"],
         "confianza_extraccion": document_claims["confianza_extraccion"],
+        "execution_status": document_claims["execution_status"],
+        "extractor_used": document_claims["extractor_used"],
+        "provider_used": document_claims["provider_used"],
+        "failure_code": document_claims["failure_code"],
+        "claims_count": document_claims["claims_count"],
         "campos_faltantes": [],
+        "expected": {},
+        "document_hint": {
+            "tipo_documento": document_hint["tipo_documento"],
+            "tipo_documento_label": document_hint["label"],
+            "origen": "nombre_archivo",
+        },
         "metadata": {
-            "extraction_engine": "heuristic_v1",
-            "detected_by": "filename_and_text",
+            "extraction_engine": document_claims["extractor_used"],
+            "provider": document_claims["provider_used"],
+            "detected_by": "observed_content",
             "score": detected.get("score", 0),
             "requires_human_review": confidence < 0.75,
+            **document_claims["extraction_metadata"],
         },
     }
 

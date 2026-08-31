@@ -12,10 +12,18 @@ from .services.evidence_validation import (
     compare_evidence_to_observation,
     evaluate_evidence_validation,
     extract_evidence_claims,
+    technical_extraction_validation,
 )
 from .services.document_extraction import extract_number_near_units
 from .services.document_extraction import extract_environmental_document
 from .services.document_extractors import VisualAIExtractor
+
+
+PNG_BYTES = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDAT\x08\xd7c\xf8\xcf\xc0\xf0\x1f\x00\x05\x00\x01\xff\x89\x99=\x1d"
+    b"\x00\x00\x00\x00IEND\xaeB`\x82"
+)
 
 
 class EvidenceValidationContractTests(SimpleTestCase):
@@ -133,7 +141,7 @@ class EvidenceValidationContractTests(SimpleTestCase):
         response = Mock(output_text=__import__("json").dumps(visual_result))
         client = Mock()
         client.responses.create.return_value = response
-        upload = SimpleUploadedFile("factura.png", b"\x89PNG\r\n", content_type="image/png")
+        upload = SimpleUploadedFile("factura.png", PNG_BYTES, content_type="image/png")
         with self.settings(OPENAI_API_KEY="test"), patch(
             "apps.analytics.services.openai_document_provider.OpenAI", return_value=client
         ):
@@ -142,6 +150,14 @@ class EvidenceValidationContractTests(SimpleTestCase):
         self.assertEqual(extraction["claims"]["cantidad"], "250")
         self.assertEqual(extraction["claims"]["tipo_recurso"], "diesel")
         self.assertEqual(extraction["claims_trazables"]["cantidad"]["valor_original"], "250,00")
+        self.assertEqual(extraction["execution_status"], "success")
+        self.assertEqual(extraction["extractor_used"], "VisualAIExtractor")
+        self.assertEqual(extraction["provider_used"], "openai")
+        self.assertEqual(extraction["claims_count"], 4)
+        self.assertEqual(extraction["metadata"]["bytes_received"], len(PNG_BYTES))
+        self.assertEqual(extraction["metadata"]["mime_type"], "image/png")
+        self.assertEqual(upload.tell(), 0)
+        client.responses.create.assert_called_once()
         observation = self.observation()
         observation.valor_numerico = Decimal("250")
         relevance = classify_evidence_relevance(extraction, observation)
@@ -174,6 +190,8 @@ class EvidenceValidationContractTests(SimpleTestCase):
         self.assertTrue(contract.issubset(result))
         self.assertEqual(result["origen_extraccion"], "texto_heuristico")
         self.assertEqual(result["claims"]["cantidad"], "250")
+        self.assertEqual(result["execution_status"], "success")
+        self.assertGreater(result["claims_count"], 0)
 
     def test_imagen_sin_api_key_usa_fallback_seguro(self):
         upload = SimpleUploadedFile("factura.png", b"\x89PNG", content_type="image/png")
@@ -182,6 +200,9 @@ class EvidenceValidationContractTests(SimpleTestCase):
         self.assertEqual(result["origen_extraccion"], "visual_no_disponible")
         self.assertEqual(result["relevancia_detectada"], "indeterminado")
         self.assertEqual(result["claims"], {})
+        self.assertEqual(result["execution_status"], "unavailable")
+        self.assertEqual(result["failure_code"], "missing_api_key")
+        self.assertEqual(result["claims_count"], 0)
 
     def test_fallo_de_proveedor_visual_no_rompe_extraccion(self):
         provider = Mock()
@@ -191,6 +212,114 @@ class EvidenceValidationContractTests(SimpleTestCase):
         )
         self.assertEqual(result.origen_extraccion, "visual_no_disponible")
         self.assertEqual(result.claims, {})
+        self.assertEqual(result.execution_status, "failed")
+        self.assertEqual(result.failure_code, "provider_error")
+
+    def test_nombre_y_defaults_no_se_convierten_en_claims_observados(self):
+        upload = SimpleUploadedFile(
+            "factura-diesel-250-litros-06-09-2026.png",
+            PNG_BYTES,
+            content_type="image/png",
+        )
+        with self.settings(OPENAI_API_KEY=""):
+            result = extract_environmental_document(upload)
+        self.assertEqual(result["claims"], {})
+        self.assertEqual(extract_evidence_claims(result), {})
+        self.assertEqual(result["cantidad_sugerida"], "")
+        self.assertEqual(result["unidad_sugerida"], "")
+        self.assertEqual(result["fecha"], "")
+        self.assertEqual(result["document_hint"]["origen"], "nombre_archivo")
+
+    def test_respuesta_visual_invalida_no_falla_silenciosamente(self):
+        response = Mock(output_text='{"claims": [], "relevancia_detectada": "pertinente"}')
+        client = Mock()
+        client.responses.create.return_value = response
+        with self.settings(OPENAI_API_KEY="test"), patch(
+            "apps.analytics.services.openai_document_provider.OpenAI", return_value=client
+        ):
+            result = extract_environmental_document(
+                SimpleUploadedFile("factura.png", PNG_BYTES, content_type="image/png")
+            )
+        self.assertEqual(result["execution_status"], "failed")
+        self.assertEqual(result["failure_code"], "invalid_provider_response")
+        self.assertEqual(result["claims_count"], 0)
+
+    def test_imagen_no_pertinente_puede_ser_success_sin_claims_ambientales(self):
+        visual_result = {
+            "tipo_documento": "otro",
+            "relevancia_detectada": "no_pertinente",
+            "motivo_relevancia": "La imagen muestra una mascota y no contiene un documento.",
+            "confianza_clasificacion": 0.98,
+            "claims": {},
+        }
+        response = Mock(output_text=__import__("json").dumps(visual_result))
+        client = Mock()
+        client.responses.create.return_value = response
+        with self.settings(OPENAI_API_KEY="test"), patch(
+            "apps.analytics.services.openai_document_provider.OpenAI", return_value=client
+        ):
+            extraction = extract_environmental_document(
+                SimpleUploadedFile("mascota.png", PNG_BYTES, content_type="image/png")
+            )
+        self.assertEqual(extraction["execution_status"], "success")
+        self.assertEqual(extraction["claims_count"], 0)
+        self.assertEqual(extraction["claims"], {})
+        self.assertEqual(self.validate(extraction)["estado"], "no_pertinente")
+
+    def test_matriz_textual_observada_a_d(self):
+        cases = (
+            (b"Factura combustible Diesel Grado B 250,00 L 06-09-2026", "250", "diesel", "verificada", []),
+            (b"Factura combustible Diesel Grado B 180 L 06-09-2026", "250", "diesel", "contradiccion", ["cantidad"]),
+            (b"Factura combustible Gasolina 250 L 06-09-2026", "250", "diesel", "contradiccion", ["tipo_recurso"]),
+            (b"Factura combustible Diesel Grado B 06-09-2026", "250", "diesel", "compatible_incompleta", []),
+        )
+        for content, declared_quantity, declared_resource, expected_state, contradiction_fields in cases:
+            with self.subTest(content=content):
+                extraction = extract_environmental_document(
+                    SimpleUploadedFile("documento.txt", content, content_type="text/plain")
+                )
+                observation = self.observation()
+                observation.valor_numerico = Decimal(declared_quantity)
+                observation.timestamp_observacion = datetime(2026, 9, 6, 12, tzinfo=timezone.utc)
+                relevance = classify_evidence_relevance(extraction, observation)
+                comparisons = compare_evidence_to_observation(
+                    observation,
+                    extract_evidence_claims(extraction),
+                    {"tipo_recurso": declared_resource},
+                )
+                result = evaluate_evidence_validation(relevance, comparisons)
+                self.assertEqual(result["estado"], expected_state)
+                self.assertEqual(
+                    [item["campo"] for item in comparisons if item["estado"] == "contradice"],
+                    contradiction_fields,
+                )
+
+    def test_no_hay_success_vacio_sin_clasificacion_justificada(self):
+        result = extract_environmental_document(
+            SimpleUploadedFile("nota.txt", b"texto sin datos ambientales", content_type="text/plain")
+        )
+        self.assertEqual(result["claims_count"], 0)
+        self.assertEqual(result["execution_status"], "empty")
+        self.assertEqual(result["failure_code"], "no_claims_detected")
+
+    def test_fallo_tecnico_no_se_clasifica_como_documento_indeterminado(self):
+        pending = technical_extraction_validation({
+            "execution_status": "unavailable",
+            "extractor_used": "VisualAIExtractor",
+            "provider_used": "openai",
+            "failure_code": "missing_api_key",
+            "claims_count": 0,
+        })
+        failed = technical_extraction_validation({
+            "execution_status": "failed",
+            "extractor_used": "VisualAIExtractor",
+            "provider_used": "openai",
+            "failure_code": "provider_error",
+            "claims_count": 0,
+        })
+        self.assertEqual(pending["estado"], "pending_processing")
+        self.assertEqual(failed["estado"], "technical_review")
+        self.assertNotIn(pending["estado"], {"indeterminada", "no_pertinente"})
 
     def test_logica_ambiental_no_importa_openai(self):
         services = Path(__file__).parent / "services"
