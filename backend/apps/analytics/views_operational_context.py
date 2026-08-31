@@ -376,21 +376,37 @@ def upload_operational_information(request):
     )
     context = resolve_operational_context(request, permission)
     if request.method == "GET":
+        from .services.evidence_documents import (
+            current_document_result,
+            current_evidence_version,
+        )
+
         evidence = recent_evidence_for_context(context, request.user)
         state_labels = {
-            EvidenciaObra.EstadoDocumental.PENDIENTE: "En revisión",
-            EvidenciaObra.EstadoDocumental.VALIDADA: "Procesado",
-            EvidenciaObra.EstadoDocumental.OBSERVADA: "Necesita información",
-            EvidenciaObra.EstadoDocumental.RECHAZADA: "Rechazado",
-            EvidenciaObra.EstadoDocumental.SIN_VINCULO: "Recibido",
-            EvidenciaObra.EstadoDocumental.VINCULADA: "Procesado",
+            "verificada": "Verificada",
+            "compatible_incompleta": "Necesita información",
+            "contradiccion": "Contradicción",
+            "no_pertinente": "No pertinente",
+            "indeterminada": "Indeterminada",
         }
         return Response(
             [
                 {
                     "id": item.id,
                     "nombre": item.nombre,
-                    "estado": state_labels.get(item.estado_documental, "Recibido"),
+                    "estado": (
+                        "Procesando"
+                        if getattr(
+                            current_evidence_version(item),
+                            "estado_procesamiento",
+                            None,
+                        )
+                        in {"recibida", "analizando"}
+                        else state_labels.get(
+                            current_document_result(item).get("veredicto"),
+                            "Indeterminada",
+                        )
+                    ),
                     "fecha": item.created_at,
                 }
                 for item in evidence

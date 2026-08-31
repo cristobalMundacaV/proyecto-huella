@@ -62,12 +62,11 @@ import {
 } from "../utils/dataPresentation";
 
 const EVIDENCE_STATES = [
-  "pendiente",
-  "validada",
-  "observada",
-  "rechazada",
-  "sin_vinculo",
-  "vinculada",
+  "verificada",
+  "compatible_incompleta",
+  "contradiccion",
+  "no_pertinente",
+  "indeterminada",
 ];
 
 const EVIDENCE_TYPE_OPTIONS = [
@@ -371,8 +370,10 @@ export default function EvidencePage({
       () =>
         rows.filter((row) =>
           [
-            "pendiente",
-            "observada",
+            "compatible_incompleta",
+            "contradiccion",
+            "no_pertinente",
+            "indeterminada",
           ].includes(
             row.estado_documental
           )
@@ -386,7 +387,7 @@ export default function EvidencePage({
         rows.filter(
           (row) =>
             row.estado_documental ===
-            "validada"
+            "verificada"
         ).length,
       [rows]
     );
@@ -444,15 +445,6 @@ export default function EvidencePage({
     data.append(
       "tipo_evidencia",
       uploadForm.tipo_evidencia
-    );
-
-    /*
-     * La evidencia recién ingresada
-     * no se autovalida.
-     */
-    data.append(
-      "estado_documental",
-      "pendiente"
     );
 
     if (

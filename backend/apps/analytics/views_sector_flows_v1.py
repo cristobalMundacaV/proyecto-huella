@@ -151,7 +151,6 @@ def manual_sector_record(request, organizacion_id):
                         )[:240],
                         "tipo_evidencia": request.data.get("evidencia_tipo")
                         or EvidenciaObra.TipoEvidencia.OTRO,
-                        "estado_documental": EvidenciaObra.EstadoDocumental.PENDIENTE,
                         "metadata_extraccion": {
                             "workspace_id": context.espacio.id,
                             "origen_operacional": True,

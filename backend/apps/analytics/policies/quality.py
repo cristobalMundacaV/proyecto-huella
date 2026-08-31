@@ -37,18 +37,7 @@ def evidence_health(observation):
         return "compatible_incompleta", "El respaldo es compatible, pero no contiene todos los campos necesarios para verificar el dato completamente."
     if validation_state == "indeterminada":
         return "indeterminada", "No fue posible verificar de forma segura el contenido del respaldo documental."
-    if validation_state == "pending_processing":
-        return "pendiente_procesamiento", "El respaldo está adjunto, pero la extracción automática no está disponible y continúa pendiente de procesamiento."
-    if validation_state == "technical_review":
-        return "revision_tecnica", "El procesamiento del respaldo presentó un fallo técnico y requiere revisión técnica; no se infiere una conclusión sobre su contenido."
-    state = evidence.estado_documental
-    if state == evidence.EstadoDocumental.VALIDADA:
-        return "validada", "La evidencia adjunta fue validada y fortalece la procedencia del dato."
-    if state == evidence.EstadoDocumental.RECHAZADA:
-        return "rechazada", "La evidencia adjunta fue rechazada; el dato requiere revisión."
-    if state == evidence.EstadoDocumental.OBSERVADA:
-        return "observada", "La evidencia adjunta tiene observaciones y requiere revisión."
-    return "pendiente", "La evidencia está adjunta, pero su validación documental continúa pendiente."
+    return "indeterminada", "La versión no contiene un resultado documental canónico utilizable."
 
 
 def source_health(observation):

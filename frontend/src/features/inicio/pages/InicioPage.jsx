@@ -34,7 +34,7 @@ const isOpen = problem =>
     !["cerrada", "resuelta"].includes(problem.estado);
 
 const evidencePending = item =>
-    ["pendiente", "observada", "en_revision"].includes(
+    ["compatible_incompleta", "contradiccion", "no_pertinente", "indeterminada"].includes(
         item.estado_documental ||
         item.estado_validacion ||
         item.estado_revision
@@ -57,8 +57,10 @@ const statusLabel = value =>
 ({
     requiere_atencion: "Requiere atención",
     cierre_pendiente: "Cierre pendiente",
-    pendiente: "Pendiente",
-    observada: "Observada",
+    compatible_incompleta: "Compatible incompleta",
+    contradiccion: "Contradicción",
+    no_pertinente: "No pertinente",
+    indeterminada: "Indeterminada",
     en_revision: "En revisión",
     detectada: "Detectado",
     en_gestion: "En gestión",

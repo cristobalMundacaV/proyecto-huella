@@ -60,7 +60,7 @@ export default function DataOverviewPage() {
       ? state.evidence.rows.filter(evidenceNeedsAttention).map((item) => ({
         key: `evidence-${item.id}`,
         title: item.nombre || "Documento",
-        reason: item.estado_documental === "observada" ? "El documento tiene observaciones pendientes." : "El documento está pendiente de revisión.",
+        reason: item.estado_documental === "contradiccion" ? "El documento contradice datos declarados." : "El resultado documental requiere revisión.",
         status: evidenceStatusInfo(item.estado_documental),
         path: `/datos/evidencias/${item.id}`,
         action: "Revisar documento",

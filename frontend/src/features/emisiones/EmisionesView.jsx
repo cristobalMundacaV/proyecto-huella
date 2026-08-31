@@ -173,10 +173,12 @@ function getEvidenceStatus(row) {
   const normalizedStatus = normalizeText(rawStatus);
   const isValidated =
     hasEvidence &&
-    (normalizedStatus.includes("validada") ||
+    (evidence?.estado_documental
+      ? normalizedStatus === "verificada"
+      : (normalizedStatus.includes("validada") ||
       normalizedStatus.includes("validado") ||
       normalizedStatus.includes("aprobada") ||
-      normalizedStatus.includes("aprobado"));
+      normalizedStatus.includes("aprobado")));
 
   return {
     hasEvidence,

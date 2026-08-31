@@ -791,11 +791,12 @@ class ModelModularizationContractTests(SimpleTestCase):
         self.assertEqual(len(labels), len(set(labels)))
 
         # AccionAmbiental es una capa de compatibilidad histórica externa al
-        # conjunto canónico de 94 modelos analytics.
+        # conjunto canónico de 95 modelos analytics. UsuarioAreaOperacional
+        # amplió legítimamente el registro después de crear este contrato.
         canonical_models = [
             model for model in registered if model is not AccionAmbiental
         ]
-        self.assertEqual(len(canonical_models), 94)
+        self.assertEqual(len(canonical_models), 95)
 
     def test_legacy_models_are_isolated_without_changing_their_contract(self):
         for model in LEGACY_MODELS:

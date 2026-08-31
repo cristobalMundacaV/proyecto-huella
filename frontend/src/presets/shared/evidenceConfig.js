@@ -9,7 +9,7 @@ function normalizeEvidenceRows(rows) {
   return list.map((row) => ({
     ...row,
     metadata: getEvidenceMetadata(row),
-    evidenceType: getEvidenceMetadata(row).evidence_type || row.tipo_evidencia || "otro",
+    evidenceType: row.tipo_evidencia || "otro",
   }));
 }
 
@@ -43,17 +43,14 @@ function getEvidenceCoverage(rows, requiredTypes = []) {
 function getEvidenceStatus(row) {
   const value = row?.estado_documental || row?.estado_revision || row?.estado || "pendiente";
   const normalized = String(value).toLowerCase();
-  if (normalized.includes("validada") || normalized.includes("validado") || normalized.includes("vinculada")) {
+  if (normalized === "verificada") {
     return { key: "completa", label: "Completa", tone: "success" };
   }
-  if (normalized.includes("observada") || normalized.includes("incompleta")) {
+  if (normalized === "compatible_incompleta" || normalized === "indeterminada") {
     return { key: "incompleta", label: "Incompleta", tone: "warning" };
   }
-  if (normalized.includes("rechazada") || normalized.includes("critica")) {
+  if (normalized === "contradiccion" || normalized === "no_pertinente") {
     return { key: "critica", label: "Critica", tone: "danger" };
-  }
-  if (normalized.includes("sin_vinculo")) {
-    return { key: "sin_vincular", label: "Sin vincular", tone: "neutral" };
   }
   return { key: "pendiente", label: "Pendiente revision", tone: "warning" };
 }

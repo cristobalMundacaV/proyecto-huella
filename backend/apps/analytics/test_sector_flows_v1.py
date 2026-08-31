@@ -218,7 +218,9 @@ class SectorFlowsV1Tests(APITestCase):
         self.assertEqual(ViajeOperacional.objects.count(), 0)
 
     def test_combustibles_compatibles_se_suman_sin_mezclar_unidades(self):
-        stationary = self.record("combustible_estacionario", obra=self.work)
+        stationary = self.record(
+            "combustible_estacionario", granularidad="obra", obra=self.work
+        )
         mobile_activity = ActividadOperacional.objects.create(
             organizacion=self.org,
             tipo="consumo_combustible",
@@ -226,8 +228,15 @@ class SectorFlowsV1Tests(APITestCase):
             nombre="Combustible movil",
             timestamp_inicio=timezone.now(),
         )
-        mobile = self.record("combustible_movil", actividad=mobile_activity, obra=self.work)
-        kilograms = self.record("combustible_estacionario", obra=self.work)
+        mobile = self.record(
+            "combustible_movil",
+            actividad=mobile_activity,
+            granularidad="obra",
+            obra=self.work,
+        )
+        kilograms = self.record(
+            "combustible_estacionario", granularidad="obra", obra=self.work
+        )
         self.observation(stationary, "combustible_consumido", 120, "L")
         self.observation(mobile, "combustible_consumido", 180, "L")
         self.observation(kilograms, "combustible_consumido", 25, "kg")
@@ -239,8 +248,12 @@ class SectorFlowsV1Tests(APITestCase):
         self.assertEqual(totals[("combustible_consumido", "kg")], Decimal("25"))
 
     def test_registro_historico_fuera_de_periodo_se_conserva_sin_contaminar_kpi(self):
-        valid = self.record("combustible_estacionario", obra=self.work)
-        invalid = self.record("combustible_estacionario", obra=self.work)
+        valid = self.record(
+            "combustible_estacionario", granularidad="obra", obra=self.work
+        )
+        invalid = self.record(
+            "combustible_estacionario", granularidad="obra", obra=self.work
+        )
         invalid.periodo_inicio = timezone.make_aware(datetime(2025, 12, 30, 12))
         invalid.save(update_fields=["periodo_inicio"])
         self.observation(valid, "combustible_consumido", 250, "L")

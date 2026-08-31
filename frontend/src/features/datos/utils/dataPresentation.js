@@ -12,12 +12,6 @@ const evidenceStates = {
   contradiccion: { label: "Contradicción", tone: "danger", needsAttention: true },
   no_pertinente: { label: "No pertinente", tone: "danger", needsAttention: true },
   indeterminada: { label: "Indeterminada", tone: "neutral", needsAttention: true },
-  pendiente: { label: "Pendiente de revisión", tone: "warning", needsAttention: true },
-  validada: { label: "Validada", tone: "success", needsAttention: false },
-  observada: { label: "Requiere revisión", tone: "warning", needsAttention: true },
-  rechazada: { label: "Rechazada", tone: "danger", needsAttention: false },
-  vinculada: { label: "Vinculada", tone: "info", needsAttention: false },
-  sin_vinculo: { label: "Sin vincular", tone: "neutral", needsAttention: false },
 };
 
 const importStates = {
@@ -42,7 +36,7 @@ export function evidenceStatusInfo(value) {
   const workflow = evidenceStates[value];
   const canonical = captureStateInfo(value);
   return workflow
-    ? { ...workflow, label: canonical.label, canonical: canonical.label, workflowLabel: workflow.label }
+    ? { ...workflow, canonical: canonical.label, workflowLabel: workflow.label }
     : { label: humanize(value), tone: "neutral", needsAttention: false, canonical: canonical.label };
 }
 
