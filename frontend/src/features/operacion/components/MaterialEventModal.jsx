@@ -246,9 +246,9 @@ export default function MaterialEventModal({
                     }
                 />
 
-                <Input
+                <Select
                     required
-                    label="Unidad"
+                    label="Unidad de medida"
                     value={form.unit}
                     onChange={(event) =>
                         setForm((current) => ({
@@ -257,7 +257,13 @@ export default function MaterialEventModal({
                                 event.target.value,
                         }))
                     }
-                />
+                >
+                    {form.unit ? (
+                        <option value={form.unit}>{form.unit}</option>
+                    ) : (
+                        <option value="">Selecciona primero un material</option>
+                    )}
+                </Select>
 
                 <Select
                     required

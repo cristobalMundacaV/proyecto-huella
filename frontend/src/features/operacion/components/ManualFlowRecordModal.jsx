@@ -58,6 +58,10 @@ const FLOW_CONFIG = {
         ],
         defaultUnit:
             "kWh",
+        unitOptions: [
+            { value: "kWh", label: "Kilowatt-hora (kWh)" },
+            { value: "MWh", label: "Megawatt-hora (MWh)" },
+        ],
         requiresResourceType:
             true,
         defaultPointType:
@@ -89,6 +93,10 @@ const FLOW_CONFIG = {
             "consumo_agua",
         defaultUnit:
             "m3",
+        unitOptions: [
+            { value: "m3", label: "Metros cúbicos (m³)" },
+            { value: "L", label: "Litros (L)" },
+        ],
         requiresResourceType:
             true,
         defaultPointType:
@@ -128,6 +136,17 @@ const FLOW_CONFIG = {
             "combustible_consumido",
         defaultUnit:
             "L",
+        unitOptions: [
+            { value: "L", label: "Litros (L)" },
+            { value: "m3", label: "Metros cúbicos (m³)" },
+        ],
+        unitOptionsByResource: {
+            diesel: [{ value: "L", label: "Litros (L)" }, { value: "m3", label: "Metros cúbicos (m³)" }],
+            gasolina: [{ value: "L", label: "Litros (L)" }, { value: "m3", label: "Metros cúbicos (m³)" }],
+            gas_licuado: [{ value: "L", label: "Litros (L)" }, { value: "m3", label: "Metros cúbicos (m³)" }],
+            gas_natural: [{ value: "m3", label: "Metros cúbicos (m³)" }],
+            otro: [{ value: "L", label: "Litros (L)" }, { value: "m3", label: "Metros cúbicos (m³)" }],
+        },
         requiresResourceType:
             true,
         defaultPointType:
@@ -173,6 +192,12 @@ const FLOW_CONFIG = {
             "cantidad_residuo",
         defaultUnit:
             "kg",
+        unitOptions: [
+            { value: "kg", label: "Kilogramos (kg)" },
+            { value: "t", label: "Toneladas (t)" },
+            { value: "m3", label: "Metros cúbicos (m³)" },
+            { value: "L", label: "Litros (L)" },
+        ],
         requiresDestination:
             true,
         requiresResourceType:
@@ -222,6 +247,7 @@ const FLOW_CONFIG = {
             "nivel_ruido",
         defaultUnit:
             "dB(A)",
+        unitOptions: [{ value: "dB(A)", label: "Decibeles ponderados A (dB(A))" }],
         requiresMetric:
             true,
         defaultMetric:
@@ -253,6 +279,11 @@ const FLOW_CONFIG = {
             "concentracion_emision",
         defaultUnit:
             "mg/m3",
+        unitOptions: [
+            { value: "mg/m3", label: "Miligramos por metro cúbico (mg/m³)" },
+            { value: "µg/m3", label: "Microgramos por metro cúbico (µg/m³)" },
+            { value: "ppm", label: "Partes por millón (ppm)" },
+        ],
         requiresResourceType:
             true,
         defaultPointType:
@@ -272,6 +303,10 @@ const FLOW_CONFIG = {
             "superficie_intervenida",
         defaultUnit:
             "m2",
+        unitOptions: [
+            { value: "m2", label: "Metros cuadrados (m²)" },
+            { value: "ha", label: "Hectáreas (ha)" },
+        ],
         defaultPointType:
             "punto_suelo",
         modes: [
@@ -312,6 +347,10 @@ const FLOW_CONFIG = {
             "superficie_intervenida",
         defaultUnit:
             "m2",
+        unitOptions: [
+            { value: "m2", label: "Metros cuadrados (m²)" },
+            { value: "ha", label: "Hectáreas (ha)" },
+        ],
         defaultPointType:
             "punto_drenaje",
         modes: [
@@ -424,6 +463,10 @@ export default function ManualFlowRecordModal({
         form,
         setForm,
     ] = useState(initialForm);
+    const selectedMode = config?.modes?.find((mode) => mode.value === form.mode);
+    const unitOptions = config?.unitOptionsByResource?.[form.resourceType]
+        || config?.unitOptions
+        || (selectedMode?.unit ? [{ value: selectedMode.unit, label: selectedMode.unit }] : []);
 
     const [
         sources,
@@ -715,6 +758,10 @@ export default function ManualFlowRecordModal({
                 (
                     !config.requiresMetric ||
                     form.metric
+                ) &&
+                (
+                    selectedMode?.valueType === "text" ||
+                    form.unit
                 )
             ),
         [
@@ -725,7 +772,9 @@ export default function ManualFlowRecordModal({
             form.recordDate,
             form.resourceType,
             form.source,
+            form.unit,
             form.value,
+            selectedMode?.valueType,
         ],
     );
 
@@ -910,10 +959,19 @@ export default function ManualFlowRecordModal({
                             }
                             value={form.resourceType}
                             onChange={(event) =>
-                                setForm((current) => ({
-                                    ...current,
-                                    resourceType: event.target.value,
-                                }))
+                                setForm((current) => {
+                                    const resourceType = event.target.value;
+                                    const compatibleUnits = config.unitOptionsByResource?.[resourceType]
+                                        || config.unitOptions
+                                        || [];
+                                    return {
+                                        ...current,
+                                        resourceType,
+                                        unit: compatibleUnits.some((unit) => unit.value === current.unit)
+                                            ? current.unit
+                                            : compatibleUnits[0]?.value || current.unit,
+                                    };
+                                })
                             }
                         >
                             <option value="">
@@ -1065,24 +1123,25 @@ export default function ManualFlowRecordModal({
                         }
                     />
 
-                    <Input
-                        label="Unidad"
-                        value={
-                            form.unit
-                        }
-                        onChange={(
-                            event,
-                        ) =>
-                            setForm(
-                                (current) => ({
+                    {unitOptions.length > 0 && (
+                        <Select
+                            required
+                            label="Unidad de medida"
+                            value={form.unit}
+                            onChange={(event) =>
+                                setForm((current) => ({
                                     ...current,
-                                    unit:
-                                        event.target
-                                            .value,
-                                }),
-                            )
-                        }
-                    />
+                                    unit: event.target.value,
+                                }))
+                            }
+                        >
+                            {unitOptions.map((unit) => (
+                                <option key={unit.value} value={unit.value}>
+                                    {unit.label}
+                                </option>
+                            ))}
+                        </Select>
+                    )}
 
                     {domain === "combustibles" && (
                         <Input
