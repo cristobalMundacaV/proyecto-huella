@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
+from pathlib import Path
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase
@@ -14,6 +15,7 @@ from .services.evidence_validation import (
 )
 from .services.document_extraction import extract_number_near_units
 from .services.document_extraction import extract_environmental_document
+from .services.document_extractors import VisualAIExtractor
 
 
 class EvidenceValidationContractTests(SimpleTestCase):
@@ -133,7 +135,7 @@ class EvidenceValidationContractTests(SimpleTestCase):
         client.responses.create.return_value = response
         upload = SimpleUploadedFile("factura.png", b"\x89PNG\r\n", content_type="image/png")
         with self.settings(OPENAI_API_KEY="test"), patch(
-            "apps.analytics.services.documentos_obra.OpenAI", return_value=client
+            "apps.analytics.services.openai_document_provider.OpenAI", return_value=client
         ):
             extraction = extract_environmental_document(upload)
 
@@ -155,4 +157,60 @@ class EvidenceValidationContractTests(SimpleTestCase):
         self.assertEqual(
             [item["campo"] for item in result["comparaciones"] if item["estado"] == "contradice"],
             ["fecha"],
+        )
+
+    def test_documento_textual_funciona_sin_ia_y_respeta_contrato(self):
+        upload = SimpleUploadedFile(
+            "factura.txt",
+            b"Factura combustible diesel 250,00 litros 05-09-2026",
+            content_type="text/plain",
+        )
+        with self.settings(OPENAI_API_KEY=""):
+            result = extract_environmental_document(upload)
+        contract = {
+            "tipo_documento", "relevancia_detectada", "confianza",
+            "texto_extraido", "claims", "claims_trazables", "origen_extraccion",
+        }
+        self.assertTrue(contract.issubset(result))
+        self.assertEqual(result["origen_extraccion"], "texto_heuristico")
+        self.assertEqual(result["claims"]["cantidad"], "250")
+
+    def test_imagen_sin_api_key_usa_fallback_seguro(self):
+        upload = SimpleUploadedFile("factura.png", b"\x89PNG", content_type="image/png")
+        with self.settings(OPENAI_API_KEY=""):
+            result = extract_environmental_document(upload)
+        self.assertEqual(result["origen_extraccion"], "visual_no_disponible")
+        self.assertEqual(result["relevancia_detectada"], "indeterminado")
+        self.assertEqual(result["claims"], {})
+
+    def test_fallo_de_proveedor_visual_no_rompe_extraccion(self):
+        provider = Mock()
+        provider.extract_visual.side_effect = RuntimeError("proveedor caido")
+        result = VisualAIExtractor(provider).extract(
+            SimpleUploadedFile("factura.png", b"png", content_type="image/png")
+        )
+        self.assertEqual(result.origen_extraccion, "visual_no_disponible")
+        self.assertEqual(result.claims, {})
+
+    def test_logica_ambiental_no_importa_openai(self):
+        services = Path(__file__).parent / "services"
+        for name in ("quality_v2.py", "eligibility_v2.py", "calculation_v2.py", "evidence_validation.py"):
+            source = (services / name).read_text(encoding="utf-8")
+            self.assertNotIn("from openai", source.lower())
+            self.assertNotIn("import openai", source.lower())
+
+    def test_contrato_refactorizado_preserva_resultado_del_motor(self):
+        legacy = self.extraction(cantidad="180", unidad="L", tipo_recurso="diesel")
+        upload = SimpleUploadedFile(
+            "factura.txt",
+            b"Factura combustible diesel 180 litros 03-09-2026",
+            content_type="text/plain",
+        )
+        with self.settings(OPENAI_API_KEY=""):
+            refactored = extract_environmental_document(upload)
+        self.assertEqual(self.validate(legacy)["estado"], "verificada")
+        self.assertEqual(self.validate(refactored)["estado"], "verificada")
+        self.assertEqual(
+            {item["campo"]: item["estado"] for item in self.validate(legacy)["comparaciones"]},
+            {item["campo"]: item["estado"] for item in self.validate(refactored)["comparaciones"]},
         )

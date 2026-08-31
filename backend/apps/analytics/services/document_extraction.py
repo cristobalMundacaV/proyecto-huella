@@ -1,7 +1,8 @@
 import re
 import unicodedata
 from datetime import datetime
-from decimal import Decimal, InvalidOperation
+
+from .document_extractors import select_document_extractor
 
 DOCUMENT_RULES = [
     {
@@ -176,6 +177,14 @@ def read_upload_text(upload):
     filename = getattr(upload, "name", "") or ""
     content_type = getattr(upload, "content_type", "") or ""
 
+    if filename.lower().endswith((".pdf", ".docx")):
+        from .documentos_obra import extraer_texto_archivo
+
+        try:
+            return extraer_texto_archivo(upload)["texto_extraido"]
+        except (ValueError, OSError):
+            return ""
+
     if hasattr(upload, "seek"):
         upload.seek(0)
 
@@ -334,57 +343,6 @@ def extract_operational_claims(text, detected_type, quantity, document_date):
     return claims
 
 
-def _normalize_visual_claims(payload):
-    def deterministic(field, original, suggested):
-        raw = str(original if original not in (None, "") else suggested or "").strip()
-        normalized = normalize_text(raw)
-        if field == "cantidad":
-            numeric = re.sub(r"[^0-9,.-]", "", raw)
-            if "," in numeric:
-                numeric = numeric.replace(".", "").replace(",", ".")
-            elif re.fullmatch(r"[1-9]\d{0,2}\.\d{3}", numeric):
-                numeric = numeric.replace(".", "")
-            try:
-                return format(Decimal(numeric).normalize(), "f")
-            except (InvalidOperation, ValueError):
-                return None
-        if field == "unidad":
-            aliases = {"l": "L", "lt": "L", "lts": "L", "litro": "L", "litros": "L", "m3": "m3", "kg": "kg", "t": "t", "ton": "t", "toneladas": "t"}
-            return aliases.get(normalized)
-        if field == "tipo_recurso":
-            resources = {
-                "diesel": ("diesel", "petroleo diesel"),
-                "gasolina": ("gasolina", "bencina"),
-                "gas_licuado": ("gas licuado", "glp"),
-                "gas_natural": ("gas natural", "gnc"),
-            }
-            matches = [key for key, aliases in resources.items() if any(alias in normalized for alias in aliases)]
-            return matches[0] if len(matches) == 1 else None
-        if field == "fecha":
-            return extract_date(raw)
-        if field == "identificador_documento":
-            return raw[:120] or None
-        return None
-
-    simple = {}
-    trace = {}
-    for field, claim in (payload.get("claims") or {}).items():
-        if not isinstance(claim, dict):
-            continue
-        original = claim.get("valor_original")
-        normalized = deterministic(field, original, claim.get("valor_normalizado"))
-        if normalized in (None, ""):
-            continue
-        simple[field] = normalized
-        trace[field] = {
-            "valor_original": original,
-            "valor_normalizado": normalized,
-            "confianza": claim.get("confianza"),
-            "origen": "analisis_visual_archivo",
-        }
-    return simple, trace
-
-
 def build_missing_fields(payload):
     missing = []
 
@@ -410,11 +368,6 @@ def extract_environmental_document(upload, preset="construccion"):
     combined_text = f"{filename}\n{text}"
     detected = detect_document_type(combined_text)
     quantity = extract_number_near_units(combined_text)
-    visual = None
-    if not text:
-        from .documentos_obra import analizar_archivo_visual
-
-        visual = analizar_archivo_visual(upload)
 
     unidad = (
         quantity.get("unidad_sugerida") or detected.get("unidad_sugerida") or "unidad"
@@ -424,19 +377,36 @@ def extract_environmental_document(upload, preset="construccion"):
         confidence = min(confidence, 0.55)
 
     document_date = extract_date(combined_text)
-    visual_claims, visual_trace = _normalize_visual_claims(visual or {})
     heuristic_claims = extract_operational_claims(
         combined_text,
         detected["tipo_documento"],
         quantity,
         document_date,
     )
-    claims = visual_claims or heuristic_claims
+    def heuristic_contract(_text):
+        if detected["tipo_documento"] != "otro" and confidence >= 0.75:
+            relevance = "pertinente"
+        elif detected["tipo_documento"] != "otro" or text:
+            relevance = "parcialmente_pertinente"
+        else:
+            relevance = "indeterminado"
+        return {
+            "tipo_documento": detected["tipo_documento"],
+            "relevancia_detectada": relevance,
+            "confianza": round(confidence, 2),
+            "claims": heuristic_claims,
+        }
+
+    document_claims = select_document_extractor(text=text).extract(
+        upload,
+        text=text[:8000],
+        heuristic=heuristic_contract,
+    ).to_dict()
     payload = {
         "filename": filename,
         "content_type": content_type,
         "preset": preset,
-        "tipo_documento": (visual or {}).get("tipo_documento") or detected["tipo_documento"],
+        "tipo_documento": document_claims["tipo_documento"],
         "tipo_documento_label": detected["label"],
         "proveedor": extract_provider(text, filename),
         "fecha": document_date,
@@ -445,22 +415,15 @@ def extract_environmental_document(upload, preset="construccion"):
         "cantidad_sugerida": quantity.get("cantidad_sugerida", ""),
         "unidad_sugerida": unidad,
         "factor_sugerido": "",
-        "confianza": (visual or {}).get("confianza_clasificacion") or round(confidence, 2),
-        "texto_extraido": text[:8000],
-        "claims": claims,
-        "claims_trazables": visual_trace or {
-            field: {
-                "valor_original": value,
-                "valor_normalizado": value,
-                "confianza": round(confidence, 2),
-                "origen": "extraccion_textual_archivo",
-            }
-            for field, value in heuristic_claims.items()
-        },
-        "relevancia_detectada": (visual or {}).get("relevancia_detectada"),
-        "motivo_relevancia": (visual or {}).get("motivo_relevancia"),
-        "legibilidad": (visual or {}).get("legibilidad"),
-        "confianza_extraccion": (visual or {}).get("confianza_extraccion"),
+        "confianza": document_claims["confianza"],
+        "texto_extraido": document_claims["texto_extraido"],
+        "claims": document_claims["claims"],
+        "claims_trazables": document_claims["claims_trazables"],
+        "relevancia_detectada": document_claims["relevancia_detectada"],
+        "origen_extraccion": document_claims["origen_extraccion"],
+        "motivo_relevancia": document_claims["motivo_relevancia"],
+        "legibilidad": document_claims["legibilidad"],
+        "confianza_extraccion": document_claims["confianza_extraccion"],
         "campos_faltantes": [],
         "metadata": {
             "extraction_engine": "heuristic_v1",

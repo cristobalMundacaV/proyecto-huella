@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-import json
-import base64
-import mimetypes
 import re
 from datetime import datetime
 from pathlib import Path
 
-from django.conf import settings
-from openai import APIConnectionError, APIStatusError, OpenAI
+from .openai_document_provider import OpenAIDocumentProvider
 
 try:
     from pypdf import PdfReader
@@ -76,29 +72,21 @@ def _extract_docx_text(file_obj):
 def extraer_texto_archivo(archivo):
     nombre = (getattr(archivo, "name", "") or "").lower()
     extension = Path(nombre).suffix
-    try:
-        if extension == ".pdf":
-            texto = _extract_pdf_text(archivo)
-            formato = "pdf"
-        elif extension == ".docx":
-            texto = _extract_docx_text(archivo)
-            formato = "docx"
-        else:
-            texto = _decode_text(_read_bytes(archivo))
-            formato = "texto" if texto else "binario"
+    if extension == ".pdf":
+        texto = _extract_pdf_text(archivo)
+        formato = "pdf"
+    elif extension == ".docx":
+        texto = _extract_docx_text(archivo)
+        formato = "docx"
+    else:
+        texto = _decode_text(_read_bytes(archivo))
+        formato = "texto" if texto else "binario"
 
-        return {
-            "texto_extraido": texto,
-            "formato": formato,
-            "requiere_ocr": formato in {"pdf", "binario"} and not texto.strip(),
-        }
-    finally:
-        close_method = getattr(archivo, "close", None)
-        if callable(close_method):
-            try:
-                close_method()
-            except Exception:
-                pass
+    return {
+        "texto_extraido": texto,
+        "formato": formato,
+        "requiere_ocr": formato in {"pdf", "binario"} and not texto.strip(),
+    }
 
 
 def _first_match(pattern, text, flags=re.IGNORECASE):
@@ -191,19 +179,6 @@ def inferir_evidencia_desde_texto(texto):
     }
 
 
-def _parse_json_blob(raw_text):
-    text = (raw_text or "").strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*", "", text)
-        text = re.sub(r"\s*```$", "", text)
-
-    start = text.find("{")
-    end = text.rfind("}")
-    if start != -1 and end != -1:
-        text = text[start : end + 1]
-    return json.loads(text)
-
-
 def _normalize_ai_output(data, fallback):
     normalized = {
         "tipo_evidencia": data.get("tipo_evidencia") or fallback["tipo_evidencia"],
@@ -225,40 +200,12 @@ def _normalize_ai_output(data, fallback):
 
 def extraer_evidencia_estructurada(texto):
     fallback = inferir_evidencia_desde_texto(texto)
-    if not settings.OPENAI_API_KEY:
+    extracted = OpenAIDocumentProvider().extract_text(texto)
+    if not extracted:
         return fallback
-
-    prompt = f"""
-Eres un extractor de datos documentales para obras de construccion.
-
-Devuelve SOLO JSON valido, sin markdown ni explicaciones, con estas claves exactas:
-- tipo_evidencia
-- fecha
-- cantidad
-- litros_combustible
-- patente
-- codigo_obra
-- proveedor
-- confianza
-
-Reglas:
-- Si un dato no aparece, usa null.
-- fecha debe ir en formato ISO YYYY-MM-DD si puedes inferirla.
-- confianza debe ser un numero entre 0 y 1.
-- Los tipos de evidencia validos son factura_material, guia_despacho, orden_compra, factura_combustible, boleta_electrica, ticket_pesaje, ficha_tecnica_material, certificado_proveedor, registro_maquinaria, registro_retiro_residuos, documento_transporte u otro.
-
-Texto del documento:
-{texto}
-"""
-
-    try:
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        response = client.responses.create(model="gpt-5-mini", input=prompt)
-        normalized = _normalize_ai_output(_parse_json_blob(response.output_text), fallback)
-        normalized["fuente"] = "ia"
-        return normalized
-    except (APIConnectionError, APIStatusError, ValueError, json.JSONDecodeError):
-        return fallback
+    normalized = _normalize_ai_output(extracted, fallback)
+    normalized["fuente"] = "ia"
+    return normalized
 
 
 def extraer_evidencia_desde_archivo(archivo):
@@ -274,39 +221,5 @@ def extraer_evidencia_desde_archivo(archivo):
 
 
 def analizar_archivo_visual(archivo):
-    """Analiza imágenes/PDF sin usar los datos declarados como contexto."""
-    if not settings.OPENAI_API_KEY:
-        return None
-    filename = getattr(archivo, "name", "documento") or "documento"
-    content_type = getattr(archivo, "content_type", "") or mimetypes.guess_type(filename)[0] or "application/octet-stream"
-    content = _read_bytes(archivo)
-    if not content:
-        return None
-    encoded = base64.b64encode(content).decode("ascii")
-    if content_type.startswith("image/"):
-        attachment = {"type": "input_image", "image_url": f"data:{content_type};base64,{encoded}"}
-    elif content_type == "application/pdf" or filename.lower().endswith(".pdf"):
-        attachment = {"type": "input_file", "filename": filename, "file_data": f"data:application/pdf;base64,{encoded}"}
-    else:
-        return None
-    prompt = """
-Analiza exclusivamente el archivo adjunto como evidencia operacional. No inventes datos.
-Devuelve SOLO JSON válido con:
-tipo_documento, relevancia_detectada, motivo_relevancia, confianza_clasificacion,
-legibilidad, confianza_extraccion y claims.
-claims puede contener tipo_recurso, cantidad, unidad, fecha, identificador_documento.
-Cada claim debe tener valor_original, valor_normalizado y confianza.
-Para combustible normaliza Diésel Grado B a diesel y Litros a L. Fechas a YYYY-MM-DD.
-Relevancia: pertinente, parcialmente_pertinente, no_pertinente o indeterminado.
-Si el campo no es visible, omítelo. Una imagen irrelevante puede ser no_pertinente;
-un documento pertinente pero ilegible debe ser indeterminado.
-"""
-    try:
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        response = client.responses.create(
-            model="gpt-5-mini",
-            input=[{"role": "user", "content": [{"type": "input_text", "text": prompt}, attachment]}],
-        )
-        return _parse_json_blob(response.output_text)
-    except (APIConnectionError, APIStatusError, ValueError, json.JSONDecodeError):
-        return None
+    """Fachada compatible; el SDK vive en el adaptador de proveedor."""
+    return OpenAIDocumentProvider().extract_visual(archivo)
