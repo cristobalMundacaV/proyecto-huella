@@ -13,13 +13,14 @@ No normalices, no compares con formularios y no decidas calidad ambiental. Omite
 
 
 class DocumentProviderError(Exception):
-    def __init__(self, code, *, detail="", provider="", model="", attempts=None):
+    def __init__(self, code, *, detail="", provider="", model="", attempts=None, metadata=None):
         super().__init__(code)
         self.code = code
         self.detail = detail
         self.provider = provider
         self.model = model
         self.attempts = attempts or []
+        self.metadata = metadata or {}
 
 
 class DocumentProviderConfigurationError(DocumentProviderError):

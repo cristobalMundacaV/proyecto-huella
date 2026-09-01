@@ -286,6 +286,44 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         self.assertEqual(retried.data["estado_procesamiento"], "procesada")
         self.assertEqual(retried.data["resultado_documental"]["veredicto"], "verificada")
 
+    def test_resultado_durable_conserva_modelo_solicitado_y_real(self):
+        response = self.post(self.payload(
+            periodo_inicio="2026-09-03T12:00:00",
+            valor_numerico="180",
+            evidencia_archivo=SimpleUploadedFile(
+                "factura.png", b"\x89PNG\r\n\x1a\ncontenido", content_type="image/png"
+            ),
+            evidencia_tipo="factura_combustible",
+        ))
+        extraction = {
+            "tipo_documento": "factura_combustible",
+            "relevancia_detectada": "pertinente",
+            "confianza": 0.99,
+            "execution_status": "success",
+            "extractor_used": "VisualAIExtractor",
+            "provider_used": "openrouter",
+            "model_used": "google/gemini-2.5-flash",
+            "failure_code": "",
+            "claims_count": 4,
+            "claims": {"cantidad": "180", "unidad": "L", "fecha": "2026-09-03", "tipo_recurso": "diesel"},
+            "claims_trazables": {},
+            "texto_extraido": "",
+            "extraction_metadata": {
+                "requested_model": "openrouter/free",
+                "actual_model": "google/gemini-2.5-flash",
+                "response_id": "gen-test",
+                "finish_reason": "stop",
+                "choices_count": 1,
+                "content_type": "str",
+            },
+        }
+        with patch("apps.analytics.services.evidence_processing.extract_environmental_document", return_value=extraction):
+            processed = self.process_document(response)
+        self.assertEqual(processed.status_code, 200)
+        persisted = VersionEvidencia.objects.get().metadata_tecnica["document_result"]["extraccion"]["metadata"]
+        self.assertEqual(persisted["requested_model"], "openrouter/free")
+        self.assertEqual(persisted["actual_model"], "google/gemini-2.5-flash")
+
     def test_fallo_al_crear_registro_revierte_actividad_y_evidencia(self):
         counts_before = (
             EvidenciaObra.objects.count(),

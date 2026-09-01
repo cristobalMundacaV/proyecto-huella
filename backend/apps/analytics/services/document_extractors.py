@@ -93,7 +93,11 @@ class VisualAIExtractor:
                 provider=exc.provider or _provider_name(self.provider),
                 model=exc.model or _provider_model(self.provider),
                 failure_code=exc.code,
-                metadata={"provider_attempts": exc.attempts} if exc.attempts else None,
+                metadata={
+                    **dict(exc.metadata or {}),
+                    **({"provider_attempts": exc.attempts} if exc.attempts else {}),
+                    "failure_detail": exc.detail,
+                },
             )
         except Exception as exc:
             logger.exception("Unexpected visual document extraction failure")
