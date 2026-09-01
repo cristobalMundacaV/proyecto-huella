@@ -91,7 +91,9 @@ def process_evidence_version(version_id, *, force=False):
         )},
         "validaciones": validations,
     })
-    result["extraccion"]["metadata"] = dict(extraction.get("extraction_metadata") or {})
+    result["extraccion"]["metadata"] = dict(
+        extraction.get("extraction_metadata") or extraction.get("metadata") or {}
+    )
     with transaction.atomic():
         locked = VersionEvidencia.objects.select_for_update().get(pk=version_id)
         metadata = dict(locked.metadata_tecnica or {})

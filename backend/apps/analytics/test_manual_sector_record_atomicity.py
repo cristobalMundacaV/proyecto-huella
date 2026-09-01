@@ -1,6 +1,6 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -21,6 +21,7 @@ from .models import (
     UsuarioOrganizacion,
     VersionEvidencia,
 )
+from .services.document_provider import DocumentProviderError
 
 
 class ManualSectorRecordAtomicityTests(APITestCase):
@@ -323,6 +324,43 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         persisted = VersionEvidencia.objects.get().metadata_tecnica["document_result"]["extraccion"]["metadata"]
         self.assertEqual(persisted["requested_model"], "openrouter/free")
         self.assertEqual(persisted["actual_model"], "google/gemini-2.5-flash")
+
+    def test_error_provider_conserva_metadata_diagnostica_hasta_version(self):
+        response = self.post(self.payload(
+            evidencia_archivo=SimpleUploadedFile(
+                "factura.png", b"\x89PNG\r\n\x1a\ncontenido", content_type="image/png"
+            ),
+            evidencia_tipo="factura_combustible",
+        ))
+        provider = Mock(name="openrouter", model="openrouter/free")
+        provider.name = "openrouter"
+        provider.model = "openrouter/free"
+        provider.extract_visual.side_effect = DocumentProviderError(
+            "provider_http_error",
+            detail="422",
+            provider="openrouter",
+            model="openrouter/free",
+            metadata={
+                "http_status": 422,
+                "requested_model": "openrouter/free",
+                "actual_model": "google/gemini-2.5-flash",
+                "finish_reason": "stop",
+            },
+        )
+        with patch(
+            "apps.analytics.services.document_extractors.get_document_ai_provider",
+            return_value=provider,
+        ):
+            processed = self.process_document(response)
+
+        self.assertEqual(processed.status_code, 200)
+        self.assertEqual(processed.data["estado_procesamiento"], "error")
+        persisted = VersionEvidencia.objects.get().metadata_tecnica["document_result"]["extraccion"]["metadata"]
+        self.assertEqual(persisted["http_status"], 422)
+        self.assertEqual(persisted["failure_detail"], "422")
+        self.assertEqual(persisted["requested_model"], "openrouter/free")
+        self.assertEqual(persisted["actual_model"], "google/gemini-2.5-flash")
+        self.assertEqual(persisted["finish_reason"], "stop")
 
     def test_fallo_al_crear_registro_revierte_actividad_y_evidencia(self):
         counts_before = (

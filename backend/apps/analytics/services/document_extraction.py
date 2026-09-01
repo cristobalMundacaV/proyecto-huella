@@ -466,6 +466,7 @@ def extract_environmental_document(upload, preset="construccion"):
             "requires_human_review": confidence < 0.75,
             **document_claims["extraction_metadata"],
         },
+        "extraction_metadata": dict(document_claims["extraction_metadata"] or {}),
     }
 
     payload["campos_faltantes"] = build_missing_fields(payload)
