@@ -253,6 +253,7 @@ from .views_materials_v2 import (
     materials as operational_materials,
 )
 from .views_sector_flows_v1 import (
+    evidence_types,
     environmental_points,
     manual_sector_record,
     sector_indicators,
@@ -318,6 +319,7 @@ urlpatterns = [
     path(
         "organizaciones/<str:organizacion_id>/puntos-ambientales/", environmental_points
     ),
+    path("tipos-evidencia/", evidence_types),
     path("organizaciones/<str:organizacion_id>/flujos-ambientales/", sector_records),
     path(
         "organizaciones/<str:organizacion_id>/flujos-ambientales/registro-manual/",

@@ -170,3 +170,33 @@ test("captura manual usa fecha explícita, fuentes scoped y alcance de obra por 
   assert.doesNotMatch(modal, /value="integracion"/);
   assert.match(api, /dominio: domain/);
 });
+
+test("captura manual obtiene taxonomía de respaldo por flujo y limpia incompatibles", () => {
+  const modal = readFileSync(
+    new URL("../components/ManualFlowRecordModal.jsx", import.meta.url),
+    "utf8",
+  );
+  const api = readFileSync(
+    new URL("../api/sectorFlowsApi.js", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(modal, /listEvidenceTypes\(sourceDomain\)/);
+  assert.match(modal, /label="Tipo de respaldo"/);
+  assert.match(modal, /setEvidenceTypes\(options\)/);
+  assert.match(modal, /evidenceType:\s*options\.some/);
+  assert.doesNotMatch(modal, /<option value="boleta_electrica">/);
+  assert.doesNotMatch(modal, /<option value="factura_combustible">/);
+  assert.match(api, /\/tipos-evidencia\//);
+  assert.match(api, /dominio: domain/);
+});
+
+test("calidad omite destino sin clasificar pero conserva destinos reales", () => {
+  const panel = readFileSync(
+    new URL("../components/DomainQualityPanel.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(panel, /destination !== "sin_clasificar"/);
+  assert.match(panel, /human\(\s*destination/);
+});

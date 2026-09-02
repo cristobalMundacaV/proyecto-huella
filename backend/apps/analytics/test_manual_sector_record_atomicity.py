@@ -101,6 +101,29 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         self.assertEqual(RegistroFlujoAmbiental.objects.count(), 1)
         self.assertEqual(EvidenciaObra.objects.count(), 0)
 
+    def test_rejects_evidence_type_incompatible_with_flow_before_writing(self):
+        upload = SimpleUploadedFile(
+            "factura.pdf", b"contenido", content_type="application/pdf"
+        )
+        response = self.post(
+            self.payload(
+                flujo="agua",
+                tipo_actividad="consumo_agua",
+                codigo_actividad="manual-water-invalid-evidence",
+                concepto="consumo_agua",
+                unidad="m3",
+                tipo_recurso="red_publica",
+                destino_operacional="",
+                evidencia_archivo=upload,
+                evidencia_tipo="factura_combustible",
+            )
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("no corresponde al flujo Agua", str(response.data))
+        self.assertFalse(EvidenciaObra.objects.exists())
+        self.assertFalse(ActividadOperacional.objects.exists())
+
     def test_non_destination_flows_normalize_blank_and_preserve_operational_date(self):
         cases = [
             ("energia", "consumo_energia", "consumo_energia", "kWh"),

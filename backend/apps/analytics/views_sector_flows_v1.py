@@ -18,6 +18,10 @@ from .serializers_sector_flows_v1 import (
 from .services.fuel_classification import FUEL_FLOWS, classify_fuel
 from .services.operational_context import resolve_operational_context
 from .services.quality_v2 import ensure_current_quality_evaluation
+from .services.evidence_taxonomy import (
+    evidence_types_for_domain,
+    validate_evidence_type,
+)
 from .services.sector_flows_v1 import sector_summary
 from .selectors.environmental_flows import (
     environmental_points_for_organization,
@@ -40,6 +44,11 @@ def _requested_work(request, organization):
     if not work:
         raise Http404("Recurso no encontrado.")
     return work
+
+
+@api_view(["GET"])
+def evidence_types(request):
+    return Response(evidence_types_for_domain(request.query_params.get("dominio")))
 
 
 @api_view(["GET", "POST"])
@@ -149,6 +158,13 @@ def manual_sector_record(request, organizacion_id):
         resolved_flow = flow
         resolved_activity_type = request.data.get("tipo_actividad")
 
+    evidence_type = None
+    if uploaded_file:
+        evidence_type = validate_evidence_type(
+            request.data.get("evidencia_tipo") or EvidenciaObra.TipoEvidencia.OTRO,
+            resolved_flow,
+        )
+
     evidence = None
     stored_file = None
     stored_version_file = None
@@ -163,8 +179,7 @@ def manual_sector_record(request, organizacion_id):
                         "nombre": (
                             request.data.get("evidencia_nombre") or uploaded_file.name
                         )[:240],
-                        "tipo_evidencia": request.data.get("evidencia_tipo")
-                        or EvidenciaObra.TipoEvidencia.OTRO,
+                        "tipo_evidencia": evidence_type,
                         "metadata_extraccion": {
                             "workspace_id": context.espacio.id,
                             "origen_operacional": True,

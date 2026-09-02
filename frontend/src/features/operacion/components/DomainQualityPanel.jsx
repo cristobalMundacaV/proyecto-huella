@@ -700,7 +700,8 @@ export default function DomainQualityPanel({
 
                                                                     observedValue,
 
-                                                                    destination
+                                                                    destination &&
+                                                                    destination !== "sin_clasificar"
                                                                         ? human(
                                                                             destination,
                                                                         )

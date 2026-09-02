@@ -92,6 +92,14 @@ export const createManualSectorRecord = async (
         )
     ).data;
 
+export const listEvidenceTypes = async (domain) =>
+    (
+        await api.get(
+            "/tipos-evidencia/",
+            { params: { dominio: domain } },
+        )
+    ).data;
+
 export const processEvidenceVersion = async (organizationId, evidenceId, versionId) =>
     (
         await api.post(

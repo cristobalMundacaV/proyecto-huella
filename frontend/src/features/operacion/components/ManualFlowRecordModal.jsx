@@ -22,6 +22,7 @@ import {
 import {
     createEnvironmentalPoint,
     createManualSectorRecord,
+    listEvidenceTypes,
     processEvidenceVersion,
     listEnvironmentalPoints,
 } from "../api/sectorFlowsApi";
@@ -422,7 +423,7 @@ const initialForm = {
 
     evidenceFile: null,
     evidenceName: "",
-    evidenceType: "otro",
+    evidenceType: "",
 
 
 };
@@ -476,6 +477,9 @@ export default function ManualFlowRecordModal({
         loadingSources,
         setLoadingSources,
     ] = useState(false);
+
+    const [evidenceTypes, setEvidenceTypes] = useState([]);
+    const [loadingEvidenceTypes, setLoadingEvidenceTypes] = useState(false);
 
     const [
         loadingPoints,
@@ -606,6 +610,38 @@ export default function ManualFlowRecordModal({
     ]);
 
     const sourceDomain = selectedMode?.flow || domain;
+
+    useEffect(() => {
+        if (!open || !sourceDomain) return undefined;
+        let current = true;
+        setLoadingEvidenceTypes(true);
+        listEvidenceTypes(sourceDomain)
+            .then((data) => {
+                if (!current) return;
+                const options = Array.isArray(data) ? data : [];
+                setEvidenceTypes(options);
+                setForm((previous) => ({
+                    ...previous,
+                    evidenceType: options.some(
+                        (option) => option.value === previous.evidenceType,
+                    )
+                        ? previous.evidenceType
+                        : "",
+                }));
+            })
+            .catch(() => {
+                if (current) {
+                    setEvidenceTypes([]);
+                    setError("No fue posible cargar los tipos de respaldo.");
+                }
+            })
+            .finally(() => {
+                if (current) setLoadingEvidenceTypes(false);
+            });
+        return () => {
+            current = false;
+        };
+    }, [open, sourceDomain]);
 
     useEffect(() => {
         if (!open || !sourceDomain) return;
@@ -770,11 +806,17 @@ export default function ManualFlowRecordModal({
                 (
                     selectedMode?.valueType === "text" ||
                     form.unit
+                ) &&
+                (
+                    !form.evidenceFile ||
+                    form.evidenceType
                 )
             ),
         [
             config,
             form.destination,
+            form.evidenceFile,
+            form.evidenceType,
             form.metric,
             form.recordDate,
             form.resourceType,
@@ -1438,8 +1480,10 @@ export default function ManualFlowRecordModal({
                                     />
 
                                     <Select
-                                        label="Tipo de evidencia"
+                                        required
+                                        label="Tipo de respaldo"
                                         value={form.evidenceType}
+                                        disabled={loadingEvidenceTypes}
                                         onChange={(event) =>
                                             setForm((current) => ({
                                                 ...current,
@@ -1447,33 +1491,17 @@ export default function ManualFlowRecordModal({
                                             }))
                                         }
                                     >
-                                        <option value="otro">
-                                            Otro documento
+                                        <option value="">
+                                            Selecciona un tipo de respaldo
                                         </option>
-
-                                        <option value="boleta_electrica">
-                                            Boleta eléctrica
-                                        </option>
-
-                                        <option value="factura_combustible">
-                                            Factura de combustible
-                                        </option>
-
-                                        <option value="registro_maquinaria">
-                                            Registro de abastecimiento de combustible
-                                        </option>
-
-                                        <option value="registro_retiro_residuos">
-                                            Retiro de residuos
-                                        </option>
-
-                                        <option value="ticket_pesaje">
-                                            Ticket de pesaje
-                                        </option>
-
-                                        <option value="documento_transporte">
-                                            Documento de transporte
-                                        </option>
+                                        {evidenceTypes.map((evidenceType) => (
+                                            <option
+                                                key={evidenceType.value}
+                                                value={evidenceType.value}
+                                            >
+                                                {evidenceType.label}
+                                            </option>
+                                        ))}
                                     </Select>
 
                                     <Input
