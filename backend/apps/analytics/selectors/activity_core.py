@@ -1,3 +1,5 @@
+from django.db.models import Case, IntegerField, Value, When
+
 from ..models import ActividadOperacional, FuenteDatos, Observacion, Organizacion
 
 
@@ -7,7 +9,15 @@ def organization_by_public_id(organization_id):
 
 def data_sources_for_organization(organization, domain=None):
     rows = organization.fuentes_datos.all()
-    return rows.filter(metadata__dominios__contains=[domain]) if domain else rows
+    if domain:
+        rows = rows.filter(activa=True, metadata__dominios__contains=[domain])
+    return rows.annotate(
+        catalog_order=Case(
+            When(metadata__provisionada=True, then=Value(0)),
+            default=Value(1),
+            output_field=IntegerField(),
+        )
+    ).order_by("catalog_order", "nombre", "id")
 
 
 def data_source_for_organization(organization, source_id):
