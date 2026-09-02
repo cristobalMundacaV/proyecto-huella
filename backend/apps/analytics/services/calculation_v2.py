@@ -23,11 +23,19 @@ def _consumed_fuel(values, factor):
     return value * factor
 
 
+def _consumed_energy(values, factor):
+    value = values.get("energia_consumida")
+    if value is None:
+        raise ValidationError("La formula requiere energia_consumida.")
+    return value * factor
+
+
 FORMULA_HANDLERS = {
     FormulaAmbiental.Tipo.TRANSPORTE_TKM: _transport_tkm,
     FormulaAmbiental.Tipo.TRANSPORTE_VEHICULO_KM: _transport_vehicle_km,
     FormulaAmbiental.Tipo.TRANSPORTE_COMBUSTIBLE: _consumed_fuel,
     FormulaAmbiental.Tipo.COMBUSTIBLE_CONSUMIDO: _consumed_fuel,
+    FormulaAmbiental.Tipo.ENERGIA_CONSUMIDA: _consumed_energy,
 }
 
 
@@ -81,6 +89,7 @@ def calculate_activity(actividad, *, result_context=None, recalculation_of=None,
             "factor_codigo": factor_version.factor.codigo,
             "factor_valor": str(factor_version.valor), "factor_fuente": factor_version.fuente,
             "factor_referencia": factor_version.referencia,
+            "factor_contexto": factor_version.factor.contexto,
             "factor_vigencia": {"desde": str(factor_version.vigencia_desde or ""), "hasta": str(factor_version.vigencia_hasta or "")},
             "tipo_resultado": result_type, "unidad_resultado": factor_version.factor.unidad_resultado,
             "resultado": str(result),

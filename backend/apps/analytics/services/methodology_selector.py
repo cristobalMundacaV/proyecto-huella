@@ -8,12 +8,16 @@ from .eligibility_v2 import evaluate_formula
 def _applicability_reasons(version, activity):
     rules = version.aplicabilidad or {}
     reasons = []
+    record = getattr(activity, "registro_flujo_ambiental", None)
     activity_types = rules.get("tipos_actividad")
     if activity_types and activity.tipo not in activity_types:
         reasons.append("El tipo de actividad no está incluido en la aplicabilidad.")
     flows = rules.get("flujos")
-    if flows and version.metodologia.flujo not in flows:
+    if flows and (not record or record.flujo not in flows):
         reasons.append("El flujo metodológico no está incluido en la aplicabilidad.")
+    resource_types = rules.get("tipos_recurso")
+    if resource_types and (not record or record.tipo_recurso not in resource_types):
+        reasons.append("El tipo de recurso no esta incluido en la aplicabilidad.")
     unit_ids = rules.get("unidad_operacional_ids")
     if unit_ids and activity.unidad_operacional_id not in unit_ids:
         reasons.append("La unidad operacional no está incluida en la aplicabilidad.")
@@ -46,13 +50,19 @@ def _implicit_flow_match(version, activity):
 
 
 def select_methodology(actividad):
-    today = timezone.localdate()
+    record = getattr(actividad, "registro_flujo_ambiental", None)
+    operational_timestamp = (
+        record.periodo_inicio if record else actividad.timestamp_inicio
+    )
+    if timezone.is_aware(operational_timestamp):
+        operational_timestamp = timezone.localtime(operational_timestamp)
+    effective_date = operational_timestamp.date()
     versions = VersionMetodologia.objects.filter(
         estado=VersionMetodologia.Estado.ACTIVA, metodologia__activa=True,
     ).filter(
         Q(metodologia__organizacion__isnull=True) | Q(metodologia__organizacion=actividad.organizacion),
-        Q(vigencia_desde__isnull=True) | Q(vigencia_desde__lte=today),
-        Q(vigencia_hasta__isnull=True) | Q(vigencia_hasta__gte=today),
+        Q(vigencia_desde__isnull=True) | Q(vigencia_desde__lte=effective_date),
+        Q(vigencia_hasta__isnull=True) | Q(vigencia_hasta__gte=effective_date),
     ).select_related("metodologia", "formula__factor_ambiental").prefetch_related("formula__variables")
 
     candidates = []

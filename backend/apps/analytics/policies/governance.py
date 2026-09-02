@@ -29,6 +29,7 @@ def validate_applicability(value):
     allowed = {
         "tipos_actividad",
         "flujos",
+        "tipos_recurso",
         "regiones",
         "atributos",
         "unidad_operacional_ids",
@@ -41,6 +42,7 @@ def validate_applicability(value):
     for key in {
         "tipos_actividad",
         "flujos",
+        "tipos_recurso",
         "regiones",
         "unidad_operacional_ids",
     } & set(value):

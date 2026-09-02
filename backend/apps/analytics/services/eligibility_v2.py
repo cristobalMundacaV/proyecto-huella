@@ -9,16 +9,22 @@ from .unit_conversion import UnitConversionError, convert_value
 from .quality_v2 import ensure_current_quality_evaluation
 
 
-def active_factor_version(formula, organizacion):
-    today = timezone.localdate()
+def _operational_date(value):
+    if timezone.is_aware(value):
+        value = timezone.localtime(value)
+    return value.date()
+
+
+def active_factor_version(formula, organizacion, effective_date=None):
+    effective_date = effective_date or timezone.localdate()
     queryset = VersionFactorAmbiental.objects.filter(
         factor=formula.factor_ambiental, estado=VersionFactorAmbiental.Estado.ACTIVO,
     ).filter(
         Q(factor__organizacion__isnull=True) |
         Q(factor__organizacion=organizacion)
     ).filter(
-        Q(vigencia_desde__isnull=True) | Q(vigencia_desde__lte=today),
-        Q(vigencia_hasta__isnull=True) | Q(vigencia_hasta__gte=today),
+        Q(vigencia_desde__isnull=True) | Q(vigencia_desde__lte=effective_date),
+        Q(vigencia_hasta__isnull=True) | Q(vigencia_hasta__gte=effective_date),
     )
     for version in queryset.order_by("-version"):
         allowed_methods = (version.factor.contexto or {}).get("formula_tipos", [])
@@ -45,7 +51,9 @@ def evaluate_formula(actividad, formula):
     reasons, warnings, inputs, normalizations = [], [], {}, {}
     record = getattr(actividad, "registro_flujo_ambiental", None)
     work = record.obra if record else actividad.obra
-    record_date = record.periodo_inicio.date() if record else actividad.timestamp_inicio.date()
+    record_date = _operational_date(
+        record.periodo_inicio if record else actividad.timestamp_inicio
+    )
     if work and work.fecha_inicio and record_date < work.fecha_inicio:
         reasons.append("El registro es anterior al inicio de la obra y no puede alimentar cálculos ambientales.")
     if work and work.fecha_termino_estimada and record_date > work.fecha_termino_estimada:
@@ -62,7 +70,9 @@ def evaluate_formula(actividad, formula):
         )
         factor_version = fuel_factor_selection["factor_version"]
     else:
-        factor_version = active_factor_version(formula, actividad.organizacion)
+        factor_version = active_factor_version(
+            formula, actividad.organizacion, record_date
+        )
     if fuel_classification and fuel_classification.get("estado") in {
         "requiere_clasificacion",
         "requiere_revision",

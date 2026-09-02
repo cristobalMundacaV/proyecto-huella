@@ -17,6 +17,8 @@ UNIT_ALIASES = {
     "ton": "t",
     "tonelada": "t",
     "toneladas": "t",
+    "kwh": "kWh",
+    "mwh": "MWh",
 }
 
 UNIT_DIMENSIONS = {
@@ -24,6 +26,8 @@ UNIT_DIMENSIONS = {
     "m3": "volumen",
     "kg": "masa",
     "t": "masa",
+    "kWh": "energia",
+    "MWh": "energia",
 }
 
 CONVERSION_FACTORS = {
@@ -31,6 +35,8 @@ CONVERSION_FACTORS = {
     ("m3", "L"): Decimal("1000"),
     ("kg", "t"): Decimal("0.001"),
     ("t", "kg"): Decimal("1000"),
+    ("kWh", "MWh"): Decimal("0.001"),
+    ("MWh", "kWh"): Decimal("1000"),
 }
 
 

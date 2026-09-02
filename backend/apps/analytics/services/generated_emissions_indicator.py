@@ -57,6 +57,8 @@ def _source_metadata(work, start, end, impacts):
             "calculo_id": impact.calculo_id,
             "actividad_id": impact.actividad_id,
             "valor": str(impact.valor),
+            "alcance": (impact.calculo.snapshot_tecnico.get("factor_contexto") or {}).get("alcance"),
+            "metodo": (impact.calculo.snapshot_tecnico.get("factor_contexto") or {}).get("metodo"),
         }
         for impact in impacts
     ]

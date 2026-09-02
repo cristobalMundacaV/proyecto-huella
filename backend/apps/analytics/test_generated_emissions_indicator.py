@@ -93,6 +93,36 @@ class GeneratedEmissionsIndicatorTests(TestCase):
         calculation, _ = calculate_activity(activity)
         return activity, observation, calculation
 
+    def create_energy_activity(self, work, code, value="1000"):
+        activity = ActividadOperacional.objects.create(
+            organizacion=work.organizacion,
+            obra=work,
+            codigo=code,
+            nombre=code,
+            tipo=ActividadOperacional.Tipo.CONSUMO_ENERGIA,
+            timestamp_inicio=self.timestamp,
+        )
+        RegistroFlujoAmbiental.objects.create(
+            organizacion=work.organizacion,
+            actividad=activity,
+            obra=work,
+            flujo=RegistroFlujoAmbiental.Flujo.ENERGIA,
+            granularidad=RegistroFlujoAmbiental.Granularidad.OBRA,
+            periodo_inicio=self.timestamp,
+            tipo_recurso="red_electrica",
+        )
+        Observacion.objects.create(
+            organizacion=work.organizacion,
+            actividad=activity,
+            fuente=self.sources[work.organizacion_id],
+            concepto="consumo_energia",
+            valor_numerico=value,
+            unidad="kWh",
+            timestamp_observacion=self.timestamp,
+            estado=Observacion.Estado.VALIDADA,
+        )
+        return calculate_activity(activity)[0]
+
     def current_value(self, work=None):
         work = work or self.work
         return ValorIndicador.objects.filter(
@@ -120,6 +150,24 @@ class GeneratedEmissionsIndicatorTests(TestCase):
             set(value.metadata["calculos_fuente_ids"]), {first.id, second.id}
         )
         self.assertEqual(ImpactoAmbiental.objects.count(), 2)
+
+    def test_scope_1_fuel_and_scope_2_electricity_aggregate_without_double_counting(self):
+        fuel = self.create_fuel_activity(self.work, "fuel-scope-1")[2]
+        electricity = self.create_energy_activity(self.work, "energy-scope-2")
+
+        value = self.current_value()
+        self.assertEqual(value.valor, Decimal("0.9241"))
+        self.assertEqual(value.metadata["cantidad_fuentes"], 2)
+        self.assertEqual(
+            set(value.metadata["calculos_fuente_ids"]), {fuel.id, electricity.id}
+        )
+        self.assertEqual(
+            {item["alcance"] for item in value.metadata["fuentes"]}, {1, 2}
+        )
+
+        calculate_activity(electricity.actividad)
+        self.assertEqual(self.current_value().valor, Decimal("0.9241"))
+        self.assertEqual(self.current_value().metadata["cantidad_fuentes"], 2)
 
     def test_sync_and_command_are_idempotent_without_source_changes(self):
         self.create_fuel_activity(self.work, "fuel-idempotent")
