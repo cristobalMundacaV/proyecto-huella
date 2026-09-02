@@ -23,6 +23,7 @@ import {
     createEnvironmentalPoint,
     createManualSectorRecord,
     listEvidenceTypes,
+    listWasteTypes,
     processEvidenceVersion,
     listEnvironmentalPoints,
 } from "../api/sectorFlowsApi";
@@ -200,22 +201,10 @@ const FLOW_CONFIG = {
         ],
         requiresDestination:
             true,
-        requiresResourceType:
-            true,
-        resourceTypes: [
-            {
-                value: "no_peligroso",
-                label: "Residuo no peligroso",
-            },
-            {
-                value: "peligroso",
-                label: "Residuo peligroso",
-            },
-        ],
         destinations: [
             {
                 value: "residuo",
-                label: "Residuo sin destino definido",
+                label: "Destino pendiente de definir",
             },
             {
                 value: "reutilizacion",
@@ -406,6 +395,9 @@ const initialForm = {
     unit: "",
     source: "",
     resourceType: "",
+    wasteClassification: "",
+    wasteType: "",
+    wasteTypeOther: "",
     metric: "",
     destination: "",
 
@@ -480,6 +472,8 @@ export default function ManualFlowRecordModal({
 
     const [evidenceTypes, setEvidenceTypes] = useState([]);
     const [loadingEvidenceTypes, setLoadingEvidenceTypes] = useState(false);
+    const [wasteTypes, setWasteTypes] = useState([]);
+    const [loadingWasteTypes, setLoadingWasteTypes] = useState(false);
 
     const [
         loadingPoints,
@@ -610,6 +604,28 @@ export default function ManualFlowRecordModal({
     ]);
 
     const sourceDomain = selectedMode?.flow || domain;
+
+    useEffect(() => {
+        if (!open || domain !== "residuos") return undefined;
+        let current = true;
+        setLoadingWasteTypes(true);
+        listWasteTypes()
+            .then((data) => {
+                if (current) setWasteTypes(Array.isArray(data) ? data : []);
+            })
+            .catch(() => {
+                if (current) {
+                    setWasteTypes([]);
+                    setError("No fue posible cargar los tipos de residuo.");
+                }
+            })
+            .finally(() => {
+                if (current) setLoadingWasteTypes(false);
+            });
+        return () => {
+            current = false;
+        };
+    }, [open, domain]);
 
     useEffect(() => {
         if (!open || !sourceDomain) return undefined;
@@ -796,6 +812,14 @@ export default function ManualFlowRecordModal({
                     form.resourceType
                 ) &&
                 (
+                    domain !== "residuos" ||
+                    (
+                        form.wasteClassification &&
+                        form.wasteType &&
+                        (form.wasteType !== "otro" || form.wasteTypeOther.trim())
+                    )
+                ) &&
+                (
                     !config.requiresDestination ||
                     form.destination
                 ) &&
@@ -814,12 +838,16 @@ export default function ManualFlowRecordModal({
             ),
         [
             config,
+            domain,
             form.destination,
             form.evidenceFile,
             form.evidenceType,
             form.metric,
             form.recordDate,
             form.resourceType,
+            form.wasteClassification,
+            form.wasteType,
+            form.wasteTypeOther,
             form.source,
             form.unit,
             form.value,
@@ -874,6 +902,11 @@ export default function ManualFlowRecordModal({
             append("unidad", form.unit);
             append("fuente", form.source);
             append("tipo_recurso", form.resourceType.trim());
+            if (domain === "residuos") {
+                append("clasificacion_residuo", form.wasteClassification);
+                append("tipo_residuo", form.wasteType);
+                append("tipo_residuo_otro", form.wasteTypeOther.trim());
+            }
             append("metrica", form.metric.trim());
             if (domain === "combustibles" || config.requiresDestination) {
                 append("destino_operacional", domain === "combustibles" ? form.use : form.destination);
@@ -916,6 +949,9 @@ export default function ManualFlowRecordModal({
                 obra: "obra",
                 fuente: "origen del dato",
                 tipo_recurso: "tipo de combustible",
+                clasificacion_residuo: "clasificación",
+                tipo_residuo: "tipo de residuo",
+                tipo_residuo_otro: "detalle del residuo",
                 valor_numerico: "cantidad",
                 unidad: "unidad",
                 periodo_inicio: "fecha del registro",
@@ -1031,6 +1067,64 @@ export default function ManualFlowRecordModal({
                                 </option>
                             ))}
                         </Select>
+                    )}
+
+                    {domain === "residuos" && (
+                        <>
+                            <Select
+                                required
+                                label="Clasificación"
+                                value={form.wasteClassification}
+                                onChange={(event) =>
+                                    setForm((current) => ({
+                                        ...current,
+                                        wasteClassification: event.target.value,
+                                    }))
+                                }
+                            >
+                                <option value="">Selecciona una clasificación</option>
+                                <option value="no_peligroso">No peligroso</option>
+                                <option value="peligroso">Peligroso</option>
+                            </Select>
+
+                            <Select
+                                required
+                                label="Tipo de residuo"
+                                value={form.wasteType}
+                                disabled={loadingWasteTypes}
+                                onChange={(event) =>
+                                    setForm((current) => ({
+                                        ...current,
+                                        wasteType: event.target.value,
+                                        wasteTypeOther:
+                                            event.target.value === "otro"
+                                                ? current.wasteTypeOther
+                                                : "",
+                                    }))
+                                }
+                            >
+                                <option value="">Selecciona un tipo de residuo</option>
+                                {wasteTypes.map((wasteType) => (
+                                    <option key={wasteType.value} value={wasteType.value}>
+                                        {wasteType.label}
+                                    </option>
+                                ))}
+                            </Select>
+
+                            {form.wasteType === "otro" && (
+                                <Input
+                                    required
+                                    label="Describe el tipo de residuo"
+                                    value={form.wasteTypeOther}
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            wasteTypeOther: event.target.value,
+                                        }))
+                                    }
+                                />
+                            )}
+                        </>
                     )}
 
                     {config.modes && (

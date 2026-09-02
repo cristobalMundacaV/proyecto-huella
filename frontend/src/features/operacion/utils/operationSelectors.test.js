@@ -225,3 +225,24 @@ test("agua presenta uso operacional neutral sin afectar el cálculo de otros dom
   assert.match(panel, /se utiliza directamente en indicadores ambientales/);
   assert.match(panel, /Calcular/);
 });
+
+test("residuos separa clasificación, tipo gobernado y destino", () => {
+  const modal = readFileSync(
+    new URL("../components/ManualFlowRecordModal.jsx", import.meta.url),
+    "utf8",
+  );
+  const api = readFileSync(
+    new URL("../api/sectorFlowsApi.js", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(modal, /label="Clasificación"/);
+  assert.match(modal, /label="Tipo de residuo"/);
+  assert.match(modal, /listWasteTypes\(\)/);
+  assert.match(modal, /clasificacion_residuo/);
+  assert.match(modal, /tipo_residuo/);
+  assert.match(modal, /Destino pendiente de definir/);
+  assert.match(api, /\/tipos-residuo\//);
+  assert.doesNotMatch(modal, /label: "Residuo no peligroso"/);
+  assert.doesNotMatch(modal, /label: "Residuo peligroso"/);
+});

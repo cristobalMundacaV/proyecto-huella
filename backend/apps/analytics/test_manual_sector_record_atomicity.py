@@ -220,6 +220,31 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         self.assertEqual(fuel.status_code, 400)
         self.assertEqual(waste.status_code, 400)
 
+    def test_waste_persists_classification_type_and_destination_separately(self):
+        response = self.post(
+            self.payload(
+                flujo="residuo",
+                tipo_actividad="gestion_residuo",
+                codigo_actividad="manual-waste-dimensions",
+                concepto="cantidad_residuo",
+                unidad="kg",
+                tipo_recurso="",
+                clasificacion_residuo="peligroso",
+                tipo_residuo="pinturas_solventes",
+                destino_operacional="disposicion",
+            )
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        record = RegistroFlujoAmbiental.objects.get(
+            actividad__codigo="manual-waste-dimensions"
+        )
+        self.assertEqual(record.clasificacion_residuo, "peligroso")
+        self.assertEqual(record.tipo_residuo, "pinturas_solventes")
+        self.assertEqual(record.tipo_recurso, "")
+        self.assertEqual(record.destino_operacional, "disposicion")
+        self.assertFalse(response.data["registro"]["es_residuo_valorizado"])
+
     def test_manual_date_before_work_start_is_rejected(self):
         response = self.post(
             self.payload(

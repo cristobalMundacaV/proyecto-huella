@@ -100,6 +100,11 @@ export const listEvidenceTypes = async (domain) =>
         )
     ).data;
 
+export const listWasteTypes = async () =>
+    (
+        await api.get("/tipos-residuo/")
+    ).data;
+
 export const processEvidenceVersion = async (organizationId, evidenceId, versionId) =>
     (
         await api.post(

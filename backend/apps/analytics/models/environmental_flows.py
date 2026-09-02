@@ -8,6 +8,10 @@ from .platform import Organizacion
 
 
 class RegistroFlujoAmbiental(models.Model):
+    class ClasificacionResiduo(models.TextChoices):
+        NO_PELIGROSO = "no_peligroso", "No peligroso"
+        PELIGROSO = "peligroso", "Peligroso"
+
     class Flujo(models.TextChoices):
         ENERGIA = "energia", "Energia"
         GENERACION_PROPIA = "generacion_propia", "Generacion propia"
@@ -132,6 +136,11 @@ class RegistroFlujoAmbiental(models.Model):
         related_name="registros_flujos_ambientales",
     )
     tipo_recurso = models.CharField(max_length=120, blank=True)
+    clasificacion_residuo = models.CharField(
+        max_length=20, choices=ClasificacionResiduo.choices, blank=True
+    )
+    tipo_residuo = models.SlugField(max_length=120, blank=True)
+    tipo_residuo_otro = models.CharField(max_length=180, blank=True)
     metrica = models.CharField(max_length=80, blank=True)
     destino_operacional = models.CharField(
         max_length=30,

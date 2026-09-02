@@ -259,6 +259,7 @@ from .views_sector_flows_v1 import (
     sector_indicators,
     sector_record_detail,
     sector_records,
+    waste_types,
 )
 from .views_operational_context import (
     membership_operational_workspaces,
@@ -320,6 +321,7 @@ urlpatterns = [
         "organizaciones/<str:organizacion_id>/puntos-ambientales/", environmental_points
     ),
     path("tipos-evidencia/", evidence_types),
+    path("tipos-residuo/", waste_types),
     path("organizaciones/<str:organizacion_id>/flujos-ambientales/", sector_records),
     path(
         "organizaciones/<str:organizacion_id>/flujos-ambientales/registro-manual/",

@@ -26,6 +26,10 @@ from .services.evidence_taxonomy import (
     validate_evidence_type,
 )
 from .services.sector_flows_v1 import sector_summary
+from .services.waste_catalog import (
+    construction_waste_types,
+    validate_waste_dimensions,
+)
 from .selectors.environmental_flows import (
     environmental_points_for_organization,
     environmental_record_for_organization,
@@ -55,6 +59,11 @@ def _requested_work(request, organization):
 @api_view(["GET"])
 def evidence_types(request):
     return Response(evidence_types_for_domain(request.query_params.get("dominio")))
+
+
+@api_view(["GET"])
+def waste_types(request):
+    return Response(construction_waste_types())
 
 
 @api_view(["GET", "POST"])
@@ -144,6 +153,12 @@ def manual_sector_record(request, organizacion_id):
     if flow == RegistroFlujoAmbiental.Flujo.RESIDUO and destination not in waste_destinations:
         raise ValidationError(
             {"destino_operacional": "Selecciona un destino valido para el residuo."}
+        )
+    if flow == RegistroFlujoAmbiental.Flujo.RESIDUO:
+        validate_waste_dimensions(
+            request.data.get("clasificacion_residuo"),
+            request.data.get("tipo_residuo"),
+            request.data.get("tipo_residuo_otro", ""),
         )
     if flow not in FUEL_FLOWS and flow != RegistroFlujoAmbiental.Flujo.RESIDUO:
         destination = RegistroFlujoAmbiental.DestinoOperacional.SIN_CLASIFICAR
@@ -245,6 +260,9 @@ def manual_sector_record(request, organizacion_id):
                     "evidencia": evidence.id if evidence else None,
                     "version_evidencia": evidence_version.id if evidence_version else None,
                     "tipo_recurso": request.data.get("tipo_recurso") or "",
+                    "clasificacion_residuo": request.data.get("clasificacion_residuo") or "",
+                    "tipo_residuo": request.data.get("tipo_residuo") or "",
+                    "tipo_residuo_otro": request.data.get("tipo_residuo_otro") or "",
                     "metrica": request.data.get("metrica") or "",
                     "destino_operacional": destination,
                     "metadata": (

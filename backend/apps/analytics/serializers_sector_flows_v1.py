@@ -14,6 +14,7 @@ from .policies.environmental_flows import (
 )
 from .serializers_activity_core import ObservacionSerializer
 from .services.sector_flows_v1 import save_environmental_record, save_point
+from .services.waste_catalog import is_valued_waste_destination
 
 
 class PuntoAmbientalSerializer(serializers.ModelSerializer):
@@ -41,6 +42,7 @@ class PuntoAmbientalSerializer(serializers.ModelSerializer):
 
 class RegistroFlujoAmbientalSerializer(serializers.ModelSerializer):
     actividad_detalle = serializers.SerializerMethodField()
+    es_residuo_valorizado = serializers.SerializerMethodField()
     concepto = serializers.SlugField(max_length=120, required=False, write_only=True)
     valor_numerico = serializers.DecimalField(
         max_digits=20,
@@ -92,6 +94,11 @@ class RegistroFlujoAmbientalSerializer(serializers.ModelSerializer):
             "nombre": activity.nombre,
             "timestamp_inicio": activity.timestamp_inicio,
         }
+
+    def get_es_residuo_valorizado(self, record):
+        if record.flujo != RegistroFlujoAmbiental.Flujo.RESIDUO:
+            return None
+        return is_valued_waste_destination(record.destino_operacional)
 
     class Meta:
         model = RegistroFlujoAmbiental
