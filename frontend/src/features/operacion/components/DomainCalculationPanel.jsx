@@ -175,6 +175,18 @@ export default function DomainCalculationPanel({
         }
     }
 
+    if (domain === "agua") {
+        return (
+            <section className="space-y-4">
+                <SectionHeader
+                    eyebrow="DATO OPERACIONAL"
+                    title="Sin cálculo asociado"
+                    description="Este registro se utiliza directamente en indicadores ambientales."
+                />
+            </section>
+        );
+    }
+
     return (
         <section className="space-y-4">
             <SectionHeader

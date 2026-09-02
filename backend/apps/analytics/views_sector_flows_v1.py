@@ -1,3 +1,5 @@
+import logging
+
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404
@@ -18,6 +20,7 @@ from .serializers_sector_flows_v1 import (
 from .services.fuel_classification import FUEL_FLOWS, classify_fuel
 from .services.operational_context import resolve_operational_context
 from .services.quality_v2 import ensure_current_quality_evaluation
+from .services.operational_indicators import sync_operational_indicators_for_observation
 from .services.evidence_taxonomy import (
     evidence_types_for_domain,
     validate_evidence_type,
@@ -30,6 +33,9 @@ from .selectors.environmental_flows import (
     organization_available_to_user,
     work_for_organization,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 def _organization(request, value):
@@ -255,9 +261,20 @@ def manual_sector_record(request, organizacion_id):
             )
             record_serializer.is_valid(raise_exception=True)
             record = record_serializer.save()
+            observation = record.actividad.observaciones.get(
+                concepto=request.data.get("concepto")
+            )
+            try:
+                with transaction.atomic():
+                    sync_operational_indicators_for_observation(observation)
+            except Exception:
+                logger.exception(
+                    "No se pudo sincronizar el indicador operacional para la "
+                    "observacion %s; el dato se conserva para backfill.",
+                    observation.id,
+                )
             quality_evaluation = None
             if evidence:
-                observation = record.actividad.observaciones.get(evidencia=evidence)
                 quality_evaluation = ensure_current_quality_evaluation(observation)
 
             return Response(

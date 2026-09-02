@@ -153,6 +153,59 @@ class ManualSectorRecordAtomicityTests(APITestCase):
                 self.assertEqual(record.actividad.timestamp_inicio.date().isoformat(), "2026-09-11")
                 self.assertEqual(observation.timestamp_observacion.date().isoformat(), "2026-09-11")
 
+    def test_water_record_automatically_creates_monthly_operational_indicator(self):
+        response = self.post(
+            self.payload(
+                flujo="agua",
+                tipo_actividad="consumo_agua",
+                codigo_actividad="manual-water-indicator",
+                concepto="consumo_agua",
+                valor_numerico="25",
+                unidad="m3",
+                tipo_recurso="red_publica",
+                destino_operacional="",
+            )
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        indicator = self.work.indicadores_ambientales.get(codigo="consumo-agua")
+        self.assertEqual(indicator.valores.get().valor, 25)
+
+    def test_operational_indicator_failure_does_not_rollback_water_and_can_be_repaired(self):
+        with patch(
+            "apps.analytics.views_sector_flows_v1.sync_operational_indicators_for_observation",
+            side_effect=RuntimeError("fallo KPI controlado"),
+        ):
+            with self.assertLogs(
+                "apps.analytics.views_sector_flows_v1", level="ERROR"
+            ):
+                response = self.post(
+                    self.payload(
+                        flujo="agua",
+                        tipo_actividad="consumo_agua",
+                        codigo_actividad="manual-water-kpi-failure",
+                        concepto="consumo_agua",
+                        valor_numerico="25",
+                        unidad="m3",
+                        tipo_recurso="red_publica",
+                        destino_operacional="",
+                    )
+                )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        observation = Observacion.objects.get(
+            actividad__codigo="manual-water-kpi-failure"
+        )
+        self.assertFalse(self.work.indicadores_ambientales.exists())
+
+        from .services.operational_indicators import (
+            sync_operational_indicators_for_observation,
+        )
+
+        value, created = sync_operational_indicators_for_observation(observation)
+        self.assertTrue(created)
+        self.assertEqual(value.valor, 25)
+
     def test_fuel_and_waste_keep_strict_destination_validation(self):
         fuel = self.post(self.payload(destino_operacional=""))
         waste = self.post(

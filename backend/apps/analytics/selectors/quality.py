@@ -57,6 +57,7 @@ def indicators_for_user(organization, user, work_id=None):
     rows = organization.indicadores_ambientales_v2.prefetch_related("valores")
     allowed = filter_works_for_user(Obra.objects.all(), user, organization)
     rows = rows.filter(Q(obra__isnull=True) | Q(obra__in=allowed))
+    rows = rows.filter(activo=True)
     return rows.filter(obra_id=work_id) if work_id else rows
 
 

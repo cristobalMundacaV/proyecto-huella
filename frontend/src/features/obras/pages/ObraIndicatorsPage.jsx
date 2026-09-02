@@ -161,7 +161,7 @@ export default function ObraIndicatorsPage() {
 
       {availableIndicators.length ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {availableIndicators.slice(0, 4).map(
+          {availableIndicators.map(
             (indicator) => (
               <KpiCard
                 key={

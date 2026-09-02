@@ -200,3 +200,28 @@ test("calidad omite destino sin clasificar pero conserva destinos reales", () =>
   assert.match(panel, /destination !== "sin_clasificar"/);
   assert.match(panel, /human\(\s*destination/);
 });
+
+test("indicadores de obra muestran todos los dominios sin sumar en React", () => {
+  const page = readFileSync(
+    new URL("../../obras/pages/ObraIndicatorsPage.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(page, /availableIndicators\.map/);
+  assert.doesNotMatch(page, /availableIndicators\.slice\(0, 4\)/);
+  assert.match(page, /indicator\.valor_actual/);
+  assert.match(page, /state\.impacts\.slice/);
+  assert.doesNotMatch(page, /reduce\([^)]*valor/);
+});
+
+test("agua presenta uso operacional neutral sin afectar el cálculo de otros dominios", () => {
+  const panel = readFileSync(
+    new URL("../components/DomainCalculationPanel.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(panel, /domain === "agua"/);
+  assert.match(panel, /title="Sin cálculo asociado"/);
+  assert.match(panel, /se utiliza directamente en indicadores ambientales/);
+  assert.match(panel, /Calcular/);
+});

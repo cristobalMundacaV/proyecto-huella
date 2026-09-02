@@ -1,9 +1,14 @@
 from django.core.management.base import BaseCommand, CommandError
 
-from ...models import ImpactoAmbiental, Obra, Organizacion
+from ...models import ImpactoAmbiental, Obra, Observacion, Organizacion
 from ...services.generated_emissions_indicator import (
     calendar_month,
     sync_generated_emissions_month,
+)
+from ...services.operational_indicators import (
+    OPERATIONAL_INDICATOR_CONTRACTS,
+    calendar_month as operational_calendar_month,
+    sync_operational_indicator_month,
 )
 
 
@@ -36,9 +41,26 @@ class Command(BaseCommand):
             _, value_created = sync_generated_emissions_month(work, start, end)
             created += int(value_created)
 
+        operational_periods = set()
+        observations = Observacion.objects.filter(
+            organizacion=organization,
+            actividad__obra=work,
+            concepto__in=OPERATIONAL_INDICATOR_CONTRACTS,
+        ).values_list("concepto", "timestamp_observacion")
+        for concept, timestamp in observations:
+            operational_periods.add(
+                (concept, *operational_calendar_month(timestamp))
+            )
+        for concept, start, end in sorted(operational_periods):
+            _, value_created = sync_operational_indicator_month(
+                work, concept, start, end
+            )
+            created += int(value_created)
+
         self.stdout.write(
             self.style.SUCCESS(
                 f"Indicadores sincronizados para {work.nombre}: "
-                f"{len(periods)} periodos, {created} nuevas versiones."
+                f"{len(periods) + len(operational_periods)} series-periodo, "
+                f"{created} nuevas versiones."
             )
         )
