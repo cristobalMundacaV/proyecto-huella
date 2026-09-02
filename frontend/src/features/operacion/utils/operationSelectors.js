@@ -151,6 +151,22 @@ export function compatibleDomainTotals(indicators, domain) {
   return (indicators?.totales_compatibles || []).filter((metric) => concepts.has(metric.concepto));
 }
 
+export function calculationMethodologyPresentation(eligibility) {
+  if (eligibility?.metodologia_seleccionada) {
+    return { methodology: eligibility.metodologia_seleccionada, label: null };
+  }
+  if (eligibility?.requiere_revision_metodologica) {
+    return { methodology: null, label: "Revisión metodológica requerida" };
+  }
+  if (eligibility?.metodologia_candidata) {
+    return { methodology: eligibility.metodologia_candidata, label: null };
+  }
+  return { methodology: null, label: "Sin metodología" };
+}
+
+export const isCalculationSelectable = (eligibility) =>
+  Boolean(eligibility?.metodologia_seleccionada);
+
 export function domainState({ applicabilityState, records = [], ambiguous = false, available = true }) {
   if (!available) return "error";
   if (applicabilityState === "no_aplica") return "no_aplica";

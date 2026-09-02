@@ -1,7 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { compatibleDomainTotals, domainActivities, domainRecords } from "./operationSelectors.js";
+import {
+  calculationMethodologyPresentation,
+  compatibleDomainTotals,
+  domainActivities,
+  domainRecords,
+  isCalculationSelectable,
+} from "./operationSelectors.js";
 
 test("Combustibles conserva registros genericos, moviles y estacionarios", () => {
   const records = [
@@ -34,4 +40,34 @@ test("el KPI usa totales compatibles del backend y mantiene unidades separadas",
     { concepto: "combustible_consumido", unidad: "L", total: 300 },
     { concepto: "combustible_consumido", unidad: "kg", total: 25 },
   ]);
+});
+
+test("presenta metodología candidata bloqueada sin habilitar cálculo", () => {
+  const eligibility = {
+    estado: "no_calculable",
+    metodologia_seleccionada: null,
+    metodologia_candidata: { id: 7, nombre: "Combustible Construcción", version: 1 },
+    motivos: ["El respaldo presentó un fallo técnico."],
+  };
+
+  assert.deepEqual(calculationMethodologyPresentation(eligibility), {
+    methodology: eligibility.metodologia_candidata,
+    label: null,
+  });
+  assert.equal(isCalculationSelectable(eligibility), false);
+  assert.notEqual(
+    calculationMethodologyPresentation(eligibility).methodology.nombre,
+    "Sin metodología",
+  );
+});
+
+test("distingue ambigüedad metodológica y ausencia real de metodología", () => {
+  assert.deepEqual(
+    calculationMethodologyPresentation({ requiere_revision_metodologica: true }),
+    { methodology: null, label: "Revisión metodológica requerida" },
+  );
+  assert.deepEqual(calculationMethodologyPresentation({}), {
+    methodology: null,
+    label: "Sin metodología",
+  });
 });

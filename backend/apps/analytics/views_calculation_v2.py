@@ -68,6 +68,19 @@ def _activity(request, org, value):
 
 def _serialize_selection(selection):
     selected = selection["seleccion"]
+    candidate = selection.get("candidata")
+
+    def methodology_identity(item):
+        if not item:
+            return None
+        version = item["version_metodologia"]
+        return {
+            "id": version.metodologia_id,
+            "nombre": version.metodologia.nombre,
+            "version": version.version,
+            "formula": item["formula"].expresion_legible,
+            "estado": item["estado"],
+        }
     reasons = (
         selected["elegibilidad"]["motivos"]
         if selected
@@ -89,14 +102,15 @@ def _serialize_selection(selection):
         "estado": selection["estado"],
         "metodologia_seleccionada": (
             {
-                "id": selected["version_metodologia"].metodologia_id,
-                "nombre": selected["version_metodologia"].metodologia.nombre,
-                "version": selected["version_metodologia"].version,
-                "formula": selected["formula"].expresion_legible,
+                **methodology_identity(selected),
                 "factor": selected["elegibilidad"]["factor_version"].factor.nombre,
             }
             if selected
             else None
+        ),
+        "metodologia_candidata": methodology_identity(candidate),
+        "requiere_revision_metodologica": selection.get(
+            "requiere_revision_metodologica", False
         ),
         "razon": selection["razon"],
         "motivos": reasons,
@@ -107,9 +121,14 @@ def _serialize_selection(selection):
         "descartados": selection["descartados"],
         "candidatos": [
             {
+                **(
+                    (methodology_identity(item) or {})
+                    if item.get("formula")
+                    else {}
+                ),
                 "metodo": item["metodo"],
-                "estado": item["estado"],
                 "motivos": item["motivos"],
+                "estado": item["estado"],
             }
             for item in selection["candidatos"]
         ],

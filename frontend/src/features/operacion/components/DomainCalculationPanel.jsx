@@ -34,7 +34,9 @@ import {
 } from "../api/calculationApi";
 
 import {
+    calculationMethodologyPresentation,
     domainActivities,
+    isCalculationSelectable,
     resourceData,
 } from "../utils/operationSelectors";
 
@@ -227,12 +229,12 @@ export default function DomainCalculationPanel({
                                     1
                                     ];
 
-                                const selectable =
-                                    Boolean(
-                                        row
-                                            .eligibility
-                                            ?.metodologia_seleccionada,
-                                    );
+                                const selectable = isCalculationSelectable(
+                                    row.eligibility,
+                                );
+                                const methodology = calculationMethodologyPresentation(
+                                    row.eligibility,
+                                );
                                 const eligibilityStatus = eligibilityStateInfo(
                                     row.eligibility,
                                 );
@@ -267,24 +269,12 @@ export default function DomainCalculationPanel({
                                         </TableCell>
 
                                         <TableCell>
-                                            {row
-                                                .eligibility
-                                                ?.metodologia_seleccionada
-                                                ?.nombre ||
-                                                "Sin metodología"}
+                                            {methodology.methodology?.nombre || methodology.label}
 
-                                            {row
-                                                .eligibility
-                                                ?.metodologia_seleccionada
-                                                ?.version && (
+                                            {methodology.methodology?.version && (
                                                     <span className="block text-xs text-[var(--text-muted)]">
                                                         v
-                                                        {
-                                                            row
-                                                                .eligibility
-                                                                .metodologia_seleccionada
-                                                                .version
-                                                        }
+                                                        {methodology.methodology.version}
                                                     </span>
                                                 )}
                                         </TableCell>

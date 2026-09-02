@@ -1,4 +1,5 @@
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -32,6 +33,7 @@ from .services.calculation_v2 import calculate_activity
 
 from .services.eligibility_v2 import active_factor_version
 from .services.methodology_selector import select_methodology
+from .views_calculation_v2 import _serialize_selection
 
 
 class CalculationV2Tests(APITestCase):
@@ -528,3 +530,81 @@ class CalculationV2Tests(APITestCase):
             {item["obra"] for item in response.data},
             {obra_a.id},
         )
+
+    def test_serializacion_conserva_metodologia_seleccionada_calculable(self):
+        self.observe("distancia_recorrida_km", "132", "km")
+        self.observe("masa_transportada_t", "18", "t")
+
+        payload = _serialize_selection(select_methodology(self.activity))
+
+        self.assertEqual(payload["estado"], "calculable_completo")
+        self.assertEqual(payload["metodologia_seleccionada"]["nombre"], "Transporte t.km")
+        self.assertIsNone(payload["metodologia_candidata"])
+
+    def test_calidad_bloqueada_expone_candidata_sin_fingir_seleccion(self):
+        blocked = {
+            "estado": "no_calculable",
+            "motivos": [
+                "El procesamiento del respaldo presento un fallo tecnico; requiere revision."
+            ],
+            "advertencias": [],
+            "inputs": {},
+            "normalizaciones": {},
+            "clasificacion_combustible": None,
+            "seleccion_factor_combustible": None,
+            "factor_version": None,
+        }
+        with patch(
+            "apps.analytics.services.methodology_selector.evaluate_formula",
+            return_value=blocked,
+        ):
+            payload = _serialize_selection(select_methodology(self.activity))
+
+        self.assertEqual(payload["estado"], "no_calculable")
+        self.assertIsNone(payload["metodologia_seleccionada"])
+        self.assertEqual(
+            payload["metodologia_candidata"],
+            {
+                "id": MetodologiaAmbiental.objects.get(codigo="met-tkm").id,
+                "nombre": "Transporte t.km",
+                "version": 1,
+                "formula": "masa x distancia x factor",
+                "estado": "requiere_revision",
+            },
+        )
+        self.assertIn("fallo tecnico", payload["motivos"][0])
+
+    def test_candidatas_bloqueadas_con_igual_prioridad_requieren_revision(self):
+        VersionMetodologia.objects.filter(
+            metodologia__codigo="met-km"
+        ).update(prioridad=10)
+        blocked = {
+            "estado": "no_calculable",
+            "motivos": ["La calidad requiere revision."],
+            "advertencias": [],
+            "inputs": {},
+            "normalizaciones": {},
+            "clasificacion_combustible": None,
+            "seleccion_factor_combustible": None,
+            "factor_version": None,
+        }
+        with patch(
+            "apps.analytics.services.methodology_selector.evaluate_formula",
+            return_value=blocked,
+        ):
+            payload = _serialize_selection(select_methodology(self.activity))
+
+        self.assertIsNone(payload["metodologia_seleccionada"])
+        self.assertIsNone(payload["metodologia_candidata"])
+        self.assertTrue(payload["requiere_revision_metodologica"])
+        self.assertEqual(payload["estado"], "requiere_revision")
+
+    def test_sin_metodologias_no_expone_candidata(self):
+        MetodologiaAmbiental.objects.update(activa=False)
+
+        payload = _serialize_selection(select_methodology(self.activity))
+
+        self.assertIsNone(payload["metodologia_seleccionada"])
+        self.assertIsNone(payload["metodologia_candidata"])
+        self.assertFalse(payload["requiere_revision_metodologica"])
+        self.assertEqual(payload["candidatos"], [])

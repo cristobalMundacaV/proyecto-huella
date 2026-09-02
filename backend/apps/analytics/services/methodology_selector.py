@@ -77,14 +77,39 @@ def select_methodology(actividad):
     best = [item for item in available if item["version_metodologia"].prioridad == available[0]["version_metodologia"].prioridad] if available else []
     ambiguous = len(best) > 1
     selected = best[0] if len(best) == 1 else None
+    applicable_candidates = [
+        item for item in candidates if item["estado"] != "no_aplicable"
+    ]
+    best_candidates = (
+        [
+            item
+            for item in applicable_candidates
+            if item["version_metodologia"].prioridad
+            == applicable_candidates[0]["version_metodologia"].prioridad
+        ]
+        if applicable_candidates
+        else []
+    )
+    methodology_ambiguous = ambiguous or len(best_candidates) > 1
+    if methodology_ambiguous:
+        selected = None
+    candidate = best_candidates[0] if not selected and len(best_candidates) == 1 else None
+    if selected:
+        reason = (
+            f"Seleccionado {selected['metodo']} por aplicabilidad y prioridad explícita."
+        )
+    elif methodology_ambiguous:
+        reason = "Existen múltiples metodologías aplicables con igual prioridad."
+    else:
+        reason = "Ningún método aplicable es calculable."
     discarded = [{"metodo": item["metodo"], "estado": item["estado"], "motivos": item["motivos"]}
                  for item in candidates if item is not selected and item["estado"] != "aplicable"]
     return {
         "seleccion": selected,
-        "razon": (f"Seleccionado {selected['metodo']} por aplicabilidad y prioridad explícita."
-                  if selected else ("Existen múltiples metodologías aplicables con igual prioridad."
-                                    if ambiguous else "Ningún método aplicable es calculable.")),
-        "estado": "requiere_revision" if ambiguous else (selected["elegibilidad"]["estado"] if selected else "no_calculable"),
+        "candidata": candidate,
+        "requiere_revision_metodologica": methodology_ambiguous,
+        "razon": reason,
+        "estado": "requiere_revision" if methodology_ambiguous else (selected["elegibilidad"]["estado"] if selected else "no_calculable"),
         "alternativos": [item for item in available if item is not selected],
         "descartados": discarded,
         "candidatos": candidates,
