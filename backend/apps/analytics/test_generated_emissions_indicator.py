@@ -21,6 +21,7 @@ from .models import (
 )
 from .services.calculation_v2 import calculate_activity, recalculate
 from .services.generated_emissions_indicator import (
+    INDICATOR_CONTRACT,
     INDICATOR_CODE,
     ensure_generated_emissions_indicator,
     sync_generated_emissions_month,
@@ -213,3 +214,42 @@ class GeneratedEmissionsIndicatorTests(TestCase):
         indicator.refresh_from_db()
         self.assertEqual(indicator.unidad, "kgCO2e")
         self.assertEqual(indicator.origen_numerador, "otro_origen")
+
+    def test_kpi_sync_failure_preserves_calculation_and_impact_then_backfill_repairs(self):
+        indicator = IndicadorAmbiental.objects.create(
+            organizacion=self.organization,
+            obra=self.work,
+            codigo=INDICATOR_CODE,
+            nombre="Configuracion incompatible",
+            alcance=IndicadorAmbiental.Alcance.OBRA,
+            tipo=IndicadorAmbiental.Tipo.ABSOLUTO,
+            unidad="kgCO2e",
+            origen_numerador="otro_origen",
+            direccion_deseable=IndicadorAmbiental.DireccionDeseable.MENOR,
+        )
+
+        with self.assertLogs(
+            "apps.analytics.services.impact_v2", level="ERROR"
+        ) as captured:
+            _, _, calculation = self.create_fuel_activity(
+                self.work, "fuel-kpi-failure"
+            )
+
+        self.assertTrue(CalculoAmbiental.objects.filter(pk=calculation.pk).exists())
+        self.assertTrue(ImpactoAmbiental.objects.filter(calculo=calculation).exists())
+        self.assertFalse(ValorIndicador.objects.filter(indicador=indicator).exists())
+        self.assertIn("se conservan para backfill", captured.output[0])
+
+        IndicadorAmbiental.objects.filter(pk=indicator.pk).update(
+            **INDICATOR_CONTRACT
+        )
+        call_command(
+            "sync_indicators_v2",
+            organization=self.organization.organizacion_id,
+            obra=self.work.id,
+            stdout=StringIO(),
+        )
+
+        repaired = self.current_value()
+        self.assertEqual(repaired.valor, Decimal("0.6775"))
+        self.assertEqual(repaired.metadata["calculos_fuente_ids"], [calculation.id])

@@ -1,4 +1,11 @@
+import logging
+
+from django.db import transaction
+
 from ..models import ImpactoAmbiental
+
+
+logger = logging.getLogger(__name__)
 
 
 def create_generated_impact(calculation):
@@ -18,5 +25,13 @@ def create_generated_impact(calculation):
     )
     from .generated_emissions_indicator import sync_generated_emissions_for_impact
 
-    sync_generated_emissions_for_impact(impact)
+    try:
+        with transaction.atomic():
+            sync_generated_emissions_for_impact(impact)
+    except Exception:
+        logger.exception(
+            "No se pudo sincronizar el indicador GEI para el impacto %s; "
+            "el calculo y el impacto se conservan para backfill.",
+            impact.id,
+        )
     return impact
