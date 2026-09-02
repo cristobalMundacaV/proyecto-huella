@@ -31,7 +31,7 @@ def transition_version(version, target, user=None, professional_review=None):
 
 
 @transaction.atomic
-def create_methodology_version(methodology, payload, formula_data, factor, variables):
+def create_methodology_version(methodology, payload, formula_data, factor=None, variables=()):
     version = VersionMetodologia.objects.create(
         metodologia=methodology,
         version=(

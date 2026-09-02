@@ -1,6 +1,6 @@
 from django.core.exceptions import ValidationError
 
-from ..models import RevisionProfesionalAmbiental, VersionMetodologia
+from ..models import FormulaAmbiental, RevisionProfesionalAmbiental, VersionMetodologia
 from ..services.eligibility_v2 import active_factor_version
 
 TRANSITIONS = {
@@ -90,7 +90,14 @@ def structural_errors(version):
         and version.vigencia_desde > version.vigencia_hasta
     ):
         errors.append("La vigencia de la metodologÃ­a es invÃ¡lida.")
-    if not active_factor_version(formula, version.metodologia.organizacion):
+    dynamic_fuel_formula = formula.tipo == FormulaAmbiental.Tipo.COMBUSTIBLE_CONSUMIDO
+    if dynamic_fuel_formula and formula.factor_ambiental_id is not None:
+        errors.append(
+            "La formula de combustible consumido debe seleccionar el factor dinamicamente."
+        )
+    if not dynamic_fuel_formula and not active_factor_version(
+        formula, version.metodologia.organizacion
+    ):
         errors.append("No existe un factor activo, vigente y aplicable.")
     validate_applicability(version.aplicabilidad)
     return errors

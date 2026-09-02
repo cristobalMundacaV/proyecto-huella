@@ -6,6 +6,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from .models import (
+    FormulaAmbiental,
     Organizacion,
 )
 from .permissions import (
@@ -153,9 +154,12 @@ def metodologia_detail(request, organizacion_id, metodologia_id):
         validate_applicability(payload.get("aplicabilidad", {}))
     except DjangoValidationError as exc:
         return Response({"aplicabilidad": exc.messages}, status=400)
-    factor = get_object_or_404(
-        factor_for_organization(org, formula_data.get("factor_ambiental"))
-    )
+    if formula_data.get("tipo") == FormulaAmbiental.Tipo.COMBUSTIBLE_CONSUMIDO:
+        factor = None
+    else:
+        factor = get_object_or_404(
+            factor_for_organization(org, formula_data.get("factor_ambiental"))
+        )
     variables = []
     for row in formula_data.get("variables", []):
         serializer = VariableFormulaSerializer(data=row)

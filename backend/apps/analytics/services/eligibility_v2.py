@@ -33,7 +33,7 @@ def _fuel_required_unit(formula):
         (
             item
             for item in variables
-            if item.clave == "combustible"
+            if item.clave in {"combustible", "combustible_consumido"}
             or "combustible" in item.concepto_observacion
         ),
         variables[0] if len(variables) == 1 else None,

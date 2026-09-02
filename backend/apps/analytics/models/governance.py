@@ -204,12 +204,17 @@ class FormulaAmbiental(models.Model):
         TRANSPORTE_TKM = "transporte_tkm", "Masa x distancia x factor"
         TRANSPORTE_VEHICULO_KM = "transporte_vehiculo_km", "Distancia x factor vehiculo"
         TRANSPORTE_COMBUSTIBLE = "transporte_combustible", "Combustible x factor"
+        COMBUSTIBLE_CONSUMIDO = "combustible_consumido", "Combustible consumido x factor"
 
     version_metodologia = models.OneToOneField(
         VersionMetodologia, on_delete=models.PROTECT, related_name="formula"
     )
     factor_ambiental = models.ForeignKey(
-        FactorAmbiental, on_delete=models.PROTECT, related_name="formulas"
+        FactorAmbiental,
+        on_delete=models.PROTECT,
+        related_name="formulas",
+        null=True,
+        blank=True,
     )
     codigo = models.SlugField(max_length=100)
     tipo = models.CharField(max_length=40, choices=Tipo.choices)

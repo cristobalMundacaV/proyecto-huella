@@ -16,14 +16,18 @@ def _transport_vehicle_km(values, factor):
     return values["distancia"] * factor
 
 
-def _transport_fuel(values, factor):
-    return values["combustible"] * factor
+def _consumed_fuel(values, factor):
+    value = values.get("combustible_consumido", values.get("combustible"))
+    if value is None:
+        raise ValidationError("La formula requiere combustible_consumido.")
+    return value * factor
 
 
 FORMULA_HANDLERS = {
     FormulaAmbiental.Tipo.TRANSPORTE_TKM: _transport_tkm,
     FormulaAmbiental.Tipo.TRANSPORTE_VEHICULO_KM: _transport_vehicle_km,
-    FormulaAmbiental.Tipo.TRANSPORTE_COMBUSTIBLE: _transport_fuel,
+    FormulaAmbiental.Tipo.TRANSPORTE_COMBUSTIBLE: _consumed_fuel,
+    FormulaAmbiental.Tipo.COMBUSTIBLE_CONSUMIDO: _consumed_fuel,
 }
 
 
@@ -69,12 +73,17 @@ def calculate_activity(actividad, *, result_context=None, recalculation_of=None,
         tipo_resultado=result_type, recalculo_de=recalculation_of, motivo_recalculo=recalculation_reason,
         snapshot_tecnico={
             "metodologia_id": selected["version_metodologia"].metodologia_id,
+            "metodologia_codigo": selected["version_metodologia"].metodologia.codigo,
+            "metodologia_version": selected["version_metodologia"].version,
             "version_metodologia_id": selected["version_metodologia"].id,
             "formula_id": formula.id, "formula_tipo": formula.tipo,
             "version_factor_id": factor_version.id, "factor_id": factor_version.factor_id,
+            "factor_codigo": factor_version.factor.codigo,
             "factor_valor": str(factor_version.valor), "factor_fuente": factor_version.fuente,
+            "factor_referencia": factor_version.referencia,
             "factor_vigencia": {"desde": str(factor_version.vigencia_desde or ""), "hasta": str(factor_version.vigencia_hasta or "")},
             "tipo_resultado": result_type, "unidad_resultado": factor_version.factor.unidad_resultado,
+            "resultado": str(result),
             "contexto_resultado": result_context or {}, "decision": selection["razon"],
             "candidatos": [{"metodo": item["metodo"], "estado": item["estado"], "motivos": item["motivos"]}
                            for item in selection["candidatos"]],
