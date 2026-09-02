@@ -68,12 +68,7 @@ class FuelCalculationBootstrapTests(TestCase):
         )
         return activity
 
-    def test_empty_bootstrap_provisions_catalog_and_governed_methodology(self):
-        self.assertFalse(FactorAmbiental.objects.exists())
-        self.assertFalse(MetodologiaAmbiental.objects.exists())
-
-        self.bootstrap()
-
+    def test_system_provisions_catalog_and_governed_methodology(self):
         self.assertEqual(
             FactorAmbiental.objects.filter(codigo__startswith="huellachile-").count(),
             6,

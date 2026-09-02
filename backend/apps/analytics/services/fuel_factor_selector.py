@@ -20,7 +20,8 @@ def _evaluation_date(value):
 
 def _candidate(version, organization, category, fuel, required_unit, on_date):
     factor = version.factor
-    context = factor.contexto if isinstance(factor.contexto, dict) else {}
+    context = version.contexto or factor.contexto
+    context = context if isinstance(context, dict) else {}
     if factor.organizacion_id == organization.id:
         origin = "tenant"
     elif context.get("proveedor") == "HuellaChile":

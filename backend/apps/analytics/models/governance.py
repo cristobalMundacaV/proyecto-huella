@@ -159,6 +159,7 @@ class VersionFactorAmbiental(models.Model):
     fuente = models.TextField()
     referencia = models.TextField(blank=True)
     region = models.CharField(max_length=100, blank=True)
+    contexto = models.JSONField(default=dict, blank=True)
     vigencia_desde = models.DateField(null=True, blank=True)
     vigencia_hasta = models.DateField(null=True, blank=True)
     estado = models.CharField(
