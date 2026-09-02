@@ -36,9 +36,12 @@ import {
 } from "@/shared/ui";
 
 import {
-    formatDateTime,
     formatNumber,
 } from "@/shared/utils/formatters";
+import {
+    evidencePresentation,
+    qualityPresentation,
+} from "../utils/operationalPresentation";
 
 
 function human(value) {
@@ -57,66 +60,15 @@ function human(value) {
 }
 
 
-function qualityTone(state) {
-    if (
-        state === "confiable"
-    ) {
-        return "success";
-    }
-
-    if (
-        state ===
-        "confiable_con_observaciones"
-    ) {
-        return "warning";
-    }
-
-    if (
-        state === "no_confiable" ||
-        state === "no_calculable"
-    ) {
-        return "danger";
-    }
-
-    return "warning";
-}
-
-function documentaryLabel(validation, fallback) {
-    const labels = {
-        verificada: "Verificado",
-        compatible_incompleta: "Compatible, requiere revisión",
-        contradiccion: "Contradice el dato declarado",
-        no_pertinente: "No pertinente",
-        indeterminada: "En revisión",
-        pendiente_procesamiento: "Procesando",
-    };
-    return labels[validation?.estado] || human(fallback);
-}
-
 function DocumentaryValidation({ evidence }) {
-    const validation = evidence?.validacion_documental;
-    if (!evidence) return "Sin evidencia adjunta";
+    const presentation = evidencePresentation(evidence);
+    if (!evidence) return presentation.label;
     return (
         <>
             <b>{evidence.nombre}</b>
             <span className="block text-xs text-[var(--text-muted)]">
-                Estado: {documentaryLabel(validation, evidence.estado_documental)}
+                {presentation.label}
             </span>
-            {validation?.estado === "no_pertinente" && (
-                <span className="mt-1 block text-xs text-[var(--danger)]">
-                    Este archivo no parece corresponder al respaldo esperado para el dato.
-                </span>
-            )}
-            {validation?.comparaciones?.map((comparison) => (
-                <span
-                    className="mt-1 block text-xs text-[var(--text-muted)]"
-                    key={comparison.campo}
-                >
-                    {comparison.estado === "contradice" ? "✕" : comparison.estado === "coincide" || comparison.estado === "compatible_por_conversion" ? "✓" : "•"}{" "}
-                    {human(comparison.campo)}: {comparison.declarado || "No declarado"}
-                    {comparison.documental ? ` / Documento: ${comparison.documental}` : " / No disponible en documento"}
-                </span>
-            ))}
         </>
     );
 }
@@ -681,21 +633,17 @@ export default function DomainQualityPanel({
                                             </TableCell>
 
                                             <TableCell as="th">
-                                                Respaldo documental
+                                                Respaldo
                                             </TableCell>
 
                                             <TableCell as="th">
-                                                Fuente / captura
-                                            </TableCell>
-
-                                            <TableCell as="th">
-                                                Evaluado
+                                                Fuente
                                             </TableCell>
                                         </tr>
                                     </TableHead>
 
                                     <TableBody
-                                        columns={5}
+                                        columns={4}
                                     >
                                         {quality.map(
                                             (
@@ -733,6 +681,7 @@ export default function DomainQualityPanel({
                                                         )} ${observation.unidad || ""}`.trim()
                                                         : observation?.valor_texto ||
                                                         "Sin valor";
+                                                const qualityDisplay = qualityPresentation(item);
 
                                                 return (
                                                     <tr
@@ -773,19 +722,12 @@ export default function DomainQualityPanel({
 
                                                         <TableCell>
                                                             <StatusBadge
-                                                                tone={qualityTone(
-                                                                    item.estado,
-                                                                )}
+                                                                tone={qualityDisplay.tone}
                                                             >
-                                                                {human(
-                                                                    item.estado,
-                                                                )}
+                                                                {qualityDisplay.label}
                                                             </StatusBadge>
                                                             <span className="mt-1 block max-w-xs text-xs text-[var(--text-muted)]">
-                                                                {item.motivos?.join(" ")}
-                                                            </span>
-                                                            <span className="mt-1 block text-xs text-[var(--text-muted)]">
-                                                                Estado del dato: {human(observation?.estado)}
+                                                                {qualityDisplay.message}
                                                             </span>
                                                         </TableCell>
 
@@ -800,11 +742,6 @@ export default function DomainQualityPanel({
                                                             </span>
                                                         </TableCell>
 
-                                                        <TableCell>
-                                                            {formatDateTime(
-                                                                item.fecha_evaluacion,
-                                                            )}
-                                                        </TableCell>
                                                     </tr>
                                                 );
                                             },

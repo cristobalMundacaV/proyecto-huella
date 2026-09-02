@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   calculationMethodologyPresentation,
@@ -8,6 +9,11 @@ import {
   domainRecords,
   isCalculationSelectable,
 } from "./operationSelectors.js";
+import {
+  eligibilityPresentation,
+  evidencePresentation,
+  qualityPresentation,
+} from "./operationalPresentation.js";
 
 test("Combustibles conserva registros genericos, moviles y estacionarios", () => {
   const records = [
@@ -70,4 +76,76 @@ test("distingue ambigüedad metodológica y ausencia real de metodología", () =
     methodology: null,
     label: "Sin metodología",
   });
+});
+
+test("traduce bloqueos documentales a mensajes breves sin nombres internos", () => {
+  const technical = eligibilityPresentation({
+    estado: "no_calculable",
+    motivos: ["combustible_consumido no puede calcularse: el procesamiento del respaldo presentó un fallo técnico"],
+  });
+  assert.deepEqual(technical, {
+    label: "Requiere revisión",
+    tone: "warning",
+    message: "El respaldo no pudo procesarse. Puedes revisarlo o reintentarlo.",
+  });
+  assert.equal(technical.message.includes("combustible_consumido"), false);
+  assert.equal(
+    eligibilityPresentation({ estado: "calculable_completo" }).message,
+    "Metodología y factor disponibles.",
+  );
+  assert.equal(
+    eligibilityPresentation({ estado: "no_calculable", motivos: ["El registro es anterior al inicio de la obra"] }).message,
+    "La fecha del registro es anterior al inicio de la obra.",
+  );
+});
+
+test("resume todos los estados documentales requeridos sin cambiar el contrato", () => {
+  const cases = [
+    ["revision_tecnica", "El respaldo no pudo procesarse."],
+    ["observada", "El respaldo tiene observaciones pendientes."],
+    ["contradiccion", "El respaldo presenta diferencias con el dato registrado."],
+    ["no_pertinente", "El archivo adjunto no corresponde al respaldo esperado."],
+    ["compatible_incompleta", "El respaldo es compatible, pero está incompleto."],
+  ];
+  for (const [estado, message] of cases) {
+    const item = {
+      estado: "requiere_revision",
+      observacion_detalle: {
+        evidencia: { validacion_documental: { estado } },
+      },
+    };
+    const original = structuredClone(item);
+    assert.equal(qualityPresentation(item).message, message);
+    assert.deepEqual(item, original);
+  }
+
+  assert.equal(
+    qualityPresentation({ estado: "confiable_con_observaciones", observacion_detalle: { evidencia: null } }).message,
+    "Dato manual sin respaldo documental.",
+  );
+  assert.equal(
+    qualityPresentation({
+      estado: "confiable_con_observaciones",
+      observacion_detalle: { evidencia: { estado_documental: "pendiente" } },
+    }).message,
+    "Respaldo adjunto, pendiente de validación.",
+  );
+});
+
+test("la tabla conserva identidad y estado del respaldo sin comparaciones campo a campo", () => {
+  const evidence = {
+    nombre: "Vale de combustible",
+    validacion_documental: {
+      estado: "contradiccion",
+      comparaciones: [{ campo: "cantidad", declarado: 250, documental: 200 }],
+    },
+  };
+  assert.equal(evidencePresentation(evidence).label, "Contradice el dato");
+
+  const component = readFileSync(
+    new URL("../components/DomainQualityPanel.jsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(component, /evidence\.nombre/);
+  assert.doesNotMatch(component, /comparaciones\?\.map|comparison\.declarado|comparison\.documental/);
 });

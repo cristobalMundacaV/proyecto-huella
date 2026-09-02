@@ -25,7 +25,6 @@ import {
     formatDateTime,
     formatNumber,
 } from "@/shared/utils/formatters";
-import { eligibilityStateInfo } from "@/shared/utils/canonicalDataState";
 
 import {
     calculateActivity,
@@ -39,6 +38,7 @@ import {
     isCalculationSelectable,
     resourceData,
 } from "../utils/operationSelectors";
+import { eligibilityPresentation } from "../utils/operationalPresentation";
 
 
 export default function DomainCalculationPanel({
@@ -235,7 +235,7 @@ export default function DomainCalculationPanel({
                                 const methodology = calculationMethodologyPresentation(
                                     row.eligibility,
                                 );
-                                const eligibilityStatus = eligibilityStateInfo(
+                                const eligibilityStatus = eligibilityPresentation(
                                     row.eligibility,
                                 );
 
@@ -264,7 +264,7 @@ export default function DomainCalculationPanel({
                                                 {eligibilityStatus.label}
                                             </StatusBadge>
                                             <span className="mt-1 block max-w-xs text-xs text-[var(--text-muted)]">
-                                                {row.eligibility?.motivos?.[0] || row.eligibility?.razon || eligibilityStatus.description}
+                                                {eligibilityStatus.message}
                                             </span>
                                         </TableCell>
 
