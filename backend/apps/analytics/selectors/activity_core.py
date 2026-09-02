@@ -5,8 +5,9 @@ def organization_by_public_id(organization_id):
     return Organizacion.objects.filter(organizacion_id=organization_id)
 
 
-def data_sources_for_organization(organization):
-    return organization.fuentes_datos.all()
+def data_sources_for_organization(organization, domain=None):
+    rows = organization.fuentes_datos.all()
+    return rows.filter(metadata__dominios__contains=[domain]) if domain else rows
 
 
 def data_source_for_organization(organization, source_id):

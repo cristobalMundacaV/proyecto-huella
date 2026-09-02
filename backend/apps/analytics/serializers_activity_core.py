@@ -34,6 +34,13 @@ class FuenteDatosSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
     def create(self, validated_data):
+        domain = self.context.get("dominio")
+        if domain:
+            metadata = validated_data.get("metadata") or {}
+            validated_data["metadata"] = {
+                **metadata,
+                "dominios": sorted(set(metadata.get("dominios", [])) | {domain}),
+            }
         return crear_entidad(
             FuenteDatos, organizacion=self.context["organizacion"], datos=validated_data
         )

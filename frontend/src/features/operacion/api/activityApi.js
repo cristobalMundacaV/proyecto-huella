@@ -5,21 +5,25 @@ const base = (organizationId) =>
 
 export const listDataSources = async (
     organizationId,
+    domain,
 ) =>
     (
         await api.get(
             `${base(organizationId)}/fuentes-datos/`,
+            { params: domain ? { dominio: domain } : {} },
         )
     ).data;
 
 export const createDataSource = async (
     organizationId,
     payload,
+    domain,
 ) =>
     (
         await api.post(
             `${base(organizationId)}/fuentes-datos/`,
             payload,
+            { params: domain ? { dominio: domain } : {} },
         )
     ).data;
 

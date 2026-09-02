@@ -149,3 +149,24 @@ test("la tabla conserva identidad y estado del respaldo sin comparaciones campo 
   assert.match(component, /evidence\.nombre/);
   assert.doesNotMatch(component, /comparaciones\?\.map|comparison\.declarado|comparison\.documental/);
 });
+
+test("captura manual usa fecha explícita, fuentes scoped y alcance de obra por defecto", () => {
+  const modal = readFileSync(
+    new URL("../components/ManualFlowRecordModal.jsx", import.meta.url),
+    "utf8",
+  );
+  const api = readFileSync(
+    new URL("../api/activityApi.js", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(modal, /label="Fecha del registro"/);
+  assert.match(modal, /`\$\{form\.recordDate\}T12:00:00`/);
+  assert.doesNotMatch(modal, /new Date\(\)\.toISOString/);
+  assert.match(modal, /Alcance del registro/);
+  assert.match(modal, /Toda la obra/);
+  assert.match(modal, /Especificar punto de medición/);
+  assert.match(modal, /value="sistema_externo"/);
+  assert.doesNotMatch(modal, /value="integracion"/);
+  assert.match(api, /dominio: domain/);
+});

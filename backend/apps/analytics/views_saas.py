@@ -127,6 +127,10 @@ def saas_provision_organization(request):
     if request.data["estado"] not in {SuscripcionSaaS.Estado.PILOTO, SuscripcionSaaS.Estado.ACTIVO}: return Response({"estado": ["El estado inicial debe ser Piloto o Activo."]}, status=status.HTTP_400_BAD_REQUEST)
     try:
         organization = Organizacion.objects.create(nombre=request.data["nombre"].strip(), preset=request.data["sector"], onboarding_step=1)
+        if organization.preset == Organizacion.Preset.CONSTRUCCION:
+            from .services.construction_sources import ensure_construction_v1_sources
+
+            ensure_construction_v1_sources(organization)
         subscription_item = SuscripcionSaaS.objects.create(organizacion=organization, plan=request.data["plan"], estado=request.data["estado"], disponibilidad=SuscripcionSaaS.Disponibilidad.OPERATIVO)
         admin_user, _, identity = provision_user_membership(organization=organization, email=email, role=UsuarioOrganizacion.Rol.ADMIN, first_name=request.data["admin_nombre"], last_name=request.data["admin_apellido"], cargo=request.data.get("admin_cargo", ""))
         audit(request, organization, "alta_saas", {}, {"plan": subscription_item.plan, "estado": subscription_item.estado, "administrador": email}, "Tenant y administrador inicial provisionados.")

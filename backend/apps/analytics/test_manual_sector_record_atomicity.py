@@ -16,6 +16,7 @@ from .models import (
     Obra,
     Observacion,
     Organizacion,
+    PuntoAmbientalOperacional,
     RegistroFlujoAmbiental,
     UsuarioAreaOperacional,
     UsuarioOrganizacion,
@@ -99,6 +100,99 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         self.assertEqual(ActividadOperacional.objects.count(), 1)
         self.assertEqual(RegistroFlujoAmbiental.objects.count(), 1)
         self.assertEqual(EvidenciaObra.objects.count(), 0)
+
+    def test_non_destination_flows_normalize_blank_and_preserve_operational_date(self):
+        cases = [
+            ("energia", "consumo_energia", "consumo_energia", "kWh"),
+            ("agua", "consumo_agua", "consumo_agua", "m3"),
+            ("ruido", "monitoreo_ruido", "nivel_ruido", "dB(A)"),
+        ]
+        for index, (flow, activity_type, concept, unit) in enumerate(cases):
+            with self.subTest(flow=flow):
+                response = self.post(
+                    self.payload(
+                        flujo=flow,
+                        tipo_actividad=activity_type,
+                        codigo_actividad=f"manual-{flow}-{index}",
+                        concepto=concept,
+                        unidad=unit,
+                        tipo_recurso="",
+                        destino_operacional="",
+                        periodo_inicio="2026-09-11T12:00:00",
+                    )
+                )
+                self.assertEqual(response.status_code, 201, response.data)
+                record = RegistroFlujoAmbiental.objects.get(actividad__codigo=f"manual-{flow}-{index}")
+                observation = record.actividad.observaciones.get()
+                self.assertEqual(record.destino_operacional, "sin_clasificar")
+                self.assertEqual(record.granularidad, "obra")
+                self.assertEqual(record.periodo_inicio.date().isoformat(), "2026-09-11")
+                self.assertEqual(record.actividad.timestamp_inicio.date().isoformat(), "2026-09-11")
+                self.assertEqual(observation.timestamp_observacion.date().isoformat(), "2026-09-11")
+
+    def test_fuel_and_waste_keep_strict_destination_validation(self):
+        fuel = self.post(self.payload(destino_operacional=""))
+        waste = self.post(
+            self.payload(
+                flujo="residuo",
+                tipo_actividad="gestion_residuo",
+                concepto="cantidad_residuo",
+                unidad="kg",
+                destino_operacional="",
+            )
+        )
+        self.assertEqual(fuel.status_code, 400)
+        self.assertEqual(waste.status_code, 400)
+
+    def test_manual_date_before_work_start_is_rejected(self):
+        response = self.post(
+            self.payload(
+                flujo="energia",
+                tipo_actividad="consumo_energia",
+                concepto="consumo_energia",
+                unidad="kWh",
+                destino_operacional="",
+                periodo_inicio="2026-08-24T12:00:00",
+            )
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(ActividadOperacional.objects.exists())
+
+    def test_real_point_changes_granularity_but_general_record_does_not_create_one(self):
+        general = self.post(
+            self.payload(
+                flujo="energia",
+                tipo_actividad="consumo_energia",
+                concepto="consumo_energia",
+                unidad="kWh",
+                destino_operacional="",
+            )
+        )
+        self.assertEqual(general.status_code, 201, general.data)
+        self.assertEqual(general.data["registro"]["granularidad"], "obra")
+        self.assertFalse(PuntoAmbientalOperacional.objects.exists())
+
+        point = PuntoAmbientalOperacional.objects.create(
+            organizacion=self.organization,
+            obra=self.work,
+            codigo="MED-REAL",
+            nombre="Medidor real",
+            tipo=PuntoAmbientalOperacional.Tipo.MEDIDOR_ENERGIA,
+        )
+        pointed = self.post(
+            self.payload(
+                codigo_actividad="manual-energy-point",
+                flujo="energia",
+                tipo_actividad="consumo_energia",
+                concepto="consumo_energia",
+                unidad="kWh",
+                destino_operacional="",
+                punto=point.id,
+            )
+        )
+        self.assertEqual(pointed.status_code, 201, pointed.data)
+        self.assertEqual(pointed.data["registro"]["granularidad"], "punto")
+        self.assertEqual(pointed.data["registro"]["punto"], point.id)
 
     def test_area_principal_resuelve_y_crea_contexto_sin_workspace_expuesto(self):
         self.workspace.delete()

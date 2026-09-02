@@ -45,11 +45,13 @@ def _respuesta_coleccion(
 @api_view(["GET", "POST"])
 def fuentes_datos(request, organizacion_id):
     organizacion = _organizacion(organizacion_id)
+    domain = request.query_params.get("dominio")
     return _respuesta_coleccion(
         request,
         organizacion,
-        data_sources_for_organization(organizacion),
+        data_sources_for_organization(organizacion, domain),
         FuenteDatosSerializer,
+        context={"dominio": domain},
     )
 
 

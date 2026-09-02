@@ -496,6 +496,7 @@ export default function ManualFlowRecordModal({
         showNewPointForm,
         setShowNewPointForm,
     ] = useState(false);
+    const [specifyPoint, setSpecifyPoint] = useState(false);
 
     const [
         showNewSourceForm,
@@ -528,6 +529,7 @@ export default function ManualFlowRecordModal({
         }
 
         setShowNewPointForm(false);
+        setSpecifyPoint(false);
         setShowNewSourceForm(false);
         setShowEvidenceForm(false);
 
@@ -553,6 +555,7 @@ export default function ManualFlowRecordModal({
 
         listDataSources(
             organizationId,
+            domain,
         )
             .then((data) => {
                 setSources(
@@ -598,8 +601,19 @@ export default function ManualFlowRecordModal({
         config?.modes,
         open,
         organizationId,
+        domain,
         workId,
     ]);
+
+    const sourceDomain = selectedMode?.flow || domain;
+
+    useEffect(() => {
+        if (!open || !sourceDomain) return;
+        setLoadingSources(true);
+        listDataSources(organizationId, sourceDomain)
+            .then((data) => setSources(Array.isArray(data) ? data : data?.results || []))
+            .finally(() => setLoadingSources(false));
+    }, [open, organizationId, sourceDomain]);
 
     async function createPoint() {
         const name =
@@ -695,6 +709,7 @@ export default function ManualFlowRecordModal({
                             `Fuente creada durante captura manual de ${domain}.`,
                         activa: true,
                     },
+                    sourceDomain,
                 );
 
             setSources(
@@ -738,7 +753,6 @@ export default function ManualFlowRecordModal({
                 form.value !== "" &&
                 form.source &&
                 (
-                    domain !== "combustibles" ||
                     form.recordDate
                 ) &&
                 (
@@ -760,7 +774,6 @@ export default function ManualFlowRecordModal({
             ),
         [
             config,
-            domain,
             form.destination,
             form.metric,
             form.recordDate,
@@ -785,13 +798,8 @@ export default function ManualFlowRecordModal({
         setError("");
 
         try {
-            const now =
-                new Date().toISOString();
-
             const operationalTimestamp =
-                domain === "combustibles" && form.recordDate
-                    ? `${form.recordDate}T12:00:00`
-                    : now;
+                `${form.recordDate}T12:00:00`;
             const selectedMode =
                 config.modes?.find(
                     (mode) =>
@@ -825,7 +833,9 @@ export default function ManualFlowRecordModal({
             append("fuente", form.source);
             append("tipo_recurso", form.resourceType.trim());
             append("metrica", form.metric.trim());
-            append("destino_operacional", domain === "combustibles" ? form.use : form.destination);
+            if (domain === "combustibles" || config.requiresDestination) {
+                append("destino_operacional", domain === "combustibles" ? form.use : form.destination);
+            }
             if (form.evidenceFile) {
                 append("evidencia_archivo", form.evidenceFile);
                 append("evidencia_nombre", form.evidenceName.trim() || form.evidenceFile.name);
@@ -1112,20 +1122,18 @@ export default function ManualFlowRecordModal({
                         }
                     />
 
-                    {domain === "combustibles" && (
-                        <Input
-                            required
-                            type="date"
-                            label="Fecha del registro"
-                            value={form.recordDate}
-                            onChange={(event) =>
-                                setForm((current) => ({
-                                    ...current,
-                                    recordDate: event.target.value,
-                                }))
-                            }
-                        />
-                    )}
+                    <Input
+                        required
+                        type="date"
+                        label="Fecha del registro"
+                        value={form.recordDate}
+                        onChange={(event) =>
+                            setForm((current) => ({
+                                ...current,
+                                recordDate: event.target.value,
+                            }))
+                        }
+                    />
 
                     {domain === "combustibles" && config.uses && (
                         <Select
@@ -1153,8 +1161,20 @@ export default function ManualFlowRecordModal({
                         </Select>
                     )}
 
+                    <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] p-4">
+                        <p className="text-sm font-black">Alcance del registro</p>
+                        <p className="text-sm text-[var(--text-muted)]">Toda la obra</p>
+                        <Button type="button" variant="secondary" onClick={() => {
+                            setSpecifyPoint((current) => !current);
+                            if (specifyPoint) setForm((current) => ({ ...current, point: "" }));
+                        }}>
+                            {specifyPoint ? "Usar toda la obra" : "+ Especificar punto de medición"}
+                        </Button>
+                    </div>
+
+                    {specifyPoint && <>
                     <Select
-                        label={domain === "combustibles" ? "Punto / ubicación" : "Punto ambiental"}
+                        label="Ubicación / punto de medición"
                         value={
                             form.point
                         }
@@ -1174,7 +1194,7 @@ export default function ManualFlowRecordModal({
                         }
                     >
                         <option value="">
-                            Registro general de la obra
+                            Selecciona un punto real
                         </option>
 
                         {points.map(
@@ -1272,6 +1292,7 @@ export default function ManualFlowRecordModal({
                             </div>
                         )}
                     </div>
+                    </>}
 
                     <Select
                         required
@@ -1365,8 +1386,8 @@ export default function ManualFlowRecordModal({
                                             Sensor
                                         </option>
 
-                                        <option value="integracion">
-                                            Integración
+                                        <option value="sistema_externo">
+                                            Integración / sistema externo
                                         </option>
                                     </Select>
                                 </div>

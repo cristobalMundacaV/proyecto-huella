@@ -118,6 +118,20 @@ def manual_sector_record(request, organizacion_id):
         raise ValidationError(
             {"destino_operacional": "Selecciona un uso vÃ¡lido para el combustible."}
         )
+    waste_destinations = {
+        "residuo",
+        "reutilizacion",
+        "reciclaje",
+        "valorizacion",
+        "disposicion",
+        "subproducto_reutilizado",
+    }
+    if flow == RegistroFlujoAmbiental.Flujo.RESIDUO and destination not in waste_destinations:
+        raise ValidationError(
+            {"destino_operacional": "Selecciona un destino valido para el residuo."}
+        )
+    if flow not in FUEL_FLOWS and flow != RegistroFlujoAmbiental.Flujo.RESIDUO:
+        destination = RegistroFlujoAmbiental.DestinoOperacional.SIN_CLASIFICAR
     fuel_classification = classify_fuel(destination) if flow in FUEL_FLOWS else None
     classified_category = (fuel_classification or {}).get("categoria")
     if classified_category == "combustion_estacionaria":
@@ -211,8 +225,7 @@ def manual_sector_record(request, organizacion_id):
                     "version_evidencia": evidence_version.id if evidence_version else None,
                     "tipo_recurso": request.data.get("tipo_recurso") or "",
                     "metrica": request.data.get("metrica") or "",
-                    "destino_operacional": request.data.get("destino_operacional")
-                    or "",
+                    "destino_operacional": destination,
                     "metadata": (
                         {
                             "clasificacion_ambiental": fuel_classification,
