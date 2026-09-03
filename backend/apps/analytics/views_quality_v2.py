@@ -16,6 +16,7 @@ from .selectors.quality import (
     indicator_comparison_period,
     indicator_for_organization,
     indicators_for_user,
+    latest_indicator_values,
     observations_for_quality,
 )
 from .serializers_quality_v2 import (
@@ -152,7 +153,8 @@ def comparacion_indicador(request, organizacion_id, indicador_id):
     org = _org(request, organizacion_id)
     indicator = get_object_or_404(indicator_for_organization(org, indicador_id))
     require_resource_work_access(request.user, org, indicator)
-    current = indicator.valores.order_by("-periodo_fin", "-version").first()
+    effective_periods = latest_indicator_values(indicator)
+    current = effective_periods[0] if effective_periods else None
     if not current or current.metadata.get("disponible") is False:
         return Response({"estado": "sin_base", "calidad_comparacion": "sin_datos"})
     comparable = indicator_comparison_period(indicator, current)
@@ -166,10 +168,13 @@ def comparacion_indicador(request, organizacion_id, indicador_id):
             .first()
         )
     else:
-        reference = (
-            indicator.valores.exclude(pk=current.pk)
-            .order_by("-periodo_fin", "-version")
-            .first()
+        reference = next(
+            (
+                value
+                for value in effective_periods[1:]
+                if value.metadata.get("disponible") is not False
+            ),
+            None,
         )
     if reference and reference.metadata.get("disponible") is False:
         reference = None

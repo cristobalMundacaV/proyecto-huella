@@ -106,5 +106,18 @@ def next_indicator_value_version(indicator, start, end):
     )
 
 
+def latest_indicator_values(indicator):
+    latest = {}
+    for value in indicator.valores.order_by(
+        "-periodo_fin", "-periodo_inicio", "-version"
+    ):
+        latest.setdefault((value.periodo_inicio, value.periodo_fin), value)
+    return list(latest.values())
+
+
 def baseline_values(indicator):
-    return indicator.valores.order_by("periodo_inicio", "-version")
+    return [
+        value
+        for value in latest_indicator_values(indicator)
+        if value.metadata.get("disponible") is not False
+    ]

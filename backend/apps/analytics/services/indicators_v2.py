@@ -41,25 +41,21 @@ def generate_indicator_value(indicator, start, end):
 
 def build_baseline(indicator):
     values = list(baseline_values(indicator))
-    latest = {}
-    for value in values:
-        latest.setdefault((value.periodo_inicio, value.periodo_fin), value)
-    periods = list(latest.values())
-    if not periods:
+    if not values:
         return LineaBaseAmbiental.objects.create(
             organizacion=indicator.organizacion,
             indicador=indicator,
             estado="construyendo",
             observaciones="Carbono Zero esta construyendo tu linea base ambiental.",
         )
-    total = sum((item.valor for item in periods), Decimal("0"))
+    total = sum((item.valor for item in values), Decimal("0"))
     return LineaBaseAmbiental.objects.create(
         organizacion=indicator.organizacion,
         indicador=indicator,
-        periodo_inicio=min(x.periodo_inicio for x in periods),
-        periodo_fin=max(x.periodo_fin for x in periods),
-        estado="suficiente" if len(periods) >= 2 else "construyendo",
-        valor_base=total / len(periods),
-        cantidad_periodos=len(periods),
+        periodo_inicio=min(x.periodo_inicio for x in values),
+        periodo_fin=max(x.periodo_fin for x in values),
+        estado="suficiente" if len(values) >= 2 else "construyendo",
+        valor_base=total / len(values),
+        cantidad_periodos=len(values),
         observaciones="Promedio deterministico de periodos disponibles.",
     )

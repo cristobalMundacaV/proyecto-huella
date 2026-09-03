@@ -26,6 +26,7 @@ from .models import (
 )
 from .services.comparison_v2 import compare_values
 from .services.indicators_v2 import build_baseline
+from .selectors.quality import baseline_values
 from .services.observation_resolver import (
     _policy_priority,
     is_technical_duplicate,
@@ -346,6 +347,93 @@ class QualityIndicatorsV2Tests(APITestCase):
         built = build_baseline(indicator)
         self.assertEqual(built.cantidad_periodos, 1)
         self.assertEqual(built.valor_base, Decimal("100"))
+
+    def test_linea_base_excluye_periodo_cuya_ultima_version_no_esta_disponible(self):
+        indicator = IndicadorAmbiental.objects.create(
+            organizacion=self.org,
+            codigo="base-tombstones",
+            nombre="Base con disponibilidad",
+            tipo="operacional",
+            unidad="kg",
+            origen_numerador="masa_generada",
+        )
+        september = ValorIndicador.objects.create(
+            indicador=indicator,
+            periodo_inicio=date(2026, 9, 1),
+            periodo_fin=date(2026, 9, 30),
+            valor=1000,
+            unidad="kg",
+            fuente_calculo="test",
+            version=1,
+        )
+        october = ValorIndicador.objects.create(
+            indicador=indicator,
+            periodo_inicio=date(2026, 10, 1),
+            periodo_fin=date(2026, 10, 31),
+            valor=2000,
+            unidad="kg",
+            fuente_calculo="test",
+            version=1,
+        )
+
+        initial = build_baseline(indicator)
+        self.assertEqual(initial.valor_base, Decimal("1500"))
+        self.assertEqual(initial.cantidad_periodos, 2)
+
+        ValorIndicador.objects.create(
+            indicador=indicator,
+            periodo_inicio=september.periodo_inicio,
+            periodo_fin=september.periodo_fin,
+            valor=0,
+            unidad="kg",
+            fuente_calculo="test",
+            version=2,
+            metadata={"disponible": False, "estado": "sin_fuentes"},
+        )
+        available_ids = [value.id for value in baseline_values(indicator)]
+        self.assertEqual(available_ids, [october.id])
+        self.assertEqual(
+            available_ids, [value.id for value in baseline_values(indicator)]
+        )
+        current = build_baseline(indicator)
+        self.assertEqual(current.valor_base, Decimal("2000"))
+        self.assertEqual(current.cantidad_periodos, 1)
+        self.assertEqual(current.periodo_inicio, date(2026, 10, 1))
+        self.assertEqual(current.periodo_fin, date(2026, 10, 31))
+        comparison_url = f"{self.base}/indicadores/{indicator.id}/comparacion/"
+        comparison = self.client.get(comparison_url)
+        self.assertEqual(comparison.status_code, 200)
+        self.assertEqual(comparison.data["estado"], "sin_base")
+        self.assertIsNone(comparison.data["valor_referencia"])
+        PeriodoComparable.objects.create(
+            indicador=indicator,
+            periodo_actual_inicio=october.periodo_inicio,
+            periodo_actual_fin=october.periodo_fin,
+            periodo_referencia_inicio=september.periodo_inicio,
+            periodo_referencia_fin=september.periodo_fin,
+            regla="periodo_anterior_equivalente",
+            motivo_comparabilidad="Prueba de período supersedido",
+        )
+        comparison = self.client.get(comparison_url)
+        self.assertEqual(comparison.data["estado"], "sin_base")
+        self.assertIsNone(comparison.data["valor_referencia"])
+
+        ValorIndicador.objects.create(
+            indicador=indicator,
+            periodo_inicio=october.periodo_inicio,
+            periodo_fin=october.periodo_fin,
+            valor=0,
+            unidad="kg",
+            fuente_calculo="test",
+            version=2,
+            metadata={"disponible": False, "estado": "sin_fuentes"},
+        )
+        empty = build_baseline(indicator)
+        self.assertEqual(empty.estado, "construyendo")
+        self.assertEqual(empty.cantidad_periodos, 0)
+        self.assertIsNone(empty.valor_base)
+        self.assertIsNone(empty.periodo_inicio)
+        self.assertIsNone(empty.periodo_fin)
 
     def test_periodo_comparable_porcentaje_y_direccion(self):
         indicator = IndicadorAmbiental.objects.create(
