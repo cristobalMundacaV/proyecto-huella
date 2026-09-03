@@ -20,6 +20,7 @@ import {
     createJourney,
     listVehicleAssets,
 } from "../api/transportApi";
+import { selectableVehicleAssets } from "@/features/activos/utils/assetVehicleContract";
 
 const initialForm = {
     vehicle: "",
@@ -81,6 +82,10 @@ export default function TransportRecordModal({
                 form.source,
             ),
         [form],
+    );
+    const vehicleOptions = useMemo(
+        () => selectableVehicleAssets(vehicles),
+        [vehicles],
     );
 
     async function submit(event) {
@@ -174,13 +179,10 @@ export default function TransportRecordModal({
                         Selecciona un vehículo
                     </option>
 
-                    {vehicles.map((item) => (
+                    {vehicleOptions.map((item) => (
                         <option
                             key={item.id}
-                            value={
-                                item.vehiculo?.id ||
-                                ""
-                            }
+                            value={item.vehiculo.id}
                         >
                             {item.nombre}
                         </option>

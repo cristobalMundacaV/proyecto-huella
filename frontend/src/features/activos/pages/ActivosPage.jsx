@@ -41,14 +41,9 @@ import {
   getAssets,
   updateAsset,
 } from "../api/assetsApi";
+import { assetDraft, assetPayload } from "../utils/assetVehicleContract";
 
-const blank = {
-  codigo: "",
-  nombre: "",
-  tipo: "vehiculo",
-  estado: "operativo",
-  descripcion: "",
-};
+const blank = assetDraft();
 
 const ASSET_TYPE_OPTIONS = [
   { value: "vehiculo", label: "Vehículo" },
@@ -161,16 +156,17 @@ export default function ActivosPage() {
     setMutationError("");
 
     try {
+      const payload = assetPayload(dialog);
       if (dialog.id) {
         await updateAsset(
           activeOrganizacionId,
           dialog.id,
-          dialog
+          payload
         );
       } else {
         await createAsset(
           activeOrganizacionId,
-          dialog
+          payload
         );
       }
 
@@ -442,9 +438,7 @@ export default function ActivosPage() {
                       aria-label={`Editar ${item.nombre}`}
                       title="Editar activo"
                       onClick={() =>
-                        setDialog({
-                          ...item,
-                        })
+                        setDialog(assetDraft(item))
                       }
                     />
 
@@ -652,6 +646,43 @@ export default function ActivosPage() {
               }
             />
             </section>
+            {dialog?.tipo === "vehiculo" && (
+              <section className="space-y-4">
+                <div>
+                  <h3 className="font-black">Datos del vehículo</h3>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">Especialización operacional para registrar viajes. Completa sólo los datos disponibles.</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {[
+                    ["patente", "Patente", "text"],
+                    ["marca", "Marca", "text"],
+                    ["modelo", "Modelo", "text"],
+                    ["anio", "Año", "number"],
+                    ["tipo_vehiculo", "Tipo de vehículo", "text"],
+                    ["combustible", "Combustible", "text"],
+                    ["capacidad_carga", "Capacidad de carga", "number"],
+                    ["unidad_capacidad_carga", "Unidad de capacidad", "text"],
+                    ["numero_ejes", "Número de ejes", "number"],
+                  ].map(([field, label, type]) => (
+                    <Input
+                      key={field}
+                      type={type}
+                      min={type === "number" ? "0" : undefined}
+                      step={field === "capacidad_carga" ? "any" : undefined}
+                      label={label}
+                      value={dialog.vehiculo?.[field] ?? ""}
+                      onChange={(event) => setDialog({
+                        ...dialog,
+                        vehiculo: {
+                          ...dialog.vehiculo,
+                          [field]: event.target.value,
+                        },
+                      })}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )}
       </Modal>

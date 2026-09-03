@@ -90,6 +90,43 @@ class AssetsSensorsV2Tests(APITestCase):
         )
         self.assertEqual(response.status_code, 400)
 
+    def test_vehiculo_opcional_se_crea_y_su_especializacion_se_actualiza(self):
+        created = self.client.post(
+            f"{self.base}/activos/",
+            {
+                "codigo": "CAM-EPN-01",
+                "nombre": "Camion obra Parque Norte 01",
+                "tipo": "vehiculo",
+                "estado": "operativo",
+                "vehiculo": {},
+            },
+            format="json",
+        )
+        self.assertEqual(created.status_code, 201, created.data)
+        self.assertIsNotNone(created.data["vehiculo"]["id"])
+
+        updated = self.client.patch(
+            f"{self.base}/activos/{created.data['id']}/",
+            {
+                "vehiculo": {
+                    "patente": "ABCD-12",
+                    "marca": "Volvo",
+                    "modelo": "FMX",
+                    "anio": 2026,
+                    "tipo_vehiculo": "camion",
+                    "combustible": "diesel",
+                    "capacidad_carga": "20",
+                    "unidad_capacidad_carga": "t",
+                    "numero_ejes": 3,
+                }
+            },
+            format="json",
+        )
+        self.assertEqual(updated.status_code, 200, updated.data)
+        self.assertEqual(updated.data["vehiculo"]["id"], created.data["vehiculo"]["id"])
+        self.assertEqual(updated.data["vehiculo"]["modelo"], "FMX")
+        self.assertEqual(updated.data["vehiculo"]["numero_ejes"], 3)
+
     def test_mantenimiento_y_condicion(self):
         asset = self.create_asset()
         maintenance = self.client.post(
