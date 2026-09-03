@@ -60,16 +60,22 @@ export function activityBelongsToDomain(activity, domain) {
   return (DOMAIN_ACTIVITY_TYPES[domain] || []).includes(activity?.tipo);
 }
 
-export function domainActivities(records, domain) {
+export function explicitDomainActivities(activities, domain) {
   const seen = new Set();
-  return (records || [])
-    .map((record) => record.actividad_detalle)
-    .filter((activity) => activityBelongsToDomain(activity, domain))
+  return (activities || [])
+    .filter((activity) => activity?.id && activityBelongsToDomain(activity, domain))
     .filter((activity) => {
       if (seen.has(activity.id)) return false;
       seen.add(activity.id);
       return true;
     });
+}
+
+export function domainActivities(records, domain) {
+  return explicitDomainActivities(
+    (records || []).map((record) => record.actividad_detalle),
+    domain,
+  );
 }
 
 const statePresentation = {

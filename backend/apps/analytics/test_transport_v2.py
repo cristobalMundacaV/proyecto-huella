@@ -7,7 +7,7 @@ from rest_framework.test import APITestCase
 
 from .models import (ActividadOperacional, ActivoOperacional, CalculoAmbiental,
                      EtapaObra, FuenteDatos, Observacion, Obra, Organizacion,
-                     RutaOperacional, TransporteObra, UsuarioOrganizacion,
+                     RegistroFlujoAmbiental, RutaOperacional, TransporteObra, UsuarioOrganizacion,
                      Vehiculo, ViajeOperacional)
 from .services.context_gateway import ContextGateway
 from .services.transport_v2 import (journey_metrics, save_journey_observations,
@@ -80,6 +80,18 @@ class TransportV2Tests(APITestCase):
             format="json",
         )
         self.assertEqual(journey_response.status_code, 201, journey_response.data)
+        self.assertEqual(
+            journey_response.data["actividad_detalle"],
+            {
+                "id": activity_response.data["id"],
+                "codigo": code,
+                "nombre": "Viaje Bodega proveedor Los Angeles a Edificio Parque Norte",
+                "tipo": "transporte",
+                "estado": "borrador",
+                "timestamp_inicio": activity_response.data["timestamp_inicio"],
+            },
+        )
+        self.assertFalse(RegistroFlujoAmbiental.objects.exists())
         journey = ViajeOperacional.objects.get(codigo=code)
         self.assertEqual(journey.actividad.codigo, journey.codigo)
         self.assertEqual(journey.observacion_distancia.valor_numerico, Decimal("35"))

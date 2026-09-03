@@ -35,6 +35,7 @@ import {
 import {
     calculationMethodologyPresentation,
     domainActivities,
+    explicitDomainActivities,
     isCalculationSelectable,
     resourceData,
 } from "../utils/operationSelectors";
@@ -46,17 +47,21 @@ export default function DomainCalculationPanel({
     operation,
     organizationId,
     onCalculated,
+    activities: activitiesOverride,
 }) {
     const activities =
         useMemo(
             () =>
-                domainActivities(
-                    resourceData(operation.records, []),
-                    domain,
-                ),
+                activitiesOverride === undefined
+                    ? domainActivities(
+                        resourceData(operation.records, []),
+                        domain,
+                    )
+                    : explicitDomainActivities(activitiesOverride, domain),
             [
                 operation.records,
                 domain,
+                activitiesOverride,
             ],
         );
 

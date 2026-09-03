@@ -25,6 +25,7 @@ from .models import (
     UsuarioOrganizacion,
     VariableFormula,
     Vehiculo,
+    ViajeOperacional,
     VersionFactorAmbiental,
     VersionMetodologia,
     Obra,
@@ -338,6 +339,44 @@ class CalculationV2Tests(APITestCase):
         )
         self.assertEqual(InputCalculoAmbiental.objects.count(), 2)
         self.assertEqual(RegistroEmision.objects.count(), 0)
+
+    def test_viaje_operacional_real_calcula_trabajo_tkm_con_su_actividad(self):
+        distance = self.observe("distancia_recorrida_km", "35", "km")
+        mass = self.observe("masa_transportada_t", "8", "t")
+        distance.refresh_from_db()
+        mass.refresh_from_db()
+        vehicle = self.asset.vehiculo
+        ViajeOperacional.objects.create(
+            organizacion=self.org,
+            actividad=self.activity,
+            codigo="VIAJE-CALC-01",
+            vehiculo=vehicle,
+            origen_nombre="Bodega proveedor Los Angeles",
+            destino_nombre="Edificio Parque Norte",
+            fecha_salida=self.activity.timestamp_inicio,
+            observacion_distancia=distance,
+            observacion_carga=mass,
+            estado="completado",
+        )
+
+        selection = select_methodology(self.activity)
+        self.assertEqual(selection["seleccion"]["metodo"], "transporte_tkm")
+        calculation, _ = calculate_activity(self.activity)
+        inputs = {
+            item["clave"]: Decimal(item["valor"])
+            for item in calculation.snapshot_tecnico["inputs"]
+        }
+        transport_work = inputs["distancia"] * inputs["masa"]
+        self.assertEqual(transport_work, Decimal("280"))
+        self.assertEqual(
+            calculation.resultado,
+            transport_work * calculation.version_factor.valor,
+        )
+        self.assertEqual(calculation.snapshot_tecnico["metodologia_version"], 1)
+        self.assertEqual(
+            calculation.snapshot_tecnico["version_factor_id"],
+            calculation.version_factor_id,
+        )
 
     def test_metodo_b_si_falta_masa(self):
         self.observe("distancia_recorrida_km", "132", "km")

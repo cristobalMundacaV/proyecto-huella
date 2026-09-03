@@ -1,9 +1,15 @@
 from rest_framework import serializers
 
-from .models import FuenteDatos, RutaOperacional, ViajeOperacional
+from .models import ActividadOperacional, FuenteDatos, RutaOperacional, ViajeOperacional
 from .serializers_activity_core import ObservacionSerializer
 from .policies.transport import journey_relation_errors
 from .services.transport_v2 import create_route, journey_metrics, save_journey
+
+
+class ActividadViajeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActividadOperacional
+        fields = ["id", "codigo", "nombre", "tipo", "estado", "timestamp_inicio"]
 
 
 class RutaOperacionalSerializer(serializers.ModelSerializer):
@@ -17,6 +23,7 @@ class RutaOperacionalSerializer(serializers.ModelSerializer):
 
 
 class ViajeOperacionalSerializer(serializers.ModelSerializer):
+    actividad_detalle = ActividadViajeSerializer(source="actividad", read_only=True)
     distancia = serializers.DecimalField(
         max_digits=16, decimal_places=3, required=False, write_only=True
     )

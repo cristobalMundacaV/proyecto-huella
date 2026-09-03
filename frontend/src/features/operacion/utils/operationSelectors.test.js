@@ -7,6 +7,7 @@ import {
   compatibleDomainTotals,
   domainActivities,
   domainRecords,
+  explicitDomainActivities,
   isCalculationSelectable,
   wasteClassification,
 } from "./operationSelectors.js";
@@ -28,6 +29,27 @@ test("Combustibles conserva registros genericos, moviles y estacionarios", () =>
     "combustible", "combustible_movil", "combustible_estacionario",
   ]);
   assert.deepEqual(domainActivities(records, "combustibles").map((item) => item.id), [1, 2, 3]);
+});
+
+test("actividades explícitas de viajes se validan y deduplican sin inventar IDs", () => {
+  const activity = {
+    id: 77,
+    codigo: "VIAJE-77",
+    nombre: "Viaje Bodega → Obra",
+    tipo: "transporte",
+  };
+  assert.deepEqual(explicitDomainActivities([
+    activity,
+    { ...activity },
+    { nombre: "Sin ID", tipo: "transporte" },
+    { id: 88, nombre: "Energía", tipo: "consumo_energia" },
+  ], "transporte"), [activity]);
+  assert.deepEqual(explicitDomainActivities([], "transporte"), []);
+});
+
+test("otros dominios conservan actividades derivadas de registros ambientales", () => {
+  const activity = { id: 14, tipo: "consumo_energia", nombre: "Consumo" };
+  assert.deepEqual(domainActivities([{ actividad_detalle: activity }], "energia"), [activity]);
 });
 
 test("clasifica residuos nuevos y conserva lectura de históricos", () => {
@@ -296,4 +318,20 @@ test("residuos traduce el dominio UI al flujo persistido sin cambiar catálogos"
   assert.match(modal, /const sourceDomain = selectedMode\?\.flow \|\| domain/);
   assert.match(modal, /listDataSources\(organizationId, sourceDomain\)/);
   assert.match(modal, /listEvidenceTypes\(sourceDomain\)/);
+});
+
+test("Transporte entrega actividades reales de viajes al panel de cálculo", () => {
+  const transportPage = readFileSync(new URL("../pages/TransportPage.jsx", import.meta.url), "utf8");
+  const calculationPanel = readFileSync(
+    new URL("../components/DomainCalculationPanel.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(transportPage, /journey\.actividad_detalle/);
+  assert.match(transportPage, /activities=\{transportActivities\}/);
+  assert.match(calculationPanel, /activities: activitiesOverride/);
+  assert.match(calculationPanel, /activitiesOverride === undefined/);
+  assert.match(calculationPanel, /getActivityEligibility/);
+  assert.match(calculationPanel, /getActivityCalculations/);
+  assert.match(calculationPanel, /calculateActivity/);
 });

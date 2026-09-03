@@ -2,7 +2,7 @@ import { Link, useOutletContext, useParams } from "react-router-dom";
 import { ClipboardCheck, Plus } from "lucide-react";
 import { Button, ButtonLink, EmptyState, ErrorState, KpiCard, Pagination, SectionHeader, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
-import { applicability, isResourceReady, resourceData, transportMetrics } from "../utils/operationSelectors";
+import { applicability, explicitDomainActivities, isResourceReady, resourceData, transportMetrics } from "../utils/operationSelectors";
 import { useEffect, useMemo, useState } from "react";
 import TransportRecordModal from "../components/TransportRecordModal";
 import OperationDomainShell from "../components/OperationDomainShell";
@@ -57,6 +57,13 @@ export default function TransportPage() {
   const applicabilityBadge = noApplicable ? "No aplica" : unresolved ? "Aplicabilidad por definir" : "Aplica";
   useEffect(() => { setPage(1); }, [journeys.length, persistedWorkId]);
   const pagedJourneys = useMemo(() => journeys.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [journeys, page]);
+  const transportActivities = useMemo(
+    () => explicitDomainActivities(
+      journeys.map((journey) => journey.actividad_detalle),
+      "transporte",
+    ),
+    [journeys],
+  );
 
   return (
     <OperationDomainShell
@@ -182,6 +189,7 @@ export default function TransportPage() {
       <DomainCalculationPanel
         domain="transporte"
         operation={operation}
+        activities={transportActivities}
         organizationId={
           context?.references?.organization
         }
