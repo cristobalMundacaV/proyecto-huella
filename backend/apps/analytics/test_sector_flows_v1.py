@@ -288,6 +288,30 @@ class SectorFlowsV1Tests(APITestCase):
         self.assertEqual(detail["destino_operacional"], "reciclaje")
         self.assertEqual(detail["mediciones"][0]["evidencia_id"], evidence.id)
 
+    def test_residuo_summary_exposes_new_dimensions_and_preserves_legacy(self):
+        current = self.record(
+            "residuo",
+            clasificacion_residuo="no_peligroso",
+            tipo_residuo="madera",
+            destino_operacional="reciclaje",
+        )
+        legacy = self.record(
+            "residuo",
+            tipo_recurso="peligroso",
+            destino_operacional="disposicion",
+        )
+        self.observation(current, "cantidad_residuo", 1000, "kg")
+        self.observation(legacy, "cantidad_residuo", 1500, "kg")
+
+        rows = {
+            row["id"]: row for row in sector_summary(self.org, flow="residuo")["registros"]
+        }
+        self.assertEqual(rows[current.id]["clasificacion_residuo"], "no_peligroso")
+        self.assertEqual(rows[current.id]["tipo_residuo"], "madera")
+        self.assertEqual(rows[current.id]["tipo_recurso"], "")
+        self.assertEqual(rows[legacy.id]["tipo_recurso"], "peligroso")
+        self.assertEqual(rows[legacy.id]["clasificacion_residuo"], "")
+
     def test_destinos_residuo_permanecen_diferenciados_sin_impacto(self):
         destinations = {
             "residuo",

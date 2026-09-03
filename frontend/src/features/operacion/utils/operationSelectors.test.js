@@ -8,6 +8,7 @@ import {
   domainActivities,
   domainRecords,
   isCalculationSelectable,
+  wasteClassification,
 } from "./operationSelectors.js";
 import {
   eligibilityPresentation,
@@ -27,6 +28,24 @@ test("Combustibles conserva registros genericos, moviles y estacionarios", () =>
     "combustible", "combustible_movil", "combustible_estacionario",
   ]);
   assert.deepEqual(domainActivities(records, "combustibles").map((item) => item.id), [1, 2, 3]);
+});
+
+test("clasifica residuos nuevos y conserva lectura de históricos", () => {
+  const newNonHazardous = [
+    { clasificacion_residuo: "no_peligroso", tipo_recurso: "" },
+    { clasificacion_residuo: "no_peligroso", tipo_recurso: "madera" },
+  ];
+  const newHazardous = { clasificacion_residuo: "peligroso", tipo_recurso: "" };
+  const legacyNonHazardous = { clasificacion_residuo: "", tipo_recurso: "no_peligroso" };
+  const legacyHazardous = { clasificacion_residuo: "", tipo_recurso: "peligroso" };
+  const unclassifiedLegacyResource = { clasificacion_residuo: "", tipo_recurso: "madera" };
+
+  assert.equal(newNonHazardous.filter((record) => wasteClassification(record) === "no_peligroso").length, 2);
+  assert.equal(newNonHazardous.filter((record) => wasteClassification(record) === "peligroso").length, 0);
+  assert.equal(wasteClassification(newHazardous), "peligroso");
+  assert.equal(wasteClassification(legacyNonHazardous), "no_peligroso");
+  assert.equal(wasteClassification(legacyHazardous), "peligroso");
+  assert.equal(wasteClassification(unclassifiedLegacyResource), null);
 });
 
 test("el KPI usa totales compatibles del backend y mantiene unidades separadas", () => {
@@ -220,10 +239,29 @@ test("agua presenta uso operacional neutral sin afectar el cálculo de otros dom
     "utf8",
   );
 
-  assert.match(panel, /domain === "agua"/);
+  assert.match(panel, /\["agua", "residuos"\]\.includes\(domain\)/);
   assert.match(panel, /title="Sin cálculo asociado"/);
   assert.match(panel, /se utiliza directamente en indicadores ambientales/);
   assert.match(panel, /Calcular/);
+});
+
+test("residuos presenta material, cantidad y destino sin códigos internos", () => {
+  const qualityPanel = readFileSync(
+    new URL("../components/DomainQualityPanel.jsx", import.meta.url),
+    "utf8",
+  );
+  const wastePage = readFileSync(
+    new URL("../pages/WastePage.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(wastePage, /wasteClassification\(record\) === "no_peligroso"/);
+  assert.match(wastePage, /wasteClassification\(record\) === "peligroso"/);
+  assert.match(qualityPanel, /record\.tipo_residuo === "otro"/);
+  assert.match(qualityPanel, /disposicion: "Disposición final"/);
+  assert.match(qualityPanel, /wasteType/);
+  assert.match(qualityPanel, /observedValue/);
+  assert.match(qualityPanel, /wasteClassification/);
 });
 
 test("residuos separa clasificación, tipo gobernado y destino", () => {

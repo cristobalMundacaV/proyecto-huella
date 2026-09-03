@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ErrorState, Pagination, SectionHeader, TableBody, TableCell, TableHead, TableShell } from "@/shared/ui";
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
 import SectorDomainPage from "./SectorDomainPage";
-import { isResourceReady, resourceData } from "../utils/operationSelectors";
+import { isResourceReady, resourceData, wasteClassification } from "../utils/operationSelectors";
 
 function measurement(value, unit) {
   if (value === null || value === undefined) return "Sin datos";
@@ -17,8 +17,8 @@ export default function WastePage() {
   const eventsReady = isResourceReady(operation.materialEvents);
   const materialWaste = resourceData(operation.materialEvents, []).filter((event) => event.tipo === "residuo");
   const flowWaste = resourceData(operation.records, []).filter((record) => record.flujo === "residuo");
-  const nonHazardousCount = flowWaste.filter((record) => record.tipo_recurso === "no_peligroso").length;
-  const hazardousCount = flowWaste.filter((record) => record.tipo_recurso === "peligroso").length;
+  const nonHazardousCount = flowWaste.filter((record) => wasteClassification(record) === "no_peligroso").length;
+  const hazardousCount = flowWaste.filter((record) => wasteClassification(record) === "peligroso").length;
   useEffect(() => { setPage(1); }, [materialWaste.length]);
   const pagedWaste = useMemo(() => materialWaste.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [materialWaste, page]);
 

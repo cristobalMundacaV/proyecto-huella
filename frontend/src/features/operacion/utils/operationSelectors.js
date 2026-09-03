@@ -146,6 +146,17 @@ export function applicability(context, capability) {
   return "pendiente";
 }
 
+export function wasteClassification(record) {
+  const classification = record?.clasificacion_residuo;
+  if (["no_peligroso", "peligroso"].includes(classification)) {
+    return classification;
+  }
+  const legacyClassification = record?.tipo_recurso;
+  return ["no_peligroso", "peligroso"].includes(legacyClassification)
+    ? legacyClassification
+    : null;
+}
+
 export function compatibleDomainTotals(indicators, domain) {
   const concepts = new Set(domainMetrics(indicators, domain).map((metric) => metric.concepto));
   return (indicators?.totales_compatibles || []).filter((metric) => concepts.has(metric.concepto));

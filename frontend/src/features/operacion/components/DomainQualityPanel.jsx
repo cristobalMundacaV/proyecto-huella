@@ -240,6 +240,17 @@ export default function DomainQualityPanel({
                                         resourceType:
                                             record.tipo_recurso,
 
+                                        wasteClassification:
+                                            record.clasificacion_residuo ||
+                                            (["no_peligroso", "peligroso"].includes(record.tipo_recurso)
+                                                ? record.tipo_recurso
+                                                : ""),
+
+                                        wasteType:
+                                            record.tipo_residuo === "otro"
+                                                ? record.tipo_residuo_otro
+                                                : record.tipo_residuo,
+
                                         destination:
                                             record.destino_operacional,
                                     },
@@ -266,6 +277,15 @@ export default function DomainQualityPanel({
                 "Gas licuado",
             gas_natural:
                 "Gas natural",
+            madera: "Madera",
+            no_peligroso: "No peligroso",
+            peligroso: "Peligroso",
+            reciclaje: "Reciclaje",
+            disposicion: "Disposición final",
+            reutilizacion: "Reutilización",
+            valorizacion: "Valorización",
+            subproducto_reutilizado: "Subproducto reutilizado",
+            residuo: "Destino pendiente de definir",
         };
 
         return (
@@ -668,6 +688,12 @@ export default function DomainQualityPanel({
                                                 const resourceType =
                                                     recordContext?.resourceType;
 
+                                                const wasteType =
+                                                    recordContext?.wasteType;
+
+                                                const wasteClassification =
+                                                    recordContext?.wasteClassification;
+
                                                 const destination =
                                                     recordContext?.destination;
 
@@ -692,9 +718,13 @@ export default function DomainQualityPanel({
                                                         <TableCell>
                                                             <b>
                                                                 {[
-                                                                    resourceType
+                                                                    (domain === "residuos"
+                                                                        ? wasteType
+                                                                        : resourceType)
                                                                         ? resourceLabel(
-                                                                            resourceType,
+                                                                            domain === "residuos"
+                                                                                ? wasteType
+                                                                                : resourceType,
                                                                         )
                                                                         : null,
 
@@ -702,9 +732,9 @@ export default function DomainQualityPanel({
 
                                                                     destination &&
                                                                     destination !== "sin_clasificar"
-                                                                        ? human(
-                                                                            destination,
-                                                                        )
+                                                                        ? (domain === "residuos"
+                                                                            ? resourceLabel(destination)
+                                                                            : human(destination))
                                                                         : null,
                                                                 ]
                                                                     .filter(Boolean)
@@ -715,9 +745,9 @@ export default function DomainQualityPanel({
         block text-xs
         text-[var(--text-muted)]
     ">
-                                                                {human(
-                                                                    observation?.concepto,
-                                                                )}
+                                                                {domain === "residuos" && wasteClassification
+                                                                    ? resourceLabel(wasteClassification)
+                                                                    : human(observation?.concepto)}
                                                             </span>
                                                         </TableCell>
 

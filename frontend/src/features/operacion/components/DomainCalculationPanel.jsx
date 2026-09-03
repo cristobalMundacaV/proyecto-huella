@@ -175,7 +175,7 @@ export default function DomainCalculationPanel({
         }
     }
 
-    if (domain === "agua") {
+    if (["agua", "residuos"].includes(domain)) {
         return (
             <section className="space-y-4">
                 <SectionHeader
