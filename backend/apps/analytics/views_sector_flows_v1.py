@@ -30,6 +30,10 @@ from .services.waste_catalog import (
     construction_waste_types,
     validate_waste_dimensions,
 )
+from .services.waste_indicators import (
+    sync_waste_indicator_month,
+    waste_indicator_sync_targets,
+)
 from .selectors.environmental_flows import (
     environmental_points_for_organization,
     environmental_record_for_organization,
@@ -350,11 +354,27 @@ def sector_record_detail(request, organizacion_id, record_id):
     context = {"organizacion": organization, "request": request}
     if request.method == "GET":
         return Response(RegistroFlujoAmbientalSerializer(record, context=context).data)
+    previous_waste_targets = waste_indicator_sync_targets(record)
     serializer = RegistroFlujoAmbientalSerializer(
         record, data=request.data, partial=True, context=context
     )
     serializer.is_valid(raise_exception=True)
-    serializer.save()
+    record = serializer.save()
+    current_waste_targets = waste_indicator_sync_targets(record)
+    targets = previous_waste_targets | current_waste_targets
+    if targets:
+        try:
+            with transaction.atomic():
+                for work, start, end in sorted(
+                    targets, key=lambda target: (target[0].pk, target[1])
+                ):
+                    sync_waste_indicator_month(work, start, end)
+        except Exception:
+            logger.exception(
+                "No se pudieron reconciliar los indicadores de residuos para "
+                "el registro %s; el dato se conserva para backfill.",
+                record.id,
+            )
     return Response(serializer.data)
 
 

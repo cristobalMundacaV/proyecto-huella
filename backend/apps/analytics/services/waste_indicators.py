@@ -11,6 +11,7 @@ from ..models import (
     RegistroFlujoAmbiental,
     ValorIndicador,
 )
+from .operational_indicators import calendar_month
 from .unit_conversion import UnitConversionError, convert_value
 from .waste_catalog import WASTE_INDICATOR_SERIES, is_valued_waste_destination
 
@@ -18,6 +19,21 @@ from .waste_catalog import WASTE_INDICATOR_SERIES, is_valued_waste_destination
 logger = logging.getLogger(__name__)
 WASTE_QUANTITY_CONCEPT = "cantidad_residuo"
 WASTE_VALUE_SOURCE = "registros_residuo_operacionales_v1"
+
+
+def waste_indicator_sync_targets(record):
+    """Return the work/month pairs affected by the current waste record state."""
+    if (
+        record.flujo != RegistroFlujoAmbiental.Flujo.RESIDUO
+        or not record.obra_id
+    ):
+        return set()
+    timestamps = record.actividad.observaciones.filter(
+        concepto=WASTE_QUANTITY_CONCEPT
+    ).values_list("timestamp_observacion", flat=True)
+    return {
+        (record.obra, *calendar_month(timestamp)) for timestamp in timestamps
+    }
 
 
 def _indicator_contract(series_key):

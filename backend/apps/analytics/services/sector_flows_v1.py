@@ -54,36 +54,67 @@ def save_point(instance, organization, data):
 
 @transaction.atomic
 def save_environmental_record(instance, organization, data, actor=None):
+    observation_fields = (
+        "concepto",
+        "valor_numerico",
+        "valor_texto",
+        "unidad",
+        "fuente",
+        "evidencia",
+        "version_evidencia",
+        "metodo_captura",
+        "naturaleza",
+    )
     observation_data = {
-        key: data.pop(key, None)
-        for key in (
-            "concepto",
-            "valor_numerico",
-            "valor_texto",
-            "unidad",
-            "fuente",
-            "evidencia",
-            "version_evidencia",
-            "metodo_captura",
-            "naturaleza",
-        )
+        key: data.pop(key) for key in observation_fields if key in data
     }
+    is_create = instance._state.adding
+    period_changed = "periodo_inicio" in data or "periodo_fin" in data
     for field, value in data.items():
         setattr(instance, field, value)
     instance.organizacion = organization
     instance.full_clean()
     instance.save()
     if (
-        observation_data["valor_numerico"] is not None
-        or observation_data["valor_texto"]
+        not is_create
+        and instance.flujo == RegistroFlujoAmbiental.Flujo.RESIDUO
+        and (observation_data or period_changed)
     ):
-        observation_data["valor_texto"] = observation_data["valor_texto"] or ""
-        observation_data["unidad"] = observation_data["unidad"] or ""
-        observation_data["metodo_captura"] = (
-            observation_data["metodo_captura"] or Observacion.MetodoCaptura.MANUAL
+        observation = (
+            instance.actividad.observaciones.filter(concepto="cantidad_residuo")
+            .order_by("-timestamp_observacion", "-id")
+            .first()
         )
-        observation_data["naturaleza"] = (
-            observation_data["naturaleza"] or Observacion.Naturaleza.DECLARATIVO
+        if observation:
+            for field, value in observation_data.items():
+                setattr(observation, field, value)
+            if period_changed:
+                observation.timestamp_observacion = (
+                    instance.periodo_fin or instance.periodo_inicio
+                )
+            observation.full_clean()
+            observation.save()
+            if period_changed:
+                instance.actividad.timestamp_inicio = instance.periodo_inicio
+                instance.actividad.timestamp_fin = instance.periodo_fin
+                instance.actividad.full_clean()
+                instance.actividad.save(
+                    update_fields=["timestamp_inicio", "timestamp_fin", "updated_at"]
+                )
+        return instance
+
+    numeric_value = observation_data.get("valor_numerico")
+    text_value = observation_data.get("valor_texto", "")
+    if numeric_value is not None or text_value:
+        text_value = text_value or ""
+        unit = observation_data.get("unidad") or ""
+        method = (
+            observation_data.get("metodo_captura")
+            or Observacion.MetodoCaptura.MANUAL
+        )
+        nature = (
+            observation_data.get("naturaleza")
+            or Observacion.Naturaleza.DECLARATIVO
         )
         capture_observation(
             channel="manual",
@@ -91,15 +122,15 @@ def save_environmental_record(instance, organization, data, actor=None):
             activity=instance.actividad,
             timestamp=instance.periodo_fin or instance.periodo_inicio,
             actor=actor,
-            source=observation_data["fuente"],
-            concept=observation_data["concepto"],
-            numeric_value=observation_data["valor_numerico"],
-            text_value=observation_data["valor_texto"],
-            unit=observation_data["unidad"],
-            evidence=observation_data["evidencia"],
-            evidence_version=observation_data["version_evidencia"],
-            method=observation_data["metodo_captura"],
-            nature=observation_data["naturaleza"],
+            source=observation_data.get("fuente"),
+            concept=observation_data.get("concepto"),
+            numeric_value=numeric_value,
+            text_value=text_value,
+            unit=unit,
+            evidence=observation_data.get("evidencia"),
+            evidence_version=observation_data.get("version_evidencia"),
+            method=method,
+            nature=nature,
         )
     return instance
 

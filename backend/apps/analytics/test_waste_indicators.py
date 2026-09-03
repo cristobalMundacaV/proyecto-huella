@@ -1,10 +1,13 @@
 from datetime import date, datetime
 from decimal import Decimal
 from io import StringIO
+from unittest.mock import patch
 
+from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
+from rest_framework.test import APITestCase
 
 from .models import (
     ActividadOperacional,
@@ -15,6 +18,7 @@ from .models import (
     Observacion,
     Organizacion,
     RegistroFlujoAmbiental,
+    UsuarioOrganizacion,
     ValorIndicador,
 )
 from .services.operational_indicators import calendar_month
@@ -224,3 +228,133 @@ class WasteIndicatorTests(TestCase):
         self.assertEqual(values[WASTE_INDICATOR_SERIES["masa_generada"]["codigo"]].valor, Decimal("2500"))
         self.assertEqual(values[WASTE_INDICATOR_SERIES["masa_valorizada"]["codigo"]].valor, Decimal("1000"))
         self.assertEqual(values[WASTE_INDICATOR_SERIES["tasa_valorizacion_masa"]["codigo"]].valor, Decimal("40"))
+
+
+class WasteIndicatorPatchTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("waste-editor", password="test-pass")
+        self.organization = Organizacion.objects.create(nombre="Residuos editables")
+        UsuarioOrganizacion.objects.create(
+            user=self.user,
+            organizacion=self.organization,
+            rol=UsuarioOrganizacion.Rol.OPERADOR,
+        )
+        self.work = Obra.objects.create(
+            organizacion=self.organization,
+            nombre="Edificio Parque Norte",
+            fecha_inicio=date(2026, 1, 1),
+        )
+        self.source = FuenteDatos.objects.create(
+            organizacion=self.organization,
+            nombre="Registro de retiro",
+        )
+        self.timestamp = timezone.make_aware(datetime(2026, 9, 11, 12, 0))
+        self.start, self.end = calendar_month(self.timestamp)
+        self.client.force_login(self.user)
+        self.sequence = 0
+
+    def waste(self, value, destination):
+        self.sequence += 1
+        activity = ActividadOperacional.objects.create(
+            organizacion=self.organization,
+            obra=self.work,
+            codigo=f"waste-edit-{self.sequence}",
+            nombre="Residuo",
+            tipo=ActividadOperacional.Tipo.GESTION_RESIDUO,
+            timestamp_inicio=self.timestamp,
+        )
+        record = RegistroFlujoAmbiental.objects.create(
+            organizacion=self.organization,
+            obra=self.work,
+            actividad=activity,
+            flujo=RegistroFlujoAmbiental.Flujo.RESIDUO,
+            periodo_inicio=self.timestamp,
+            granularidad=RegistroFlujoAmbiental.Granularidad.OBRA,
+            clasificacion_residuo="no_peligroso",
+            tipo_residuo="madera",
+            destino_operacional=destination,
+        )
+        Observacion.objects.create(
+            organizacion=self.organization,
+            actividad=activity,
+            fuente=self.source,
+            concepto="cantidad_residuo",
+            valor_numerico=Decimal(value),
+            unidad="kg",
+            timestamp_observacion=self.timestamp,
+            estado=Observacion.Estado.VALIDADA,
+        )
+        return record
+
+    def url(self, record):
+        return (
+            f"/api/organizaciones/{self.organization.organizacion_id}/"
+            f"flujos-ambientales/{record.id}/"
+        )
+
+    def latest(self, series_key, start=None):
+        return ValorIndicador.objects.filter(
+            indicador__obra=self.work,
+            indicador__codigo=WASTE_INDICATOR_SERIES[series_key]["codigo"],
+            periodo_inicio=start or self.start,
+        ).order_by("-version").first()
+
+    def test_patch_reconciles_destination_quantity_unit_and_both_months(self):
+        edited = self.waste("1000", "reciclaje")
+        self.waste("1500", "disposicion")
+        sync_waste_indicator_month(self.work, self.start, self.end)
+
+        response = self.client.patch(
+            self.url(edited), {"destino_operacional": "disposicion"}, format="json"
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(self.latest("masa_generada").valor, Decimal("2500"))
+        self.assertEqual(self.latest("masa_valorizada").valor, Decimal("0"))
+        self.assertEqual(self.latest("tasa_valorizacion_masa").valor, Decimal("0"))
+
+        self.client.patch(
+            self.url(edited), {"destino_operacional": "disposicion"}, format="json"
+        )
+        self.assertEqual(self.latest("masa_generada").version, 2)
+
+        response = self.client.patch(
+            self.url(edited),
+            {"destino_operacional": "reciclaje", "valor_numerico": "2", "unidad": "t"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(edited.actividad.observaciones.count(), 1)
+        self.assertEqual(self.latest("masa_generada").valor, Decimal("3500"))
+        self.assertEqual(self.latest("masa_valorizada").valor, Decimal("2000"))
+
+        october = timezone.make_aware(datetime(2026, 10, 2, 12, 0))
+        october_start, _ = calendar_month(october)
+        response = self.client.patch(
+            self.url(edited), {"periodo_inicio": october.isoformat()}, format="json"
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(self.latest("masa_generada").valor, Decimal("1500"))
+        self.assertEqual(self.latest("masa_valorizada").valor, Decimal("0"))
+        self.assertEqual(self.latest("masa_generada", october_start).valor, Decimal("2000"))
+        self.assertEqual(self.latest("masa_valorizada", october_start).valor, Decimal("2000"))
+
+    def test_indicator_failure_keeps_patch_and_backfill_repairs(self):
+        record = self.waste("1000", "reciclaje")
+        sync_waste_indicator_month(self.work, self.start, self.end)
+
+        with patch(
+            "apps.analytics.views_sector_flows_v1.sync_waste_indicator_month",
+            side_effect=RuntimeError("fallo controlado"),
+        ):
+            response = self.client.patch(
+                self.url(record), {"destino_operacional": "disposicion"}, format="json"
+            )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        record.refresh_from_db()
+        self.assertEqual(record.destino_operacional, "disposicion")
+        self.assertEqual(self.latest("masa_valorizada").valor, Decimal("1000"))
+
+        sync_waste_indicator_month(self.work, self.start, self.end)
+        self.assertEqual(self.latest("masa_valorizada").valor, Decimal("0"))
+        self.assertEqual(self.latest("tasa_valorizacion_masa").valor, Decimal("0"))

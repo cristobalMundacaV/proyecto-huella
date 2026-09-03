@@ -54,12 +54,30 @@ def environmental_record_errors(data, organization, instance=None):
             errors["periodo_fin"] = (
                 f"El fin del registro no puede ser posterior al término de la obra ({work.fecha_termino_estimada:%d-%m-%Y})."
             )
-    number, text = data.get("valor_numerico"), data.get("valor_texto", "")
+    existing_observation = None
+    if instance and any(
+        field in data
+        for field in ("concepto", "valor_numerico", "valor_texto", "unidad", "fuente")
+    ):
+        existing_observation = (
+            instance.actividad.observaciones.filter(concepto="cantidad_residuo")
+            .order_by("-timestamp_observacion", "-id")
+            .first()
+        )
+    number = data.get(
+        "valor_numerico",
+        getattr(existing_observation, "valor_numerico", None),
+    )
+    text = data.get(
+        "valor_texto", getattr(existing_observation, "valor_texto", "")
+    )
     if number is not None and text:
         errors["non_field_errors"] = ["Use solo un valor numerico o textual."]
-    if (number is not None or text) and not data.get("concepto"):
+    concept = data.get("concepto", getattr(existing_observation, "concepto", None))
+    source = data.get("fuente", getattr(existing_observation, "fuente", None))
+    if (number is not None or text) and not concept:
         errors["concepto"] = "Debe indicar el concepto observado."
-    if (number is not None or text) and not data.get("fuente"):
+    if (number is not None or text) and not source:
         errors["fuente"] = "Debe indicar la fuente."
     version = values["version_evidencia"]
     if version and evidence and version.evidencia_id != evidence.id:
