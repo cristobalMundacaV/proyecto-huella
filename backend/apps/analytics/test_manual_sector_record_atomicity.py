@@ -245,6 +245,38 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         self.assertEqual(record.destino_operacional, "disposicion")
         self.assertFalse(response.data["registro"]["es_residuo_valorizado"])
 
+    def test_waste_capture_contract_persists_recycled_wood_as_residuo(self):
+        response = self.post(
+            self.payload(
+                flujo="residuo",
+                tipo_actividad="gestion_residuo",
+                codigo_actividad="manual-residuos-madera-reciclada",
+                nombre_actividad="Registro manual · residuos",
+                periodo_inicio="2026-09-11T12:00:00",
+                concepto="cantidad_residuo",
+                valor_numerico="1000",
+                unidad="kg",
+                tipo_recurso="",
+                clasificacion_residuo="no_peligroso",
+                tipo_residuo="madera",
+                destino_operacional="reciclaje",
+            )
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        record = RegistroFlujoAmbiental.objects.select_related("actividad").get(
+            actividad__codigo="manual-residuos-madera-reciclada"
+        )
+        self.assertEqual(record.flujo, RegistroFlujoAmbiental.Flujo.RESIDUO)
+        self.assertEqual(record.actividad.tipo, "gestion_residuo")
+        self.assertEqual(record.clasificacion_residuo, "no_peligroso")
+        self.assertEqual(record.tipo_residuo, "madera")
+        self.assertEqual(record.destino_operacional, "reciclaje")
+        observation = record.actividad.observaciones.get(concepto="cantidad_residuo")
+        self.assertEqual(str(observation.valor_numerico), "1000.000000")
+        self.assertEqual(observation.unidad, "kg")
+        self.assertTrue(response.data["registro"]["es_residuo_valorizado"])
+
     def test_manual_date_before_work_start_is_rejected(self):
         response = self.post(
             self.payload(

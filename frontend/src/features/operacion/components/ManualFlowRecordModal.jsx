@@ -131,6 +131,8 @@ const FLOW_CONFIG = {
     },
 
     combustibles: {
+        flow:
+            "combustible_estacionario",
         activityType:
             "consumo_combustible_estacionario",
         concept:
@@ -187,6 +189,8 @@ const FLOW_CONFIG = {
     },
 
     residuos: {
+        flow:
+            "residuo",
         activityType:
             "gestion_residuo",
         concept:
@@ -330,6 +334,8 @@ const FLOW_CONFIG = {
     },
 
     "hidrica-suelo": {
+        flow:
+            "gestion_hidrica_suelo",
         activityType:
             "gestion_hidrica_suelo",
         concept:
@@ -894,7 +900,7 @@ export default function ManualFlowRecordModal({
             append("tipo_actividad", selectedMode?.activityType || config.activityType);
             append("codigo_actividad", activityCode);
             append("nombre_actividad", `Registro manual · ${domain}`);
-            append("flujo", selectedMode?.flow || config.flow || (domain === "combustibles" ? "combustible_estacionario" : domain === "hidrica-suelo" ? "gestion_hidrica_suelo" : domain));
+            append("flujo", selectedMode?.flow || config.flow || domain);
             append("periodo_inicio", operationalTimestamp);
             append("concepto", selectedMode?.concept || config.concept);
             append("valor_numerico", valueType === "number" ? form.value : "");

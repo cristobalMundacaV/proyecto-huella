@@ -246,3 +246,16 @@ test("residuos separa clasificación, tipo gobernado y destino", () => {
   assert.doesNotMatch(modal, /label: "Residuo no peligroso"/);
   assert.doesNotMatch(modal, /label: "Residuo peligroso"/);
 });
+
+test("residuos traduce el dominio UI al flujo persistido sin cambiar catálogos", () => {
+  const modal = readFileSync(
+    new URL("../components/ManualFlowRecordModal.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(modal, /residuos:\s*\{\s*flow:\s*"residuo"/);
+  assert.match(modal, /append\("flujo", selectedMode\?\.flow \|\| config\.flow \|\| domain\)/);
+  assert.match(modal, /const sourceDomain = selectedMode\?\.flow \|\| domain/);
+  assert.match(modal, /listDataSources\(organizationId, sourceDomain\)/);
+  assert.match(modal, /listEvidenceTypes\(sourceDomain\)/);
+});
