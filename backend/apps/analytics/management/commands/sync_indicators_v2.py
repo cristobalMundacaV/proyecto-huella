@@ -1,6 +1,12 @@
 from django.core.management.base import BaseCommand, CommandError
 
-from ...models import ImpactoAmbiental, Obra, Observacion, Organizacion
+from ...models import (
+    ImpactoAmbiental,
+    Obra,
+    Observacion,
+    Organizacion,
+    RegistroFlujoAmbiental,
+)
 from ...services.generated_emissions_indicator import (
     calendar_month,
     sync_generated_emissions_month,
@@ -10,10 +16,11 @@ from ...services.operational_indicators import (
     calendar_month as operational_calendar_month,
     sync_operational_indicator_month,
 )
+from ...services.waste_indicators import sync_waste_indicator_month
 
 
 class Command(BaseCommand):
-    help = "Sincroniza indicadores GEI versionados desde impactos efectivos."
+    help = "Reconcilia indicadores GEI y operacionales versionados para una obra."
 
     def add_arguments(self, parser):
         parser.add_argument("--organization", required=True)
@@ -57,10 +64,24 @@ class Command(BaseCommand):
             )
             created += int(value_created)
 
+        waste_timestamps = Observacion.objects.filter(
+            organizacion=organization,
+            actividad__registro_flujo_ambiental__obra=work,
+            actividad__registro_flujo_ambiental__flujo=RegistroFlujoAmbiental.Flujo.RESIDUO,
+            concepto="cantidad_residuo",
+            valor_numerico__isnull=False,
+        ).values_list("timestamp_observacion", flat=True)
+        waste_periods = sorted(
+            {operational_calendar_month(timestamp) for timestamp in waste_timestamps}
+        )
+        for start, end in waste_periods:
+            results = sync_waste_indicator_month(work, start, end)
+            created += sum(int(value_created) for _, value_created in results.values())
+
         self.stdout.write(
             self.style.SUCCESS(
                 f"Indicadores sincronizados para {work.nombre}: "
-                f"{len(periods) + len(operational_periods)} series-periodo, "
+                f"{len(periods) + len(operational_periods) + len(waste_periods)} lotes-periodo, "
                 f"{created} nuevas versiones."
             )
         )

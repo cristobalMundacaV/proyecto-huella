@@ -20,6 +20,7 @@ from .models import (
     RegistroFlujoAmbiental,
     UsuarioAreaOperacional,
     UsuarioOrganizacion,
+    ValorIndicador,
     VersionEvidencia,
 )
 from .services.document_provider import DocumentProviderError
@@ -276,6 +277,52 @@ class ManualSectorRecordAtomicityTests(APITestCase):
         self.assertEqual(str(observation.valor_numerico), "1000.000000")
         self.assertEqual(observation.unidad, "kg")
         self.assertTrue(response.data["registro"]["es_residuo_valorizado"])
+        values = {
+            value.indicador.codigo: value.valor
+            for value in ValorIndicador.objects.filter(
+                indicador__obra=self.work
+            ).select_related("indicador")
+        }
+        self.assertEqual(values["residuos-masa-generada"], 1000)
+        self.assertEqual(values["residuos-masa-valorizada"], 1000)
+        self.assertEqual(values["residuos-tasa-valorizacion-masa"], 100)
+
+    def test_waste_indicator_failure_does_not_rollback_record_and_can_be_repaired(self):
+        with patch(
+            "apps.analytics.views_sector_flows_v1.sync_operational_indicators_for_observation",
+            side_effect=RuntimeError("fallo KPI residuos controlado"),
+        ):
+            with self.assertLogs(
+                "apps.analytics.views_sector_flows_v1", level="ERROR"
+            ):
+                response = self.post(
+                    self.payload(
+                        flujo="residuo",
+                        tipo_actividad="gestion_residuo",
+                        codigo_actividad="manual-waste-kpi-failure",
+                        concepto="cantidad_residuo",
+                        valor_numerico="1000",
+                        unidad="kg",
+                        tipo_recurso="",
+                        clasificacion_residuo="no_peligroso",
+                        tipo_residuo="madera",
+                        destino_operacional="reciclaje",
+                    )
+                )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        observation = Observacion.objects.get(
+            actividad__codigo="manual-waste-kpi-failure"
+        )
+        self.assertFalse(self.work.indicadores_ambientales.exists())
+
+        from .services.operational_indicators import (
+            sync_operational_indicators_for_observation,
+        )
+
+        results, created = sync_operational_indicators_for_observation(observation)
+        self.assertTrue(created)
+        self.assertEqual(results["masa_generada"][0].valor, 1000)
 
     def test_manual_date_before_work_start_is_rejected(self):
         response = self.post(

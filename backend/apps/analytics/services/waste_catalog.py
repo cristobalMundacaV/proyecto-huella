@@ -30,27 +30,38 @@ VALUED_WASTE_DESTINATIONS = frozenset(
     }
 )
 
-# Blueprint contractual para una etapa posterior. No provisiona indicadores.
 WASTE_INDICATOR_SERIES = {
     "masa_generada": {
+        "codigo": "residuos-masa-generada",
+        "nombre": "Masa de residuos generada",
         "unidad_base": "kg",
         "dimension": "masa",
         "destinos": "todos",
+        "direccion_deseable": "menor_es_mejor",
     },
     "masa_valorizada": {
+        "codigo": "residuos-masa-valorizada",
+        "nombre": "Masa de residuos valorizada",
         "unidad_base": "kg",
         "dimension": "masa",
         "destinos": VALUED_WASTE_DESTINATIONS,
+        "direccion_deseable": "mayor_es_mejor",
     },
     "tasa_valorizacion_masa": {
+        "codigo": "residuos-tasa-valorizacion-masa",
+        "nombre": "Tasa de valorización en masa",
         "unidad_base": "%",
         "dimension": "masa",
         "formula": "masa_valorizada / masa_generada * 100",
+        "direccion_deseable": "mayor_es_mejor",
     },
     "volumen_generado": {
+        "codigo": "residuos-volumen-generado",
+        "nombre": "Volumen de residuos generado",
         "unidad_base": "m3",
         "dimension": "volumen",
         "destinos": "todos",
+        "direccion_deseable": "menor_es_mejor",
     },
 }
 

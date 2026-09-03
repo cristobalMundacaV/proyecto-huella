@@ -8,7 +8,12 @@ from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
-from ..models import IndicadorAmbiental, Observacion, ValorIndicador
+from ..models import (
+    IndicadorAmbiental,
+    Observacion,
+    RegistroFlujoAmbiental,
+    ValorIndicador,
+)
 from .unit_conversion import UnitConversionError, convert_value
 
 
@@ -160,6 +165,21 @@ def sync_operational_indicator_month(work, concept, start, end):
 
 
 def sync_operational_indicators_for_observation(observation):
+    try:
+        environmental_record = observation.actividad.registro_flujo_ambiental
+    except (AttributeError, RegistroFlujoAmbiental.DoesNotExist):
+        environmental_record = None
+    if (
+        observation.concepto == "cantidad_residuo"
+        and environmental_record
+        and environmental_record.flujo == RegistroFlujoAmbiental.Flujo.RESIDUO
+        and environmental_record.obra_id
+    ):
+        from .waste_indicators import sync_waste_indicator_month
+
+        start, end = calendar_month(observation.timestamp_observacion)
+        results = sync_waste_indicator_month(environmental_record.obra, start, end)
+        return results, any(created for _, created in results.values())
     if observation.concepto not in OPERATIONAL_INDICATOR_CONTRACTS:
         return None, False
     work = getattr(observation.actividad, "obra", None) if observation.actividad else None
