@@ -1,9 +1,14 @@
 const fieldLabels = {
+  codigo: "Código",
   estado: "Estado",
   obra: "Obra",
   organizacion: "Organización",
   confirmado: "Confirmación",
   non_field_errors: "",
+};
+
+const validationMessages = {
+  "This field is required.": "Este campo es obligatorio.",
 };
 
 function flattenValidationErrors(data) {
@@ -16,6 +21,7 @@ function flattenValidationErrors(data) {
 
       return messages
         .filter((message) => typeof message === "string" && message.trim())
+        .map((message) => validationMessages[message] || message)
         .map((message) => (label ? `${label}: ${message}` : message));
     })
     .join(" ");

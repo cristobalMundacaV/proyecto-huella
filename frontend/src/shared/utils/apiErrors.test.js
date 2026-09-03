@@ -12,3 +12,8 @@ test("conserva detalles del dominio y presenta validaciones por campo", () => {
   assert.equal(humanizeApiError({ response: { status: 400, data: { detail: "La transición requiere una reevaluación." } } }), "La transición requiere una reevaluación.");
   assert.equal(humanizeApiError({ response: { status: 400, data: { estado: ["No es válido."] } } }), "Estado: No es válido.");
 });
+
+test("traduce campos obligatorios de DRF", () => {
+  const error = { response: { status: 400, data: { codigo: ["This field is required."] } } };
+  assert.equal(humanizeApiError(error), "Código: Este campo es obligatorio.");
+});

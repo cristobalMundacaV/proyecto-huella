@@ -40,6 +40,56 @@ class TransportV2Tests(APITestCase):
         journey = ViajeOperacional.objects.get(); self.assertEqual(journey.actividad.tipo, "transporte")
         self.assertEqual(journey.observacion_distancia.valor_numerico, Decimal("132"))
 
+    def test_e2e_viaje_con_identidad_compartida_y_tres_magnitudes(self):
+        work = Obra.objects.create(
+            organizacion=self.org,
+            nombre="Edificio Parque Norte",
+            fecha_inicio="2026-01-01",
+        )
+        code = "VIAJE-E2E-PARQUE-NORTE"
+        activity_response = self.client.post(
+            f"{self.base}/actividades-operacionales/",
+            {
+                "obra": work.id,
+                "tipo": "transporte",
+                "codigo": code,
+                "nombre": "Viaje Bodega proveedor Los Angeles a Edificio Parque Norte",
+                "timestamp_inicio": timezone.now().isoformat(),
+            },
+            format="json",
+        )
+        self.assertEqual(activity_response.status_code, 201, activity_response.data)
+
+        journey_response = self.client.post(
+            f"{self.base}/viajes-operacionales/",
+            {
+                "actividad": activity_response.data["id"],
+                "codigo": code,
+                "vehiculo": self.vehicle.id,
+                "origen_nombre": "Bodega proveedor Los Angeles",
+                "destino_nombre": "Edificio Parque Norte",
+                "fecha_salida": timezone.now().isoformat(),
+                "distancia": "35",
+                "carga": "8",
+                "combustible": "12",
+                "fuente": self.source.id,
+                "estado_carga": "cargado",
+                "tipo_trayecto": "ida",
+                "estado": "completado",
+            },
+            format="json",
+        )
+        self.assertEqual(journey_response.status_code, 201, journey_response.data)
+        journey = ViajeOperacional.objects.get(codigo=code)
+        self.assertEqual(journey.actividad.codigo, journey.codigo)
+        self.assertEqual(journey.observacion_distancia.valor_numerico, Decimal("35"))
+        self.assertEqual(journey.observacion_carga.valor_numerico, Decimal("8"))
+        self.assertEqual(journey.observacion_combustible.valor_numerico, Decimal("12"))
+        summary = transport_indicators(self.org, work=work)
+        self.assertEqual(summary["numero_viajes"], 1)
+        self.assertEqual(summary["km_totales"], Decimal("35"))
+        self.assertEqual(summary["tonelaje_transportado"], Decimal("8"))
+
     def test_rechaza_actividad_y_vehiculo_cross_tenant(self):
         foreign_activity = ActividadOperacional.objects.create(organizacion=self.other, tipo="transporte", codigo="B", nombre="B", timestamp_inicio=timezone.now())
         foreign_asset = ActivoOperacional.objects.create(organizacion=self.other, codigo="B", nombre="B", tipo="vehiculo")
