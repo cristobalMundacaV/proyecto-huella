@@ -64,6 +64,8 @@ assert_not_contains "$README" "source .env"
 assert_not_contains "$DEPLOY_SCRIPT" "certbot"
 assert_contains "$HEALTHCHECK_SCRIPT" '[[ "$location" == "/login" || "$location" == "$APP_LOGIN_URL" ]]'
 assert_contains "$HEALTHCHECK_SCRIPT" 'APP_LOGIN_URL="${APP_URL%/}/login"'
+assert_contains "$HEALTHCHECK_SCRIPT" '[[ "$location" == "$APP_LOGIN_URL" ]]'
+assert_not_contains "$HEALTHCHECK_SCRIPT" '${APP_URL//./\.}'
 
 # La separación landing/app y sus redirecciones continúan siendo contractuales.
 assert_contains "$HTTPS_CONFIG" "server_name carbonozero.mundacasolutions.com;"

@@ -42,6 +42,8 @@ status="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$APP_URL/login"
 
 headers="$(curl -sS -o /dev/null -D - --max-time 20 "$LANDING_URL/app")"
 printf '%s' "$headers" | grep -Eq '^HTTP/[^ ]+ 302' || fail "$LANDING_URL/app no respondió 302"
-printf '%s' "$headers" | grep -Eiq "^location: ${APP_URL//./\.}/login\r?$" || fail "$LANDING_URL/app no redirige a $APP_URL/login"
+location="$(redirect_location <<< "$headers" || true)"
+[[ "$location" == "$APP_LOGIN_URL" ]] \
+  || fail "$LANDING_URL/app no redirige a $APP_LOGIN_URL"
 
 printf '[Carbono Zero healthcheck] Landing y plataforma disponibles.\n'
