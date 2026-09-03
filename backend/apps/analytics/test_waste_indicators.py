@@ -358,3 +358,36 @@ class WasteIndicatorPatchTests(APITestCase):
         sync_waste_indicator_month(self.work, self.start, self.end)
         self.assertEqual(self.latest("masa_valorizada").valor, Decimal("0"))
         self.assertEqual(self.latest("tasa_valorizacion_masa").valor, Decimal("0"))
+
+    def test_moving_last_source_marks_old_period_unavailable_idempotently(self):
+        record = self.waste("1000", "reciclaje")
+        sync_waste_indicator_month(self.work, self.start, self.end)
+        october = timezone.make_aware(datetime(2026, 10, 2, 12, 0))
+
+        response = self.client.patch(
+            self.url(record), {"periodo_inicio": october.isoformat()}, format="json"
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        for series_key in (
+            "masa_generada",
+            "masa_valorizada",
+            "tasa_valorizacion_masa",
+        ):
+            old_value = self.latest(series_key)
+            self.assertEqual(old_value.version, 2)
+            self.assertEqual(old_value.valor, Decimal("0"))
+            self.assertEqual(old_value.metadata["estado"], "sin_fuentes")
+            self.assertFalse(old_value.metadata["disponible"])
+            self.assertEqual(old_value.metadata["cantidad_fuentes"], 0)
+            self.assertEqual(
+                ValorIndicador.objects.filter(
+                    indicador=old_value.indicador,
+                    periodo_inicio=self.start,
+                ).count(),
+                2,
+            )
+
+        sync_waste_indicator_month(self.work, self.start, self.end)
+        self.assertEqual(self.latest("masa_generada").version, 2)
+        self.assertFalse(ImpactoAmbiental.objects.exists())

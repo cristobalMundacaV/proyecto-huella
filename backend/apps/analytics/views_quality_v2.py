@@ -153,7 +153,7 @@ def comparacion_indicador(request, organizacion_id, indicador_id):
     indicator = get_object_or_404(indicator_for_organization(org, indicador_id))
     require_resource_work_access(request.user, org, indicator)
     current = indicator.valores.order_by("-periodo_fin", "-version").first()
-    if not current:
+    if not current or current.metadata.get("disponible") is False:
         return Response({"estado": "sin_base", "calidad_comparacion": "sin_datos"})
     comparable = indicator_comparison_period(indicator, current)
     if comparable:
@@ -171,6 +171,8 @@ def comparacion_indicador(request, organizacion_id, indicador_id):
             .order_by("-periodo_fin", "-version")
             .first()
         )
+    if reference and reference.metadata.get("disponible") is False:
+        reference = None
     return Response(
         compare_values(
             indicator, current.valor, reference.valor if reference else None, comparable

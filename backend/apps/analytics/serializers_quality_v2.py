@@ -216,6 +216,8 @@ class IndicadorSerializer(serializers.ModelSerializer):
 
     def get_valor_actual(self, obj):
         value = obj.valores.order_by("-periodo_fin", "-version").first()
+        if value and value.metadata.get("disponible") is False:
+            return None
         return ValorIndicadorSerializer(value).data if value else None
 
     class Meta:

@@ -211,6 +211,35 @@ def _store_value(work, start, end, series_key, value, metadata):
     )
 
 
+def _mark_unavailable(work, start, end, series_key):
+    series = WASTE_INDICATOR_SERIES[series_key]
+    indicator = IndicadorAmbiental.objects.filter(
+        organizacion=work.organizacion,
+        obra=work,
+        codigo=series["codigo"],
+    ).first()
+    if not indicator or not indicator.valores.filter(
+        periodo_inicio=start, periodo_fin=end
+    ).exists():
+        return None
+    return _store_value(
+        work,
+        start,
+        end,
+        series_key,
+        Decimal("0"),
+        _metadata(
+            work,
+            start,
+            end,
+            series_key,
+            [],
+            disponible=False,
+            estado="sin_fuentes",
+        ),
+    )
+
+
 @transaction.atomic
 def sync_waste_indicator_month(work, start, end):
     sources = _sources_by_dimension(work, start, end)
@@ -284,6 +313,21 @@ def sync_waste_indicator_month(work, start, end):
                     formula=WASTE_INDICATOR_SERIES["tasa_valorizacion_masa"]["formula"],
                 ),
             )
+        else:
+            unavailable = _mark_unavailable(
+                work, start, end, "tasa_valorizacion_masa"
+            )
+            if unavailable:
+                results["tasa_valorizacion_masa"] = unavailable
+    else:
+        for series_key in (
+            "masa_generada",
+            "masa_valorizada",
+            "tasa_valorizacion_masa",
+        ):
+            unavailable = _mark_unavailable(work, start, end, series_key)
+            if unavailable:
+                results[series_key] = unavailable
 
     volume_sources = sources["volumen"]
     if volume_sources:
@@ -299,5 +343,9 @@ def sync_waste_indicator_month(work, start, end):
             volume,
             _metadata(work, start, end, "volumen_generado", volume_sources),
         )
+    else:
+        unavailable = _mark_unavailable(work, start, end, "volumen_generado")
+        if unavailable:
+            results["volumen_generado"] = unavailable
 
     return results
