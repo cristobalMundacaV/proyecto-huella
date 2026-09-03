@@ -7,6 +7,7 @@ HTTP_CONFIG="$REPO_DIR/ops/nginx/carbonozero-http.conf"
 INSTALL_SCRIPT="$REPO_DIR/scripts/install_web_infra.sh"
 RECONCILE_SCRIPT="$REPO_DIR/scripts/reconcile_web_infra.sh"
 DEPLOY_SCRIPT="$REPO_DIR/deploy.sh"
+HEALTHCHECK_SCRIPT="$REPO_DIR/scripts/check_web_endpoints.sh"
 ARCHITECTURE_DOC="$REPO_DIR/docs/architecture/WEB_INFRASTRUCTURE.md"
 README="$REPO_DIR/readme.md"
 
@@ -61,6 +62,8 @@ assert_contains "$RECONCILE_SCRIPT" "trap cleanup EXIT"
 assert_not_contains "$ARCHITECTURE_DOC" "source .env"
 assert_not_contains "$README" "source .env"
 assert_not_contains "$DEPLOY_SCRIPT" "certbot"
+assert_contains "$HEALTHCHECK_SCRIPT" '[[ "$location" == "/login" || "$location" == "$APP_LOGIN_URL" ]]'
+assert_contains "$HEALTHCHECK_SCRIPT" 'APP_LOGIN_URL="${APP_URL%/}/login"'
 
 # La separación landing/app y sus redirecciones continúan siendo contractuales.
 assert_contains "$HTTPS_CONFIG" "server_name carbonozero.mundacasolutions.com;"
