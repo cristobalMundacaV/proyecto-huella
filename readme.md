@@ -90,6 +90,28 @@ docker compose exec backend python manage.py createsuperuser
 docker compose exec backend python manage.py seed_construccion_demo
 ```
 
+## Despliegue web
+
+La infraestructura Nginx es parte del repositorio. La landing pública vive en
+`https://carbonozero.mundacasolutions.com` y la plataforma en
+`https://app.carbonozero.mundacasolutions.com`.
+
+Instalación mínima de un VPS:
+
+```bash
+git clone <repositorio> /home/ubuntu/proyecto-huella
+cd /home/ubuntu/proyecto-huella
+cp .env.example .env
+# completar secretos, hosts, DNS y LETSENCRYPT_EMAIL
+set -a && source .env && set +a
+sudo --preserve-env=LETSENCRYPT_EMAIL bash scripts/install_web_infra.sh
+sudo bash scripts/install_deploy_worker.sh
+bash deploy.sh
+```
+
+La instalación y la migración detalladas están en
+[`docs/architecture/WEB_INFRASTRUCTURE.md`](docs/architecture/WEB_INFRASTRUCTURE.md).
+
 ## Reset de base de datos de desarrollo
 
 Los datos de desarrollo pueden regenerarse desde cero:

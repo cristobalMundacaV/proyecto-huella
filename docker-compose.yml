@@ -32,7 +32,7 @@ services:
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY no definido}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,carbonozero.mundacasolutions.com,backend}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend,carbonozero.mundacasolutions.com,app.carbonozero.mundacasolutions.com}
 
       DATABASE_ENGINE: django.db.backends.postgresql
       DATABASE_NAME: ${DATABASE_NAME:?DATABASE_NAME no definido}
@@ -42,12 +42,13 @@ services:
       DATABASE_PORT: 5432
 
       CORS_ALLOW_ALL_ORIGINS: ${CORS_ALLOW_ALL_ORIGINS:-False}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://carbonozero.mundacasolutions.com}
-      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-https://carbonozero.mundacasolutions.com}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://carbonozero.mundacasolutions.com,https://app.carbonozero.mundacasolutions.com}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-https://carbonozero.mundacasolutions.com,https://app.carbonozero.mundacasolutions.com}
 
       SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-False}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       PUBLIC_FRONTEND_URL: ${PUBLIC_FRONTEND_URL:-https://carbonozero.mundacasolutions.com}
+      FRONTEND_URL: ${FRONTEND_URL:-https://app.carbonozero.mundacasolutions.com}
 
     command: >
       sh -c "

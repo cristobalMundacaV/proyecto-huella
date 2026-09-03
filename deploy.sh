@@ -5,7 +5,8 @@ APP_DIR="${APP_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 FRONTEND_DIR="${FRONTEND_DIR:-$APP_DIR/frontend}"
 WEB_ROOT="${WEB_ROOT:-/var/www/carbonozero}"
 BRANCH="${BRANCH:-main}"
-PUBLIC_URL="${PUBLIC_URL:-https://carbonozero.mundacasolutions.com}"
+LANDING_URL="${LANDING_URL:-https://carbonozero.mundacasolutions.com}"
+APP_URL="${APP_URL:-https://app.carbonozero.mundacasolutions.com}"
 SKIP_GIT_UPDATE="${SKIP_GIT_UPDATE:-0}"
 
 log() {
@@ -82,15 +83,13 @@ sudo mkdir -p "$WEB_ROOT"
 # no queden apuntando a chunks eliminados durante un despliegue.
 sudo rsync -a dist/ "$WEB_ROOT/"
 
-log "Validando y recargando Nginx"
-sudo nginx -t
-sudo systemctl reload nginx
+log "Reconciliando Nginx desde la configuración versionada"
+sudo env APP_DIR="$APP_DIR" bash "$APP_DIR/scripts/reconcile_web_infra.sh"
 
 log "Comprobando servicios"
 docker compose ps
-curl -fsS -o /dev/null --max-time 20 "$PUBLIC_URL/"
-curl -fsS -o /dev/null --max-time 20 "$PUBLIC_URL/app"
+LANDING_URL="$LANDING_URL" APP_URL="$APP_URL" bash "$APP_DIR/scripts/check_web_endpoints.sh"
 
 log "Deploy completado correctamente: $DEPLOY_SHA"
-printf 'Landing: %s\n' "$PUBLIC_URL"
-printf 'Plataforma: %s/app\n' "$PUBLIC_URL"
+printf 'Landing: %s\n' "$LANDING_URL"
+printf 'Plataforma: %s\n' "$APP_URL"

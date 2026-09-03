@@ -30,10 +30,12 @@ import {
   Zap,
 } from "lucide-react";
 import "./carbono-zero-landing.css";
+import { resolveAppLoginUrl } from "./landingConfig";
 
 const whatsappBase = "https://wa.me/56966635509";
 const email = "cristobal.mundacav@gmail.com";
 const logoUrl = "https://mundacasolutions.com/logos/carbono-zero/logo-carbono-zero.png";
+const appLoginUrl = resolveAppLoginUrl(import.meta.env.VITE_APP_URL);
 
 const problems = [
   {
@@ -204,7 +206,7 @@ function Header() {
         </nav>
 
         <div className="cz-header-actions">
-          <a className="cz-header-login" href="/app">Ingresar</a>
+          <a className="cz-header-login" href={appLoginUrl}>Ingresar</a>
           <a className="cz-button cz-button-primary cz-header-cta" href="#contacto">
             Solicitar demo <ArrowRight size={16} />
           </a>
@@ -653,7 +655,7 @@ export default function CarbonoZeroLanding() {
           </div>
           <nav><strong>Plataforma</strong><a href="#plataforma">Capacidades</a><a href="#sectores">Sectores</a><a href="#inteligencia">Copiloto ambiental</a></nav>
           <nav><strong>Contacto</strong><a href="#contacto">Solicitar demo</a><a href={`${whatsappBase}?text=${encodeURIComponent("Hola, quiero conocer Carbono Zero.")}`} target="_blank" rel="noreferrer">WhatsApp</a><a href={`mailto:${email}`}>{email}</a></nav>
-          <nav><strong>Acceso</strong><a href="/app">Ingresar a plataforma</a><a href="https://mundacasolutions.com" target="_blank" rel="noreferrer">Mundaca&apos;s Solutions</a></nav>
+          <nav><strong>Acceso</strong><a href={appLoginUrl}>Ingresar a plataforma</a><a href="https://mundacasolutions.com" target="_blank" rel="noreferrer">Mundaca&apos;s Solutions</a></nav>
         </div>
         <div className="cz-container cz-footer-bottom"><span>© {new Date().getFullYear()} Carbono Zero.</span><span>Un producto de Mundaca&apos;s Solutions SpA · Los Ángeles, Chile</span></div>
       </footer>
