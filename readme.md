@@ -103,8 +103,7 @@ git clone <repositorio> /home/ubuntu/proyecto-huella
 cd /home/ubuntu/proyecto-huella
 cp .env.example .env
 # completar secretos, hosts, DNS y LETSENCRYPT_EMAIL
-set -a && source .env && set +a
-sudo --preserve-env=LETSENCRYPT_EMAIL bash scripts/install_web_infra.sh
+sudo bash scripts/install_web_infra.sh
 sudo bash scripts/install_deploy_worker.sh
 bash deploy.sh
 ```

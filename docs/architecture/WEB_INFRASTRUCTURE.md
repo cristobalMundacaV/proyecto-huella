@@ -22,13 +22,10 @@ Las reglas viven en `ops/nginx/`. Certbot sólo obtiene certificados; nunca modi
    cp .env.example .env
    ```
 
-4. Completar secretos y `LETSENCRYPT_EMAIL` en `.env`, cargar las variables y provisionar web:
+4. Completar secretos y `LETSENCRYPT_EMAIL` en `.env`, y provisionar web:
 
    ```bash
-   set -a
-   source .env
-   set +a
-   sudo --preserve-env=LETSENCRYPT_EMAIL bash scripts/install_web_infra.sh
+   sudo bash scripts/install_web_infra.sh
    ```
 
 5. Instalar el worker y desplegar:
@@ -48,10 +45,7 @@ El instalador crea los webroots, activa primero HTTP para ACME, solicita o expan
 
    ```bash
    cd /home/ubuntu/proyecto-huella
-   set -a
-   source .env
-   set +a
-   sudo --preserve-env=LETSENCRYPT_EMAIL bash scripts/install_web_infra.sh
+   sudo bash scripts/install_web_infra.sh
    bash deploy.sh
    ```
 
@@ -61,7 +55,7 @@ El instalador crea los webroots, activa primero HTTP para ACME, solicita o expan
    bash scripts/check_web_endpoints.sh
    ```
 
-Los despliegues posteriores llaman `scripts/reconcile_web_infra.sh` automáticamente. Esa reconciliación copia la configuración desde Git, garantiza el symlink, valida con `nginx -t` y recarga Nginx; no ejecuta Certbot ni altera otros virtual hosts.
+Los despliegues posteriores llaman `scripts/reconcile_web_infra.sh` automáticamente. Esa reconciliación copia la configuración desde Git, garantiza el symlink, valida con `nginx -t` y recarga Nginx; no ejecuta Certbot ni altera otros virtual hosts. Tanto la instalación como la reconciliación restauran automáticamente el archivo y enlace anteriores si falla la validación, Certbot o la recarga.
 
 ## Operación
 
