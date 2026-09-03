@@ -117,7 +117,6 @@ export default function AppRouter() {
         <Route path="onboarding" element={<OnboardingPage />} />
         <Route path="saas" element={<RequireSuperuser><SaaSLayout /></RequireSuperuser>}><Route index element={<SaaSDashboardPage />} /><Route path="organizaciones" element={<SaaSOrganizationsPage />} /><Route path="auditoria" element={<SaaSAuditPage />} /></Route>
         <Route element={<RequireOrganization />}><Route element={<RequireOnboardingComplete />}><Route element={<RequireOperationalWorkspace />}><Route element={<AuthenticatedLayout />}>
-          <Route index element={<Navigate to="/inicio" replace />} />
           <Route path="inicio" element={<ContextualHome />} />
           <Route path="perfil/seguridad" element={<SecurityPage />} />
           <Route path="obras" element={<ObrasPage />} />
