@@ -246,12 +246,58 @@ class EnvironmentalFactorCandidate(models.Model):
     )
 
 
+class EnvironmentalFactorReconciliation(models.Model):
+    class Status(models.TextChoices):
+        PREPARED = "preparado", "Preparado"
+        SWITCHED = "cambiado", "Cambiado"
+
+    candidate = models.OneToOneField(
+        EnvironmentalFactorCandidate,
+        on_delete=models.PROTECT,
+        related_name="reconciliation",
+    )
+    factor = models.ForeignKey(
+        FactorAmbiental, on_delete=models.PROTECT, related_name="reconciliations"
+    )
+    legacy_version = models.ForeignKey(
+        VersionFactorAmbiental,
+        on_delete=models.PROTECT,
+        related_name="legacy_reconciliations",
+    )
+    replacement_version = models.ForeignKey(
+        VersionFactorAmbiental,
+        on_delete=models.PROTECT,
+        related_name="replacement_reconciliations",
+    )
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PREPARED
+    )
+    source_artifact_sha = models.CharField(max_length=64)
+    comparison = models.JSONField(default=dict)
+    prepared_by = models.ForeignKey(
+        User, on_delete=models.PROTECT, related_name="factor_reconciliations_prepared"
+    )
+    prepared_at = models.DateTimeField(auto_now_add=True)
+    switched_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="factor_reconciliations_switched",
+    )
+    switched_at = models.DateTimeField(null=True, blank=True)
+    note = models.TextField(blank=True)
+
+
 class FormulaAmbiental(models.Model):
     class Tipo(models.TextChoices):
         TRANSPORTE_TKM = "transporte_tkm", "Masa x distancia x factor"
         TRANSPORTE_VEHICULO_KM = "transporte_vehiculo_km", "Distancia x factor vehiculo"
         TRANSPORTE_COMBUSTIBLE = "transporte_combustible", "Combustible x factor"
-        COMBUSTIBLE_CONSUMIDO = "combustible_consumido", "Combustible consumido x factor"
+        COMBUSTIBLE_CONSUMIDO = (
+            "combustible_consumido",
+            "Combustible consumido x factor",
+        )
         ENERGIA_CONSUMIDA = "energia_consumida", "Energia consumida x factor"
         MATERIAL_CANTIDAD = "material_cantidad", "Cantidad de material x factor"
 

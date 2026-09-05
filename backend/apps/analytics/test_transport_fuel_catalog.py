@@ -33,6 +33,19 @@ from .services.system_environmental_catalog import (
 class TransportFuelCatalogTests(TestCase):
     def setUp(self):
         ensure_system_environmental_catalog()
+        factor = FactorAmbiental.objects.get(
+            codigo="huellachile-combustion-movil-diesel"
+        )
+        if not factor.versiones.filter(
+            estado=VersionFactorAmbiental.Estado.ACTIVO
+        ).exists():
+            VersionFactorAmbiental.objects.create(
+                factor=factor,
+                version=1,
+                valor=Decimal("2.74"),
+                fuente="Fixture gobernado",
+                estado=VersionFactorAmbiental.Estado.ACTIVO,
+            )
         self.organization = Organizacion.objects.create(nombre="Transporte catalogo")
         self.work = Obra.objects.create(
             organizacion=self.organization,
@@ -111,7 +124,9 @@ class TransportFuelCatalogTests(TestCase):
         self.assertEqual(calculation.resultado, Decimal("0.03288"))
         self.assertEqual(CalculoAmbiental.objects.filter(actividad=activity).count(), 1)
         snapshot = calculation.snapshot_tecnico
-        self.assertEqual(snapshot["metodologia_codigo"], TRANSPORT_FUEL_METHODOLOGY_CODE)
+        self.assertEqual(
+            snapshot["metodologia_codigo"], TRANSPORT_FUEL_METHODOLOGY_CODE
+        )
         self.assertEqual(snapshot["factor_valor"], "2.7400000000")
         self.assertEqual(snapshot["inputs"][0]["valor_original"], "12.000000")
         self.assertEqual(snapshot["inputs"][0]["unidad_original"], "L")
@@ -126,7 +141,11 @@ class TransportFuelCatalogTests(TestCase):
             categoria="combustion_movil",
             unidad_entrada="m3",
             unidad_resultado="tCO2e",
-            contexto={"alcance": 1, "categoria_huella": "combustion_movil", "combustible": "diesel"},
+            contexto={
+                "alcance": 1,
+                "categoria_huella": "combustion_movil",
+                "combustible": "diesel",
+            },
         )
         tenant_version = VersionFactorAmbiental.objects.create(
             factor=factor,
@@ -144,7 +163,10 @@ class TransportFuelCatalogTests(TestCase):
         self.assertEqual(calculation.resultado, Decimal("0.036"))
 
     def test_missing_or_unknown_vehicle_fuel_is_not_calculable(self):
-        for fuel, expected in (("", "no informa combustible"), ("gasolina", "gasolina")):
+        for fuel, expected in (
+            ("", "no informa combustible"),
+            ("gasolina", "gasolina"),
+        ):
             activity = self.journey_activity(fuel=fuel)
             selection = select_methodology(activity)
             self.assertIsNone(selection["seleccion"])

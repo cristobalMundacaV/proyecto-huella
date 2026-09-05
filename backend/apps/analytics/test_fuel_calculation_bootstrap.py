@@ -68,6 +68,25 @@ class FuelCalculationBootstrapTests(TestCase):
         )
         return activity
 
+    def provision_test_fuel_versions(self):
+        values = {
+            ("combustion_estacionaria", "diesel"): Decimal("2.71"),
+            ("combustion_movil", "diesel"): Decimal("2.74"),
+        }
+        for (category, fuel), value in values.items():
+            factor = FactorAmbiental.objects.get(
+                contexto__categoria_huella=category,
+                contexto__combustible=fuel,
+            )
+            VersionFactorAmbiental.objects.create(
+                factor=factor,
+                version=1,
+                valor=value,
+                fuente="Fixture gobernado",
+                referencia="Valor aislado para regresión Calculation V2",
+                estado=VersionFactorAmbiental.Estado.ACTIVO,
+            )
+
     def test_system_provisions_catalog_and_governed_methodology(self):
         self.assertEqual(
             FactorAmbiental.objects.filter(codigo__startswith="huellachile-").count(),
@@ -79,7 +98,9 @@ class FuelCalculationBootstrapTests(TestCase):
         self.assertEqual(version.estado, VersionMetodologia.Estado.ACTIVA)
         self.assertTrue(version.fuente_referencia)
         self.assertEqual(version.prioridad, 10)
-        self.assertEqual(version.formula.tipo, FormulaAmbiental.Tipo.COMBUSTIBLE_CONSUMIDO)
+        self.assertEqual(
+            version.formula.tipo, FormulaAmbiental.Tipo.COMBUSTIBLE_CONSUMIDO
+        )
         self.assertIsNone(version.formula.factor_ambiental_id)
         variable = version.formula.variables.get()
         self.assertEqual(variable.clave, "combustible_consumido")
@@ -112,6 +133,7 @@ class FuelCalculationBootstrapTests(TestCase):
 
     def test_stationary_diesel_e2e_is_automatic_normalized_and_traceable(self):
         self.bootstrap()
+        self.provision_test_fuel_versions()
         activity = self.activity(
             pk=777,
             flow=RegistroFlujoAmbiental.Flujo.COMBUSTIBLE_ESTACIONARIO,
@@ -127,7 +149,9 @@ class FuelCalculationBootstrapTests(TestCase):
             METHODOLOGY_CODE,
         )
         self.assertEqual(
-            selection["seleccion"]["elegibilidad"]["clasificacion_combustible"]["categoria"],
+            selection["seleccion"]["elegibilidad"]["clasificacion_combustible"][
+                "categoria"
+            ],
             "combustion_estacionaria",
         )
         self.assertNotIn(
@@ -145,9 +169,11 @@ class FuelCalculationBootstrapTests(TestCase):
         snapshot = calculation.snapshot_tecnico
         self.assertEqual(snapshot["metodologia_codigo"], METHODOLOGY_CODE)
         self.assertEqual(snapshot["metodologia_version"], 1)
-        self.assertEqual(snapshot["factor_codigo"], calculation.version_factor.factor.codigo)
+        self.assertEqual(
+            snapshot["factor_codigo"], calculation.version_factor.factor.codigo
+        )
         self.assertEqual(snapshot["factor_valor"], "2.7100000000")
-        self.assertIn("HuellaChile", snapshot["factor_fuente"])
+        self.assertEqual(snapshot["factor_fuente"], "Fixture gobernado")
         self.assertTrue(snapshot["factor_referencia"])
         self.assertEqual(Decimal(snapshot["resultado"]), Decimal("0.6775"))
         input_snapshot = snapshot["inputs"][0]
@@ -161,6 +187,7 @@ class FuelCalculationBootstrapTests(TestCase):
 
     def test_mobile_fuel_keeps_dynamic_mobile_factor_selection(self):
         self.bootstrap()
+        self.provision_test_fuel_versions()
         activity = self.activity(
             pk=778,
             flow=RegistroFlujoAmbiental.Flujo.COMBUSTIBLE_MOVIL,

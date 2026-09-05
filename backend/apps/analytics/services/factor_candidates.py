@@ -83,6 +83,7 @@ def candidate_provenance(fact):
         "dataset_year": fact.dataset_year,
         "sheet": fact.sheet_name,
         "source_row_number": fact.source_row_number,
+        "row": fact.source_row_number,
         "external_record_id": artifact.parent_record_id,
         "external_activity": fact.actividad,
         "external_category": fact.categoria,

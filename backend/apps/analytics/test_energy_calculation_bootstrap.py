@@ -33,9 +33,27 @@ class EnergyCalculationBootstrapTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         call_command("bootstrap_calculation_v2", stdout=StringIO())
+        factor = FactorAmbiental.objects.get(codigo=ENERGY_FACTOR_CODE)
+        VersionFactorAmbiental.objects.create(
+            factor=factor,
+            version=1,
+            valor=Decimal("0.2466"),
+            fuente="Programa HuellaChile / Ministerio del Medio Ambiente",
+            referencia="factor oficial 2025",
+            region="Chile",
+            vigencia_desde=date(2026, 1, 1),
+            contexto={
+                **factor.contexto,
+                "factor_year": 2025,
+                "fuente_original": "Ministerio de Energia",
+            },
+            estado=VersionFactorAmbiental.Estado.ACTIVO,
+        )
 
     def setUp(self):
-        self.organization = Organizacion.objects.create(nombre="Construccion energia E2E")
+        self.organization = Organizacion.objects.create(
+            nombre="Construccion energia E2E"
+        )
         self.work = Obra.objects.create(
             organizacion=self.organization,
             nombre="Edificio Parque Norte",
@@ -157,7 +175,9 @@ class EnergyCalculationBootstrapTests(TestCase):
             vigencia_desde=date(2027, 1, 1),
             estado=VersionFactorAmbiental.Estado.ACTIVO,
         )
-        calculation, _ = calculate_activity(self.energy_activity(code="energy-historic"))
+        calculation, _ = calculate_activity(
+            self.energy_activity(code="energy-historic")
+        )
         self.assertNotEqual(calculation.version_factor_id, future.id)
         self.assertEqual(calculation.version_factor.version, 1)
         self.assertEqual(calculation.resultado, Decimal("0.2466"))

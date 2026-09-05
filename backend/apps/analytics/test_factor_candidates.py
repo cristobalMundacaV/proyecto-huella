@@ -252,6 +252,13 @@ class FactorCandidateTests(TestCase):
         legacy = FactorAmbiental.objects.get(
             codigo="sen-electricidad-red-location-based-2025"
         )
+        VersionFactorAmbiental.objects.create(
+            factor=legacy,
+            version=1,
+            valor=Decimal("0.2466"),
+            fuente="legacy",
+            estado=VersionFactorAmbiental.Estado.ACTIVO,
+        )
         duplicate = FactorAmbiental.objects.create(
             codigo="sen-duplicate",
             nombre="SEN duplicate",

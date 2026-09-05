@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from django.apps import apps
 from django.core.exceptions import ImproperlyConfigured
-from django.core.management import call_command
+from django.core.management import call_command, CommandError
 from django.db.models.signals import post_migrate
 from django.test import TestCase
 from django.utils import timezone
@@ -38,7 +38,9 @@ class SystemEnvironmentalCatalogTests(TestCase):
         self.timestamp = timezone.make_aware(datetime(2026, 9, 11, 10, 0))
 
     def _tenant_context(self):
-        organization = Organizacion.objects.create(nombre="Tenant posterior al catalogo")
+        organization = Organizacion.objects.create(
+            nombre="Tenant posterior al catalogo"
+        )
         work = Obra.objects.create(
             organizacion=organization,
             nombre="Obra catalogo nativo",
@@ -108,6 +110,21 @@ class SystemEnvironmentalCatalogTests(TestCase):
             ).exists()
         )
         self.assertEqual(
+            VersionFactorAmbiental.objects.filter(
+                factor__organizacion__isnull=True,
+                factor__codigo__in=[
+                    "huellachile-combustion-estacionaria-glp",
+                    "huellachile-combustion-estacionaria-gas-natural",
+                    "huellachile-combustion-estacionaria-diesel",
+                    "huellachile-combustion-movil-glp",
+                    "huellachile-combustion-movil-gas-natural",
+                    "huellachile-combustion-movil-diesel",
+                    ENERGY_FACTOR_CODE,
+                ],
+            ).count(),
+            0,
+        )
+        self.assertEqual(
             set(
                 MetodologiaAmbiental.objects.filter(
                     organizacion__isnull=True,
@@ -146,27 +163,28 @@ class SystemEnvironmentalCatalogTests(TestCase):
             ),
         )
 
-    def test_tenant_created_later_calculates_fuel_and_energy_without_commands(self):
+    def test_tenant_created_later_is_not_calculable_without_governed_versions(self):
         organization, work, source = self._tenant_context()
-        fuel, _ = calculate_activity(
-            self._activity(organization, work, source, energy=False)
-        )
-        energy, _ = calculate_activity(
-            self._activity(organization, work, source, energy=True)
-        )
-        self.assertEqual(fuel.resultado, Decimal("0.6775"))
-        self.assertEqual(energy.resultado, Decimal("0.2466"))
-        self.assertIsNone(fuel.version_factor.factor.organizacion_id)
-        self.assertIsNone(energy.version_factor.factor.organizacion_id)
+        with self.assertRaises(ValueError):
+            calculate_activity(self._activity(organization, work, source, energy=False))
+        with self.assertRaises(ValueError):
+            calculate_activity(self._activity(organization, work, source, energy=True))
 
     def test_new_factor_version_does_not_change_historical_version_or_calculation(self):
         organization, work, source = self._tenant_context()
+        factor = FactorAmbiental.objects.get(codigo=ENERGY_FACTOR_CODE)
+        historical = VersionFactorAmbiental.objects.create(
+            factor=factor,
+            version=1,
+            valor=Decimal("0.2466"),
+            fuente="Legacy",
+            referencia="Legacy",
+            estado=VersionFactorAmbiental.Estado.ACTIVO,
+        )
         calculation, _ = calculate_activity(
             self._activity(organization, work, source, energy=True)
         )
-        historical = calculation.version_factor
         historical_snapshot = calculation.snapshot_tecnico.copy()
-        factor = historical.factor
 
         future = VersionFactorAmbiental.objects.create(
             factor=factor,
@@ -183,24 +201,22 @@ class SystemEnvironmentalCatalogTests(TestCase):
         historical.refresh_from_db()
         calculation.refresh_from_db()
         self.assertEqual(historical.valor, Decimal("0.2466"))
-        self.assertEqual(historical.contexto["factor_year"], 2025)
         self.assertEqual(calculation.version_factor_id, historical.id)
         self.assertEqual(calculation.snapshot_tecnico, historical_snapshot)
         self.assertNotEqual(future.id, historical.id)
 
     def test_incompatible_global_contract_is_not_overwritten(self):
         factor = FactorAmbiental.objects.get(codigo=ENERGY_FACTOR_CODE)
-        original_version = factor.versiones.get(version=1)
-        FactorAmbiental.objects.filter(pk=factor.pk).update(nombre="Contrato incompatible")
+        FactorAmbiental.objects.filter(pk=factor.pk).update(categoria="incompatible")
 
-        with self.assertRaisesRegex(ImproperlyConfigured, "Contrato global incompatible"):
+        with self.assertRaisesRegex(
+            ImproperlyConfigured, "Contrato global incompatible"
+        ):
             ensure_system_environmental_catalog()
 
         factor.refresh_from_db()
-        original_version.refresh_from_db()
-        self.assertEqual(factor.nombre, "Contrato incompatible")
-        self.assertEqual(original_version.valor, Decimal("0.2466"))
-        self.assertEqual(factor.versiones.count(), 1)
+        self.assertEqual(factor.categoria, "incompatible")
+        self.assertEqual(factor.versiones.count(), 0)
 
     def test_commands_are_wrappers_over_catalog_services(self):
         result = {
@@ -214,12 +230,8 @@ class SystemEnvironmentalCatalogTests(TestCase):
         ) as ensure:
             call_command("bootstrap_calculation_v2", stdout=StringIO())
         ensure.assert_called_once_with()
-        with patch(
-            "apps.analytics.management.commands.import_huellachile_factors.ensure_huellachile_factor_catalog",
-            return_value=[object()] * 6,
-        ) as ensure_fuels:
+        with self.assertRaises(CommandError):
             call_command("import_huellachile_factors", stdout=StringIO())
-        ensure_fuels.assert_called_once_with()
 
     def test_app_ready_only_connects_signal_and_performs_no_provisioning(self):
         config = apps.get_app_config("analytics")

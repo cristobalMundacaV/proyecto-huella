@@ -1,9 +1,7 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from io import StringIO
 from unittest.mock import patch
 
-from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
 
@@ -21,7 +19,6 @@ from .models import (
 from .services.eligibility_v2 import evaluate_formula
 from .services.fuel_factor_selector import select_fuel_factor
 
-
 STATIONARY = {
     "estado": "clasificado",
     "categoria": "combustion_estacionaria",
@@ -33,7 +30,29 @@ class FuelFactorSelectorTests(TestCase):
     def setUp(self):
         self.organization = Organizacion.objects.create(nombre="Tenant factores")
         self.other = Organizacion.objects.create(nombre="Otro tenant")
-        call_command("import_huellachile_factors", stdout=StringIO())
+        values = {
+            ("combustion_estacionaria", "glp"): "1.59",
+            ("combustion_estacionaria", "gas_natural"): "1.98",
+            ("combustion_estacionaria", "diesel"): "2.71",
+            ("combustion_movil", "glp"): "1.72",
+            ("combustion_movil", "gas_natural"): "2.09",
+            ("combustion_movil", "diesel"): "2.74",
+        }
+        for factor in FactorAmbiental.objects.filter(codigo__startswith="huellachile-"):
+            VersionFactorAmbiental.objects.create(
+                factor=factor,
+                version=1,
+                valor=Decimal(
+                    values[
+                        (
+                            factor.contexto["categoria_huella"],
+                            factor.contexto["combustible"],
+                        )
+                    ]
+                ),
+                fuente="Fixture gobernado",
+                estado=VersionFactorAmbiental.Estado.ACTIVO,
+            )
         self.activity_date = date(2025, 3, 1)
 
     def select(self, classification=STATIONARY, fuel="diesel", unit="m3", on_date=None):
@@ -67,12 +86,16 @@ class FuelFactorSelectorTests(TestCase):
             categoria=category,
             unidad_entrada=unit,
             unidad_resultado="tCO2e",
-            contexto={
-                "proveedor": "Tenant",
-                "alcance": 1,
-                "categoria_huella": category,
-                "combustible": fuel,
-            } if metadata else {},
+            contexto=(
+                {
+                    "proveedor": "Tenant",
+                    "alcance": 1,
+                    "categoria_huella": category,
+                    "combustible": fuel,
+                }
+                if metadata
+                else {}
+            ),
         )
         return VersionFactorAmbiental.objects.create(
             factor=factor,
@@ -177,10 +200,14 @@ class FuelFactorSelectorTests(TestCase):
 
         self.assertEqual(selection["origen"], "huellachile")
         candidate = next(
-            item for item in selection["candidatos"] if item["version_id"] == incomplete.id
+            item
+            for item in selection["candidatos"]
+            if item["version_id"] == incomplete.id
         )
         self.assertEqual(candidate["estado"], "descartado")
-        self.assertTrue(any("metadata obligatoria" in reason for reason in candidate["motivos"]))
+        self.assertTrue(
+            any("metadata obligatoria" in reason for reason in candidate["motivos"])
+        )
 
     def test_tenant_with_incompatible_unit_is_discarded(self):
         incompatible = self.tenant_factor(unit="kg")
@@ -189,9 +216,13 @@ class FuelFactorSelectorTests(TestCase):
 
         self.assertEqual(selection["origen"], "huellachile")
         candidate = next(
-            item for item in selection["candidatos"] if item["version_id"] == incompatible.id
+            item
+            for item in selection["candidatos"]
+            if item["version_id"] == incompatible.id
         )
-        self.assertTrue(any("Unidad incompatible" in reason for reason in candidate["motivos"]))
+        self.assertTrue(
+            any("Unidad incompatible" in reason for reason in candidate["motivos"])
+        )
 
     def test_factor_valid_today_but_not_on_activity_date_is_discarded(self):
         future = self.tenant_factor(valid_from=date(2026, 1, 1))
@@ -202,7 +233,9 @@ class FuelFactorSelectorTests(TestCase):
         candidate = next(
             item for item in selection["candidatos"] if item["version_id"] == future.id
         )
-        self.assertTrue(any("aún no estaba vigente" in reason for reason in candidate["motivos"]))
+        self.assertTrue(
+            any("aún no estaba vigente" in reason for reason in candidate["motivos"])
+        )
 
     def test_historical_factor_valid_on_activity_date_is_selected(self):
         historical = self.tenant_factor(valid_to=date(2025, 12, 31))
@@ -266,7 +299,9 @@ class FuelFactorSelectorTests(TestCase):
         by_version = {item["version_id"]: item for item in selection["candidatos"]}
         self.assertEqual(by_version[selected.id]["estado"], "aplicable")
         self.assertEqual(by_version[discarded.id]["estado"], "descartado")
-        self.assertIn("El combustible no coincide.", by_version[discarded.id]["motivos"])
+        self.assertIn(
+            "El combustible no coincide.", by_version[discarded.id]["motivos"]
+        )
 
     def test_eligibility_uses_activity_timestamp_and_required_input_unit(self):
         timestamp = timezone.make_aware(

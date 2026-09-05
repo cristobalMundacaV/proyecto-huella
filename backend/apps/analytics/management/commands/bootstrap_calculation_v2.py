@@ -4,7 +4,6 @@ from ...services.system_environmental_catalog import (
     ENERGY_FACTOR_CODE,
     ENERGY_METHODOLOGY_CODE,
     ENERGY_REFERENCE,
-    ENERGY_SOURCE,
     FUEL_METHODOLOGY_CODE as METHODOLOGY_CODE,
     SYSTEM_ENVIRONMENTAL_CATALOG_VERSION,
     ensure_system_environmental_catalog,
