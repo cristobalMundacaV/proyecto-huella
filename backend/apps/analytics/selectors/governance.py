@@ -5,6 +5,7 @@ from ..models import (
     MetodologiaAmbiental,
     RevisionProfesionalAmbiental,
     VersionMetodologia,
+    VersionFactorAmbiental,
 )
 
 
@@ -45,6 +46,13 @@ def factors_for_organization(organization):
     return FactorAmbiental.objects.filter(
         Q(organizacion=organization) | Q(organizacion__isnull=True)
     ).prefetch_related("versiones")
+
+
+def factor_version_for_organization(organization, factor_id, version_id, *, tenant_only=False):
+    scope = Q(factor__organizacion=organization)
+    if not tenant_only:
+        scope |= Q(factor__organizacion__isnull=True)
+    return VersionFactorAmbiental.objects.filter(scope, factor_id=factor_id, id=version_id)
 
 
 def professional_review_for_organization(organization, review_id):

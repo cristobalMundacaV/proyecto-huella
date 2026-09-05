@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from .models import (
     FormulaAmbiental,
+    MaterialOperacional,
     Organizacion,
 )
 from .permissions import (
@@ -31,12 +32,15 @@ from .selectors.calculation import (
 from .selectors.governance import (
     factor_for_organization,
     factors_for_organization,
+    factor_version_for_organization,
     methodologies_for_organization,
     methodology_for_organization,
     methodology_version_for_organization,
     professional_review_for_organization,
 )
 from .services.calculation_v2 import calculate_activity, recalculate
+from .services.factor_governance import (create_factor_version,
+    create_private_material_factor, transition_factor_version)
 from .services.methodology_governance import (
     create_formula_variable,
     create_methodology_version,
@@ -255,13 +259,49 @@ def metodologia_variables(
     return Response(serializer.data)
 
 
-@api_view(["GET"])
+@api_view(["GET", "POST"])
 def factores_ambientales(request, organizacion_id):
-    org = _org(request, organizacion_id, Permission.FACTOR_VIEW)
+    permission = Permission.FACTOR_VIEW if request.method == "GET" else Permission.FACTOR_CUSTOM_CREATE
+    org = _org(request, organizacion_id, permission)
     if not org:
         return Response({"detail": "Recurso no encontrado."}, status=404)
-    queryset = factors_for_organization(org)
-    return Response(FactorAmbientalSerializer(queryset, many=True).data)
+    if request.method == "GET":
+        queryset = factors_for_organization(org)
+        return Response(FactorAmbientalSerializer(queryset, many=True).data)
+    material = get_object_or_404(MaterialOperacional, organizacion=org, id=request.data.get("material"))
+    try:
+        factor = create_private_material_factor(org, material, request.data)
+    except DjangoValidationError as exc:
+        return Response(getattr(exc, "message_dict", {"detail": exc.messages}), status=400)
+    return Response(FactorAmbientalSerializer(factor).data, status=201)
+
+
+@api_view(["POST"])
+def factor_versions(request, organizacion_id, factor_id):
+    org = _org(request, organizacion_id, Permission.FACTOR_CUSTOM_CREATE)
+    if not org: return Response({"detail": "Recurso no encontrado."}, status=404)
+    factor = get_object_or_404(factor_for_organization(org, factor_id), organizacion=org)
+    try: version = create_factor_version(factor, request.data)
+    except DjangoValidationError as exc: return Response(getattr(exc, "message_dict", {"detail": exc.messages}), status=400)
+    return Response(VersionFactorSerializer(version).data, status=201)
+
+
+@api_view(["GET"])
+def factor_version_detail(request, organizacion_id, factor_id, version_id):
+    org = _org(request, organizacion_id, Permission.FACTOR_VIEW)
+    if not org: return Response({"detail": "Recurso no encontrado."}, status=404)
+    version = get_object_or_404(factor_version_for_organization(org, factor_id, version_id))
+    return Response(VersionFactorSerializer(version).data)
+
+
+@api_view(["POST"])
+def factor_version_transition(request, organizacion_id, factor_id, version_id):
+    org = _org(request, organizacion_id, Permission.FACTOR_CUSTOM_REVIEW)
+    if not org: return Response({"detail": "Recurso no encontrado."}, status=404)
+    version = get_object_or_404(factor_version_for_organization(org, factor_id, version_id, tenant_only=True))
+    try: transition_factor_version(version, request.data.get("estado"))
+    except DjangoValidationError as exc: return Response({"detail": exc.messages}, status=400)
+    return Response(VersionFactorSerializer(version).data)
 
 
 @api_view(["GET"])

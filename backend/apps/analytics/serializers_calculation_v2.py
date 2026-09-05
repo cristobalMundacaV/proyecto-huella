@@ -113,6 +113,7 @@ class VersionFactorSerializer(serializers.ModelSerializer):
             "vigencia_desde",
             "vigencia_hasta",
             "estado",
+            "contexto",
             "created_at",
         ]
 

@@ -112,6 +112,9 @@ export async function getIotUltimasLecturas(id) { return (await api.get("/iot/le
 export async function getFactoresEmision(params = {}) { return (await api.get("/factores-emision/", { params })).data; }
 export async function getMetodologiasAmbientales(id) { return (await api.get(organizacionPath(id, "/metodologias/"))).data; }
 export async function getFactoresAmbientalesV2(id) { return (await api.get(organizacionPath(id, "/factores-ambientales/"))).data; }
+export async function createFactorAmbientalV2(id, payload) { return (await api.post(organizacionPath(id, "/factores-ambientales/"), payload)).data; }
+export async function createFactorVersionV2(id, factorId, payload) { return (await api.post(organizacionPath(id, `/factores-ambientales/${factorId}/versiones/`), payload)).data; }
+export async function transitionFactorVersionV2(id, factorId, versionId, estado) { return (await api.post(organizacionPath(id, `/factores-ambientales/${factorId}/versiones/${versionId}/transicion/`), { estado })).data; }
 export async function createVersionMetodologia(id, metodologiaId, payload) { return (await api.post(organizacionPath(id, `/metodologias/${encodeURIComponent(metodologiaId)}/`), payload)).data; }
 export async function transitionVersionMetodologia(id, metodologiaId, versionId, estado) { return (await api.post(organizacionPath(id, `/metodologias/${encodeURIComponent(metodologiaId)}/versiones/${encodeURIComponent(versionId)}/transicion/`), { estado })).data; }
 export async function getMaterialesConstruccion() { return (await api.get("/materiales-construccion/")).data; }
