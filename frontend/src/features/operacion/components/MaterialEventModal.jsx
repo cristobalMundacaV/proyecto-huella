@@ -26,20 +26,20 @@ function MaterialCreateModal({ open, onClose, organizationId, onCreated, onError
             const created = await createOperationalMaterial(organizationId, operationalMaterialPayload(form));
             await onCreated(created); onClose();
         } catch (requestError) {
-            const message = humanizeApiError(requestError, "No fue posible crear el material. Revisa los datos e intÃ©ntalo nuevamente.");
+            const message = humanizeApiError(requestError, "No fue posible crear el material. Revisa los datos e inténtalo nuevamente.");
             setError(message); onError(message);
         } finally { setSaving(false); }
     }
-    return <Modal open={open} onClose={onClose} eyebrow="CATÃLOGO OPERACIONAL" icon={PackagePlus} title="Crear nuevo material" description="Define el material una vez para reutilizarlo en los movimientos de la organizaciÃ³n.">
+    return <Modal open={open} onClose={onClose} eyebrow="CATÁLOGO OPERACIONAL" icon={PackagePlus} title="Crear nuevo material" description="Define el material una vez para reutilizarlo en los movimientos de la organización.">
         <form onSubmit={submit} className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
-                <Input required label="CÃ³digo" value={form.code} onChange={setField("code")} />
+                <Input required label="Código" value={form.code} onChange={setField("code")} />
                 <Input required label="Nombre" value={form.name} onChange={setField("name")} />
-                <Input required label="CategorÃ­a" value={form.category} onChange={setField("category")} />
+                <Input required label="Categorí­a" value={form.category} onChange={setField("category")} />
                 <Select required label="Unidad base" value={form.baseUnit} onChange={setField("baseUnit")}>{MATERIAL_OPERATIONAL_UNITS.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}</Select>
                 <Input label="Proveedor / fabricante" value={form.supplier} onChange={setField("supplier")} />
-                <Textarea label="DescripciÃ³n" value={form.description} onChange={setField("description")} />
-                <div className="sm:col-span-2"><Textarea label="EspecificaciÃ³n tÃ©cnica" value={form.technicalSpecification} onChange={setField("technicalSpecification")} /></div>
+                <Textarea label="Descripción" value={form.description} onChange={setField("description")} />
+                <div className="sm:col-span-2"><Textarea label="Especificación técnica" value={form.technicalSpecification} onChange={setField("technicalSpecification")} /></div>
             </div>
             {error && <Alert tone="danger" title="No pudimos crear el material">{error}</Alert>}
             <div className="flex justify-end gap-2"><Button type="button" variant="secondary" disabled={saving} onClick={onClose}>Volver</Button><Button type="submit" loading={saving} disabled={!canSubmit || saving}>Crear material</Button></div>
@@ -68,7 +68,7 @@ export default function MaterialEventModal({ open, onClose, organizationId, work
         const refreshed = await listOperationalMaterials(organizationId);
         setMaterials(Array.isArray(refreshed) ? refreshed : refreshed?.results || []);
         setForm((current) => ({ ...current, material: String(created.id), unit: created.unidad_base }));
-        setToast({ id: Date.now(), tone: "success", message: "Material creado", subtitle: `${created.nombre} quedÃ³ seleccionado para este movimiento.` });
+        setToast({ id: Date.now(), tone: "success", message: "Material creado", subtitle: `${created.nombre} quedó seleccionado para este movimiento.` });
     }
     async function submit(event) {
         event.preventDefault();
@@ -82,17 +82,17 @@ export default function MaterialEventModal({ open, onClose, organizationId, work
             setToast({ id: Date.now(), tone: "success", message: "Movimiento registrado", subtitle: "El movimiento y su fuente quedaron asociados a la obra." });
             onClose(); await onCreated?.();
         } catch (requestError) {
-            const message = humanizeApiError(requestError, "No fue posible registrar el movimiento. Revisa los datos e intÃ©ntalo nuevamente.");
+            const message = humanizeApiError(requestError, "No fue posible registrar el movimiento. Revisa los datos e inténtalo nuevamente.");
             setError(message); setToast({ id: Date.now(), tone: "error", message: "No pudimos registrar el movimiento", subtitle: message });
         } finally { setSaving(false); }
     }
     return <>
         <Toast {...toast} toastKey={toast?.id} onClose={() => setToast(null)} />
-        <Modal open={open} onClose={onClose} eyebrow="REGISTRO OPERACIONAL" icon={Boxes} title="Registrar movimiento de material" description="El movimiento quedarÃ¡ asociado a esta obra y conservarÃ¡ su fuente y trazabilidad.">
+        <Modal open={open} onClose={onClose} eyebrow="REGISTRO OPERACIONAL" icon={Boxes} title="Registrar movimiento de material" description="El movimiento quedará asociado a esta obra y conservará su fuente y trazabilidad.">
             <form onSubmit={submit} className="space-y-5">
                 <Section title="Material"><div><Select required label="Material" value={form.material} onChange={(event) => { const material = materials.find((item) => String(item.id) === event.target.value); setForm((current) => ({ ...current, material: event.target.value, unit: material?.unidad_base || "" })); }}><option value="">Selecciona un material</option>{materials.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</Select><Button type="button" variant="ghost" className="mt-2" onClick={() => setCreatingMaterial(true)}>+ Crear nuevo material</Button></div></Section>
                 <Section title="Movimiento">
-                    <Select required label="Tipo de movimiento" value={form.type} onChange={setField("type")}><option value="adquisicion">AdquisiciÃ³n</option><option value="recepcion">RecepciÃ³n</option><option value="uso">Uso</option><option value="sobrante">Sobrante</option><option value="reutilizacion">ReutilizaciÃ³n</option><option value="devolucion">DevoluciÃ³n</option><option value="residuo">Residuo</option><option value="despacho">Despacho</option></Select>
+                    <Select required label="Tipo de movimiento" value={form.type} onChange={setField("type")}><option value="adquisicion">Adquisición</option><option value="recepcion">Recepción</option><option value="uso">Uso</option><option value="sobrante">Sobrante</option><option value="reutilizacion">Reutilización</option><option value="devolucion">Devolución</option><option value="residuo">Residuo</option><option value="despacho">Despacho</option></Select>
                     <Input required type="number" step="any" label="Cantidad" suffix={form.unit} value={form.amount} onChange={setField("amount")} />
                     <Select required label="Unidad" value={form.unit} onChange={setField("unit")} disabled={!selectedMaterial}><option value="">Selecciona primero un material</option>{selectedMaterial?.unidad_base && <option value={selectedMaterial.unidad_base}>{selectedMaterial.unidad_base}</option>}</Select>
                 </Section>

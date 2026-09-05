@@ -42,7 +42,6 @@ from .selectors.environmental_flows import (
     work_for_organization,
 )
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -114,7 +113,7 @@ def manual_sector_record(request, organizacion_id):
     work_id = request.data.get("obra")
     if not work_id:
         raise ValidationError(
-            {"obra": "Selecciona la obra donde registrarÃ¡s la informaciÃ³n."}
+            {"obra": "Selecciona la obra donde registrarás la información."}
         )
     work = get_object_or_404(
         filter_works_for_user(Obra.objects.all(), request.user, organization),
@@ -144,7 +143,7 @@ def manual_sector_record(request, organizacion_id):
     }
     if flow in FUEL_FLOWS and destination not in fuel_destinations:
         raise ValidationError(
-            {"destino_operacional": "Selecciona un uso vÃ¡lido para el combustible."}
+            {"destino_operacional": "Selecciona un uso válido para el combustible."}
         )
     waste_destinations = {
         "residuo",
@@ -154,7 +153,10 @@ def manual_sector_record(request, organizacion_id):
         "disposicion",
         "subproducto_reutilizado",
     }
-    if flow == RegistroFlujoAmbiental.Flujo.RESIDUO and destination not in waste_destinations:
+    if (
+        flow == RegistroFlujoAmbiental.Flujo.RESIDUO
+        and destination not in waste_destinations
+    ):
         raise ValidationError(
             {"destino_operacional": "Selecciona un destino valido para el residuo."}
         )
@@ -262,9 +264,12 @@ def manual_sector_record(request, organizacion_id):
                     "unidad": request.data.get("unidad") or "",
                     "fuente": request.data.get("fuente"),
                     "evidencia": evidence.id if evidence else None,
-                    "version_evidencia": evidence_version.id if evidence_version else None,
+                    "version_evidencia": (
+                        evidence_version.id if evidence_version else None
+                    ),
                     "tipo_recurso": request.data.get("tipo_recurso") or "",
-                    "clasificacion_residuo": request.data.get("clasificacion_residuo") or "",
+                    "clasificacion_residuo": request.data.get("clasificacion_residuo")
+                    or "",
                     "tipo_residuo": request.data.get("tipo_residuo") or "",
                     "tipo_residuo_otro": request.data.get("tipo_residuo_otro") or "",
                     "metrica": request.data.get("metrica") or "",
@@ -310,11 +315,17 @@ def manual_sector_record(request, organizacion_id):
                     ).data,
                     "actividad_id": activity.id,
                     "clasificacion_ambiental": fuel_classification,
-                    "validacion_documental": {
-                        "veredicto": "indeterminada",
-                        "estado_procesamiento": evidence_version.estado_procesamiento,
-                        "motivos": ["El respaldo fue guardado y quedó pendiente de procesamiento documental."],
-                    } if evidence_version else None,
+                    "validacion_documental": (
+                        {
+                            "veredicto": "indeterminada",
+                            "estado_procesamiento": evidence_version.estado_procesamiento,
+                            "motivos": [
+                                "El respaldo fue guardado y quedó pendiente de procesamiento documental."
+                            ],
+                        }
+                        if evidence_version
+                        else None
+                    ),
                     "evaluacion_calidad": (
                         {
                             "id": quality_evaluation.id,

@@ -21,7 +21,7 @@ test("actividad usa identidad MATMOV y evento conserva el contrato operacional",
   assert.deepEqual(event, { material: 7, actividad: 88, obra: 71, tipo: "recepcion", fecha_hora: timestamp, cantidad: "10000", unidad: "kg", fuente: 9 });
 });
 
-test("modal filtra fuentes y conserva estÃ¡ndar operacional, errores y selecciÃ³n creada", () => {
+test("modal filtra fuentes y conserva estándar operacional, errores y selección creada", () => {
   const modal = readFileSync(new URL("../components/MaterialEventModal.jsx", import.meta.url), "utf8");
   assert.match(modal, /listDataSources\(organizationId, "materiales"\)/);
   assert.match(modal, /material: String\(created\.id\)/);

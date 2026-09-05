@@ -71,27 +71,27 @@ def structural_errors(version):
     try:
         formula = version.formula
     except Exception:
-        return ["La versiÃ³n no tiene fÃ³rmula."]
+        return ["La versión no tiene fórmula."]
     variables = list(formula.variables.all())
     if formula.tipo not in {choice for choice, _ in formula.Tipo.choices}:
-        errors.append("La fÃ³rmula no tiene una estrategia registrada y segura.")
+        errors.append("La fórmula no tiene una estrategia registrada y segura.")
     if not variables:
-        errors.append("La fÃ³rmula no tiene variables declaradas.")
+        errors.append("La fórmula no tiene variables declaradas.")
     for variable in variables:
         if not variable.concepto_observacion or not variable.unidad_esperada:
             errors.append(
                 f"La variable {variable.clave} no declara concepto y unidad esperada."
             )
     if not version.fuente_referencia.strip():
-        errors.append("La versiÃ³n no declara fuente o referencia tÃ©cnica.")
+        errors.append("La versión no declara fuente o referencia técnica.")
     if version.tipo_resultado not in RESULT_TYPES:
-        errors.append("El tipo de resultado no estÃ¡ soportado.")
+        errors.append("El tipo de resultado no está soportado.")
     if (
         version.vigencia_desde
         and version.vigencia_hasta
         and version.vigencia_desde > version.vigencia_hasta
     ):
-        errors.append("La vigencia de la metodologÃ­a es invÃ¡lida.")
+        errors.append("La vigencia de la metodologí­a es inválida.")
     dynamic_fuel_formula = (
         formula.tipo == FormulaAmbiental.Tipo.COMBUSTIBLE_CONSUMIDO
         or (
@@ -113,9 +113,7 @@ def structural_errors(version):
 
 def validate_transition(version, target, professional_review=None):
     if target not in TRANSITIONS.get(version.estado, set()):
-        raise ValidationError(
-            f"TransiciÃ³n no permitida: {version.estado} -> {target}."
-        )
+        raise ValidationError(f"Transición no permitida: {version.estado} -> {target}.")
     if target in {VersionMetodologia.Estado.VALIDADA, VersionMetodologia.Estado.ACTIVA}:
         errors = structural_errors(version)
         if errors:
@@ -144,5 +142,5 @@ def validate_transition(version, target, professional_review=None):
         )
         if not valid:
             raise ValidationError(
-                "Esta metodologÃ­a requiere una revisiÃ³n profesional vÃ¡lida y trazable."
+                "Esta metodologí­a requiere una revisión profesional válida y trazable."
             )
