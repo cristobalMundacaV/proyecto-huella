@@ -796,7 +796,7 @@ class ModelModularizationContractTests(SimpleTestCase):
         canonical_models = [
             model for model in registered if model is not AccionAmbiental
         ]
-        self.assertEqual(len(canonical_models), 95)
+        self.assertEqual(len(canonical_models), 96)
 
     def test_legacy_models_are_isolated_without_changing_their_contract(self):
         for model in LEGACY_MODELS:

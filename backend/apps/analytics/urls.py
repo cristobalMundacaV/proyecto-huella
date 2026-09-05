@@ -181,6 +181,14 @@ from .views_sensors_v2 import (
     sensor_detail,
     sensores,
 )
+from .views_factor_candidates import (
+    factor_candidate_detail,
+    factor_candidate_mapping,
+    factor_candidate_promote,
+    factor_candidate_reject,
+    factor_candidates,
+    global_factor_version_transition,
+)
 from .views_calculation_v2 import (
     calcular_actividad,
     calculo_compare,
@@ -281,6 +289,27 @@ from .views_account_lifecycle import (
 from . import views_operational_context
 
 urlpatterns = [
+    path("environmental-governance/factor-candidates/", factor_candidates),
+    path(
+        "environmental-governance/factor-candidates/<int:candidate_id>/",
+        factor_candidate_detail,
+    ),
+    path(
+        "environmental-governance/factor-candidates/<int:candidate_id>/mapping/",
+        factor_candidate_mapping,
+    ),
+    path(
+        "environmental-governance/factor-candidates/<int:candidate_id>/reject/",
+        factor_candidate_reject,
+    ),
+    path(
+        "environmental-governance/factor-candidates/<int:candidate_id>/promote/",
+        factor_candidate_promote,
+    ),
+    path(
+        "environmental-governance/global-factors/<int:factor_id>/versions/<int:version_id>/transition/",
+        global_factor_version_transition,
+    ),
     path("auth/activar/<str:uid>/<str:token>/", activate_account),
     path("auth/password-reset/", request_password_reset),
     path("auth/password-reset/<str:uid>/<str:token>/", confirm_password_reset),

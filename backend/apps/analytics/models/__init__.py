@@ -42,6 +42,7 @@ from .indicators import (
 )
 from .governance import (
     CompatibilidadVersionMetodologia,
+    EnvironmentalFactorCandidate,
     FactorAmbiental,
     FormulaAmbiental,
     MetodologiaAmbiental,

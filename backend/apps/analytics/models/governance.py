@@ -200,6 +200,52 @@ class VersionFactorAmbiental(models.Model):
         return super().delete(*args, **kwargs)
 
 
+class EnvironmentalFactorCandidate(models.Model):
+    class Status(models.TextChoices):
+        DETECTED = "detectado", "Detectado"
+        REQUIRES_MAPPING = "requiere_mapping", "Requiere mapping"
+        READY = "listo_revision", "Listo para revisión"
+        REJECTED = "rechazado", "Rechazado"
+        PROMOTED = "promovido_borrador", "Promovido a borrador"
+
+    source_fact = models.OneToOneField(
+        "knowledge.HuellaChileEmissionFactorFact",
+        on_delete=models.PROTECT,
+        related_name="factor_candidate",
+    )
+    status = models.CharField(
+        max_length=30, choices=Status.choices, default=Status.DETECTED, db_index=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="environmental_factor_candidates_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    mapping_type = models.CharField(max_length=40, blank=True)
+    mapping_context = models.JSONField(default=dict, blank=True)
+    compatibility = models.JSONField(default=dict, blank=True)
+    promoted_factor = models.ForeignKey(
+        FactorAmbiental,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="knowledge_candidates",
+    )
+    promoted_version = models.ForeignKey(
+        VersionFactorAmbiental,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="knowledge_candidates",
+    )
+
+
 class FormulaAmbiental(models.Model):
     class Tipo(models.TextChoices):
         TRANSPORTE_TKM = "transporte_tkm", "Masa x distancia x factor"
