@@ -119,11 +119,17 @@ def transition_factor_version(version, target):
             )
         factor = version.factor
         context = factor.contexto or {}
-        if factor.organizacion_id is None and context.get("proveedor") == "HuellaChile":
+        is_huellachile_fuel = context.get("proveedor") == "HuellaChile" and context.get(
+            "categoria_huella"
+        )
+        is_grid_energy = all(
+            context.get(field) for field in ("alcance", "sistema", "metodo", "pais")
+        )
+        if factor.organizacion_id is None and (is_huellachile_fuel or is_grid_energy):
             if context.get("categoria_huella"):
                 fields = ("proveedor", "alcance", "categoria_huella", "combustible")
             elif context.get("sistema"):
-                fields = ("proveedor", "alcance", "sistema", "metodo", "pais")
+                fields = ("alcance", "sistema", "metodo", "pais")
             else:
                 fields = ()
             conflicts = (

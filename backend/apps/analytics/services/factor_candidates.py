@@ -25,6 +25,14 @@ PUBLISHED_UNIT_LABELS = {
 MAPPING_TYPES = {"combustible", "energia_red"}
 
 
+def _ensure_current_source(candidate):
+    current = candidate.source_fact.__class__.objects.filter(
+        pk=candidate.source_fact_id, artifact__is_current=True
+    ).exists()
+    if not current:
+        raise ValidationError({"source_fact": "fuente_historica_no_promocionable"})
+
+
 def _result_units_equivalent(left, right):
     return left in RESULT_UNITS.values() and right in RESULT_UNITS.values()
 
@@ -186,6 +194,7 @@ def build_huellachile_factor_candidates(year=2025):
 
 
 def validate_candidate_mapping(candidate, mapping_type, context):
+    _ensure_current_source(candidate)
     if mapping_type not in MAPPING_TYPES:
         raise ValidationError({"mapping_type": "Mapping no soportado."})
     compatibility = evaluate_factor_candidate_compatibility(candidate)
@@ -275,7 +284,7 @@ def equivalent_global_factors(candidate):
         elif candidate.mapping_type == "energia_red":
             same = all(
                 current.get(field) == context.get(field)
-                for field in ("proveedor", "alcance", "sistema", "metodo", "pais")
+                for field in ("alcance", "sistema", "metodo", "pais")
             )
         else:
             same = False
@@ -306,6 +315,7 @@ def promote_candidate_to_draft(candidate, user, mode, target_factor=None):
     )
     if not user.is_superuser:
         raise ValidationError("Sólo un superusuario puede promover factores globales.")
+    _ensure_current_source(candidate)
     if candidate.status != candidate.Status.READY or candidate.promoted_version_id:
         raise ValidationError("El candidato no está listo o ya fue promovido.")
     normalized, compatibility = validate_candidate_mapping(
@@ -324,7 +334,11 @@ def promote_candidate_to_draft(candidate, user, mode, target_factor=None):
             organizacion=None,
             codigo=f"fhg-{uuid4().hex}",
             nombre=f"HuellaChile · {fact.actividad}",
-            categoria=normalized.get("categoria_huella", candidate.mapping_type),
+            categoria=(
+                normalized["categoria_huella"]
+                if candidate.mapping_type == "combustible"
+                else "electricidad_red"
+            ),
             sustancia_impacto="CO2e",
             unidad_entrada=compatibility["normalized_input_unit"],
             unidad_resultado=compatibility["normalized_result_unit"],

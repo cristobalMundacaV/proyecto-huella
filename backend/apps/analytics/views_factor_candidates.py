@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 
 from .models import (
@@ -112,8 +112,13 @@ def _require_superuser(request):
     return request.user.is_authenticated and request.user.is_superuser
 
 
+class IsSuperUser(BasePermission):
+    def has_permission(self, request, view):
+        return _require_superuser(request)
+
+
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsSuperUser])
 def factor_candidates(request):
     rows = EnvironmentalFactorCandidate.objects.select_related(
         "source_fact__artifact", "reviewed_by", "promoted_factor", "promoted_version"
@@ -126,13 +131,13 @@ def factor_candidates(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsSuperUser])
 def factor_candidate_detail(request, candidate_id):
     return Response(_candidate_data(_candidate(candidate_id)))
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsSuperUser])
 def factor_candidate_mapping(request, candidate_id):
     if not _require_superuser(request):
         return Response(
@@ -153,7 +158,7 @@ def factor_candidate_mapping(request, candidate_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsSuperUser])
 def factor_candidate_reject(request, candidate_id):
     if not _require_superuser(request):
         return Response(
@@ -182,7 +187,7 @@ def factor_candidate_reject(request, candidate_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsSuperUser])
 def factor_candidate_promote(request, candidate_id):
     if not _require_superuser(request):
         return Response(
@@ -212,7 +217,7 @@ def factor_candidate_promote(request, candidate_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsSuperUser])
 def global_factor_version_transition(request, factor_id, version_id):
     if not _require_superuser(request):
         return Response(

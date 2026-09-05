@@ -133,6 +133,19 @@ class FactorCandidateTests(TestCase):
             },
         )
 
+    def map_energy(self, candidate, system="SEN"):
+        return apply_candidate_mapping(
+            candidate,
+            self.superuser,
+            "energia_red",
+            {
+                "alcance": 2,
+                "sistema": system,
+                "metodo": "location_based",
+                "pais": "Chile",
+            },
+        )
+
     def test_unit_parsing_and_mechanical_compatibility(self):
         self.assertEqual(parse_emission_factor_unit("kgCO2e/m3")["input_unit"], "m3")
         self.assertEqual(parse_emission_factor_unit("kgCO2e/MWh")["input_unit"], "MWh")
@@ -201,6 +214,95 @@ class FactorCandidateTests(TestCase):
             },
         )
         self.assertEqual(mapped_energy.mapping_context["sistema"], "SEN")
+
+    def test_sen_candidate_matches_legacy_without_provider(self):
+        candidate = self.candidate(
+            2,
+            alcance="Alcance 2",
+            categoria="Electricidad",
+            actividad="Sistema Eléctrico Nacional",
+            unidad_actividad="MWh",
+            unidad_factor="kgCO2e/MWh",
+            factor_value=Decimal("246.7249809219505"),
+        )
+        self.map_energy(candidate)
+        equivalence = equivalent_global_factors(candidate)
+        self.assertEqual(equivalence["status"], "equivalente_unico")
+        self.assertEqual(
+            equivalence["factors"][0].codigo, "sen-electricidad-red-location-based-2025"
+        )
+
+    def test_create_global_energy_uses_internal_category(self):
+        candidate = self.candidate(
+            2,
+            alcance="Alcance 2",
+            categoria="Electricidad",
+            actividad="Red aislada",
+            unidad_actividad="MWh",
+            unidad_factor="kgCO2e/MWh",
+        )
+        self.map_energy(candidate, system="SISTEMA-PRUEBA")
+        factor, version = promote_candidate_to_draft(
+            candidate, self.superuser, "create_global"
+        )
+        self.assertEqual(factor.categoria, "electricidad_red")
+        self.assertEqual(version.estado, "borrador")
+
+    def test_duplicate_active_sen_identity_is_blocked_without_provider(self):
+        legacy = FactorAmbiental.objects.get(
+            codigo="sen-electricidad-red-location-based-2025"
+        )
+        duplicate = FactorAmbiental.objects.create(
+            codigo="sen-duplicate",
+            nombre="SEN duplicate",
+            categoria="electricidad_red",
+            unidad_entrada="MWh",
+            unidad_resultado="kgCO2e",
+            contexto={
+                "proveedor": "HuellaChile",
+                "alcance": 2,
+                "sistema": "SEN",
+                "metodo": "location_based",
+                "pais": "Chile",
+            },
+        )
+        version = VersionFactorAmbiental.objects.create(
+            factor=duplicate, version=1, valor=Decimal("246.7"), fuente="test"
+        )
+        transition_factor_version(version, "pruebas")
+        transition_factor_version(version, "validado")
+        with self.assertRaises(ValidationError):
+            transition_factor_version(version, "activo")
+        self.assertEqual(legacy.versiones.get(estado="activo").estado, "activo")
+
+    def test_historical_candidate_blocks_mapping_and_promotion_but_remains_readable(
+        self,
+    ):
+        candidate = self.candidate()
+        self.artifact.is_current = False
+        self.artifact.save(update_fields=["is_current"])
+        with self.assertRaisesMessage(
+            ValidationError, "fuente_historica_no_promocionable"
+        ):
+            self.map_fuel(candidate)
+
+        self.artifact.is_current = True
+        self.artifact.save(update_fields=["is_current"])
+        self.map_fuel(candidate)
+        self.artifact.is_current = False
+        self.artifact.save(update_fields=["is_current"])
+        with self.assertRaisesMessage(
+            ValidationError, "fuente_historica_no_promocionable"
+        ):
+            promote_candidate_to_draft(candidate, self.superuser, "create_global")
+
+        client = APIClient()
+        client.force_authenticate(self.superuser)
+        response = client.get(
+            f"/api/environmental-governance/factor-candidates/{candidate.id}/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data["source"]["source_current"])
 
     def test_create_global_is_draft_preserves_provenance_and_is_single_use(self):
         candidate = self.map_fuel(self.candidate())
@@ -306,11 +408,25 @@ class FactorCandidateTests(TestCase):
         url = f"/api/environmental-governance/factor-candidates/{candidate.id}/mapping/"
         client = APIClient()
         client.force_authenticate(self.user)
+        self.assertEqual(
+            client.get("/api/environmental-governance/factor-candidates/").status_code,
+            403,
+        )
+        self.assertEqual(
+            client.get(
+                f"/api/environmental-governance/factor-candidates/{candidate.id}/"
+            ).status_code,
+            403,
+        )
         self.assertEqual(client.post(url, {}, format="json").status_code, 403)
         self.user.is_staff = True
         self.user.save(update_fields=["is_staff"])
         self.assertEqual(client.post(url, {}, format="json").status_code, 403)
         client.force_authenticate(self.superuser)
+        self.assertEqual(
+            client.get("/api/environmental-governance/factor-candidates/").status_code,
+            200,
+        )
         response = client.post(
             url,
             {
