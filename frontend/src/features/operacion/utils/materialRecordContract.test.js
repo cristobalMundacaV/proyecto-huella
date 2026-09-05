@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { MATERIAL_OPERATIONAL_CATEGORIES, MATERIAL_OPERATIONAL_UNITS, createMaterialMovementTechnicalCode, materialActivityPayload, materialEventPayload, operationalMaterialPayload } from "./materialRecordContract.js";
+import { MATERIAL_OPERATIONAL_CATEGORIES, MATERIAL_OPERATIONAL_UNITS, compatibleMaterialReceptions, createMaterialMovementTechnicalCode, materialActivityPayload, materialEventPayload, operationalMaterialPayload } from "./materialRecordContract.js";
 
 test("crea material operacional sin metadata manual y con unidad gobernada", () => {
   const payload = operationalMaterialPayload({ name: " Cemento Portland ", category: "cemento", baseUnit: "kg", supplier: " Proveedor Demo ", description: "" });
@@ -35,6 +35,25 @@ test("evento con respaldo usa multipart y conserva los campos documentales", () 
   assert.equal(payload.get("evidencia_nombre"), "Guia cemento");
 });
 
+test("uso incluye recepcion seleccionada y las candidatas respetan material, obra, unidad y fecha", () => {
+  const timestamp = "2026-09-11T12:00:00.000Z";
+  const form = { material: "7", type: "uso", amount: "2500", unit: "kg", source: "9", originReception: "31" };
+  assert.equal(materialEventPayload({ activityId: 88, workId: 71, form, timestamp }).evento_origen, 31);
+  const base = { tipo: "recepcion", material: 7, obra: 71, cantidad_detalle: { unidad: "kg" }, fecha_hora: "2026-09-04T12:00:00.000Z" };
+  const candidates = compatibleMaterialReceptions([
+    { ...base, id: 31 }, { ...base, id: 32, material: 8 }, { ...base, id: 33, obra: 72 },
+    { ...base, id: 34, cantidad_detalle: { unidad: "t" } }, { ...base, id: 35, fecha_hora: "2026-09-12T12:00:00.000Z" },
+    { ...base, id: 36, tipo: "uso" },
+  ], { materialId: 7, workId: 71, unit: "kg", timestamp });
+  assert.deepEqual(candidates.map((item) => item.id), [31]);
+});
+
+test("movimiento sin recepcion elegida conserva compatibilidad legacy", () => {
+  const form = { material: "7", type: "uso", amount: "1", unit: "kg", source: "9", originReception: "" };
+  const payload = materialEventPayload({ activityId: 88, workId: 71, form, timestamp: "2026-09-11T12:00:00.000Z" });
+  assert.equal(Object.hasOwn(payload, "evento_origen"), false);
+});
+
 test("modal filtra fuentes y conserva estándar operacional, errores y selección creada", () => {
   const modal = readFileSync(new URL("../components/MaterialEventModal.jsx", import.meta.url), "utf8");
   assert.match(modal, /listDataSources\(organizationId, "materiales"\)/);
@@ -46,6 +65,8 @@ test("modal filtra fuentes y conserva estándar operacional, errores y selecció
   assert.match(modal, /<Toast/);
   assert.match(modal, /<Alert tone="danger"/);
   assert.match(modal, /eyebrow="REGISTRO OPERACIONAL"/);
+  assert.match(modal, /Recepción de origen/);
+  assert.match(modal, /compatibleReceptions\.length === 1/);
   assert.doesNotMatch(modal, /form\.code/);
   assert.doesNotMatch(modal, /technicalSpecification/);
   for (const title of ["Material", "Movimiento", "Trazabilidad"]) assert.match(modal, new RegExp(`title="${title}"`));

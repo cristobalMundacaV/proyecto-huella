@@ -18,6 +18,7 @@ import OperationDomainShell from "../components/OperationDomainShell";
 import { applicability, isResourceReady, resourceData } from "../utils/operationSelectors";
 import { useEffect, useMemo, useState } from "react";
 import MaterialEventModal from "../components/MaterialEventModal";
+import MaterialReceptionLinkModal from "../components/MaterialReceptionLinkModal";
 import DomainSensorsPanel from "../components/DomainSensorsPanel";
 import DomainQualityPanel from "../components/DomainQualityPanel";
 import DomainCalculationPanel from "../components/DomainCalculationPanel";
@@ -43,6 +44,7 @@ export default function MaterialsPage() {
   const [recordOpen, setRecordOpen] =
     useState(false);
   const [page, setPage] = useState(1);
+  const [linkEvent, setLinkEvent] = useState(null);
 
   const persistedWorkId =
     obra?.id ||
@@ -138,8 +140,9 @@ export default function MaterialsPage() {
                 <TableCell as="th">Cantidad</TableCell>
                 <TableCell as="th">Lote</TableCell>
                 <TableCell as="th">Origen del dato</TableCell>
+                <TableCell as="th">Trazabilidad</TableCell>
               </tr></TableHead>
-              <TableBody columns={6}>{pagedEvents.map((event) => {
+              <TableBody columns={7}>{pagedEvents.map((event) => {
                 const source = event.cantidad_detalle?.fuente_detalle?.nombre;
                 const sensorId = event.cantidad_detalle?.sensor_detalle?.id;
                 return <tr key={event.id}>
@@ -156,6 +159,11 @@ export default function MaterialsPage() {
                     : sensorId
                       ? <Link className="font-bold text-[var(--brand-primary)]" to={`/operacion/sensores/${sensorId}`}>Sensor</Link>
                       : source || "Sin origen identificable"}</TableCell>
+                  <TableCell>{["uso", "consumo"].includes(event.tipo)
+                    ? event.evento_origen
+                      ? <span className="font-medium">Recepción vinculada</span>
+                      : <Button type="button" variant="ghost" onClick={() => setLinkEvent(event)}>Vincular recepción</Button>
+                    : "No aplica"}</TableCell>
                 </tr>;
               })}</TableBody>
             </TableShell>
@@ -202,8 +210,10 @@ export default function MaterialsPage() {
           context?.references?.organization
         }
         workId={persistedWorkId}
+        events={events}
         onCreated={reloadOperation}
       />
+      <MaterialReceptionLinkModal open={Boolean(linkEvent)} onClose={() => setLinkEvent(null)} organizationId={context?.references?.organization} workId={persistedWorkId} event={linkEvent} events={events} onLinked={reloadOperation} />
     </OperationDomainShell>
   );
 }

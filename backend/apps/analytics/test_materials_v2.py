@@ -251,7 +251,7 @@ class MaterialsV2Tests(APITestCase):
 
     def test_lineage_reconstruye_cadena(self):
         lot = LoteMaterial.objects.create(organizacion=self.org, material=self.material, codigo="L-1")
-        reception = self.event("recepcion", 20, lote=lot)
+        reception = self.event("recepcion", 20, lote=lot, obra=self.work)
         self.event("uso", 12, lote=lot, obra=self.work, evento_origen=reception)
         lineage = material_lineage(self.org, self.material, lot=lot)
         self.assertEqual([row["tipo"] for row in lineage["eventos"]], ["recepcion", "uso"])
@@ -337,3 +337,56 @@ class MaterialsV2Tests(APITestCase):
         independent = self.event("sobrante")
         self.assertEqual(use.evento_origen, reception)
         self.assertIsNone(independent.evento_origen)
+
+    def test_patch_vincula_recepcion_sin_duplicar_observacion_y_actualiza_senal(self):
+        reception = self.event("recepcion", 10000, "kg", obra=self.work)
+        use = self.event("uso", 2500, "kg", obra=self.work)
+        observation_id = use.observacion_cantidad_id
+        before = material_balance(self.org, self.material, work=self.work)
+        self.assertIn("material_usado_sin_trazabilidad_recepcion", {row["tipo"] for row in before["senales"]})
+        response = self.client.patch(
+            f"{self.base}/eventos-materiales/{use.id}/",
+            {"evento_origen": reception.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        use.refresh_from_db()
+        self.assertEqual(use.evento_origen, reception)
+        self.assertEqual(use.observacion_cantidad_id, observation_id)
+        self.assertEqual(Observacion.objects.filter(actividad=use.actividad, concepto="cantidad_material").count(), 1)
+        result = material_balance(self.org, self.material, work=self.work)
+        self.assertEqual(result["balances"][0]["cantidad_recibida"], Decimal("10000"))
+        self.assertEqual(result["balances"][0]["cantidad_utilizada"], Decimal("2500"))
+        self.assertEqual(result["balances"][0]["stock_restante"], Decimal("7500"))
+        signal_types = {row["tipo"] for row in result["senales"]}
+        self.assertNotIn("material_usado_sin_trazabilidad_recepcion", signal_types)
+        self.assertIn("material_recibido_sin_evidencia", signal_types)
+        lineage = material_lineage(self.org, self.material)
+        self.assertEqual(lineage["eventos"][1]["evento_origen_id"], reception.id)
+
+    def test_api_rechaza_origen_invalido_por_tipo_material_obra_fecha_y_unidad(self):
+        use_date = timezone.datetime(2026, 2, 10, tzinfo=timezone.get_current_timezone())
+        use = self.event("uso", 1, "kg", obra=self.work, fecha_hora=use_date)
+        other_work = Obra.objects.create(organizacion=self.org, etapa_principal=self.stage, nombre="Edificio B", fecha_inicio="2026-01-01")
+        other_material = MaterialOperacional.objects.create(organizacion=self.org, codigo="MAT-OTRO", nombre="Otro", categoria="otro", unidad_base="kg")
+        invalid_origins = [
+            self.event("uso", 1, "kg", obra=self.work, fecha_hora=use_date),
+            self.event("recepcion", 1, "kg", obra=other_work, fecha_hora=use_date),
+            self.event("recepcion", 1, "m3", obra=self.work, fecha_hora=use_date),
+            self.event("recepcion", 1, "kg", obra=self.work, fecha_hora=timezone.datetime(2026, 2, 11, tzinfo=timezone.get_current_timezone())),
+        ]
+        other_activity = self.activity()
+        invalid_origins.append(EventoMaterial.objects.create(organizacion=self.org, material=other_material, actividad=other_activity, tipo="recepcion", fecha_hora=use_date, obra=self.work))
+        for origin in invalid_origins:
+            response = self.client.patch(f"{self.base}/eventos-materiales/{use.id}/", {"evento_origen": origin.id}, format="json")
+            self.assertEqual(response.status_code, 400, response.data)
+
+    def test_api_rechaza_recepcion_de_otro_tenant(self):
+        use = self.event("uso", 1, "kg", obra=self.work)
+        foreign_stage = EtapaObra.objects.create(organizacion=self.other, nombre="Otra")
+        foreign_work = Obra.objects.create(organizacion=self.other, etapa_principal=foreign_stage, nombre="Otra obra", fecha_inicio="2026-01-01")
+        foreign_material = MaterialOperacional.objects.create(organizacion=self.other, codigo="FOREIGN", nombre="Otro", categoria="otro", unidad_base="kg")
+        foreign_activity = ActividadOperacional.objects.create(organizacion=self.other, obra=foreign_work, tipo="movimiento_material", codigo="FOREIGN-MOV", nombre="Otro", timestamp_inicio=timezone.now())
+        foreign_origin = EventoMaterial.objects.create(organizacion=self.other, material=foreign_material, actividad=foreign_activity, obra=foreign_work, tipo="recepcion", fecha_hora=timezone.now())
+        response = self.client.patch(f"{self.base}/eventos-materiales/{use.id}/", {"evento_origen": foreign_origin.id}, format="json")
+        self.assertEqual(response.status_code, 400, response.data)

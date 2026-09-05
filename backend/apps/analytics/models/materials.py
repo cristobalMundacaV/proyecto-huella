@@ -260,7 +260,11 @@ class EventoMaterial(models.Model):
                 "El evento origen debe corresponder al mismo material y lote."
             )
         if self.evento_origen_id:
-            if self.pk and self.evento_origen_id == self.pk:
+            if self.tipo in {self.Tipo.USO, self.Tipo.CONSUMO} and self.evento_origen.tipo != self.Tipo.RECEPCION:
+                errors["evento_origen"] = "El evento origen debe ser una recepcion."
+            elif self.tipo in {self.Tipo.USO, self.Tipo.CONSUMO} and self.evento_origen.obra_id != self.obra_id:
+                errors["evento_origen"] = "La recepcion debe pertenecer a la misma obra."
+            elif self.pk and self.evento_origen_id == self.pk:
                 errors["evento_origen"] = "Un evento no puede ser su propio origen."
             elif self.fecha_hora and self.evento_origen.fecha_hora > self.fecha_hora:
                 errors["evento_origen"] = (
