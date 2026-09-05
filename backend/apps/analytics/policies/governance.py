@@ -33,6 +33,7 @@ def validate_applicability(value):
         "regiones",
         "atributos",
         "unidad_operacional_ids",
+        "tipos_evento_material",
     }
     unknown = set(value) - allowed
     if unknown:
@@ -45,6 +46,7 @@ def validate_applicability(value):
         "tipos_recurso",
         "regiones",
         "unidad_operacional_ids",
+        "tipos_evento_material",
     } & set(value):
         if not isinstance(value[key], list):
             raise ValidationError(f"{key} debe ser una lista.")

@@ -134,10 +134,9 @@ test("traduce bloqueos documentales a mensajes breves sin nombres internos", () 
     eligibilityPresentation({ estado: "calculable_completo" }).message,
     "Metodología y factor disponibles.",
   );
-  assert.equal(
-    eligibilityPresentation({ estado: "no_calculable", motivos: ["El registro es anterior al inicio de la obra"] }).message,
-    "La fecha del registro es anterior al inicio de la obra.",
-  );
+  const outsideWork = eligibilityPresentation({ estado: "no_calculable", motivos: ["El registro es anterior al inicio de la obra"] });
+  assert.equal(outsideWork.label, "No calculable");
+  assert.equal(outsideWork.message, "El registro es anterior al inicio de la obra");
 });
 
 test("resume todos los estados documentales requeridos sin cambiar el contrato", () => {
@@ -347,4 +346,21 @@ test("Materiales entrega actividades reales de eventos al panel de cálculo", ()
   assert.match(materialsPage, /event\.actividad_detalle/);
   assert.match(materialsPage, /activities=\{materialActivities\}/);
   assert.doesNotMatch(materialsPage, /RegistroFlujoAmbiental/);
+});
+
+test("elegibilidad distingue candidato bloqueado, no aplicable y revisión real", () => {
+  const blocked = eligibilityPresentation({
+    estado: "no_calculable",
+    metodologia_candidata: { id: 7, nombre: "Material recibido", version: 1 },
+    motivos: ["No existe un factor ambiental gobernado aplicable a Cemento Portland."],
+  });
+  assert.deepEqual(blocked, {
+    label: "No calculable", tone: "neutral",
+    message: "No existe un factor ambiental gobernado aplicable a Cemento Portland.",
+  });
+  assert.deepEqual(
+    eligibilityPresentation({ estado: "no_aplicable", motivos: ["Este movimiento no es un punto contable de la metodología de material recibido."] }),
+    { label: "No aplica", tone: "neutral", message: "Este movimiento no es un punto contable de la metodología de material recibido." },
+  );
+  assert.equal(eligibilityPresentation({ estado: "requiere_revision", motivos: [] }).label, "Requiere revisión");
 });

@@ -18,6 +18,13 @@ def _applicability_reasons(version, activity):
     resource_types = rules.get("tipos_recurso")
     if resource_types and (not record or record.tipo_recurso not in resource_types):
         reasons.append("El tipo de recurso no esta incluido en la aplicabilidad.")
+    material_event_types = rules.get("tipos_evento_material")
+    if material_event_types:
+        material_event = getattr(activity, "evento_material", None)
+        if not material_event or material_event.tipo not in material_event_types:
+            reasons.append(
+                "Este movimiento no es un punto contable de la metodologia de material recibido."
+            )
     unit_ids = rules.get("unidad_operacional_ids")
     if unit_ids and activity.unidad_operacional_id not in unit_ids:
         reasons.append("La unidad operacional no está incluida en la aplicabilidad.")
@@ -114,12 +121,13 @@ def select_methodology(actividad):
         reason = "Ningún método aplicable es calculable."
     discarded = [{"metodo": item["metodo"], "estado": item["estado"], "motivos": item["motivos"]}
                  for item in candidates if item is not selected and item["estado"] != "aplicable"]
+    only_not_applicable = bool(candidates) and all(item["estado"] == "no_aplicable" for item in candidates)
     return {
         "seleccion": selected,
         "candidata": candidate,
         "requiere_revision_metodologica": methodology_ambiguous,
         "razon": reason,
-        "estado": "requiere_revision" if methodology_ambiguous else (selected["elegibilidad"]["estado"] if selected else "no_calculable"),
+        "estado": "requiere_revision" if methodology_ambiguous else (selected["elegibilidad"]["estado"] if selected else ("no_aplicable" if only_not_applicable else "no_calculable")),
         "alternativos": [item for item in available if item is not selected],
         "descartados": discarded,
         "candidatos": candidates,

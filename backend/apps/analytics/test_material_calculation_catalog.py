@@ -11,6 +11,7 @@ from .services.calculation_v2 import calculate_activity
 from .services.methodology_selector import select_methodology
 from .services.system_environmental_catalog import (MATERIAL_METHODOLOGY_CODE,
                                                      ensure_system_environmental_catalog)
+from .views_calculation_v2 import _serialize_selection
 
 
 class MaterialCalculationCatalogTests(TestCase):
@@ -71,4 +72,15 @@ class MaterialCalculationCatalogTests(TestCase):
         usage_selection = select_methodology(usage)
         self.assertEqual(calculation.resultado, Decimal("2000"))
         self.assertIsNone(usage_selection["seleccion"])
-        self.assertIn("no es un punto contable", " ".join(usage_selection["candidata"]["motivos"]))
+        self.assertEqual(usage_selection["estado"], "no_aplicable")
+        material_candidate = next(item for item in usage_selection["candidatos"] if item["version_metodologia"].metodologia.codigo == MATERIAL_METHODOLOGY_CODE)
+        self.assertIn("no es un punto contable", " ".join(material_candidate["motivos"]))
+
+    def test_movimientos_no_contables_preservan_no_aplicable(self):
+        for kind in ("uso", "consumo", "reutilizacion"):
+            selection = select_methodology(self.event(kind, "1"))
+            self.assertEqual(selection["estado"], "no_aplicable")
+            self.assertIsNone(selection["seleccion"])
+            payload = _serialize_selection(selection)
+            self.assertEqual(payload["estado"], "no_aplicable")
+            self.assertIn("no es un punto contable", payload["motivos"][0])

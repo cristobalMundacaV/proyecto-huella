@@ -25,6 +25,12 @@ export function eligibilityPresentation(eligibility) {
   }
 
   const text = reasonText(eligibility);
+  const firstReason = Array.isArray(eligibility?.motivos) && eligibility.motivos.length
+    ? eligibility.motivos[0]
+    : "No hay una metodología calculable para este registro.";
+  if (eligibility?.estado === "no_aplicable") {
+    return { label: "No aplica", tone: "neutral", message: firstReason };
+  }
   if (includesAny(text, ["fallo tecnico", "fallo técnico", "procesamiento del respaldo", "revision tecnica"])) {
     return review("El respaldo no pudo procesarse. Puedes revisarlo o reintentarlo.");
   }
@@ -34,19 +40,16 @@ export function eligibilityPresentation(eligibility) {
   if (includesAny(text, ["contradic", "diferencias con el dato"])) {
     return review("El respaldo presenta diferencias con el dato registrado.");
   }
-  if (text.includes("anterior al inicio de la obra")) {
-    return review("La fecha del registro es anterior al inicio de la obra.");
-  }
   if (eligibility?.estado === "requiere_revision") {
     return review("La información necesita revisión antes de calcular.");
   }
-  if (eligibility?.metodologia_candidata) {
-    return review("Revisa el dato o respaldo indicado antes de calcular.");
+  if (eligibility?.estado === "no_calculable") {
+    return { label: "No calculable", tone: "neutral", message: firstReason };
   }
   return {
-    label: "No elegible",
+    label: "No calculable",
     tone: "neutral",
-    message: "No hay una metodología calculable para este registro.",
+    message: firstReason,
   };
 }
 

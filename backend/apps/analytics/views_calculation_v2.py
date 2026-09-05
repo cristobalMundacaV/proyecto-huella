@@ -92,6 +92,9 @@ def _serialize_selection(selection):
             )
         )
     )
+    if selection.get("estado") == "no_aplicable" and selection["candidatos"]:
+        closest = min(selection["candidatos"], key=lambda item: len(item.get("motivos", [])))
+        reasons = closest.get("motivos", [])
     if not reasons:
         reasons = [
             "No existe una metodología activa y vigente configurada para esta actividad."

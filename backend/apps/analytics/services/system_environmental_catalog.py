@@ -309,7 +309,10 @@ def ensure_construction_v1_methodologies():
             "descripcion_tecnica": "Emision = cantidad recibida normalizada x factor de material aplicable.",
             "fuente_referencia": "Construccion V1; factor de material seleccionado dinamicamente desde gobernanza.",
             "vigencia_desde": None, "vigencia_hasta": None,
-            "aplicabilidad": {"tipos_actividad": ["movimiento_material"]},
+            "aplicabilidad": {
+                "tipos_actividad": ["movimiento_material"],
+                "tipos_evento_material": ["recepcion"],
+            },
             "prioridad": 10, "requiere_revision_profesional": False, "tipo_resultado": "emision",
         },
         formula_fields={
