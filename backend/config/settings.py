@@ -87,6 +87,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "apps.analytics.apps.AnalyticsConfig",
     "apps.iot.apps.IotConfig",
+    "apps.knowledge.apps.KnowledgeConfig",
 ]
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
