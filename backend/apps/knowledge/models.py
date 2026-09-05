@@ -35,3 +35,69 @@ class ExternalRecord(models.Model):
     class Status(models.TextChoices): ACTIVE="activo","Activo"; MISSING="no_observado","No observado"; WITHDRAWN="retirado","Retirado"
     source=models.ForeignKey(EnvironmentalSource,on_delete=models.PROTECT,related_name="records"); external_id=models.CharField(max_length=300); kind=models.CharField(max_length=100); canonical_key=models.CharField(max_length=300,blank=True); title=models.CharField(max_length=500,blank=True); source_url=models.URLField(blank=True); current_snapshot=models.ForeignKey(ExternalSnapshot,on_delete=models.PROTECT,related_name="current_for"); published_at=models.DateTimeField(null=True,blank=True); effective_from=models.DateTimeField(null=True,blank=True); effective_to=models.DateTimeField(null=True,blank=True); upstream_updated_at=models.DateTimeField(null=True,blank=True); estado=models.CharField(max_length=30,choices=Status.choices,default=Status.ACTIVE); metadata=models.JSONField(default=dict,blank=True); first_seen_at=models.DateTimeField(); last_seen_at=models.DateTimeField()
     class Meta: constraints=[models.UniqueConstraint(fields=["source","external_id"],name="knowledge_record_identity")]
+
+
+class ExternalFileArtifact(models.Model):
+    class Status(models.TextChoices):
+        IMPORTED="importado","Importado"
+    source=models.ForeignKey(EnvironmentalSource,on_delete=models.PROTECT,related_name="file_artifacts")
+    parent_record=models.ForeignKey(ExternalRecord,on_delete=models.PROTECT,related_name="file_artifacts")
+    external_resource_id=models.CharField(max_length=300)
+    name=models.CharField(max_length=500)
+    source_url=models.URLField()
+    format=models.CharField(max_length=30)
+    content_type=models.CharField(max_length=160,blank=True)
+    expected_size=models.PositiveBigIntegerField(null=True,blank=True)
+    byte_size=models.PositiveBigIntegerField()
+    upstream_created_at=models.DateTimeField(null=True,blank=True)
+    upstream_modified_at=models.DateTimeField(null=True,blank=True)
+    retrieved_at=models.DateTimeField()
+    content_sha256=models.CharField(max_length=64)
+    estado=models.CharField(max_length=30,choices=Status.choices,default=Status.IMPORTED)
+    metadata=models.JSONField(default=dict,blank=True)
+    is_current=models.BooleanField(default=False)
+    version=models.PositiveIntegerField()
+    class Meta:
+        constraints=[
+            models.UniqueConstraint(fields=["source","external_resource_id","content_sha256"],name="knowledge_file_artifact_version"),
+            models.UniqueConstraint(fields=["source","external_resource_id"],condition=models.Q(is_current=True),name="knowledge_current_file_artifact"),
+        ]
+
+
+class RetcHazardousWasteFact(models.Model):
+    artifact=models.ForeignKey(ExternalFileArtifact,on_delete=models.PROTECT,related_name="retc_hazardous_waste_facts")
+    external_resource_id=models.CharField(max_length=300)
+    year=models.PositiveSmallIntegerField(db_index=True)
+    source_row_number=models.PositiveIntegerField()
+    row_hash=models.CharField(max_length=64)
+    id_vu=models.BigIntegerField()
+    id_rol_establecimiento=models.BigIntegerField()
+    rol_establecimiento=models.CharField(max_length=300)
+    rut_razon_social=models.CharField(max_length=30)
+    razon_social=models.CharField(max_length=500,blank=True)
+    ciiu6_id=models.CharField(max_length=30,blank=True)
+    ciiu6=models.CharField(max_length=500,blank=True)
+    ciiu4_id=models.CharField(max_length=30,blank=True)
+    ciiu4=models.CharField(max_length=500,blank=True)
+    rubro=models.CharField(max_length=300,blank=True)
+    rubro_id=models.BigIntegerField()
+    codigo_unico_territorial=models.BigIntegerField()
+    comuna=models.CharField(max_length=200,db_index=True)
+    provincia=models.CharField(max_length=200)
+    region=models.CharField(max_length=200,db_index=True)
+    latitud_raw=models.CharField(max_length=100)
+    longitud_raw=models.CharField(max_length=100)
+    cantidad_kilos=models.DecimalField(max_digits=24,decimal_places=6,null=True,blank=True)
+    cantidad_toneladas=models.DecimalField(max_digits=24,decimal_places=9)
+    id_contaminantes=models.TextField(blank=True)
+    contaminantes=models.TextField(blank=True)
+    id_peligrosidad=models.TextField(blank=True)
+    peligrosidad=models.TextField(blank=True)
+    id_lista_a=models.TextField(blank=True)
+    lista_a=models.TextField(blank=True)
+    id_estado_materia=models.BigIntegerField()
+    estado_materia=models.CharField(max_length=100)
+    raw_row=models.JSONField()
+    class Meta:
+        constraints=[models.UniqueConstraint(fields=["artifact","source_row_number"],name="knowledge_retc_fact_source_row")]
+        indexes=[models.Index(fields=["artifact","year","region","comuna"],name="knowledge_retc_fact_filter")]

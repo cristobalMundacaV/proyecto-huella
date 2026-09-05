@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import EnvironmentalSource,ExternalRecord,ExternalSnapshot,SourceState,SyncRun
+from .models import EnvironmentalSource,ExternalRecord,ExternalSnapshot,RetcHazardousWasteFact,SourceState,SyncRun
 class SourceStateSerializer(serializers.ModelSerializer):
     class Meta:model=SourceState;exclude=["source"]
 class EnvironmentalSourceSerializer(serializers.ModelSerializer):
@@ -11,3 +11,5 @@ class ExternalSnapshotSerializer(serializers.ModelSerializer):
     class Meta:model=ExternalSnapshot;fields="__all__"
 class ExternalRecordSerializer(serializers.ModelSerializer):
     class Meta:model=ExternalRecord;fields="__all__"
+class RetcHazardousWasteFactSerializer(serializers.ModelSerializer):
+    class Meta:model=RetcHazardousWasteFact;exclude=["raw_row"]
