@@ -1,320 +1,106 @@
-import {
-    useEffect,
-    useMemo,
-    useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Boxes, PackagePlus } from "lucide-react";
+import Toast from "@/shared/components/Toast";
+import { Alert, Button, Input, Modal, Select, Textarea } from "@/shared/ui";
+import { humanizeApiError } from "@/shared/utils/apiErrors";
+import { createOperationalActivity, listDataSources } from "../api/activityApi";
+import { createMaterialEvent, createOperationalMaterial, listOperationalMaterials } from "../api/materialsApi";
+import { MATERIAL_OPERATIONAL_UNITS, createMaterialMovementTechnicalCode, materialActivityPayload, materialEventPayload, operationalMaterialPayload } from "../utils/materialRecordContract";
 
-import {
-    Button,
-    Input,
-    Modal,
-    Select,
-} from "@/shared/ui";
+const initialForm = { material: "", type: "recepcion", amount: "", unit: "", source: "" };
+const initialMaterial = { code: "", name: "", category: "", baseUnit: "kg", supplier: "", description: "", technicalSpecification: "" };
+const Section = ({ title, children }) => <section className="space-y-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface-subtle)] p-4"><h3 className="font-black text-[var(--text-primary)]">{title}</h3><div className="grid gap-4 sm:grid-cols-2">{children}</div></section>;
 
-import {
-    createOperationalActivity,
-    listDataSources,
-} from "../api/activityApi";
+function MaterialCreateModal({ open, onClose, organizationId, onCreated, onError }) {
+    const [form, setForm] = useState(initialMaterial);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState("");
+    useEffect(() => { if (open) { setForm(initialMaterial); setError(""); } }, [open]);
+    const setField = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
+    const canSubmit = Boolean(form.code.trim() && form.name.trim() && form.category.trim() && form.baseUnit);
+    async function submit(event) {
+        event.preventDefault();
+        if (!canSubmit) return;
+        setSaving(true); setError("");
+        try {
+            const created = await createOperationalMaterial(organizationId, operationalMaterialPayload(form));
+            await onCreated(created); onClose();
+        } catch (requestError) {
+            const message = humanizeApiError(requestError, "No fue posible crear el material. Revisa los datos e intÃ©ntalo nuevamente.");
+            setError(message); onError(message);
+        } finally { setSaving(false); }
+    }
+    return <Modal open={open} onClose={onClose} eyebrow="CATÃLOGO OPERACIONAL" icon={PackagePlus} title="Crear nuevo material" description="Define el material una vez para reutilizarlo en los movimientos de la organizaciÃ³n.">
+        <form onSubmit={submit} className="space-y-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+                <Input required label="CÃ³digo" value={form.code} onChange={setField("code")} />
+                <Input required label="Nombre" value={form.name} onChange={setField("name")} />
+                <Input required label="CategorÃ­a" value={form.category} onChange={setField("category")} />
+                <Select required label="Unidad base" value={form.baseUnit} onChange={setField("baseUnit")}>{MATERIAL_OPERATIONAL_UNITS.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}</Select>
+                <Input label="Proveedor / fabricante" value={form.supplier} onChange={setField("supplier")} />
+                <Textarea label="DescripciÃ³n" value={form.description} onChange={setField("description")} />
+                <div className="sm:col-span-2"><Textarea label="EspecificaciÃ³n tÃ©cnica" value={form.technicalSpecification} onChange={setField("technicalSpecification")} /></div>
+            </div>
+            {error && <Alert tone="danger" title="No pudimos crear el material">{error}</Alert>}
+            <div className="flex justify-end gap-2"><Button type="button" variant="secondary" disabled={saving} onClick={onClose}>Volver</Button><Button type="submit" loading={saving} disabled={!canSubmit || saving}>Crear material</Button></div>
+        </form>
+    </Modal>;
+}
 
-import {
-    createMaterialEvent,
-    listOperationalMaterials,
-} from "../api/materialsApi";
-
-const initialForm = {
-    material: "",
-    type: "recepcion",
-    amount: "",
-    unit: "",
-    source: "",
-};
-
-export default function MaterialEventModal({
-    open,
-    onClose,
-    organizationId,
-    workId,
-    onCreated,
-}) {
+export default function MaterialEventModal({ open, onClose, organizationId, workId, onCreated }) {
     const [form, setForm] = useState(initialForm);
     const [materials, setMaterials] = useState([]);
     const [sources, setSources] = useState([]);
+    const [creatingMaterial, setCreatingMaterial] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
-
+    const [toast, setToast] = useState(null);
     useEffect(() => {
         if (!open) return;
-
-        setForm(initialForm);
-        setError("");
-
-        listOperationalMaterials(
-            organizationId,
-        ).then((data) =>
-            setMaterials(
-                Array.isArray(data)
-                    ? data
-                    : data?.results || [],
-            ),
-        );
-
-        listDataSources(
-            organizationId,
-        ).then((data) =>
-            setSources(
-                Array.isArray(data)
-                    ? data
-                    : data?.results || [],
-            ),
-        );
+        setForm(initialForm); setError("");
+        listOperationalMaterials(organizationId).then((data) => setMaterials(Array.isArray(data) ? data : data?.results || []));
+        listDataSources(organizationId, "materiales").then((data) => setSources(Array.isArray(data) ? data : data?.results || []));
     }, [open, organizationId]);
-
-    const canSubmit = useMemo(
-        () =>
-            Boolean(
-                form.material &&
-                form.type &&
-                form.amount !== "" &&
-                form.unit.trim() &&
-                form.source,
-            ),
-        [form],
-    );
-
+    const selectedMaterial = useMemo(() => materials.find((item) => String(item.id) === form.material), [materials, form.material]);
+    const canSubmit = Boolean(form.material && form.type && form.amount !== "" && form.unit && form.source);
+    const setField = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
+    async function materialCreated(created) {
+        const refreshed = await listOperationalMaterials(organizationId);
+        setMaterials(Array.isArray(refreshed) ? refreshed : refreshed?.results || []);
+        setForm((current) => ({ ...current, material: String(created.id), unit: created.unidad_base }));
+        setToast({ id: Date.now(), tone: "success", message: "Material creado", subtitle: `${created.nombre} quedÃ³ seleccionado para este movimiento.` });
+    }
     async function submit(event) {
         event.preventDefault();
-
         if (!canSubmit) return;
-
-        setSaving(true);
-        setError("");
-
+        setSaving(true); setError("");
+        const timestamp = new Date().toISOString();
+        const code = createMaterialMovementTechnicalCode();
         try {
-            const now =
-                new Date().toISOString();
-
-            const activity =
-                await createOperationalActivity(
-                    organizationId,
-                    {
-                        obra: workId,
-                        tipo:
-                            "movimiento_material",
-                        nombre:
-                            "Movimiento de material",
-                        timestamp_inicio:
-                            now,
-                    },
-                );
-
-            await createMaterialEvent(
-                organizationId,
-                {
-                    material:
-                        Number(
-                            form.material,
-                        ),
-                    actividad:
-                        activity.id,
-                    obra:
-                        workId,
-                    tipo:
-                        form.type,
-                    fecha_hora:
-                        now,
-                    cantidad:
-                        form.amount,
-                    unidad:
-                        form.unit.trim(),
-                    fuente:
-                        Number(
-                            form.source,
-                        ),
-                },
-            );
-
-            onClose();
-            await onCreated?.();
+            const activity = await createOperationalActivity(organizationId, materialActivityPayload({ workId, form, material: selectedMaterial, timestamp, code }));
+            await createMaterialEvent(organizationId, materialEventPayload({ activityId: activity.id, workId, form, timestamp }));
+            setToast({ id: Date.now(), tone: "success", message: "Movimiento registrado", subtitle: "El movimiento y su fuente quedaron asociados a la obra." });
+            onClose(); await onCreated?.();
         } catch (requestError) {
-            setError(
-                requestError.response?.data?.detail ||
-                "No fue posible registrar el movimiento.",
-            );
-        } finally {
-            setSaving(false);
-        }
+            const message = humanizeApiError(requestError, "No fue posible registrar el movimiento. Revisa los datos e intÃ©ntalo nuevamente.");
+            setError(message); setToast({ id: Date.now(), tone: "error", message: "No pudimos registrar el movimiento", subtitle: message });
+        } finally { setSaving(false); }
     }
-
-    return (
-        <Modal
-            open={open}
-            onClose={onClose}
-            title="Registrar movimiento"
-        >
-            <form
-                onSubmit={submit}
-                className="space-y-4"
-            >
-                <Select
-                    required
-                    label="Material"
-                    value={form.material}
-                    onChange={(event) => {
-                        const material =
-                            materials.find(
-                                (item) =>
-                                    String(item.id) ===
-                                    event.target.value,
-                            );
-
-                        setForm(
-                            (current) => ({
-                                ...current,
-                                material:
-                                    event.target.value,
-                                unit:
-                                    material?.unidad_base ||
-                                    current.unit,
-                            }),
-                        );
-                    }}
-                >
-                    <option value="">
-                        Selecciona un material
-                    </option>
-
-                    {materials.map((item) => (
-                        <option
-                            key={item.id}
-                            value={item.id}
-                        >
-                            {item.nombre}
-                        </option>
-                    ))}
-                </Select>
-
-                <Select
-                    required
-                    label="Movimiento"
-                    value={form.type}
-                    onChange={(event) =>
-                        setForm((current) => ({
-                            ...current,
-                            type:
-                                event.target.value,
-                        }))
-                    }
-                >
-                    <option value="adquisicion">
-                        Adquisición
-                    </option>
-                    <option value="recepcion">
-                        Recepción
-                    </option>
-                    <option value="uso">
-                        Uso
-                    </option>
-                    <option value="sobrante">
-                        Sobrante
-                    </option>
-                    <option value="reutilizacion">
-                        Reutilización
-                    </option>
-                    <option value="devolucion">
-                        Devolución
-                    </option>
-                    <option value="residuo">
-                        Residuo
-                    </option>
-                    <option value="despacho">
-                        Despacho
-                    </option>
-                </Select>
-
-                <Select
-                    required
-                    label="Unidad de medida"
-                    value={form.unit}
-                    onChange={(event) =>
-                        setForm((current) => ({
-                            ...current,
-                            unit:
-                                event.target.value,
-                        }))
-                    }
-                >
-                    {form.unit ? (
-                        <option value={form.unit}>{form.unit}</option>
-                    ) : (
-                        <option value="">Selecciona primero un material</option>
-                    )}
-                </Select>
-
-                <Input
-                    required
-                    type="number"
-                    step="any"
-                    label="Cantidad"
-                    suffix={form.unit}
-                    value={form.amount}
-                    onChange={(event) =>
-                        setForm((current) => ({
-                            ...current,
-                            amount:
-                                event.target.value,
-                        }))
-                    }
-                />
-
-                <Select
-                    required
-                    label="Fuente"
-                    value={form.source}
-                    onChange={(event) =>
-                        setForm((current) => ({
-                            ...current,
-                            source:
-                                event.target.value,
-                        }))
-                    }
-                >
-                    <option value="">
-                        Selecciona una fuente
-                    </option>
-
-                    {sources.map((source) => (
-                        <option
-                            key={source.id}
-                            value={source.id}
-                        >
-                            {source.nombre}
-                        </option>
-                    ))}
-                </Select>
-
-                {error && (
-                    <p>{error}</p>
-                )}
-
-                <div className="flex justify-end gap-2">
-                    <Button
-                        type="button"
-                        onClick={onClose}
-                    >
-                        Cancelar
-                    </Button>
-
-                    <Button
-                        type="submit"
-                        disabled={
-                            !canSubmit ||
-                            saving
-                        }
-                    >
-                        Registrar
-                    </Button>
-                </div>
+    return <>
+        <Toast {...toast} toastKey={toast?.id} onClose={() => setToast(null)} />
+        <Modal open={open} onClose={onClose} eyebrow="REGISTRO OPERACIONAL" icon={Boxes} title="Registrar movimiento de material" description="El movimiento quedarÃ¡ asociado a esta obra y conservarÃ¡ su fuente y trazabilidad.">
+            <form onSubmit={submit} className="space-y-5">
+                <Section title="Material"><div><Select required label="Material" value={form.material} onChange={(event) => { const material = materials.find((item) => String(item.id) === event.target.value); setForm((current) => ({ ...current, material: event.target.value, unit: material?.unidad_base || "" })); }}><option value="">Selecciona un material</option>{materials.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</Select><Button type="button" variant="ghost" className="mt-2" onClick={() => setCreatingMaterial(true)}>+ Crear nuevo material</Button></div></Section>
+                <Section title="Movimiento">
+                    <Select required label="Tipo de movimiento" value={form.type} onChange={setField("type")}><option value="adquisicion">AdquisiciÃ³n</option><option value="recepcion">RecepciÃ³n</option><option value="uso">Uso</option><option value="sobrante">Sobrante</option><option value="reutilizacion">ReutilizaciÃ³n</option><option value="devolucion">DevoluciÃ³n</option><option value="residuo">Residuo</option><option value="despacho">Despacho</option></Select>
+                    <Input required type="number" step="any" label="Cantidad" suffix={form.unit} value={form.amount} onChange={setField("amount")} />
+                    <Select required label="Unidad" value={form.unit} onChange={setField("unit")} disabled={!selectedMaterial}><option value="">Selecciona primero un material</option>{selectedMaterial?.unidad_base && <option value={selectedMaterial.unidad_base}>{selectedMaterial.unidad_base}</option>}</Select>
+                </Section>
+                <Section title="Trazabilidad"><Select required label="Fuente del dato" value={form.source} onChange={setField("source")}><option value="">Selecciona una fuente</option>{sources.map((source) => <option key={source.id} value={source.id}>{source.nombre}</option>)}</Select></Section>
+                {error && <Alert tone="danger" title="No pudimos registrar el movimiento">{error}</Alert>}
+                <div className="flex justify-end gap-2"><Button type="button" variant="secondary" disabled={saving} onClick={onClose}>Cancelar</Button><Button type="submit" loading={saving} disabled={!canSubmit || saving}>Registrar movimiento</Button></div>
             </form>
         </Modal>
-    );
+        <MaterialCreateModal open={creatingMaterial} onClose={() => setCreatingMaterial(false)} organizationId={organizationId} onCreated={materialCreated} onError={(message) => setToast({ id: Date.now(), tone: "error", message: "No pudimos crear el material", subtitle: message })} />
+    </>;
 }

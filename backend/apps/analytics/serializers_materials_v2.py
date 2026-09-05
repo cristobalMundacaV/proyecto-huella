@@ -12,6 +12,18 @@ class MaterialOperacionalSerializer(serializers.ModelSerializer):
         exclude = ["organizacion"]
         read_only_fields = ["id", "created_at", "updated_at"]
 
+    def validate_codigo(self, value):
+        queryset = MaterialOperacional.objects.filter(
+            organizacion=self.context["organizacion"], codigo=value
+        )
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise serializers.ValidationError(
+                "Ya existe un material con este codigo en la organizacion."
+            )
+        return value
+
     def create(self, data):
         return save_entity(MaterialOperacional(), self.context["organizacion"], data)
 

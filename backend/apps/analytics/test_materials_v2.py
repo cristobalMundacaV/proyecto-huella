@@ -46,6 +46,61 @@ class MaterialsV2Tests(APITestCase):
         response = self.client.post(f"{self.base}/materiales-operacionales/", {"codigo": "HOR-30", "nombre": "Hormigon H30", "categoria": "hormigon", "unidad_base": "m3"}, format="json")
         self.assertEqual(response.status_code, 201)
 
+    def test_e2e_recepcion_material_creado_y_codigo_unico_por_tenant(self):
+        material_payload = {
+            "codigo": "CEM-EPN-01",
+            "nombre": "Cemento Portland",
+            "categoria": "cemento",
+            "unidad_base": "kg",
+            "proveedor_fabricante": "Proveedor Demo",
+            "activo": True,
+        }
+        created = self.client.post(
+            f"{self.base}/materiales-operacionales/", material_payload, format="json"
+        )
+        self.assertEqual(created.status_code, 201, created.data)
+        duplicate = self.client.post(
+            f"{self.base}/materiales-operacionales/", material_payload, format="json"
+        )
+        self.assertEqual(duplicate.status_code, 400)
+        MaterialOperacional.objects.create(
+            organizacion=self.other, **material_payload
+        )
+        activity = ActividadOperacional.objects.create(
+            organizacion=self.org,
+            obra=self.work,
+            tipo=ActividadOperacional.Tipo.MOVIMIENTO_MATERIAL,
+            codigo="MATMOV-E2E-01",
+            nombre="Recepcion de Cemento Portland",
+            timestamp_inicio=timezone.now(),
+        )
+        response = self.client.post(
+            f"{self.base}/eventos-materiales/",
+            {
+                "material": created.data["id"],
+                "actividad": activity.id,
+                "obra": self.work.id,
+                "tipo": "recepcion",
+                "fecha_hora": timezone.now().isoformat(),
+                "cantidad": "10000",
+                "unidad": "kg",
+                "fuente": self.source.id,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        event = EventoMaterial.objects.get(pk=response.data["id"])
+        self.assertEqual(event.actividad, activity)
+        self.assertEqual(event.observacion_cantidad.concepto, "cantidad_material")
+        self.assertEqual(event.observacion_cantidad.valor_numerico, Decimal("10000"))
+        self.assertEqual(event.observacion_cantidad.unidad, "kg")
+        self.assertEqual(event.observacion_cantidad.fuente, self.source)
+        balance = material_balance(self.org, event.material, work=self.work)["balances"][0]
+        self.assertEqual(balance["cantidad_recibida"], Decimal("10000"))
+        self.assertEqual(balance["cantidad_utilizada"], Decimal("0"))
+        self.assertEqual(balance["cantidad_reutilizada"], Decimal("0"))
+        self.assertEqual(balance["stock_restante"], Decimal("10000"))
+
     def test_aislamiento_tenant(self):
         foreign = MaterialOperacional.objects.create(organizacion=self.other, codigo="OTRO", nombre="Otro", categoria="otro", unidad_base="kg")
         ids = {row["id"] for row in self.client.get(f"{self.base}/materiales-operacionales/").json()}
