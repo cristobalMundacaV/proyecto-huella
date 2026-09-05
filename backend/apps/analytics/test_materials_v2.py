@@ -204,6 +204,33 @@ class MaterialsV2Tests(APITestCase):
         response = self.client.post(f"{self.base}/eventos-materiales/", {"material": self.material.id, "actividad": activity.id, "tipo": "recepcion", "fecha_hora": timezone.now().isoformat(), "cantidad": "100", "unidad": "t", "fuente": self.source.id, "proceso": self.process.id}, format="json")
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(EventoMaterial.objects.get().observacion_cantidad.valor_numerico, Decimal("100"))
+
+    def test_eventos_exponen_actividad_real_sin_registro_flujo_artificial(self):
+        reception = self.event("recepcion", 10, obra=self.work)
+        use = self.event("uso", 2, obra=self.work)
+        response = self.client.get(f"{self.base}/eventos-materiales/?obra={self.work.id}")
+        self.assertEqual(response.status_code, 200, response.data)
+        rows = response.data["results"] if isinstance(response.data, dict) else response.data
+        self.assertEqual({row["id"] for row in rows}, {reception.id, use.id})
+        self.assertEqual(
+            {row["actividad_detalle"]["id"] for row in rows},
+            {reception.actividad_id, use.actividad_id},
+        )
+        self.assertEqual(
+            {row["actividad_detalle"]["tipo"] for row in rows},
+            {ActividadOperacional.Tipo.MOVIMIENTO_MATERIAL},
+        )
+
+    def test_eventos_materiales_aislan_obra_y_organizacion(self):
+        own = self.event("recepcion", 10, obra=self.work)
+        other_work = Obra.objects.create(organizacion=self.org, etapa_principal=self.stage, nombre="Edificio B", fecha_inicio="2026-01-01")
+        self.event("uso", 2, obra=other_work)
+        foreign_material = MaterialOperacional.objects.create(organizacion=self.other, codigo="FOREIGN-MAT", nombre="Otro", categoria="otro", unidad_base="kg")
+        foreign_activity = ActividadOperacional.objects.create(organizacion=self.other, tipo="movimiento_material", codigo="FOREIGN-EVENT", nombre="Otro", timestamp_inicio=timezone.now())
+        EventoMaterial.objects.create(organizacion=self.other, material=foreign_material, actividad=foreign_activity, tipo="recepcion", fecha_hora=timezone.now())
+        response = self.client.get(f"{self.base}/eventos-materiales/?obra={self.work.id}")
+        rows = response.data["results"] if isinstance(response.data, dict) else response.data
+        self.assertEqual([row["id"] for row in rows], [own.id])
     def test_registrar_uso(self): self.assertEqual(self.event("uso", 72).tipo, "uso")
     def test_registrar_sobrante(self): self.assertEqual(self.event("sobrante", 18).tipo, "sobrante")
     def test_registrar_reutilizacion(self): self.assertEqual(self.event("reutilizacion", 8).tipo, "reutilizacion")

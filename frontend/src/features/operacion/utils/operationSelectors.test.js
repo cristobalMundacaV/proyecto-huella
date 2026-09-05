@@ -335,3 +335,16 @@ test("Transporte entrega actividades reales de viajes al panel de cálculo", () 
   assert.match(calculationPanel, /getActivityCalculations/);
   assert.match(calculationPanel, /calculateActivity/);
 });
+
+test("Materiales entrega actividades reales de eventos al panel de cálculo", () => {
+  const materialsPage = readFileSync(new URL("../pages/MaterialsPage.jsx", import.meta.url), "utf8");
+  const reception = { id: 11, tipo: "movimiento_material" };
+  const use = { id: 12, tipo: "movimiento_material" };
+  assert.deepEqual(explicitDomainActivities([reception, use], "materiales"), [reception, use]);
+  assert.deepEqual(explicitDomainActivities([reception, reception], "materiales"), [reception]);
+  assert.deepEqual(explicitDomainActivities([{ id: 13, tipo: "transporte" }], "materiales"), []);
+  assert.deepEqual(explicitDomainActivities([], "materiales"), []);
+  assert.match(materialsPage, /event\.actividad_detalle/);
+  assert.match(materialsPage, /activities=\{materialActivities\}/);
+  assert.doesNotMatch(materialsPage, /RegistroFlujoAmbiental/);
+});

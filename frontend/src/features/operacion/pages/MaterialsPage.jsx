@@ -15,7 +15,7 @@ import {
 } from "@/shared/ui";
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
 import OperationDomainShell from "../components/OperationDomainShell";
-import { applicability, isResourceReady, resourceData } from "../utils/operationSelectors";
+import { applicability, explicitDomainActivities, isResourceReady, resourceData } from "../utils/operationSelectors";
 import { useEffect, useMemo, useState } from "react";
 import MaterialEventModal from "../components/MaterialEventModal";
 import MaterialReceptionLinkModal from "../components/MaterialReceptionLinkModal";
@@ -53,6 +53,13 @@ export default function MaterialsPage() {
   const balancesReady = isResourceReady(operation.materials);
   const eventsReady = isResourceReady(operation.materialEvents);
   const events = resourceData(operation.materialEvents, []);
+  const materialActivities = useMemo(
+    () => explicitDomainActivities(
+      events.map((event) => event.actividad_detalle),
+      "materiales",
+    ),
+    [events],
+  );
   const materialNames = new Map(events.filter((event) => event.material).map((event) => [String(event.material), event.material_nombre]));
   const materialBalances = resourceData(operation.materials, []);
   const signals = materialBalances.flatMap((material) => material.senales || []);
@@ -193,6 +200,7 @@ export default function MaterialsPage() {
       <DomainCalculationPanel
         domain="materiales"
         operation={operation}
+        activities={materialActivities}
         organizationId={
           context?.references?.organization
         }

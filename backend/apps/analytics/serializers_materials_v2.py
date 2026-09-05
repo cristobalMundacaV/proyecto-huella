@@ -3,7 +3,7 @@ from uuid import uuid4
 from django.db import transaction
 from rest_framework import serializers
 
-from .models import EventoMaterial, LoteMaterial, MaterialOperacional
+from .models import ActividadOperacional, EventoMaterial, LoteMaterial, MaterialOperacional
 from .serializers_activity_core import ObservacionSerializer
 from .policies.materials import material_event_errors, tenant_relation_errors
 from .services.materials_v2 import save_entity, save_material_event
@@ -52,7 +52,14 @@ class LoteMaterialSerializer(serializers.ModelSerializer):
         return save_entity(instance, self.context["organizacion"], data)
 
 
+class ActividadEventoMaterialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActividadOperacional
+        fields = ["id", "codigo", "nombre", "tipo", "estado", "timestamp_inicio"]
+
+
 class EventoMaterialSerializer(serializers.ModelSerializer):
+    actividad_detalle = ActividadEventoMaterialSerializer(source="actividad", read_only=True)
     cantidad = serializers.DecimalField(
         max_digits=20, decimal_places=6, required=False, write_only=True, min_value=0
     )
