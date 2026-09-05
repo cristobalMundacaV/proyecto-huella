@@ -5,10 +5,10 @@ import { Alert, Button, Input, Modal, Select, Textarea } from "@/shared/ui";
 import { humanizeApiError } from "@/shared/utils/apiErrors";
 import { createOperationalActivity, listDataSources } from "../api/activityApi";
 import { createMaterialEvent, createOperationalMaterial, listOperationalMaterials } from "../api/materialsApi";
-import { MATERIAL_OPERATIONAL_UNITS, createMaterialMovementTechnicalCode, materialActivityPayload, materialEventPayload, operationalMaterialPayload } from "../utils/materialRecordContract";
+import { MATERIAL_OPERATIONAL_CATEGORIES, MATERIAL_OPERATIONAL_UNITS, createMaterialMovementTechnicalCode, materialActivityPayload, materialEventPayload, operationalMaterialPayload } from "../utils/materialRecordContract";
 
 const initialForm = { material: "", type: "recepcion", amount: "", unit: "", source: "" };
-const initialMaterial = { code: "", name: "", category: "", baseUnit: "kg", supplier: "", description: "", technicalSpecification: "" };
+const initialMaterial = { name: "", category: "cemento", baseUnit: "kg", supplier: "", description: "" };
 const Section = ({ title, children }) => <section className="space-y-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface-subtle)] p-4"><h3 className="font-black text-[var(--text-primary)]">{title}</h3><div className="grid gap-4 sm:grid-cols-2">{children}</div></section>;
 
 function MaterialCreateModal({ open, onClose, organizationId, onCreated, onError }) {
@@ -17,7 +17,7 @@ function MaterialCreateModal({ open, onClose, organizationId, onCreated, onError
     const [error, setError] = useState("");
     useEffect(() => { if (open) { setForm(initialMaterial); setError(""); } }, [open]);
     const setField = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
-    const canSubmit = Boolean(form.code.trim() && form.name.trim() && form.category.trim() && form.baseUnit);
+    const canSubmit = Boolean(form.name.trim() && form.category && form.baseUnit);
     async function submit(event) {
         event.preventDefault();
         if (!canSubmit) return;
@@ -33,13 +33,11 @@ function MaterialCreateModal({ open, onClose, organizationId, onCreated, onError
     return <Modal open={open} onClose={onClose} eyebrow="CATÁLOGO OPERACIONAL" icon={PackagePlus} title="Crear nuevo material" description="Define el material una vez para reutilizarlo en los movimientos de la organización.">
         <form onSubmit={submit} className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
-                <Input required label="Código" value={form.code} onChange={setField("code")} />
                 <Input required label="Nombre" value={form.name} onChange={setField("name")} />
-                <Input required label="Categorí­a" value={form.category} onChange={setField("category")} />
-                <Select required label="Unidad base" value={form.baseUnit} onChange={setField("baseUnit")}>{MATERIAL_OPERATIONAL_UNITS.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}</Select>
+                <Select required label={"Categor\u00eda"} value={form.category} onChange={setField("category")}>{MATERIAL_OPERATIONAL_CATEGORIES.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}</Select>
+                <Select required label="Unidad de medida" value={form.baseUnit} onChange={setField("baseUnit")}>{MATERIAL_OPERATIONAL_UNITS.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}</Select>
                 <Input label="Proveedor / fabricante" value={form.supplier} onChange={setField("supplier")} />
                 <Textarea label="Descripción" value={form.description} onChange={setField("description")} />
-                <div className="sm:col-span-2"><Textarea label="Especificación técnica" value={form.technicalSpecification} onChange={setField("technicalSpecification")} /></div>
             </div>
             {error && <Alert tone="danger" title="No pudimos crear el material">{error}</Alert>}
             <div className="flex justify-end gap-2"><Button type="button" variant="secondary" disabled={saving} onClick={onClose}>Volver</Button><Button type="submit" loading={saving} disabled={!canSubmit || saving}>Crear material</Button></div>

@@ -48,7 +48,6 @@ class MaterialsV2Tests(APITestCase):
 
     def test_e2e_recepcion_material_creado_y_codigo_unico_por_tenant(self):
         material_payload = {
-            "codigo": "CEM-EPN-01",
             "nombre": "Cemento Portland",
             "categoria": "cemento",
             "unidad_base": "kg",
@@ -59,13 +58,21 @@ class MaterialsV2Tests(APITestCase):
             f"{self.base}/materiales-operacionales/", material_payload, format="json"
         )
         self.assertEqual(created.status_code, 201, created.data)
-        duplicate = self.client.post(
+        same_name = self.client.post(
             f"{self.base}/materiales-operacionales/", material_payload, format="json"
         )
-        self.assertEqual(duplicate.status_code, 400)
-        MaterialOperacional.objects.create(
-            organizacion=self.other, **material_payload
+        self.assertEqual(same_name.status_code, 201, same_name.data)
+        self.assertRegex(created.data["codigo"], r"^MAT-[0-9A-F]{32}$")
+        self.assertRegex(same_name.data["codigo"], r"^MAT-[0-9A-F]{32}$")
+        self.assertNotEqual(created.data["codigo"], same_name.data["codigo"])
+        legacy_update = self.client.patch(
+            f"{self.base}/materiales-operacionales/{self.material.id}/",
+            {"nombre": "Acero actualizado", "codigo": "MAT-ALTERADO"},
+            format="json",
         )
+        self.assertEqual(legacy_update.status_code, 200, legacy_update.data)
+        self.material.refresh_from_db()
+        self.assertEqual(self.material.codigo, "MAT-AC")
         activity = ActividadOperacional.objects.create(
             organizacion=self.org,
             obra=self.work,

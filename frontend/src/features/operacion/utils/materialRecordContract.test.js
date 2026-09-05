@@ -1,13 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { MATERIAL_OPERATIONAL_UNITS, createMaterialMovementTechnicalCode, materialActivityPayload, materialEventPayload, operationalMaterialPayload } from "./materialRecordContract.js";
+import { MATERIAL_OPERATIONAL_CATEGORIES, MATERIAL_OPERATIONAL_UNITS, createMaterialMovementTechnicalCode, materialActivityPayload, materialEventPayload, operationalMaterialPayload } from "./materialRecordContract.js";
 
 test("crea material operacional sin metadata manual y con unidad gobernada", () => {
-  const payload = operationalMaterialPayload({ code: " CEM-EPN-01 ", name: " Cemento Portland ", category: " cemento ", baseUnit: "kg", supplier: " Proveedor Demo ", description: "", technicalSpecification: "" });
-  assert.deepEqual(payload, { codigo: "CEM-EPN-01", nombre: "Cemento Portland", categoria: "cemento", unidad_base: "kg", proveedor_fabricante: "Proveedor Demo", descripcion: "", especificacion_tecnica: "", activo: true });
+  const payload = operationalMaterialPayload({ name: " Cemento Portland ", category: "cemento", baseUnit: "kg", supplier: " Proveedor Demo ", description: "" });
+  assert.deepEqual(payload, { nombre: "Cemento Portland", categoria: "cemento", unidad_base: "kg", proveedor_fabricante: "Proveedor Demo", descripcion: "", activo: true });
   assert.deepEqual(MATERIAL_OPERATIONAL_UNITS.map((item) => item.value), ["kg", "t", "m3", "L", "unidad"]);
   assert.equal(Object.hasOwn(payload, "metadata"), false);
+  assert.equal(Object.hasOwn(payload, "codigo"), false);
+  assert.deepEqual(MATERIAL_OPERATIONAL_CATEGORIES.map((item) => item.value), ["cemento", "hormigon", "acero", "madera", "aridos", "ladrillos_bloques", "yeso_placas", "vidrio", "aluminio_otros_metales", "aislacion", "pinturas_revestimientos", "plasticos_pvc", "tuberias", "asfalto", "prefabricados", "otros"]);
 });
 
 test("actividad usa identidad MATMOV y evento conserva el contrato operacional", () => {
@@ -30,5 +32,7 @@ test("modal filtra fuentes y conserva estándar operacional, errores y selecció
   assert.match(modal, /<Toast/);
   assert.match(modal, /<Alert tone="danger"/);
   assert.match(modal, /eyebrow="REGISTRO OPERACIONAL"/);
+  assert.doesNotMatch(modal, /form\.code/);
+  assert.doesNotMatch(modal, /technicalSpecification/);
   for (const title of ["Material", "Movimiento", "Trazabilidad"]) assert.match(modal, new RegExp(`title="${title}"`));
 });

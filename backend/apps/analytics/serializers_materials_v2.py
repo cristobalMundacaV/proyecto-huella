@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from rest_framework import serializers
 
 from .models import EventoMaterial, LoteMaterial, MaterialOperacional
@@ -10,21 +12,10 @@ class MaterialOperacionalSerializer(serializers.ModelSerializer):
     class Meta:
         model = MaterialOperacional
         exclude = ["organizacion"]
-        read_only_fields = ["id", "created_at", "updated_at"]
-
-    def validate_codigo(self, value):
-        queryset = MaterialOperacional.objects.filter(
-            organizacion=self.context["organizacion"], codigo=value
-        )
-        if self.instance:
-            queryset = queryset.exclude(pk=self.instance.pk)
-        if queryset.exists():
-            raise serializers.ValidationError(
-                "Ya existe un material con este codigo en la organizacion."
-            )
-        return value
+        read_only_fields = ["id", "codigo", "created_at", "updated_at"]
 
     def create(self, data):
+        data["codigo"] = f"MAT-{uuid4().hex.upper()}"
         return save_entity(MaterialOperacional(), self.context["organizacion"], data)
 
     def update(self, instance, data):

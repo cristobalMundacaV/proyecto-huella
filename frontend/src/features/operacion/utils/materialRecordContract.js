@@ -1,7 +1,20 @@
 export const MATERIAL_OPERATIONAL_UNITS = [
   { value: "kg", label: "Kilogramos (kg)" }, { value: "t", label: "Toneladas (t)" },
-  { value: "m3", label: "Metros cÃºbicos (m3)" }, { value: "L", label: "Litros (L)" },
-  { value: "unidad", label: "Unidad" },
+  { value: "m3", label: "Metros c\u00fabicos (m\u00b3)" }, { value: "L", label: "Litros (L)" },
+  { value: "unidad", label: "Unidades" },
+];
+
+export const MATERIAL_OPERATIONAL_CATEGORIES = [
+  { value: "cemento", label: "Cemento" }, { value: "hormigon", label: "Hormig\u00f3n" },
+  { value: "acero", label: "Acero" }, { value: "madera", label: "Madera" },
+  { value: "aridos", label: "\u00c1ridos" }, { value: "ladrillos_bloques", label: "Ladrillos y bloques" },
+  { value: "yeso_placas", label: "Yeso y placas" }, { value: "vidrio", label: "Vidrio" },
+  { value: "aluminio_otros_metales", label: "Aluminio y otros metales" },
+  { value: "aislacion", label: "Aislaci\u00f3n" },
+  { value: "pinturas_revestimientos", label: "Pinturas y revestimientos" },
+  { value: "plasticos_pvc", label: "Pl\u00e1sticos / PVC" }, { value: "tuberias", label: "Tuber\u00edas" },
+  { value: "asfalto", label: "Asfalto" }, { value: "prefabricados", label: "Prefabricados" },
+  { value: "otros", label: "Otros" },
 ];
 
 export function createMaterialMovementTechnicalCode() {
@@ -10,7 +23,7 @@ export function createMaterialMovementTechnicalCode() {
 }
 
 export function operationalMaterialPayload(form) {
-  return { codigo: form.code.trim(), nombre: form.name.trim(), categoria: form.category.trim(), unidad_base: form.baseUnit, proveedor_fabricante: form.supplier.trim(), descripcion: form.description.trim(), especificacion_tecnica: form.technicalSpecification.trim(), activo: true };
+  return { nombre: form.name.trim(), categoria: form.category, unidad_base: form.baseUnit, proveedor_fabricante: form.supplier.trim(), descripcion: form.description.trim(), activo: true };
 }
 
 export function materialActivityPayload({ workId, form, material, timestamp, code }) {
