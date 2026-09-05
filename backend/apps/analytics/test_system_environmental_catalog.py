@@ -27,6 +27,7 @@ from .services.system_environmental_catalog import (
     ENERGY_FACTOR_CODE,
     ENERGY_METHODOLOGY_CODE,
     SYSTEM_ENVIRONMENTAL_CATALOG_VERSION,
+    TRANSPORT_FUEL_METHODOLOGY_CODE,
     ensure_system_environmental_catalog,
 )
 
@@ -109,10 +110,18 @@ class SystemEnvironmentalCatalogTests(TestCase):
             set(
                 MetodologiaAmbiental.objects.filter(
                     organizacion__isnull=True,
-                    codigo__in=[METHODOLOGY_CODE, ENERGY_METHODOLOGY_CODE],
+                    codigo__in=[
+                        METHODOLOGY_CODE,
+                        ENERGY_METHODOLOGY_CODE,
+                        TRANSPORT_FUEL_METHODOLOGY_CODE,
+                    ],
                 ).values_list("codigo", flat=True)
             ),
-            {METHODOLOGY_CODE, ENERGY_METHODOLOGY_CODE},
+            {
+                METHODOLOGY_CODE,
+                ENERGY_METHODOLOGY_CODE,
+                TRANSPORT_FUEL_METHODOLOGY_CODE,
+            },
         )
 
     def test_repeated_provisioning_has_zero_duplicates(self):
@@ -192,9 +201,9 @@ class SystemEnvironmentalCatalogTests(TestCase):
 
     def test_commands_are_wrappers_over_catalog_services(self):
         result = {
-            "catalog_version": 1,
+            "catalog_version": SYSTEM_ENVIRONMENTAL_CATALOG_VERSION,
             "huellachile_factors": 6,
-            "methodologies": 2,
+            "methodologies": 3,
         }
         with patch(
             "apps.analytics.management.commands.bootstrap_calculation_v2.ensure_system_environmental_catalog",

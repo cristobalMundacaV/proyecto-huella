@@ -15,7 +15,7 @@ from ..models import (
 from .methodology_governance import transition_version
 
 
-SYSTEM_ENVIRONMENTAL_CATALOG_VERSION = 1
+SYSTEM_ENVIRONMENTAL_CATALOG_VERSION = 2
 SYSTEM_CATALOG_LOCK_ID = 739_204_101
 
 HUELLACHILE_SOURCE = "Programa HuellaChile - Ministerio del Medio Ambiente"
@@ -32,6 +32,7 @@ HUELLACHILE_FACTORS = (
 
 FUEL_METHODOLOGY_CODE = "construccion-v1-combustible-consumido"
 ENERGY_METHODOLOGY_CODE = "construccion-v1-electricidad-red-sen"
+TRANSPORT_FUEL_METHODOLOGY_CODE = "construccion-v1-transporte-combustible"
 ENERGY_FACTOR_CODE = "sen-electricidad-red-location-based-2025"
 ENERGY_SOURCE = "Programa HuellaChile / Ministerio del Medio Ambiente"
 ENERGY_REFERENCE = (
@@ -187,6 +188,43 @@ def ensure_construction_v1_methodologies():
         },
     )
 
+    transport_fuel = _ensure_methodology(
+        code=TRANSPORT_FUEL_METHODOLOGY_CODE,
+        methodology_fields={
+            "nombre": "Construccion V1 - transporte por combustible consumido",
+            "categoria": "transporte",
+            "flujo": "transporte_combustible",
+            "descripcion": "Emisiones de transporte por combustible realmente consumido.",
+            "activa": True,
+        },
+        version_fields={
+            "descripcion_tecnica": "Emision = combustible del viaje normalizado x factor movil aplicable.",
+            "fuente_referencia": fuel_reference,
+            "vigencia_desde": None,
+            "vigencia_hasta": None,
+            "aplicabilidad": {"tipos_actividad": ["transporte"]},
+            "prioridad": 100,
+            "requiere_revision_profesional": False,
+            "tipo_resultado": "emision",
+        },
+        formula_fields={
+            "factor_ambiental": None,
+            "codigo": "construccion-v1-transporte-combustible-v1",
+            "tipo": FormulaAmbiental.Tipo.TRANSPORTE_COMBUSTIBLE,
+            "expresion_legible": "combustible x factor_movil_seleccionado",
+            "version": 1,
+        },
+        variable_fields={
+            "clave": "combustible",
+            "concepto_observacion": "combustible_consumido_l",
+            "unidad_esperada": "m3",
+            "obligatoria": True,
+            "criticidad": VariableFormula.Criticidad.CRITICA,
+            "rol": VariableFormula.Rol.ACTIVIDAD,
+            "descripcion": "Volumen de combustible consumido por el viaje.",
+        },
+    )
+
     energy_context = {
         "factor_year": 2025,
         "sistema": "SEN",
@@ -257,7 +295,7 @@ def ensure_construction_v1_methodologies():
             "descripcion": "Electricidad consumida desde la red.",
         },
     )
-    return fuel, energy
+    return fuel, energy, transport_fuel
 
 
 def _lock_system_catalog():

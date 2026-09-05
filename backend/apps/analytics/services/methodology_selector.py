@@ -80,7 +80,7 @@ def select_methodology(actividad):
 
     def rank(item):
         version = item["version_metodologia"]
-        return (version.prioridad, version.pk)
+        return (version.prioridad, item["estado"] == "no_aplicable", version.pk)
 
     candidates.sort(key=rank)
     available = [item for item in candidates if item["estado"] == "aplicable"]

@@ -1,5 +1,7 @@
 from django.core.exceptions import ObjectDoesNotExist
 
+from ..models import ActividadOperacional
+
 
 STATIONARY_DESTINATIONS = {
     "generador": "El combustible fue destinado a un generador.",
@@ -87,6 +89,32 @@ def activity_fuel_classification(activity):
     if isinstance(classification, dict):
         return classification
 
+    if activity.tipo == ActividadOperacional.Tipo.TRANSPORTE:
+        vehicle = activity_vehicle(activity)
+        if vehicle is None:
+            return {
+                "estado": "requiere_clasificacion",
+                "categoria": None,
+                "alcance": 1,
+                "razon": "La actividad de transporte no tiene un vehiculo asociado.",
+                "regla": "actividad.tipo=transporte;viaje.vehiculo",
+            }
+        if not str(vehicle.combustible or "").strip():
+            return {
+                "estado": "requiere_clasificacion",
+                "categoria": None,
+                "alcance": 1,
+                "razon": "El vehiculo asociado al viaje no informa combustible.",
+                "regla": "actividad.tipo=transporte;viaje.vehiculo.combustible",
+            }
+        return {
+            "estado": "clasificado",
+            "categoria": "combustion_movil",
+            "alcance": 1,
+            "razon": "El combustible corresponde al vehiculo asociado al viaje.",
+            "regla": "actividad.tipo=transporte;viaje.vehiculo",
+        }
+
     try:
         record = activity.registro_flujo_ambiental
     except ObjectDoesNotExist:
@@ -97,6 +125,9 @@ def activity_fuel_classification(activity):
 
 
 def activity_fuel_type(activity):
+    if activity.tipo == ActividadOperacional.Tipo.TRANSPORTE:
+        vehicle = activity_vehicle(activity)
+        return str(vehicle.combustible or "").strip().casefold() if vehicle else ""
     try:
         record = activity.registro_flujo_ambiental
     except ObjectDoesNotExist:
@@ -104,3 +135,21 @@ def activity_fuel_type(activity):
     if record.flujo not in FUEL_FLOWS:
         return ""
     return str(record.tipo_recurso or "").strip().casefold()
+
+
+def activity_vehicle(activity):
+    """Resolve the real vehicle specialization without fabricating transport data."""
+    try:
+        journey = activity.viaje
+    except ObjectDoesNotExist:
+        journey = None
+    if journey is not None:
+        return journey.vehiculo
+
+    asset = activity.activos.filter(tipo="vehiculo").select_related("vehiculo").first()
+    if asset is None:
+        return None
+    try:
+        return asset.vehiculo
+    except ObjectDoesNotExist:
+        return None

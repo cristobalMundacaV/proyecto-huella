@@ -173,7 +173,10 @@ def metodologia_detail(request, organizacion_id, metodologia_id):
         validate_applicability(payload.get("aplicabilidad", {}))
     except DjangoValidationError as exc:
         return Response({"aplicabilidad": exc.messages}, status=400)
-    if formula_data.get("tipo") == FormulaAmbiental.Tipo.COMBUSTIBLE_CONSUMIDO:
+    if formula_data.get("tipo") in {
+        FormulaAmbiental.Tipo.COMBUSTIBLE_CONSUMIDO,
+        FormulaAmbiental.Tipo.TRANSPORTE_COMBUSTIBLE,
+    } and not formula_data.get("factor_ambiental"):
         factor = None
     else:
         factor = get_object_or_404(

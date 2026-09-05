@@ -92,7 +92,13 @@ def structural_errors(version):
         and version.vigencia_desde > version.vigencia_hasta
     ):
         errors.append("La vigencia de la metodologÃ­a es invÃ¡lida.")
-    dynamic_fuel_formula = formula.tipo == FormulaAmbiental.Tipo.COMBUSTIBLE_CONSUMIDO
+    dynamic_fuel_formula = (
+        formula.tipo == FormulaAmbiental.Tipo.COMBUSTIBLE_CONSUMIDO
+        or (
+            formula.tipo == FormulaAmbiental.Tipo.TRANSPORTE_COMBUSTIBLE
+            and formula.factor_ambiental_id is None
+        )
+    )
     if dynamic_fuel_formula and formula.factor_ambiental_id is not None:
         errors.append(
             "La formula de combustible consumido debe seleccionar el factor dinamicamente."

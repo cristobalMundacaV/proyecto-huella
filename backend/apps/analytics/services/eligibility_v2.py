@@ -3,7 +3,11 @@ from django.utils import timezone
 
 from ..models import EvaluacionCalidadDato, Observacion, VersionFactorAmbiental
 from .observation_resolver import resolve_observation
-from .fuel_classification import activity_fuel_classification, activity_fuel_type
+from .fuel_classification import (
+    activity_fuel_classification,
+    activity_fuel_type,
+    activity_vehicle,
+)
 from .fuel_factor_selector import select_fuel_factor
 from .unit_conversion import UnitConversionError, convert_value
 from .quality_v2 import ensure_current_quality_evaluation
@@ -60,7 +64,23 @@ def evaluate_formula(actividad, formula):
         reasons.append("El registro es posterior al término de la obra y no puede alimentar cálculos ambientales.")
     fuel_classification = activity_fuel_classification(actividad)
     fuel_factor_selection = None
-    if fuel_classification:
+    dynamic_fuel_formula = (
+        (
+            formula.tipo == "transporte_combustible"
+            and (
+                formula.factor_ambiental_id is None
+                or (
+                    fuel_classification is not None
+                    and actividad.tipo != "transporte"
+                )
+            )
+        )
+        or (
+            formula.tipo == "combustible_consumido"
+            and formula.factor_ambiental_id is None
+        )
+    )
+    if dynamic_fuel_formula:
         fuel_factor_selection = select_fuel_factor(
             actividad.organizacion,
             fuel_classification,
@@ -73,7 +93,7 @@ def evaluate_formula(actividad, formula):
         factor_version = active_factor_version(
             formula, actividad.organizacion, record_date
         )
-    if fuel_classification and fuel_classification.get("estado") in {
+    if dynamic_fuel_formula and fuel_classification and fuel_classification.get("estado") in {
         "requiere_clasificacion",
         "requiere_revision",
     }:
@@ -81,6 +101,8 @@ def evaluate_formula(actividad, formula):
             "El uso del combustible requiere clasificación como fuente móvil "
             "o estacionaria antes de calcular emisiones."
         )
+        if fuel_classification.get("razon"):
+            reasons.append(fuel_classification["razon"])
     if not factor_version:
         reasons.append(
             fuel_factor_selection["razon"]
@@ -134,18 +156,18 @@ def evaluate_formula(actividad, formula):
                     **normalization,
                 }
 
-    vehicle = actividad.activos.filter(tipo="vehiculo").select_related("vehiculo").first()
+    vehicle = activity_vehicle(actividad)
     if formula.tipo in {"transporte_vehiculo_km", "transporte_combustible"}:
         if not vehicle:
             reasons.append("La actividad no tiene un vehiculo asociado.")
         elif factor_version:
             context = factor_version.factor.contexto or {}
             if formula.tipo == "transporte_vehiculo_km" and context.get("tipo_vehiculo"):
-                vehicle_type = getattr(getattr(vehicle, "vehiculo", None), "tipo_vehiculo", "")
+                vehicle_type = vehicle.tipo_vehiculo
                 if vehicle_type != context["tipo_vehiculo"]:
                     reasons.append("El factor no es compatible con el tipo de vehiculo.")
             if formula.tipo == "transporte_combustible" and context.get("combustible"):
-                fuel = getattr(getattr(vehicle, "vehiculo", None), "combustible", "")
+                fuel = vehicle.combustible
                 if fuel.lower() != str(context["combustible"]).lower():
                     reasons.append("El factor no es compatible con el combustible del vehiculo.")
 
