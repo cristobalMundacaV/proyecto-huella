@@ -5,9 +5,10 @@ import { Alert, Button, Input, Modal, Select, Textarea } from "@/shared/ui";
 import { humanizeApiError } from "@/shared/utils/apiErrors";
 import { createOperationalActivity, listDataSources } from "../api/activityApi";
 import { createMaterialEvent, createOperationalMaterial, listOperationalMaterials } from "../api/materialsApi";
+import { listEvidenceTypes } from "../api/sectorFlowsApi";
 import { MATERIAL_OPERATIONAL_CATEGORIES, MATERIAL_OPERATIONAL_UNITS, createMaterialMovementTechnicalCode, materialActivityPayload, materialEventPayload, operationalMaterialPayload } from "../utils/materialRecordContract";
 
-const initialForm = { material: "", type: "recepcion", amount: "", unit: "", source: "" };
+const initialForm = { material: "", type: "recepcion", amount: "", unit: "", source: "", evidenceFile: null, evidenceType: "", evidenceName: "" };
 const initialMaterial = { name: "", category: "cemento", baseUnit: "kg", supplier: "", description: "" };
 const Section = ({ title, children }) => <section className="space-y-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface-subtle)] p-4"><h3 className="font-black text-[var(--text-primary)]">{title}</h3><div className="grid gap-4 sm:grid-cols-2">{children}</div></section>;
 
@@ -49,18 +50,21 @@ export default function MaterialEventModal({ open, onClose, organizationId, work
     const [form, setForm] = useState(initialForm);
     const [materials, setMaterials] = useState([]);
     const [sources, setSources] = useState([]);
+    const [evidenceTypes, setEvidenceTypes] = useState([]);
+    const [addingEvidence, setAddingEvidence] = useState(false);
     const [creatingMaterial, setCreatingMaterial] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
     const [toast, setToast] = useState(null);
     useEffect(() => {
         if (!open) return;
-        setForm(initialForm); setError("");
+        setForm(initialForm); setAddingEvidence(false); setError("");
         listOperationalMaterials(organizationId).then((data) => setMaterials(Array.isArray(data) ? data : data?.results || []));
         listDataSources(organizationId, "materiales").then((data) => setSources(Array.isArray(data) ? data : data?.results || []));
+        listEvidenceTypes("materiales").then((data) => setEvidenceTypes(Array.isArray(data) ? data : []));
     }, [open, organizationId]);
     const selectedMaterial = useMemo(() => materials.find((item) => String(item.id) === form.material), [materials, form.material]);
-    const canSubmit = Boolean(form.material && form.type && form.amount !== "" && form.unit && form.source);
+    const canSubmit = Boolean(form.material && form.type && form.amount !== "" && form.unit && form.source && (!addingEvidence || (form.evidenceFile && form.evidenceType)));
     const setField = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
     async function materialCreated(created) {
         const refreshed = await listOperationalMaterials(organizationId);
@@ -94,7 +98,17 @@ export default function MaterialEventModal({ open, onClose, organizationId, work
                     <Input required type="number" step="any" label="Cantidad" suffix={form.unit} value={form.amount} onChange={setField("amount")} />
                     <Select required label="Unidad" value={form.unit} onChange={setField("unit")} disabled={!selectedMaterial}><option value="">Selecciona primero un material</option>{selectedMaterial?.unidad_base && <option value={selectedMaterial.unidad_base}>{selectedMaterial.unidad_base}</option>}</Select>
                 </Section>
-                <Section title="Trazabilidad"><Select required label="Fuente del dato" value={form.source} onChange={setField("source")}><option value="">Selecciona una fuente</option>{sources.map((source) => <option key={source.id} value={source.id}>{source.nombre}</option>)}</Select></Section>
+                <Section title="Trazabilidad">
+                    <Select required label="Fuente del dato" value={form.source} onChange={setField("source")}><option value="">Selecciona una fuente</option>{sources.map((source) => <option key={source.id} value={source.id}>{source.nombre}</option>)}</Select>
+                    {!addingEvidence && <div className="sm:col-span-2"><Button type="button" variant="ghost" onClick={() => setAddingEvidence(true)}>+ Agregar respaldo</Button></div>}
+                    {addingEvidence && <>
+                        <Input required type="file" label="Archivo" onChange={(event) => setForm((current) => ({ ...current, evidenceFile: event.target.files?.[0] || null }))} />
+                        <Select required label="Tipo de respaldo" value={form.evidenceType} onChange={setField("evidenceType")}><option value="">Selecciona un tipo</option>{evidenceTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</Select>
+                        <Input label="Nombre del documento" value={form.evidenceName} onChange={setField("evidenceName")} />
+                        <div className="flex items-end"><Button type="button" variant="ghost" onClick={() => { setAddingEvidence(false); setForm((current) => ({ ...current, evidenceFile: null, evidenceType: "", evidenceName: "" })); }}>Quitar respaldo</Button></div>
+                        {form.evidenceFile && <p className="sm:col-span-2 text-sm text-[var(--text-muted)]">Archivo seleccionado: <strong>{form.evidenceFile.name}</strong></p>}
+                    </>}
+                </Section>
                 {error && <Alert tone="danger" title="No pudimos registrar el movimiento">{error}</Alert>}
                 <div className="flex justify-end gap-2"><Button type="button" variant="secondary" disabled={saving} onClick={onClose}>Cancelar</Button><Button type="submit" loading={saving} disabled={!canSubmit || saving}>Registrar movimiento</Button></div>
             </form>

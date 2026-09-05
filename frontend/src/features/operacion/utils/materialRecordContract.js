@@ -32,5 +32,12 @@ export function materialActivityPayload({ workId, form, material, timestamp, cod
 }
 
 export function materialEventPayload({ activityId, workId, form, timestamp }) {
-  return { material: Number(form.material), actividad: activityId, obra: workId, tipo: form.type, fecha_hora: timestamp, cantidad: form.amount, unidad: form.unit, fuente: Number(form.source) };
+  const values = { material: Number(form.material), actividad: activityId, obra: workId, tipo: form.type, fecha_hora: timestamp, cantidad: form.amount, unidad: form.unit, fuente: Number(form.source) };
+  if (!form.evidenceFile) return values;
+  const payload = new FormData();
+  Object.entries(values).forEach(([key, value]) => payload.append(key, value));
+  payload.append("evidencia_archivo", form.evidenceFile);
+  payload.append("evidencia_tipo", form.evidenceType);
+  payload.append("evidencia_nombre", form.evidenceName.trim() || form.evidenceFile.name);
+  return payload;
 }

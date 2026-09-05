@@ -2,14 +2,15 @@ from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from .models import (ActividadOperacional, CalculoAmbiental, EtapaObra,
-                     EventoMaterial, FactorAmbiental, FuenteDatos,
+                     EventoMaterial, EvidenciaObra, FactorAmbiental, FuenteDatos,
                      LoteMaterial, MaterialConstruccion, MaterialOperacional,
                      Obra, Observacion, Organizacion, ProcesoOperacional,
-                     UnidadOperacional, UsuarioOrganizacion)
+                     UnidadOperacional, UsuarioOrganizacion, VersionEvidencia)
 from .services.context_gateway import ContextGateway
 from .services.materials_v2 import (material_balance, material_lineage,
                                     save_event_quantity)
@@ -107,6 +108,83 @@ class MaterialsV2Tests(APITestCase):
         self.assertEqual(balance["cantidad_utilizada"], Decimal("0"))
         self.assertEqual(balance["cantidad_reutilizada"], Decimal("0"))
         self.assertEqual(balance["stock_restante"], Decimal("10000"))
+        self.assertIn(
+            "material_recibido_sin_evidencia",
+            {signal["tipo"] for signal in material_balance(self.org, event.material, work=self.work)["senales"]},
+        )
+
+    def test_recepcion_multipart_asocia_evidencia_version_y_calidad(self):
+        activity = ActividadOperacional.objects.create(
+            organizacion=self.org,
+            obra=self.work,
+            tipo=ActividadOperacional.Tipo.MOVIMIENTO_MATERIAL,
+            codigo="MATMOV-EVID-01",
+            nombre="Recepcion respaldada",
+            timestamp_inicio=timezone.now(),
+        )
+        upload = SimpleUploadedFile(
+            "guia-cemento.pdf", b"contenido pdf de prueba", content_type="application/pdf"
+        )
+        response = self.client.post(
+            f"{self.base}/eventos-materiales/",
+            {
+                "material": self.material.id,
+                "actividad": activity.id,
+                "obra": self.work.id,
+                "tipo": "recepcion",
+                "fecha_hora": timezone.now().isoformat(),
+                "cantidad": "10000",
+                "unidad": "kg",
+                "fuente": self.source.id,
+                "evidencia_archivo": upload,
+                "evidencia_nombre": "Guia de despacho de materiales",
+                "evidencia_tipo": EvidenciaObra.TipoEvidencia.GUIA_DESPACHO,
+            },
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        event = EventoMaterial.objects.get(pk=response.data["id"])
+        observation = event.observacion_cantidad
+        self.assertIsNotNone(event.evidencia_id)
+        self.assertIsNotNone(event.version_evidencia_id)
+        self.assertEqual(observation.evidencia_id, event.evidencia_id)
+        self.assertEqual(observation.version_evidencia_id, event.version_evidencia_id)
+        self.assertEqual(VersionEvidencia.objects.filter(evidencia=event.evidencia).count(), 1)
+        self.assertTrue(observation.evaluaciones_calidad.exists())
+        quality = observation.evaluaciones_calidad.latest("fecha_evaluacion")
+        self.assertNotEqual(quality.dimensiones["respaldo_documental"], "sin_evidencia")
+        self.assertFalse(any("Sin evidencia" in reason for reason in quality.motivos))
+        result = material_balance(self.org, self.material, work=self.work)
+        self.assertNotIn(
+            "material_recibido_sin_evidencia",
+            {signal["tipo"] for signal in result["senales"]},
+        )
+        self.assertEqual(result["balances"][0]["stock_restante"], Decimal("10000"))
+
+    def test_tipo_de_evidencia_incompatible_no_deja_huerfanos(self):
+        activity = self.activity()
+        before_events = EventoMaterial.objects.count()
+        response = self.client.post(
+            f"{self.base}/eventos-materiales/",
+            {
+                "material": self.material.id,
+                "actividad": activity.id,
+                "tipo": "recepcion",
+                "fecha_hora": timezone.now().isoformat(),
+                "cantidad": "1",
+                "unidad": "kg",
+                "fuente": self.source.id,
+                "evidencia_archivo": SimpleUploadedFile(
+                    "combustible.pdf", b"incompatible", content_type="application/pdf"
+                ),
+                "evidencia_tipo": EvidenciaObra.TipoEvidencia.FACTURA_COMBUSTIBLE,
+            },
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(EventoMaterial.objects.count(), before_events)
+        self.assertFalse(EvidenciaObra.objects.exists())
+        self.assertFalse(VersionEvidencia.objects.exists())
 
     def test_aislamiento_tenant(self):
         foreign = MaterialOperacional.objects.create(organizacion=self.other, codigo="OTRO", nombre="Otro", categoria="otro", unidad_base="kg")

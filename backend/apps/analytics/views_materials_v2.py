@@ -1,8 +1,10 @@
 from django.shortcuts import get_object_or_404
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, parser_classes
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
 from .selectors.environmental_flows import organization_available_to_user
+from .permissions import Permission, require_tenant_permission
 from .selectors.materials import (
     event_for_organization,
     events_for_organization,
@@ -75,6 +77,7 @@ def lots(request, organizacion_id):
 
 
 @api_view(["GET", "POST"])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def events(request, organizacion_id):
     organization = _organization(request, organizacion_id)
     if not organization:
@@ -83,6 +86,10 @@ def events(request, organizacion_id):
     rows = events_for_organization(organization, request.query_params)
     if request.method == "GET":
         return Response(EventoMaterialSerializer(rows, many=True, context=context).data)
+    if request.FILES.get("evidencia_archivo"):
+        require_tenant_permission(
+            request.user, organization, Permission.EVIDENCE_CREATE
+        )
     serializer = EventoMaterialSerializer(data=request.data, context=context)
     serializer.is_valid(raise_exception=True)
     serializer.save()

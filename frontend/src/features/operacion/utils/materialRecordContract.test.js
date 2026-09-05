@@ -23,9 +23,23 @@ test("actividad usa identidad MATMOV y evento conserva el contrato operacional",
   assert.deepEqual(event, { material: 7, actividad: 88, obra: 71, tipo: "recepcion", fecha_hora: timestamp, cantidad: "10000", unidad: "kg", fuente: 9 });
 });
 
+test("evento con respaldo usa multipart y conserva los campos documentales", () => {
+  const evidence = new Blob(["pdf de prueba"], { type: "application/pdf" });
+  Object.defineProperty(evidence, "name", { value: "guia.pdf" });
+  const form = { material: "7", type: "recepcion", amount: "10000", unit: "kg", source: "9", evidenceFile: evidence, evidenceType: "guia_despacho", evidenceName: "Guia cemento" };
+  const payload = materialEventPayload({ activityId: 88, workId: 71, form, timestamp: "2026-09-11T12:00:00.000Z" });
+  assert.equal(payload instanceof FormData, true);
+  assert.equal(payload.get("evidencia_archivo").type, "application/pdf");
+  assert.equal(payload.get("evidencia_archivo").size, evidence.size);
+  assert.equal(payload.get("evidencia_tipo"), "guia_despacho");
+  assert.equal(payload.get("evidencia_nombre"), "Guia cemento");
+});
+
 test("modal filtra fuentes y conserva estándar operacional, errores y selección creada", () => {
   const modal = readFileSync(new URL("../components/MaterialEventModal.jsx", import.meta.url), "utf8");
   assert.match(modal, /listDataSources\(organizationId, "materiales"\)/);
+  assert.match(modal, /listEvidenceTypes\("materiales"\)/);
+  assert.match(modal, /\+ Agregar respaldo/);
   assert.match(modal, /material: String\(created\.id\)/);
   assert.match(modal, /unit: created\.unidad_base/);
   assert.match(modal, /humanizeApiError/);
