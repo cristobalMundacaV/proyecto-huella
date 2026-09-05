@@ -1,22 +1,16 @@
-import hashlib
 import os
-import tempfile
 from dataclasses import dataclass
-from urllib.parse import urlparse
-from urllib.request import HTTPRedirectHandler,Request,build_opener
 
-from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from .connectors.retc import RETC_USER_AGENT, _datetime
+from .connectors.retc import _datetime
+from .downloads import download_external_file
 from .models import ExternalFileArtifact, ExternalRecord, EnvironmentalSource, RetcHazardousWasteFact
 from .tabular import RetcHazardousWasteParser
 
 
 ALLOWED_RETC_HOSTS={"datosretc.mma.gob.cl"}
-DOWNLOAD_TIMEOUT_SECONDS=60
-DEFAULT_MAX_RESOURCE_BYTES=100*1024*1024
 
 
 @dataclass(frozen=True)
@@ -35,22 +29,6 @@ class ResourceSyncResult:
     artifact:ExternalFileArtifact
 
 
-def _validate_retc_url(url):
-    parsed=urlparse(url)
-    if parsed.scheme!="https" or parsed.hostname not in ALLOWED_RETC_HOSTS or parsed.username or parsed.password:
-        raise ValueError("URL de recurso RETC no permitida.")
-
-
-class RetcRedirectHandler(HTTPRedirectHandler):
-    def redirect_request(self,request,fp,code,msg,headers,newurl):
-        _validate_retc_url(newurl)
-        return super().redirect_request(request,fp,code,msg,headers,newurl)
-
-
-def _open_url(request,timeout):
-    return build_opener(RetcRedirectHandler()).open(request,timeout=timeout)
-
-
 def _resolve_resource(parent_record,year,format_name="XLSX"):
     payload=parent_record.current_snapshot.raw_payload or {}
     matches=[]
@@ -65,28 +43,8 @@ def _resolve_resource(parent_record,year,format_name="XLSX"):
 
 
 def _download(resource):
-    url=resource["url"]
-    _validate_retc_url(url)
-    maximum=getattr(settings,"KNOWLEDGE_MAX_RESOURCE_BYTES",DEFAULT_MAX_RESOURCE_BYTES)
-    expected=resource.get("size")
-    if expected is not None and int(expected)>maximum: raise ValueError("El recurso excede el tamaño máximo permitido.")
-    request=Request(url,headers={"Accept":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","User-Agent":RETC_USER_AGENT})
-    temp=tempfile.NamedTemporaryFile(prefix="carbonozero-knowledge-",suffix=".xlsx",delete=False)
-    digest=hashlib.sha256();size=0
-    try:
-        with temp, _open_url(request,timeout=DOWNLOAD_TIMEOUT_SECONDS) as response:
-            _validate_retc_url(response.geturl())
-            declared=response.headers.get("Content-Length")
-            if declared and int(declared)>maximum: raise ValueError("El recurso excede el tamaño máximo permitido.")
-            while chunk:=response.read(1024*1024):
-                size+=len(chunk)
-                if size>maximum: raise ValueError("El recurso excede el tamaño máximo permitido.")
-                digest.update(chunk);temp.write(chunk)
-        return temp.name,size,digest.hexdigest()
-    except Exception:
-        temp.close()
-        if os.path.exists(temp.name): os.unlink(temp.name)
-        raise
+    download=download_external_file(resource["url"],ALLOWED_RETC_HOSTS,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",{"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/octet-stream"},expected_size=resource.get("size"),suffix=".xlsx")
+    return download.path,download.byte_size,download.sha256
 
 
 def sync_retc_hazardous_waste(year):

@@ -17,7 +17,7 @@ from .tabular import RetcHazardousWasteParser
 
 
 class DownloadResponse:
-    def __init__(self,content,url="https://datosretc.mma.gob.cl/files/resource.xlsx",headers=None): self.stream=io.BytesIO(content);self.url=url;self.headers=headers or {"Content-Length":str(len(content))}
+    def __init__(self,content,url="https://datosretc.mma.gob.cl/files/resource.xlsx",headers=None): self.stream=io.BytesIO(content);self.url=url;self.headers=headers or {"Content-Length":str(len(content)),"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
     def __enter__(self): return self
     def __exit__(self,*args): return False
     def read(self,size=-1): return self.stream.read(size)
@@ -40,7 +40,7 @@ class ExternalResourceSyncTests(TestCase):
         snapshot=ExternalSnapshot.objects.create(source=self.source,sync_run=run,external_id="dataset",record_kind="retc_dataset",retrieved_at=timezone.now(),content_hash="a"*64,raw_payload={"resources":[resource]})
         self.parent=ExternalRecord.objects.create(source=self.source,external_id="dataset",kind="retc_dataset",canonical_key="generacion-de-residuos-peligrosos",title="Generación de residuos peligrosos",current_snapshot=snapshot,first_seen_at=timezone.now(),last_seen_at=timezone.now())
 
-    @patch("apps.knowledge.resource_sync._open_url")
+    @patch("apps.knowledge.downloads._open_url")
     def test_xlsx_valido_raw_trazable_y_misma_sha_idempotente(self,mocked):
         content=workbook_bytes();mocked.side_effect=[DownloadResponse(content),DownloadResponse(content)]
         first=sync_retc_hazardous_waste(2024);second=sync_retc_hazardous_waste(2024);fact=RetcHazardousWasteFact.objects.get()
@@ -49,21 +49,21 @@ class ExternalResourceSyncTests(TestCase):
         self.assertEqual((fact.region,fact.comuna,str(fact.cantidad_toneladas)),("Arica y Parinacota","Arica","1.000000000"))
         self.assertEqual(fact.raw_row["latitud"],-18473556298281)
 
-    @patch("apps.knowledge.resource_sync._open_url")
+    @patch("apps.knowledge.downloads._open_url")
     def test_nueva_sha_versiona_y_preserva_facts_anteriores(self,mocked):
         mocked.side_effect=[DownloadResponse(workbook_bytes(1000)),DownloadResponse(workbook_bytes(2000))]
         first=sync_retc_hazardous_waste(2024);second=sync_retc_hazardous_waste(2024)
         first.artifact.refresh_from_db();self.assertFalse(first.artifact.is_current);self.assertTrue(second.artifact.is_current)
         self.assertEqual((ExternalFileArtifact.objects.count(),RetcHazardousWasteFact.objects.count()),(2,2))
 
-    @patch("apps.knowledge.resource_sync._open_url")
+    @patch("apps.knowledge.downloads._open_url")
     def test_fallo_parseo_no_desactiva_version_anterior(self,mocked):
         mocked.side_effect=[DownloadResponse(workbook_bytes()),DownloadResponse(b"archivo corrupto")]
         first=sync_retc_hazardous_waste(2024)
         with self.assertRaisesRegex(ValueError,"XLSX válido"): sync_retc_hazardous_waste(2024)
         first.artifact.refresh_from_db();self.assertTrue(first.artifact.is_current);self.assertEqual(ExternalFileArtifact.objects.count(),1)
 
-    @patch("apps.knowledge.resource_sync._open_url")
+    @patch("apps.knowledge.downloads._open_url")
     def test_esquema_inesperado_y_temporal_eliminado(self,mocked):
         mocked.return_value=DownloadResponse(workbook_bytes(headers=["columna_desconocida"]))
         before=set(glob.glob(os.path.join(tempfile.gettempdir(),"carbonozero-knowledge-*")))
@@ -75,12 +75,12 @@ class ExternalResourceSyncTests(TestCase):
         self.parent.current_snapshot.raw_payload={"resources":[]};ExternalSnapshot.objects.filter(pk=self.parent.current_snapshot_id).update(raw_payload={"resources":[]});self.parent.current_snapshot.refresh_from_db()
         with self.assertRaisesRegex(ValueError,"inequívoco"): sync_retc_hazardous_waste(2024)
 
-    @patch("apps.knowledge.resource_sync._open_url")
+    @patch("apps.knowledge.downloads._open_url")
     def test_redirect_fuera_del_host_es_rechazado(self,mocked):
         mocked.return_value=DownloadResponse(workbook_bytes(),url="https://evil.example.test/resource.xlsx")
         with self.assertRaisesRegex(ValueError,"no permitida"): sync_retc_hazardous_waste(2024)
 
-    @patch("apps.knowledge.resource_sync._open_url",side_effect=TimeoutError("timeout"))
+    @patch("apps.knowledge.downloads._open_url",side_effect=TimeoutError("timeout"))
     def test_timeout_no_crea_artifact(self,mocked):
         with self.assertRaises(TimeoutError): sync_retc_hazardous_waste(2024)
         self.assertFalse(ExternalFileArtifact.objects.exists())
@@ -89,7 +89,7 @@ class ExternalResourceSyncTests(TestCase):
     def test_archivo_demasiado_grande_se_rechaza_por_metadata(self):
         with self.assertRaisesRegex(ValueError,"tamaño máximo"): sync_retc_hazardous_waste(2024)
 
-    @patch("apps.knowledge.resource_sync._open_url")
+    @patch("apps.knowledge.downloads._open_url")
     def test_api_autenticada_filtra_solo_version_current_y_pagina(self,mocked):
         mocked.side_effect=[DownloadResponse(workbook_bytes(1000)),DownloadResponse(workbook_bytes(2000))];sync_retc_hazardous_waste(2024);current=sync_retc_hazardous_waste(2024)
         client=APIClient();self.assertIn(client.get("/api/knowledge/retc/hazardous-waste/").status_code,(401,403));client.force_authenticate(User.objects.create_user("knowledge-resource"))

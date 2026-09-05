@@ -101,3 +101,30 @@ class RetcHazardousWasteFact(models.Model):
     class Meta:
         constraints=[models.UniqueConstraint(fields=["artifact","source_row_number"],name="knowledge_retc_fact_source_row")]
         indexes=[models.Index(fields=["artifact","year","region","comuna"],name="knowledge_retc_fact_filter")]
+
+
+class HuellaChileEmissionFactorFact(models.Model):
+    artifact=models.ForeignKey(ExternalFileArtifact,on_delete=models.PROTECT,related_name="huellachile_emission_factor_facts")
+    sheet_name=models.CharField(max_length=200)
+    source_row_number=models.PositiveIntegerField()
+    row_hash=models.CharField(max_length=64)
+    raw_row=models.JSONField()
+    publisher=models.CharField(max_length=200,default="Programa HuellaChile / Ministerio del Medio Ambiente")
+    dataset_year=models.PositiveSmallIntegerField(db_index=True)
+    alcance=models.CharField(max_length=200,db_index=True)
+    categoria=models.CharField(max_length=300,db_index=True)
+    subcategoria=models.CharField(max_length=500)
+    actividad=models.CharField(max_length=500,db_index=True)
+    auxiliar=models.CharField(max_length=500,blank=True)
+    unidad_actividad=models.CharField(max_length=200,db_index=True)
+    factor_value=models.DecimalField(max_digits=30,decimal_places=15,null=True,blank=True)
+    published_value_raw=models.CharField(max_length=200)
+    unidad_factor=models.CharField(max_length=300)
+    technical_source_1=models.TextField(blank=True)
+    technical_source_2=models.TextField(blank=True)
+    technical_source_3=models.TextField(blank=True)
+    formula_original=models.TextField(blank=True)
+    cached_value_available=models.BooleanField(default=False)
+    class Meta:
+        constraints=[models.UniqueConstraint(fields=["artifact","sheet_name","source_row_number"],name="knowledge_hc_factor_source_row")]
+        indexes=[models.Index(fields=["artifact","dataset_year","alcance","categoria"],name="knowledge_hc_factor_filter")]

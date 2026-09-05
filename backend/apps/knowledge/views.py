@@ -1,10 +1,11 @@
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view,permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
-from .models import EnvironmentalSource,ExternalFileArtifact,ExternalRecord,RetcHazardousWasteFact
-from .serializers import EnvironmentalSourceSerializer,ExternalRecordSerializer,ExternalSnapshotSerializer,RetcHazardousWasteFactSerializer,SyncRunSerializer
+from .models import EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact
+from .serializers import EnvironmentalSourceSerializer,ExternalRecordSerializer,ExternalSnapshotSerializer,HuellaChileEmissionFactorFactSerializer,RetcHazardousWasteFactSerializer,SyncRunSerializer
 from .services import source_freshness
 class KnowledgePagination(PageNumberPagination):
     page_size=50;page_size_query_param="page_size";max_page_size=200
@@ -43,3 +44,20 @@ def retc_hazardous_waste(request):
 def retc_hazardous_waste_metadata(request):
     artifact=get_object_or_404(ExternalFileArtifact.objects.select_related("source","parent_record"),source__codigo="retc",parent_record__canonical_key="generacion-de-residuos-peligrosos",is_current=True)
     return Response({"source":artifact.source.nombre,"dataset":artifact.parent_record.title,"resource":{"id":artifact.external_resource_id,"name":artifact.name,"url":artifact.source_url,"format":artifact.format},"year":artifact.metadata.get("year") or artifact.retc_hazardous_waste_facts.values_list("year",flat=True).first(),"sha256":artifact.content_sha256,"retrieved_at":artifact.retrieved_at,"upstream_modified_at":artifact.upstream_modified_at,"record_count":artifact.retc_hazardous_waste_facts.count(),"license":{"name":artifact.source.licencia_nombre,"url":artifact.source.licencia_url,"attribution_required":artifact.source.atribucion_requerida},"freshness":source_freshness(artifact.source)})
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def huellachile_emission_factors(request):
+    queryset=HuellaChileEmissionFactorFact.objects.filter(artifact__is_current=True).select_related("artifact").order_by("id")
+    for parameter in ("dataset_year","alcance","categoria","actividad","unidad_actividad","technical_source_1"):
+        value=request.query_params.get(parameter)
+        if value: queryset=queryset.filter(**{parameter if parameter=="dataset_year" else f"{parameter}__iexact":value})
+    return paginated(request,queryset,HuellaChileEmissionFactorFactSerializer)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def huellachile_emission_factors_metadata(request):
+    artifacts=ExternalFileArtifact.objects.select_related("source","parent_record").filter(source__codigo="huellachile",parent_record__kind="huellachile_emission_factor_dataset",is_current=True,metadata__edition=request.query_params.get("edition","completa"))
+    if request.query_params.get("year"): artifacts=artifacts.filter(metadata__year=request.query_params["year"])
+    artifact=artifacts.order_by("-metadata__year","-retrieved_at").first()
+    if not artifact: raise Http404
+    metadata=artifact.metadata;publication=artifact.parent_record.current_snapshot.raw_payload or {}
+    return Response({"publisher":metadata.get("publisher"),"source_page":metadata.get("source_page"),"logical_resource":artifact.external_resource_id,"title":artifact.parent_record.title,"year":metadata.get("year"),"edition":metadata.get("edition"),"filename":publication.get("filename") or metadata.get("filename"),"filename_version":publication.get("filename_version") or metadata.get("filename_version"),"source_url":publication.get("url") or artifact.source_url,"sha256":artifact.content_sha256,"bytes":artifact.byte_size,"retrieved_at":artifact.retrieved_at,"artifact_version":artifact.version,"fact_count":artifact.huellachile_emission_factor_facts.count(),"sheet_count":len(metadata.get("sheets",[])),"references":metadata.get("references",[]),"freshness":source_freshness(artifact.source)})
