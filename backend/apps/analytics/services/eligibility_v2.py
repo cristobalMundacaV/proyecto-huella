@@ -11,6 +11,7 @@ from .fuel_classification import (
 from .fuel_factor_selector import select_fuel_factor
 from .unit_conversion import UnitConversionError, convert_value
 from .quality_v2 import ensure_current_quality_evaluation
+from .material_factor_selector import select_material_factor
 
 
 def _operational_date(value):
@@ -80,7 +81,20 @@ def evaluate_formula(actividad, formula):
             and formula.factor_ambiental_id is None
         )
     )
-    if dynamic_fuel_formula:
+    material_event = getattr(actividad, "evento_material", None)
+    material_factor_selection = None
+    if formula.tipo == "material_cantidad":
+        if not material_event or material_event.tipo != "recepcion":
+            reasons.append("Este movimiento no es un punto contable de la metodologia de material recibido.")
+            factor_version = None
+        else:
+            observation = material_event.observacion_cantidad
+            material_factor_selection = select_material_factor(
+                actividad.organizacion, material_event.material,
+                observation.unidad if observation else "", record_date,
+            )
+            factor_version = material_factor_selection["factor_version"]
+    elif dynamic_fuel_formula:
         fuel_factor_selection = select_fuel_factor(
             actividad.organizacion,
             fuel_classification,
@@ -103,7 +117,7 @@ def evaluate_formula(actividad, formula):
         )
         if fuel_classification.get("razon"):
             reasons.append(fuel_classification["razon"])
-    if not factor_version:
+    if not factor_version and formula.tipo != "material_cantidad":
         reasons.append(
             fuel_factor_selection["razon"]
             if fuel_factor_selection
@@ -113,6 +127,8 @@ def evaluate_formula(actividad, formula):
         reasons.append("La unidad de entrada del factor no es compatible con t.km.")
     elif formula.tipo in {"transporte_vehiculo_km"} and factor_version.factor.unidad_entrada.lower() != "km":
         reasons.append("La unidad de entrada del factor no es compatible con vehículo.km.")
+    if formula.tipo == "material_cantidad" and material_event and material_event.tipo == "recepcion" and not factor_version:
+        reasons.append(material_factor_selection["razon"])
     for variable in formula.variables.all():
         resolution = resolve_observation(actividad, variable.concepto_observacion)
         observation = resolution["observacion"]
@@ -141,10 +157,11 @@ def evaluate_formula(actividad, formula):
             reasons.append(f"{variable.concepto_observacion} no tiene valor numerico.")
         else:
             try:
+                target_unit = factor_version.factor.unidad_entrada if formula.tipo == "material_cantidad" and factor_version else variable.unidad_esperada
                 normalization = convert_value(
                     observation.valor_numerico,
                     observation.unidad,
-                    variable.unidad_esperada,
+                    target_unit,
                 )
             except UnitConversionError as error:
                 reasons.append(str(error))
@@ -181,4 +198,8 @@ def evaluate_formula(actividad, formula):
         "clasificacion_combustible": fuel_classification,
         "seleccion_factor_combustible": fuel_factor_selection,
         "factor_version": factor_version,
+        "seleccion_factor_material": material_factor_selection,
+        "especificidad_factor": material_factor_selection.get("especificidad") if material_factor_selection else None,
+        "evento_material": {"id": material_event.id, "tipo": material_event.tipo} if material_event else None,
+        "material": ({"id": material_event.material_id, "codigo": material_event.material.codigo, "nombre": material_event.material.nombre, "categoria": material_event.material.categoria} if material_event else None),
     }

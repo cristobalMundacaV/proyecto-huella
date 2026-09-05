@@ -207,6 +207,7 @@ class FormulaAmbiental(models.Model):
         TRANSPORTE_COMBUSTIBLE = "transporte_combustible", "Combustible x factor"
         COMBUSTIBLE_CONSUMIDO = "combustible_consumido", "Combustible consumido x factor"
         ENERGIA_CONSUMIDA = "energia_consumida", "Energia consumida x factor"
+        MATERIAL_CANTIDAD = "material_cantidad", "Cantidad de material x factor"
 
     version_metodologia = models.OneToOneField(
         VersionMetodologia, on_delete=models.PROTECT, related_name="formula"

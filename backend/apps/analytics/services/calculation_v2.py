@@ -30,12 +30,17 @@ def _consumed_energy(values, factor):
     return value * factor
 
 
+def _material_quantity(values, factor):
+    return values["cantidad_material_normalizada"] * factor
+
+
 FORMULA_HANDLERS = {
     FormulaAmbiental.Tipo.TRANSPORTE_TKM: _transport_tkm,
     FormulaAmbiental.Tipo.TRANSPORTE_VEHICULO_KM: _transport_vehicle_km,
     FormulaAmbiental.Tipo.TRANSPORTE_COMBUSTIBLE: _consumed_fuel,
     FormulaAmbiental.Tipo.COMBUSTIBLE_CONSUMIDO: _consumed_fuel,
     FormulaAmbiental.Tipo.ENERGIA_CONSUMIDA: _consumed_energy,
+    FormulaAmbiental.Tipo.MATERIAL_CANTIDAD: _material_quantity,
 }
 
 
@@ -90,6 +95,9 @@ def calculate_activity(actividad, *, result_context=None, recalculation_of=None,
             "factor_valor": str(factor_version.valor), "factor_fuente": factor_version.fuente,
             "factor_referencia": factor_version.referencia,
             "factor_contexto": factor_version.contexto or factor_version.factor.contexto,
+            "evento_material": eligibility.get("evento_material"),
+            "material": eligibility.get("material"),
+            "especificidad_factor": eligibility.get("especificidad_factor"),
             "factor_vigencia": {"desde": str(factor_version.vigencia_desde or ""), "hasta": str(factor_version.vigencia_hasta or "")},
             "tipo_resultado": result_type, "unidad_resultado": factor_version.factor.unidad_resultado,
             "resultado": str(result),

@@ -15,7 +15,7 @@ from ..models import (
 from .methodology_governance import transition_version
 
 
-SYSTEM_ENVIRONMENTAL_CATALOG_VERSION = 2
+SYSTEM_ENVIRONMENTAL_CATALOG_VERSION = 3
 SYSTEM_CATALOG_LOCK_ID = 739_204_101
 
 HUELLACHILE_SOURCE = "Programa HuellaChile - Ministerio del Medio Ambiente"
@@ -33,6 +33,7 @@ HUELLACHILE_FACTORS = (
 FUEL_METHODOLOGY_CODE = "construccion-v1-combustible-consumido"
 ENERGY_METHODOLOGY_CODE = "construccion-v1-electricidad-red-sen"
 TRANSPORT_FUEL_METHODOLOGY_CODE = "construccion-v1-transporte-combustible"
+MATERIAL_METHODOLOGY_CODE = "construccion-v1-material-recibido"
 ENERGY_FACTOR_CODE = "sen-electricidad-red-location-based-2025"
 ENERGY_SOURCE = "Programa HuellaChile / Ministerio del Medio Ambiente"
 ENERGY_REFERENCE = (
@@ -295,7 +296,37 @@ def ensure_construction_v1_methodologies():
             "descripcion": "Electricidad consumida desde la red.",
         },
     )
-    return fuel, energy, transport_fuel
+    material = _ensure_methodology(
+        code=MATERIAL_METHODOLOGY_CODE,
+        methodology_fields={
+            "nombre": "Construccion V1 - material recibido",
+            "categoria": "materiales",
+            "flujo": "materiales",
+            "descripcion": "Impacto del material en su recepcion fisica en obra, sin volver a contabilizar su uso.",
+            "activa": True,
+        },
+        version_fields={
+            "descripcion_tecnica": "Emision = cantidad recibida normalizada x factor de material aplicable.",
+            "fuente_referencia": "Construccion V1; factor de material seleccionado dinamicamente desde gobernanza.",
+            "vigencia_desde": None, "vigencia_hasta": None,
+            "aplicabilidad": {"tipos_actividad": ["movimiento_material"]},
+            "prioridad": 10, "requiere_revision_profesional": False, "tipo_resultado": "emision",
+        },
+        formula_fields={
+            "factor_ambiental": None,
+            "codigo": "construccion-v1-material-recibido-v1",
+            "tipo": FormulaAmbiental.Tipo.MATERIAL_CANTIDAD,
+            "expresion_legible": "cantidad_material_normalizada x factor_material",
+            "version": 1,
+        },
+        variable_fields={
+            "clave": "cantidad_material_normalizada", "concepto_observacion": "cantidad_material",
+            "unidad_esperada": "kg", "obligatoria": True,
+            "criticidad": VariableFormula.Criticidad.CRITICA, "rol": VariableFormula.Rol.ACTIVIDAD,
+            "descripcion": "Cantidad fisica recibida, normalizada a la unidad del factor seleccionado.",
+        },
+    )
+    return fuel, energy, transport_fuel, material
 
 
 def _lock_system_catalog():

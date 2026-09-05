@@ -176,6 +176,7 @@ def metodologia_detail(request, organizacion_id, metodologia_id):
     if formula_data.get("tipo") in {
         FormulaAmbiental.Tipo.COMBUSTIBLE_CONSUMIDO,
         FormulaAmbiental.Tipo.TRANSPORTE_COMBUSTIBLE,
+        FormulaAmbiental.Tipo.MATERIAL_CANTIDAD,
     } and not formula_data.get("factor_ambiental"):
         factor = None
     else:

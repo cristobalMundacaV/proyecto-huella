@@ -28,6 +28,7 @@ from .services.system_environmental_catalog import (
     ENERGY_METHODOLOGY_CODE,
     SYSTEM_ENVIRONMENTAL_CATALOG_VERSION,
     TRANSPORT_FUEL_METHODOLOGY_CODE,
+    MATERIAL_METHODOLOGY_CODE,
     ensure_system_environmental_catalog,
 )
 
@@ -114,6 +115,7 @@ class SystemEnvironmentalCatalogTests(TestCase):
                         METHODOLOGY_CODE,
                         ENERGY_METHODOLOGY_CODE,
                         TRANSPORT_FUEL_METHODOLOGY_CODE,
+                        MATERIAL_METHODOLOGY_CODE,
                     ],
                 ).values_list("codigo", flat=True)
             ),
@@ -121,6 +123,7 @@ class SystemEnvironmentalCatalogTests(TestCase):
                 METHODOLOGY_CODE,
                 ENERGY_METHODOLOGY_CODE,
                 TRANSPORT_FUEL_METHODOLOGY_CODE,
+                MATERIAL_METHODOLOGY_CODE,
             },
         )
 
@@ -203,7 +206,7 @@ class SystemEnvironmentalCatalogTests(TestCase):
         result = {
             "catalog_version": SYSTEM_ENVIRONMENTAL_CATALOG_VERSION,
             "huellachile_factors": 6,
-            "methodologies": 3,
+            "methodologies": 4,
         }
         with patch(
             "apps.analytics.management.commands.bootstrap_calculation_v2.ensure_system_environmental_catalog",

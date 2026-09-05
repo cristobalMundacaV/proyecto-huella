@@ -99,11 +99,12 @@ def structural_errors(version):
             and formula.factor_ambiental_id is None
         )
     )
-    if dynamic_fuel_formula and formula.factor_ambiental_id is not None:
+    dynamic_factor_formula = dynamic_fuel_formula or formula.tipo == FormulaAmbiental.Tipo.MATERIAL_CANTIDAD
+    if dynamic_factor_formula and formula.factor_ambiental_id is not None:
         errors.append(
             "La formula de combustible consumido debe seleccionar el factor dinamicamente."
         )
-    if not dynamic_fuel_formula and not active_factor_version(
+    if not dynamic_factor_formula and not active_factor_version(
         formula, version.metodologia.organizacion
     ):
         errors.append("No existe un factor activo, vigente y aplicable.")
