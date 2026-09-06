@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -59,6 +60,43 @@ class ObligationCandidatePersistenceTests(TestCase):
 
     def _article(self, number, text, parse=None):
         return BcnLegalArticleFact.objects.create(parse=parse or self.parse, article_key=f"key:{number}", article_number=number, article_label=f"Artículo {number}", order_index=(parse or self.parse).articles.count()+1, source_path=f"/{number}", text_plain=text, text_hash=hashlib.sha256(text.encode()).hexdigest(), raw_fragment="<article/>")
+
+    def _current_fact_without_text(self):
+        subscription=self.source.legal_norm_subscriptions.filter(number="20417").first()
+        if subscription:
+            subscription.active=True;subscription.save(update_fields=["active"])
+        else:
+            BcnLegalNormSubscription.objects.create(source=self.source,norm_type="LEY",number="20417",label="Ley 20417",active=True)
+        now=timezone.now();run=SyncRun.objects.create(source=self.source,trigger="manual",started_at=now)
+        snapshot=ExternalSnapshot.objects.create(source=self.source,sync_run=run,external_id="norm:20417",record_kind="bcn_legal_norm",retrieved_at=now,content_hash="d"*64)
+        ExternalRecord.objects.create(source=self.source,external_id="norm:20417",kind="bcn_legal_norm",canonical_key="LEY:20417",current_snapshot=snapshot,first_seen_at=now,last_seen_at=now)
+        fact=BcnLegalNormFact.objects.create(snapshot=snapshot,norm_uri="https://datos.bcn.cl/norm/20417",number="20417",title="Ley 20417",norm_type_uri="https://datos.bcn.cl/type/ley",norm_type_name="Ley",latest_version_uri="https://datos.bcn.cl/version/20417/latest")
+        BcnLegalNormVersionFact.objects.create(norm_fact=fact,version_uri=fact.latest_version_uri,is_latest=True)
+        return fact
+
+    def test_missing_current_text_makes_complete_corpus_partial(self):
+        self._current_fact_without_text()
+        result=extract_bcn_legal_obligation_candidates()
+        self.assertEqual((result.norms,result.failed,result.processed),(2,1,3))
+
+    def test_run_rejects_wrong_hash_and_api_excludes_inconsistent_legacy_data(self):
+        with self.assertRaises(ValidationError):
+            BcnLegalObligationExtractionRun.objects.create(article=self.articles[0],extractor_version="wrong-hash",extractor_method="deterministic_rules",status="success",executed_at=timezone.now(),source_text_hash="0"*64)
+        extract_bcn_legal_obligation_candidates()
+        BcnLegalObligationExtractionRun.objects.update(source_text_hash="0"*64)
+        user=get_user_model().objects.create_user("hash-reader",password="x");client=APIClient();client.force_authenticate(user)
+        self.assertEqual(client.get("/api/knowledge/bcn/obligation-candidates/").data["count"],0)
+
+    def test_legal_provenance_cannot_be_modified_or_deleted(self):
+        extract_bcn_legal_obligation_candidates()
+        article=self.articles[0];run=self.articles[1].obligation_extraction_runs.get();candidate=BcnLegalObligationCandidate.objects.first()
+        article.text_plain="alterado"
+        with self.assertRaises(ValidationError):article.save()
+        for instance in (article,run,candidate):
+            with self.assertRaises(ValidationError):instance.delete()
+        for model,pk in ((BcnLegalArticleFact,article.pk),(BcnLegalObligationExtractionRun,run.pk),(BcnLegalObligationCandidate,candidate.pk)):
+            with self.assertRaises(ValidationError):model.objects.filter(pk=pk).delete()
+        self.assertTrue(BcnLegalObligationExtractionRun.objects.filter(pk=run.pk,candidate_count=0).exists())
 
     def test_zero_candidate_idempotency_versioning_and_api(self):
         first = extract_bcn_legal_obligation_candidates(); second = extract_bcn_legal_obligation_candidates()

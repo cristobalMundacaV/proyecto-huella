@@ -154,12 +154,23 @@ class BcnLegalTextParse(models.Model):
     def save(self,*args,**kwargs):
         if self.pk:raise ValidationError("El parse legal es inmutable.")
         super().save(*args,**kwargs)
+class ImmutableLegalProvenanceQuerySet(models.QuerySet):
+    def delete(self):
+        raise ValidationError("La provenance juridica es inmutable y no puede eliminarse.")
+
+
 class BcnLegalArticleFact(models.Model):
+    objects=ImmutableLegalProvenanceQuerySet.as_manager()
     parse=models.ForeignKey(BcnLegalTextParse,on_delete=models.PROTECT,related_name="articles");article_key=models.CharField(max_length=300);article_number=models.CharField(max_length=100,blank=True,db_index=True);article_label=models.CharField(max_length=300,blank=True,db_index=True);heading=models.TextField(blank=True);order_index=models.PositiveIntegerField();source_path=models.CharField(max_length=1000);text_plain=models.TextField();text_hash=models.CharField(max_length=64);raw_fragment=models.TextField();metadata=models.JSONField(default=dict,blank=True)
     class Meta:constraints=[models.UniqueConstraint(fields=["parse","article_key"],name="knowledge_bcn_article_identity")];ordering=["order_index"]
+    def save(self,*args,**kwargs):
+        if self.pk:raise ValidationError("El articulo juridico es inmutable.")
+        super().save(*args,**kwargs)
+    def delete(self,*args,**kwargs):raise ValidationError("El articulo juridico es inmutable y no puede eliminarse.")
 
 
 class BcnLegalObligationExtractionRun(models.Model):
+    objects=ImmutableLegalProvenanceQuerySet.as_manager()
     class Status(models.TextChoices):
         SUCCESS="success","Success";ERROR="error","Error"
     article=models.ForeignKey(BcnLegalArticleFact,on_delete=models.PROTECT,related_name="obligation_extraction_runs")
@@ -174,12 +185,17 @@ class BcnLegalObligationExtractionRun(models.Model):
     class Meta:
         constraints=[models.UniqueConstraint(fields=["article","extractor_version"],name="knowledge_bcn_obligation_run_version")]
         indexes=[models.Index(fields=["extractor_version","status"],name="knowledge_bcn_obl_run_lookup")]
+    def clean(self):
+        if self.source_text_hash!=self.article.text_hash:raise ValidationError("source_text_hash no corresponde al articulo.")
     def save(self,*args,**kwargs):
         if self.pk:raise ValidationError("El run de extraccion juridica es inmutable.")
+        self.full_clean()
         super().save(*args,**kwargs)
+    def delete(self,*args,**kwargs):raise ValidationError("El run juridico es inmutable y no puede eliminarse.")
 
 
 class BcnLegalObligationCandidate(models.Model):
+    objects=ImmutableLegalProvenanceQuerySet.as_manager()
     class Modality(models.TextChoices):
         OBLIGATION="obligation","Obligation";PROHIBITION="prohibition","Prohibition"
     extraction_run=models.ForeignKey(BcnLegalObligationExtractionRun,on_delete=models.PROTECT,related_name="candidates")
@@ -212,3 +228,4 @@ class BcnLegalObligationCandidate(models.Model):
         if self.pk:raise ValidationError("El candidato juridico es inmutable.")
         self.full_clean()
         super().save(*args,**kwargs)
+    def delete(self,*args,**kwargs):raise ValidationError("El candidato juridico es inmutable y no puede eliminarse.")

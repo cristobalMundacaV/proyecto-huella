@@ -102,11 +102,12 @@ def current_bcn_norm_facts():
 def extract_bcn_legal_obligation_candidates():
     result = ObligationExtractionResult()
     for fact in current_bcn_norm_facts():
+        result.norms += 1
         try:
             _, parse = get_current_bcn_legal_text(fact)
         except Exception:
+            result.failed += 1
             continue
-        result.norms += 1
         for article in parse.articles.all():
             result.articles += 1
             existing = article.obligation_extraction_runs.filter(
