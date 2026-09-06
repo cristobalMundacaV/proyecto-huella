@@ -3,6 +3,7 @@ from django.db import close_old_connections, connection
 from django.test import TransactionTestCase
 from rest_framework.test import APIClient
 from threading import Barrier, Thread
+from .bootstrap import ensure_environmental_source_registry
 
 from .legal_evidence import (
     activate_legal_evidence_requirement_version,
@@ -75,6 +76,32 @@ class LegalEvidenceRequirementTests(LegalGovernanceTests):
         self.assertEqual(version.legal_basis_snapshot["obligation_code"], obligation.code)
         self.assertEqual(version.legal_basis_snapshot["source_provenance"], legal_version.source_provenance)
 
+    def test_direct_creation_and_bulk_bypasses_are_blocked(self):
+        obligation, legal_version, requirement, _ = self.requirement()
+        base = dict(requirement=requirement, version=2, legal_obligation_version=legal_version, legal_basis_snapshot={}, created_by=self.superuser, **VALID_FIELDS)
+        for state in ("validated", "active", "obsolete"):
+            with self.assertRaises(ValidationError):LegalEvidenceRequirementVersion.objects.create(**base, state=state)
+        LegalObligationVersion.objects.filter(pk=legal_version.pk).update(state="obsolete")
+        legal_version.refresh_from_db()
+        stale_base = {**base, "legal_obligation_version": legal_version}
+        with self.assertRaises(ValidationError):LegalEvidenceRequirementVersion.objects.create(**stale_base)
+        with self.assertRaises(ValidationError):LegalEvidenceRequirement.objects.bulk_create([LegalEvidenceRequirement(obligation=obligation)])
+        with self.assertRaises(ValidationError):LegalEvidenceRequirementVersion.objects.bulk_create([])
+
+    def test_stale_draft_and_validated_cannot_be_published(self):
+        obligation, legal_v1, requirement, draft = self.requirement()
+        _, legal_v2 = self.active_obligation(self.candidates[1], target=obligation)
+        with self.assertRaises(ValidationError):validate_legal_evidence_requirement_version(draft, self.superuser)
+
+        # Repeat with a validated requirement that becomes stale before activation.
+        LegalObligationVersion.objects.filter(pk=legal_v2.pk).update(state="obsolete")
+        LegalObligationVersion.objects.filter(pk=legal_v1.pk).update(state="active")
+        second = create_legal_evidence_requirement_version(requirement, legal_v1, self.superuser, **VALID_FIELDS)
+        validate_legal_evidence_requirement_version(second, self.superuser)
+        LegalObligationVersion.objects.filter(pk=legal_v1.pk).update(state="obsolete")
+        LegalObligationVersion.objects.filter(pk=legal_v2.pk).update(state="active")
+        with self.assertRaises(ValidationError):activate_legal_evidence_requirement_version(second, self.superuser)
+
     def test_permissions_mismatch_and_validation_fail_closed(self):
         obligation, legal_version = self.active_obligation()
         with self.assertRaises(ValidationError):
@@ -137,6 +164,7 @@ class LegalEvidenceRequirementTests(LegalGovernanceTests):
         client.force_authenticate(self.superuser)
         payload = {**VALID_FIELDS, "legal_obligation_version_id": legal_version.id}
         self.assertEqual(client.post(url, payload, format="json").status_code, 201)
+        self.assertEqual(client.post(url, {**payload, "campo_inventado": True}, format="json").status_code, 400)
 
     def test_three_requirement_smoke(self):
         obligation_a, legal_a = self.active_obligation(self.candidates[0])
@@ -169,6 +197,7 @@ class LegalEvidenceConcurrencyTests(TransactionTestCase):
                 cursor.execute(f"TRUNCATE {quoted} RESTART IDENTITY CASCADE")
 
     def setUp(self):
+        ensure_environmental_source_registry()
         LegalGovernanceTests.setUp(self)
         obligation, legal_version, _ = promote_legal_candidate(
             self.candidates[0], self.superuser, "create_obligation", None, [],
@@ -214,3 +243,24 @@ class LegalEvidenceConcurrencyTests(TransactionTestCase):
             [1, 2, 3],
         )
         self.assertLessEqual(LegalEvidenceRequirementVersion.objects.filter(requirement_id=self.requirement_id, state="active").count(), 1)
+
+    def test_concurrent_activation_is_serialized(self):
+        if connection.vendor != "postgresql":
+            self.skipTest("Concurrency locking is verified on PostgreSQL.")
+        requirement = LegalEvidenceRequirement.objects.get(pk=self.requirement_id)
+        legal_version = LegalObligationVersion.objects.get(pk=self.legal_version_id)
+        versions = [requirement.versions.get(version=1), create_legal_evidence_requirement_version(requirement, legal_version, self.superuser, **VALID_FIELDS)]
+        for version in versions:validate_legal_evidence_requirement_version(version, self.superuser)
+        barrier = Barrier(2);errors = []
+        def activate(pk):
+            close_old_connections()
+            try:
+                barrier.wait();activate_legal_evidence_requirement_version(LegalEvidenceRequirementVersion.objects.get(pk=pk), type(self.superuser).objects.get(pk=self.superuser.pk))
+            except Exception as exc:errors.append(exc)
+            finally:close_old_connections()
+        threads=[Thread(target=activate,args=(item.pk,)) for item in versions]
+        for thread in threads:thread.start()
+        for thread in threads:thread.join(20)
+        self.assertEqual(errors, [])
+        states=list(requirement.versions.values_list("state",flat=True))
+        self.assertEqual((states.count("active"),states.count("obsolete")),(1,1))

@@ -304,6 +304,9 @@ def legal_evidence_requirement_code():
 
 
 class ImmutableLegalEvidenceQuerySet(models.QuerySet):
+    def bulk_create(self, *args, **kwargs):
+        raise ValidationError("El conocimiento juridico gobernado debe crearse mediante sus services.")
+
     def delete(self):
         raise ValidationError("El requisito de evidencia gobernado no puede eliminarse.")
 
@@ -401,7 +404,15 @@ class LegalEvidenceRequirementVersion(models.Model):
         ]
 
     def save(self, *args, **kwargs):
-        if self.pk:
+        if not self.pk:
+            lifecycle = (self.validated_by_id, self.validated_at, self.activated_by_id, self.activated_at, self.obsoleted_at)
+            if self.state != self.State.DRAFT or any(lifecycle):
+                raise ValidationError("Una nueva version debe originarse como draft limpio.")
+            if self.requirement.obligation_id != self.legal_obligation_version.obligation_id:
+                raise ValidationError("La version juridica pertenece a otra obligacion.")
+            if self.legal_obligation_version.state != LegalObligationVersion.State.ACTIVE:
+                raise ValidationError("Solo una version juridica ACTIVE puede originar el requisito.")
+        else:
             previous = LegalEvidenceRequirementVersion.objects.get(pk=self.pk)
             fixed = ("requirement_id", "version", "legal_obligation_version_id", "legal_basis_snapshot", "created_by_id", "created_at")
             if any(getattr(previous, field) != getattr(self, field) for field in fixed):

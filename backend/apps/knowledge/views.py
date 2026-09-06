@@ -224,19 +224,14 @@ def _evidence_fields(data):
     return {field: data[field] for field in EDITABLE_EVIDENCE_FIELDS if field in data}
 
 
-EVIDENCE_SERVER_FIELDS = {
-    "code", "version", "state", "legal_basis_snapshot", "reviewer", "timestamps",
-    "created_by", "created_at", "validated_by", "validated_at", "activated_by",
-    "activated_at", "obsoleted_at",
-}
+EVIDENCE_CREATE_FIELDS = EDITABLE_EVIDENCE_FIELDS | {"legal_obligation_version_id"}
 
 
 @api_view(["POST"])
 @permission_classes([IsSuperUser])
 def legal_evidence_requirement_create(request, obligation_id):
-    forbidden = EVIDENCE_SERVER_FIELDS & set(request.data)
-    if forbidden:
-        return Response({"detail": "Campos administrados por el servidor."}, status=400)
+    if set(request.data) - EVIDENCE_CREATE_FIELDS:
+        return Response({"detail": "Campos no permitidos."}, status=400)
     try:
         legal_version = get_object_or_404(LegalObligationVersion, pk=request.data.get("legal_obligation_version_id"))
         requirement, version = create_legal_evidence_requirement(
@@ -250,8 +245,8 @@ def legal_evidence_requirement_create(request, obligation_id):
 @api_view(["POST"])
 @permission_classes([IsSuperUser])
 def legal_evidence_requirement_new_version(request, pk):
-    if EVIDENCE_SERVER_FIELDS & set(request.data):
-        return Response({"detail": "Campos administrados por el servidor."}, status=400)
+    if set(request.data) - EVIDENCE_CREATE_FIELDS:
+        return Response({"detail": "Campos no permitidos."}, status=400)
     try:
         version = create_legal_evidence_requirement_version(
             get_object_or_404(LegalEvidenceRequirement, pk=pk),

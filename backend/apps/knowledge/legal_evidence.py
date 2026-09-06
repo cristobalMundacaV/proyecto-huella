@@ -125,6 +125,8 @@ def validate_legal_evidence_requirement_version(version, user):
     version = LegalEvidenceRequirementVersion.objects.select_for_update().select_related("requirement__obligation", "legal_obligation_version__obligation").get(pk=version.pk)
     if version.state != version.State.DRAFT:
         raise ValidationError("Solo un draft puede validarse.")
+    if get_legal_evidence_requirement_freshness(version) != "fresh":
+        raise ValidationError("Un requisito stale no puede validarse.")
     _validate_contract(version)
     LegalEvidenceRequirementVersion.objects.filter(pk=version.pk).update(state=version.State.VALIDATED, validated_by=user, validated_at=timezone.now())
     version.refresh_from_db()
@@ -137,6 +139,9 @@ def activate_legal_evidence_requirement_version(version, user):
     version = LegalEvidenceRequirementVersion.objects.select_for_update().select_related("requirement__obligation", "legal_obligation_version__obligation").get(pk=version.pk)
     if version.state != version.State.VALIDATED:
         raise ValidationError("Solo una version validada puede activarse.")
+    LegalEvidenceRequirement.objects.select_for_update().get(pk=version.requirement_id)
+    if get_legal_evidence_requirement_freshness(version) != "fresh":
+        raise ValidationError("Un requisito stale no puede activarse.")
     _validate_contract(version)
     now = timezone.now()
     LegalEvidenceRequirementVersion.objects.select_for_update().filter(requirement=version.requirement, state=version.State.ACTIVE).exclude(pk=version.pk).update(state=version.State.OBSOLETE, obsoleted_at=now)
