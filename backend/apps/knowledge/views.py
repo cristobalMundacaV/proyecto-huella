@@ -3,17 +3,21 @@ from django.db import models
 from django.db.models.fields.json import KeyTextTransform
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view,permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission,IsAuthenticated
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from . import bcn_text
 from .bcn_obligations import BCN_LEGAL_OBLIGATION_EXTRACTOR_VERSION,current_bcn_norm_facts
 from .bcn_text import get_current_bcn_legal_text
-from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalObligationCandidate,EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact
-from .serializers import BcnLegalArticleFactSerializer,BcnLegalNormFactSerializer,BcnLegalObligationCandidateSerializer,EnvironmentalSourceSerializer,ExternalRecordSerializer,ExternalSnapshotSerializer,HuellaChileEmissionFactorFactSerializer,RetcHazardousWasteFactSerializer,SyncRunSerializer
+from .legal_governance import EDITABLE,activate_legal_obligation_version,obsolete_legal_obligation_version,promote_legal_candidate,reject_legal_candidate,update_legal_obligation_draft,validate_legal_obligation_version
+from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalObligationCandidate,LegalObligation,LegalObligationVersion,EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact
+from .serializers import BcnLegalArticleFactSerializer,BcnLegalNormFactSerializer,BcnLegalObligationCandidateSerializer,LegalObligationVersionSerializer,EnvironmentalSourceSerializer,ExternalRecordSerializer,ExternalSnapshotSerializer,HuellaChileEmissionFactorFactSerializer,RetcHazardousWasteFactSerializer,SyncRunSerializer
 from .services import source_freshness
 class KnowledgePagination(PageNumberPagination):
     page_size=50;page_size_query_param="page_size";max_page_size=200
+class IsSuperUser(BasePermission):
+    def has_permission(self,request,view):return bool(request.user and request.user.is_authenticated and request.user.is_superuser)
 def paginated(request,queryset,serializer):
     paginator=KnowledgePagination();page=paginator.paginate_queryset(queryset,request);return paginator.get_paginated_response(serializer(page,many=True).data)
 @api_view(["GET"])
@@ -112,7 +116,58 @@ def bcn_obligation_candidates(request):
     queryset=_current_obligation_candidates().order_by("id")
     for parameter,lookup in {"norm_number":"extraction_run__article__parse__source_document__artifact__metadata__norm_number__iexact","article_number":"extraction_run__article__article_number__iexact","modality":"modality_hint","trigger":"trigger_text__icontains"}.items():
         if request.query_params.get(parameter):queryset=queryset.filter(**{lookup:request.query_params[parameter]})
+    review_status=request.query_params.get("review_status")
+    if review_status=="unreviewed":queryset=queryset.filter(review__isnull=True)
+    elif review_status in ("approved","rejected"):queryset=queryset.filter(review__decision=review_status)
     return paginated(request,queryset,BcnLegalObligationCandidateSerializer)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def bcn_obligation_candidate_detail(request,pk):return Response(BcnLegalObligationCandidateSerializer(get_object_or_404(_current_obligation_candidates(),pk=pk)).data)
+def _error(exc):return Response({"detail":getattr(exc,"messages",[str(exc)])},status=400)
+@api_view(["POST"])
+@permission_classes([IsSuperUser])
+def bcn_obligation_candidate_reject(request,pk):
+    try:review=reject_legal_candidate(get_object_or_404(BcnLegalObligationCandidate,pk=pk),request.user,request.data.get("note",""));return Response({"id":review.id,"decision":review.decision},status=201)
+    except Exception as exc:return _error(exc)
+@api_view(["POST"])
+@permission_classes([IsSuperUser])
+def bcn_obligation_candidate_promote(request,pk):
+    forbidden={"source_provenance","code","version","state","reviewer"}&set(request.data)
+    if forbidden:return Response({"detail":"Campos administrados por el servidor."},status=400)
+    target=get_object_or_404(LegalObligation,pk=request.data["target_obligation_id"]) if request.data.get("target_obligation_id") else None
+    fields={key:request.data.get(key,"") for key in EDITABLE};fields["note"]=request.data.get("note","")
+    try:obligation,version,_=promote_legal_candidate(get_object_or_404(BcnLegalObligationCandidate,pk=pk),request.user,request.data.get("mode"),target,request.data.get("criteria",[]),**fields);return Response({"obligation_id":obligation.id,"version":LegalObligationVersionSerializer(version).data},status=201)
+    except Exception as exc:return _error(exc)
+def _version(pk):return get_object_or_404(LegalObligationVersion,pk=pk)
+@api_view(["PATCH"])
+@permission_classes([IsSuperUser])
+def legal_obligation_draft(request,pk):
+    forbidden=set(request.data)-set(EDITABLE)-{"criteria"}
+    if forbidden:return Response({"detail":"Campos no editables."},status=400)
+    try:return Response(LegalObligationVersionSerializer(update_legal_obligation_draft(_version(pk),request.user,request.data.get("criteria") if "criteria" in request.data else None,**{k:v for k,v in request.data.items() if k in EDITABLE})).data)
+    except Exception as exc:return _error(exc)
+def _transition(request,pk,service):
+    try:return Response(LegalObligationVersionSerializer(service(_version(pk),request.user)).data)
+    except Exception as exc:return _error(exc)
+@api_view(["POST"])
+@permission_classes([IsSuperUser])
+def legal_obligation_validate(request,pk):return _transition(request,pk,validate_legal_obligation_version)
+@api_view(["POST"])
+@permission_classes([IsSuperUser])
+def legal_obligation_activate(request,pk):return _transition(request,pk,activate_legal_obligation_version)
+@api_view(["POST"])
+@permission_classes([IsSuperUser])
+def legal_obligation_obsolete(request,pk):return _transition(request,pk,obsolete_legal_obligation_version)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def legal_obligations(request):
+    queryset=LegalObligationVersion.objects.filter(state="active").select_related("obligation").prefetch_related("criteria").order_by("obligation_id")
+    for parameter,lookup in {"modality":"modality","applicability_level":"applicability_level","norm_number":"source_provenance__norm_number"}.items():
+        if request.query_params.get(parameter):queryset=queryset.filter(**{lookup:request.query_params[parameter]})
+    return paginated(request,queryset,LegalObligationVersionSerializer)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def legal_obligation_detail(request,pk):return Response(LegalObligationVersionSerializer(get_object_or_404(LegalObligationVersion.objects.filter(obligation_id=pk,state="active").select_related("obligation").prefetch_related("criteria"))).data)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def legal_obligation_version_detail(request,pk):return Response(LegalObligationVersionSerializer(get_object_or_404(LegalObligationVersion.objects.select_related("obligation").prefetch_related("criteria"),pk=pk)).data)

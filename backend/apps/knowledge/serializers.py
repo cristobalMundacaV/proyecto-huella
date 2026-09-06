@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalNormRelationFact,BcnLegalNormVersionFact,BcnLegalObligationCandidate,EnvironmentalSource,ExternalRecord,ExternalSnapshot,HuellaChileEmissionFactorFact,RetcHazardousWasteFact,SourceState,SyncRun
+from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalNormRelationFact,BcnLegalNormVersionFact,BcnLegalObligationCandidate,LegalObligationApplicabilityCriterion,LegalObligationVersion,EnvironmentalSource,ExternalRecord,ExternalSnapshot,HuellaChileEmissionFactorFact,RetcHazardousWasteFact,SourceState,SyncRun
 class SourceStateSerializer(serializers.ModelSerializer):
     class Meta:model=SourceState;exclude=["source"]
 class EnvironmentalSourceSerializer(serializers.ModelSerializer):
@@ -37,6 +37,23 @@ class BcnLegalObligationCandidateSerializer(serializers.ModelSerializer):
     article_label=serializers.CharField(source="extraction_run.article.article_label",read_only=True)
     article_text_hash=serializers.CharField(source="extraction_run.article.text_hash",read_only=True)
     extractor_version=serializers.CharField(source="extraction_run.extractor_version",read_only=True)
+    review_status=serializers.SerializerMethodField();reviewed_at=serializers.SerializerMethodField();review_decision=serializers.SerializerMethodField();promoted_obligation_id=serializers.SerializerMethodField();promoted_version_id=serializers.SerializerMethodField()
+    def _review(self,obj):
+        try:return obj.review
+        except Exception:return None
+    def get_review_status(self,obj):return "reviewed" if self._review(obj) else "unreviewed"
+    def get_reviewed_at(self,obj):return self._review(obj).reviewed_at if self._review(obj) else None
+    def get_review_decision(self,obj):return self._review(obj).decision if self._review(obj) else None
+    def get_promoted_obligation_id(self,obj):return self._review(obj).promoted_obligation_id if self._review(obj) else None
+    def get_promoted_version_id(self,obj):return self._review(obj).promoted_version_id if self._review(obj) else None
     class Meta:
         model=BcnLegalObligationCandidate
         exclude=["extraction_run"]
+class LegalObligationCriterionSerializer(serializers.ModelSerializer):
+    class Meta:model=LegalObligationApplicabilityCriterion;exclude=["obligation_version"]
+class LegalObligationVersionSerializer(serializers.ModelSerializer):
+    criteria=LegalObligationCriterionSerializer(many=True,read_only=True);code=serializers.CharField(source="obligation.code",read_only=True);source=serializers.SerializerMethodField()
+    def get_source(self,obj):
+        p=obj.source_provenance
+        return {"norm_number":p.get("norm_number"),"article_number":p.get("article_number"),"version_uri":p.get("version_uri"),"artifact_sha256":p.get("artifact_sha256"),"candidate_key":p.get("candidate_key"),"source_quote":p.get("source_quote")}
+    class Meta:model=LegalObligationVersion;exclude=["source_provenance"]

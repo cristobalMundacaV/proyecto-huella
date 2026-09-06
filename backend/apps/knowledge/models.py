@@ -1,4 +1,5 @@
 import hashlib
+import uuid
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -229,3 +230,66 @@ class BcnLegalObligationCandidate(models.Model):
         self.full_clean()
         super().save(*args,**kwargs)
     def delete(self,*args,**kwargs):raise ValidationError("El candidato juridico es inmutable y no puede eliminarse.")
+
+
+def legal_obligation_code():return f"OBL-{uuid.uuid4()}"
+
+
+class LegalObligation(models.Model):
+    code=models.CharField(max_length=50,unique=True,default=legal_obligation_code,editable=False)
+    created_at=models.DateTimeField(auto_now_add=True)
+    def delete(self,*args,**kwargs):raise ValidationError("Una obligacion con historia no puede eliminarse.")
+
+
+class LegalObligationVersion(models.Model):
+    class State(models.TextChoices):DRAFT="draft","Draft";VALIDATED="validated","Validated";ACTIVE="active","Active";OBSOLETE="obsolete","Obsolete"
+    class Modality(models.TextChoices):OBLIGATION="obligation","Obligation";PROHIBITION="prohibition","Prohibition"
+    class ApplicabilityLevel(models.TextChoices):ORGANIZATION="organization","Organization";WORK="work","Work"
+    class ApplicabilityMode(models.TextChoices):PENDING="pending","Pending";UNCONDITIONAL="unconditional","Unconditional";CONDITIONAL="conditional","Conditional"
+    obligation=models.ForeignKey(LegalObligation,on_delete=models.PROTECT,related_name="versions")
+    version=models.PositiveIntegerField()
+    state=models.CharField(max_length=20,choices=State.choices,default=State.DRAFT,db_index=True)
+    source_candidate=models.OneToOneField(BcnLegalObligationCandidate,on_delete=models.PROTECT,related_name="promoted_version")
+    modality=models.CharField(max_length=20,choices=Modality.choices)
+    canonical_statement=models.TextField(blank=True)
+    subject_text=models.TextField(blank=True);action_text=models.TextField(blank=True);object_text=models.TextField(blank=True);condition_text=models.TextField(blank=True);temporal_text=models.TextField(blank=True)
+    applicability_level=models.CharField(max_length=20,choices=ApplicabilityLevel.choices)
+    applicability_mode=models.CharField(max_length=20,choices=ApplicabilityMode.choices,default=ApplicabilityMode.PENDING)
+    source_provenance=models.JSONField()
+    validated_by=models.ForeignKey("auth.User",on_delete=models.PROTECT,null=True,blank=True,related_name="validated_legal_obligation_versions");validated_at=models.DateTimeField(null=True,blank=True)
+    activated_by=models.ForeignKey("auth.User",on_delete=models.PROTECT,null=True,blank=True,related_name="activated_legal_obligation_versions");activated_at=models.DateTimeField(null=True,blank=True);obsoleted_at=models.DateTimeField(null=True,blank=True)
+    created_by=models.ForeignKey("auth.User",on_delete=models.PROTECT,related_name="created_legal_obligation_versions");created_at=models.DateTimeField(auto_now_add=True)
+    class Meta:
+        constraints=[models.UniqueConstraint(fields=["obligation","version"],name="knowledge_legal_obligation_version"),models.UniqueConstraint(fields=["obligation"],condition=models.Q(state="active"),name="knowledge_one_active_legal_obligation")]
+    def save(self,*args,**kwargs):
+        if self.pk:
+            previous=LegalObligationVersion.objects.get(pk=self.pk)
+            fixed=("obligation_id","version","source_candidate_id","source_provenance","created_by_id","created_at")
+            if any(getattr(previous,key)!=getattr(self,key) for key in fixed):raise ValidationError("Identidad y provenance de la version son inmutables.")
+            semantic=("modality","canonical_statement","subject_text","action_text","object_text","condition_text","temporal_text","applicability_level","applicability_mode")
+            if previous.state!=self.State.DRAFT and any(getattr(previous,key)!=getattr(self,key) for key in semantic):raise ValidationError("Una version gobernada ya no es editable.")
+        super().save(*args,**kwargs)
+    def delete(self,*args,**kwargs):raise ValidationError("Una version juridica no puede eliminarse.")
+
+
+class LegalObligationApplicabilityCriterion(models.Model):
+    class Operator(models.TextChoices):EQUALS="equals","Equals";IN="in","In"
+    obligation_version=models.ForeignKey(LegalObligationVersion,on_delete=models.PROTECT,related_name="criteria")
+    order_index=models.PositiveIntegerField();dimension=models.CharField(max_length=60);operator=models.CharField(max_length=20,choices=Operator.choices);values=models.JSONField();note=models.TextField(blank=True)
+    class Meta:constraints=[models.UniqueConstraint(fields=["obligation_version","order_index"],name="knowledge_legal_criterion_order")];ordering=["order_index"]
+
+
+class BcnLegalObligationCandidateReview(models.Model):
+    objects=ImmutableLegalProvenanceQuerySet.as_manager()
+    class Decision(models.TextChoices):APPROVED="approved","Approved";REJECTED="rejected","Rejected"
+    candidate=models.OneToOneField(BcnLegalObligationCandidate,on_delete=models.PROTECT,related_name="review")
+    decision=models.CharField(max_length=20,choices=Decision.choices);reviewer=models.ForeignKey("auth.User",on_delete=models.PROTECT,related_name="legal_candidate_reviews");reviewed_at=models.DateTimeField();note=models.TextField(blank=True)
+    promoted_obligation=models.ForeignKey(LegalObligation,on_delete=models.PROTECT,null=True,blank=True,related_name="candidate_reviews");promoted_version=models.ForeignKey(LegalObligationVersion,on_delete=models.PROTECT,null=True,blank=True,related_name="candidate_reviews")
+    def clean(self):
+        promoted=bool(self.promoted_obligation_id and self.promoted_version_id)
+        if self.decision==self.Decision.APPROVED and not promoted:raise ValidationError("Una aprobacion requiere obligacion y version promovidas.")
+        if self.decision==self.Decision.REJECTED and (self.promoted_obligation_id or self.promoted_version_id):raise ValidationError("Un rechazo no puede tener promocion.")
+    def save(self,*args,**kwargs):
+        if self.pk:raise ValidationError("La revision juridica es inmutable.")
+        self.full_clean();super().save(*args,**kwargs)
+    def delete(self,*args,**kwargs):raise ValidationError("La revision juridica no puede eliminarse.")
