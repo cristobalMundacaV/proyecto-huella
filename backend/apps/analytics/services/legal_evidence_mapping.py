@@ -9,6 +9,8 @@ from django.utils import timezone
 from apps.knowledge.legal_evidence import get_legal_evidence_requirement_freshness
 from apps.knowledge.models import LegalEvidenceRequirement, LegalEvidenceRequirementVersion
 from ..models import EvidenciaObra, LegalEvidenceOperationalLink, LegalEvidenceOperationalMappingRevision, LegalObligationApplicabilityAssessment, Obra, Organizacion, VersionEvidencia
+from ..models.legal_evidence_mapping import normalized_operational_mapping,operational_mapping_hash
+from ..permissions import Permission,require_tenant_permission,require_work_access
 from .legal_applicability import get_legal_assessment_freshness
 
 
@@ -16,17 +18,7 @@ def _hash(value):return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_
 
 
 def _normalize_items(requirement_version, items):
-    if not isinstance(items, list):raise ValidationError("mapping_items debe ser una lista.")
-    valid_types=set(EvidenciaObra.TipoEvidencia.values);valid_classes=set(requirement_version.evidence_classes);seen=set();normalized=[]
-    for raw in items:
-        item={"evidence_class":str(raw.get("evidence_class","")).strip(),"evidence_type":str(raw.get("evidence_type","")).strip(),"note":str(raw.get("note","")).strip()}
-        pair=(item["evidence_class"],item["evidence_type"])
-        if item["evidence_class"] not in valid_classes:raise ValidationError("Clase de evidencia no gobernada por el requisito.")
-        if item["evidence_type"] not in valid_types:raise ValidationError("Tipo operacional de evidencia invalido.")
-        if pair in seen:raise ValidationError("Mapping duplicado.")
-        seen.add(pair);normalized.append(item)
-    if {item["evidence_class"] for item in normalized} != valid_classes:raise ValidationError("El mapping no cubre todas las clases del requisito.")
-    return sorted(normalized,key=lambda item:(item["evidence_class"],item["evidence_type"],item["note"]))
+    return normalized_operational_mapping(requirement_version,items)
 
 
 @transaction.atomic
@@ -34,7 +26,7 @@ def publish_legal_evidence_operational_mapping(requirement_version, items, user,
     if not user.is_authenticated or not user.is_superuser:raise ValidationError("Solo superuser puede publicar mappings.")
     version=LegalEvidenceRequirementVersion.objects.select_for_update().select_related("requirement__obligation","legal_obligation_version__obligation").get(pk=requirement_version.pk)
     if version.state != version.State.ACTIVE or get_legal_evidence_requirement_freshness(version)!="fresh":raise ValidationError("El requisito debe estar ACTIVE y fresh.")
-    normalized=_normalize_items(version,items);digest=_hash(normalized)
+    normalized=_normalize_items(version,items);digest=operational_mapping_hash(normalized)
     latest=LegalEvidenceOperationalMappingRevision.objects.select_for_update().filter(requirement_version=version,is_latest=True).first()
     if latest and latest.mapping_hash==digest:return latest,False
     revision=(LegalEvidenceOperationalMappingRevision.objects.filter(requirement_version=version).aggregate(v=Max("revision"))["v"] or 0)+1
@@ -78,6 +70,7 @@ def list_operational_evidence_candidates(requirement_code, organization, work=No
 
 @transaction.atomic
 def create_operational_evidence_link(requirement_code, organization, work, evidence, evidence_version, user, evidence_class=None, note=""):
+    require_tenant_permission(user,organization,Permission.COMPLIANCE_MANAGE);require_tenant_permission(user,organization,Permission.EVIDENCE_VIEW);require_work_access(user,organization,work)
     if work:work=Obra.objects.select_for_update().get(pk=work.pk)
     else:organization=Organizacion.objects.select_for_update().get(pk=organization.pk)
     version,mapping,assessment=_resolve(requirement_code,organization,work)
@@ -99,6 +92,7 @@ def create_operational_evidence_link(requirement_code, organization, work, evide
 
 @transaction.atomic
 def withdraw_legal_evidence_link(link,user,reason):
+    require_tenant_permission(user,link.organization,Permission.COMPLIANCE_MANAGE);require_tenant_permission(user,link.organization,Permission.EVIDENCE_VIEW);require_work_access(user,link.organization,link.work)
     if not str(reason).strip():raise ValidationError("withdrawal_reason es obligatorio.")
     link=LegalEvidenceOperationalLink.objects.select_for_update().get(pk=link.pk)
     if link.status!="linked":raise ValidationError("Solo un link activo puede retirarse.")
