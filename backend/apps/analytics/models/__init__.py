@@ -53,6 +53,7 @@ from .governance import (
 )
 from .calculations import CalculoAmbiental, ImpactoAmbiental, InputCalculoAmbiental
 from .legal_applicability import LegalObligationApplicabilityAssessment
+from .legal_evidence_mapping import LegalEvidenceOperationalLink, LegalEvidenceOperationalMappingRevision
 from .improvement import (
     AccionMejoraAmbiental,
     AlcanceProblematica,

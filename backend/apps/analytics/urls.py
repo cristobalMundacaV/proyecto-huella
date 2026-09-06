@@ -40,6 +40,7 @@ from .views_acciones import (
     organizacion_acciones_ambientales_resumen,
 )
 from .views_organizaciones import organizacion_detail_safe
+from .views_legal_evidence import mapping_detail,mapping_publish,organization_candidates,organization_link_create,organization_link_withdraw,organization_links,organization_requirements,work_candidates,work_link_create,work_link_withdraw,work_links,work_requirements
 from .views_saas import (
     saas_audit,
     saas_dashboard,
@@ -290,6 +291,18 @@ from .views_account_lifecycle import (
 from . import views_operational_context
 
 urlpatterns = [
+    path("legal-evidence-operational-mappings/requirements/<int:requirement_version_id>/",mapping_detail),
+    path("legal-evidence-operational-mappings/requirements/<int:requirement_version_id>/publish/",mapping_publish),
+    path("organizaciones/<str:organization_id>/evidencia-legal/requisitos/",organization_requirements),
+    path("organizaciones/<str:organization_id>/evidencia-legal/requisitos/<str:requirement_code>/candidatos/",organization_candidates),
+    path("organizaciones/<str:organization_id>/evidencia-legal/requisitos/<str:requirement_code>/vinculos/",organization_link_create),
+    path("organizaciones/<str:organization_id>/evidencia-legal/vinculos/",organization_links),
+    path("organizaciones/<str:organization_id>/evidencia-legal/vinculos/<int:link_id>/retirar/",organization_link_withdraw),
+    path("organizaciones/<str:organization_id>/obras/<int:work_id>/evidencia-legal/requisitos/",work_requirements),
+    path("organizaciones/<str:organization_id>/obras/<int:work_id>/evidencia-legal/requisitos/<str:requirement_code>/candidatos/",work_candidates),
+    path("organizaciones/<str:organization_id>/obras/<int:work_id>/evidencia-legal/requisitos/<str:requirement_code>/vinculos/",work_link_create),
+    path("organizaciones/<str:organization_id>/obras/<int:work_id>/evidencia-legal/vinculos/",work_links),
+    path("organizaciones/<str:organization_id>/obras/<int:work_id>/evidencia-legal/vinculos/<int:link_id>/retirar/",work_link_withdraw),
     path("environmental-governance/factor-candidates/", factor_candidates),
     path(
         "environmental-governance/factor-candidates/<int:candidate_id>/",
