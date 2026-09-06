@@ -11,6 +11,7 @@ from apps.knowledge.legal_governance import evaluate_legal_obligation_applicabil
 from apps.knowledge.models import LegalObligationVersion
 from ..models import LegalObligationApplicabilityAssessment,Obra,Organizacion
 
+# Hash hardening does not change the evaluator's applicable/not-applicable semantics.
 LEGAL_APPLICABILITY_EVALUATOR_VERSION="legal-applicability-1"
 
 def _canonical(payload):return json.dumps(payload,sort_keys=True,ensure_ascii=False,separators=(",",":"))
@@ -19,13 +20,13 @@ def _hash(payload):return hashlib.sha256(_canonical(payload).encode()).hexdigest
 def build_legal_applicability_context(organization,work=None):
     return {"organization":{"id":organization.id,"organizacion_id":organization.organizacion_id,"name":organization.nombre,"country":organization.pais,"preset":organization.preset,"rubro":organization.rubro,"region":organization.region,"comuna":organization.comuna},"work":None if work is None else {"id":work.id,"codigo_obra":work.codigo_obra,"name":work.nombre,"type":work.tipo_proyecto,"environmental_profile":work.perfil_ambiental,"region":work.region,"comuna":work.comuna,"state":work.estado}}
 
-def _semantic_context(snapshot):
+def build_semantic_legal_applicability_context(snapshot):
     org=snapshot["organization"];work=snapshot["work"]
     return {"organization":{key:org[key] for key in ("country","preset","rubro","region","comuna")},"work":None if work is None else {key:work[key] for key in ("type","environmental_profile","region","comuna","state")}}
 
 def _criteria(version):return [{"order_index":item.order_index,"dimension":item.dimension,"operator":item.operator,"values":item.values,"note":item.note} for item in version.criteria.all().order_by("order_index")]
 def _legal(version):return {"obligation_id":version.obligation_id,"obligation_code":version.obligation.code,"obligation_version_id":version.id,"version":version.version,"state":version.state,"modality":version.modality,"canonical_statement":version.canonical_statement,"applicability_level":version.applicability_level,"applicability_mode":version.applicability_mode,"source_provenance":version.source_provenance}
-def _input_hash(evaluator,legal,criteria,context):return _hash({"evaluator_version":evaluator,"legal_snapshot":legal,"criteria_snapshot":criteria,"context_snapshot":context})
+def _input_hash(evaluator,legal,criteria,semantic_context):return _hash({"evaluator_version":evaluator,"legal_snapshot":legal,"criteria_snapshot":criteria,"semantic_context":semantic_context})
 def _dto(version,criteria):return SimpleNamespace(applicability_mode=version.applicability_mode,applicability_level=version.applicability_level,criteria=[SimpleNamespace(**item) for item in criteria])
 
 @dataclass
@@ -34,14 +35,15 @@ class BatchResult:
     def data(self):return self.__dict__.copy()
 
 def _evaluate(version,organization,work,user,result):
-    context=build_legal_applicability_context(organization,work);criteria=_criteria(version);legal=_legal(version);input_hash=_input_hash(LEGAL_APPLICABILITY_EVALUATOR_VERSION,legal,criteria,context)
+    context=build_legal_applicability_context(organization,work);semantic_context=build_semantic_legal_applicability_context(context);criteria=_criteria(version);legal=_legal(version);input_hash=_input_hash(LEGAL_APPLICABILITY_EVALUATOR_VERSION,legal,criteria,semantic_context)
     latest=LegalObligationApplicabilityAssessment.objects.select_for_update().filter(organization=organization,work=work,obligation=version.obligation,is_latest=True).first()
     if latest and latest.input_hash==input_hash:assessment=latest;result.unchanged+=1
     else:
         revision=(LegalObligationApplicabilityAssessment.objects.filter(organization=organization,work=work,obligation=version.obligation).aggregate(value=Max("revision"))["value"] or 0)+1
-        details=evaluate_legal_obligation_applicability(_dto(version,criteria),_semantic_context(context))
+        details=evaluate_legal_obligation_applicability(_dto(version,criteria),semantic_context)
+        # update(is_latest=False) is the only deliberate mutation of history.
         if latest:LegalObligationApplicabilityAssessment.objects.filter(pk=latest.pk).update(is_latest=False);result.superseded+=1
-        assessment=LegalObligationApplicabilityAssessment.objects.create(organization=organization,work=work,obligation=version.obligation,obligation_version=version,scope_level=version.applicability_level,evaluator_version=LEGAL_APPLICABILITY_EVALUATOR_VERSION,revision=revision,is_latest=True,result=details["result"],context_snapshot=context,criteria_snapshot=criteria,legal_snapshot=legal,evaluation_details=details,context_hash=_hash(_semantic_context(context)),input_hash=input_hash,evaluated_by=user,evaluated_at=timezone.now());result.created+=1
+        assessment=LegalObligationApplicabilityAssessment.objects.create(organization=organization,work=work,obligation=version.obligation,obligation_version=version,scope_level=version.applicability_level,evaluator_version=LEGAL_APPLICABILITY_EVALUATOR_VERSION,revision=revision,is_latest=True,result=details["result"],context_snapshot=context,criteria_snapshot=criteria,legal_snapshot=legal,evaluation_details=details,context_hash=_hash(semantic_context),input_hash=input_hash,evaluated_by=user,evaluated_at=timezone.now());result.created+=1
     setattr(result,assessment.result,getattr(result,assessment.result)+1)
 
 @transaction.atomic
@@ -63,6 +65,7 @@ def get_legal_assessment_freshness(assessment,organization,work=None):
     if not active or active.id!=assessment.obligation_version_id:return "stale_legal_version"
     if assessment.evaluator_version!=LEGAL_APPLICABILITY_EVALUATOR_VERSION:return "stale_evaluator"
     context=build_legal_applicability_context(organization,work)
-    if assessment.context_hash!=_hash(_semantic_context(context)):return "stale_context"
-    if assessment.input_hash!=_input_hash(LEGAL_APPLICABILITY_EVALUATOR_VERSION,_legal(active),_criteria(active),context):return "stale_legal_contract"
+    semantic_context=build_semantic_legal_applicability_context(context)
+    if assessment.context_hash!=_hash(semantic_context):return "stale_context"
+    if assessment.input_hash!=_input_hash(LEGAL_APPLICABILITY_EVALUATOR_VERSION,_legal(active),_criteria(active),semantic_context):return "stale_legal_contract"
     return "fresh"

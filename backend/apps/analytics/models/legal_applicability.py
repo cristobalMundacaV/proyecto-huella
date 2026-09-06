@@ -3,6 +3,11 @@ from django.db import models
 
 
 class ImmutableAssessmentQuerySet(models.QuerySet):
+    def bulk_create(self, *args, **kwargs):
+        raise ValidationError(
+            "Las evaluaciones juridicas deben crearse mediante el service gobernado."
+        )
+
     def delete(self):
         raise ValidationError("Las evaluaciones juridicas son inmutables.")
 
@@ -40,6 +45,12 @@ class LegalObligationApplicabilityAssessment(models.Model):
         ]
         ordering=["-evaluated_at"]
     def clean(self):
+        from apps.knowledge.models import LegalObligationVersion
+
+        if self.obligation_version.state != LegalObligationVersion.State.ACTIVE:
+            raise ValidationError(
+                "Solo una version juridica ACTIVE puede originar una evaluacion."
+            )
         if self.obligation_version.obligation_id != self.obligation_id:
             raise ValidationError("La version no pertenece a la obligacion.")
         if self.scope_level == self.Scope.ORGANIZATION and (
