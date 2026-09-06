@@ -218,6 +218,7 @@ from .views_quality_v2 import (
     resumen_ambiental_v2,
     serie_indicador,
 )
+from .views_legal_applicability import evaluate_organization_legal_applicability,evaluate_work_legal_applicability,organization_legal_applicability,organization_legal_history,work_legal_applicability,work_legal_history
 from .views_copilot_v2 import (
     agent_problem_proposals,
     agent_proposal_feedback,
@@ -937,4 +938,10 @@ urlpatterns = [
     path("ai-advisor/", ai_advisor),
     path("intelligence/context/", recommendation_context),
     path("intelligence/recommendations/", recomendaciones),
+    path("organizaciones/<str:organization_id>/aplicabilidad-legal/",organization_legal_applicability),
+    path("organizaciones/<str:organization_id>/aplicabilidad-legal/evaluar/",evaluate_organization_legal_applicability),
+    path("organizaciones/<str:organization_id>/aplicabilidad-legal/historial/",organization_legal_history),
+    path("organizaciones/<str:organization_id>/obras/<int:work_id>/aplicabilidad-legal/",work_legal_applicability),
+    path("organizaciones/<str:organization_id>/obras/<int:work_id>/aplicabilidad-legal/evaluar/",evaluate_work_legal_applicability),
+    path("organizaciones/<str:organization_id>/obras/<int:work_id>/aplicabilidad-legal/historial/",work_legal_history),
 ]

@@ -52,6 +52,7 @@ from .governance import (
     VersionMetodologia,
 )
 from .calculations import CalculoAmbiental, ImpactoAmbiental, InputCalculoAmbiental
+from .legal_applicability import LegalObligationApplicabilityAssessment
 from .improvement import (
     AccionMejoraAmbiental,
     AlcanceProblematica,
