@@ -378,6 +378,16 @@ def promote_candidate_to_draft(candidate, user, mode, target_factor=None):
         compatibility["normalized_result_unit"],
         factor.unidad_resultado,
     )
+    provenance.update(
+        {
+            "published_unit": (
+                f"{compatibility['normalized_result_unit']}/"
+                f"{compatibility['normalized_input_unit']}"
+            ),
+            "normalized_value": str(value),
+            "normalized_unit": (f"{factor.unidad_resultado}/{factor.unidad_entrada}"),
+        }
+    )
     version = VersionFactorAmbiental.objects.create(
         factor=factor,
         version=version_number,

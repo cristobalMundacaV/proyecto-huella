@@ -20,6 +20,12 @@ class Command(BaseCommand):
         parser.add_argument("--switch", action="store_true")
         parser.add_argument("--reviewer")
         parser.add_argument("--confirm-sha")
+        parser.add_argument(
+            "--acknowledge-material-change",
+            action="append",
+            default=[],
+            metavar="FACTOR_CODE",
+        )
         parser.add_argument("--note", default="")
 
     def handle(self, *args, **options):
@@ -51,7 +57,11 @@ class Command(BaseCommand):
                 if not options["confirm_sha"]:
                     raise CommandError("--confirm-sha es obligatorio para prepare.")
                 result = prepare_reconciliation(
-                    reviewer, options["year"], options["confirm_sha"], options["note"]
+                    reviewer,
+                    options["year"],
+                    options["confirm_sha"],
+                    options["note"],
+                    options["acknowledge_material_change"],
                 )
                 self.stdout.write(
                     f"prepared_created={result['created']} prepared_existing={result['existing']}"

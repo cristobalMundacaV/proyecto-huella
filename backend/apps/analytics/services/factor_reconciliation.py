@@ -19,6 +19,8 @@ from .factor_candidates import (
 from .factor_governance import transition_factor_version
 
 EXPECTED_SHA = "8caaeed89d08202f47894842e4a4e5274b4bca54b25186501efe9fd0d05b1ca0"
+MATERIAL_CHANGE_RATIO_UPPER = Decimal("10")
+MATERIAL_CHANGE_RATIO_LOWER = Decimal("0.1")
 
 RECONCILIATION_MANIFEST = (
     {
@@ -214,6 +216,17 @@ def reconciliation_report(year=2025):
         normalized = _factor_value_for_unit(
             fact.factor_value, "kgCO2e", factor.unidad_resultado
         )
+        delta = normalized - legacy.valor if legacy else None
+        delta_percentage = (
+            delta / legacy.valor * Decimal("100") if legacy and legacy.valor else None
+        )
+        change_ratio = (
+            abs(normalized / legacy.valor) if legacy and legacy.valor else None
+        )
+        requires_explicit_ack = change_ratio is not None and (
+            change_ratio >= MATERIAL_CHANGE_RATIO_UPPER
+            or change_ratio <= MATERIAL_CHANGE_RATIO_LOWER
+        )
         equivalence = "sin_mapping"
         if candidate:
             candidate.mapping_type = row["entry"]["mapping_type"]
@@ -238,7 +251,18 @@ def reconciliation_report(year=2025):
                 "fact_row": fact.source_row_number,
                 "official_value": str(fact.factor_value),
                 "normalized_official_value": str(normalized),
-                "delta": str(normalized - legacy.valor) if legacy else None,
+                "legacy_result_unit": factor.unidad_resultado,
+                "official_result_unit": "kgCO2e",
+                "normalized_result_unit": factor.unidad_resultado,
+                "delta": str(delta) if delta is not None else None,
+                "delta_percentage": (
+                    str(delta_percentage) if delta_percentage is not None else None
+                ),
+                "change_ratio": str(change_ratio) if change_ratio is not None else None,
+                "requires_explicit_ack": requires_explicit_ack,
+                "anomaly_reason": (
+                    "material_legacy_factor_change" if requires_explicit_ack else None
+                ),
                 "candidate_status": candidate.status if candidate else "missing",
                 "equivalence": (equivalence),
                 "readiness": readiness,
@@ -248,10 +272,23 @@ def reconciliation_report(year=2025):
 
 
 @transaction.atomic
-def prepare_reconciliation(user, year, confirm_sha, note=""):
+def prepare_reconciliation(
+    user, year, confirm_sha, note="", acknowledged_material_changes=None
+):
     if not user.is_superuser:
         raise ValidationError("El reviewer debe ser superusuario.")
     rows = _manifest_rows(year, confirm_sha)
+    acknowledged = set(acknowledged_material_changes or [])
+    report_by_code = {item["factor_code"]: item for item in reconciliation_report(year)}
+    required_acknowledgements = {
+        code for code, item in report_by_code.items() if item["requires_explicit_ack"]
+    }
+    missing = required_acknowledgements - acknowledged
+    if missing:
+        raise ValidationError(
+            "Cambios materiales requieren reconocimiento explícito para: "
+            + ", ".join(sorted(missing))
+        )
     created = 0
     for row in rows:
         entry, candidate, factor, legacy = (
@@ -296,6 +333,8 @@ def prepare_reconciliation(user, year, confirm_sha, note=""):
         official = replacement.valor
         delta = official - legacy.valor
         percentage = (delta / legacy.valor * Decimal("100")) if legacy.valor else None
+        report_item = report_by_code[factor.codigo]
+        acknowledged_at = timezone.now()
         EnvironmentalFactorReconciliation.objects.create(
             candidate=candidate,
             factor=factor,
@@ -310,6 +349,30 @@ def prepare_reconciliation(user, year, confirm_sha, note=""):
                 "absolute_difference": str(delta),
                 "percentage_difference": (
                     str(percentage) if percentage is not None else None
+                ),
+                "legacy_result_unit": report_item["legacy_result_unit"],
+                "official_result_unit": report_item["official_result_unit"],
+                "normalized_result_unit": report_item["normalized_result_unit"],
+                "change_ratio": report_item["change_ratio"],
+                "requires_explicit_ack": report_item["requires_explicit_ack"],
+                "anomaly_reason": report_item["anomaly_reason"],
+                "material_change_acknowledged": (
+                    factor.codigo in required_acknowledgements
+                ),
+                "acknowledged_factor_code": (
+                    factor.codigo
+                    if factor.codigo in required_acknowledgements
+                    else None
+                ),
+                "acknowledged_by": (
+                    user.username
+                    if factor.codigo in required_acknowledgements
+                    else None
+                ),
+                "acknowledged_at": (
+                    acknowledged_at.isoformat()
+                    if factor.codigo in required_acknowledgements
+                    else None
                 ),
                 "legacy_source": legacy.fuente,
                 "legacy_reference": legacy.referencia,

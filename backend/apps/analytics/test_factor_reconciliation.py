@@ -24,9 +24,13 @@ from .models import (
     EnvironmentalFactorCandidate,
     EnvironmentalFactorReconciliation,
     FactorAmbiental,
+    FuenteDatos,
+    Observacion,
     Organizacion,
+    RegistroFlujoAmbiental,
     VersionFactorAmbiental,
 )
+from .services.calculation_v2 import calculate_activity
 from .services.factor_candidates import build_huellachile_factor_candidates
 from .services.factor_reconciliation import (
     EXPECTED_SHA,
@@ -38,6 +42,9 @@ from .services.factor_reconciliation import (
 )
 from .services.fuel_factor_selector import select_fuel_factor
 from .services.system_environmental_catalog import ensure_system_environmental_catalog
+
+ANOMALOUS_FACTOR_CODE = "huellachile-combustion-movil-gas-natural"
+MATERIAL_CHANGE_ACK = [ANOMALOUS_FACTOR_CODE]
 
 
 class FactorReconciliationTests(TestCase):
@@ -137,8 +144,19 @@ class FactorReconciliationTests(TestCase):
             )
 
     def prepare_and_validate(self):
-        result = prepare_reconciliation(self.user, 2025, EXPECTED_SHA)
-        self.assertEqual(result["created"], 7)
+        output = StringIO()
+        call_command(
+            "reconcile_huellachile_legacy_factors",
+            "--prepare",
+            "--reviewer",
+            self.user.username,
+            "--confirm-sha",
+            EXPECTED_SHA,
+            "--acknowledge-material-change",
+            ANOMALOUS_FACTOR_CODE,
+            stdout=output,
+        )
+        self.assertIn("prepared_created=7", output.getvalue())
         advance_reconciliation(self.user, "pruebas")
         advance_reconciliation(self.user, "validado")
 
@@ -158,10 +176,21 @@ class FactorReconciliationTests(TestCase):
             ),
         )
         self.assertEqual(
-            prepare_reconciliation(self.user, 2025, EXPECTED_SHA)["created"], 7
+            prepare_reconciliation(
+                self.user,
+                2025,
+                EXPECTED_SHA,
+                acknowledged_material_changes=MATERIAL_CHANGE_ACK,
+            )["created"],
+            7,
         )
         self.assertEqual(
-            prepare_reconciliation(self.user, 2025, EXPECTED_SHA),
+            prepare_reconciliation(
+                self.user,
+                2025,
+                EXPECTED_SHA,
+                acknowledged_material_changes=MATERIAL_CHANGE_ACK,
+            ),
             {"created": 0, "existing": 7},
         )
         self.assertEqual(
@@ -244,6 +273,53 @@ class FactorReconciliationTests(TestCase):
             ).version,
             2,
         )
+        mobile_gas = select_fuel_factor(
+            organization,
+            {"estado": "clasificado", "categoria": "combustion_movil"},
+            "gas_natural",
+            "m3",
+            date(2025, 6, 1),
+        )
+        self.assertEqual(mobile_gas["estado"], "seleccionado")
+        self.assertEqual(
+            mobile_gas["factor_version"].valor,
+            Decimal("0.0020932608"),
+        )
+        source = FuenteDatos.objects.create(
+            organizacion=organization,
+            nombre="Fixture consumo móvil",
+            tipo=FuenteDatos.Tipo.MANUAL,
+        )
+        gas_activity = ActividadOperacional.objects.create(
+            organizacion=organization,
+            codigo="MOBILE-GN-V2",
+            nombre="Consumo móvil gas natural",
+            tipo=ActividadOperacional.Tipo.CONSUMO_COMBUSTIBLE,
+            timestamp_inicio=timezone.now(),
+        )
+        RegistroFlujoAmbiental.objects.create(
+            organizacion=organization,
+            actividad=gas_activity,
+            flujo=RegistroFlujoAmbiental.Flujo.COMBUSTIBLE_MOVIL,
+            periodo_inicio=gas_activity.timestamp_inicio,
+            tipo_recurso="gas_natural",
+            destino_operacional=RegistroFlujoAmbiental.DestinoOperacional.VEHICULO,
+        )
+        Observacion.objects.create(
+            organizacion=organization,
+            actividad=gas_activity,
+            fuente=source,
+            concepto="combustible_consumido",
+            valor_numerico=Decimal("1000"),
+            unidad="L",
+            timestamp_observacion=gas_activity.timestamp_inicio,
+            estado=Observacion.Estado.VALIDADA,
+        )
+        gas_calculation, _ = calculate_activity(gas_activity)
+        self.assertEqual(gas_calculation.resultado, Decimal("0.0020932608"))
+        self.assertEqual(
+            gas_calculation.version_factor_id, mobile_gas["factor_version"].id
+        )
         ensure_system_environmental_catalog()
         ensure_system_environmental_catalog()
         self.assertEqual(
@@ -252,6 +328,79 @@ class FactorReconciliationTests(TestCase):
             ).count(),
             14,
         )
+
+    def test_material_change_requires_exact_named_acknowledgement(self):
+        before = (
+            EnvironmentalFactorCandidate.objects.filter(
+                status=EnvironmentalFactorCandidate.Status.PROMOTED
+            ).count(),
+            VersionFactorAmbiental.objects.count(),
+            EnvironmentalFactorReconciliation.objects.count(),
+        )
+        report = reconciliation_report()
+        anomalous = [row for row in report if row["requires_explicit_ack"]]
+        self.assertEqual(
+            [row["factor_code"] for row in anomalous], [ANOMALOUS_FACTOR_CODE]
+        )
+        self.assertEqual(
+            anomalous[0]["anomaly_reason"], "material_legacy_factor_change"
+        )
+        self.assertLessEqual(Decimal(anomalous[0]["change_ratio"]), Decimal("0.1"))
+        self.assertTrue(
+            all(
+                not row["requires_explicit_ack"]
+                for row in report
+                if row["factor_code"] != ANOMALOUS_FACTOR_CODE
+            )
+        )
+        self.assertEqual(
+            before,
+            (
+                EnvironmentalFactorCandidate.objects.filter(
+                    status=EnvironmentalFactorCandidate.Status.PROMOTED
+                ).count(),
+                VersionFactorAmbiental.objects.count(),
+                EnvironmentalFactorReconciliation.objects.count(),
+            ),
+        )
+
+        with self.assertRaises(ValidationError):
+            prepare_reconciliation(self.user, 2025, EXPECTED_SHA)
+        with self.assertRaises(ValidationError):
+            prepare_reconciliation(
+                self.user,
+                2025,
+                EXPECTED_SHA,
+                acknowledged_material_changes=["huellachile-combustion-movil-diesel"],
+            )
+        self.assertEqual(VersionFactorAmbiental.objects.count(), before[1])
+        self.assertEqual(EnvironmentalFactorReconciliation.objects.count(), before[2])
+
+        result = prepare_reconciliation(
+            self.user,
+            2025,
+            EXPECTED_SHA,
+            acknowledged_material_changes=MATERIAL_CHANGE_ACK,
+        )
+        self.assertEqual(result["created"], 7)
+        audit = EnvironmentalFactorReconciliation.objects.get(
+            factor__codigo=ANOMALOUS_FACTOR_CODE
+        )
+        comparison = audit.comparison
+        self.assertTrue(comparison["material_change_acknowledged"])
+        self.assertEqual(comparison["acknowledged_factor_code"], ANOMALOUS_FACTOR_CODE)
+        self.assertEqual(comparison["acknowledged_by"], self.user.username)
+        self.assertTrue(comparison["acknowledged_at"])
+        provenance = audit.replacement_version.contexto["knowledge_source"]
+        self.assertEqual(provenance["published_value"], "2.09326078848132")
+        self.assertEqual(provenance["published_unit"], "kgCO2e/m3")
+        self.assertEqual(provenance["normalized_value"], "0.00209326078848132")
+        self.assertEqual(provenance["normalized_unit"], "tCO2e/m3")
+        self.assertEqual(audit.factor.unidad_resultado, "tCO2e")
+        legacy = audit.legacy_version
+        legacy.refresh_from_db()
+        self.assertEqual(legacy.valor, Decimal("2.09"))
+        self.assertEqual(legacy.estado, VersionFactorAmbiental.Estado.ACTIVO)
 
     def test_sha_historical_and_unexpected_fact_fail_closed(self):
         with self.assertRaises(ValidationError):
