@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import EnvironmentalSource,ExternalRecord,ExternalSnapshot,HuellaChileEmissionFactorFact,RetcHazardousWasteFact,SourceState,SyncRun
+from .models import BcnLegalNormFact,BcnLegalNormRelationFact,BcnLegalNormVersionFact,EnvironmentalSource,ExternalRecord,ExternalSnapshot,HuellaChileEmissionFactorFact,RetcHazardousWasteFact,SourceState,SyncRun
 class SourceStateSerializer(serializers.ModelSerializer):
     class Meta:model=SourceState;exclude=["source"]
 class EnvironmentalSourceSerializer(serializers.ModelSerializer):
@@ -15,3 +15,10 @@ class RetcHazardousWasteFactSerializer(serializers.ModelSerializer):
     class Meta:model=RetcHazardousWasteFact;exclude=["raw_row"]
 class HuellaChileEmissionFactorFactSerializer(serializers.ModelSerializer):
     class Meta:model=HuellaChileEmissionFactorFact;fields="__all__"
+class BcnLegalNormVersionFactSerializer(serializers.ModelSerializer):
+    class Meta:model=BcnLegalNormVersionFact;exclude=["norm_fact"]
+class BcnLegalNormRelationFactSerializer(serializers.ModelSerializer):
+    class Meta:model=BcnLegalNormRelationFact;exclude=["norm_fact"]
+class BcnLegalNormFactSerializer(serializers.ModelSerializer):
+    versions=BcnLegalNormVersionFactSerializer(many=True,read_only=True);relations=BcnLegalNormRelationFactSerializer(many=True,read_only=True)
+    class Meta:model=BcnLegalNormFact;fields="__all__"

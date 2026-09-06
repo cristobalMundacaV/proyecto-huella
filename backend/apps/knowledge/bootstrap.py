@@ -4,6 +4,7 @@ from .models import EnvironmentalSource, SourceState
 SOURCES=(("retc","RETC","Ministerio del Medio Ambiente","CKAN"),("huellachile","HuellaChile","Ministerio del Medio Ambiente","FILE"),("bcn-leychile","BCN LeyChile","Biblioteca del Congreso Nacional","SPARQL"),("snifa","SNIFA","Superintendencia del Medio Ambiente","DOCUMENT_INDEX"),("sea-seia","SEA / SEIA","Servicio de Evaluacion Ambiental","DOCUMENT_INDEX"),("simbio","SIMBIO","Ministerio del Medio Ambiente","ARCGIS_REST"),("ide-mma","IDE MMA","Ministerio del Medio Ambiente","WFS"),("okobaudat","OKOBAUDAT","Gobierno Federal de Alemania","REST"))
 RETC_MANAGED_DEFAULTS={"connector_key":"retc_ckan","tipo_acceso":"CKAN","base_url":"https://datosretc.mma.gob.cl","documentation_url":"https://datosretc.mma.gob.cl/api/3/action/help_show?name=package_search","licencia_nombre":"Creative Commons Attribution","licencia_url":"http://www.opendefinition.org/licenses/cc-by","atribucion_requerida":True,"nivel_autoridad":"oficial","pais":"Chile","organismo":"Ministerio del Medio Ambiente"}
 HUELLACHILE_MANAGED_DEFAULTS={"connector_key":"huellachile_web","tipo_acceso":"FILE","base_url":"https://huellachile.mma.gob.cl","documentation_url":"https://huellachile.mma.gob.cl/recursos-material-de-apoyo/","atribucion_requerida":True,"nivel_autoridad":"oficial","pais":"Chile","organismo":"Ministerio del Medio Ambiente"}
+BCN_MANAGED_DEFAULTS={"connector_key":"bcn_leychile_sparql","tipo_acceso":"SPARQL","base_url":"https://datos.bcn.cl/sparql","documentation_url":"https://datos.bcn.cl/es/documentacion","licencia_nombre":"Creative Commons Attribution","licencia_url":"","atribucion_requerida":True,"nivel_autoridad":"oficial","pais":"Chile","organismo":"Biblioteca del Congreso Nacional","cadencia_sugerida":"daily","stale_after_hours":48};BCN_STARTER=("19300","20417","20920","21455","21600")
 @transaction.atomic
 def ensure_environmental_source_registry():
     result=[]
@@ -20,6 +21,13 @@ def ensure_environmental_source_registry():
         if code=="huellachile" and huellachile_unconfigured:
             for field,value in HUELLACHILE_MANAGED_DEFAULTS.items(): setattr(source,field,value)
             source.save(update_fields=[*HUELLACHILE_MANAGED_DEFAULTS,"updated_at"])
+        bcn_unconfigured=(source.connector_key=="pending-bcn-leychile" and source.tipo_acceso=="SPARQL" and not source.base_url and not source.documentation_url and not source.licencia_nombre and not source.licencia_url and source.atribucion_requerida and source.nivel_autoridad=="oficial" and source.pais=="Chile" and source.organismo=="Biblioteca del Congreso Nacional")
+        if code=="bcn-leychile" and bcn_unconfigured:
+            for field,value in BCN_MANAGED_DEFAULTS.items():setattr(source,field,value)
+            source.save(update_fields=[*BCN_MANAGED_DEFAULTS,"updated_at"])
+        if code=="bcn-leychile" and source.connector_key=="bcn_leychile_sparql":
+            from .models import BcnLegalNormSubscription
+            for number in BCN_STARTER:BcnLegalNormSubscription.objects.get_or_create(source=source,norm_type="LEY",number=number,defaults={"label":f"LEY {number}","scope_tags":["marco_ambiental","starter_corpus_no_exhaustivo"]})
         SourceState.objects.get_or_create(source=source); result.append(source)
     return result
 def ensure_source_registry_after_migrate(**kwargs): ensure_environmental_source_registry()

@@ -1,11 +1,12 @@
 from django.http import Http404
+from django.db import models
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view,permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
-from .models import EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact
-from .serializers import EnvironmentalSourceSerializer,ExternalRecordSerializer,ExternalSnapshotSerializer,HuellaChileEmissionFactorFactSerializer,RetcHazardousWasteFactSerializer,SyncRunSerializer
+from .models import BcnLegalNormFact,EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact
+from .serializers import BcnLegalNormFactSerializer,EnvironmentalSourceSerializer,ExternalRecordSerializer,ExternalSnapshotSerializer,HuellaChileEmissionFactorFactSerializer,RetcHazardousWasteFactSerializer,SyncRunSerializer
 from .services import source_freshness
 class KnowledgePagination(PageNumberPagination):
     page_size=50;page_size_query_param="page_size";max_page_size=200
@@ -61,3 +62,16 @@ def huellachile_emission_factors_metadata(request):
     if not artifact: raise Http404
     metadata=artifact.metadata;publication=artifact.parent_record.current_snapshot.raw_payload or {}
     return Response({"publisher":metadata.get("publisher"),"source_page":metadata.get("source_page"),"logical_resource":artifact.external_resource_id,"title":artifact.parent_record.title,"year":metadata.get("year"),"edition":metadata.get("edition"),"filename":publication.get("filename") or metadata.get("filename"),"filename_version":publication.get("filename_version") or metadata.get("filename_version"),"source_url":publication.get("url") or artifact.source_url,"sha256":artifact.content_sha256,"bytes":artifact.byte_size,"retrieved_at":artifact.retrieved_at,"artifact_version":artifact.version,"fact_count":artifact.huellachile_emission_factor_facts.count(),"sheet_count":len(metadata.get("sheets",[])),"references":metadata.get("references",[]),"freshness":source_freshness(artifact.source)})
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def bcn_norms(request):
+    queryset=BcnLegalNormFact.objects.filter(snapshot__current_for__current_snapshot=models.F("snapshot"),snapshot__source__codigo="bcn-leychile").prefetch_related("versions","relations").order_by("number")
+    for parameter,lookup in {"number":"number__iexact","norm_type":"norm_type_name__iexact","issuer":"issuer_name__icontains","title":"title__icontains"}.items():
+        if request.query_params.get(parameter):queryset=queryset.filter(**{lookup:request.query_params[parameter]})
+    if request.query_params.get("scope_tag"):queryset=queryset.filter(scope_tags__contains=[request.query_params["scope_tag"]])
+    return paginated(request,queryset,BcnLegalNormFactSerializer)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def bcn_norm_detail(request,pk):
+    queryset=BcnLegalNormFact.objects.filter(snapshot__current_for__current_snapshot=models.F("snapshot"),snapshot__source__codigo="bcn-leychile").prefetch_related("versions","relations")
+    return Response(BcnLegalNormFactSerializer(get_object_or_404(queryset,pk=pk)).data)

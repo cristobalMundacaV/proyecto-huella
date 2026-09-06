@@ -128,3 +128,15 @@ class HuellaChileEmissionFactorFact(models.Model):
     class Meta:
         constraints=[models.UniqueConstraint(fields=["artifact","sheet_name","source_row_number"],name="knowledge_hc_factor_source_row")]
         indexes=[models.Index(fields=["artifact","dataset_year","alcance","categoria"],name="knowledge_hc_factor_filter")]
+
+class BcnLegalNormSubscription(models.Model):
+    source=models.ForeignKey(EnvironmentalSource,on_delete=models.PROTECT,related_name="legal_norm_subscriptions");norm_type=models.CharField(max_length=30);number=models.CharField(max_length=60);label=models.CharField(max_length=300);scope_tags=models.JSONField(default=list,blank=True);active=models.BooleanField(default=True);created_at=models.DateTimeField(auto_now_add=True);updated_at=models.DateTimeField(auto_now=True)
+    class Meta:constraints=[models.UniqueConstraint(fields=["source","norm_type","number"],name="knowledge_bcn_subscription_identity")]
+class BcnLegalNormFact(models.Model):
+    snapshot=models.OneToOneField(ExternalSnapshot,on_delete=models.PROTECT,related_name="bcn_legal_norm_fact");norm_uri=models.URLField(max_length=500);identifier=models.CharField(max_length=200,blank=True);number=models.CharField(max_length=60,db_index=True);title=models.CharField(max_length=1000);norm_type_uri=models.URLField(max_length=500);norm_type_name=models.CharField(max_length=200,db_index=True);issuer_uri=models.URLField(max_length=500,blank=True);issuer_name=models.CharField(max_length=500,blank=True,db_index=True);publish_date=models.DateField(null=True,blank=True);promulgation_date=models.DateField(null=True,blank=True);latest_version_uri=models.URLField(max_length=500);latest_version_date=models.DateField(null=True,blank=True);scope_tags=models.JSONField(default=list,blank=True)
+class BcnLegalNormVersionFact(models.Model):
+    norm_fact=models.ForeignKey(BcnLegalNormFact,on_delete=models.PROTECT,related_name="versions");version_uri=models.URLField(max_length=500);version_date=models.DateField(null=True,blank=True);is_latest=models.BooleanField(default=False);xml_document_url=models.URLField(max_length=500,blank=True);html_document_url=models.URLField(max_length=500,blank=True)
+    class Meta:constraints=[models.UniqueConstraint(fields=["norm_fact","version_uri"],name="knowledge_bcn_version_identity"),models.UniqueConstraint(fields=["norm_fact"],condition=models.Q(is_latest=True),name="knowledge_bcn_one_latest_version")]
+class BcnLegalNormRelationFact(models.Model):
+    norm_fact=models.ForeignKey(BcnLegalNormFact,on_delete=models.PROTECT,related_name="relations");relation_type=models.CharField(max_length=40);target_uri=models.URLField(max_length=500);target_number=models.CharField(max_length=60,blank=True);target_title=models.CharField(max_length=1000,blank=True)
+    class Meta:constraints=[models.UniqueConstraint(fields=["norm_fact","relation_type","target_uri"],name="knowledge_bcn_relation_identity")]
