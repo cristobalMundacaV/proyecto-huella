@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 
 from .bcn_text import parse_bcn_legal_xml, sync_bcn_legal_texts
 from .downloads import DownloadedExternalFile
-from .models import BcnLegalArticleFact, BcnLegalNormFact, BcnLegalNormVersionFact, BcnLegalTextParse, EnvironmentalSource, ExternalFileArtifact, ExternalRecord, ExternalSnapshot, SyncRun
+from .models import BcnLegalArticleFact, BcnLegalNormFact, BcnLegalNormSubscription, BcnLegalNormVersionFact, BcnLegalTextParse, BcnLegalTextSourceDocument, EnvironmentalSource, ExternalFileArtifact, ExternalRecord, ExternalSnapshot, SyncRun
 
 NS = "http://www.leychile.cl/esquemas"
 
@@ -74,7 +74,7 @@ class BcnLegalTextPublicationTests(TestCase):
         now = timezone.now()
         run = SyncRun.objects.create(source=source, trigger="manual", started_at=now)
         snapshot = ExternalSnapshot.objects.create(source=source, sync_run=run, external_id="norm:19300", record_kind="bcn_legal_norm", retrieved_at=now, content_hash="a" * 64)
-        record = ExternalRecord.objects.create(source=source, external_id="norm:19300", kind="bcn_legal_norm", current_snapshot=snapshot, first_seen_at=now, last_seen_at=now)
+        record = ExternalRecord.objects.create(source=source, external_id="norm:19300", kind="bcn_legal_norm", canonical_key="LEY:19300", current_snapshot=snapshot, first_seen_at=now, last_seen_at=now)
         self.fact = BcnLegalNormFact.objects.create(snapshot=snapshot, norm_uri="https://datos.bcn.cl/norm/19300", number="19300", title="Ley ambiental", norm_type_uri="https://datos.bcn.cl/type/ley", norm_type_name="Ley", latest_version_uri="https://datos.bcn.cl/version/19300/latest")
         BcnLegalNormVersionFact.objects.create(norm_fact=self.fact, version_uri=self.fact.latest_version_uri, is_latest=True, xml_document_url="http://www.leychile.cl/Consulta/obtxml?idNorma=30667")
         self.record = record
@@ -116,3 +116,51 @@ class BcnLegalTextPublicationTests(TestCase):
         self.assertEqual(client.get(f"/api/knowledge/bcn/norms/{self.fact.id}/text/").status_code, 200)
         self.assertEqual(client.get(f"/api/knowledge/bcn/articles/{first_article.id}/").status_code, 404)
         self.assertEqual(client.get(f"/api/knowledge/bcn/norms/{self.fact.id}/articles/").data["count"], 1)
+
+    def test_same_sha_reparsed_by_new_parser_without_duplicate_artifact(self):
+        payload = xml(article("10", "1", "Articulo 1.- Texto vigente"))
+        with patch("apps.knowledge.bcn_text.download_external_file", side_effect=self._download(payload)):
+            sync_bcn_legal_texts()
+        with patch("apps.knowledge.bcn_text.BCN_LEGAL_XML_PARSER_VERSION", "2"), patch("apps.knowledge.bcn_text.download_external_file", side_effect=self._download(payload)):
+            result = sync_bcn_legal_texts()
+        self.assertEqual((result.imported, ExternalFileArtifact.objects.count(), BcnLegalTextSourceDocument.objects.count(), BcnLegalTextParse.objects.count()), (1, 1, 1, 2))
+        self.assertEqual(set(BcnLegalTextParse.objects.values_list("parser_version", flat=True)), {"1", "2"})
+
+    def test_failed_parser_is_not_repeated_until_parser_version_changes(self):
+        payload = xml(article("10", "1", "Articulo 1.- Texto valido"))
+        with patch("apps.knowledge.bcn_text.parse_bcn_legal_xml", side_effect=ValueError("parser defectuoso")), patch("apps.knowledge.bcn_text.download_external_file", side_effect=self._download(payload)):
+            first = sync_bcn_legal_texts()
+            second = sync_bcn_legal_texts()
+        self.assertEqual((first.failed, second.failed, ExternalFileArtifact.objects.count(), BcnLegalTextParse.objects.count()), (1, 1, 1, 1))
+        with patch("apps.knowledge.bcn_text.BCN_LEGAL_XML_PARSER_VERSION", "2"), patch("apps.knowledge.bcn_text.download_external_file", side_effect=self._download(payload)):
+            repaired = sync_bcn_legal_texts()
+        self.assertEqual((repaired.imported, ExternalFileArtifact.objects.count(), BcnLegalTextSourceDocument.objects.count(), BcnLegalTextParse.objects.count()), (1, 1, 1, 2))
+        self.assertTrue(ExternalFileArtifact.objects.get().is_current)
+
+    def test_upstream_a_b_a_republishes_known_artifact(self):
+        payload_a = xml(article("10", "1", "Articulo 1.- Version A"))
+        payload_b = xml(article("10", "1", "Articulo 1.- Version B"))
+        for payload in (payload_a, payload_b, payload_a):
+            with patch("apps.knowledge.bcn_text.download_external_file", side_effect=self._download(payload)):
+                result = sync_bcn_legal_texts()
+        current = ExternalFileArtifact.objects.get(is_current=True)
+        self.assertEqual((result.unchanged, ExternalFileArtifact.objects.count(), BcnLegalTextSourceDocument.objects.count(), BcnLegalTextParse.objects.count()), (1, 2, 2, 2))
+        self.assertEqual(current.content_sha256, hashlib.sha256(payload_a).hexdigest())
+        user = get_user_model().objects.create_user("a-reader", password="x")
+        client = APIClient(); client.force_authenticate(user)
+        response = client.get(f"/api/knowledge/bcn/norms/{self.fact.id}/articles/")
+        self.assertEqual(response.data["results"][0]["text_plain"], "Articulo 1.- Version A")
+
+    def test_inactive_subscription_is_not_processed(self):
+        source = self.fact.snapshot.source
+        BcnLegalNormSubscription.objects.create(source=source, norm_type="LEY", number="20417", label="Ley 20417", active=False)
+        now = timezone.now(); run = SyncRun.objects.create(source=source, trigger="manual", started_at=now)
+        snapshot = ExternalSnapshot.objects.create(source=source, sync_run=run, external_id="norm:20417", record_kind="bcn_legal_norm", retrieved_at=now, content_hash="b" * 64)
+        ExternalRecord.objects.create(source=source, external_id="norm:20417", kind="bcn_legal_norm", canonical_key="LEY:20417", current_snapshot=snapshot, first_seen_at=now, last_seen_at=now)
+        fact = BcnLegalNormFact.objects.create(snapshot=snapshot, norm_uri="https://datos.bcn.cl/norm/20417", number="20417", title="Ley 20417", norm_type_uri="https://datos.bcn.cl/type/ley", norm_type_name="Ley", latest_version_uri="https://datos.bcn.cl/version/20417/latest")
+        BcnLegalNormVersionFact.objects.create(norm_fact=fact, version_uri=fact.latest_version_uri, is_latest=True, xml_document_url="http://www.leychile.cl/Consulta/obtxml?idNorma=1010459")
+        payload = xml(article("10", "1", "Articulo 1.- Activo"))
+        with patch("apps.knowledge.bcn_text.download_external_file", side_effect=self._download(payload)) as downloader:
+            result = sync_bcn_legal_texts()
+        self.assertEqual((result.normas, downloader.call_count), (1, 1))
+        self.assertFalse(ExternalFileArtifact.objects.filter(metadata__norm_number="20417").exists())

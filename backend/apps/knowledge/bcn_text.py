@@ -8,6 +8,7 @@ from .downloads import download_external_file, remove_download
 from .models import (
     BcnLegalArticleFact,
     BcnLegalNormFact,
+    BcnLegalNormSubscription,
     BcnLegalTextParse,
     BcnLegalTextSourceDocument,
     ExternalFileArtifact,
@@ -105,6 +106,78 @@ def parse_bcn_legal_xml(raw):
     return articles
 
 
+def _publish_artifact(artifact):
+    with transaction.atomic():
+        siblings = ExternalFileArtifact.objects.select_for_update().filter(
+            source=artifact.source,
+            external_resource_id=artifact.external_resource_id,
+        )
+        siblings.filter(is_current=True).exclude(pk=artifact.pk).update(is_current=False)
+        if not artifact.is_current:
+            artifact.is_current = True
+            artifact.save(update_fields=["is_current"])
+
+
+def _parse_and_publish(document, artifact, result):
+    existing_parse = document.parses.filter(
+        parser_version=BCN_LEGAL_XML_PARSER_VERSION
+    ).first()
+    if existing_parse:
+        if existing_parse.status != BcnLegalTextParse.Status.SUCCESS:
+            raise ValueError(
+                "El artifact ya tiene un parse fallido para la version actual; "
+                "incremente BCN_LEGAL_XML_PARSER_VERSION para reprocesarlo."
+            )
+        _publish_artifact(artifact)
+        result.unchanged += 1
+        return
+
+    raw = bytes(document.raw_bytes)
+    try:
+        articles = parse_bcn_legal_xml(raw)
+    except Exception as exc:
+        BcnLegalTextParse.objects.create(
+            source_document=document,
+            parser_version=BCN_LEGAL_XML_PARSER_VERSION,
+            status=BcnLegalTextParse.Status.ERROR,
+            parsed_at=timezone.now(),
+            error_message=str(exc),
+        )
+        raise
+    with transaction.atomic():
+        document = BcnLegalTextSourceDocument.objects.select_for_update().get(
+            pk=document.pk
+        )
+        if document.parses.filter(
+            parser_version=BCN_LEGAL_XML_PARSER_VERSION
+        ).exists():
+            raise ValueError("El parser actual ya fue ejecutado para este artifact.")
+        parse = BcnLegalTextParse.objects.create(
+            source_document=document,
+            parser_version=BCN_LEGAL_XML_PARSER_VERSION,
+            status=BcnLegalTextParse.Status.SUCCESS,
+            parsed_at=timezone.now(),
+            article_count=len(articles),
+            metadata={"root_tag": "Norma"},
+        )
+        BcnLegalArticleFact.objects.bulk_create(
+            [
+                BcnLegalArticleFact(parse=parse, order_index=i, **article)
+                for i, article in enumerate(articles, 1)
+            ]
+        )
+        siblings = ExternalFileArtifact.objects.select_for_update().filter(
+            source=artifact.source,
+            external_resource_id=artifact.external_resource_id,
+        )
+        siblings.filter(is_current=True).exclude(pk=artifact.pk).update(is_current=False)
+        if not artifact.is_current:
+            artifact.is_current = True
+            artifact.save(update_fields=["is_current"])
+    result.imported += 1
+    result.articles += len(articles)
+
+
 def _process(fact, result):
     version = fact.versions.get(is_latest=True)
     if not version.xml_document_url:
@@ -123,109 +196,69 @@ def _process(fact, result):
             suffix=".xml",
         )
         result.downloaded += 1
-        existing = ExternalFileArtifact.objects.filter(
-            source=fact.snapshot.source,
-            external_resource_id=identity,
-            content_sha256=download.sha256,
-        ).first()
-        if (
-            existing
-            and existing.bcn_legal_source_document.parses.filter(
-                parser_version=BCN_LEGAL_XML_PARSER_VERSION, status="success"
-            ).exists()
-        ):
-            result.unchanged += 1
-            return
-        with open(download.path, "rb") as source_file:
-            raw = source_file.read()
-        declaration = re.match(rb"\s*<\?xml[^>]*encoding=[\"']([^\"']+)", raw, re.I)
-        detected_encoding = (
-            declaration.group(1).decode("ascii") if declaration else "UTF-8"
-        )
-        metadata = {
-            "norm_uri": fact.norm_uri,
-            "version_uri": version.version_uri,
-            "version_date": str(version.version_date or ""),
-            "norm_number": fact.number,
-            "norm_type": fact.norm_type_name,
-            "xml_document_url": version.xml_document_url,
-            "etag": download.etag,
-            "last_modified": download.last_modified,
-        }
         with transaction.atomic():
-            number = (
-                ExternalFileArtifact.objects.filter(
-                    source=fact.snapshot.source, external_resource_id=identity
+            artifacts = ExternalFileArtifact.objects.select_for_update().filter(
+                source=fact.snapshot.source, external_resource_id=identity
+            )
+            artifact = artifacts.filter(content_sha256=download.sha256).first()
+            if artifact:
+                document = artifact.bcn_legal_source_document
+            else:
+                with open(download.path, "rb") as source_file:
+                    raw = source_file.read()
+                declaration = re.match(
+                    rb"\s*<\?xml[^>]*encoding=[\"']([^\"']+)", raw, re.I
                 )
-                .order_by("-version")
-                .values_list("version", flat=True)
-                .first()
-                or 0
-            ) + 1
-            artifact = ExternalFileArtifact.objects.create(
-                source=fact.snapshot.source,
-                parent_record=fact.snapshot.current_for.get(),
-                external_resource_id=identity,
-                name=f"BCN {fact.norm_type_name} {fact.number} XML",
-                source_url=download.final_url,
-                format="XML",
-                content_type=download.content_type,
-                byte_size=download.byte_size,
-                retrieved_at=timezone.now(),
-                content_sha256=download.sha256,
-                metadata=metadata,
-                is_current=False,
-                version=number,
-            )
-            document = BcnLegalTextSourceDocument.objects.create(
-                artifact=artifact,
-                raw_bytes=raw,
-                detected_encoding=detected_encoding,
-                byte_size=len(raw),
-            )
-        try:
-            articles = parse_bcn_legal_xml(raw)
-        except Exception as exc:
-            BcnLegalTextParse.objects.create(
-                source_document=document,
-                parser_version=BCN_LEGAL_XML_PARSER_VERSION,
-                status="error",
-                parsed_at=timezone.now(),
-                error_message=str(exc),
-            )
-            raise
-        with transaction.atomic():
-            parse = BcnLegalTextParse.objects.create(
-                source_document=document,
-                parser_version=BCN_LEGAL_XML_PARSER_VERSION,
-                status="success",
-                parsed_at=timezone.now(),
-                article_count=len(articles),
-                metadata={"root_tag": "Norma"},
-            )
-            BcnLegalArticleFact.objects.bulk_create(
-                [
-                    BcnLegalArticleFact(parse=parse, order_index=i, **article)
-                    for i, article in enumerate(articles, 1)
-                ]
-            )
-            ExternalFileArtifact.objects.select_for_update().filter(
-                source=artifact.source, external_resource_id=identity, is_current=True
-            ).update(is_current=False)
-            artifact.is_current = True
-            artifact.save(update_fields=["is_current"])
-        result.imported += 1
-        result.articles += len(articles)
+                detected_encoding = (
+                    declaration.group(1).decode("ascii") if declaration else "UTF-8"
+                )
+                artifact = ExternalFileArtifact.objects.create(
+                    source=fact.snapshot.source,
+                    parent_record=fact.snapshot.current_for.get(),
+                    external_resource_id=identity,
+                    name=f"BCN {fact.norm_type_name} {fact.number} XML",
+                    source_url=download.final_url,
+                    format="XML",
+                    content_type=download.content_type,
+                    byte_size=download.byte_size,
+                    retrieved_at=timezone.now(),
+                    content_sha256=download.sha256,
+                    metadata={
+                        "norm_uri": fact.norm_uri,
+                        "version_uri": version.version_uri,
+                        "version_date": str(version.version_date or ""),
+                        "norm_number": fact.number,
+                        "norm_type": fact.norm_type_name,
+                        "xml_document_url": version.xml_document_url,
+                        "etag": download.etag,
+                        "last_modified": download.last_modified,
+                    },
+                    is_current=False,
+                    version=(artifacts.order_by("-version").values_list("version", flat=True).first() or 0) + 1,
+                )
+                document = BcnLegalTextSourceDocument.objects.create(
+                    artifact=artifact,
+                    raw_bytes=raw,
+                    detected_encoding=detected_encoding,
+                    byte_size=len(raw),
+                )
+        _parse_and_publish(document, artifact, result)
     finally:
         remove_download(download)
 
 
 def sync_bcn_legal_texts():
+    active_keys = [
+        f"{norm_type.upper()}:{number.upper()}"
+        for norm_type, number in BcnLegalNormSubscription.objects.filter(
+            source__codigo="bcn-leychile", active=True
+        ).values_list("norm_type", "number")
+    ]
     facts = (
         BcnLegalNormFact.objects.filter(
             snapshot__current_for__current_snapshot=models.F("snapshot"),
             snapshot__source__codigo="bcn-leychile",
-            snapshot__current_for__source__legal_norm_subscriptions__active=True,
+            snapshot__current_for__canonical_key__in=active_keys,
         )
         .distinct()
         .prefetch_related("versions")
