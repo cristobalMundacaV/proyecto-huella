@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalNormRelationFact,BcnLegalNormVersionFact,EnvironmentalSource,ExternalRecord,ExternalSnapshot,HuellaChileEmissionFactorFact,RetcHazardousWasteFact,SourceState,SyncRun
+from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalNormRelationFact,BcnLegalNormVersionFact,BcnLegalObligationCandidate,EnvironmentalSource,ExternalRecord,ExternalSnapshot,HuellaChileEmissionFactorFact,RetcHazardousWasteFact,SourceState,SyncRun
 class SourceStateSerializer(serializers.ModelSerializer):
     class Meta:model=SourceState;exclude=["source"]
 class EnvironmentalSourceSerializer(serializers.ModelSerializer):
@@ -24,3 +24,19 @@ class BcnLegalNormFactSerializer(serializers.ModelSerializer):
     class Meta:model=BcnLegalNormFact;fields="__all__"
 class BcnLegalArticleFactSerializer(serializers.ModelSerializer):
     class Meta:model=BcnLegalArticleFact;exclude=["raw_fragment","parse"]
+class BcnLegalObligationCandidateSerializer(serializers.ModelSerializer):
+    norm_id=serializers.IntegerField(source="extraction_run.article.parse.source_document.artifact.parent_record.current_snapshot.bcn_legal_norm_fact.id",read_only=True)
+    norm_number=serializers.CharField(source="extraction_run.article.parse.source_document.artifact.metadata.norm_number",read_only=True)
+    norm_title=serializers.CharField(source="extraction_run.article.parse.source_document.artifact.parent_record.current_snapshot.bcn_legal_norm_fact.title",read_only=True)
+    version_uri=serializers.CharField(source="extraction_run.article.parse.source_document.artifact.metadata.version_uri",read_only=True)
+    artifact_sha256=serializers.CharField(source="extraction_run.article.parse.source_document.artifact.content_sha256",read_only=True)
+    parser_version=serializers.CharField(source="extraction_run.article.parse.parser_version",read_only=True)
+    article_id=serializers.IntegerField(source="extraction_run.article.id",read_only=True)
+    article_key=serializers.CharField(source="extraction_run.article.article_key",read_only=True)
+    article_number=serializers.CharField(source="extraction_run.article.article_number",read_only=True)
+    article_label=serializers.CharField(source="extraction_run.article.article_label",read_only=True)
+    article_text_hash=serializers.CharField(source="extraction_run.article.text_hash",read_only=True)
+    extractor_version=serializers.CharField(source="extraction_run.extractor_version",read_only=True)
+    class Meta:
+        model=BcnLegalObligationCandidate
+        exclude=["extraction_run"]

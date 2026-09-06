@@ -30,6 +30,22 @@ class TextSyncResult:
     articles: int = 0
 
 
+def get_current_bcn_legal_text(fact):
+    """Resolve only the parser declared current for current legal knowledge."""
+    if not fact.snapshot.current_for.filter(current_snapshot=fact.snapshot).exists():
+        raise BcnLegalTextParse.DoesNotExist
+    artifact = ExternalFileArtifact.objects.get(
+        parent_record__current_snapshot=fact.snapshot,
+        is_current=True,
+        metadata__version_uri=fact.latest_version_uri,
+    )
+    parse = artifact.bcn_legal_source_document.parses.get(
+        parser_version=BCN_LEGAL_XML_PARSER_VERSION,
+        status=BcnLegalTextParse.Status.SUCCESS,
+    )
+    return artifact, parse
+
+
 def _https(url):
     parsed = urlparse(url)
     if parsed.hostname not in BCN_XML_HOSTS or parsed.username or parsed.password:

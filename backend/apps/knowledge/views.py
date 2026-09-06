@@ -1,12 +1,16 @@
 from django.http import Http404
 from django.db import models
+from django.db.models.fields.json import KeyTextTransform
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view,permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
-from .models import BcnLegalArticleFact,BcnLegalNormFact,EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact
-from .serializers import BcnLegalArticleFactSerializer,BcnLegalNormFactSerializer,EnvironmentalSourceSerializer,ExternalRecordSerializer,ExternalSnapshotSerializer,HuellaChileEmissionFactorFactSerializer,RetcHazardousWasteFactSerializer,SyncRunSerializer
+from . import bcn_text
+from .bcn_obligations import BCN_LEGAL_OBLIGATION_EXTRACTOR_VERSION,current_bcn_norm_facts
+from .bcn_text import get_current_bcn_legal_text
+from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalObligationCandidate,EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact
+from .serializers import BcnLegalArticleFactSerializer,BcnLegalNormFactSerializer,BcnLegalObligationCandidateSerializer,EnvironmentalSourceSerializer,ExternalRecordSerializer,ExternalSnapshotSerializer,HuellaChileEmissionFactorFactSerializer,RetcHazardousWasteFactSerializer,SyncRunSerializer
 from .services import source_freshness
 class KnowledgePagination(PageNumberPagination):
     page_size=50;page_size_query_param="page_size";max_page_size=200
@@ -76,7 +80,8 @@ def bcn_norm_detail(request,pk):
     queryset=BcnLegalNormFact.objects.filter(snapshot__current_for__current_snapshot=models.F("snapshot"),snapshot__source__codigo="bcn-leychile").prefetch_related("versions","relations")
     return Response(BcnLegalNormFactSerializer(get_object_or_404(queryset,pk=pk)).data)
 def _current_text(fact):
-    artifact=get_object_or_404(ExternalFileArtifact.objects.filter(parent_record__current_snapshot=fact.snapshot,is_current=True,metadata__version_uri=fact.latest_version_uri,bcn_legal_source_document__parses__status="success").distinct());parse=artifact.bcn_legal_source_document.parses.get(parser_version="1",status="success");return artifact,parse
+    try:return get_current_bcn_legal_text(fact)
+    except Exception:raise Http404
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def bcn_norm_text(request,pk):
@@ -94,5 +99,20 @@ def bcn_article_detail(request,pk):
     article=get_object_or_404(BcnLegalArticleFact.objects.select_related("parse__source_document__artifact__parent_record__current_snapshot"),pk=pk);artifact=article.parse.source_document.artifact
     try: current_fact=artifact.parent_record.current_snapshot.bcn_legal_norm_fact
     except BcnLegalNormFact.DoesNotExist: raise Http404
-    if not artifact.is_current or article.parse.status!="success" or artifact.metadata.get("version_uri")!=current_fact.latest_version_uri:raise Http404
+    try:current_artifact,current_parse=get_current_bcn_legal_text(current_fact)
+    except Exception:raise Http404
+    if article.parse_id!=current_parse.id or artifact.id!=current_artifact.id:raise Http404
     data=BcnLegalArticleFactSerializer(article).data;data.update({"version_uri":artifact.metadata.get("version_uri"),"source_url":artifact.source_url,"sha256":artifact.content_sha256});return Response(data)
+def _current_obligation_candidates():
+    snapshot_ids=current_bcn_norm_facts().values_list("snapshot_id",flat=True)
+    return BcnLegalObligationCandidate.objects.annotate(artifact_version_uri=KeyTextTransform("version_uri","extraction_run__article__parse__source_document__artifact__metadata")).filter(extraction_run__extractor_version=BCN_LEGAL_OBLIGATION_EXTRACTOR_VERSION,extraction_run__status="success",extraction_run__article__parse__parser_version=bcn_text.BCN_LEGAL_XML_PARSER_VERSION,extraction_run__article__parse__status="success",extraction_run__article__parse__source_document__artifact__is_current=True,extraction_run__article__parse__source_document__artifact__parent_record__current_snapshot_id__in=snapshot_ids,artifact_version_uri=models.F("extraction_run__article__parse__source_document__artifact__parent_record__current_snapshot__bcn_legal_norm_fact__latest_version_uri")).select_related("extraction_run__article__parse__source_document__artifact__parent_record__current_snapshot__bcn_legal_norm_fact")
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def bcn_obligation_candidates(request):
+    queryset=_current_obligation_candidates().order_by("id")
+    for parameter,lookup in {"norm_number":"extraction_run__article__parse__source_document__artifact__metadata__norm_number__iexact","article_number":"extraction_run__article__article_number__iexact","modality":"modality_hint","trigger":"trigger_text__icontains"}.items():
+        if request.query_params.get(parameter):queryset=queryset.filter(**{lookup:request.query_params[parameter]})
+    return paginated(request,queryset,BcnLegalObligationCandidateSerializer)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def bcn_obligation_candidate_detail(request,pk):return Response(BcnLegalObligationCandidateSerializer(get_object_or_404(_current_obligation_candidates(),pk=pk)).data)

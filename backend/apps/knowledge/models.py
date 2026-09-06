@@ -1,3 +1,5 @@
+import hashlib
+
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -155,3 +157,58 @@ class BcnLegalTextParse(models.Model):
 class BcnLegalArticleFact(models.Model):
     parse=models.ForeignKey(BcnLegalTextParse,on_delete=models.PROTECT,related_name="articles");article_key=models.CharField(max_length=300);article_number=models.CharField(max_length=100,blank=True,db_index=True);article_label=models.CharField(max_length=300,blank=True,db_index=True);heading=models.TextField(blank=True);order_index=models.PositiveIntegerField();source_path=models.CharField(max_length=1000);text_plain=models.TextField();text_hash=models.CharField(max_length=64);raw_fragment=models.TextField();metadata=models.JSONField(default=dict,blank=True)
     class Meta:constraints=[models.UniqueConstraint(fields=["parse","article_key"],name="knowledge_bcn_article_identity")];ordering=["order_index"]
+
+
+class BcnLegalObligationExtractionRun(models.Model):
+    class Status(models.TextChoices):
+        SUCCESS="success","Success";ERROR="error","Error"
+    article=models.ForeignKey(BcnLegalArticleFact,on_delete=models.PROTECT,related_name="obligation_extraction_runs")
+    extractor_version=models.CharField(max_length=60,db_index=True)
+    extractor_method=models.CharField(max_length=60)
+    status=models.CharField(max_length=20,choices=Status.choices)
+    executed_at=models.DateTimeField()
+    source_text_hash=models.CharField(max_length=64)
+    candidate_count=models.PositiveIntegerField(default=0)
+    error_message=models.TextField(blank=True)
+    metadata=models.JSONField(default=dict,blank=True)
+    class Meta:
+        constraints=[models.UniqueConstraint(fields=["article","extractor_version"],name="knowledge_bcn_obligation_run_version")]
+        indexes=[models.Index(fields=["extractor_version","status"],name="knowledge_bcn_obl_run_lookup")]
+    def save(self,*args,**kwargs):
+        if self.pk:raise ValidationError("El run de extraccion juridica es inmutable.")
+        super().save(*args,**kwargs)
+
+
+class BcnLegalObligationCandidate(models.Model):
+    class Modality(models.TextChoices):
+        OBLIGATION="obligation","Obligation";PROHIBITION="prohibition","Prohibition"
+    extraction_run=models.ForeignKey(BcnLegalObligationExtractionRun,on_delete=models.PROTECT,related_name="candidates")
+    candidate_key=models.CharField(max_length=64,db_index=True)
+    order_index=models.PositiveIntegerField()
+    modality_hint=models.CharField(max_length=20,choices=Modality.choices,db_index=True)
+    trigger_text=models.TextField();trigger_start=models.PositiveIntegerField();trigger_end=models.PositiveIntegerField()
+    source_quote=models.TextField();source_start=models.PositiveIntegerField();source_end=models.PositiveIntegerField()
+    source_quote_hash=models.CharField(max_length=64)
+    subject_hint=models.TextField(blank=True);subject_start=models.PositiveIntegerField(null=True,blank=True);subject_end=models.PositiveIntegerField(null=True,blank=True)
+    action_hint=models.TextField(blank=True);action_start=models.PositiveIntegerField(null=True,blank=True);action_end=models.PositiveIntegerField(null=True,blank=True)
+    condition_hint=models.TextField(blank=True);condition_start=models.PositiveIntegerField(null=True,blank=True);condition_end=models.PositiveIntegerField(null=True,blank=True)
+    temporal_hint=models.TextField(blank=True);temporal_start=models.PositiveIntegerField(null=True,blank=True);temporal_end=models.PositiveIntegerField(null=True,blank=True)
+    metadata=models.JSONField(default=dict,blank=True)
+    class Meta:
+        constraints=[models.UniqueConstraint(fields=["extraction_run","candidate_key"],name="knowledge_bcn_obligation_candidate_key")]
+        indexes=[models.Index(fields=["modality_hint","candidate_key"],name="knowledge_bcn_obl_cand_idx")]
+        ordering=["order_index"]
+    def clean(self):
+        text=self.extraction_run.article.text_plain
+        spans=(("trigger_text","trigger_start","trigger_end"),("source_quote","source_start","source_end"),("subject_hint","subject_start","subject_end"),("action_hint","action_start","action_end"),("condition_hint","condition_start","condition_end"),("temporal_hint","temporal_start","temporal_end"))
+        for value_field,start_field,end_field in spans:
+            value=getattr(self,value_field);start=getattr(self,start_field);end=getattr(self,end_field)
+            if not value:
+                if start is not None or end is not None:raise ValidationError(f"{value_field}: offsets sin texto.")
+                continue
+            if start is None or end is None or start>=end or text[start:end]!=value:raise ValidationError(f"{value_field}: provenance textual invalida.")
+        if hashlib.sha256(self.source_quote.encode()).hexdigest()!=self.source_quote_hash:raise ValidationError("source_quote_hash invalido.")
+    def save(self,*args,**kwargs):
+        if self.pk:raise ValidationError("El candidato juridico es inmutable.")
+        self.full_clean()
+        super().save(*args,**kwargs)
