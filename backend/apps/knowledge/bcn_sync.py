@@ -8,6 +8,7 @@ from .models import (
     BcnLegalNormRelationFact,
     BcnLegalNormVersionFact,
     EnvironmentalSource,
+    ExternalRecord,
     SourceState,
     SyncRun,
 )
@@ -20,6 +21,9 @@ def _date(value):
 
 def sync_bcn_legal_norms():
     source = EnvironmentalSource.objects.get(codigo="bcn-leychile")
+    previous_current = dict(
+        source.records.values_list("external_id", "current_snapshot_id")
+    )
     run = sync_environmental_source(source)
     if run.estado == "error":
         return run
@@ -80,17 +84,38 @@ def sync_bcn_legal_norms():
                         for r in unique.values()
                     ]
                 )
+            state = SourceState.objects.select_for_update().get(source=source)
+            metadata = dict(state.metadata or {})
+            metadata.update(
+                {
+                    "last_materialized_success_at": timezone.now().isoformat(),
+                    "materialization_status": "success",
+                }
+            )
+            state.metadata = metadata
+            state.save(update_fields=["metadata", "updated_at"])
     except Exception as exc:
         message = sanitized_error(exc)
         now = timezone.now()
-        SourceState.objects.filter(source=source).update(
-            estado=SourceState.Status.PARTIAL, last_error=message
-        )
-        SyncRun.objects.filter(pk=run.pk).update(
-            estado=SourceState.Status.PARTIAL,
-            errors=1,
-            message=message,
-            finished_at=now,
-        )
+        with transaction.atomic():
+            records = ExternalRecord.objects.select_for_update().filter(source=source)
+            for record in records:
+                previous_id = previous_current.get(record.external_id)
+                if previous_id is not None:
+                    record.current_snapshot_id = previous_id
+                    record.save(update_fields=["current_snapshot"])
+            state = SourceState.objects.select_for_update().get(source=source)
+            metadata = dict(state.metadata or {})
+            metadata["materialization_status"] = "partial"
+            state.estado = SourceState.Status.PARTIAL
+            state.last_error = message
+            state.metadata = metadata
+            state.save(update_fields=["estado", "last_error", "metadata", "updated_at"])
+            SyncRun.objects.filter(pk=run.pk).update(
+                estado=SourceState.Status.PARTIAL,
+                errors=1,
+                message=message,
+                finished_at=now,
+            )
         return SyncRun.objects.get(pk=run.pk)
     return run
