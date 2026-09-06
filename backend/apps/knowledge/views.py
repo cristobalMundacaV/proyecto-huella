@@ -11,8 +11,9 @@ from . import bcn_text
 from .bcn_obligations import BCN_LEGAL_OBLIGATION_EXTRACTOR_VERSION,current_bcn_norm_facts
 from .bcn_text import get_current_bcn_legal_text
 from .legal_governance import EDITABLE,activate_legal_obligation_version,obsolete_legal_obligation_version,promote_legal_candidate,reject_legal_candidate,update_legal_obligation_draft,validate_legal_obligation_version
-from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalObligationCandidate,LegalObligation,LegalObligationVersion,EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact
-from .serializers import BcnLegalArticleFactSerializer,BcnLegalNormFactSerializer,BcnLegalObligationCandidateSerializer,LegalObligationVersionSerializer,EnvironmentalSourceSerializer,ExternalRecordSerializer,ExternalSnapshotSerializer,HuellaChileEmissionFactorFactSerializer,RetcHazardousWasteFactSerializer,SyncRunSerializer
+from .legal_evidence import EDITABLE_EVIDENCE_FIELDS,activate_legal_evidence_requirement_version,create_legal_evidence_requirement,create_legal_evidence_requirement_version,get_legal_evidence_requirement_freshness,obsolete_legal_evidence_requirement_version,update_legal_evidence_requirement_draft,validate_legal_evidence_requirement_version
+from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalObligationCandidate,LegalEvidenceRequirement,LegalEvidenceRequirementVersion,LegalObligation,LegalObligationVersion,EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact
+from .serializers import BcnLegalArticleFactSerializer,BcnLegalNormFactSerializer,BcnLegalObligationCandidateSerializer,LegalEvidenceRequirementVersionSerializer,LegalObligationVersionSerializer,EnvironmentalSourceSerializer,ExternalRecordSerializer,ExternalSnapshotSerializer,HuellaChileEmissionFactorFactSerializer,RetcHazardousWasteFactSerializer,SyncRunSerializer
 from .services import source_freshness
 class KnowledgePagination(PageNumberPagination):
     page_size=50;page_size_query_param="page_size";max_page_size=200
@@ -171,3 +172,123 @@ def legal_obligation_detail(request,pk):return Response(LegalObligationVersionSe
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def legal_obligation_version_detail(request,pk):return Response(LegalObligationVersionSerializer(get_object_or_404(LegalObligationVersion.objects.select_related("obligation").prefetch_related("criteria"),pk=pk)).data)
+
+
+def _evidence_version(pk):
+    return get_object_or_404(
+        LegalEvidenceRequirementVersion.objects.select_related(
+            "requirement__obligation", "legal_obligation_version__obligation"
+        ),
+        pk=pk,
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def legal_evidence_requirements(request):
+    queryset = LegalEvidenceRequirementVersion.objects.filter(state="active").select_related(
+        "requirement__obligation", "legal_obligation_version__obligation"
+    ).order_by("requirement_id")
+    if request.query_params.get("obligation_code"):
+        queryset = queryset.filter(requirement__obligation__code=request.query_params["obligation_code"])
+    if request.query_params.get("temporal_scope"):
+        queryset = queryset.filter(temporal_scope=request.query_params["temporal_scope"])
+    items = list(queryset)
+    if request.query_params.get("evidence_class"):
+        value = request.query_params["evidence_class"]
+        items = [item for item in items if value in item.evidence_classes]
+    if request.query_params.get("freshness"):
+        value = request.query_params["freshness"]
+        items = [item for item in items if get_legal_evidence_requirement_freshness(item) == value]
+    return paginated(request, items, LegalEvidenceRequirementVersionSerializer)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def legal_evidence_requirement_detail(request, pk):
+    version = get_object_or_404(
+        LegalEvidenceRequirementVersion.objects.filter(requirement_id=pk, state="active").select_related(
+            "requirement__obligation", "legal_obligation_version__obligation"
+        )
+    )
+    return Response(LegalEvidenceRequirementVersionSerializer(version).data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def legal_evidence_requirement_version_detail(request, pk):
+    return Response(LegalEvidenceRequirementVersionSerializer(_evidence_version(pk)).data)
+
+
+def _evidence_fields(data):
+    return {field: data[field] for field in EDITABLE_EVIDENCE_FIELDS if field in data}
+
+
+EVIDENCE_SERVER_FIELDS = {
+    "code", "version", "state", "legal_basis_snapshot", "reviewer", "timestamps",
+    "created_by", "created_at", "validated_by", "validated_at", "activated_by",
+    "activated_at", "obsoleted_at",
+}
+
+
+@api_view(["POST"])
+@permission_classes([IsSuperUser])
+def legal_evidence_requirement_create(request, obligation_id):
+    forbidden = EVIDENCE_SERVER_FIELDS & set(request.data)
+    if forbidden:
+        return Response({"detail": "Campos administrados por el servidor."}, status=400)
+    try:
+        legal_version = get_object_or_404(LegalObligationVersion, pk=request.data.get("legal_obligation_version_id"))
+        requirement, version = create_legal_evidence_requirement(
+            get_object_or_404(LegalObligation, pk=obligation_id), legal_version, request.user, **_evidence_fields(request.data)
+        )
+        return Response(LegalEvidenceRequirementVersionSerializer(version).data, status=201)
+    except Exception as exc:
+        return _error(exc)
+
+
+@api_view(["POST"])
+@permission_classes([IsSuperUser])
+def legal_evidence_requirement_new_version(request, pk):
+    if EVIDENCE_SERVER_FIELDS & set(request.data):
+        return Response({"detail": "Campos administrados por el servidor."}, status=400)
+    try:
+        version = create_legal_evidence_requirement_version(
+            get_object_or_404(LegalEvidenceRequirement, pk=pk),
+            get_object_or_404(LegalObligationVersion, pk=request.data.get("legal_obligation_version_id")),
+            request.user,
+            **_evidence_fields(request.data),
+        )
+        return Response(LegalEvidenceRequirementVersionSerializer(version).data, status=201)
+    except Exception as exc:
+        return _error(exc)
+
+
+@api_view(["PATCH"])
+@permission_classes([IsSuperUser])
+def legal_evidence_requirement_draft(request, pk):
+    forbidden = set(request.data) - EDITABLE_EVIDENCE_FIELDS
+    if forbidden:
+        return Response({"detail": "Campos no editables."}, status=400)
+    try:
+        return Response(LegalEvidenceRequirementVersionSerializer(update_legal_evidence_requirement_draft(_evidence_version(pk), request.user, **_evidence_fields(request.data))).data)
+    except Exception as exc:
+        return _error(exc)
+
+
+def _evidence_transition(request, pk, service):
+    try:
+        return Response(LegalEvidenceRequirementVersionSerializer(service(_evidence_version(pk), request.user)).data)
+    except Exception as exc:
+        return _error(exc)
+
+
+@api_view(["POST"])
+@permission_classes([IsSuperUser])
+def legal_evidence_requirement_validate(request, pk):return _evidence_transition(request, pk, validate_legal_evidence_requirement_version)
+@api_view(["POST"])
+@permission_classes([IsSuperUser])
+def legal_evidence_requirement_activate(request, pk):return _evidence_transition(request, pk, activate_legal_evidence_requirement_version)
+@api_view(["POST"])
+@permission_classes([IsSuperUser])
+def legal_evidence_requirement_obsolete(request, pk):return _evidence_transition(request, pk, obsolete_legal_evidence_requirement_version)

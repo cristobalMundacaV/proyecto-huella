@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalNormRelationFact,BcnLegalNormVersionFact,BcnLegalObligationCandidate,LegalObligationApplicabilityCriterion,LegalObligationVersion,EnvironmentalSource,ExternalRecord,ExternalSnapshot,HuellaChileEmissionFactorFact,RetcHazardousWasteFact,SourceState,SyncRun
+from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalNormRelationFact,BcnLegalNormVersionFact,BcnLegalObligationCandidate,LegalEvidenceRequirementVersion,LegalObligationApplicabilityCriterion,LegalObligationVersion,EnvironmentalSource,ExternalRecord,ExternalSnapshot,HuellaChileEmissionFactorFact,RetcHazardousWasteFact,SourceState,SyncRun
 class SourceStateSerializer(serializers.ModelSerializer):
     class Meta:model=SourceState;exclude=["source"]
 class EnvironmentalSourceSerializer(serializers.ModelSerializer):
@@ -57,3 +57,29 @@ class LegalObligationVersionSerializer(serializers.ModelSerializer):
         p=obj.source_provenance
         return {"norm_number":p.get("norm_number"),"article_number":p.get("article_number"),"version_uri":p.get("version_uri"),"artifact_sha256":p.get("artifact_sha256"),"candidate_key":p.get("candidate_key"),"source_quote":p.get("source_quote")}
     class Meta:model=LegalObligationVersion;exclude=["source_provenance"]
+
+
+class LegalEvidenceRequirementVersionSerializer(serializers.ModelSerializer):
+    code = serializers.CharField(source="requirement.code", read_only=True)
+    obligation_id = serializers.IntegerField(source="requirement.obligation_id", read_only=True)
+    freshness = serializers.SerializerMethodField()
+    legal_basis = serializers.SerializerMethodField()
+
+    def get_freshness(self, obj):
+        from .legal_evidence import get_legal_evidence_requirement_freshness
+        return get_legal_evidence_requirement_freshness(obj)
+
+    def get_legal_basis(self, obj):
+        basis = obj.legal_basis_snapshot
+        provenance = basis.get("source_provenance") or {}
+        return {
+            "obligation_code": basis.get("obligation_code"),
+            "version": basis.get("obligation_version"),
+            "norm_number": provenance.get("norm_number"),
+            "article_number": provenance.get("article_number"),
+            "source_quote": provenance.get("source_quote"),
+        }
+
+    class Meta:
+        model = LegalEvidenceRequirementVersion
+        exclude = ["legal_basis_snapshot"]

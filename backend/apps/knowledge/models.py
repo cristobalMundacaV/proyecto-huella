@@ -299,6 +299,125 @@ class LegalObligationApplicabilityCriterion(models.Model):
         return super().delete(*args,**kwargs)
 
 
+def legal_evidence_requirement_code():
+    return f"ERQ-{uuid.uuid4()}"
+
+
+class ImmutableLegalEvidenceQuerySet(models.QuerySet):
+    def delete(self):
+        raise ValidationError("El requisito de evidencia gobernado no puede eliminarse.")
+
+
+class LegalEvidenceRequirement(models.Model):
+    objects = ImmutableLegalEvidenceQuerySet.as_manager()
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        default=legal_evidence_requirement_code,
+        editable=False,
+    )
+    obligation = models.ForeignKey(
+        LegalObligation,
+        on_delete=models.PROTECT,
+        related_name="evidence_requirements",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            previous = LegalEvidenceRequirement.objects.get(pk=self.pk)
+            if previous.code != self.code or previous.obligation_id != self.obligation_id:
+                raise ValidationError("La identidad del requisito es inmutable.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("El requisito de evidencia gobernado no puede eliminarse.")
+
+
+class LegalEvidenceRequirementVersion(models.Model):
+    class State(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        VALIDATED = "validated", "Validated"
+        ACTIVE = "active", "Active"
+        OBSOLETE = "obsolete", "Obsolete"
+
+    class EvidenceMode(models.TextChoices):
+        ANY_OF = "any_of", "Any of"
+        ALL_OF = "all_of", "All of"
+
+    class EvidenceClass(models.TextChoices):
+        DOCUMENT = "document", "Document"
+        TRANSACTION_RECORD = "transaction_record", "Transaction record"
+        OPERATIONAL_RECORD = "operational_record", "Operational record"
+        MEASUREMENT = "measurement", "Measurement"
+        CERTIFICATE = "certificate", "Certificate"
+        REPORT = "report", "Report"
+        MANIFEST = "manifest", "Manifest"
+        PERMIT_OR_RESOLUTION = "permit_or_resolution", "Permit or resolution"
+        TECHNICAL_SPECIFICATION = "technical_specification", "Technical specification"
+        OTHER = "other", "Other"
+
+    class TemporalScope(models.TextChoices):
+        UNSPECIFIED = "unspecified", "Unspecified"
+        ONE_TIME = "one_time", "One time"
+        EVENT_BASED = "event_based", "Event based"
+        PERIODIC = "periodic", "Periodic"
+        CURRENT = "current", "Current"
+
+    objects = ImmutableLegalEvidenceQuerySet.as_manager()
+    requirement = models.ForeignKey(
+        LegalEvidenceRequirement,
+        on_delete=models.PROTECT,
+        related_name="versions",
+    )
+    version = models.PositiveIntegerField()
+    state = models.CharField(max_length=20, choices=State.choices, default=State.DRAFT, db_index=True)
+    legal_obligation_version = models.ForeignKey(
+        LegalObligationVersion,
+        on_delete=models.PROTECT,
+        related_name="evidence_requirement_versions",
+    )
+    title = models.CharField(max_length=240)
+    requirement_statement = models.TextField()
+    proof_objective = models.TextField()
+    evidence_mode = models.CharField(max_length=20, choices=EvidenceMode.choices)
+    evidence_classes = models.JSONField()
+    accepted_evidence_descriptions = models.JSONField()
+    temporal_scope = models.CharField(max_length=20, choices=TemporalScope.choices)
+    notes = models.TextField(blank=True)
+    legal_basis_snapshot = models.JSONField()
+    created_by = models.ForeignKey("auth.User", on_delete=models.PROTECT, related_name="created_legal_evidence_requirement_versions")
+    created_at = models.DateTimeField(auto_now_add=True)
+    validated_by = models.ForeignKey("auth.User", on_delete=models.PROTECT, null=True, blank=True, related_name="validated_legal_evidence_requirement_versions")
+    validated_at = models.DateTimeField(null=True, blank=True)
+    activated_by = models.ForeignKey("auth.User", on_delete=models.PROTECT, null=True, blank=True, related_name="activated_legal_evidence_requirement_versions")
+    activated_at = models.DateTimeField(null=True, blank=True)
+    obsoleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["requirement", "version"], name="knowledge_legal_evidence_req_version"),
+            models.UniqueConstraint(fields=["requirement"], condition=models.Q(state="active"), name="knowledge_one_active_legal_evidence_req"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            previous = LegalEvidenceRequirementVersion.objects.get(pk=self.pk)
+            fixed = ("requirement_id", "version", "legal_obligation_version_id", "legal_basis_snapshot", "created_by_id", "created_at")
+            if any(getattr(previous, field) != getattr(self, field) for field in fixed):
+                raise ValidationError("La identidad y base juridica son inmutables.")
+            semantic = ("title", "requirement_statement", "proof_objective", "evidence_mode", "evidence_classes", "accepted_evidence_descriptions", "temporal_scope", "notes")
+            if previous.state != self.State.DRAFT and any(getattr(previous, field) != getattr(self, field) for field in semantic):
+                raise ValidationError("Una version gobernada ya no es editable.")
+            lifecycle = ("state", "validated_by_id", "validated_at", "activated_by_id", "activated_at", "obsoleted_at")
+            if any(getattr(previous, field) != getattr(self, field) for field in lifecycle):
+                raise ValidationError("Use el lifecycle service explicito.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Una version de requisito de evidencia no puede eliminarse.")
+
+
 class BcnLegalObligationCandidateReview(models.Model):
     objects=ImmutableLegalProvenanceQuerySet.as_manager()
     class Decision(models.TextChoices):APPROVED="approved","Approved";REJECTED="rejected","Rejected"
