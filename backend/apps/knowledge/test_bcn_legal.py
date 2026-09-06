@@ -314,6 +314,13 @@ class BcnLegalKnowledgeTests(TestCase):
         )
         client = APIClient()
         self.assertEqual(client.get("/api/knowledge/bcn/norms/").status_code, 403)
+        self.assertEqual(
+            client.get("/api/knowledge/bcn/norms/1/text/").status_code, 403
+        )
+        self.assertEqual(
+            client.get("/api/knowledge/bcn/norms/1/articles/").status_code, 403
+        )
+        self.assertEqual(client.get("/api/knowledge/bcn/articles/1/").status_code, 403)
         user = get_user_model().objects.create_user("legal-reader", password="x")
         client.force_authenticate(user)
         self.assertEqual(client.get("/api/knowledge/bcn/norms/").status_code, 200)

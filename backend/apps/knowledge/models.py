@@ -140,3 +140,18 @@ class BcnLegalNormVersionFact(models.Model):
 class BcnLegalNormRelationFact(models.Model):
     norm_fact=models.ForeignKey(BcnLegalNormFact,on_delete=models.PROTECT,related_name="relations");relation_type=models.CharField(max_length=40);target_uri=models.URLField(max_length=500);target_number=models.CharField(max_length=60,blank=True);target_title=models.CharField(max_length=1000,blank=True)
     class Meta:constraints=[models.UniqueConstraint(fields=["norm_fact","relation_type","target_uri"],name="knowledge_bcn_relation_identity")]
+class BcnLegalTextSourceDocument(models.Model):
+    artifact=models.OneToOneField(ExternalFileArtifact,on_delete=models.PROTECT,related_name="bcn_legal_source_document");raw_bytes=models.BinaryField();detected_encoding=models.CharField(max_length=60);byte_size=models.PositiveBigIntegerField();created_at=models.DateTimeField(auto_now_add=True)
+    def save(self,*args,**kwargs):
+        if self.pk:raise ValidationError("El documento fuente legal es inmutable.")
+        super().save(*args,**kwargs)
+class BcnLegalTextParse(models.Model):
+    class Status(models.TextChoices):SUCCESS="success","Success";ERROR="error","Error"
+    source_document=models.ForeignKey(BcnLegalTextSourceDocument,on_delete=models.PROTECT,related_name="parses");parser_version=models.CharField(max_length=30);status=models.CharField(max_length=20,choices=Status.choices);parsed_at=models.DateTimeField();article_count=models.PositiveIntegerField(default=0);error_message=models.TextField(blank=True);metadata=models.JSONField(default=dict,blank=True)
+    class Meta:constraints=[models.UniqueConstraint(fields=["source_document","parser_version"],name="knowledge_bcn_text_parse_version")]
+    def save(self,*args,**kwargs):
+        if self.pk:raise ValidationError("El parse legal es inmutable.")
+        super().save(*args,**kwargs)
+class BcnLegalArticleFact(models.Model):
+    parse=models.ForeignKey(BcnLegalTextParse,on_delete=models.PROTECT,related_name="articles");article_key=models.CharField(max_length=300);article_number=models.CharField(max_length=100,blank=True,db_index=True);article_label=models.CharField(max_length=300,blank=True,db_index=True);heading=models.TextField(blank=True);order_index=models.PositiveIntegerField();source_path=models.CharField(max_length=1000);text_plain=models.TextField();text_hash=models.CharField(max_length=64);raw_fragment=models.TextField();metadata=models.JSONField(default=dict,blank=True)
+    class Meta:constraints=[models.UniqueConstraint(fields=["parse","article_key"],name="knowledge_bcn_article_identity")];ordering=["order_index"]

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import BcnLegalNormFact,BcnLegalNormRelationFact,BcnLegalNormVersionFact,EnvironmentalSource,ExternalRecord,ExternalSnapshot,HuellaChileEmissionFactorFact,RetcHazardousWasteFact,SourceState,SyncRun
+from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalNormRelationFact,BcnLegalNormVersionFact,EnvironmentalSource,ExternalRecord,ExternalSnapshot,HuellaChileEmissionFactorFact,RetcHazardousWasteFact,SourceState,SyncRun
 class SourceStateSerializer(serializers.ModelSerializer):
     class Meta:model=SourceState;exclude=["source"]
 class EnvironmentalSourceSerializer(serializers.ModelSerializer):
@@ -22,3 +22,5 @@ class BcnLegalNormRelationFactSerializer(serializers.ModelSerializer):
 class BcnLegalNormFactSerializer(serializers.ModelSerializer):
     versions=BcnLegalNormVersionFactSerializer(many=True,read_only=True);relations=BcnLegalNormRelationFactSerializer(many=True,read_only=True)
     class Meta:model=BcnLegalNormFact;fields="__all__"
+class BcnLegalArticleFactSerializer(serializers.ModelSerializer):
+    class Meta:model=BcnLegalArticleFact;exclude=["raw_fragment","parse"]

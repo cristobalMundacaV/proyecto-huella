@@ -5,8 +5,8 @@ from rest_framework.decorators import api_view,permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
-from .models import BcnLegalNormFact,EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact
-from .serializers import BcnLegalNormFactSerializer,EnvironmentalSourceSerializer,ExternalRecordSerializer,ExternalSnapshotSerializer,HuellaChileEmissionFactorFactSerializer,RetcHazardousWasteFactSerializer,SyncRunSerializer
+from .models import BcnLegalArticleFact,BcnLegalNormFact,EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact
+from .serializers import BcnLegalArticleFactSerializer,BcnLegalNormFactSerializer,EnvironmentalSourceSerializer,ExternalRecordSerializer,ExternalSnapshotSerializer,HuellaChileEmissionFactorFactSerializer,RetcHazardousWasteFactSerializer,SyncRunSerializer
 from .services import source_freshness
 class KnowledgePagination(PageNumberPagination):
     page_size=50;page_size_query_param="page_size";max_page_size=200
@@ -75,3 +75,24 @@ def bcn_norms(request):
 def bcn_norm_detail(request,pk):
     queryset=BcnLegalNormFact.objects.filter(snapshot__current_for__current_snapshot=models.F("snapshot"),snapshot__source__codigo="bcn-leychile").prefetch_related("versions","relations")
     return Response(BcnLegalNormFactSerializer(get_object_or_404(queryset,pk=pk)).data)
+def _current_text(fact):
+    artifact=get_object_or_404(ExternalFileArtifact.objects.filter(parent_record__current_snapshot=fact.snapshot,is_current=True,metadata__version_uri=fact.latest_version_uri,bcn_legal_source_document__parses__status="success").distinct());parse=artifact.bcn_legal_source_document.parses.get(parser_version="1",status="success");return artifact,parse
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def bcn_norm_text(request,pk):
+    fact=get_object_or_404(BcnLegalNormFact,pk=pk);artifact,parse=_current_text(fact);return Response({"norm":{"id":fact.id,"number":fact.number,"title":fact.title},"version_uri":fact.latest_version_uri,"version_date":fact.latest_version_date,"source_url":artifact.source_url,"sha256":artifact.content_sha256,"retrieved_at":artifact.retrieved_at,"parser_version":parse.parser_version,"article_count":parse.article_count})
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def bcn_norm_articles(request,pk):
+    fact=get_object_or_404(BcnLegalNormFact,pk=pk);artifact,parse=_current_text(fact);queryset=parse.articles.all()
+    if request.query_params.get("article_number"):queryset=queryset.filter(article_number__iexact=request.query_params["article_number"])
+    if request.query_params.get("article_label"):queryset=queryset.filter(article_label__icontains=request.query_params["article_label"])
+    return paginated(request,queryset,BcnLegalArticleFactSerializer)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def bcn_article_detail(request,pk):
+    article=get_object_or_404(BcnLegalArticleFact.objects.select_related("parse__source_document__artifact__parent_record__current_snapshot"),pk=pk);artifact=article.parse.source_document.artifact
+    try: current_fact=artifact.parent_record.current_snapshot.bcn_legal_norm_fact
+    except BcnLegalNormFact.DoesNotExist: raise Http404
+    if not artifact.is_current or article.parse.status!="success" or artifact.metadata.get("version_uri")!=current_fact.latest_version_uri:raise Http404
+    data=BcnLegalArticleFactSerializer(article).data;data.update({"version_uri":artifact.metadata.get("version_uri"),"source_url":artifact.source_url,"sha256":artifact.content_sha256});return Response(data)
