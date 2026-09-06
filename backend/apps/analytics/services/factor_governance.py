@@ -2,6 +2,7 @@ from uuid import uuid4
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Exists, OuterRef
 
 from ..models import FactorAmbiental, VersionFactorAmbiental
 
@@ -132,16 +133,21 @@ def transition_factor_version(version, target):
                 fields = ("alcance", "sistema", "metodo", "pais")
             else:
                 fields = ()
+            active_versions = VersionFactorAmbiental.objects.filter(
+                factor_id=OuterRef("pk"),
+                estado=VersionFactorAmbiental.Estado.ACTIVO,
+            )
             conflicts = (
                 FactorAmbiental.objects.select_for_update()
                 .filter(
                     organizacion__isnull=True,
                     unidad_entrada=factor.unidad_entrada,
-                    versiones__estado=VersionFactorAmbiental.Estado.ACTIVO,
                 )
                 .exclude(pk=factor.pk)
+                .annotate(has_active_version=Exists(active_versions))
+                .filter(has_active_version=True)
             )
-            for other in conflicts.distinct():
+            for other in conflicts:
                 other_context = other.contexto or {}
                 result_units_match = {
                     factor.unidad_resultado,

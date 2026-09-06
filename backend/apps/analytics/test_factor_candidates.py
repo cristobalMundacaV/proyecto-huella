@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from inspect import getsource
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -281,6 +282,12 @@ class FactorCandidateTests(TestCase):
         with self.assertRaises(ValidationError):
             transition_factor_version(version, "activo")
         self.assertEqual(legacy.versiones.get(estado="activo").estado, "activo")
+
+    def test_global_activation_lock_path_does_not_apply_distinct(self):
+        source = getsource(transition_factor_version)
+        self.assertIn("select_for_update()", source)
+        self.assertIn("Exists(active_versions)", source)
+        self.assertNotIn(".distinct()", source)
 
     def test_historical_candidate_blocks_mapping_and_promotion_but_remains_readable(
         self,
