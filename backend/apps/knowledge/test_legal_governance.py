@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from .legal_governance import activate_legal_obligation_version, evaluate_legal_obligation_applicability, promote_legal_candidate, reject_legal_candidate, update_legal_obligation_draft, validate_criterion, validate_legal_obligation_version
-from .models import BcnLegalArticleFact, BcnLegalNormFact, BcnLegalNormVersionFact, BcnLegalObligationCandidate, BcnLegalObligationExtractionRun, BcnLegalTextParse, BcnLegalTextSourceDocument, EnvironmentalSource, ExternalFileArtifact, ExternalRecord, ExternalSnapshot, LegalObligationApplicabilityCriterion, LegalObligationVersion, SyncRun
+from .models import BcnLegalArticleFact, BcnLegalNormFact, BcnLegalNormVersionFact, BcnLegalObligationCandidate, BcnLegalObligationCandidateReview, BcnLegalObligationExtractionRun, BcnLegalTextParse, BcnLegalTextSourceDocument, EnvironmentalSource, ExternalFileArtifact, ExternalRecord, ExternalSnapshot, LegalObligationApplicabilityCriterion, LegalObligationVersion, SyncRun
 
 
 class LegalApplicabilityEvaluatorTests(SimpleTestCase):
@@ -79,3 +79,37 @@ class LegalGovernanceTests(TestCase):
         version=LegalObligationVersion.objects.get();validate_legal_obligation_version(version,self.superuser);activate_legal_obligation_version(version,self.superuser)
         client.force_authenticate(self.user);response=client.get("/api/knowledge/legal-obligations/?modality=obligation&applicability_level=work&norm_number=19300");self.assertEqual((response.status_code,response.data["count"]),(200,1));self.assertNotIn("source_provenance",response.data["results"][0])
         client.force_authenticate(None);self.assertIn(client.get("/api/knowledge/legal-obligations/").status_code,(401,403))
+    def test_semantic_enums_fail_closed_in_services_and_api(self):
+        for field,value in (("modality","inventada"),("applicability_level","inventado"),("applicability_mode","inventado")):
+            kwargs={"modality":"obligation","canonical_statement":"Declaracion","applicability_level":"work","applicability_mode":"pending"};kwargs[field]=value
+            with self.assertRaises(ValidationError):promote_legal_candidate(self.candidates[0],self.superuser,"create_obligation",None,[],**kwargs)
+        client=APIClient();client.force_authenticate(self.superuser)
+        response=client.post(f"/api/knowledge/bcn/obligation-candidates/{self.candidates[0].id}/promote/",{"mode":"create_obligation","modality":"obligation","canonical_statement":"Declaracion","applicability_level":"work","applicability_mode":"inventado"},format="json")
+        self.assertEqual(response.status_code,400)
+    def test_direct_lifecycle_mutation_is_blocked(self):
+        _,version,_=self.promote(mode="unconditional")
+        for field,value in (("state","active"),("state","obsolete"),("activated_by",self.superuser)):
+            version.refresh_from_db();setattr(version,field,value)
+            with self.assertRaises(ValidationError):version.save()
+        validate_legal_obligation_version(version,self.superuser)
+        version.state="draft"
+        with self.assertRaises(ValidationError):version.save()
+    def test_governed_criteria_are_immutable_and_level_consistent(self):
+        with self.assertRaises(ValidationError):
+            promote_legal_candidate(self.candidates[0],self.superuser,"create_obligation",None,[{"dimension":"work_state","operator":"equals","values":["en_ejecucion"]}],modality="obligation",canonical_statement="Declaracion",applicability_level="organization",applicability_mode="conditional")
+        _,version,_=self.promote(criteria=[{"dimension":"work_state","operator":"equals","values":["en_ejecucion"]}]);criterion=version.criteria.get()
+        criterion.values=["pausada"];criterion.save();validate_legal_obligation_version(version,self.superuser);activate_legal_obligation_version(version,self.superuser)
+        criterion.refresh_from_db();criterion.values=["finalizada"]
+        with self.assertRaises(ValidationError):criterion.save()
+        with self.assertRaises(ValidationError):criterion.delete()
+        with self.assertRaises(ValidationError):LegalObligationApplicabilityCriterion.objects.filter(pk=criterion.pk).delete()
+    def test_approved_review_requires_matching_version_candidate_and_obligation(self):
+        obligation,version,_=self.promote()
+        with self.assertRaises(ValidationError):
+            BcnLegalObligationCandidateReview.objects.create(candidate=self.candidates[1],decision="approved",reviewer=self.superuser,reviewed_at=timezone.now(),promoted_obligation=obligation,promoted_version=version)
+    def test_full_frozen_provenance_is_validated(self):
+        _,version,_=self.promote(mode="unconditional")
+        for key in ("candidate_id","candidate_key","extractor_version","modality_hint","artifact_id","artifact_sha256","version_uri","parser_version","article_id","article_key","article_number","article_text_hash","source_quote","source_start","source_end","trigger_text","trigger_start","trigger_end"):
+            original=version.source_provenance;corrupt=dict(original);corrupt[key]="corrupt";LegalObligationVersion.objects.filter(pk=version.pk).update(source_provenance=corrupt);version.refresh_from_db()
+            with self.assertRaises(ValidationError):validate_legal_obligation_version(version,self.superuser)
+            LegalObligationVersion.objects.filter(pk=version.pk).update(source_provenance=original);version.refresh_from_db()

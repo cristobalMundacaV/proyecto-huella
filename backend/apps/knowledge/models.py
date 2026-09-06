@@ -268,15 +268,35 @@ class LegalObligationVersion(models.Model):
             if any(getattr(previous,key)!=getattr(self,key) for key in fixed):raise ValidationError("Identidad y provenance de la version son inmutables.")
             semantic=("modality","canonical_statement","subject_text","action_text","object_text","condition_text","temporal_text","applicability_level","applicability_mode")
             if previous.state!=self.State.DRAFT and any(getattr(previous,key)!=getattr(self,key) for key in semantic):raise ValidationError("Una version gobernada ya no es editable.")
+            lifecycle=("state","validated_by_id","validated_at","activated_by_id","activated_at","obsoleted_at")
+            if any(getattr(previous,key)!=getattr(self,key) for key in lifecycle):raise ValidationError("Use el lifecycle service explicito.")
         super().save(*args,**kwargs)
     def delete(self,*args,**kwargs):raise ValidationError("Una version juridica no puede eliminarse.")
 
 
+class LegalCriterionQuerySet(models.QuerySet):
+    def delete(self):
+        if self.exclude(obligation_version__state="draft").exists():raise ValidationError("Los criterios gobernados son inmutables.")
+        return super().delete()
+
+
 class LegalObligationApplicabilityCriterion(models.Model):
+    objects=LegalCriterionQuerySet.as_manager()
     class Operator(models.TextChoices):EQUALS="equals","Equals";IN="in","In"
     obligation_version=models.ForeignKey(LegalObligationVersion,on_delete=models.PROTECT,related_name="criteria")
     order_index=models.PositiveIntegerField();dimension=models.CharField(max_length=60);operator=models.CharField(max_length=20,choices=Operator.choices);values=models.JSONField();note=models.TextField(blank=True)
     class Meta:constraints=[models.UniqueConstraint(fields=["obligation_version","order_index"],name="knowledge_legal_criterion_order")];ordering=["order_index"]
+    def clean(self):
+        from .legal_contracts import validate_criterion
+        cleaned=validate_criterion({"dimension":self.dimension,"operator":self.operator,"values":self.values,"note":self.note},self.obligation_version.applicability_level)
+        self.dimension=cleaned["dimension"];self.operator=cleaned["operator"];self.values=cleaned["values"];self.note=cleaned["note"]
+    def save(self,*args,**kwargs):
+        if self.pk and LegalObligationApplicabilityCriterion.objects.get(pk=self.pk).obligation_version.state!="draft":raise ValidationError("Los criterios gobernados son inmutables.")
+        if self.obligation_version.state!="draft":raise ValidationError("Los criterios solo pueden modificarse en draft.")
+        self.full_clean();super().save(*args,**kwargs)
+    def delete(self,*args,**kwargs):
+        if self.obligation_version.state!="draft":raise ValidationError("Los criterios gobernados son inmutables.")
+        return super().delete(*args,**kwargs)
 
 
 class BcnLegalObligationCandidateReview(models.Model):
@@ -288,6 +308,7 @@ class BcnLegalObligationCandidateReview(models.Model):
     def clean(self):
         promoted=bool(self.promoted_obligation_id and self.promoted_version_id)
         if self.decision==self.Decision.APPROVED and not promoted:raise ValidationError("Una aprobacion requiere obligacion y version promovidas.")
+        if self.decision==self.Decision.APPROVED and promoted and (self.promoted_version.obligation_id!=self.promoted_obligation_id or self.promoted_version.source_candidate_id!=self.candidate_id):raise ValidationError("La promocion aprobada no corresponde al candidato u obligacion.")
         if self.decision==self.Decision.REJECTED and (self.promoted_obligation_id or self.promoted_version_id):raise ValidationError("Un rechazo no puede tener promocion.")
     def save(self,*args,**kwargs):
         if self.pk:raise ValidationError("La revision juridica es inmutable.")
