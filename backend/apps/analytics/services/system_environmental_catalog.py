@@ -110,6 +110,12 @@ TRANSPORT_FUEL_METHODOLOGY_CODE = "construccion-v1-transporte-combustible"
 MATERIAL_METHODOLOGY_CODE = "construccion-v1-material-recibido"
 ENERGY_FACTOR_CODE = "sen-electricidad-red-location-based-2025"
 ENERGY_REFERENCE = "Construcción V1; factor SEN seleccionado desde gobernanza."
+ENERGY_REFERENCE_V3 = (
+    "Recomendacion HuellaChile publicada en 2026: factor oficial 2025 del "
+    "Ministerio de Energia, usado como ultima referencia oficial disponible "
+    "para registros 2026 hasta disponer de una version posterior gobernada."
+)
+ENERGY_V1_KNOWN_REFERENCES = frozenset({ENERGY_REFERENCE_V3, ENERGY_REFERENCE})
 
 
 def _assert_contract(instance, expected, label):
@@ -179,7 +185,13 @@ def ensure_huellachile_factor_catalog():
 
 
 def _ensure_methodology(
-    *, code, methodology_fields, version_fields, formula_fields, variable_fields
+    *,
+    code,
+    methodology_fields,
+    version_fields,
+    formula_fields,
+    variable_fields,
+    known_v1_references=None,
 ):
     methodology, created = MetodologiaAmbiental.objects.get_or_create(
         organizacion=None, codigo=code, defaults=methodology_fields
@@ -190,7 +202,19 @@ def _ensure_methodology(
         metodologia=methodology, version=1, defaults=version_fields
     )
     if not created:
-        _assert_contract(version, version_fields, f"{code} v1")
+        expected_version_fields = version_fields
+        if known_v1_references is not None:
+            if version.fuente_referencia not in known_v1_references:
+                raise ImproperlyConfigured(
+                    f"Contrato global incompatible para {code} v1: "
+                    "fuente_referencia. No se modificaron datos gobernados."
+                )
+            expected_version_fields = {
+                field: value
+                for field, value in version_fields.items()
+                if field != "fuente_referencia"
+            }
+        _assert_contract(version, expected_version_fields, f"{code} v1")
     formula, created = FormulaAmbiental.objects.get_or_create(
         version_metodologia=version, defaults=formula_fields
     )
@@ -345,6 +369,7 @@ def ensure_construction_v1_methodologies():
             "rol": VariableFormula.Rol.ACTIVIDAD,
             "descripcion": "Electricidad consumida desde la red.",
         },
+        known_v1_references=ENERGY_V1_KNOWN_REFERENCES,
     )
     material = _ensure_methodology(
         code=MATERIAL_METHODOLOGY_CODE,

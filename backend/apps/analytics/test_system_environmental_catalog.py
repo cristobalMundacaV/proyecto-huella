@@ -21,11 +21,14 @@ from .models import (
     Organizacion,
     RegistroFlujoAmbiental,
     VersionFactorAmbiental,
+    VersionMetodologia,
 )
 from .services.calculation_v2 import calculate_activity
 from .services.system_environmental_catalog import (
     ENERGY_FACTOR_CODE,
     ENERGY_METHODOLOGY_CODE,
+    ENERGY_REFERENCE,
+    ENERGY_REFERENCE_V3,
     SYSTEM_ENVIRONMENTAL_CATALOG_VERSION,
     TRANSPORT_FUEL_METHODOLOGY_CODE,
     MATERIAL_METHODOLOGY_CODE,
@@ -162,6 +165,65 @@ class SystemEnvironmentalCatalogTests(TestCase):
                 MetodologiaAmbiental.objects.count(),
             ),
         )
+
+    def test_v3_energy_reference_is_accepted_without_mutation_or_new_version(self):
+        version = VersionMetodologia.objects.get(
+            metodologia__codigo=ENERGY_METHODOLOGY_CODE, version=1
+        )
+        VersionMetodologia.objects.filter(pk=version.pk).update(
+            fuente_referencia=ENERGY_REFERENCE_V3
+        )
+        before_ids = list(
+            VersionMetodologia.objects.order_by("pk").values_list("pk", flat=True)
+        )
+
+        ensure_system_environmental_catalog()
+        ensure_system_environmental_catalog()
+
+        version.refresh_from_db()
+        self.assertEqual(version.fuente_referencia, ENERGY_REFERENCE_V3)
+        self.assertEqual(
+            list(
+                VersionMetodologia.objects.order_by("pk").values_list("pk", flat=True)
+            ),
+            before_ids,
+        )
+
+    def test_clean_v4_energy_methodology_uses_generic_reference(self):
+        version = VersionMetodologia.objects.get(
+            metodologia__codigo=ENERGY_METHODOLOGY_CODE, version=1
+        )
+        self.assertEqual(version.fuente_referencia, ENERGY_REFERENCE)
+
+    def test_unknown_energy_reference_remains_fail_closed(self):
+        version = VersionMetodologia.objects.get(
+            metodologia__codigo=ENERGY_METHODOLOGY_CODE, version=1
+        )
+        VersionMetodologia.objects.filter(pk=version.pk).update(
+            fuente_referencia="Referencia arbitraria"
+        )
+
+        with self.assertRaisesRegex(ImproperlyConfigured, "fuente_referencia"):
+            ensure_system_environmental_catalog()
+
+        version.refresh_from_db()
+        self.assertEqual(version.fuente_referencia, "Referencia arbitraria")
+
+    def test_v3_reference_does_not_relax_other_version_fields(self):
+        version = VersionMetodologia.objects.get(
+            metodologia__codigo=ENERGY_METHODOLOGY_CODE, version=1
+        )
+        VersionMetodologia.objects.filter(pk=version.pk).update(
+            fuente_referencia=ENERGY_REFERENCE_V3,
+            prioridad=999,
+        )
+
+        with self.assertRaisesRegex(ImproperlyConfigured, "prioridad"):
+            ensure_system_environmental_catalog()
+
+        version.refresh_from_db()
+        self.assertEqual(version.fuente_referencia, ENERGY_REFERENCE_V3)
+        self.assertEqual(version.prioridad, 999)
 
     def test_tenant_created_later_is_not_calculable_without_governed_versions(self):
         organization, work, source = self._tenant_context()
