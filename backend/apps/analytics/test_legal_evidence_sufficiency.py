@@ -1,3 +1,4 @@
+from datetime import date
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.db import close_old_connections, connection
@@ -6,10 +7,11 @@ from rest_framework.test import APIClient
 from threading import Barrier, Thread
 from unittest.mock import patch
 
-from .models import LegalEvidenceOperationalLink, LegalEvidenceRequirementSufficiencyReview, Organizacion, UsuarioOrganizacion, VersionEvidencia
+from .models import LegalEvidenceOperationalLink, LegalEvidenceRequirementSufficiencyReview, Obra, Organizacion, UsuarioOrganizacion, VersionEvidencia
+from .models.legal_evidence_sufficiency import sufficiency_basis_hash, sufficiency_review_hash
 from .services.legal_applicability import evaluate_active_legal_obligations_for_organization
 from .services.legal_evidence_mapping import create_operational_evidence_link, publish_legal_evidence_operational_mapping, withdraw_legal_evidence_link
-from .services.legal_evidence_sufficiency import build_evidence_class_coverage, get_legal_evidence_sufficiency_review_freshness, review_legal_evidence_sufficiency
+from .services.legal_evidence_sufficiency import build_evidence_class_coverage, get_legal_evidence_sufficiency_review_freshness, resolve_sufficiency_review_basis, review_legal_evidence_sufficiency
 from .test_legal_evidence_mapping import LegalEvidenceMappingConcurrencyTests, LegalEvidenceMappingTests
 
 
@@ -22,6 +24,56 @@ class LegalEvidenceSufficiencyTests(LegalEvidenceMappingTests):
             evidence, evidence_version = self.evidence()
             link, _ = create_operational_evidence_link(requirement.code, self.organization, None, evidence, evidence_version, self.superuser)
         return requirement, version, mapping, link
+
+    def direct_kwargs(self, requirement, reviewer=None, decision="pending", rationale="Revision humana"):
+        resolved = resolve_sufficiency_review_basis(requirement.code, self.organization)
+        _, version, mapping, assessment, _, req, mapped, applicable, bundle = resolved
+        basis = sufficiency_basis_hash(req, mapped, applicable, bundle)
+        reviewer = reviewer or self.superuser
+        return {"organization": self.organization, "scope_level": "organization", "requirement": requirement, "requirement_version": version, "mapping_revision": mapping, "applicability_assessment": assessment, "revision": LegalEvidenceRequirementSufficiencyReview.objects.filter(requirement=requirement).count() + 1, "decision": decision, "rationale": rationale, "requirement_snapshot": req, "mapping_snapshot": mapped, "applicability_snapshot": applicable, "evidence_bundle_snapshot": bundle, "basis_hash": basis, "review_hash": sufficiency_review_hash(basis, decision, rationale, "", reviewer.id), "reviewed_by": reviewer}
+
+    def test_model_zero_link_decisions_and_server_owned_timestamp(self):
+        requirement, _, _, _ = self.setup_basis(False)
+        pending = LegalEvidenceRequirementSufficiencyReview.objects.create(**self.direct_kwargs(requirement))
+        self.assertIsNotNone(pending.reviewed_at)
+        LegalEvidenceRequirementSufficiencyReview.objects.filter(pk=pending.pk).update(is_latest=False)
+        insufficient = LegalEvidenceRequirementSufficiencyReview.objects.create(**self.direct_kwargs(requirement, decision="insufficient", rationale="No existe respaldo"))
+        LegalEvidenceRequirementSufficiencyReview.objects.filter(pk=insufficient.pk).update(is_latest=False)
+        with self.assertRaises(ValidationError):
+            LegalEvidenceRequirementSufficiencyReview.objects.create(**self.direct_kwargs(requirement, decision="sufficient", rationale="Sin respaldo"))
+
+    def test_direct_bundle_must_include_every_active_link(self):
+        requirement, _, _, _ = self.setup_basis(True)
+        evidence, evidence_version = self.evidence("registro_sonometro")
+        create_operational_evidence_link(requirement.code, self.organization, None, evidence, evidence_version, self.superuser)
+        kwargs = self.direct_kwargs(requirement)
+        incomplete = dict(kwargs); incomplete_bundle = {**kwargs["evidence_bundle_snapshot"], "links": kwargs["evidence_bundle_snapshot"]["links"][:1]}; incomplete["evidence_bundle_snapshot"] = incomplete_bundle
+        incomplete["basis_hash"] = sufficiency_basis_hash(incomplete["requirement_snapshot"], incomplete["mapping_snapshot"], incomplete["applicability_snapshot"], incomplete_bundle)
+        incomplete["review_hash"] = sufficiency_review_hash(incomplete["basis_hash"], incomplete["decision"], incomplete["rationale"], "", self.superuser.id)
+        with self.assertRaises(ValidationError): LegalEvidenceRequirementSufficiencyReview.objects.create(**incomplete)
+        complete = LegalEvidenceRequirementSufficiencyReview.objects.create(**kwargs)
+        self.assertEqual(len(complete.evidence_bundle_snapshot["links"]), 2)
+
+    def test_queryset_update_is_restricted_to_supersession(self):
+        requirement, _, _, _ = self.setup_basis(False)
+        review = LegalEvidenceRequirementSufficiencyReview.objects.create(**self.direct_kwargs(requirement))
+        for payload in ({"decision": "insufficient"}, {"reviewed_at": review.reviewed_at}, {"is_latest": True}):
+            with self.assertRaises(ValidationError): LegalEvidenceRequirementSufficiencyReview.objects.filter(pk=review.pk).update(**payload)
+        self.assertEqual(LegalEvidenceRequirementSufficiencyReview.objects.filter(pk=review.pk).update(is_latest=False), 1)
+
+    def test_direct_reviewer_permissions_are_fail_closed(self):
+        requirement, _, _, _ = self.setup_basis(False); User = get_user_model()
+        users = {}
+        for role in ("lector", "responsable_ambiental", "revisor_ambiental", "admin"):
+            user = User.objects.create_user(f"direct-{role}"); UsuarioOrganizacion.objects.create(user=user, organizacion=self.organization, rol=role, alcance="organizacion"); users[role] = user
+        for role in ("lector", "responsable_ambiental"):
+            with self.assertRaises(ValidationError): LegalEvidenceRequirementSufficiencyReview.objects.create(**self.direct_kwargs(requirement, reviewer=users[role]))
+        for reviewer in (users["revisor_ambiental"], users["admin"], self.superuser):
+            item = LegalEvidenceRequirementSufficiencyReview.objects.create(**self.direct_kwargs(requirement, reviewer=reviewer)); LegalEvidenceRequirementSufficiencyReview.objects.filter(pk=item.pk).update(is_latest=False)
+        restricted = User.objects.create_user("direct-work-restricted"); UsuarioOrganizacion.objects.create(user=restricted, organizacion=self.organization, rol="revisor_ambiental", alcance="obras")
+        outside = Obra.objects.create(organizacion=self.organization, nombre="Obra sin acceso", fecha_inicio=date(2026, 1, 1))
+        payload = self.direct_kwargs(requirement, reviewer=restricted); payload.update({"work": outside, "scope_level": "work"})
+        with self.assertRaises(ValidationError): LegalEvidenceRequirementSufficiencyReview.objects.create(**payload)
 
     def test_zero_links_contract_and_human_decision(self):
         requirement, _, _, _ = self.setup_basis(False)

@@ -54,7 +54,7 @@ class Migration(migrations.Migration):
                 ("evidence_bundle_snapshot", models.JSONField()),
                 ("basis_hash", models.CharField(max_length=64)),
                 ("review_hash", models.CharField(max_length=64)),
-                ("reviewed_at", models.DateTimeField()),
+                ("reviewed_at", models.DateTimeField(auto_now_add=True)),
                 (
                     "applicability_assessment",
                     models.ForeignKey(

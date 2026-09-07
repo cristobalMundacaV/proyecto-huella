@@ -1,7 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Max
-from django.utils import timezone
 
 from apps.knowledge.legal_evidence import get_legal_evidence_requirement_freshness
 from apps.knowledge.models import LegalEvidenceRequirement
@@ -110,7 +109,7 @@ def review_legal_evidence_sufficiency(requirement_code, organization, work, deci
     revision = (LegalEvidenceRequirementSufficiencyReview.objects.filter(organization=organization, work=work, requirement=requirement).aggregate(value=Max("revision"))["value"] or 0) + 1
     if latest:
         LegalEvidenceRequirementSufficiencyReview.objects.filter(pk=latest.pk).update(is_latest=False)
-    review = LegalEvidenceRequirementSufficiencyReview.objects.create(organization=organization, work=work, scope_level="work" if work else "organization", requirement=requirement, requirement_version=version, mapping_revision=mapping, applicability_assessment=assessment, revision=revision, is_latest=True, decision=decision, rationale=rationale, reviewer_note=reviewer_note, requirement_snapshot=req_snapshot, mapping_snapshot=map_snapshot, applicability_snapshot=app_snapshot, evidence_bundle_snapshot=bundle, basis_hash=basis, review_hash=digest, reviewed_by=user, reviewed_at=timezone.now())
+    review = LegalEvidenceRequirementSufficiencyReview.objects.create(organization=organization, work=work, scope_level="work" if work else "organization", requirement=requirement, requirement_version=version, mapping_revision=mapping, applicability_assessment=assessment, revision=revision, is_latest=True, decision=decision, rationale=rationale, reviewer_note=reviewer_note, requirement_snapshot=req_snapshot, mapping_snapshot=map_snapshot, applicability_snapshot=app_snapshot, evidence_bundle_snapshot=bundle, basis_hash=basis, review_hash=digest, reviewed_by=user)
     return review, True
 
 

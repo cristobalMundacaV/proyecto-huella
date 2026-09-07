@@ -24,6 +24,11 @@ class ImmutableSufficiencyReviewQuerySet(models.QuerySet):
     def delete(self):
         raise ValidationError("La historia de revisiones de suficiencia es inmutable.")
 
+    def update(self, **kwargs):
+        if kwargs != {"is_latest": False}:
+            raise ValidationError("Solo el servicio de supersession puede desmarcar is_latest.")
+        return super().update(**kwargs)
+
 
 class LegalEvidenceRequirementSufficiencyReview(models.Model):
     class Scope(models.TextChoices):
@@ -55,7 +60,7 @@ class LegalEvidenceRequirementSufficiencyReview(models.Model):
     basis_hash = models.CharField(max_length=64)
     review_hash = models.CharField(max_length=64)
     reviewed_by = models.ForeignKey("auth.User", on_delete=models.PROTECT, related_name="legal_evidence_sufficiency_reviews")
-    reviewed_at = models.DateTimeField()
+    reviewed_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-revision"]
@@ -71,9 +76,14 @@ class LegalEvidenceRequirementSufficiencyReview(models.Model):
         from apps.knowledge.legal_evidence import get_legal_evidence_requirement_freshness
         from ..services.legal_applicability import get_legal_assessment_freshness
         from ..services.legal_evidence_mapping import get_legal_evidence_link_freshness, get_legal_evidence_mapping_freshness
+        from ..permissions import Permission, has_tenant_permission, user_can_access_work
 
         if self.decision not in self.Decision.values or not str(self.rationale).strip():
             raise ValidationError("Decision valida y rationale son obligatorios.")
+        if not has_tenant_permission(self.reviewed_by, self.organization, Permission.COMPLIANCE_REVIEW) or not has_tenant_permission(self.reviewed_by, self.organization, Permission.EVIDENCE_VIEW):
+            raise ValidationError("Reviewer sin permisos para emitir la revision.")
+        if self.work_id and not user_can_access_work(self.reviewed_by, self.organization, self.work):
+            raise ValidationError("Reviewer sin acceso a la obra.")
         if self.requirement_version.requirement_id != self.requirement_id:
             raise ValidationError("Requirement/version inconsistente.")
         if self.mapping_revision.requirement_version_id != self.requirement_version_id:
@@ -119,6 +129,11 @@ class LegalEvidenceRequirementSufficiencyReview(models.Model):
             raise ValidationError("Evidence bundle invalido.")
         from .legal_evidence_mapping import LegalEvidenceOperationalLink
         ids = [item.get("link_id") for item in links]
+        active_ids = list(LegalEvidenceOperationalLink.objects.filter(organization_id=self.organization_id, work_id=self.work_id, requirement_version_id=self.requirement_version_id, status="linked").order_by("id").values_list("id", flat=True))
+        if ids != active_ids:
+            raise ValidationError("Evidence bundle debe contener todos los links activos actuales.")
+        if self.decision == self.Decision.SUFFICIENT and not ids:
+            raise ValidationError("No puede marcarse sufficient sin evidencia vinculada.")
         linked = {item.id: item for item in LegalEvidenceOperationalLink.objects.filter(pk__in=ids)}
         if len(ids) != len(set(ids)) or set(ids) != set(linked):
             raise ValidationError("Links de evidence bundle invalidos.")
