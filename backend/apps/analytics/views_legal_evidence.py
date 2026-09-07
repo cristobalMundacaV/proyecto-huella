@@ -7,9 +7,10 @@ from rest_framework.response import Response
 
 from apps.knowledge.models import LegalEvidenceRequirement, LegalEvidenceRequirementVersion
 from apps.knowledge.legal_evidence import get_legal_evidence_requirement_freshness
-from .models import EvidenciaObra, LegalEvidenceOperationalLink, LegalEvidenceOperationalMappingRevision, Obra, Organizacion, VersionEvidencia
+from .models import EvidenciaObra, LegalEvidenceOperationalLink, LegalEvidenceOperationalMappingRevision, LegalEvidenceRequirementSufficiencyReview, Obra, Organizacion, VersionEvidencia
 from .permissions import Permission, filter_works_for_user, get_membership, has_tenant_permission
 from .services.legal_evidence_mapping import create_operational_evidence_link, get_legal_evidence_link_freshness, get_legal_evidence_mapping_freshness, list_operational_evidence_candidates, publish_legal_evidence_operational_mapping, withdraw_legal_evidence_link
+from .services.legal_evidence_sufficiency import get_legal_evidence_sufficiency_review_freshness, get_sufficiency_review_readiness, review_legal_evidence_sufficiency
 
 
 def _org(request, value, permissions):
@@ -113,3 +114,59 @@ def _withdraw(request,organization_id,link_id,work_id=None):
 def organization_link_withdraw(request,organization_id,link_id):return _withdraw(request,organization_id,link_id)
 @api_view(["POST"])
 def work_link_withdraw(request,organization_id,work_id,link_id):return _withdraw(request,organization_id,link_id,work_id)
+
+
+def _review_data(item, include_snapshots=False):
+    data = {"revision": item.revision, "decision": item.decision, "rationale": item.rationale, "reviewer_note": item.reviewer_note, "evidence_link_ids": [link.get("link_id") for link in item.evidence_bundle_snapshot.get("links", [])], "basis_hash": item.basis_hash, "reviewed_by": item.reviewed_by.get_full_name() or item.reviewed_by.get_username(), "reviewed_at": item.reviewed_at, "freshness": get_legal_evidence_sufficiency_review_freshness(item)}
+    if include_snapshots:
+        data.update({"requirement_snapshot": item.requirement_snapshot, "mapping_snapshot": item.mapping_snapshot, "applicability_snapshot": item.applicability_snapshot, "evidence_bundle_snapshot": item.evidence_bundle_snapshot, "review_hash": item.review_hash})
+    return data
+
+
+def _review_context(request, organization_id, requirement_code, work_id, write=False):
+    permissions = [Permission.COMPLIANCE_REVIEW if write else Permission.COMPLIANCE_VIEW, Permission.EVIDENCE_VIEW]
+    org = _org(request, organization_id, permissions)
+    return org, _work(request, org, work_id) if work_id else None
+
+
+def _sufficiency_current(request, organization_id, requirement_code, work_id=None):
+    org, work = _review_context(request, organization_id, requirement_code, work_id)
+    requirement = get_object_or_404(LegalEvidenceRequirement, code=requirement_code)
+    readiness, resolved = get_sufficiency_review_readiness(requirement_code, org, work)
+    active = requirement.versions.filter(state="active").first()
+    latest = LegalEvidenceRequirementSufficiencyReview.objects.filter(organization=org, work=work, requirement=requirement, is_latest=True).select_related("reviewed_by", "requirement__obligation", "requirement_version__legal_obligation_version", "mapping_revision", "applicability_assessment").first()
+    bundle = resolved[-1] if resolved else None
+    version = resolved[1] if resolved else active
+    return Response({"requirement": None if not version else {"code": requirement.code, "version": version.version, "title": version.title}, "review_readiness": readiness, "evidence_bundle": None if bundle is None else {"link_count": bundle["coverage"]["link_count"], "coverage": bundle["coverage"], "can_mark_sufficient": bool(bundle["links"])}, "latest_review": None if not latest else _review_data(latest)})
+
+
+def _sufficiency_review(request, organization_id, requirement_code, work_id=None):
+    org, work = _review_context(request, organization_id, requirement_code, work_id, write=True)
+    if set(request.data) - {"decision", "rationale", "reviewer_note"}:
+        return Response({"detail": "Campos no permitidos."}, status=400)
+    try:
+        item, created = review_legal_evidence_sufficiency(requirement_code, org, work, request.data.get("decision"), request.data.get("rationale", ""), request.user, request.data.get("reviewer_note", ""))
+        return Response({**_review_data(item, include_snapshots=True), "created": created}, status=201 if created else 200)
+    except Exception as exc:
+        return Response({"detail": getattr(exc, "messages", [str(exc)])}, status=400)
+
+
+def _sufficiency_history(request, organization_id, requirement_code, work_id=None):
+    org, work = _review_context(request, organization_id, requirement_code, work_id)
+    requirement = get_object_or_404(LegalEvidenceRequirement, code=requirement_code)
+    items = LegalEvidenceRequirementSufficiencyReview.objects.filter(organization=org, work=work, requirement=requirement).select_related("reviewed_by", "requirement__obligation", "requirement_version__legal_obligation_version", "mapping_revision", "applicability_assessment").order_by("-revision")
+    return Response([_review_data(item) for item in items])
+
+
+@api_view(["GET"])
+def organization_sufficiency(request, organization_id, requirement_code): return _sufficiency_current(request, organization_id, requirement_code)
+@api_view(["POST"])
+def organization_sufficiency_review(request, organization_id, requirement_code): return _sufficiency_review(request, organization_id, requirement_code)
+@api_view(["GET"])
+def organization_sufficiency_history(request, organization_id, requirement_code): return _sufficiency_history(request, organization_id, requirement_code)
+@api_view(["GET"])
+def work_sufficiency(request, organization_id, work_id, requirement_code): return _sufficiency_current(request, organization_id, requirement_code, work_id)
+@api_view(["POST"])
+def work_sufficiency_review(request, organization_id, work_id, requirement_code): return _sufficiency_review(request, organization_id, requirement_code, work_id)
+@api_view(["GET"])
+def work_sufficiency_history(request, organization_id, work_id, requirement_code): return _sufficiency_history(request, organization_id, requirement_code, work_id)
