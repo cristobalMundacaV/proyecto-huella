@@ -134,6 +134,9 @@ class HuellaChileEmissionFactorFact(models.Model):
 
 
 class ImmutableRegulatoryFactQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise ValidationError("Los hechos regulatorios historicos son append-only.")
+
     def delete(self):
         raise ValidationError("Los hechos regulatorios historicos son inmutables.")
 
@@ -166,8 +169,14 @@ class SnifaOpenDatasetFact(ImmutableRegulatoryFact):
     source_url = models.URLField(max_length=1000)
 
     def clean(self):
-        if self.snapshot.source.codigo != "snifa" or self.snapshot.record_kind != "snifa_open_dataset" or not self.dataset_code or not self.title:
-            raise ValidationError("Dataset SNIFA incompatible con su snapshot.")
+        from .regulatory_facts import build_snifa_dataset_fact_payload, model_fact_payload
+        fields = ("dataset_code", "title", "description", "publisher", "source_url")
+        try:
+            expected = build_snifa_dataset_fact_payload(self.snapshot)
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
+        if model_fact_payload(self, fields) != expected:
+            raise ValidationError("Dataset SNIFA adulterado respecto del snapshot.")
 
 
 class SnifaReferenceSubscription(models.Model):
@@ -221,8 +230,14 @@ class SnifaRegulatoryReferenceFact(ImmutableRegulatoryFact):
     source_url = models.URLField(max_length=1000)
 
     def clean(self):
-        if self.snapshot.source.codigo != "snifa" or self.snapshot.record_kind != "snifa_regulatory_reference" or self.reference_type not in SnifaReferenceSubscription.ReferenceType.values or not self.external_key:
-            raise ValidationError("Fact SNIFA incompatible con su snapshot.")
+        from .regulatory_facts import build_snifa_reference_fact_payload, model_fact_payload
+        fields = ("reference_type", "external_key", "expediente", "unit_external_key", "unit_name", "holder_name", "category", "region", "commune", "status_raw", "event_date", "sanction_amount_raw", "payment_status_raw", "instrument_references", "source_url")
+        try:
+            expected = build_snifa_reference_fact_payload(self.snapshot)
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
+        if self.reference_type not in SnifaReferenceSubscription.ReferenceType.values or model_fact_payload(self, fields) != expected:
+            raise ValidationError("Referencia SNIFA adulterada respecto del snapshot.")
 
 
 class SeaProjectSubscription(models.Model):
@@ -269,8 +284,14 @@ class SeaProjectFact(ImmutableRegulatoryFact):
     expediente_url = models.URLField(max_length=1000, blank=True)
 
     def clean(self):
-        if self.snapshot.source.codigo != "sea-seia" or self.snapshot.record_kind != "sea_project" or not self.project_key or not self.name:
-            raise ValidationError("Fact SEA incompatible con su snapshot.")
+        from .regulatory_facts import build_sea_project_fact_payload, model_fact_payload
+        fields = ("project_key", "folio", "name", "holder_name", "region", "communes", "presentation_type_raw", "status_raw", "sector_raw", "project_type_raw", "admission_reason_raw", "submission_date", "qualification_date", "project_url", "expediente_url")
+        try:
+            expected = build_sea_project_fact_payload(self.snapshot)
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
+        if model_fact_payload(self, fields) != expected:
+            raise ValidationError("Proyecto SEA adulterado respecto del snapshot.")
 
 
 class SeaRcaReferenceFact(ImmutableRegulatoryFact):
@@ -288,9 +309,18 @@ class SeaRcaReferenceFact(ImmutableRegulatoryFact):
 
     def clean(self):
         from .connectors.http import validate_sea_url
-        if not self.document_key or not self.title: raise ValidationError("Referencia RCA incompleta.")
-        try: validate_sea_url(self.document_url)
-        except ValueError as exc: raise ValidationError(str(exc)) from exc
+        from .regulatory_facts import build_sea_rca_fact_payload, model_fact_payload
+        fields = ("document_key", "rca_number_raw", "title", "document_date", "qualification_result_raw", "document_url", "metadata")
+        try:
+            expected = build_sea_rca_fact_payload(self.project_fact, {"document_key": self.document_key})
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
+        if model_fact_payload(self, fields) != expected:
+            raise ValidationError("Referencia RCA adulterada respecto del snapshot.")
+        try:
+            validate_sea_url(self.document_url)
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
 
 class BcnLegalNormSubscription(models.Model):
     source=models.ForeignKey(EnvironmentalSource,on_delete=models.PROTECT,related_name="legal_norm_subscriptions");norm_type=models.CharField(max_length=30);number=models.CharField(max_length=60);label=models.CharField(max_length=300);scope_tags=models.JSONField(default=list,blank=True);active=models.BooleanField(default=True);created_at=models.DateTimeField(auto_now_add=True);updated_at=models.DateTimeField(auto_now=True)

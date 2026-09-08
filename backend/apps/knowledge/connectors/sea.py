@@ -98,4 +98,12 @@ class SeaSeiaPublicConnector(EnvironmentalConnector):
             html, digest, final_url = fetch_html(subscription.project_url, validate_sea_url)
             payload = parse_sea_project(html, subscription); payload["project_url"] = final_url; payload["expediente_url"] = final_url
             records.append(ConnectorRecord(external_id=f"project:{subscription.project_key}", canonical_key=subscription.project_key, kind="sea_project", title=payload["name"], source_url=final_url, payload=payload, metadata={"upstream_page_sha256": digest, "subscription_id": subscription.id}))
-        return ConnectorBatch(records=records, authoritative_full_snapshot=False, metadata={"subscription_count": len(records)})
+        return ConnectorBatch(
+            records=records,
+            authoritative_full_snapshot=False,
+            metadata={
+                "subscription_count": len(records),
+                "external_capability_limited": True,
+                "discovery_capability": "server_rendered_public_results_only",
+            },
+        )

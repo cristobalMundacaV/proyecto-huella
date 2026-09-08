@@ -25,6 +25,9 @@ def sanitized_error(exc):
     return message[:1000]
 def source_freshness(source, now=None):
     state=SourceState.objects.get(source=source); now=now or timezone.now()
+    if state.estado==SourceState.Status.PARTIAL:
+        has_published_version=ExternalRecord.objects.filter(source=source).exists()
+        return "parcial_con_ultima_version_disponible" if has_published_version else "parcial_sin_version_publicada"
     if not state.last_successful_sync_at: return "error_sin_version_disponible" if state.estado=="error" else "nunca_sincronizado"
     age=now-state.last_successful_sync_at; limit=timedelta(hours=source.stale_after_hours)
     if state.estado=="error": return "error_con_ultima_version_disponible"

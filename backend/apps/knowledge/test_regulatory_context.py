@@ -12,8 +12,10 @@ from .connectors.base import ConnectorBatch, ConnectorRecord
 from .connectors.http import validate_sea_url, validate_snifa_url
 from .connectors.sea import parse_sea_project, parse_sea_search_results
 from .connectors.snifa import SnifaPublicConnector, parse_snifa_dataset_catalog, parse_snifa_reference
-from .models import EnvironmentalSource, ExternalSnapshot, SeaProjectFact, SeaProjectSubscription, SeaRcaReferenceFact, SnifaOpenDatasetFact, SnifaReferenceSubscription, SnifaRegulatoryReferenceFact
+from .models import EnvironmentalSource, ExternalRecord, ExternalSnapshot, SeaProjectFact, SeaProjectSubscription, SeaRcaReferenceFact, SnifaOpenDatasetFact, SnifaReferenceSubscription, SnifaRegulatoryReferenceFact
+from .regulatory_facts import build_sea_project_fact_payload, build_sea_rca_fact_payload, build_snifa_dataset_fact_payload, build_snifa_reference_fact_payload
 from .sea_sync import sync_sea_regulatory_context
+from .services import source_freshness
 from .snifa_sync import sync_snifa_regulatory_context
 
 CATALOG="""<html><a href='https://drive.google.com/folder/unit'><section><h4>Unidades Fiscalizables e Instrumentos</h4><p>Catastro oficial.</p></section></a><a href='https://drive.google.com/folder/inspection'><section><h4>Fiscalizaciones</h4><p>Fiscalizaciones historicas.</p></section></a></html>"""
@@ -48,6 +50,13 @@ class RegulatoryParserTests(TestCase):
         payload=parse_sea_project(SEA,self.sea_sub);self.assertEqual((payload["presentation_type_raw"],payload["status_raw"]),("DIA","Aprobado"));self.assertEqual(payload["communes"],["Los Ángeles","Mulchén"]);self.assertEqual(len(payload["rca_references"]),2)
         with self.assertRaises(ValueError):parse_sea_project("<html>roto</html>",self.sea_sub)
 
+    def test_sea_connector_declares_public_discovery_limitation(self):
+        from .connectors.sea import SeaSeiaPublicConnector
+        with patch("apps.knowledge.connectors.sea.fetch_html",return_value=(SEA,"a"*64,self.sea_sub.project_url)):
+            batch=SeaSeiaPublicConnector(self.sea).fetch(self.sea.sync_state)
+        self.assertTrue(batch.metadata["external_capability_limited"])
+        self.assertEqual(batch.metadata["discovery_capability"],"server_rendered_public_results_only")
+
     def test_url_allowlists_reject_ssrf(self):
         validate_snifa_url("https://snifa.sma.gob.cl/Fiscalizacion/Ficha/1");validate_sea_url("https://seia.sea.gob.cl/expediente/ficha/1")
         for url in ("http://snifa.sma.gob.cl/Fiscalizacion/1","https://localhost/Fiscalizacion/1","file:///tmp/a","https://127.0.0.1/expediente/1","https://evil.example/expediente/1"):
@@ -75,6 +84,8 @@ class RegulatorySyncApiTests(TestCase):
         old=self.snifa.records.get(external_id="sanctioning:D-001-2026").current_snapshot_id;changed=SNIFA.replace("En curso","Finalizado")
         with patch("apps.knowledge.connectors.snifa.fetch_html",side_effect=[(CATALOG,"a"*64,"https://snifa.sma.gob.cl/DatosAbiertos"),(changed,"c"*64,self.snifa_sub.source_url)]),patch("apps.knowledge.snifa_sync._materialize",side_effect=ValueError("normalizacion rota")):run=sync_snifa_regulatory_context()
         self.assertEqual(run.estado,"parcial");self.assertEqual(self.snifa.records.get(external_id="sanctioning:D-001-2026").current_snapshot_id,old);self.assertEqual(SnifaRegulatoryReferenceFact.objects.count(),1)
+        client=APIClient();client.force_authenticate(self.user);response=client.get("/api/knowledge/snifa/references/")
+        self.assertEqual(response.data["count"],1);self.assertEqual(response.data["results"][0]["status_raw"],"En curso")
 
     def test_sea_sync_materializes_project_and_rca_and_rollback(self):
         with patch("apps.knowledge.connectors.sea.fetch_html",return_value=(SEA,"a"*64,self.sea_sub.project_url)):first=sync_sea_regulatory_context()
@@ -89,12 +100,48 @@ class RegulatorySyncApiTests(TestCase):
         client.force_authenticate(self.admin);self.assertEqual(client.get("/api/knowledge/snifa/subscriptions/").status_code,200);self.assertEqual(client.post("/api/knowledge/sea/subscriptions/",{"project_key":"X","project_url":"https://seia.sea.gob.cl/expediente/ficha/2","label":"X","raw_payload":{}},format="json").status_code,400)
 
     def test_facts_are_immutable(self):
+        with patch("apps.knowledge.connectors.snifa.fetch_html",side_effect=[(CATALOG,"a"*64,"https://snifa.sma.gob.cl/DatosAbiertos"),(SNIFA,"b"*64,self.snifa_sub.source_url)]):sync_snifa_regulatory_context()
         with patch("apps.knowledge.connectors.sea.fetch_html",return_value=(SEA,"a"*64,self.sea_sub.project_url)):sync_sea_regulatory_context()
         fact=SeaProjectFact.objects.get();fact.name="otro"
         with self.assertRaises(ValidationError):fact.save()
-        with self.assertRaises(ValidationError):fact.delete()
-        with self.assertRaises(ValidationError):SeaProjectFact.objects.all().delete()
-        with self.assertRaises(ValidationError):SeaProjectFact.objects.bulk_create([])
+        for model in (SnifaOpenDatasetFact, SnifaRegulatoryReferenceFact, SeaProjectFact, SeaRcaReferenceFact):
+            with self.assertRaises(ValidationError):model.objects.update(title="adulterado")
+            with self.assertRaises(ValidationError):model.objects.all().delete()
+            with self.assertRaises(ValidationError):model.objects.bulk_create([])
+
+    def test_fact_contract_rejects_direct_semantic_tampering(self):
+        with patch("apps.knowledge.connectors.snifa.fetch_html",side_effect=[(CATALOG,"a"*64,"https://snifa.sma.gob.cl/DatosAbiertos"),(SNIFA,"b"*64,self.snifa_sub.source_url)]):sync_snifa_regulatory_context()
+        with patch("apps.knowledge.connectors.sea.fetch_html",return_value=(SEA,"a"*64,self.sea_sub.project_url)):sync_sea_regulatory_context()
+        dataset_snapshot=SnifaOpenDatasetFact.objects.first().snapshot; values=build_snifa_dataset_fact_payload(dataset_snapshot);values["title"]="Inventado"
+        with self.assertRaises(ValidationError):SnifaOpenDatasetFact.objects.create(snapshot=dataset_snapshot,**values)
+        reference_snapshot=SnifaRegulatoryReferenceFact.objects.get().snapshot;values=build_snifa_reference_fact_payload(reference_snapshot);values["status_raw"]="Inventado"
+        with self.assertRaises(ValidationError):SnifaRegulatoryReferenceFact.objects.create(snapshot=reference_snapshot,**values)
+        project=SeaProjectFact.objects.get();values=build_sea_project_fact_payload(project.snapshot);values["holder_name"]="Inventado"
+        with self.assertRaises(ValidationError):SeaProjectFact.objects.create(snapshot=project.snapshot,**values)
+        rca=project.rca_references.first();values=build_sea_rca_fact_payload(project,{"document_key":rca.document_key});values["document_url"]="https://seia.sea.gob.cl/expediente/documentos/inventado"
+        with self.assertRaises(ValidationError):SeaRcaReferenceFact.objects.create(project_fact=project,**values)
+        values=build_sea_rca_fact_payload(project,{"document_key":rca.document_key});values["document_key"]="inventado"
+        with self.assertRaises(ValidationError):SeaRcaReferenceFact.objects.create(project_fact=project,**values)
+
+    def test_first_partial_is_not_published_and_retry_reuses_snapshots(self):
+        responses=[(CATALOG,"a"*64,"https://snifa.sma.gob.cl/DatosAbiertos"),(SNIFA,"b"*64,self.snifa_sub.source_url)]
+        with patch("apps.knowledge.connectors.snifa.fetch_html",side_effect=responses),patch("apps.knowledge.snifa_sync._materialize",side_effect=ValueError("normalizacion rota")):
+            failed=sync_snifa_regulatory_context()
+        snapshot_count=ExternalSnapshot.objects.filter(source=self.snifa).count()
+        self.assertGreater(snapshot_count,0);self.assertEqual(failed.estado,"parcial");self.assertEqual(self.snifa.records.count(),0);self.assertEqual(SnifaOpenDatasetFact.objects.count()+SnifaRegulatoryReferenceFact.objects.count(),0);self.assertEqual(source_freshness(self.snifa),"parcial_sin_version_publicada")
+        client=APIClient();client.force_authenticate(self.user);self.assertEqual(client.get("/api/knowledge/snifa/references/").data["count"],0)
+        with patch("apps.knowledge.connectors.snifa.fetch_html",side_effect=responses):successful=sync_snifa_regulatory_context()
+        self.assertIn(successful.estado,("actualizada","sin_cambios"));self.assertEqual(ExternalSnapshot.objects.filter(source=self.snifa).count(),snapshot_count);self.assertEqual(self.snifa.records.count(),3);self.assertEqual(SnifaOpenDatasetFact.objects.count()+SnifaRegulatoryReferenceFact.objects.count(),3)
+
+    def test_partial_restores_complete_existing_publication(self):
+        with patch("apps.knowledge.connectors.snifa.fetch_html",side_effect=[(CATALOG,"a"*64,"https://snifa.sma.gob.cl/DatosAbiertos"),(SNIFA,"b"*64,self.snifa_sub.source_url)]):sync_snifa_regulatory_context()
+        record=self.snifa.records.get(external_id="sanctioning:D-001-2026")
+        fields=("current_snapshot_id","kind","canonical_key","title","source_url","published_at","upstream_updated_at","estado","metadata","last_seen_at")
+        before={field:getattr(record,field) for field in fields};payload=dict(record.current_snapshot.raw_payload);payload["status_raw"]="Finalizado"
+        changed=ConnectorRecord(external_id=record.external_id,kind="snifa_regulatory_reference",canonical_key="CAMBIADA",title="Titulo cambiado",source_url="https://snifa.sma.gob.cl/Sancionatorio/Ficha/2",payload=payload,metadata={"cambiada":True})
+        with patch.object(SnifaPublicConnector,"fetch",return_value=ConnectorBatch(records=[changed],authoritative_full_snapshot=False)),patch("apps.knowledge.snifa_sync._materialize",side_effect=ValueError("normalizacion rota")):
+            failed=sync_snifa_regulatory_context()
+        record.refresh_from_db();self.assertEqual(failed.estado,"parcial");self.assertEqual({field:getattr(record,field) for field in fields},before);self.assertEqual(ExternalSnapshot.objects.filter(source=self.snifa,external_id=record.external_id).count(),2);self.assertEqual(SnifaRegulatoryReferenceFact.objects.filter(snapshot__external_id=record.external_id).count(),1);self.assertEqual(source_freshness(self.snifa),"parcial_con_ultima_version_disponible")
 
 
 class RegulatoryPostgresConcurrencyTests(TransactionTestCase):

@@ -1,5 +1,3 @@
-from datetime import date
-
 from django.db import transaction
 from django.utils import timezone
 
@@ -7,12 +5,21 @@ from .models import ExternalRecord, SourceState, SyncRun
 from .services import sanitized_error, sync_environmental_source
 
 
-def parsed_date(value):
-    return date.fromisoformat(str(value)[:10]) if value else None
+RECORD_PUBLICATION_FIELDS = (
+    "current_snapshot_id", "kind", "canonical_key", "title", "source_url",
+    "published_at", "upstream_updated_at", "estado", "metadata", "last_seen_at",
+)
+
+
+def _published_records(source):
+    return {
+        row["external_id"]: row
+        for row in source.records.values("external_id", *RECORD_PUBLICATION_FIELDS)
+    }
 
 
 def sync_and_materialize(source, materialize):
-    previous = dict(source.records.values_list("external_id", "current_snapshot_id"))
+    previous = _published_records(source)
     run = sync_environmental_source(source)
     if run.estado == "error": return run
     try:
@@ -25,10 +32,17 @@ def sync_and_materialize(source, materialize):
     except Exception as exc:
         message = sanitized_error(exc)
         with transaction.atomic():
-            for record in ExternalRecord.objects.select_for_update().filter(source=source):
+            records = list(ExternalRecord.objects.select_for_update().filter(source=source))
+            for record in records:
                 old = previous.get(record.external_id)
-                if old is not None:
-                    record.current_snapshot_id = old; record.save(update_fields=["current_snapshot"])
+                if old is None:
+                    # The observed snapshot belongs to the immutable sync history,
+                    # but a first failed materialization is not published as current.
+                    record.delete()
+                    continue
+                for field in RECORD_PUBLICATION_FIELDS:
+                    setattr(record, field, old[field])
+                record.save(update_fields=list(RECORD_PUBLICATION_FIELDS))
             state = SourceState.objects.select_for_update().get(source=source); metadata = dict(state.metadata or {}); metadata["materialization_status"] = "partial"
             state.estado = SourceState.Status.PARTIAL; state.last_error = message; state.metadata = metadata; state.save(update_fields=["estado", "last_error", "metadata", "updated_at"])
             SyncRun.objects.filter(pk=run.pk).update(estado=SourceState.Status.PARTIAL, errors=1, message=message, finished_at=timezone.now())
