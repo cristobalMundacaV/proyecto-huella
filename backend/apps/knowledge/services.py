@@ -13,7 +13,8 @@ def sanitize(value):
     return value
 def canonical_content(record):
     payload=sanitize(record.payload)
-    semantic={"content":payload if payload is not None else record.text,"kind":record.kind,"title":record.title,"source_url":record.source_url,"published_at":record.published_at.isoformat() if record.published_at else None,"upstream_updated_at":record.upstream_updated_at.isoformat() if record.upstream_updated_at else None,"metadata":sanitize(record.metadata)}
+    metadata=sanitize(record.metadata); semantic_metadata={key:value for key,value in metadata.items() if key!="upstream_page_sha256"}
+    semantic={"content":payload if payload is not None else record.text,"kind":record.kind,"title":record.title,"source_url":record.source_url,"published_at":record.published_at.isoformat() if record.published_at else None,"upstream_updated_at":record.upstream_updated_at.isoformat() if record.upstream_updated_at else None,"metadata":semantic_metadata}
     encoded=json.dumps(semantic,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()
     raw_size=len(json.dumps(payload,ensure_ascii=False).encode()) if payload is not None else len(record.text.encode())
     if raw_size>MAX_PAYLOAD_BYTES or len(record.text)>MAX_TEXT_CHARS: raise ValidationError("El contenido externo excede el limite de persistencia.")

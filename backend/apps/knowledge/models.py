@@ -132,6 +132,166 @@ class HuellaChileEmissionFactorFact(models.Model):
         constraints=[models.UniqueConstraint(fields=["artifact","sheet_name","source_row_number"],name="knowledge_hc_factor_source_row")]
         indexes=[models.Index(fields=["artifact","dataset_year","alcance","categoria"],name="knowledge_hc_factor_filter")]
 
+
+class ImmutableRegulatoryFactQuerySet(models.QuerySet):
+    def delete(self):
+        raise ValidationError("Los hechos regulatorios historicos son inmutables.")
+
+    def bulk_create(self, *args, **kwargs):
+        raise ValidationError("Use el servicio de materializacion regulatoria.")
+
+
+class ImmutableRegulatoryFact(models.Model):
+    objects = ImmutableRegulatoryFactQuerySet.as_manager()
+
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("El hecho regulatorio historico es inmutable.")
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("El hecho regulatorio historico es inmutable.")
+
+
+class SnifaOpenDatasetFact(ImmutableRegulatoryFact):
+    snapshot = models.OneToOneField(ExternalSnapshot, on_delete=models.PROTECT, related_name="snifa_open_dataset_fact")
+    dataset_code = models.CharField(max_length=160, db_index=True)
+    title = models.CharField(max_length=500)
+    description = models.TextField(blank=True)
+    publisher = models.CharField(max_length=300)
+    source_url = models.URLField(max_length=1000)
+
+    def clean(self):
+        if self.snapshot.source.codigo != "snifa" or self.snapshot.record_kind != "snifa_open_dataset" or not self.dataset_code or not self.title:
+            raise ValidationError("Dataset SNIFA incompatible con su snapshot.")
+
+
+class SnifaReferenceSubscription(models.Model):
+    class ReferenceType(models.TextChoices):
+        UNIT = "unit", "Unit"
+        INSPECTION = "inspection", "Inspection"
+        SANCTIONING = "sanctioning", "Sanctioning"
+        FINAL_SANCTION = "final_sanction", "Final sanction"
+
+    source = models.ForeignKey(EnvironmentalSource, on_delete=models.PROTECT, related_name="snifa_reference_subscriptions")
+    reference_type = models.CharField(max_length=30, choices=ReferenceType.choices)
+    external_key = models.CharField(max_length=300)
+    source_url = models.URLField(max_length=1000)
+    label = models.CharField(max_length=500)
+    scope_tags = models.JSONField(default=list, blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["source", "reference_type", "external_key"], name="knowledge_snifa_subscription_identity")]
+
+    def clean(self):
+        from .connectors.http import validate_snifa_url
+        if self.source.codigo != "snifa" or self.reference_type not in self.ReferenceType.values or not self.external_key.strip():
+            raise ValidationError("Suscripcion SNIFA invalida.")
+        try: validate_snifa_url(self.source_url)
+        except ValueError as exc: raise ValidationError(str(exc)) from exc
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class SnifaRegulatoryReferenceFact(ImmutableRegulatoryFact):
+    snapshot = models.OneToOneField(ExternalSnapshot, on_delete=models.PROTECT, related_name="snifa_regulatory_reference_fact")
+    reference_type = models.CharField(max_length=30, choices=SnifaReferenceSubscription.ReferenceType.choices, db_index=True)
+    external_key = models.CharField(max_length=300, db_index=True)
+    expediente = models.CharField(max_length=300, blank=True, db_index=True)
+    unit_external_key = models.CharField(max_length=300, blank=True)
+    unit_name = models.CharField(max_length=500, blank=True)
+    holder_name = models.CharField(max_length=500, blank=True)
+    category = models.CharField(max_length=300, blank=True)
+    region = models.CharField(max_length=200, blank=True, db_index=True)
+    commune = models.CharField(max_length=200, blank=True, db_index=True)
+    status_raw = models.CharField(max_length=500, blank=True, db_index=True)
+    event_date = models.DateField(null=True, blank=True)
+    sanction_amount_raw = models.CharField(max_length=300, blank=True)
+    payment_status_raw = models.CharField(max_length=300, blank=True)
+    instrument_references = models.JSONField(default=list, blank=True)
+    source_url = models.URLField(max_length=1000)
+
+    def clean(self):
+        if self.snapshot.source.codigo != "snifa" or self.snapshot.record_kind != "snifa_regulatory_reference" or self.reference_type not in SnifaReferenceSubscription.ReferenceType.values or not self.external_key:
+            raise ValidationError("Fact SNIFA incompatible con su snapshot.")
+
+
+class SeaProjectSubscription(models.Model):
+    source = models.ForeignKey(EnvironmentalSource, on_delete=models.PROTECT, related_name="sea_project_subscriptions")
+    project_key = models.CharField(max_length=300)
+    project_url = models.URLField(max_length=1000)
+    label = models.CharField(max_length=500)
+    scope_tags = models.JSONField(default=list, blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["source", "project_key"], name="knowledge_sea_subscription_identity")]
+
+    def clean(self):
+        from .connectors.http import validate_sea_url
+        if self.source.codigo != "sea-seia" or not self.project_key.strip():
+            raise ValidationError("Suscripcion SEA invalida.")
+        try: validate_sea_url(self.project_url)
+        except ValueError as exc: raise ValidationError(str(exc)) from exc
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class SeaProjectFact(ImmutableRegulatoryFact):
+    snapshot = models.OneToOneField(ExternalSnapshot, on_delete=models.PROTECT, related_name="sea_project_fact")
+    project_key = models.CharField(max_length=300, db_index=True)
+    folio = models.CharField(max_length=200, blank=True, db_index=True)
+    name = models.CharField(max_length=1000)
+    holder_name = models.CharField(max_length=500, blank=True)
+    region = models.CharField(max_length=200, blank=True, db_index=True)
+    communes = models.JSONField(default=list, blank=True)
+    presentation_type_raw = models.CharField(max_length=200, blank=True, db_index=True)
+    status_raw = models.CharField(max_length=500, blank=True, db_index=True)
+    sector_raw = models.CharField(max_length=500, blank=True, db_index=True)
+    project_type_raw = models.CharField(max_length=1000, blank=True)
+    admission_reason_raw = models.CharField(max_length=1000, blank=True)
+    submission_date = models.DateField(null=True, blank=True)
+    qualification_date = models.DateField(null=True, blank=True)
+    project_url = models.URLField(max_length=1000)
+    expediente_url = models.URLField(max_length=1000, blank=True)
+
+    def clean(self):
+        if self.snapshot.source.codigo != "sea-seia" or self.snapshot.record_kind != "sea_project" or not self.project_key or not self.name:
+            raise ValidationError("Fact SEA incompatible con su snapshot.")
+
+
+class SeaRcaReferenceFact(ImmutableRegulatoryFact):
+    project_fact = models.ForeignKey(SeaProjectFact, on_delete=models.PROTECT, related_name="rca_references")
+    document_key = models.CharField(max_length=300)
+    rca_number_raw = models.CharField(max_length=300, blank=True)
+    title = models.CharField(max_length=1000)
+    document_date = models.DateField(null=True, blank=True)
+    qualification_result_raw = models.CharField(max_length=500, blank=True)
+    document_url = models.URLField(max_length=1000)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["project_fact", "document_key"], name="knowledge_sea_rca_identity")]
+
+    def clean(self):
+        from .connectors.http import validate_sea_url
+        if not self.document_key or not self.title: raise ValidationError("Referencia RCA incompleta.")
+        try: validate_sea_url(self.document_url)
+        except ValueError as exc: raise ValidationError(str(exc)) from exc
+
 class BcnLegalNormSubscription(models.Model):
     source=models.ForeignKey(EnvironmentalSource,on_delete=models.PROTECT,related_name="legal_norm_subscriptions");norm_type=models.CharField(max_length=30);number=models.CharField(max_length=60);label=models.CharField(max_length=300);scope_tags=models.JSONField(default=list,blank=True);active=models.BooleanField(default=True);created_at=models.DateTimeField(auto_now_add=True);updated_at=models.DateTimeField(auto_now=True)
     class Meta:constraints=[models.UniqueConstraint(fields=["source","norm_type","number"],name="knowledge_bcn_subscription_identity")]

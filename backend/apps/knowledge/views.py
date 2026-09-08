@@ -12,7 +12,7 @@ from .bcn_obligations import BCN_LEGAL_OBLIGATION_EXTRACTOR_VERSION,current_bcn_
 from .bcn_text import get_current_bcn_legal_text
 from .legal_governance import EDITABLE,activate_legal_obligation_version,obsolete_legal_obligation_version,promote_legal_candidate,reject_legal_candidate,update_legal_obligation_draft,validate_legal_obligation_version
 from .legal_evidence import EDITABLE_EVIDENCE_FIELDS,activate_legal_evidence_requirement_version,create_legal_evidence_requirement,create_legal_evidence_requirement_version,get_legal_evidence_requirement_freshness,obsolete_legal_evidence_requirement_version,update_legal_evidence_requirement_draft,validate_legal_evidence_requirement_version
-from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalObligationCandidate,LegalEvidenceRequirement,LegalEvidenceRequirementVersion,LegalObligation,LegalObligationVersion,EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact
+from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalObligationCandidate,LegalEvidenceRequirement,LegalEvidenceRequirementVersion,LegalObligation,LegalObligationVersion,EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact,SnifaOpenDatasetFact,SnifaRegulatoryReferenceFact,SnifaReferenceSubscription,SeaProjectFact,SeaProjectSubscription
 from .serializers import BcnLegalArticleFactSerializer,BcnLegalNormFactSerializer,BcnLegalObligationCandidateSerializer,LegalEvidenceRequirementVersionSerializer,LegalObligationVersionSerializer,EnvironmentalSourceSerializer,ExternalRecordSerializer,ExternalSnapshotSerializer,HuellaChileEmissionFactorFactSerializer,RetcHazardousWasteFactSerializer,SyncRunSerializer
 from .services import source_freshness
 class KnowledgePagination(PageNumberPagination):
@@ -287,3 +287,77 @@ def legal_evidence_requirement_activate(request, pk):return _evidence_transition
 @api_view(["POST"])
 @permission_classes([IsSuperUser])
 def legal_evidence_requirement_obsolete(request, pk):return _evidence_transition(request, pk, obsolete_legal_evidence_requirement_version)
+
+
+def _provenance(fact):
+    snapshot=fact.snapshot;source=snapshot.source
+    return {"source_code":source.codigo,"source_name":source.nombre,"source_url":snapshot.source_url,"snapshot_id":snapshot.id,"retrieved_at":snapshot.retrieved_at,"upstream_updated_at":snapshot.upstream_updated_at,"content_hash":snapshot.content_hash,"source_freshness":source_freshness(source)}
+def _snifa_dataset_data(item):return {"id":item.id,"dataset_code":item.dataset_code,"title":item.title,"description":item.description,"publisher":item.publisher,**_provenance(item)}
+def _snifa_reference_data(item):return {"id":item.id,"reference_type":item.reference_type,"external_key":item.external_key,"expediente":item.expediente,"unit_external_key":item.unit_external_key,"unit_name":item.unit_name,"holder_name":item.holder_name,"category":item.category,"region":item.region,"commune":item.commune,"status_raw":item.status_raw,"event_date":item.event_date,"sanction_amount_raw":item.sanction_amount_raw,"payment_status_raw":item.payment_status_raw,"instrument_references":item.instrument_references,**_provenance(item)}
+def _sea_project_data(item):return {"id":item.id,"project_key":item.project_key,"folio":item.folio,"name":item.name,"holder_name":item.holder_name,"region":item.region,"communes":item.communes,"presentation_type_raw":item.presentation_type_raw,"status_raw":item.status_raw,"sector_raw":item.sector_raw,"project_type_raw":item.project_type_raw,"admission_reason_raw":item.admission_reason_raw,"submission_date":item.submission_date,"qualification_date":item.qualification_date,"project_url":item.project_url,"expediente_url":item.expediente_url,"rca_references":[{"id":rca.id,"document_key":rca.document_key,"rca_number_raw":rca.rca_number_raw,"title":rca.title,"document_date":rca.document_date,"qualification_result_raw":rca.qualification_result_raw,"document_url":rca.document_url,"metadata":rca.metadata} for rca in item.rca_references.all()],**_provenance(item)}
+def _page_dicts(request,items):
+    paginator=KnowledgePagination();page=paginator.paginate_queryset(items,request);return paginator.get_paginated_response(list(page))
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def snifa_datasets(request):
+    items=SnifaOpenDatasetFact.objects.filter(snapshot__current_for__current_snapshot=models.F("snapshot"),snapshot__source__codigo="snifa").select_related("snapshot__source").order_by("dataset_code");return _page_dicts(request,[_snifa_dataset_data(item) for item in items])
+def _snifa_queryset(request):
+    queryset=SnifaRegulatoryReferenceFact.objects.filter(snapshot__current_for__current_snapshot=models.F("snapshot"),snapshot__source__codigo="snifa").select_related("snapshot__source").order_by("id")
+    for parameter,lookup in {"reference_type":"reference_type","region":"region__iexact","commune":"commune__iexact","expediente":"expediente__iexact","status":"status_raw__iexact"}.items():
+        if request.query_params.get(parameter):queryset=queryset.filter(**{lookup:request.query_params[parameter]})
+    return queryset
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def snifa_references(request):return _page_dicts(request,[_snifa_reference_data(item) for item in _snifa_queryset(request)])
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def snifa_reference_detail(request,pk):return Response(_snifa_reference_data(get_object_or_404(_snifa_queryset(request),pk=pk)))
+def _sea_queryset(request):
+    queryset=SeaProjectFact.objects.filter(snapshot__current_for__current_snapshot=models.F("snapshot"),snapshot__source__codigo="sea-seia").select_related("snapshot__source").prefetch_related("rca_references").order_by("id")
+    for parameter,lookup in {"region":"region__iexact","presentation_type":"presentation_type_raw__iexact","status":"status_raw__iexact","sector":"sector_raw__iexact","folio":"folio__iexact"}.items():
+        if request.query_params.get(parameter):queryset=queryset.filter(**{lookup:request.query_params[parameter]})
+    commune=request.query_params.get("commune");return [item for item in queryset if not commune or commune.casefold() in {str(value).casefold() for value in item.communes}]
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def sea_projects(request):return _page_dicts(request,[_sea_project_data(item) for item in _sea_queryset(request)])
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def sea_project_detail(request,pk):
+    item=next((item for item in _sea_queryset(request) if item.pk==pk),None)
+    if not item:raise Http404
+    return Response(_sea_project_data(item))
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def sea_discover(request):
+    from .connectors.sea import discover_sea_projects
+    allowed={"project_name","holder_name","folio","region","commune","presentation_type","status","sector"}
+    if set(request.query_params)-allowed:return Response({"detail":"Filtros no permitidos."},status=400)
+    try:return Response(discover_sea_projects(**{key:request.query_params[key] for key in allowed if request.query_params.get(key)}))
+    except Exception as exc:return _error(exc)
+def _subscriptions(request,model,source_code,allowed):
+    source=get_object_or_404(EnvironmentalSource,codigo=source_code)
+    if request.method=="GET":return Response(list(model.objects.filter(source=source).order_by("id").values("id",*sorted(allowed))))
+    if set(request.data)-allowed:return Response({"detail":"Campos no permitidos."},status=400)
+    try:
+        item=model(source=source,**{key:request.data[key] for key in allowed if key in request.data});item.save();return Response({"id":item.id},status=201)
+    except Exception as exc:return _error(exc)
+@api_view(["GET","POST"])
+@permission_classes([IsSuperUser])
+def snifa_subscriptions(request):return _subscriptions(request,SnifaReferenceSubscription,"snifa",{"reference_type","external_key","source_url","label","scope_tags","active"})
+@api_view(["GET","POST"])
+@permission_classes([IsSuperUser])
+def sea_subscriptions(request):return _subscriptions(request,SeaProjectSubscription,"sea-seia",{"project_key","project_url","label","scope_tags","active"})
+def _subscription_detail(request,model,pk,allowed):
+    item=get_object_or_404(model,pk=pk)
+    if request.method=="GET":return Response({"id":item.id,**{key:getattr(item,key) for key in sorted(allowed)}})
+    if set(request.data)-allowed:return Response({"detail":"Campos no permitidos."},status=400)
+    try:
+        for key,value in request.data.items():setattr(item,key,value)
+        item.save();return Response({"id":item.id})
+    except Exception as exc:return _error(exc)
+@api_view(["GET","PATCH"])
+@permission_classes([IsSuperUser])
+def snifa_subscription_detail(request,pk):return _subscription_detail(request,SnifaReferenceSubscription,pk,{"reference_type","external_key","source_url","label","scope_tags","active"})
+@api_view(["GET","PATCH"])
+@permission_classes([IsSuperUser])
+def sea_subscription_detail(request,pk):return _subscription_detail(request,SeaProjectSubscription,pk,{"project_key","project_url","label","scope_tags","active"})
