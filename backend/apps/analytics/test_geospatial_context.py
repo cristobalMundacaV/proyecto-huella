@@ -59,16 +59,19 @@ class TerritorialObservationTests(TestCase):
             return self.feature_query(fact)
         with patch("apps.knowledge.simbio_spatial_query.query_simbio_layer_at_point",side_effect=fail),self.assertRaises(ValueError):observe_work_territorial_context(self.user,self.org,self.work)
         self.assertEqual(type(first).objects.count(),1);self.assertTrue(type(first).objects.get().is_latest)
-    def test_layer_eight_and_attribute_failures_keep_previous_latest(self):
+    def _assert_refresh_failure_keeps_previous(self,failure_call):
         with patch("apps.knowledge.simbio_spatial_query.query_simbio_layer_at_point",side_effect=self.feature_query):first,_=observe_work_territorial_context(self.user,self.org,self.work)
-        for failure_call in (8, 3):
-            calls=0
-            def fail(fact,*args):
-                nonlocal calls;calls+=1
-                if calls==failure_call:raise ValueError("attribute batch upstream secret=hidden")
-                return self.feature_query(fact)
-            with patch("apps.knowledge.simbio_spatial_query.query_simbio_layer_at_point",side_effect=fail),self.assertRaises(ValueError):observe_work_territorial_context(self.user,self.org,self.work)
-            self.assertEqual(type(first).objects.count(),1);self.assertTrue(type(first).objects.get().is_latest)
+        calls=0
+        def fail(fact,*args):
+            nonlocal calls;calls+=1
+            if calls==failure_call:raise ValueError("attribute batch upstream secret=hidden")
+            return self.feature_query(fact)
+        with patch("apps.knowledge.simbio_spatial_query.query_simbio_layer_at_point",side_effect=fail),self.assertRaises(ValueError):observe_work_territorial_context(self.user,self.org,self.work)
+        self.assertEqual(type(first).objects.count(),1);self.assertTrue(type(first).objects.get().is_latest)
+    def test_layer_eight_failure_keeps_previous_latest(self):
+        self._assert_refresh_failure_keeps_previous(8)
+    def test_attribute_batch_failure_keeps_previous_latest(self):
+        self._assert_refresh_failure_keeps_previous(3)
     def test_feature_and_summary_tampering_are_rejected(self):
         catalog=build_layer_catalog_snapshot();layers=[]
         for fact in SimbioGeoLayerFact.objects.order_by("service_code","layer_id"):
@@ -155,4 +158,4 @@ class GeoConcurrencyTests(TransactionTestCase):
         set_work_geolocation(user,org,work,latitude=-37,longitude=-72,capture_method="manual")
         def empty(*args):return []
         with patch("apps.knowledge.simbio_spatial_query.query_simbio_layer_at_point",side_effect=empty):results,errors=self._run([lambda:observe_work_territorial_context(user,org,work),lambda:observe_work_territorial_context(user,org,work)])
-        self.assertFalse(errors);self.assertEqual(WorkTerritorialObservationRevision.objects.filter(work=work).count(),2);self.assertEqual(WorkTerritorialObservationRevision.objects.filter(work=work,is_latest=True).count(),1)
+        self.assertFalse(errors);self.assertEqual(WorkTerritorialObservationRevision.objects.filter(work=work).count(),2);self.assertEqual(list(WorkTerritorialObservationRevision.objects.filter(work=work).order_by("revision").values_list("revision",flat=True)),[1,2]);self.assertEqual(WorkTerritorialObservationRevision.objects.filter(work=work,is_latest=True).count(),1)
