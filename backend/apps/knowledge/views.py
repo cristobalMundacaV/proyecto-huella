@@ -12,7 +12,7 @@ from .bcn_obligations import BCN_LEGAL_OBLIGATION_EXTRACTOR_VERSION,current_bcn_
 from .bcn_text import get_current_bcn_legal_text
 from .legal_governance import EDITABLE,activate_legal_obligation_version,obsolete_legal_obligation_version,promote_legal_candidate,reject_legal_candidate,update_legal_obligation_draft,validate_legal_obligation_version
 from .legal_evidence import EDITABLE_EVIDENCE_FIELDS,activate_legal_evidence_requirement_version,create_legal_evidence_requirement,create_legal_evidence_requirement_version,get_legal_evidence_requirement_freshness,obsolete_legal_evidence_requirement_version,update_legal_evidence_requirement_draft,validate_legal_evidence_requirement_version
-from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalObligationCandidate,LegalEvidenceRequirement,LegalEvidenceRequirementVersion,LegalObligation,LegalObligationVersion,EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact,SnifaOpenDatasetFact,SnifaRegulatoryReferenceFact,SnifaReferenceSubscription,SeaProjectFact,SeaProjectSubscription
+from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalObligationCandidate,LegalEvidenceRequirement,LegalEvidenceRequirementVersion,LegalObligation,LegalObligationVersion,EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact,SnifaOpenDatasetFact,SnifaRegulatoryReferenceFact,SnifaReferenceSubscription,SeaProjectFact,SeaProjectSubscription,SimbioGeoLayerFact,IdeMmaDatasetFact,IdeMmaDownloadResourceFact
 from .serializers import BcnLegalArticleFactSerializer,BcnLegalNormFactSerializer,BcnLegalObligationCandidateSerializer,LegalEvidenceRequirementVersionSerializer,LegalObligationVersionSerializer,EnvironmentalSourceSerializer,ExternalRecordSerializer,ExternalSnapshotSerializer,HuellaChileEmissionFactorFactSerializer,RetcHazardousWasteFactSerializer,SyncRunSerializer
 from .services import source_freshness
 class KnowledgePagination(PageNumberPagination):
@@ -295,8 +295,52 @@ def _provenance(fact):
 def _snifa_dataset_data(item):return {"id":item.id,"dataset_code":item.dataset_code,"title":item.title,"description":item.description,"publisher":item.publisher,**_provenance(item)}
 def _snifa_reference_data(item):return {"id":item.id,"reference_type":item.reference_type,"external_key":item.external_key,"expediente":item.expediente,"unit_external_key":item.unit_external_key,"unit_name":item.unit_name,"holder_name":item.holder_name,"category":item.category,"region":item.region,"commune":item.commune,"status_raw":item.status_raw,"event_date":item.event_date,"sanction_amount_raw":item.sanction_amount_raw,"payment_status_raw":item.payment_status_raw,"instrument_references":item.instrument_references,**_provenance(item)}
 def _sea_project_data(item):return {"id":item.id,"project_key":item.project_key,"folio":item.folio,"name":item.name,"holder_name":item.holder_name,"region":item.region,"communes":item.communes,"presentation_type_raw":item.presentation_type_raw,"status_raw":item.status_raw,"sector_raw":item.sector_raw,"project_type_raw":item.project_type_raw,"admission_reason_raw":item.admission_reason_raw,"submission_date":item.submission_date,"qualification_date":item.qualification_date,"project_url":item.project_url,"expediente_url":item.expediente_url,"rca_references":[{"id":rca.id,"document_key":rca.document_key,"rca_number_raw":rca.rca_number_raw,"title":rca.title,"document_date":rca.document_date,"qualification_result_raw":rca.qualification_result_raw,"document_url":rca.document_url,"metadata":rca.metadata} for rca in item.rca_references.all()],**_provenance(item)}
+def _geo_provenance(item):return _provenance(item)
+def _simbio_data(item):
+    fields=("service_code","service_name","service_url","layer_id","layer_name","layer_url","geometry_type","spatial_reference_wkid","display_field","object_id_field","max_record_count","supports_pagination","supports_distance_query","query_formats","fields_schema","service_item_id","provider_metadata")
+    return {"id":item.id,**{field:getattr(item,field) for field in fields},"provider":"SIMBIO/MMA","biodiversity_data_responsibility_note":item.snapshot.source.sync_state.metadata.get("biodiversity_data_responsibility_note",""),**_geo_provenance(item)}
+def _ide_dataset_data(item):
+    fields=("dataset_key","title","summary","metadata_standard","metadata_date","resource_date","organization_name","role_raw","status_raw","resource_type_raw","language_raw","geometry_type_raw","feature_count","size_raw","keywords","categories","bbox_west","bbox_east","bbox_south","bbox_north","metadata_url")
+    state=item.snapshot.source.sync_state
+    return {"id":item.id,**{field:getattr(item,field) for field in fields},"interoperability_available":bool(state.metadata.get("interoperability_available")),"usage_context":"referential",**_geo_provenance(item)}
+def _ide_download_data(item):
+    fields=("resource_key","title","category_raw","declared_size_raw","download_url")
+    state=item.snapshot.source.sync_state
+    return {"id":item.id,**{field:getattr(item,field) for field in fields},"interoperability_available":bool(state.metadata.get("interoperability_available")),"usage_context":"referential",**_geo_provenance(item)}
 def _page_dicts(request,items):
     paginator=KnowledgePagination();page=paginator.paginate_queryset(items,request);return paginator.get_paginated_response(list(page))
+def _current_geo(model,source_code):return model.objects.filter(snapshot__current_for__current_snapshot=models.F("snapshot"),snapshot__source__codigo=source_code).select_related("snapshot__source","snapshot__source__sync_state")
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def simbio_layers(request):
+    qs=_current_geo(SimbioGeoLayerFact,"simbio").order_by("service_code","layer_id")
+    for parameter,lookup in {"service_code":"service_code__iexact","layer_name":"layer_name__icontains","geometry_type":"geometry_type__iexact"}.items():
+        if request.query_params.get(parameter):qs=qs.filter(**{lookup:request.query_params[parameter]})
+    distance=request.query_params.get("supports_distance_query")
+    if distance is not None:qs=qs.filter(supports_distance_query=distance.lower() in ("1","true","yes"))
+    return _page_dicts(request,[_simbio_data(item) for item in qs])
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def simbio_layer_detail(request,pk):return Response(_simbio_data(get_object_or_404(_current_geo(SimbioGeoLayerFact,"simbio"),pk=pk)))
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def ide_datasets(request):
+    qs=_current_geo(IdeMmaDatasetFact,"ide-mma").order_by("title")
+    for parameter,lookup in {"title":"title__icontains","geometry_type":"geometry_type_raw__iexact","status":"status_raw__iexact"}.items():
+        if request.query_params.get(parameter):qs=qs.filter(**{lookup:request.query_params[parameter]})
+    category=request.query_params.get("category");keyword=request.query_params.get("keyword")
+    items=[item for item in qs if (not category or category.casefold() in {str(v).casefold() for v in item.categories}) and (not keyword or keyword.casefold() in {str(v).casefold() for v in item.keywords})]
+    return _page_dicts(request,[_ide_dataset_data(item) for item in items])
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def ide_dataset_detail(request,pk):return Response(_ide_dataset_data(get_object_or_404(_current_geo(IdeMmaDatasetFact,"ide-mma"),pk=pk)))
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def ide_downloads(request):
+    qs=_current_geo(IdeMmaDownloadResourceFact,"ide-mma").order_by("title")
+    for parameter,lookup in {"title":"title__icontains","category":"category_raw__iexact"}.items():
+        if request.query_params.get(parameter):qs=qs.filter(**{lookup:request.query_params[parameter]})
+    return _page_dicts(request,[_ide_download_data(item) for item in qs])
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def snifa_datasets(request):

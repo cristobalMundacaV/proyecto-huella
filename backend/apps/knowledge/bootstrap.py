@@ -7,12 +7,14 @@ HUELLACHILE_MANAGED_DEFAULTS={"connector_key":"huellachile_web","tipo_acceso":"F
 BCN_MANAGED_DEFAULTS={"connector_key":"bcn_leychile_sparql","tipo_acceso":"SPARQL","base_url":"https://datos.bcn.cl/sparql","documentation_url":"https://datos.bcn.cl/es/documentacion","licencia_nombre":"Creative Commons Attribution","licencia_url":"","atribucion_requerida":True,"nivel_autoridad":"oficial","pais":"Chile","organismo":"Biblioteca del Congreso Nacional","cadencia_sugerida":"daily","stale_after_hours":48};BCN_STARTER=("19300","20417","20920","21455","21600")
 SNIFA_MANAGED_DEFAULTS={"connector_key":"snifa_public","tipo_acceso":"DOCUMENT_INDEX","base_url":"https://snifa.sma.gob.cl","documentation_url":"https://snifa.sma.gob.cl/DatosAbiertos","licencia_nombre":"","licencia_url":"","atribucion_requerida":True,"nivel_autoridad":"oficial","pais":"Chile","organismo":"Superintendencia del Medio Ambiente","cadencia_sugerida":"weekly","stale_after_hours":192}
 SEA_SEIA_MANAGED_DEFAULTS={"connector_key":"sea_seia_public","tipo_acceso":"DOCUMENT_INDEX","base_url":"https://seia.sea.gob.cl","documentation_url":"https://www.sea.gob.cl/e-seia-20","licencia_nombre":"","licencia_url":"","atribucion_requerida":True,"nivel_autoridad":"oficial","pais":"Chile","organismo":"Servicio de Evaluacion Ambiental","cadencia_sugerida":"weekly","stale_after_hours":192}
+SIMBIO_MANAGED_DEFAULTS={"connector_key":"simbio_arcgis","tipo_acceso":"ARCGIS_REST","base_url":"https://arcgis.mma.gob.cl/server/rest/services/SIMBIO","documentation_url":"https://simbio.mma.gob.cl/","licencia_nombre":"","licencia_url":"","atribucion_requerida":True,"nivel_autoridad":"oficial","pais":"Chile","organismo":"Ministerio del Medio Ambiente","cadencia_sugerida":"weekly","stale_after_hours":192}
+IDE_MMA_MANAGED_DEFAULTS={"connector_key":"ide_mma_catalog","tipo_acceso":"DOCUMENT_INDEX","base_url":"https://ide.mma.gob.cl","documentation_url":"https://ide.mma.gob.cl/sinia/catalog","licencia_nombre":"","licencia_url":"","atribucion_requerida":True,"nivel_autoridad":"oficial","pais":"Chile","organismo":"Ministerio del Medio Ambiente","cadencia_sugerida":"weekly","stale_after_hours":192}
 @transaction.atomic
 def ensure_environmental_source_registry():
     result=[]
     for code,name,agency,access in SOURCES:
         source,created=EnvironmentalSource.objects.get_or_create(codigo=code,defaults={"nombre":name,"organismo":agency,"descripcion":"Registro preparado para integracion futura controlada.","connector_key":f"pending-{code}","tipo_acceso":access,"nivel_autoridad":"oficial","pais":"Chile" if code!="okobaudat" else "Alemania"})
-        legacy={"retc":"DOCUMENT_INDEX","huellachile":"DOCUMENT_INDEX","bcn-leychile":"DOCUMENT_INDEX","simbio":"DOCUMENT_INDEX","ide-mma":"ARCGIS_REST","okobaudat":"DOCUMENT_INDEX"}.get(code)
+        legacy={"retc":"DOCUMENT_INDEX","huellachile":"DOCUMENT_INDEX","bcn-leychile":"DOCUMENT_INDEX","okobaudat":"DOCUMENT_INDEX"}.get(code)
         if not created and legacy and source.connector_key==f"pending-{code}" and source.tipo_acceso==legacy:
             source.tipo_acceso=access;source.save(update_fields=["tipo_acceso","updated_at"])
         retc_unconfigured=(source.connector_key=="pending-retc" and source.tipo_acceso=="CKAN" and not source.base_url and not source.documentation_url and not source.licencia_nombre and not source.licencia_url and source.atribucion_requerida and source.nivel_autoridad=="oficial" and source.pais=="Chile" and source.organismo=="Ministerio del Medio Ambiente")
@@ -32,9 +34,22 @@ def ensure_environmental_source_registry():
         if regulatory_unconfigured:
             for field,value in regulatory_defaults.items():setattr(source,field,value)
             source.save(update_fields=[*regulatory_defaults,"updated_at"])
+        geo_defaults={"simbio":SIMBIO_MANAGED_DEFAULTS,"ide-mma":IDE_MMA_MANAGED_DEFAULTS}.get(code)
+        managed_geo_access=(code=="simbio" and source.tipo_acceso in ("DOCUMENT_INDEX","ARCGIS_REST")) or (code=="ide-mma" and source.tipo_acceso in ("ARCGIS_REST","WFS","DOCUMENT_INDEX"))
+        geo_unconfigured=(geo_defaults and managed_geo_access and source.connector_key==f"pending-{code}" and not source.base_url and not source.documentation_url and not source.licencia_nombre and not source.licencia_url and source.atribucion_requerida and source.nivel_autoridad=="oficial" and source.pais=="Chile" and source.organismo==agency)
+        if geo_unconfigured:
+            for field,value in geo_defaults.items():setattr(source,field,value)
+            source.save(update_fields=[*geo_defaults,"updated_at"])
+        if code=="simbio" and source.connector_key=="simbio_arcgis":
+            state_metadata={"biodiversity_official_data_responsibility":"SBAP","responsibility_effective_date":"2026-02-02","interoperability_provider":"SIMBIO/MMA","biodiversity_data_responsibility_note":"La responsabilidad oficial de datos de biodiversidad corresponde a SBAP desde 2026-02-02; el proveedor de interoperabilidad consumido es SIMBIO/MMA."}
         if code=="bcn-leychile" and source.connector_key=="bcn_leychile_sparql":
             from .models import BcnLegalNormSubscription
             for number in BCN_STARTER:BcnLegalNormSubscription.objects.get_or_create(source=source,norm_type="LEY",number=number,defaults={"label":f"LEY {number}","scope_tags":["marco_ambiental","starter_corpus_no_exhaustivo"]})
-        SourceState.objects.get_or_create(source=source); result.append(source)
+        state,_=SourceState.objects.get_or_create(source=source)
+        if code=="simbio" and source.connector_key=="simbio_arcgis":
+            metadata=dict(state.metadata or {});metadata.update(state_metadata);state.metadata=metadata;state.save(update_fields=["metadata","updated_at"])
+        if code=="ide-mma" and source.connector_key=="ide_mma_catalog":
+            metadata=dict(state.metadata or {});metadata.update({"usage_context":"referential","information_update_context":"constant_update","authoritative_for_compliance":False});state.metadata=metadata;state.save(update_fields=["metadata","updated_at"])
+        result.append(source)
     return result
 def ensure_source_registry_after_migrate(**kwargs): ensure_environmental_source_registry()

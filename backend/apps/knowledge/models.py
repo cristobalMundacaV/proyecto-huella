@@ -322,6 +322,42 @@ class SeaRcaReferenceFact(ImmutableRegulatoryFact):
         except ValueError as exc:
             raise ValidationError(str(exc)) from exc
 
+
+class SimbioGeoLayerFact(ImmutableRegulatoryFact):
+    snapshot=models.OneToOneField(ExternalSnapshot,on_delete=models.PROTECT,related_name="simbio_geo_layer_fact")
+    service_code=models.CharField(max_length=120,db_index=True);service_name=models.CharField(max_length=300);service_url=models.URLField(max_length=1000)
+    layer_id=models.PositiveIntegerField();layer_name=models.CharField(max_length=500,db_index=True);layer_url=models.URLField(max_length=1000)
+    geometry_type=models.CharField(max_length=100,db_index=True);spatial_reference_wkid=models.PositiveIntegerField(null=True,blank=True)
+    display_field=models.CharField(max_length=300,blank=True);object_id_field=models.CharField(max_length=300,blank=True);max_record_count=models.PositiveIntegerField(null=True,blank=True)
+    supports_pagination=models.BooleanField(default=False);supports_distance_query=models.BooleanField(default=False)
+    query_formats=models.JSONField(default=list);fields_schema=models.JSONField(default=list);service_item_id=models.CharField(max_length=200,blank=True);provider_metadata=models.JSONField(default=dict)
+    def clean(self):
+        from .geo_facts import build_simbio_layer_fact_payload, model_payload
+        expected=build_simbio_layer_fact_payload(self.snapshot)
+        if model_payload(self,expected)!=expected:raise ValidationError("Capa SIMBIO adulterada respecto del snapshot.")
+
+
+class IdeMmaDatasetFact(ImmutableRegulatoryFact):
+    snapshot=models.OneToOneField(ExternalSnapshot,on_delete=models.PROTECT,related_name="ide_mma_dataset_fact")
+    dataset_key=models.CharField(max_length=300,db_index=True);title=models.CharField(max_length=1000,db_index=True);summary=models.TextField(blank=True)
+    metadata_standard=models.CharField(max_length=300,blank=True);metadata_date=models.DateField(null=True,blank=True);resource_date=models.DateField(null=True,blank=True)
+    organization_name=models.CharField(max_length=500,blank=True);role_raw=models.CharField(max_length=300,blank=True);status_raw=models.CharField(max_length=300,blank=True,db_index=True);resource_type_raw=models.CharField(max_length=300,blank=True);language_raw=models.CharField(max_length=100,blank=True)
+    geometry_type_raw=models.CharField(max_length=300,blank=True,db_index=True);feature_count=models.PositiveBigIntegerField(null=True,blank=True);size_raw=models.CharField(max_length=200,blank=True)
+    keywords=models.JSONField(default=list,blank=True);categories=models.JSONField(default=list,blank=True);bbox_west=models.DecimalField(max_digits=15,decimal_places=9,null=True,blank=True);bbox_east=models.DecimalField(max_digits=15,decimal_places=9,null=True,blank=True);bbox_south=models.DecimalField(max_digits=15,decimal_places=9,null=True,blank=True);bbox_north=models.DecimalField(max_digits=15,decimal_places=9,null=True,blank=True);metadata_url=models.URLField(max_length=1000)
+    def clean(self):
+        from .geo_facts import build_ide_dataset_fact_payload, model_payload
+        expected=build_ide_dataset_fact_payload(self.snapshot)
+        if model_payload(self,expected)!=expected:raise ValidationError("Dataset IDE MMA adulterado respecto del snapshot.")
+
+
+class IdeMmaDownloadResourceFact(ImmutableRegulatoryFact):
+    snapshot=models.OneToOneField(ExternalSnapshot,on_delete=models.PROTECT,related_name="ide_mma_download_fact")
+    resource_key=models.CharField(max_length=300,db_index=True);title=models.CharField(max_length=1000,db_index=True);category_raw=models.CharField(max_length=500,blank=True,db_index=True);declared_size_raw=models.CharField(max_length=200,blank=True);download_url=models.URLField(max_length=1000)
+    def clean(self):
+        from .geo_facts import build_ide_download_fact_payload, model_payload
+        expected=build_ide_download_fact_payload(self.snapshot)
+        if model_payload(self,expected)!=expected:raise ValidationError("Descarga IDE MMA adulterada respecto del snapshot.")
+
 class BcnLegalNormSubscription(models.Model):
     source=models.ForeignKey(EnvironmentalSource,on_delete=models.PROTECT,related_name="legal_norm_subscriptions");norm_type=models.CharField(max_length=30);number=models.CharField(max_length=60);label=models.CharField(max_length=300);scope_tags=models.JSONField(default=list,blank=True);active=models.BooleanField(default=True);created_at=models.DateTimeField(auto_now_add=True);updated_at=models.DateTimeField(auto_now=True)
     class Meta:constraints=[models.UniqueConstraint(fields=["source","norm_type","number"],name="knowledge_bcn_subscription_identity")]
