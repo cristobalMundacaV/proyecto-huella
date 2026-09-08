@@ -42,3 +42,6 @@ data/processed/
 backend/data/*.json
 backend/db.sqlite3.backup-*
 *.log
+
+# Local PostgreSQL test clusters
+.tmp-pg-*/
