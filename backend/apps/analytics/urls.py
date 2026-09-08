@@ -1,4 +1,5 @@
 from django.urls import path
+from .views_geospatial_context import work_geolocation,work_geolocation_history,work_territorial_context,observe_work_context,work_territorial_history
 
 from .views import (
     ai_advisor,
@@ -291,6 +292,7 @@ from .views_account_lifecycle import (
 from . import views_operational_context
 
 urlpatterns = [
+    path("organizaciones/<str:organization_id>/obras/<int:work_id>/geo/ubicacion/",work_geolocation),path("organizaciones/<str:organization_id>/obras/<int:work_id>/geo/ubicacion/historial/",work_geolocation_history),path("organizaciones/<str:organization_id>/obras/<int:work_id>/geo/contexto/",work_territorial_context),path("organizaciones/<str:organization_id>/obras/<int:work_id>/geo/contexto/observar/",observe_work_context),path("organizaciones/<str:organization_id>/obras/<int:work_id>/geo/contexto/historial/",work_territorial_history),
     path("legal-evidence-operational-mappings/requirements/<int:requirement_version_id>/",mapping_detail),
     path("legal-evidence-operational-mappings/requirements/<int:requirement_version_id>/publish/",mapping_publish),
     path("organizaciones/<str:organization_id>/evidencia-legal/requisitos/",organization_requirements),

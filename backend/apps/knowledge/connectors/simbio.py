@@ -25,10 +25,10 @@ def validate_simbio_url(url):
     if any(token in lowered for token in ("addfeatures","updatefeatures","deletefeatures","applyedits","calculate","uploads")):raise ValueError("Operacion ArcGIS de escritura no permitida.")
     return str(url)
 
-def fetch_arcgis_json(url):
+def fetch_arcgis_json(url,params=None):
     validate_simbio_url(url);maximum=getattr(settings,"KNOWLEDGE_ARCGIS_MAX_BYTES",5*1024*1024);current=url
     for _ in range(4):
-        response=requests.get(current,params={"f":"json"},headers={"Accept":"application/json","User-Agent":KNOWLEDGE_USER_AGENT},timeout=(10,30),allow_redirects=False,stream=True)
+        query={"f":"json",**(params or {})};response=requests.get(current,params=query,headers={"Accept":"application/json","User-Agent":KNOWLEDGE_USER_AGENT},timeout=(10,30),allow_redirects=False,stream=True)
         if response.is_redirect:
             current=urljoin(current,response.headers.get("Location",""));validate_simbio_url(current);response.close();continue
         response.raise_for_status();validate_simbio_url(response.url);content_type=(response.headers.get("Content-Type") or "").lower()

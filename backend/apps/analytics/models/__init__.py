@@ -55,6 +55,7 @@ from .calculations import CalculoAmbiental, ImpactoAmbiental, InputCalculoAmbien
 from .legal_applicability import LegalObligationApplicabilityAssessment
 from .legal_evidence_mapping import LegalEvidenceOperationalLink, LegalEvidenceOperationalMappingRevision
 from .legal_evidence_sufficiency import LegalEvidenceRequirementSufficiencyReview
+from .geospatial_context import WorkGeolocationRevision,WorkTerritorialObservationRevision
 from .improvement import (
     AccionMejoraAmbiental,
     AlcanceProblematica,
