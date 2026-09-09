@@ -12,7 +12,7 @@ from .bcn_obligations import BCN_LEGAL_OBLIGATION_EXTRACTOR_VERSION,current_bcn_
 from .bcn_text import get_current_bcn_legal_text
 from .legal_governance import EDITABLE,activate_legal_obligation_version,obsolete_legal_obligation_version,promote_legal_candidate,reject_legal_candidate,update_legal_obligation_draft,validate_legal_obligation_version
 from .legal_evidence import EDITABLE_EVIDENCE_FIELDS,activate_legal_evidence_requirement_version,create_legal_evidence_requirement,create_legal_evidence_requirement_version,get_legal_evidence_requirement_freshness,obsolete_legal_evidence_requirement_version,update_legal_evidence_requirement_draft,validate_legal_evidence_requirement_version
-from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalObligationCandidate,LegalEvidenceRequirement,LegalEvidenceRequirementVersion,LegalObligation,LegalObligationVersion,EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact,SnifaOpenDatasetFact,SnifaRegulatoryReferenceFact,SnifaReferenceSubscription,SeaProjectFact,SeaProjectSubscription,SimbioGeoLayerFact,IdeMmaDatasetFact,IdeMmaDownloadResourceFact
+from .models import BcnLegalArticleFact,BcnLegalNormFact,BcnLegalObligationCandidate,LegalEvidenceRequirement,LegalEvidenceRequirementVersion,LegalObligation,LegalObligationVersion,EnvironmentalSource,ExternalFileArtifact,ExternalRecord,HuellaChileEmissionFactorFact,RetcHazardousWasteFact,SnifaOpenDatasetFact,SnifaRegulatoryReferenceFact,SnifaReferenceSubscription,SeaProjectFact,SeaProjectSubscription,SimbioGeoLayerFact,IdeMmaDatasetFact,IdeMmaDownloadResourceFact,OekobaudatDataStockFact,OekobaudatProcessFact
 from .serializers import BcnLegalArticleFactSerializer,BcnLegalNormFactSerializer,BcnLegalObligationCandidateSerializer,LegalEvidenceRequirementVersionSerializer,LegalObligationVersionSerializer,EnvironmentalSourceSerializer,ExternalRecordSerializer,ExternalSnapshotSerializer,HuellaChileEmissionFactorFactSerializer,RetcHazardousWasteFactSerializer,SyncRunSerializer
 from .services import source_freshness
 class KnowledgePagination(PageNumberPagination):
@@ -310,6 +310,34 @@ def _ide_download_data(item):
 def _page_dicts(request,items):
     paginator=KnowledgePagination();page=paginator.paginate_queryset(items,request);return paginator.get_paginated_response(list(page))
 def _current_geo(model,source_code):return model.objects.filter(snapshot__current_for__current_snapshot=models.F("snapshot"),snapshot__source__codigo=source_code).select_related("snapshot__source","snapshot__source__sync_state")
+def _current_okobaudat(model):return _current_geo(model,"okobaudat").filter(snapshot__current_for__estado="activo")
+def _ok_provenance(item):
+    metadata=item.snapshot.source.sync_state.metadata;return {"source_code":"okobaudat","selected_current_datastock":str(item.datastock_uuid)==metadata.get("selected_datastock_uuid"),"snapshot_id":item.snapshot_id,"content_hash":item.snapshot.content_hash,"retrieved_at":item.snapshot.retrieved_at,"source_freshness":source_freshness(item.snapshot.source),"source_url":item.source_url,"intended_use":"building_lca","not_designed_for_product_lca":True}
+def _ok_stock_data(item):
+    fields=("datastock_uuid","short_name","display_name","description","release_label","version_label","source_url","upstream_metadata");return {"id":item.id,**{field:getattr(item,field) for field in fields},**_ok_provenance(item)}
+def _ok_process_data(item):
+    fields=("datastock_uuid","process_uuid","dataset_version","name","base_name","location_raw","dataset_type_raw","owner_raw","classification","languages","compliance_standard_raw","compliance_source_uuid","permanent_uri","source_url","process_metadata");return {"id":item.id,**{field:getattr(item,field) for field in fields},**_ok_provenance(item)}
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def okobaudat_datastocks(request):return _page_dicts(request,[_ok_stock_data(item) for item in _current_okobaudat(OekobaudatDataStockFact).order_by("short_name")])
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def okobaudat_datastock_detail(request,pk):return Response(_ok_stock_data(get_object_or_404(_current_okobaudat(OekobaudatDataStockFact),pk=pk)))
+def _ok_process_queryset(request):
+    qs=_current_okobaudat(OekobaudatProcessFact).order_by("name","process_uuid","dataset_version")
+    for parameter,lookup in {"q":"name__icontains","name":"name__icontains","datastock_uuid":"datastock_uuid","location":"location_raw__iexact","dataset_type":"dataset_type_raw__iexact","compliance":"compliance_standard_raw__iexact","owner":"owner_raw__icontains"}.items():
+        if request.query_params.get(parameter):qs=qs.filter(**{lookup:request.query_params[parameter]})
+    classification=request.query_params.get("classification");language=request.query_params.get("language")
+    return [item for item in qs if (not classification or classification.casefold() in str(item.classification).casefold()) and (not language or language in item.languages)]
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def okobaudat_processes(request):return _page_dicts(request,[_ok_process_data(item) for item in _ok_process_queryset(request)])
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def okobaudat_process_detail(request,pk):
+    item=next((item for item in _ok_process_queryset(request) if item.pk==pk),None)
+    if not item:raise Http404
+    return Response(_ok_process_data(item))
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def simbio_layers(request):

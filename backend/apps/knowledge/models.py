@@ -670,3 +670,37 @@ class BcnLegalObligationCandidateReview(models.Model):
         if self.pk:raise ValidationError("La revision juridica es inmutable.")
         self.full_clean();super().save(*args,**kwargs)
     def delete(self,*args,**kwargs):raise ValidationError("La revision juridica no puede eliminarse.")
+
+
+class ImmutableOekobaudatFactQuerySet(models.QuerySet):
+    def update(self,*args,**kwargs):raise ValidationError("Los facts Oekobaudat son inmutables.")
+    def delete(self):raise ValidationError("Los facts Oekobaudat son inmutables.")
+    def bulk_create(self,*args,**kwargs):raise ValidationError("Los facts Oekobaudat requieren materializacion gobernada.")
+
+
+class ImmutableOekobaudatFact(models.Model):
+    objects=ImmutableOekobaudatFactQuerySet.as_manager()
+    class Meta:abstract=True
+    def save(self,*args,**kwargs):
+        if self.pk:raise ValidationError("Los facts Oekobaudat son inmutables.")
+        self.full_clean();super().save(*args,**kwargs)
+    def delete(self,*args,**kwargs):raise ValidationError("Los facts Oekobaudat son inmutables.")
+
+
+class OekobaudatDataStockFact(ImmutableOekobaudatFact):
+    snapshot=models.OneToOneField(ExternalSnapshot,on_delete=models.PROTECT,related_name="okobaudat_datastock_fact")
+    datastock_uuid=models.UUIDField(db_index=True);short_name=models.CharField(max_length=240,db_index=True);display_name=models.CharField(max_length=1000,blank=True);description=models.TextField(blank=True);release_label=models.CharField(max_length=240,blank=True);version_label=models.CharField(max_length=120,blank=True);source_url=models.URLField();upstream_metadata=models.JSONField(default=dict)
+    def clean(self):
+        from .okobaudat_facts import build_datastock_fact_payload
+        expected=build_datastock_fact_payload(self.snapshot)
+        if any(getattr(self,key)!=value for key,value in expected.items()):raise ValidationError("Fact datastock Oekobaudat adulterado.")
+
+
+class OekobaudatProcessFact(ImmutableOekobaudatFact):
+    snapshot=models.OneToOneField(ExternalSnapshot,on_delete=models.PROTECT,related_name="okobaudat_process_fact")
+    datastock_uuid=models.UUIDField(db_index=True);process_uuid=models.UUIDField(db_index=True);dataset_version=models.CharField(max_length=40,db_index=True);name=models.CharField(max_length=1000,db_index=True);base_name=models.CharField(max_length=1000,blank=True);location_raw=models.CharField(max_length=160,blank=True,db_index=True);dataset_type_raw=models.CharField(max_length=160,blank=True,db_index=True);owner_raw=models.CharField(max_length=500,blank=True,db_index=True);classification=models.JSONField(default=list);languages=models.JSONField(default=dict);compliance_standard_raw=models.CharField(max_length=160,default="unknown",db_index=True);compliance_source_uuid=models.CharField(max_length=40,blank=True);permanent_uri=models.URLField(blank=True);source_url=models.URLField();process_metadata=models.JSONField(default=dict)
+    class Meta:constraints=[models.UniqueConstraint(fields=["datastock_uuid","process_uuid","dataset_version","snapshot"],name="knowledge_okobaudat_process_identity")]
+    def clean(self):
+        from .okobaudat_facts import build_process_fact_payload
+        expected=build_process_fact_payload(self.snapshot)
+        if any(getattr(self,key)!=value for key,value in expected.items()):raise ValidationError("Fact process Oekobaudat adulterado.")

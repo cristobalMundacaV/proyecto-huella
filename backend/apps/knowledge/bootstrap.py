@@ -9,6 +9,8 @@ SNIFA_MANAGED_DEFAULTS={"connector_key":"snifa_public","tipo_acceso":"DOCUMENT_I
 SEA_SEIA_MANAGED_DEFAULTS={"connector_key":"sea_seia_public","tipo_acceso":"DOCUMENT_INDEX","base_url":"https://seia.sea.gob.cl","documentation_url":"https://www.sea.gob.cl/e-seia-20","licencia_nombre":"","licencia_url":"","atribucion_requerida":True,"nivel_autoridad":"oficial","pais":"Chile","organismo":"Servicio de Evaluacion Ambiental","cadencia_sugerida":"weekly","stale_after_hours":192}
 SIMBIO_MANAGED_DEFAULTS={"connector_key":"simbio_arcgis","tipo_acceso":"ARCGIS_REST","base_url":"https://arcgis.mma.gob.cl/server/rest/services/SIMBIO","documentation_url":"https://simbio.mma.gob.cl/","licencia_nombre":"","licencia_url":"","atribucion_requerida":True,"nivel_autoridad":"oficial","pais":"Chile","organismo":"Ministerio del Medio Ambiente","cadencia_sugerida":"weekly","stale_after_hours":192}
 IDE_MMA_MANAGED_DEFAULTS={"connector_key":"ide_mma_catalog","tipo_acceso":"DOCUMENT_INDEX","base_url":"https://ide.mma.gob.cl","documentation_url":"https://ide.mma.gob.cl/sinia/catalog","licencia_nombre":"","licencia_url":"","atribucion_requerida":True,"nivel_autoridad":"oficial","pais":"Chile","organismo":"Ministerio del Medio Ambiente","cadencia_sugerida":"weekly","stale_after_hours":192}
+OKOBAUDAT_MANAGED_DEFAULTS={"connector_key":"okobaudat_soda4lca","tipo_acceso":"REST","base_url":"https://www.oekobaudat.de/OEKOBAU.DAT/resource","documentation_url":"https://www.oekobaudat.de/en/guidance/software-developers.html","licencia_nombre":"","licencia_url":"","atribucion_requerida":True,"nivel_autoridad":"oficial","pais":"Alemania","organismo":"BMWSB / BBSR","cadencia_sugerida":"weekly","stale_after_hours":192}
+OKOBAUDAT_TERMS={"intended_use":"building_lca","not_designed_for_product_lca":True,"data_access":"free","redistribution_unmodified_allowed":True,"attribution_required":True,"content_responsibility":"data_owner","publisher_liability_disclaimer":True,"terms_source":"https://www.oekobaudat.de/en/guidance/data-users.html"}
 @transaction.atomic
 def ensure_environmental_source_registry():
     result=[]
@@ -40,6 +42,10 @@ def ensure_environmental_source_registry():
         if geo_unconfigured:
             for field,value in geo_defaults.items():setattr(source,field,value)
             source.save(update_fields=[*geo_defaults,"updated_at"])
+        okobaudat_unconfigured=(code=="okobaudat" and source.connector_key=="pending-okobaudat" and source.tipo_acceso in ("DOCUMENT_INDEX","REST") and not source.base_url and not source.documentation_url and not source.licencia_nombre and not source.licencia_url and source.atribucion_requerida and source.nivel_autoridad=="oficial" and source.pais=="Alemania")
+        if okobaudat_unconfigured:
+            for field,value in OKOBAUDAT_MANAGED_DEFAULTS.items():setattr(source,field,value)
+            source.save(update_fields=[*OKOBAUDAT_MANAGED_DEFAULTS,"updated_at"])
         if code=="simbio" and source.connector_key=="simbio_arcgis":
             state_metadata={"biodiversity_official_data_responsibility":"SBAP","responsibility_effective_date":"2026-02-02","interoperability_provider":"SIMBIO/MMA","biodiversity_data_responsibility_note":"La responsabilidad oficial de datos de biodiversidad corresponde a SBAP desde 2026-02-02; el proveedor de interoperabilidad consumido es SIMBIO/MMA."}
         if code=="bcn-leychile" and source.connector_key=="bcn_leychile_sparql":
@@ -50,6 +56,8 @@ def ensure_environmental_source_registry():
             metadata=dict(state.metadata or {});metadata.update(state_metadata);state.metadata=metadata;state.save(update_fields=["metadata","updated_at"])
         if code=="ide-mma" and source.connector_key=="ide_mma_catalog":
             metadata=dict(state.metadata or {});metadata.update({"usage_context":"referential","information_update_context":"constant_update","authoritative_for_compliance":False});state.metadata=metadata;state.save(update_fields=["metadata","updated_at"])
+        if code=="okobaudat" and source.connector_key=="okobaudat_soda4lca":
+            metadata=dict(state.metadata or {});metadata.update(OKOBAUDAT_TERMS);state.metadata=metadata;state.save(update_fields=["metadata","updated_at"])
         result.append(source)
     return result
 def ensure_source_registry_after_migrate(**kwargs): ensure_environmental_source_registry()
