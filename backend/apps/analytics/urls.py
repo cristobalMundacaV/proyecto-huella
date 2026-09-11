@@ -1,4 +1,5 @@
 from django.urls import path
+from . import views_material_candidates as material_candidates_api
 from .views_geospatial_context import work_geolocation,work_geolocation_history,work_territorial_context,observe_work_context,work_territorial_history
 
 from .views import (
@@ -292,6 +293,12 @@ from .views_account_lifecycle import (
 from . import views_operational_context
 
 urlpatterns = [
+    path("environmental-governance/material-factor-candidates/", material_candidates_api.material_candidates),
+    path("environmental-governance/material-factor-candidates/<int:candidate_id>/", material_candidates_api.material_candidate_detail),
+    path("environmental-governance/material-factor-candidates/<int:candidate_id>/eligibility/", material_candidates_api.material_candidate_eligibility),
+    path("environmental-governance/material-factor-candidates/<int:candidate_id>/compatibility/", material_candidates_api.material_candidate_eligibility),
+    path("environmental-governance/material-factor-candidates/<int:candidate_id>/review/", material_candidates_api.material_candidate_review),
+    path("environmental-governance/material-factor-candidates/<int:candidate_id>/promote/", material_candidates_api.material_candidate_promote),
     path("organizaciones/<str:organization_id>/obras/<int:work_id>/geo/ubicacion/",work_geolocation),path("organizaciones/<str:organization_id>/obras/<int:work_id>/geo/ubicacion/historial/",work_geolocation_history),path("organizaciones/<str:organization_id>/obras/<int:work_id>/geo/contexto/",work_territorial_context),path("organizaciones/<str:organization_id>/obras/<int:work_id>/geo/contexto/observar/",observe_work_context),path("organizaciones/<str:organization_id>/obras/<int:work_id>/geo/contexto/historial/",work_territorial_history),
     path("legal-evidence-operational-mappings/requirements/<int:requirement_version_id>/",mapping_detail),
     path("legal-evidence-operational-mappings/requirements/<int:requirement_version_id>/publish/",mapping_publish),
