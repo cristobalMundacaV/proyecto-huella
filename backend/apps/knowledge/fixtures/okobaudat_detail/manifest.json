@@ -1,0 +1,69 @@
+{
+  "note": "Official payloads captured on the stated date; source_url identifies the resolved version. Original unversioned requests and exact retrieval timestamps are recorded in the live smoke evidence. Process captures requested view=extended, which this server does not expand.",
+  "documents": [
+    {
+      "file": "93a60a56-a3c8-11da-a746-0800200b9a66.xml",
+      "uuid": "93a60a56-a3c8-11da-a746-0800200b9a66",
+      "dataset_version": "03.00.001",
+      "source_url": "https://www.oekobaudat.de/OEKOBAU.DAT/resource/flowproperties/93a60a56-a3c8-11da-a746-0800200b9a66?format=XML&version=03.00.001",
+      "sha256": "b05f1b983d994ad2d4776012b799e29ec080c1958412cf20b2bbfeda19215225",
+      "captured_on": "2026-09-11"
+    },
+    {
+      "file": "93a60a56-a3c8-22da-a746-0800200c9a66.xml",
+      "uuid": "93a60a56-a3c8-22da-a746-0800200c9a66",
+      "dataset_version": "03.00.000",
+      "source_url": "https://www.oekobaudat.de/OEKOBAU.DAT/resource/flowproperties/93a60a56-a3c8-22da-a746-0800200c9a66?format=XML&version=03.00.000",
+      "sha256": "26bbfcc1aa2909697548e561d6f9aff83df5694c3c155f675fa7a25d9d96a6ad",
+      "captured_on": "2026-09-11"
+    },
+    {
+      "file": "ad38d542-3fe9-439d-9b95-2f5f7752acaf.xml",
+      "uuid": "ad38d542-3fe9-439d-9b95-2f5f7752acaf",
+      "dataset_version": "25.00.000",
+      "source_url": "https://www.oekobaudat.de/OEKOBAU.DAT/resource/unitgroups/ad38d542-3fe9-439d-9b95-2f5f7752acaf?format=XML&version=25.00.000",
+      "sha256": "b7013c0cb9292326f9bff945970cd1d9443d6f768f521c559c7fc4116aef9877",
+      "captured_on": "2026-09-11"
+    },
+    {
+      "file": "cd950537-0a98-4044-9ba7-9f9a68d0a504.xml",
+      "uuid": "cd950537-0a98-4044-9ba7-9f9a68d0a504",
+      "dataset_version": "30.00.000",
+      "source_url": "https://www.oekobaudat.de/OEKOBAU.DAT/resource/unitgroups/cd950537-0a98-4044-9ba7-9f9a68d0a504?format=XML&version=30.00.000",
+      "sha256": "cdf9ce51a11547aa71a807231a873f2466c6a2d11d0fb3043897a677da66a15a",
+      "captured_on": "2026-09-11"
+    },
+    {
+      "file": "detail_a1.xml",
+      "uuid": "f63ac879-fa7d-4f91-813e-e816cbdf1927",
+      "dataset_version": "00.00.025",
+      "source_url": "https://www.oekobaudat.de/OEKOBAU.DAT/resource/processes/f63ac879-fa7d-4f91-813e-e816cbdf1927?format=XML&version=00.00.025",
+      "sha256": "3b3ef4b922d17361c35b2291b63252e38ab6e2c86b8589d4968ab333371ca573",
+      "captured_on": "2026-09-11"
+    },
+    {
+      "file": "detail_a2.xml",
+      "uuid": "c54c16f6-4295-4749-bff0-ba7ed4bc9117",
+      "dataset_version": "00.01.000",
+      "source_url": "https://www.oekobaudat.de/OEKOBAU.DAT/resource/processes/c54c16f6-4295-4749-bff0-ba7ed4bc9117?format=XML&version=00.01.000",
+      "sha256": "6bbea220e924f559e9a98cc3618b932052a0fbb9c33910d9165f5b5e094fab58",
+      "captured_on": "2026-09-11"
+    },
+    {
+      "file": "flow_a1.xml",
+      "uuid": "4e1beb5b-f059-4aa9-b12a-4462eb1fa606",
+      "dataset_version": "00.00.004",
+      "source_url": "https://www.oekobaudat.de/OEKOBAU.DAT/resource/flows/4e1beb5b-f059-4aa9-b12a-4462eb1fa606?format=XML&version=00.00.004",
+      "sha256": "b3163f84bd96e00b0b6524709c9246308c1699f3ff45efe6ce8f6b36c33fda97",
+      "captured_on": "2026-09-11"
+    },
+    {
+      "file": "flow_a2.xml",
+      "uuid": "773c4094-cbae-4d73-2a09-47dd71f3b9a0",
+      "dataset_version": "00.01.000",
+      "source_url": "https://www.oekobaudat.de/OEKOBAU.DAT/resource/flows/773c4094-cbae-4d73-2a09-47dd71f3b9a0?format=XML&version=00.01.000",
+      "sha256": "abbd68074cd392178fc4a9ddd51a335ae54d873a1e7b6cbcb4db9c395e92bcab",
+      "captured_on": "2026-09-11"
+    }
+  ]
+}

@@ -704,3 +704,53 @@ class OekobaudatProcessFact(ImmutableOekobaudatFact):
         from .okobaudat_facts import build_process_fact_payload
         expected=build_process_fact_payload(self.snapshot)
         if any(getattr(self,key)!=value for key,value in expected.items()):raise ValidationError("Fact process Oekobaudat adulterado.")
+
+
+class OekobaudatEnvironmentalProfileFact(ImmutableOekobaudatFact):
+    process = models.ForeignKey(OekobaudatProcessFact, on_delete=models.PROTECT, related_name="environmental_profiles")
+    snapshot = models.OneToOneField(ExternalSnapshot, on_delete=models.PROTECT, related_name="okobaudat_environmental_profile")
+    process_uuid = models.UUIDField(db_index=True)
+    dataset_version = models.CharField(max_length=40, db_index=True)
+    standard = models.CharField(max_length=20, db_index=True)
+    declared_amount = models.CharField(max_length=160)
+    declared_unit = models.CharField(max_length=160)
+    reference_metadata = models.JSONField(default=dict)
+    provenance = models.JSONField(default=dict)
+    parser_version = models.CharField(max_length=60, default="okobaudat-detail-1")
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["process_uuid", "dataset_version"], name="knowledge_obd_profile_identity")]
+
+    def clean(self):
+        from .okobaudat_detail_sync import materialization_allowed
+        if not materialization_allowed():
+            raise ValidationError("Use la materializacion gobernada de detalles Oekobaudat.")
+
+
+class OekobaudatEnvironmentalIndicatorFact(ImmutableOekobaudatFact):
+    profile = models.ForeignKey(OekobaudatEnvironmentalProfileFact, on_delete=models.PROTECT, related_name="indicators")
+    snapshot = models.ForeignKey(ExternalSnapshot, on_delete=models.PROTECT, related_name="okobaudat_environmental_indicators")
+    process_uuid = models.UUIDField(db_index=True)
+    dataset_version = models.CharField(max_length=40, db_index=True)
+    standard = models.CharField(max_length=20, db_index=True)
+    upstream_uuid = models.UUIDField(db_index=True)
+    upstream_version = models.CharField(max_length=40, blank=True)
+    indicator_kind = models.CharField(max_length=20)
+    name = models.CharField(max_length=1000)
+    code = models.CharField(max_length=80, db_index=True)
+    module = models.CharField(max_length=10, default="A1-A3", db_index=True)
+    value = models.CharField(max_length=160)
+    unit = models.CharField(max_length=160)
+    unit_uuid = models.UUIDField()
+    unit_version = models.CharField(max_length=40, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["profile", "indicator_kind", "upstream_uuid", "module"], name="knowledge_obd_indicator_identity"),
+            models.CheckConstraint(condition=models.Q(module="A1-A3"), name="knowledge_obd_a1a3_only"),
+        ]
+
+    def clean(self):
+        from .okobaudat_detail_sync import materialization_allowed
+        if not materialization_allowed():
+            raise ValidationError("Use la materializacion gobernada de detalles Oekobaudat.")

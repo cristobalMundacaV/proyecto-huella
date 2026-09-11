@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<fp:flowPropertyDataSet xmlns:m="http://lca.jrc.it/ILCD/LCIAMethod" xmlns:common="http://lca.jrc.it/ILCD/Common" xmlns:s="http://lca.jrc.it/ILCD/Source" xmlns:c="http://lca.jrc.it/ILCD/Contact" xmlns:f="http://lca.jrc.it/ILCD/Flow" xmlns="http://lca.jrc.it/ILCD/Process" xmlns:fp="http://lca.jrc.it/ILCD/FlowProperty" xmlns:u="http://lca.jrc.it/ILCD/UnitGroup" version="1.1">
+    <fp:flowPropertiesInformation>
+        <fp:dataSetInformation>
+            <common:UUID>93a60a56-a3c8-11da-a746-0800200b9a66</common:UUID>
+            <common:name xml:lang="de">Masse</common:name>
+            <common:name xml:lang="en">Mass</common:name>
+            <fp:classificationInformation>
+                <common:classification>
+                    <common:class level="0">Technical flow properties</common:class>
+                </common:classification>
+            </fp:classificationInformation>
+        </fp:dataSetInformation>
+        <fp:quantitativeReference>
+            <fp:referenceToReferenceUnitGroup type="unit group data set" refObjectId="ad38d542-3fe9-439d-9b95-2f5f7752acaf" version="25.00.000">
+                <common:shortDescription xml:lang="de">Masseneinheit</common:shortDescription>
+                <common:shortDescription>u</common:shortDescription>
+            </fp:referenceToReferenceUnitGroup>
+        </fp:quantitativeReference>
+    </fp:flowPropertiesInformation>
+    <fp:modellingAndValidation>
+        <fp:dataSourcesTreatmentAndRepresentativeness/>
+    </fp:modellingAndValidation>
+    <fp:administrativeInformation>
+        <fp:dataEntryBy>
+            <common:timeStamp>2020-11-05T17:01:33.887+01:00</common:timeStamp>
+            <common:referenceToDataSetFormat type="source data set" refObjectId="a97a0155-0234-4b87-b4ce-a45da52f2a40" version="03.00.000" uri="http://lca.jrc.ec.europa.eu/lcainfohub/datasets/ilcd/sources/a97a0155-0234-4b87-b4ce-a45da52f2a40.xml">
+                <common:shortDescription xml:lang="en">ILCD format</common:shortDescription>
+            </common:referenceToDataSetFormat>
+        </fp:dataEntryBy>
+        <fp:publicationAndOwnership>
+            <common:dataSetVersion>03.00.001</common:dataSetVersion>
+        </fp:publicationAndOwnership>
+    </fp:administrativeInformation>
+</fp:flowPropertyDataSet>
