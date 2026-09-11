@@ -55,6 +55,23 @@ def _apply_formula(formula, inputs, factor):
     return handler(values, factor)
 
 
+def _material_mapping_snapshot(mapping):
+    if mapping is None:
+        return None
+    decision = mapping.decisiones.filter(decision="aprobado").order_by("-pk").first()
+    return {
+        "mapping_id": mapping.id,
+        "material_id": mapping.material_id,
+        "material_codigo": mapping.material.codigo,
+        "factor_id": mapping.factor_id,
+        "vigencia_desde": str(mapping.vigencia_desde),
+        "vigencia_hasta": str(mapping.vigencia_hasta or ""),
+        "aprobado_por_id": decision.actor_id if decision else None,
+        "aprobado_en": decision.timestamp.isoformat() if decision else None,
+        "decision_id": decision.id if decision else None,
+    }
+
+
 def _validate_result_context(result_type, context):
     if result_type not in {"reduccion", "emision_evitada", "remocion", "compensacion"}:
         return
@@ -98,6 +115,7 @@ def calculate_activity(actividad, *, result_context=None, recalculation_of=None,
             "evento_material": eligibility.get("evento_material"),
             "material": eligibility.get("material"),
             "especificidad_factor": eligibility.get("especificidad_factor"),
+            "mapeo_material_factor": _material_mapping_snapshot(eligibility.get("mapping_material")),
             "factor_vigencia": {"desde": str(factor_version.vigencia_desde or ""), "hasta": str(factor_version.vigencia_hasta or "")},
             "tipo_resultado": result_type, "unidad_resultado": factor_version.factor.unidad_resultado,
             "resultado": str(result),

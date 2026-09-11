@@ -200,6 +200,7 @@ def evaluate_formula(actividad, formula):
         "factor_version": factor_version,
         "seleccion_factor_material": material_factor_selection,
         "especificidad_factor": material_factor_selection.get("especificidad") if material_factor_selection else None,
+        "mapping_material": material_factor_selection.get("mapping") if material_factor_selection else None,
         "evento_material": {"id": material_event.id, "tipo": material_event.tipo} if material_event else None,
         "material": ({"id": material_event.material_id, "codigo": material_event.material.codigo, "nombre": material_event.material.nombre, "categoria": material_event.material.categoria} if material_event else None),
     }

@@ -115,3 +115,4 @@ from .legacy import (
 )
 from .utils import normalize_key, unique_code
 from .material_candidates import MaterialEnvironmentalFactorCandidate, MaterialFactorCandidateReview
+from .material_factor_mapping import MaterialFactorMapping, MaterialFactorMappingDecision

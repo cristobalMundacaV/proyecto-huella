@@ -38,6 +38,9 @@ class Permission:
     FACTOR_VIEW = "factors.view"
     FACTOR_CUSTOM_CREATE = "factors.custom_create"
     FACTOR_CUSTOM_REVIEW = "factors.custom_review"
+    MATERIAL_MAPPING_VIEW = "material_mapping.view"
+    MATERIAL_MAPPING_PROPOSE = "material_mapping.propose"
+    MATERIAL_MAPPING_APPROVE = "material_mapping.approve"
     PROBLEM_VIEW = "problems.view"
     PROBLEM_CREATE = "problems.create"
     PROBLEM_MANAGE = "problems.manage"
@@ -60,7 +63,7 @@ VIEW_PERMISSIONS = {
     Permission.ORGANIZATION_VIEW, Permission.WORK_VIEW, Permission.ASSET_VIEW,
     Permission.SENSOR_VIEW, Permission.PROFILE_VIEW, Permission.DATA_VIEW,
     Permission.EVIDENCE_VIEW, Permission.INDICATOR_VIEW, Permission.PROBLEM_VIEW,
-    Permission.COMPLIANCE_VIEW, Permission.REPORT_VIEW,
+    Permission.COMPLIANCE_VIEW, Permission.REPORT_VIEW, Permission.MATERIAL_MAPPING_VIEW,
 }
 
 ROLE_PERMISSIONS = {
@@ -74,14 +77,14 @@ ROLE_PERMISSIONS = {
         Permission.INDICATOR_MANAGE, Permission.FACTOR_VIEW, Permission.FACTOR_CUSTOM_CREATE,
         Permission.PROBLEM_CREATE, Permission.PROBLEM_MANAGE, Permission.PROBLEM_CLOSE,
         Permission.ACTION_MANAGE, Permission.COMPLIANCE_MANAGE, Permission.REPORT_GENERATE,
-        Permission.AUDIT_VIEW,
+        Permission.AUDIT_VIEW, Permission.MATERIAL_MAPPING_PROPOSE,
     },
     UsuarioOrganizacion.Rol.ANALISTA: VIEW_PERMISSIONS | {
         Permission.DATA_CREATE, Permission.DATA_UPDATE, Permission.IMPORT_VIEW,
         Permission.IMPORT_CREATE, Permission.IMPORT_REVIEW, Permission.EVIDENCE_CREATE,
         Permission.EVIDENCE_UPDATE, Permission.INDICATOR_MANAGE, Permission.FACTOR_VIEW,
         Permission.FACTOR_CUSTOM_CREATE, Permission.PROBLEM_CREATE, Permission.PROBLEM_MANAGE,
-        Permission.ACTION_MANAGE, Permission.REPORT_GENERATE,
+        Permission.ACTION_MANAGE, Permission.REPORT_GENERATE, Permission.MATERIAL_MAPPING_PROPOSE,
     },
     UsuarioOrganizacion.Rol.OPERADOR: VIEW_PERMISSIONS | {
         Permission.DATA_CREATE, Permission.DATA_UPDATE, Permission.EVIDENCE_CREATE,
@@ -92,7 +95,7 @@ ROLE_PERMISSIONS = {
         Permission.EVIDENCE_VALIDATE, Permission.INDICATOR_APPROVE, Permission.FACTOR_VIEW,
         Permission.FACTOR_CUSTOM_REVIEW, Permission.PROBLEM_MANAGE, Permission.PROBLEM_CLOSE,
         Permission.COMPLIANCE_REVIEW, Permission.REPORT_GENERATE, Permission.REPORT_APPROVE,
-        Permission.REVIEW_PROFESSIONAL, Permission.AUDIT_VIEW,
+        Permission.REVIEW_PROFESSIONAL, Permission.AUDIT_VIEW, Permission.MATERIAL_MAPPING_APPROVE,
     },
     UsuarioOrganizacion.Rol.LECTOR: VIEW_PERMISSIONS | {
         Permission.IMPORT_VIEW, Permission.FACTOR_VIEW,

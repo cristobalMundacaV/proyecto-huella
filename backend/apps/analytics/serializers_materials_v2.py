@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 
 from .models import ActividadOperacional, EventoMaterial, LoteMaterial, MaterialOperacional
@@ -9,13 +10,51 @@ from .policies.materials import material_event_errors, tenant_relation_errors
 from .services.materials_v2 import save_entity, save_material_event
 from .services.evidence_taxonomy import validate_evidence_type
 from .services.quality_v2 import ensure_current_quality_evaluation
+from .services.material_factor_mapping import approved_mapping_for_date
+from .services.material_factor_selector import select_material_factor
 
 
 class MaterialOperacionalSerializer(serializers.ModelSerializer):
+    factor_mapping_status = serializers.SerializerMethodField()
+    current_mapping = serializers.SerializerMethodField()
+    calculation_eligibility = serializers.SerializerMethodField()
+
     class Meta:
         model = MaterialOperacional
         exclude = ["organizacion"]
         read_only_fields = ["id", "codigo", "created_at", "updated_at"]
+
+    def _current_mapping(self, material):
+        organization = self.context.get("organizacion")
+        if not organization or not material.pk:
+            return None
+        today = timezone.localdate()
+        return approved_mapping_for_date(organization, material, today).first()
+
+    def get_factor_mapping_status(self, material):
+        mapping = self._current_mapping(material)
+        return mapping.estado if mapping else None
+
+    def get_current_mapping(self, material):
+        mapping = self._current_mapping(material)
+        if not mapping:
+            return None
+        return {
+            "id": mapping.id,
+            "factor_id": mapping.factor_id,
+            "vigencia_desde": mapping.vigencia_desde,
+            "vigencia_hasta": mapping.vigencia_hasta,
+        }
+
+    def get_calculation_eligibility(self, material):
+        organization = self.context.get("organizacion")
+        if not organization or not material.pk:
+            return None
+        today = timezone.localdate()
+        selection = select_material_factor(
+            organization, material, material.unidad_base, today
+        )
+        return {"estado": selection["status"], "motivos": [selection["reason"]] if selection["reason"] else []}
 
     def create(self, data):
         data["codigo"] = f"MAT-{uuid4().hex.upper()}"

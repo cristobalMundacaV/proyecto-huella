@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views_material_candidates as material_candidates_api
+from . import views_material_factor_mapping as material_factor_mapping_api
 from .views_geospatial_context import work_geolocation,work_geolocation_history,work_territorial_context,observe_work_context,work_territorial_history
 
 from .views import (
@@ -415,6 +416,30 @@ urlpatterns = [
     path(
         "organizaciones/<str:organizacion_id>/materiales-operacionales/<int:material_id>/lineage/",
         material_lineage_v2,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/materiales-operacionales/<int:material_id>/elegibilidad-calculo/",
+        material_factor_mapping_api.material_calculation_eligibility,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/mapeos-material-factor/",
+        material_factor_mapping_api.material_factor_mappings,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/mapeos-material-factor/<int:mapping_id>/",
+        material_factor_mapping_api.material_factor_mapping_detail,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/mapeos-material-factor/<int:mapping_id>/aprobar/",
+        material_factor_mapping_api.material_factor_mapping_approve,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/mapeos-material-factor/<int:mapping_id>/rechazar/",
+        material_factor_mapping_api.material_factor_mapping_reject,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/mapeos-material-factor/<int:mapping_id>/revocar/",
+        material_factor_mapping_api.material_factor_mapping_revoke,
     ),
     path("organizaciones/<str:organizacion_id>/lotes-materiales/", material_lots),
     path("organizaciones/<str:organizacion_id>/eventos-materiales/", material_events),
