@@ -4,6 +4,15 @@ from . import views_material_factor_mapping as material_factor_mapping_api
 from . import views_material_inventory as material_inventory_api
 from . import views_material_ledger as material_ledger_api
 from . import views_material_catalog_discovery as material_catalog_discovery_api
+from . import views_material_application_profile as material_application_profile_api
+from . import views_material_technical_property as material_technical_property_api
+from . import views_material_functional_use as material_functional_use_api
+from . import views_material_comparable_sets as material_comparable_sets_api
+from . import views_material_environmental_comparison as material_environmental_comparison_api
+from . import views_material_hotspots as material_hotspots_api
+from . import views_material_substitution_scenario as material_substitution_scenario_api
+from . import views_material_opportunities as material_opportunities_api
+from . import views_material_intelligence_copilot as material_intelligence_copilot_api
 from .views_geospatial_context import work_geolocation,work_geolocation_history,work_territorial_context,observe_work_context,work_territorial_history
 
 from .views import (
@@ -471,6 +480,98 @@ urlpatterns = [
     path(
         "organizaciones/<str:organizacion_id>/mapeos-material-factor/<int:mapping_id>/revocar/",
         material_factor_mapping_api.material_factor_mapping_revoke,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/perfiles-aplicacion-material/",
+        material_application_profile_api.material_application_profiles,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/perfiles-aplicacion-material/<int:profile_id>/",
+        material_application_profile_api.material_application_profile_detail,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/perfiles-aplicacion-material/<int:profile_id>/aprobar/",
+        material_application_profile_api.material_application_profile_approve,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/perfiles-aplicacion-material/<int:profile_id>/rechazar/",
+        material_application_profile_api.material_application_profile_reject,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/perfiles-aplicacion-material/<int:profile_id>/retirar/",
+        material_application_profile_api.material_application_profile_retire,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/perfiles-aplicacion-material/<int:profile_id>/revisar/",
+        material_application_profile_api.material_application_profile_revise,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/aserciones-propiedad-material/",
+        material_technical_property_api.material_property_assertions,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/aserciones-propiedad-material/<int:assertion_id>/",
+        material_technical_property_api.material_property_assertion_detail,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/aserciones-propiedad-material/<int:assertion_id>/aprobar/",
+        material_technical_property_api.material_property_assertion_approve,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/aserciones-propiedad-material/<int:assertion_id>/rechazar/",
+        material_technical_property_api.material_property_assertion_reject,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/usos-funcionales-material/",
+        material_functional_use_api.material_functional_uses,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/usos-funcionales-material/<int:functional_use_id>/aprobar/",
+        material_functional_use_api.material_functional_use_approve,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/usos-funcionales-material/<int:functional_use_id>/rechazar/",
+        material_functional_use_api.material_functional_use_reject,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/evaluaciones-aplicacion-material/",
+        material_functional_use_api.material_application_assessments,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/evaluaciones-aplicacion-material/<int:assessment_id>/",
+        material_functional_use_api.material_application_assessment_detail,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/evaluaciones-aplicacion-material/<int:assessment_id>/decidir/",
+        material_functional_use_api.material_application_assessment_decide,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/materiales-operacionales/<int:material_id>/alternativas-comparables/",
+        material_comparable_sets_api.material_comparable_alternatives,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/materiales-operacionales/<int:material_id>/comparacion-ambiental/",
+        material_environmental_comparison_api.material_environmental_comparison,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/materiales-operacionales/hotspots-a1a3/",
+        material_hotspots_api.material_hotspots_view,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/escenarios-sustitucion-material/",
+        material_substitution_scenario_api.material_substitution_scenarios,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/escenarios-sustitucion-material/<int:scenario_id>/",
+        material_substitution_scenario_api.material_substitution_scenario_detail,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/oportunidades-ambientales-material/",
+        material_opportunities_api.material_opportunities_view,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/materiales-operacionales/<int:material_id>/copiloto-inteligencia/",
+        material_intelligence_copilot_api.material_intelligence_explain,
     ),
     path("organizaciones/<str:organizacion_id>/lotes-materiales/", material_lots),
     path("organizaciones/<str:organizacion_id>/eventos-materiales/", material_events),

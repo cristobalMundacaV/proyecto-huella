@@ -116,3 +116,17 @@ from .legacy import (
 from .utils import normalize_key, unique_code
 from .material_candidates import MaterialEnvironmentalFactorCandidate, MaterialFactorCandidateReview
 from .material_factor_mapping import MaterialFactorMapping, MaterialFactorMappingDecision
+from .material_application_profile import (
+    MaterialApplicationProfile,
+    MaterialApplicationProfileDecision,
+)
+from .material_technical_property import (
+    MaterialTechnicalPropertyAssertion,
+    MaterialTechnicalPropertyAssertionDecision,
+)
+from .material_functional_use import (
+    MaterialApplicationAssessment,
+    MaterialFunctionalUse,
+    MaterialFunctionalUseDecision,
+)
+from .material_substitution_scenario import MaterialSubstitutionScenario

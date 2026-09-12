@@ -383,6 +383,88 @@ class ContextGateway:
             ],
         }
 
+    def material_intelligence(self, material, organization, *, work=None):
+        """Bounded, tenant-verified projection of MATERIAL-INTELLIGENCE
+        deterministic findings for one material — evidence, suitability,
+        functional use, comparability chain and hotspot standing. Every
+        number here is already computed by the deterministic services
+        (MI-01B..01H); this method never computes anything itself."""
+        self._tenant(material, organization)
+        from ..models.material_application_profile import MaterialApplicationProfile
+        from ..models.material_functional_use import MaterialApplicationAssessment, MaterialFunctionalUse
+        from ..models.material_technical_property import MaterialTechnicalPropertyAssertion
+        from .material_hotspots import material_hotspots
+
+        approved_properties = list(
+            MaterialTechnicalPropertyAssertion.objects.filter(
+                organizacion=organization, material=material,
+                estado=MaterialTechnicalPropertyAssertion.Estado.APROBADO,
+            ).values("property_key", "property_type", "value_numeric", "value_text", "value_boolean", "unit")[:20]
+        )
+
+        profiles = []
+        for functional_use in MaterialFunctionalUse.objects.filter(
+            organizacion=organization, material=material,
+            estado=MaterialFunctionalUse.Estado.APROBADO,
+        ).select_related("profile")[:10]:
+            profile = functional_use.profile
+            if profile.estado != MaterialApplicationProfile.Estado.APROBADO:
+                continue
+            assessment = (
+                MaterialApplicationAssessment.objects.filter(
+                    organizacion=organization, material=material, profile=profile,
+                )
+                .order_by("-created_at", "-id")
+                .first()
+            )
+            profiles.append({
+                "profile_id": profile.id,
+                "codigo": profile.codigo,
+                "unidad_funcional": profile.unidad_funcional,
+                "cantidad_unidad_funcional": profile.cantidad_unidad_funcional,
+                "requisitos": profile.requisitos,
+                "cantidad_por_unidad_funcional": functional_use.cantidad_por_unidad_funcional,
+                "unidad_funcional_uso": functional_use.unidad,
+                "evaluacion": (
+                    {
+                        "resultado": assessment.resultado,
+                        "missing_properties": assessment.missing_properties,
+                        "failed_requirements": assessment.failed_requirements,
+                        "warnings": assessment.warnings,
+                        "decision_humana": assessment.decision_humana,
+                    }
+                    if assessment
+                    else None
+                ),
+            })
+
+        hotspot_summary = None
+        if work is not None:
+            hotspots = material_hotspots(organization, work=work)
+            for unit_data in hotspots.values():
+                for row in unit_data["materiales"]:
+                    if row["material_id"] == material.pk:
+                        hotspot_summary = row
+                        break
+
+        return {
+            "context_type": "material_intelligence",
+            "references": {
+                "organization": organization.organizacion_id,
+                "material": material.id,
+                "work": work.id if work is not None else None,
+            },
+            "material": {
+                "codigo": material.codigo,
+                "nombre": material.nombre,
+                "categoria": material.categoria,
+                "unidad_base": material.unidad_base,
+            },
+            "propiedades_aprobadas": approved_properties,
+            "perfiles_aplicacion": profiles,
+            "hotspot": hotspot_summary,
+        }
+
     @staticmethod
     def _active_restrictions(organization, problem=None):
         now = timezone.now()
