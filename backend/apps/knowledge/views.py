@@ -27,7 +27,8 @@ def sources(request): return Response(EnvironmentalSourceSerializer(Environmenta
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def source_detail(request,code):
-    source=get_object_or_404(EnvironmentalSource,codigo=code);data=EnvironmentalSourceSerializer(source).data;data["freshness"]=source_freshness(source);return Response(data)
+    from .source_health import source_health
+    source=get_object_or_404(EnvironmentalSource,codigo=code);data=EnvironmentalSourceSerializer(source).data;data["freshness"]=source_freshness(source);data["health"]=source_health(source);return Response(data)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def source_runs(request,code):return paginated(request,get_object_or_404(EnvironmentalSource,codigo=code).sync_runs.all().order_by("-started_at"),SyncRunSerializer)

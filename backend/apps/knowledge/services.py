@@ -25,6 +25,8 @@ def sanitized_error(exc):
     return message[:1000]
 def source_freshness(source, now=None):
     state=SourceState.objects.get(source=source); now=now or timezone.now()
+    if not source.activa: return "inactiva"
+    if state.estado==SourceState.Status.SYNCING: return "sincronizando"
     if state.estado==SourceState.Status.PARTIAL:
         has_published_version=ExternalRecord.objects.filter(source=source).exists()
         return "parcial_con_ultima_version_disponible" if has_published_version else "parcial_sin_version_publicada"
@@ -66,11 +68,14 @@ def sync_environmental_source(source,trigger="manual"):
                 modified+=bool(current);created+=not bool(current)
             if not current: ExternalRecord.objects.create(source=source,external_id=item.external_id,kind=item.kind,canonical_key=item.canonical_key,title=item.title,source_url=item.source_url,current_snapshot=snapshot,published_at=item.published_at,upstream_updated_at=item.upstream_updated_at,metadata=sanitize(item.metadata),first_seen_at=now,last_seen_at=now)
             else:
-                current.kind=item.kind;current.canonical_key=item.canonical_key;current.title=item.title;current.source_url=item.source_url;current.current_snapshot=snapshot;current.published_at=item.published_at;current.upstream_updated_at=item.upstream_updated_at;current.metadata=sanitize(item.metadata);current.last_seen_at=now;current.estado=ExternalRecord.Status.ACTIVE;current.save()
+                was_missing=current.estado==ExternalRecord.Status.MISSING
+                current.kind=item.kind;current.canonical_key=item.canonical_key;current.title=item.title;current.source_url=item.source_url;current.current_snapshot=snapshot;current.published_at=item.published_at;current.upstream_updated_at=item.upstream_updated_at;current.metadata=sanitize(item.metadata);current.last_seen_at=now;current.estado=ExternalRecord.Status.ACTIVE;current.missing_since_run=None
+                if was_missing: current.reappeared_via_run=run
+                current.save()
         if batch.authoritative_full_snapshot:
             missing=ExternalRecord.objects.filter(source=source).exclude(external_id__in=seen).exclude(estado=ExternalRecord.Status.MISSING)
-            disappeared=missing.count();missing.update(estado=ExternalRecord.Status.MISSING)
+            disappeared=missing.count();missing.update(estado=ExternalRecord.Status.MISSING,missing_since_run=run)
         upstream_dates=[item.upstream_updated_at for item in batch.records if item.upstream_updated_at]
         state=SourceState.objects.select_for_update().get(source=source);state.estado="actualizada" if created or modified or disappeared else "sin_cambios";state.last_successful_sync_at=now;state.retrieved_at=now;state.upstream_updated_at=max(upstream_dates) if upstream_dates else state.upstream_updated_at;state.upstream_version=batch.upstream_version;state.cursor=batch.cursor;state.etag=batch.etag;state.last_modified=batch.last_modified;state.last_checksum=batch_checksum;state.metadata=sanitize(batch.metadata);state.last_error="";state.save()
-        SyncRun.objects.filter(pk=run.pk).update(finished_at=now,estado=state.estado,upstream_version=batch.upstream_version,received=len(batch.records),created=created,modified=modified,unchanged=unchanged,disappeared=disappeared,final_cursor=batch.cursor,metadata=sanitize(batch.metadata))
+        SyncRun.objects.filter(pk=run.pk).update(finished_at=now,estado=state.estado,upstream_version=batch.upstream_version,received=len(batch.records),created=created,modified=modified,unchanged=unchanged,disappeared=disappeared,final_cursor=batch.cursor,metadata=sanitize(batch.metadata),snapshot_autoritativo=batch.authoritative_full_snapshot)
     return SyncRun.objects.get(pk=run.pk)

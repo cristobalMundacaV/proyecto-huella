@@ -9,7 +9,21 @@ class EnvironmentalSource(models.Model):
     class AccessType(models.TextChoices):
         REST="REST","REST"; CKAN="CKAN","CKAN"; SPARQL="SPARQL","SPARQL"; ARCGIS="ARCGIS_REST","ArcGIS REST"; WFS="WFS","WFS"; WMS="WMS","WMS"; FILE="FILE","File"; DOCUMENT_INDEX="DOCUMENT_INDEX","Document index"
     codigo=models.SlugField(max_length=80, unique=True); nombre=models.CharField(max_length=160); organismo=models.CharField(max_length=200); descripcion=models.TextField(blank=True); connector_key=models.SlugField(max_length=80)
-    tipo_acceso=models.CharField(max_length=30, choices=AccessType.choices); base_url=models.URLField(blank=True); documentation_url=models.URLField(blank=True); licencia_nombre=models.CharField(max_length=160, blank=True); licencia_url=models.URLField(blank=True); atribucion_requerida=models.BooleanField(default=True); nivel_autoridad=models.CharField(max_length=60); pais=models.CharField(max_length=80, blank=True); cadencia_sugerida=models.CharField(max_length=80, blank=True); stale_after_hours=models.PositiveIntegerField(default=168); activa=models.BooleanField(default=True); created_at=models.DateTimeField(auto_now_add=True); updated_at=models.DateTimeField(auto_now=True)
+    tipo_acceso=models.CharField(max_length=30, choices=AccessType.choices); base_url=models.URLField(blank=True); documentation_url=models.URLField(blank=True); licencia_nombre=models.CharField(max_length=160, blank=True); licencia_url=models.URLField(blank=True); atribucion_requerida=models.BooleanField(default=True); nivel_autoridad=models.CharField(max_length=60); pais=models.CharField(max_length=80, blank=True); cadencia_sugerida=models.CharField(max_length=80, blank=True); cadencia_horas=models.PositiveIntegerField(null=True, blank=True); stale_after_hours=models.PositiveIntegerField(default=168); activa=models.BooleanField(default=True); permite_poll_automatico=models.BooleanField(default=True); created_at=models.DateTimeField(auto_now_add=True); updated_at=models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        from .watch_policy import connector_capabilities
+
+        errors = {}
+        if self.stale_after_hours is not None and self.stale_after_hours <= 0:
+            errors["stale_after_hours"] = "Debe ser un valor positivo."
+        if self.cadencia_horas is not None and self.cadencia_horas <= 0:
+            errors["cadencia_horas"] = "Debe ser un valor positivo."
+        capabilities = connector_capabilities(self.connector_key)
+        if capabilities is None:
+            errors["connector_key"] = "El conector no está registrado en CONNECTOR_REGISTRY."
+        if errors:
+            raise ValidationError(errors)
 
 
 class SourceState(models.Model):
@@ -20,7 +34,7 @@ class SourceState(models.Model):
 
 class SyncRun(models.Model):
     class Trigger(models.TextChoices): MANUAL="manual","Manual"; SCHEDULED="scheduled","Scheduled"; BOOTSTRAP="bootstrap","Bootstrap"
-    source=models.ForeignKey(EnvironmentalSource,on_delete=models.PROTECT,related_name="sync_runs"); trigger=models.CharField(max_length=20,choices=Trigger.choices); started_at=models.DateTimeField(); finished_at=models.DateTimeField(null=True,blank=True); estado=models.CharField(max_length=30,default="sincronizando"); upstream_version=models.CharField(max_length=200,blank=True); received=models.PositiveIntegerField(default=0); created=models.PositiveIntegerField(default=0); modified=models.PositiveIntegerField(default=0); unchanged=models.PositiveIntegerField(default=0); disappeared=models.PositiveIntegerField(default=0); errors=models.PositiveIntegerField(default=0); initial_cursor=models.JSONField(null=True,blank=True); final_cursor=models.JSONField(null=True,blank=True); metadata=models.JSONField(default=dict,blank=True); message=models.TextField(blank=True)
+    source=models.ForeignKey(EnvironmentalSource,on_delete=models.PROTECT,related_name="sync_runs"); trigger=models.CharField(max_length=20,choices=Trigger.choices); started_at=models.DateTimeField(); finished_at=models.DateTimeField(null=True,blank=True); estado=models.CharField(max_length=30,default="sincronizando"); upstream_version=models.CharField(max_length=200,blank=True); received=models.PositiveIntegerField(default=0); created=models.PositiveIntegerField(default=0); modified=models.PositiveIntegerField(default=0); unchanged=models.PositiveIntegerField(default=0); disappeared=models.PositiveIntegerField(default=0); errors=models.PositiveIntegerField(default=0); initial_cursor=models.JSONField(null=True,blank=True); final_cursor=models.JSONField(null=True,blank=True); metadata=models.JSONField(default=dict,blank=True); message=models.TextField(blank=True); snapshot_autoritativo=models.BooleanField(null=True,blank=True)
     def save(self,*args,**kwargs):
         if self.pk and SyncRun.objects.filter(pk=self.pk,finished_at__isnull=False).exists(): raise ValidationError("Una ejecucion finalizada es inmutable.")
         super().save(*args,**kwargs)
@@ -36,7 +50,7 @@ class ExternalSnapshot(models.Model):
 
 class ExternalRecord(models.Model):
     class Status(models.TextChoices): ACTIVE="activo","Activo"; MISSING="no_observado","No observado"; WITHDRAWN="retirado","Retirado"
-    source=models.ForeignKey(EnvironmentalSource,on_delete=models.PROTECT,related_name="records"); external_id=models.CharField(max_length=300); kind=models.CharField(max_length=100); canonical_key=models.CharField(max_length=300,blank=True); title=models.CharField(max_length=500,blank=True); source_url=models.URLField(blank=True); current_snapshot=models.ForeignKey(ExternalSnapshot,on_delete=models.PROTECT,related_name="current_for"); published_at=models.DateTimeField(null=True,blank=True); effective_from=models.DateTimeField(null=True,blank=True); effective_to=models.DateTimeField(null=True,blank=True); upstream_updated_at=models.DateTimeField(null=True,blank=True); estado=models.CharField(max_length=30,choices=Status.choices,default=Status.ACTIVE); metadata=models.JSONField(default=dict,blank=True); first_seen_at=models.DateTimeField(); last_seen_at=models.DateTimeField()
+    source=models.ForeignKey(EnvironmentalSource,on_delete=models.PROTECT,related_name="records"); external_id=models.CharField(max_length=300); kind=models.CharField(max_length=100); canonical_key=models.CharField(max_length=300,blank=True); title=models.CharField(max_length=500,blank=True); source_url=models.URLField(blank=True); current_snapshot=models.ForeignKey(ExternalSnapshot,on_delete=models.PROTECT,related_name="current_for"); published_at=models.DateTimeField(null=True,blank=True); effective_from=models.DateTimeField(null=True,blank=True); effective_to=models.DateTimeField(null=True,blank=True); upstream_updated_at=models.DateTimeField(null=True,blank=True); estado=models.CharField(max_length=30,choices=Status.choices,default=Status.ACTIVE); metadata=models.JSONField(default=dict,blank=True); first_seen_at=models.DateTimeField(); last_seen_at=models.DateTimeField(); missing_since_run=models.ForeignKey("SyncRun",on_delete=models.SET_NULL,null=True,blank=True,related_name="disappearances_observed"); reappeared_via_run=models.ForeignKey("SyncRun",on_delete=models.SET_NULL,null=True,blank=True,related_name="reappearances_observed")
     class Meta: constraints=[models.UniqueConstraint(fields=["source","external_id"],name="knowledge_record_identity")]
 
 
@@ -754,3 +768,116 @@ class OekobaudatEnvironmentalIndicatorFact(ImmutableOekobaudatFact):
         from .okobaudat_detail_sync import materialization_allowed
         if not materialization_allowed():
             raise ValidationError("Use la materializacion gobernada de detalles Oekobaudat.")
+
+
+class SourceWatchReviewItemQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise ValidationError("Use el servicio de revision de source-watch.")
+
+    def delete(self):
+        raise ValidationError("El historial de revision de source-watch es inmutable.")
+
+    def bulk_create(self, *args, **kwargs):
+        raise ValidationError("Use el servicio de revision de source-watch.")
+
+
+class SourceWatchReviewItem(models.Model):
+    """SOURCE-WATCH-01F — durable human-review authority for a source
+    change SOURCE-WATCH-01D/E classified as needing attention. Resolving
+    an item only records that a human looked at it; it never applies any
+    downstream domain mutation itself — any real factor/legal/mapping
+    transition must go through that domain's own existing governed
+    service, invoked separately by a human."""
+
+    class Estado(models.TextChoices):
+        OPEN = "open", "Open"
+        ACKNOWLEDGED = "acknowledged", "Acknowledged"
+        RESOLVED = "resolved", "Resolved"
+        SUPERSEDED = "superseded", "Superseded"
+
+    TERMINAL = {Estado.RESOLVED, Estado.SUPERSEDED}
+
+    objects = SourceWatchReviewItemQuerySet.as_manager()
+
+    source = models.ForeignKey(EnvironmentalSource, on_delete=models.PROTECT, related_name="review_items")
+    sync_run = models.ForeignKey(SyncRun, on_delete=models.PROTECT, related_name="review_items")
+    external_id = models.CharField(max_length=300)
+    content_hash = models.CharField(max_length=64, blank=True)
+    domain = models.CharField(max_length=40)
+    classification = models.CharField(max_length=60)
+    severity = models.CharField(max_length=20)
+    impact_level = models.CharField(max_length=30)
+    reasons = models.JSONField(default=list, blank=True)
+    affected_objects = models.JSONField(default=list, blank=True)
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.OPEN, db_index=True)
+    superseded_by = models.OneToOneField(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="supersedes",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(estado__in=["open", "acknowledged", "resolved", "superseded"]),
+                name="knowledge_review_item_valid_status",
+            ),
+        ]
+
+    def clean(self):
+        if self.sync_run_id and self.source_id and self.sync_run.source_id != self.source_id:
+            raise ValidationError({"sync_run": "La ejecucion debe pertenecer a la misma fuente."})
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            previous = SourceWatchReviewItem.objects.get(pk=self.pk)
+            if previous.estado in self.TERMINAL:
+                raise ValidationError("Un item de revision resuelto o superado es inmutable.")
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("El historial de revision de source-watch es inmutable.")
+
+
+class SourceWatchReviewDecisionQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise ValidationError("Las decisiones de revision de source-watch son inmutables.")
+
+    def delete(self):
+        raise ValidationError("Las decisiones de revision de source-watch son inmutables.")
+
+    def bulk_create(self, *args, **kwargs):
+        raise ValidationError("Use el servicio de revision de source-watch.")
+
+
+class SourceWatchReviewDecision(models.Model):
+    class Decision(models.TextChoices):
+        ACKNOWLEDGED = "acknowledged", "Acknowledged"
+        RESOLVED = "resolved", "Resolved"
+        SUPERSEDED = "superseded", "Superseded"
+
+    objects = SourceWatchReviewDecisionQuerySet.as_manager()
+
+    review_item = models.ForeignKey(SourceWatchReviewItem, on_delete=models.PROTECT, related_name="decisiones")
+    decision = models.CharField(max_length=20, choices=Decision.choices)
+    actor = models.ForeignKey("auth.User", on_delete=models.PROTECT, related_name="source_watch_review_decisions")
+    timestamp = models.DateTimeField(auto_now_add=True)
+    note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["review_item_id", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(decision__in=["acknowledged", "resolved", "superseded"]),
+                name="knowledge_review_decision_valid",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Las decisiones de revision son inmutables.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Las decisiones de revision son inmutables.")
