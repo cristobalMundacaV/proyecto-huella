@@ -9,6 +9,7 @@ import { useAuth } from "@/features/auth/context/AuthContext";
 import { IconButton } from "@/shared/ui/Button";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import SuspendedServicePage from "@/features/saas/components/SuspendedServicePage";
+import AiChatLauncher from "@/features/ai-chat/components/AiChatLauncher";
 
 export default function AuthenticatedLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -99,6 +100,8 @@ export default function AuthenticatedLayout() {
           </section>
         </div>
       </div>
+
+      <AiChatLauncher />
     </main>
   );
 }

@@ -89,6 +89,7 @@ INSTALLED_APPS = [
     "apps.iot.apps.IotConfig",
     "apps.knowledge.apps.KnowledgeConfig",
     "apps.ec3.apps.Ec3Config",
+    "apps.ai.apps.AiConfig",
 ]
 
 # EC3 Pilot: secrets stay in backend environment; data rights are independent of access.
@@ -99,6 +100,19 @@ EC3_RIGHTS_REFERENCE = os.getenv("EC3_RIGHTS_REFERENCE", "")
 EC3_RIGHTS_VALID_UNTIL = os.getenv("EC3_RIGHTS_VALID_UNTIL", "")
 EC3_CACHE_TTL_SECONDS = int(os.getenv("EC3_CACHE_TTL_SECONDS", "300"))
 EC3_EVIDENCE_MAX_AGE_HOURS = int(os.getenv("EC3_EVIDENCE_MAX_AGE_HOURS", "168"))
+
+# AI-INTELLIGENCE-01: conversational assistant. The LLM never queries the
+# database directly — only backend tool-calling. Key stays backend-only:
+# never sent to the frontend, never logged, never persisted.
+OPENROUTER_ENABLED = str_to_bool(os.getenv("OPENROUTER_ENABLED"), default=False)
+OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "")
+AI_REQUEST_TIMEOUT_SECONDS = int(os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "30"))
+AI_MAX_OUTPUT_TOKENS = int(os.getenv("AI_MAX_OUTPUT_TOKENS", "1200"))
+AI_TEMPERATURE = float(os.getenv("AI_TEMPERATURE", "0.2"))
+AI_MAX_TOOL_ITERATIONS = int(os.getenv("AI_MAX_TOOL_ITERATIONS", "4"))
+AI_MAX_MESSAGES_PER_CONVERSATION = int(os.getenv("AI_MAX_MESSAGES_PER_CONVERSATION", "200"))
+AI_MAX_REQUESTS_PER_ORG_PER_HOUR = int(os.getenv("AI_MAX_REQUESTS_PER_ORG_PER_HOUR", "60"))
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 

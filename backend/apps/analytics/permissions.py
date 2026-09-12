@@ -62,6 +62,7 @@ class Permission:
     AUDIT_VIEW = "audit.view"
     SETTINGS_VIEW = "settings.view"
     SETTINGS_MANAGE = "settings.manage"
+    INTELLIGENCE_CHAT_VIEW = "intelligence_chat.view"
 
 
 ALL_PERMISSIONS = frozenset(value for name, value in vars(Permission).items() if name.isupper())
@@ -72,6 +73,7 @@ VIEW_PERMISSIONS = {
     Permission.COMPLIANCE_VIEW, Permission.REPORT_VIEW, Permission.MATERIAL_MAPPING_VIEW,
     Permission.MATERIAL_APPLICATION_PROFILE_VIEW,
     Permission.MATERIAL_PROPERTY_ASSERTION_VIEW,
+    Permission.INTELLIGENCE_CHAT_VIEW,
 }
 
 ROLE_PERMISSIONS = {
