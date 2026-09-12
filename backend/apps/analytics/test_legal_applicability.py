@@ -169,14 +169,26 @@ class LegalApplicabilityConcurrencyTests(TransactionTestCase):
     def _fixture_teardown(self):
         # The legacy schema contains a cross-app FK that Django's PostgreSQL
         # sql_flush misses. The test database can still be isolated safely by
-        # truncating its complete table set with CASCADE.
+        # truncating its complete table set with CASCADE — except
+        # django_migrations, which is bookkeeping, not fixture data: wiping
+        # it breaks the next `manage.py test --keepdb` invocation (it will
+        # try to re-run every migration into tables that already exist).
+        # Matches the pattern already used by DetailPostgresTests and the
+        # other TransactionTestCase teardowns across this codebase.
         if connection.vendor != "postgresql":
             return super()._fixture_teardown()
-        tables = connection.introspection.table_names()
+        tables = [
+            table
+            for table in connection.introspection.table_names()
+            if table != "django_migrations"
+        ]
         if tables:
             quoted = ", ".join(connection.ops.quote_name(table) for table in tables)
             with connection.cursor() as cursor:
                 cursor.execute(f"TRUNCATE {quoted} RESTART IDENTITY CASCADE")
+        from django.core.management.sql import emit_post_migrate_signal
+
+        emit_post_migrate_signal(verbosity=0, interactive=False, db=connection.alias)
 
     def setUp(self):
         LegalGovernanceTests.setUp(self)

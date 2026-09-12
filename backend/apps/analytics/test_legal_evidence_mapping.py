@@ -62,9 +62,11 @@ class LegalEvidenceMappingConcurrencyTests(TransactionTestCase):
 
     def _fixture_teardown(self):
         if connection.vendor!="postgresql":return super()._fixture_teardown()
-        tables=connection.introspection.table_names()
+        tables=[t for t in connection.introspection.table_names() if t != "django_migrations"]
         if tables:
             with connection.cursor() as cursor:cursor.execute("TRUNCATE "+", ".join(connection.ops.quote_name(t) for t in tables)+" RESTART IDENTITY CASCADE")
+        from django.core.management.sql import emit_post_migrate_signal
+        emit_post_migrate_signal(verbosity=0, interactive=False, db=connection.alias)
 
     def setUp(self):
         ensure_environmental_source_registry();LegalGovernanceTests.setUp(self);self.organization=Organizacion.objects.create(nombre="Concurrente");self.requirement_obj,self.requirement_version=self.governed()

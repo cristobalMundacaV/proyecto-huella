@@ -1,6 +1,9 @@
 from django.urls import path
 from . import views_material_candidates as material_candidates_api
 from . import views_material_factor_mapping as material_factor_mapping_api
+from . import views_material_inventory as material_inventory_api
+from . import views_material_ledger as material_ledger_api
+from . import views_material_catalog_discovery as material_catalog_discovery_api
 from .views_geospatial_context import work_geolocation,work_geolocation_history,work_territorial_context,observe_work_context,work_territorial_history
 
 from .views import (
@@ -298,6 +301,10 @@ urlpatterns = [
     path("environmental-governance/material-factor-candidates/<int:candidate_id>/", material_candidates_api.material_candidate_detail),
     path("environmental-governance/material-factor-candidates/<int:candidate_id>/eligibility/", material_candidates_api.material_candidate_eligibility),
     path("environmental-governance/material-factor-candidates/<int:candidate_id>/compatibility/", material_candidates_api.material_candidate_eligibility),
+    path("environmental-governance/material-factor-candidates/<int:candidate_id>/calidad/", material_candidates_api.material_candidate_quality),
+    path("environmental-governance/material-factor-candidates/<int:candidate_id>/impacto-fuente/", material_candidates_api.material_candidate_source_impact),
+    path("catalogo-material/", material_catalog_discovery_api.catalog_search),
+    path("catalogo-material/<int:candidate_id>/", material_catalog_discovery_api.catalog_discovery_detail),
     path("environmental-governance/material-factor-candidates/<int:candidate_id>/review/", material_candidates_api.material_candidate_review),
     path("environmental-governance/material-factor-candidates/<int:candidate_id>/promote/", material_candidates_api.material_candidate_promote),
     path("organizaciones/<str:organization_id>/obras/<int:work_id>/geo/ubicacion/",work_geolocation),path("organizaciones/<str:organization_id>/obras/<int:work_id>/geo/ubicacion/historial/",work_geolocation_history),path("organizaciones/<str:organization_id>/obras/<int:work_id>/geo/contexto/",work_territorial_context),path("organizaciones/<str:organization_id>/obras/<int:work_id>/geo/contexto/observar/",observe_work_context),path("organizaciones/<str:organization_id>/obras/<int:work_id>/geo/contexto/historial/",work_territorial_history),
@@ -420,6 +427,30 @@ urlpatterns = [
     path(
         "organizaciones/<str:organizacion_id>/materiales-operacionales/<int:material_id>/elegibilidad-calculo/",
         material_factor_mapping_api.material_calculation_eligibility,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/materiales-operacionales/cobertura-ambiental/",
+        material_inventory_api.coverage_summary,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/materiales-operacionales/<int:material_id>/cobertura-ambiental/",
+        material_inventory_api.material_coverage,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/eventos-materiales/<int:event_id>/cobertura-ambiental/",
+        material_inventory_api.reception_coverage_detail,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/materiales-operacionales/ledger-a1a3/",
+        material_ledger_api.ledger_totals,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/materiales-operacionales/ledger-a1a3/entradas/",
+        material_ledger_api.ledger_entry_list,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/materiales-operacionales/ledger-a1a3/<int:calculo_id>/",
+        material_ledger_api.ledger_entry_detail,
     ),
     path(
         "organizaciones/<str:organizacion_id>/mapeos-material-factor/",

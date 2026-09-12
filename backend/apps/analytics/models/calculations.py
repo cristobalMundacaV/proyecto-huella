@@ -57,6 +57,11 @@ class CalculoAmbiental(models.Model):
 
     class Meta:
         ordering = ["-fecha_calculo"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["recalculo_de"], name="unique_calculo_recalculo_de"
+            )
+        ]
 
     def save(self, *args, **kwargs):
         if self.pk and CalculoAmbiental.objects.filter(pk=self.pk).exists():

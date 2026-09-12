@@ -11,6 +11,8 @@ from .services.material_candidates import (
     review_material_candidate,
     promote_material_candidate,
 )
+from .services.material_quality import assess_material_data_quality
+from .services.material_source_impact import assess_candidate_impact
 from .views_factor_candidates import IsSuperUser, _validation_response
 
 
@@ -116,6 +118,18 @@ def material_candidate_detail(request, candidate_id):
 @permission_classes([IsActiveGlobalReviewer])
 def material_candidate_eligibility(request, candidate_id):
     return Response(evaluate_material_profile(candidate(candidate_id).source_profile))
+
+
+@api_view(["GET"])
+@permission_classes([IsActiveGlobalReviewer])
+def material_candidate_quality(request, candidate_id):
+    return Response(assess_material_data_quality(candidate(candidate_id)))
+
+
+@api_view(["GET"])
+@permission_classes([IsActiveGlobalReviewer])
+def material_candidate_source_impact(request, candidate_id):
+    return Response(assess_candidate_impact(candidate(candidate_id)))
 
 
 @api_view(["POST"])

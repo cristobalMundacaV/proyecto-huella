@@ -115,9 +115,11 @@ class GeoSourceTests(TestCase):
 class GeoPostgresConcurrencyTests(TransactionTestCase):
     def _fixture_teardown(self):
         if connection.vendor!="postgresql":return super()._fixture_teardown()
-        tables=connection.introspection.table_names()
+        tables=[t for t in connection.introspection.table_names() if t != "django_migrations"]
         if tables:
             with connection.cursor() as cursor:cursor.execute("TRUNCATE "+", ".join(connection.ops.quote_name(table) for table in tables)+" RESTART IDENTITY CASCADE")
+        from django.core.management.sql import emit_post_migrate_signal
+        emit_post_migrate_signal(verbosity=0, interactive=False, db=connection.alias)
     def test_concurrent_simbio_sync_is_serialized(self):
         if connection.vendor!="postgresql":self.skipTest("PostgreSQL locking")
         ensure_environmental_source_registry();source=EnvironmentalSource.objects.get(codigo="simbio");entered=Event();release=Event();results=[];errors=[]

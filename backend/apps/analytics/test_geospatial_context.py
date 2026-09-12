@@ -127,9 +127,11 @@ class GeoConcurrencyTests(TransactionTestCase):
     def _fixture_teardown(self):
         if connection.vendor!="postgresql":return super()._fixture_teardown()
         with connection.cursor() as cursor:
-            cursor.execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+            cursor.execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> 'django_migrations'")
             tables=[connection.ops.quote_name(row[0]) for row in cursor.fetchall()]
             if tables:cursor.execute("TRUNCATE "+", ".join(tables)+" RESTART IDENTITY CASCADE")
+        from django.core.management.sql import emit_post_migrate_signal
+        emit_post_migrate_signal(verbosity=0, interactive=False, db=connection.alias)
     def _base(self):
         user=get_user_model().objects.create_superuser("concurrent","concurrent@example.cl","x");org=Organizacion.objects.create(nombre="Geo concurrency");work=Obra.objects.create(organizacion=org,nombre="Obra",fecha_inicio=date(2026,1,1));return user,org,work
     def _run(self,functions):

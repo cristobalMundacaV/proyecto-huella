@@ -147,9 +147,11 @@ class RegulatorySyncApiTests(TestCase):
 class RegulatoryPostgresConcurrencyTests(TransactionTestCase):
     def _fixture_teardown(self):
         if connection.vendor!="postgresql":return super()._fixture_teardown()
-        tables=connection.introspection.table_names()
+        tables=[t for t in connection.introspection.table_names() if t != "django_migrations"]
         if tables:
             with connection.cursor() as cursor:cursor.execute("TRUNCATE "+", ".join(connection.ops.quote_name(table) for table in tables)+" RESTART IDENTITY CASCADE")
+        from django.core.management.sql import emit_post_migrate_signal
+        emit_post_migrate_signal(verbosity=0, interactive=False, db=connection.alias)
 
     def test_snifa_sync_is_serialized_and_state_consistent(self):
         if connection.vendor!="postgresql":self.skipTest("PostgreSQL locking")

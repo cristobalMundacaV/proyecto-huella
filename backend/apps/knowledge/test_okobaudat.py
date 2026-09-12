@@ -74,8 +74,10 @@ class OekobaudatPostgresConcurrencyTests(TransactionTestCase):
     def _fixture_teardown(self):
         if connection.vendor!="postgresql":return super()._fixture_teardown()
         with connection.cursor() as cursor:
-            cursor.execute("SELECT tablename FROM pg_tables WHERE schemaname='public'");tables=[connection.ops.quote_name(row[0]) for row in cursor.fetchall()]
+            cursor.execute("SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename <> 'django_migrations'");tables=[connection.ops.quote_name(row[0]) for row in cursor.fetchall()]
             if tables:cursor.execute("TRUNCATE "+", ".join(tables)+" RESTART IDENTITY CASCADE")
+        from django.core.management.sql import emit_post_migrate_signal
+        emit_post_migrate_signal(verbosity=0, interactive=False, db=connection.alias)
     def test_concurrent_sync_does_not_duplicate_publication(self):
         if connection.vendor!="postgresql":self.skipTest("PostgreSQL locking")
         ensure_environmental_source_registry();source=EnvironmentalSource.objects.get(codigo="okobaudat");entered=Event();release=Event();results=[];errors=[]

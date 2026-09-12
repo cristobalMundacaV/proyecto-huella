@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
 from ..models import CalculoAmbiental, FormulaAmbiental, InputCalculoAmbiental
 from .impact_v2 import create_generated_impact
@@ -149,5 +149,13 @@ def calculate_activity(actividad, *, result_context=None, recalculation_of=None,
 def recalculate(calculation, reason, *, result_context=None):
     if not reason or not reason.strip():
         raise ValidationError("El motivo del recálculo es obligatorio.")
-    return calculate_activity(calculation.actividad, result_context=result_context,
-                              recalculation_of=calculation, recalculation_reason=reason.strip())
+    try:
+        with transaction.atomic():
+            return calculate_activity(
+                calculation.actividad, result_context=result_context,
+                recalculation_of=calculation, recalculation_reason=reason.strip(),
+            )
+    except IntegrityError as exc:
+        raise ValidationError(
+            "Este cálculo ya fue recalculado por otra transacción concurrente."
+        ) from exc
