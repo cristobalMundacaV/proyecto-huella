@@ -79,6 +79,16 @@ def select_material_factor(organization, material, source_unit, effective_date):
             decision=decision,
             status="no_calculable",
         )
+    # EC3's authoritative data remains subject to local, current scientific governance.
+    if (factor.contexto or {}).get("provider") == "EC3" or hasattr(active_version, "ec3_candidate"):
+        from apps.ec3.services import factor_block_reason
+
+        block_reason = factor_block_reason(active_version, mapping)
+        if block_reason:
+            return _result(
+                factor_version=None, specificity="explicit_mapping", reason=block_reason,
+                mapping=mapping, decision=decision, status="requiere_revision",
+            )
     try:
         convert_value(1, source_unit, active_version.factor.unidad_entrada)
     except UnitConversionError as error:

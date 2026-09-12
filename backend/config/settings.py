@@ -88,7 +88,17 @@ INSTALLED_APPS = [
     "apps.analytics.apps.AnalyticsConfig",
     "apps.iot.apps.IotConfig",
     "apps.knowledge.apps.KnowledgeConfig",
+    "apps.ec3.apps.Ec3Config",
 ]
+
+# EC3 Pilot: secrets stay in backend environment; data rights are independent of access.
+EC3_ENABLED = str_to_bool(os.getenv("EC3_ENABLED"), default=False)
+EC3_API_TOKEN = os.getenv("EC3_API_TOKEN", "")
+EC3_STORAGE_ALLOWED = str_to_bool(os.getenv("EC3_STORAGE_ALLOWED"), default=False)
+EC3_RIGHTS_REFERENCE = os.getenv("EC3_RIGHTS_REFERENCE", "")
+EC3_RIGHTS_VALID_UNTIL = os.getenv("EC3_RIGHTS_VALID_UNTIL", "")
+EC3_CACHE_TTL_SECONDS = int(os.getenv("EC3_CACHE_TTL_SECONDS", "300"))
+EC3_EVIDENCE_MAX_AGE_HOURS = int(os.getenv("EC3_EVIDENCE_MAX_AGE_HOURS", "168"))
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 

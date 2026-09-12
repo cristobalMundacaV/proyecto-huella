@@ -80,7 +80,10 @@ def ledger_entry_provenance(calculo):
     factor = calculo.version_factor.factor
     quality = assess_factor_data_quality(factor)
     candidate = getattr(factor, "material_source_candidate", None)
+    from apps.ec3.reporting import ledger_source
+
     return {
+        **ledger_source(calculo),
         "calculo_id": calculo.id,
         "actividad_id": calculo.actividad_id,
         "evento_recepcion_id": event.id if event else None,

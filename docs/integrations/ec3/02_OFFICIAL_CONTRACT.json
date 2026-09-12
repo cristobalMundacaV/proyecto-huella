@@ -1,0 +1,488 @@
+{
+  "source_url": "https://docs.open-epd-forum.org/openapi/openepd-rest.json",
+  "retrieved_on": "2026-09-12",
+  "source_sha256": "ad66c6a1d33af653dac426117186060db0395bbc3a94e310d49dc1f28570339c",
+  "license": {
+    "name": "Apache-2.0",
+    "url": "http://www.apache.org/licenses/LICENSE-2.0"
+  },
+  "servers": [
+    {
+      "url": "https://openepd.buildingtransparency.org/api",
+      "description": "EC3 OpenEPD API (Prod)"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "securitySchemes": {
+    "bearerAuth": {
+      "type": "http",
+      "scheme": "bearer"
+    },
+    "oauth2Auth": {
+      "type": "oauth2",
+      "description": "This API uses OAuth 2 with the `authorization code` and `resource owner password credentials` flows.\nMore info about OAuth 2 flows is available [here](https://datatracker.ietf.org/doc/html/rfc6749#section-1.3).\n",
+      "flows": {
+        "authorizationCode": {
+          "authorizationUrl": "https://buildingtransparency.org/api/oauth2/authorize",
+          "tokenUrl": "https://buildingtransparency.org/api/oauth2/token",
+          "scopes": {
+            "read": "can read data readable by associated account",
+            "write": "can write data writeable by associated account"
+          }
+        },
+        "password": {
+          "tokenUrl": "https://buildingtransparency.org/api/oauth2/token",
+          "scopes": {
+            "read": "can read data readable by associated account",
+            "write": "can write data writeable by associated account"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/v2/epds/search": {
+      "get": {
+        "operationId": "get_epds_search",
+        "summary": "Search EPDs",
+        "tags": [
+          "epds"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageNumber"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/OpenMaterialFilterRequired"
+          }
+        ],
+        "description": "Search for EPDs by parameters. Parameters are given in a form of MaterialFilter, a query language for searching \nmaterials/EPDs, running statistics and so on. It can exist in a string form, which is accepted by most of the \nendpoints. \n",
+        "responses": {
+          "200": {
+            "description": "List of found EPDs in a standard format\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "allOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "payload": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/EPD--List"
+                          }
+                        },
+                        "meta": {
+                          "title": "EpdSearchViewMeta",
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/MetaCollectionDto"
+                            },
+                            {
+                              "$ref": "#/components/schemas/MaterialFilterMetaMixin"
+                            },
+                            {
+                              "$ref": "#/components/schemas/WarningMetaMixin"
+                            },
+                            {
+                              "$ref": "#/components/schemas/PagingMetaMixin"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/EC3Response"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/epds/{openXpdUuid}": {
+      "parameters": [
+        {
+          "name": "openXpdUuid",
+          "in": "path",
+          "description": "Open xPD UUID",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "open-xpd-uuid",
+            "example": "EC300001",
+            "description": "Open xPD UUID is a string that consists of 8 or 10 (8+2)\nalpha-numeric characters and any number of dashes.\nFor example: `123ABCED`, `123ABCEDAR`, `ASB21M01`, `avbDK93S`, `-AB-11-cc-Ll---`. GUIDs that consists of\nthe following characters 1234567890ABCDEFGHJKMNPRQRSTUVWXYZ (L and O are not mentioned)\nare called \"canonical\". For example: `12345678`, `ABCDEFG1`, `123ABCEDAR`.\nGUIDs that consists of 10 characters represent 8-character guid with appended 2-character checksum.\nChecksum allows to detect 1-character entry errors and character swaps, and most other errors.\n"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "get_epds_id",
+        "summary": "Get EPD information",
+        "tags": [
+          "epds"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Fields"
+          }
+        ],
+        "description": "Get details about an EPD by Open xPD UUID.",
+        "responses": {
+          "200": {
+            "description": "Returns an EPD object.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EPD--Full"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "An EPD with specified Open xPD UUID was not found"
+          }
+        }
+      }
+    }
+  },
+  "parameters": {
+    "PageNumber": {
+      "name": "page_number",
+      "in": "query",
+      "schema": {
+        "type": "integer",
+        "default": 1
+      },
+      "description": "Page number to return. Starts from 1."
+    },
+    "PageSize": {
+      "name": "page_size",
+      "in": "query",
+      "schema": {
+        "type": "integer",
+        "default": 100,
+        "minimum": 1,
+        "maximum": 250
+      },
+      "description": "The number of items per page to return.\n"
+    },
+    "OpenMaterialFilterRequired": {
+      "name": "omf",
+      "in": "query",
+      "schema": {
+        "type": "string"
+      },
+      "description": "OpenMaterialFilter is a query language for searching materials/EPDs, running statistics and so on. Please refer to \nthe documentation for more details.\n",
+      "required": true,
+      "example": "!EC3 search(\"AluminiumBillets\") WHERE\n  valid_until: > \"2023-04-20\" AND\n  specs.aluminium.alloy: IN(\"1xxx\", \"2xxx\") AND\n  specs.aluminium.alloy: NOT_IN(\"6xxx\") AND\n  specs.aluminium.options.anodized: yes AND\n  specs.aluminium.options.painted: no\n!pragma oMF(\"1.0/1\")\n"
+    }
+  },
+  "schemas": {
+    "PagingMeta": {
+      "title": "PagingMeta",
+      "description": "Paging related meta",
+      "type": "object",
+      "properties": {
+        "total_count": {
+          "title": "Total results",
+          "description": "Total number of records for the search",
+          "example": 1233,
+          "type": "integer"
+        },
+        "total_pages": {
+          "title": "Total pages",
+          "description": "Total pages available",
+          "example": 20,
+          "type": "integer"
+        },
+        "page_size": {
+          "title": "Page size",
+          "description": "Number of records in page",
+          "example": 150,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "total_count",
+        "total_pages",
+        "page_size"
+      ]
+    },
+    "PagingMetaMixin": {
+      "title": "PagingMetaMixin",
+      "description": "Paging related meta",
+      "type": "object",
+      "properties": {
+        "paging": {
+          "$ref": "#/components/schemas/PagingMeta"
+        }
+      }
+    },
+    "Measurement": {
+      "title": "Measurement",
+      "description": "A scientific value with units and uncertainty.",
+      "type": "object",
+      "properties": {
+        "mean": {
+          "title": "Mean",
+          "description": "Mean (expected) value of the measurement",
+          "type": "number"
+        },
+        "unit": {
+          "title": "Unit",
+          "description": "Measurement unit",
+          "type": "string"
+        },
+        "rsd": {
+          "title": "Rsd",
+          "description": "Relative standard deviation, i.e. standard_deviation/mean",
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "dist": {
+          "title": "Dist",
+          "description": "Statistical distribution of the measurement error.",
+          "type": "string"
+        },
+        "ext": {
+          "title": "Ext",
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "array",
+                "items": {}
+              },
+              {
+                "type": "object"
+              },
+              {
+                "$ref": "#/components/schemas/BaseModel"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "mean"
+      ]
+    },
+    "Amount": {
+      "title": "Amount",
+      "description": "A value-and-unit pairing for amounts that do not have an uncertainty.",
+      "type": "object",
+      "properties": {
+        "qty": {
+          "title": "Qty",
+          "description": "How much of this in the amount.",
+          "type": "number"
+        },
+        "unit": {
+          "title": "Unit",
+          "description": "Which unit.  SI units are preferred.",
+          "example": "kg",
+          "type": "string"
+        },
+        "ext": {
+          "title": "Ext",
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "array",
+                "items": {}
+              },
+              {
+                "type": "object"
+              },
+              {
+                "$ref": "#/components/schemas/BaseModel"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "Standard--Base": {
+      "title": "Standard (Base)",
+      "type": "object",
+      "required": [
+        "short_name",
+        "link"
+      ],
+      "properties": {
+        "short_name": {
+          "type": "string",
+          "maxLength": 40,
+          "example": "ISO 14024:2018",
+          "description": "Short-form of name of standard. Must be unique within all `Standard.short_name`s in lowecase."
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 200,
+          "example": "ISO 14024:2018 Environmental labels and declarations — Type I environmental labelling — Principles and procedures\n",
+          "description": "Full document name. Must be unique within all `Standard.name`s in lowecase."
+        },
+        "link": {
+          "allOf": [
+            {
+              "type": "string",
+              "format": "url",
+              "maxLength": 255,
+              "example": "https://buildingtransparency.org/ec3/epds/1u7zsed8"
+            }
+          ],
+          "example": "https://www.iso.org/standard/72458.html",
+          "description": "Link to the exact standard (including version) referred to."
+        },
+        "ref": {
+          "allOf": [
+            {
+              "type": "string",
+              "format": "url",
+              "maxLength": 255,
+              "example": "https://buildingtransparency.org/ec3/epds/1u7zsed8"
+            }
+          ],
+          "readOnly": true,
+          "example": "https://openepd.buildingtransparency.org/api/standards/ISO+14024%3A2018",
+          "description": "Reference to this Standard's JSON object"
+        }
+      }
+    }
+  },
+  "epd_base_properties": {
+    "id": {
+      "allOf": [
+        {
+          "type": "string",
+          "format": "open-xpd-uuid",
+          "example": "1u7zsed8",
+          "description": "Canonical Open XPD UUID in lowercase."
+        }
+      ],
+      "readOnly": true,
+      "description": "The unique ID for this EPD.\nTo ensure global uniqueness, should be registered at open-xpd-uuid.cqd.io/register or a coordinating registry.\n"
+    },
+    "doctype": {
+      "type": "string",
+      "enum": [
+        "OpenEPD"
+      ],
+      "description": "What kind of doc this is"
+    },
+    "version": {
+      "type": "integer",
+      "example": 814,
+      "description": "Version of this document.\nThe document's issuer should increment it anytime even a single character changes,\nas this value is used to determine the most recent version.\nAlways greater than previous value.\n"
+    },
+    "private": {
+      "type": "boolean",
+      "default": false,
+      "description": "Controls publishing and draft status of an EPD\nWhen a newly created EPD has `private` field set to `True` then it is created in Draft state. While in Draft state Only owner and specified third parties have access to it. After submitting update with this field set to `False` EPD becomes published and general public receives access to it. The account that published the EPD becomes the new owner, in order to prevent unauthorized changes.\n"
+    },
+    "declaration_url": {
+      "allOf": [
+        {
+          "type": "string",
+          "format": "url",
+          "maxLength": 255,
+          "example": "https://buildingtransparency.org/ec3/epds/1u7zsed8"
+        }
+      ],
+      "description": "Link to data object on original registrar's site. **Required if `private` == false**."
+    },
+    "date_of_issue": {
+      "type": "string",
+      "format": "datetime",
+      "example": "2019-02-11T00:00:00Z",
+      "description": "Date the EPD was issued. ISO datetime. **Required if `private` == false**."
+    },
+    "valid_until": {
+      "type": "string",
+      "format": "datetime",
+      "example": "2024-02-11T00:00:00Z",
+      "description": "Last date the EPD is valid on, including any extensions. ISO datetime. **Required if `private` == false**.\n"
+    },
+    "declared_unit": {
+      "allOf": [
+        {
+          "type": "object",
+          "required": [
+            "qty",
+            "unit"
+          ],
+          "properties": {
+            "qty": {
+              "type": "number",
+              "description": "How much of this in the amount"
+            },
+            "unit": {
+              "type": "string",
+              "description": "Which unit. SI units are preferred."
+            }
+          }
+        }
+      ],
+      "nullable": true,
+      "description": "Declared unit",
+      "example": {
+        "qty": 1,
+        "unit": "m3"
+      }
+    }
+  },
+  "epd_full_impact_methods": [
+    "TRACI 2.1",
+    "TRACI 2.0",
+    "TRACI 1.0",
+    "IPCC AR5",
+    "EF 3.0",
+    "CML 2016",
+    "CML 2012",
+    "CML 2007",
+    "CML 2001",
+    "CML 1992",
+    "ReCiPe 2016",
+    "ReCiPe 2008",
+    "EF 2.0, 2018",
+    "EN 15978:2011",
+    "USEtox 2.12",
+    "Unknown LCIA"
+  ]
+}

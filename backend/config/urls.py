@@ -8,6 +8,7 @@ urlpatterns = [
     path("api/", include("apps.analytics.urls")),
     path("api/iot/", include("apps.iot.urls")),
     path("api/knowledge/", include("apps.knowledge.urls")),
+    path("api/integrations/ec3/", include("apps.ec3.urls")),
 ]
 
 if settings.DEBUG:

@@ -100,6 +100,10 @@ def assess_factor_data_quality(factor):
     candidate (01C) and assess it. Factors with no ÖKOBAUDAT-governed origin
     (e.g. a private tenant factor) have no upstream metadata to assess: this
     is reported explicitly, never guessed."""
+    if (factor.contexto or {}).get("provider") == "EC3":
+        from apps.ec3.reporting import factor_quality
+
+        return factor_quality(factor)
     candidate = getattr(factor, "material_source_candidate", None)
     if candidate is None:
         return {
