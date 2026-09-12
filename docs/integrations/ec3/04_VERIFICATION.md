@@ -1,8 +1,10 @@
 # EC3-01 — Auditoría y verificación
 
-Estado: implementación offline terminada; validación autenticada real bloqueada
-por credencial externa. **No declarar DONE operativo hasta resolver el smoke real.**
-Verdict exacto de esta fase: **IMPLEMENTATION COMPLETE — REAL API VALIDATION PENDING**.
+Estado: implementación completa y validada, incluido el smoke real contra la
+cuenta Pilot (2026-09-12). Verdict: **DONE**. Ver
+[EC3-01-FINAL-REPORT.md](../../EC3-01-FINAL-REPORT.md) sección 15 para el
+detalle completo del smoke real; este documento conserva el registro
+histórico de la fase offline y añade el resultado real al final.
 
 ## Auditoría y cierre de brechas (sesión posterior)
 
@@ -39,6 +41,11 @@ reales que quedaban:
   paralelo o una fuente de verdad duplicada; todas reutilizan `evaluate_version`,
   `select_material_factor`, `unit_conversion.convert_value` y el `SyncRun`/
   `EnvironmentalSource` de Knowledge Hub ya existentes.
+- **Corrección adicional tras el smoke real** (ver más abajo):
+  `apps/ec3/schemas.py::project_epd` rechazaba EPDs reales cuyo objeto `ec3`
+  trajera `batch_specific`/`manufacturer_specific`/`plant_specific`/
+  `product_specific` con valor `null` — la cuenta real lo devuelve así
+  legítimamente. Corregido para aceptar `None` en esos 4 flags.
 
 ## Entorno aislado
 
@@ -54,7 +61,7 @@ SOURCE-WATCH. No se descargaron EPDs reales ni se hicieron llamadas autenticadas
 | Suite EC3 inicial (sesión Codex) | 33/33 OK, 18.784 s |
 | Regresión ambiental amplia (sesión Codex) | 305/305 OK, 421.423 s |
 | Gate de versionado ampliado + selector + E2E existente (sesión Codex) | 53/53 OK, 85.455 s |
-| **Suite EC3 completa tras el cierre de brechas (sesión posterior)** | **63/63 OK, ~68 s** (36 gobernanza/cliente/rate-limit + 17 comparabilidad/oportunidad + 5 refresh command + 4 observabilidad + 1 cross-source reuse) |
+| **Suite EC3 completa tras el cierre de brechas + smoke real (sesión posterior)** | **64/64 OK, ~58 s** (37 gobernanza/cliente/rate-limit incl. regresión del fix de schema + 17 comparabilidad/oportunidad + 5 refresh command + 4 observabilidad + 1 cross-source reuse) |
 | MI-01D/MI-01H (`test_material_comparable_sets`, `test_material_opportunities`, `test_material_hotspots`, `test_material_environmental_comparison`, `test_material_intelligence_e2e`, `test_material_intelligence_security_audit`) tras los cambios EC3 | 51/51 OK, sin regresión |
 | `manage.py check` (con `apps.ec3` incluida) | Sin incidencias |
 | `makemigrations --check --dry-run` | Sin cambios pendientes |
@@ -119,10 +126,15 @@ Añadido por la sesión posterior (sin tocar nada de lo anterior salvo lo indica
 - `apps/ec3/reporting.py`: `factor_quality` ahora deriva `known["standard"]` del
   `compliance` real de la EPD — corrige la exclusión permanente de todo material
   mapeado a EC3 del motor de conjuntos comparables de MATERIAL-INTELLIGENCE.
+- `apps/ec3/schemas.py`: `project_epd` acepta `null` real en los 4 flags de
+  especificidad EC3 (nunca en `category`) — encontrado por el smoke real
+  (ver sección "Smoke real ejecutado" más abajo).
 - Nuevos tests: `test_comparability_opportunity.py` (17), `test_refresh_command.py`
-  (5), `test_observability.py` (4).
-- Sin nuevas migraciones (ningún modelo nuevo); sin cambios en `apps/knowledge/` ni
-  en documentación SOURCE-WATCH.
+  (5), `test_observability.py` (4), `test_client.py` +1 (regresión del fix de schema).
+- Migraciones EC3 aplicadas a la base real `material01d` (nunca lo habían sido;
+  sólo existían en la base de test efímera) — sin migraciones nuevas creadas
+  (ningún modelo nuevo). Sin cambios en `apps/knowledge/` ni en documentación
+  SOURCE-WATCH.
 
 No se editaron archivos de `backend/apps/knowledge/` ni documentación SOURCE-WATCH.
 Sus modificaciones concurrentes permanecen en el working tree. La integración
@@ -153,45 +165,35 @@ algunos tests heredados de concurrencia truncan tablas, incluido el historial de
 migraciones. No reutilizar esa base con `--keepdb` en ejecuciones posteriores sin
 recrearla. Esta fase no modifica ese comportamiento heredado.
 
-## Bloqueo externo exacto y siguiente paso
+## Bloqueo externo (histórico — resuelto)
 
-La comprobación de configuración imprimió sólo booleanos y confirmó:
-`EC3_API_TOKEN_present=False`, `EC3_ENABLED=False`, `EC3_STORAGE_ALLOWED=False`.
+Al momento de escribir las secciones anteriores, la comprobación de
+configuración imprimía sólo booleanos y confirmaba: `EC3_API_TOKEN_present=
+False`, `EC3_ENABLED=False`, `EC3_STORAGE_ALLOWED=False`. El bloqueo (falta
+de `EC3_API_TOKEN`) fue resuelto por el usuario, quien confirmó el token
+disponible en `backend/.env` (gitignorado). El procedimiento de 6 pasos que
+seguía en esta sección fue ejecutado real y completo — ver
+[EC3-01-FINAL-REPORT.md](../../EC3-01-FINAL-REPORT.md) sección 15 para el
+detalle paso a paso y los resultados reales. Se conserva este historial para
+que quede explícito qué se sabía antes del smoke real y qué cambió después.
 
-Falta **`EC3_API_TOKEN`**, clave Bearer de lectura creada en EC3 → Settings → API &
-Integrations → API Keys. Debe configurarse en el entorno backend o gestor de
-secretos, no enviarse por chat ni incorporarse al repositorio. La conexión real
-se detuvo exactamente antes de enviar una solicitud autenticada.
+## Smoke real ejecutado (2026-09-12) — resumen
 
-Además, para persistir el primer caso real, registrar en `EC3_RIGHTS_REFERENCE` y
-`EC3_RIGHTS_VALID_UNTIL` el permiso Pilot que ampara cache y evidencia de auditoría,
-y activar `EC3_STORAGE_ALLOWED` sólo dentro de ese permiso. Si el acuerdo recibido
-no lo especifica, la aclaración corresponde a Building Transparency.
-
-Una vez configurado:
-
-1. Activar `EC3_ENABLED` y ejecutar `manage.py check` y migraciones en el entorno
-   de validación autorizado.
-2. Ejecutar una página de búsqueda con oMF confirmado por EC3 (preferir acero
-   estructural) a través de `GET /api/integrations/ec3/search/`.
-3. Elegir **para inspección**, sin confirmar aplicabilidad, un ID devuelto; consultar
-   `GET /api/integrations/ec3/epds/<id>/`. Contrastar campos, costes observados,
-   paginación y acceso de la cuenta Pilot contra el contrato documentado.
-4. Si los derechos lo permiten, ingerir ese ID y ejecutar el flujo humano descrito
-   en [03_OPERATIONS.md](03_OPERATIONS.md). Completar comparación científica,
-   vigencia, geografía, PCR/estándar, unidad y uso antes de aprobar el mapping.
-5. Registrar el resultado del E2E real y entonces reevaluar DONE. Un test mock
-   exitoso no se presenta como validación de una EPD real.
-6. Opcionalmente, tras un primer smoke exitoso: `GET
-   /api/integrations/ec3/candidates/<id>/eligibility/`, `GET
-   /api/integrations/ec3/observability/` (nunca debe exponer el token ni un cuerpo
-   upstream) y, si existen dos candidatos reales propuestos para el mismo material,
-   `GET /api/integrations/ec3/candidates/<id>/compare/?candidate_b=<id>&lcia_method=`.
-   Ninguno de estos endpoints ingiere, promueve ni aprueba nada por sí mismo.
+Autenticación real confirmada sin exponer el token; búsqueda real (la
+categoría `"StructuralSteel"` preferida por la misión fue rechazada por la
+API real — `Unknown EC3 Material Filter field accessible_categories`; se usó
+la categoría del ejemplo oficial `AluminiumBillets` en su lugar, sin
+inventar ningún nombre de categoría no documentado); detalle real de
+`ec33srzz`; validación de schema que **encontró y corrigió** un mismatch
+real (`ec3.batch_specific` puede ser `null` en datos reales, no sólo
+booleano); ingesta controlada única con `EpdVersion` real persistido;
+provenance/checksum reales verificados; rate limiter compartido confirmado
+rastreando consumo real (3 eventos tras 3 solicitudes, muy por debajo del
+cupo de 100/min). Detalle completo, incluidas las migraciones EC3 que
+faltaban aplicar a la base real y se aplicaron en el proceso, en
+[EC3-01-FINAL-REPORT.md](../../EC3-01-FINAL-REPORT.md).
 
 ## Verdict
 
-**IMPLEMENTATION COMPLETE — REAL API VALIDATION PENDING.** Todo lo demás definido en
-la misión EC3 está implementado, probado y documentado offline; el único bloqueo
-restante es la credencial `EC3_API_TOKEN`, que sólo Building Transparency puede
-emitir para esta cuenta Pilot.
+**DONE.** Todo lo definido en la misión EC3 está implementado, probado
+offline y ahora también validado con datos reales de la cuenta Pilot real.

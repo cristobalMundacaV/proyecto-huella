@@ -146,3 +146,15 @@ class SchemaTests(SimpleTestCase):
         self.assertEqual(external_id("EC3-TEST1"), "ec3test1")
         self.assertEqual(retry_after("bad", 60), 60)
         self.assertEqual(retry_after("NaN", 60), 60)
+
+    def test_ec3_specificity_flags_accept_real_null_but_category_stays_a_string(self):
+        # Found by the real API smoke test (2026-09-12): the live Pilot
+        # account legitimately returns `batch_specific: null` (specificity
+        # not established), distinct from omitting the key entirely.
+        payload = steel_payload()
+        payload["ec3"]["batch_specific"] = None
+        evidence = project_epd(payload)
+        self.assertIsNone(evidence["ec3"]["batch_specific"])
+        payload["ec3"]["category"] = None
+        with self.assertRaises(ValidationError):
+            project_epd(payload)

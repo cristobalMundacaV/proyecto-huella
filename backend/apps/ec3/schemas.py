@@ -136,7 +136,12 @@ def project_epd(data, *, detail=False):
     for key in ("category", "manufacturer_specific", "plant_specific", "product_specific", "batch_specific"):
         if ec3 and key in ec3:
             value = ec3[key]
-            if (key == "category" and not isinstance(value, str)) or (key != "category" and type(value) is not bool):
+            if key == "category":
+                if not isinstance(value, str):
+                    raise ValidationError("Metadata EC3 inválida.")
+            # The real API legitimately returns null here (specificity not
+            # established for this EPD), distinct from omitting the key.
+            elif value is not None and type(value) is not bool:
                 raise ValidationError("Metadata EC3 inválida.")
             result["ec3"][key] = value
     result["impacts"] = {}
