@@ -250,3 +250,34 @@ Se levantó el frontend real (`vite --host`) contra el backend Docker existente,
 
 - El punto de estado del subnav sólo refleja aplicabilidad (aplica/pendiente), no el estado de datos real (con datos/sin datos/requiere revisión) por flujo — evitar fetches pesados por ítem en el sidebar; esa granularidad ya vive en `OperacionOverviewPage` al entrar al ámbito.
 - El grupo "Gestión" no se auto-expande junto con "Operación" al entrar por primera vez a una obra (por diseño, para no alargar el sidebar); el usuario debe expandirlo manualmente o navegar a una de sus rutas.
+
+## OBRA SUBNAV LAYOUT FIX (corrección posterior)
+
+### Causa
+
+`GeneralNavigation` renderizaba su propio `<nav>` con `flex-1 overflow-y-auto` — al ser un ítem flex dentro del `<aside className="flex flex-col ...">`, crecía para llenar todo el alto disponible del sidebar (aunque su contenido real fueran sólo 5 enlaces cortos). `ObraActiveSubnav`, como siguiente hermano en el DOM, quedaba empujado hasta el borde inferior de ese espacio vacío — de ahí el hueco enorme reportado entre "Configuración" y "Obra activa". No había `mt-auto`, `justify-between` ni `position: absolute`; el `flex-1` mal ubicado era la única causa real.
+
+### Wrapper corregido
+
+`flex-1`/`overflow-y-auto`/`min-h-0` se movieron a UN `<div>` que envuelve tanto `<GeneralNavigation>` como `<ObraActiveSubnav>`; `GeneralNavigation` ahora renderiza un `<nav className="space-y-3">` plano, sin flex ni scroll propios. Misma estructura que pedía el reporte: selector → nav principal → subnav de obra, todo en el mismo flujo de documento, dentro de un único contenedor con scroll.
+
+### Verificación visual
+
+Se volvió a levantar el frontend real contra el tenant "Constructora Andina SpA" (usuario temporal, desactivado al terminar). Confirmado en pantalla en `/obras/1/resumen`: Configuración → divisor delgado → "OBRA ACTIVA" → "OPERACIÓN" (expandido, con los 8 flujos) → "GESTIÓN", sin hueco vertical. Se navegó a Energía (queda activa, resto del sidebar intacto) y se expandió Gestión → Evidencias (navega, queda activa, Operación permanece expandido — ambos grupos pueden estar abiertos a la vez, lo cual no contradice el requerimiento).
+
+### Ajuste adicional
+
+El grupo inicialmente expandido ahora se calcula en el `useState` inicial (perezoso) según la ruta activa al montar, en vez de asumir siempre "Operación" — así entrar directo a una ruta de Gestión (ej. `/obras/71/evidencias`) abre "Gestión" desde el primer render, sin parpadeo.
+
+### Tests nuevos
+
+- `app/layouts/Sidebar.layout.test.js` (3 casos, basados en código fuente como `ObraResumenPage.test.js`): el subnav está dentro del mismo wrapper `flex-1`/scroll que la nav principal y aparece inmediatamente después en el DOM; `GeneralNavigation` ya no lleva `flex-1`/`overflow-y-auto` propios; no existe `mt-auto` ni `justify-between` en el archivo.
+
+### Verificación final
+
+- Frontend: 112/112 tests, lint limpio, build limpio.
+- Sin cambios de backend.
+
+### Pendientes reales (agregado)
+
+- La verificación de "un solo loader visible"/paridad de comportamiento en tablet/responsive de esta corrección fue visual (Chrome DevTools-equivalente vía el navegador de la sesión), no automatizada con una suite de regresión visual.

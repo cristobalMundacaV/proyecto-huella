@@ -330,31 +330,40 @@ export default function Sidebar({
                 scope={scope}
             />
 
-            <GeneralNavigation
-                navigation={
-                    navigation
-                }
-                expanded={
-                    expanded
-                }
-                setExpanded={
-                    setExpanded
-                }
-                exactPaths={
-                    exactPaths
-                }
-                onNavigate={
-                    onNavigate
-                }
-            />
-
-            {obraSubnav && (
-                <ObraActiveSubnav
-                    onNavigate={onNavigate}
-                    pathname={pathname}
-                    subnav={obraSubnav}
+            {/* ONE scrollable region for BOTH the primary nav and the obra
+                subnav — this is the fix: `GeneralNavigation`'s <nav> used to
+                carry `flex-1` on its own, growing to fill the aside and
+                pushing `ObraActiveSubnav` (its next DOM sibling) all the way
+                to the bottom behind a huge empty gap. Now `flex-1`/scroll
+                live on this wrapper only, so the subnav sits immediately
+                after the primary nav in normal document flow. */}
+            <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-2">
+                <GeneralNavigation
+                    navigation={
+                        navigation
+                    }
+                    expanded={
+                        expanded
+                    }
+                    setExpanded={
+                        setExpanded
+                    }
+                    exactPaths={
+                        exactPaths
+                    }
+                    onNavigate={
+                        onNavigate
+                    }
                 />
-            )}
+
+                {obraSubnav && (
+                    <ObraActiveSubnav
+                        onNavigate={onNavigate}
+                        pathname={pathname}
+                        subnav={obraSubnav}
+                    />
+                )}
+            </div>
         </aside>
     );
 }
@@ -370,11 +379,18 @@ const FLOW_STATE_DOT = {
  * Gestión); whichever contains the active route starts expanded. Every
  * `path` here is an existing route (see router.jsx) — this component only
  * decides what's visible/expanded, never creates a page. */
+function activeGroupFor(subnav, pathname) {
+    return subnav.groups.find((group) => group.items.some((item) => pathname === item.path || pathname.startsWith(`${item.path}/`)));
+}
+
 function ObraActiveSubnav({ onNavigate, pathname, subnav }) {
-    const [expandedGroups, setExpandedGroups] = useState(() => new Set(["operation"]));
+    const [expandedGroups, setExpandedGroups] = useState(() => {
+        const active = activeGroupFor(subnav, pathname);
+        return new Set([active ? active.id : "operation"]);
+    });
 
     useEffect(() => {
-        const active = subnav.groups.find((group) => group.items.some((item) => pathname === item.path || pathname.startsWith(`${item.path}/`)));
+        const active = activeGroupFor(subnav, pathname);
         if (active) setExpandedGroups((current) => (current.has(active.id) ? current : new Set([...current, active.id])));
     }, [pathname, subnav]);
 
@@ -679,7 +695,7 @@ function GeneralNavigation({
     return (
         <nav
             aria-label="Navegación principal"
-            className="min-h-0 flex-1 space-y-3 overflow-y-auto px-1 pb-2"
+            className="space-y-3"
         >
             <NavItem
                 exact
