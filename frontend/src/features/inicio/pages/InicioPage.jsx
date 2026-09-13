@@ -15,7 +15,8 @@ import {
     Plus,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import PlatformLoader from "@/shared/components/PlatformLoader";
+import ContextContentSkeleton from "@/shared/components/ContextContentSkeleton";
+import { hasIncompleteConfiguration } from "@/app/onboardingGate";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { getActivePreset } from "@/presets/registry";
 import {
@@ -228,13 +229,7 @@ export default function InicioPage() {
     );
 
     if (state.status === "loading") {
-        return (
-            <PlatformLoader
-                compact
-                title="Preparando tu resumen"
-                description="Estamos reuniendo el estado de tus obras, evidencias y pendientes."
-            />
-        );
+        return <ContextContentSkeleton charts={4} kpis={8} />;
     }
 
     if (state.status === "error") {
@@ -396,6 +391,18 @@ export default function InicioPage() {
                 </div>
             </div>
             </section>
+
+            {hasIncompleteConfiguration(activeOrganizacion) && (
+                <div className="flex flex-wrap items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <AlertTriangle aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
+                    <div className="min-w-0 flex-1">
+                        <b>Configuración incompleta.</b> Algunos flujos ambientales todavía no están habilitados. Completa la configuración para acceder a todas las capacidades.
+                    </div>
+                    <Link className="shrink-0 rounded-lg bg-amber-800 px-3 py-1.5 text-xs font-black text-white" to="/onboarding">
+                        Completar configuración
+                    </Link>
+                </div>
+            )}
 
             <section
                 aria-label="Resumen"

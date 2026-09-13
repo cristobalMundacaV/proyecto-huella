@@ -234,7 +234,7 @@ export default function OperationDomainCard({
           focus-visible:shadow-[var(--focus-ring)]
         `}
       >
-        {state === "sin_datos" ? "Registrar información" : state === "requiere_revision" ? "Revisar ámbito" : "Explorar ámbito"}
+        {state === "sin_datos" ? "Registrar información" : state === "requiere_revision" ? "Revisar ámbito" : state === "por_definir" ? "Confirmar aplicabilidad" : "Explorar ámbito"}
 
         <ArrowRight
           aria-hidden="true"

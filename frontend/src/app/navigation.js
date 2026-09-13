@@ -66,7 +66,7 @@ export function getUnifiedNavigation({ preset = {}, scope } = {}) {
   const control = { ...NAV_ITEMS.control, path: isObra ? `${base}/control` : "/gobernanza" };
   const administration = { ...NAV_ITEMS.administration, path: isObra ? `${base}/configuracion` : "/administracion" };
 
-  return { home, groups: [{ id: "platform", label: "Plataforma", items: [works, reports, control, administration] }] };
+  return { home, groups: [{ id: "platform", label: "", items: [works, reports, control, administration] }] };
 }
 
 /** Backward-compatible portfolio-scope alias — most callers only ever

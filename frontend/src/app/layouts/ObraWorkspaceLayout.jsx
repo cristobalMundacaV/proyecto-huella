@@ -18,11 +18,13 @@ import {
   useParams,
 } from "react-router-dom";
 
-import PlatformLoader from "@/shared/components/PlatformLoader";
+import ContextContentSkeleton from "@/shared/components/ContextContentSkeleton";
 
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 
 import { getWorkWorkspace } from "@/features/obras/services/workspaceApi";
+import { getObraDashboard } from "@/features/obras/services/obraDashboardApi";
+import { consumePrefetchedWork } from "@/features/obras/services/workspacePrefetch";
 
 import {
   environmentalProfileLabel,
@@ -103,6 +105,8 @@ export default function ObraWorkspaceLayout() {
   ] = useState({
     status: "loading",
     workspace: null,
+    dashboard: null,
+    dashboardError: false,
   });
 
   const requestRef =
@@ -120,46 +124,54 @@ export default function ObraWorkspaceLayout() {
       const requestId =
         ++requestRef.current;
 
-      setState({
+      setState((current) => ({
         status: "loading",
         workspace: null,
-      });
+        // Keep the previous dashboard/workspace visible is intentionally
+        // NOT done here (a real obra switch), but a same-obra refresh
+        // (e.g. route change within the same obra) never happens through
+        // this path since `load` only re-runs when org/obraId change.
+        dashboard: null,
+        dashboardError: false,
+      }));
 
-      getWorkWorkspace(
-        activeOrganizacionId,
-        obraId
-      )
-        .then((workspace) => {
-          if (
-            requestRef.current ===
-            requestId
-          ) {
-            setState({
-              status: "ready",
-              workspace,
-            });
-          }
-        })
-        .catch((error) => {
-          if (
-            requestRef.current !==
-            requestId
-          ) {
-            return;
-          }
+      // Reuse a prefetch kicked off on hover/focus of this obra in the
+      // context selector, if one is still fresh, instead of firing a
+      // second request for the same data.
+      const prefetched = consumePrefetchedWork(activeOrganizacionId, obraId);
 
+      // Workspace + (only on the summary route) dashboard are fetched IN
+      // PARALLEL and gated behind a single loading state — this is what
+      // used to be two sequential loaders ("Cargando obra" then
+      // "Calculando cabina ambiental") stacked one after the other.
+      Promise.allSettled([
+        prefetched?.workspace || getWorkWorkspace(activeOrganizacionId, obraId),
+        isSummaryRoute
+          ? prefetched?.dashboard || getObraDashboard(activeOrganizacionId, obraId, { relative_months: 3 })
+          : Promise.resolve(null),
+      ]).then(([workspaceResult, dashboardResult]) => {
+        if (requestRef.current !== requestId) return;
+
+        if (workspaceResult.status === "rejected") {
           setState({
-            status:
-              error.response
-                ?.status === 404
-                ? "missing"
-                : "error",
-
+            status: workspaceResult.reason?.response?.status === 404 ? "missing" : "error",
             workspace: null,
+            dashboard: null,
+            dashboardError: false,
           });
+          return;
+        }
+
+        setState({
+          status: "ready",
+          workspace: workspaceResult.value,
+          dashboard: dashboardResult.status === "fulfilled" ? dashboardResult.value : null,
+          dashboardError: isSummaryRoute && dashboardResult.status !== "fulfilled",
         });
+      });
     }, [
       activeOrganizacionId,
+      isSummaryRoute,
       obraId,
     ]);
 
@@ -177,13 +189,7 @@ export default function ObraWorkspaceLayout() {
     state.status ===
     "loading"
   ) {
-    return (
-      <PlatformLoader
-        compact
-        title={`Cargando ${preset.unitLabel.toLowerCase()}`}
-        description="Estamos preparando su contexto, indicadores y actividad ambiental."
-      />
-    );
+    return <ContextContentSkeleton charts={isSummaryRoute ? 3 : 1} kpis={isSummaryRoute ? 8 : 4} />;
   }
 
 
@@ -339,9 +345,11 @@ export default function ObraWorkspaceLayout() {
       </section>}
 
       <Outlet
-        context={
-          state.workspace
-        }
+        context={{
+          ...state.workspace,
+          dashboard: state.dashboard,
+          dashboardError: state.dashboardError,
+        }}
       />
     </main>
   );

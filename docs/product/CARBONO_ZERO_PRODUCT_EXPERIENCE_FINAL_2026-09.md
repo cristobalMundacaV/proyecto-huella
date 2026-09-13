@@ -147,6 +147,69 @@ Ninguna ruta fue eliminada. `getWorkNavigation` sí se eliminó de `navigation.j
 
 ## Git
 
-- Commits locales: ninguno.
-- Push: no realizado.
+- Commits locales: ninguno (previo a esta sección).
+- Push: hecho para la macrofase de unificación, a petición explícita del usuario en esa conversación.
 - Deploy: no realizado.
+
+## CONTEXT + ONBOARDING RECOVERY (corrección posterior)
+
+### 1. Loaders encadenados al cambiar de contexto
+
+Causa raíz confirmada: `ObraWorkspaceLayout` cargaba el workspace de la obra y, sólo después de que terminaba, `ObraResumenPage` iniciaba su propio fetch del dashboard con su propio estado de carga — dos loaders secuenciales ("Cargando obra" → "Calculando cabina ambiental"). `OperationalWorkspaceContext` (que envuelve todo el shell) **no** era responsable: su efecto sólo depende de `[activeOrganizacionId, user]`, no de la ruta, así que el sidebar/header nunca se remontaba al cambiar de obra.
+
+Corrección: `ObraWorkspaceLayout` ahora lanza `getWorkWorkspace` + (sólo en la ruta de resumen) `getObraDashboard` **en paralelo** con `Promise.allSettled`, gana un único estado de carga, y expone `dashboard`/`dashboardError` vía el contexto del `Outlet`. `ObraResumenPage` dejó de hacer fetch propio — sólo lee del contexto. Resultado: un solo loading state para toda la carga de una obra, nunca dos apilados.
+
+### 2. Patrón de carga único
+
+`ContextContentSkeleton` (nuevo, `shared/components/`) reemplaza `PlatformLoader` (logo + barra de progreso falsa) en `ObraWorkspaceLayout`, `InicioPage` y `ReportsCenterPage` — mantiene la silueta de la página (hero + KPIs + gráficos) con bloques `animate-pulse`, sin logo ni spinner. `PlatformLoader` se conserva únicamente para arranques reales de la app (login, resolución de organización) donde sí corresponde una pantalla de carga de producto.
+
+### 3. Prefetch + reutilización
+
+`features/obras/services/workspacePrefetch.js` (nuevo): un caché en memoria con TTL de 20s, sin adoptar una librería de queries. El `ContextSelector` del sidebar dispara `prefetchWork` en `onMouseEnter`/`onFocus` de cada obra; `ObraWorkspaceLayout` reutiliza esas promesas si siguen frescas en vez de relanzar la petición.
+
+### 4. Onboarding — condición corregida
+
+`ContextualHome` decidía onboarding-vs-dashboard con `registros_count` (sólo cuenta `RegistroEmision`, modelo legacy v1) — cualquier tenant construido enteramente sobre el stack v2 moderno (obras, materiales, cálculos) tenía `registros_count = 0` y caía en onboarding para siempre, sin importar cuánta actividad real tuviera. Nueva regla (`app/onboardingGate.js::isNewTenant`): un tenant es "realmente nuevo" sólo si `obras_count === 0`. Cualquier obra real implica dashboard ejecutivo.
+
+Tenant existente con `onboarding_completado === false`: `InicioPage` muestra un banner "Configuración incompleta" con CTA a `/onboarding`, nunca la pantalla completa de onboarding (`hasIncompleteConfiguration`).
+
+### 5. Auditoría real del tenant demo / reparación estructural
+
+**Hallazgo, no supuesto**: la base de datos de desarrollo local a la que este entorno tiene acceso contiene 5 organizaciones (Constructora Andina SpA, Constructora Renacer SpA, Constructora Valle Sur SpA, ARQ14 Checkpoint 1 Constructora Circular SpA, ARQ14 Checkpoint 1 Tenant Ajeno) — **"Constructora Horizonte Demo SpA" no existe en esta base de datos**; es un fixture creado por `seed_ai_demo_tenant` únicamente dentro de la base de datos de tests (`--keepdb`), o pertenece a un ambiente desplegado distinto sin acceso directo desde esta sesión. El defecto estructural que describía para Horizonte sí se confirmó, de forma idéntica, en tenants reales de esta base de datos:
+
+| Organización | Obras | Áreas activas (antes) | Capacidades (antes) | onboarding_completado |
+|---|---|---|---|---|
+| Constructora Andina SpA | 1 | 0 | 0 | True |
+| Constructora Renacer SpA | 1 | 0 | 0 | True |
+| Constructora Valle Sur SpA | 1 | 0 | 7 | True |
+| ARQ14 Checkpoint 1 Constructora Circular SpA | 1 | 9 | 10 | True |
+
+`onboarding_completado=True` no implica estructura real: son tenants con obras y actividad real pero sin `AreaOperacional`/`CapacidadOrganizacion`, exactamente el síntoma reportado (flujos ausentes de la navegación).
+
+Se creó `apps/analytics/management/commands/repair_legacy_onboarding_state.py`: para cada organización con al menos una obra y sin áreas/capacidades, crea (vía `get_or_create`, nunca sobreescribe) las áreas recomendadas del preset y una fila `CapacidadOrganizacion` por cada clave de `FLOW_CATALOG` con estado `PENDIENTE_DIAGNOSTICO` (nunca `APLICA` — este comando no adivina qué flujo tiene actividad real, sólo garantiza que ninguno quede ausente). Nunca toca `onboarding_completado`/`onboarding_step`. Ejecutado contra la base de datos real de desarrollo: **Andina, Renacer y Valle Sur reparadas** (6 áreas + 15/0 capacidades creadas cada una); re-ejecutado inmediatamente después, reportó "reparadas: 0" — idempotencia confirmada en la base real, no sólo en tests.
+
+### 6. Capacidades ya no se ocultan silenciosamente
+
+`OperacionOverviewPage` filtraba `descriptors` por `["aplica", "sin_datos"].includes(applicabilityState)` — pero `applicabilityState` sólo vale `"aplica" | "no_aplica" | "pendiente"` ("sin_datos" nunca ocurre ahí), así que **todo dominio en estado "pendiente" desaparecía del todo de la pantalla** en vez de mostrarse deshabilitado. Corregido a `isDomainVisible` (nuevo, `operationSelectors.js`): sólo `"no_aplica"` se oculta; `"pendiente"` se muestra vía el estado `por_definir` ya existente (badge de advertencia "Requiere revisión", CTA ahora dice "Confirmar aplicabilidad").
+
+### 7. Sidebar
+
+Se quitó la etiqueta de grupo "Plataforma" (sin aportar nada sobre un único grupo). El `ContextSelector` ahora lista las obras bajo un encabezado "OBRAS", con un punto de estado (verde/ámbar/gris según `estado_ambiental`) por obra, sin llamada adicional (mismo dato que ya trae `getOrganizacionObras`).
+
+### Tests nuevos
+
+- `app/onboardingGate.test.js`: `isNewTenant`/`hasIncompleteConfiguration`.
+- `features/operacion/utils/operationSelectors.test.js` (+2 casos): `isDomainVisible`, `domainState` con `pendiente` → `por_definir`.
+- `apps/analytics/tests_repair_legacy_onboarding_state.py` (6 casos): tenant sin obras intacto, tenant incompleto reparado, tenant completo sin modificar, idempotencia, filtro por `--organizacion-id`, `--dry-run` no persiste.
+
+### Verificación final
+
+- Frontend: 102/102 tests, lint limpio, build limpio.
+- Backend: 47/47 tests relevantes (reparación, dashboard portafolio, dashboard obra, estructura de onboarding) dentro del contenedor; `manage.py check` y `makemigrations --check --dry-run` sin cambios.
+- Reparación ejecutada y verificada contra la base de datos real de desarrollo (no sólo contra la de test).
+
+### Pendientes reales (agregado)
+
+- La reparación marca todas las capacidades nuevas como `PENDIENTE_DIAGNOSTICO`; no infiere automáticamente cuáles tienen actividad real para marcarlas `APLICA` — requiere confirmación humana (o una futura iteración que cruce `MaterialOperacional.categoria`/`RegistroFlujoAmbiental.flujo` reales).
+- "Constructora Horizonte Demo SpA" no fue localizada en la base de datos de desarrollo accesible desde esta sesión; si vive en un ambiente desplegado distinto, el comando `repair_legacy_onboarding_state` (idempotente y no destructivo) puede ejecutarse ahí de la misma forma.
+- El prefetch en hover no cubre navegación por teclado sin foco explícito en la opción (cubierto vía `onFocus`, pero no hay prefetch al abrir el listado completo).

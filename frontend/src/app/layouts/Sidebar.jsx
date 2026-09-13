@@ -35,6 +35,17 @@ import { getOrganizacionObras } from "@/shared/services/api";
 import { getEnvironmentalDomain } from "@/shared/config/environmentalDomains";
 import { usePermissions } from "@/features/auth/hooks/usePermissions";
 import { useOperationalWorkspace } from "@/features/workspace/context/OperationalWorkspaceContext";
+import { prefetchWork } from "@/features/obras/services/workspacePrefetch";
+
+const ATTENTION_STATES = new Set(["requiere_atencion", "cierre_pendiente"]);
+const STABLE_STATES = new Set(["estable", "monitoreo", "mejora_en_curso", "cerrada"]);
+
+function workAttentionDot(work) {
+    const status = work?.estado_ambiental;
+    if (ATTENTION_STATES.has(status)) return "bg-amber-500";
+    if (STABLE_STATES.has(status)) return "bg-emerald-500";
+    return "bg-slate-300";
+}
 
 const NAV_PERMISSIONS = {
     administration: "settings.view", professionalReview: "professional_review.execute",
@@ -384,21 +395,31 @@ function ContextSelector({
                         <p className="px-3 py-2 text-xs text-rose-700">No se pudieron cargar las obras.</p>
                     )}
 
+                    {worksState.rows.length > 0 && (
+                        <p className="mt-1 px-3 pb-1 pt-2 text-[9px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                            Obras
+                        </p>
+                    )}
+
                     {worksState.rows.map((work) => {
                         const id = routeId(work);
                         const selected = isObra && String(id) === String(scope.obraId);
+                        const attention = ATTENTION_STATES.has(work.estado_ambiental);
                         return (
                             <button
                                 aria-selected={selected}
                                 className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${selected ? "bg-emerald-50 text-emerald-900" : "hover:bg-slate-50"}`}
                                 key={id}
                                 onClick={() => selectWork(work)}
+                                onFocus={() => prefetchWork(activeOrganizacionId, id)}
+                                onMouseEnter={() => prefetchWork(activeOrganizacionId, id)}
                                 role="option"
                                 type="button"
                             >
                                 <Building2 aria-hidden="true" size={14} />
-                                <span className="truncate">{work.nombre || preset.unitLabel}</span>
-                                {selected && <Check aria-hidden="true" className="ml-auto shrink-0" size={13} />}
+                                <span className="min-w-0 flex-1 truncate">{work.nombre || preset.unitLabel}</span>
+                                <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${workAttentionDot(work)}`} title={attention ? "Requiere atención" : undefined} />
+                                {selected && <Check aria-hidden="true" className="ml-1 shrink-0" size={13} />}
                             </button>
                         );
                     })}
@@ -511,14 +532,13 @@ function GeneralNavigation({
                         key={
                             group.id
                         }
-                        aria-labelledby={`nav-${group.id}`}
+                        aria-label={group.label || undefined}
                     >
-                        <p
-                            id={`nav-${group.id}`}
-                            className="mb-1 px-2 text-[10px] font-black uppercase tracking-[0.15em] text-[var(--text-muted)]"
-                        >
-                            {group.label}
-                        </p>
+                        {group.label && (
+                            <p className="mb-1 px-2 text-[10px] font-black uppercase tracking-[0.15em] text-[var(--text-muted)]">
+                                {group.label}
+                            </p>
+                        )}
 
                         <div className="space-y-0.5">
                             {group.items.map(

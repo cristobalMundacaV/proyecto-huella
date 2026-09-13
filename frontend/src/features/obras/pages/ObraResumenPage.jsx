@@ -1,32 +1,22 @@
-import { useEffect, useState } from "react";
 import { AlertTriangle, ArrowRight, CalendarDays, Cloud, FileCheck2, Layers3, Leaf, MapPin, ShieldCheck, Zap } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import ChartCard from "@/shared/charts/ChartCard";
 import CoverageProgressChart from "@/shared/charts/CoverageProgressChart";
 import EnvironmentalDonutChart, { DonutLegend } from "@/shared/charts/EnvironmentalDonutChart";
-import { ErrorState, LoadingState } from "@/shared/ui";
+import { ErrorState } from "@/shared/ui";
 import { formatDate, formatNumber } from "@/shared/utils/formatters";
-import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { environmentalProfileLabel, statusLabel } from "@/features/obras/components/WorkStatus";
-import { getObraDashboard } from "@/features/obras/services/obraDashboardApi";
 import { AiRecommendationsPanel, FlowStatusGrid } from "@/features/obras/components/ObraDashboardPanels";
 import { buildExecutiveReading, buildFlowImpactDonutData, buildFlowPhysicalCards, buildReadinessRings, buildRecommendations, buildScopeDonutData, describeEmissionState } from "@/features/obras/utils/obraDashboardSelectors";
 
+// `dashboard`/`dashboardError` are fetched by `ObraWorkspaceLayout` IN
+// PARALLEL with the obra workspace itself (not sequentially here) — this
+// page never fetches on its own, so there is exactly one loading state for
+// the whole obra summary, not two stacked ones.
 export default function ObraResumenPage() {
-  const { activeOrganizacionId } = useOrganizacionActiva();
-  const { obra } = useOutletContext();
-  const [state, setState] = useState({ status: "loading", dashboard: null });
-  useEffect(() => {
-    if (!activeOrganizacionId || !obra?.id) return undefined;
-    let active = true;
-    getObraDashboard(activeOrganizacionId, obra.id, { relative_months: 3 })
-      .then((dashboard) => active && setState({ status: "ready", dashboard }))
-      .catch(() => active && setState({ status: "error", dashboard: null }));
-    return () => { active = false; };
-  }, [activeOrganizacionId, obra?.id]);
-  if (state.status === "loading") return <LoadingState label="Calculando la cabina ambiental de la obra" />;
-  if (state.status === "error") return <ErrorState title="No pudimos preparar el resumen ambiental" description="No se muestran valores estimados. Intenta nuevamente cuando el servicio esté disponible." />;
-  return <WorkExecutiveDashboard dashboard={state.dashboard} obra={obra} />;
+  const { obra, dashboard, dashboardError } = useOutletContext();
+  if (dashboardError || !dashboard) return <ErrorState title="No pudimos preparar el resumen ambiental" description="No se muestran valores estimados. Intenta nuevamente cuando el servicio esté disponible." />;
+  return <WorkExecutiveDashboard dashboard={dashboard} obra={obra} />;
 }
 
 export function WorkExecutiveDashboard({ dashboard, obra }) {

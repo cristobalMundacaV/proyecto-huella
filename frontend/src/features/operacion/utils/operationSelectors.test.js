@@ -7,8 +7,10 @@ import {
   compatibleDomainTotals,
   domainActivities,
   domainRecords,
+  domainState,
   explicitDomainActivities,
   isCalculationSelectable,
+  isDomainVisible,
   wasteClassification,
 } from "./operationSelectors.js";
 import {
@@ -16,6 +18,20 @@ import {
   evidencePresentation,
   qualityPresentation,
 } from "./operationalPresentation.js";
+
+test("una capacidad pendiente de diagnostico permanece visible, solo no_aplica se oculta", () => {
+  assert.equal(isDomainVisible("aplica"), true);
+  assert.equal(isDomainVisible("pendiente"), true);
+  assert.equal(isDomainVisible("no_determinado"), true);
+  assert.equal(isDomainVisible("no_aplica"), false);
+});
+
+test("una capacidad pendiente sin registros se muestra como por_definir, nunca oculta", () => {
+  assert.equal(
+    domainState({ applicabilityState: "pendiente", records: [], available: true }),
+    "por_definir",
+  );
+});
 
 test("Combustibles conserva registros genericos, moviles y estacionarios", () => {
   const records = [

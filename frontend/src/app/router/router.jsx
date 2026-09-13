@@ -10,6 +10,7 @@ import { usePermissions } from "@/features/auth/hooks/usePermissions";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { useOperationalWorkspace } from "@/features/workspace/context/OperationalWorkspaceContext";
 import { organizationDestination, resolveOrganizationAccess } from "@/features/organizaciones/context/organizationResolution";
+import { isNewTenant } from "@/app/onboardingGate";
 
 const IntelligencePage = lazy(() => import("@/features/intelligence/pages/IntelligencePage"));
 const CopilotoAmbientalPage = lazy(() => import("@/features/intelligence/pages/CopilotPage"));
@@ -101,7 +102,13 @@ function LoginRoute() { const { loadingAuth, user } = useAuth(); const location 
 function RequireOrganization() { const organizationState = useOrganizacionActiva(); const access = resolveOrganizationAccess({ status: organizationState.organizationResolutionStatus, organizations: organizationState.organizaciones, activeOrganization: organizationState.activeOrganizacion }); if (access === "resolving") return <PlatformLoader fullScreen title="Cargando empresas" />; if (access === "error") return <ErrorState title="No pudimos cargar tu organización" description={organizationState.errorOrganizaciones} onRetry={() => organizationState.refreshOrganizaciones().catch(() => undefined)} />; if (access === "no-organization") return <NoOrganizationState />; return access === "selection-required" ? <Navigate to="/seleccionar-organizacion" replace /> : <Outlet />; }
 function RequireOnboardingComplete() { const { user } = useAuth(); const { activeOrganizacion, activeOrganizacionId } = useOrganizacionActiva(); const membership = user?.organizaciones?.find((item) => String(item.organizacion_id) === String(activeOrganizacionId)); return membership?.rol === "admin" && activeOrganizacion?.onboarding_completado === false ? <Navigate to="/onboarding" replace /> : <Outlet />; }
 function RequireOperationalWorkspace() { const { loading } = useOperationalWorkspace(); if (loading) return <PlatformLoader fullScreen title="Preparando el contexto operacional" />; return <Outlet />; }
-function ContextualHome() { const { activeWorkspace } = useOperationalWorkspace(); const { activeOrganizacion } = useOrganizacionActiva(); const operational = activeWorkspace && !["medio_ambiente", "gestion_obra"].includes(activeWorkspace.area.tipo); if (operational) return <OperationalHome />; return Number(activeOrganizacion?.registros_count || 0) === 0 ? <ReadyToStartPage /> : <InicioPage />; }
+function ContextualHome() {
+  const { activeWorkspace } = useOperationalWorkspace();
+  const { activeOrganizacion } = useOrganizacionActiva();
+  const operational = activeWorkspace && !["medio_ambiente", "gestion_obra"].includes(activeWorkspace.area.tipo);
+  if (operational) return <OperationalHome />;
+  return isNewTenant(activeOrganizacion) ? <ReadyToStartPage /> : <InicioPage />;
+}
 function OrganizationRoute() { const { activeOrganizacion } = useOrganizacionActiva(); return <OrganizacionesPage initialOpenCreate={!activeOrganizacion} />; }
 function RequireCapability({ permission, children }) { const { can } = usePermissions(); return can(permission) ? children : <ErrorState title="Sin permisos" description="No tienes permisos para acceder a este módulo en la organización activa." />; }
 function RequireSuperuser({ children }) { const { user } = useAuth(); return user?.is_superuser ? children : <ErrorState title="Acceso restringido" description="Esta sección pertenece exclusivamente a la administración global de Carbono Zero." />; }

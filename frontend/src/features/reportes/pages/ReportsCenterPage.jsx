@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRight, CalendarDays, CheckCircle2, Download, FileBarChart2, Search, TriangleAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 import { EmptyState, ErrorState } from "@/shared/ui";
-import PlatformLoader from "@/shared/components/PlatformLoader";
+import ContextContentSkeleton from "@/shared/components/ContextContentSkeleton";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { obraReportExcelUrl, obraReportPdfUrl } from "@/features/obras/services/obraDashboardApi";
 import { getReportsCenterOverview } from "../services/reportesApi";
@@ -37,7 +37,7 @@ export default function ReportsCenterPage() {
   const readyCount = state.rows.filter(ready).length;
   const pendingCount = state.rows.length - readyCount;
 
-  if (state.status === "loading") return <PlatformLoader compact title="Preparando el centro de reportes" description="Consolidando períodos, readiness y salidas por obra." />;
+  if (state.status === "loading") return <ContextContentSkeleton charts={0} kpis={3} />;
   if (state.status === "error") return <ErrorState title="No pudimos cargar el centro de reportes" description="La información no fue reemplazada por estados estimados." onRetry={load} />;
 
   return <main className="space-y-6">

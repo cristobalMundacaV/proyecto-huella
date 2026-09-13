@@ -8,6 +8,7 @@ import {
   domainMetrics,
   domainRecords,
   domainState,
+  isDomainVisible,
   isResourceReady,
   latestMeasurement,
   latestRecord,
@@ -148,7 +149,7 @@ export default function OperacionOverviewPage() {
     if (key === "materiales") return materialsDescriptor(context, operation);
     return sectorDescriptor(key, title, icon, context, indicators, operation);
   });
-  const operationalDescriptors = descriptors.filter((domain) => ["aplica", "sin_datos"].includes(domain.applicabilityState));
+  const operationalDescriptors = descriptors.filter((domain) => isDomainVisible(domain.applicabilityState));
 
   const activeDomains = operationalDescriptors
     .filter((domain) => ["con_datos", "requiere_revision"].includes(domain.state))

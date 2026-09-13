@@ -184,6 +184,14 @@ export function calculationMethodologyPresentation(eligibility) {
 export const isCalculationSelectable = (eligibility) =>
   Boolean(eligibility?.metodologia_seleccionada);
 
+/** A capability is only ever dropped from the operation overview when it
+ * is explicitly `no_aplica`. A capability still `pendiente` (not yet
+ * decided) stays visible — shown disabled/pending via `domainState`'s
+ * `por_definir` state — never hidden silently. */
+export function isDomainVisible(applicabilityState) {
+  return applicabilityState !== "no_aplica";
+}
+
 export function domainState({ applicabilityState, records = [], ambiguous = false, available = true }) {
   if (!available) return "error";
   if (applicabilityState === "no_aplica") return "no_aplica";
