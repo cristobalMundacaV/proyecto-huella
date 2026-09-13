@@ -84,3 +84,8 @@ test("el destino respeta onboarding pendiente o completado", () => {
   assert.equal(organizationDestination({ onboarding_completado: false }), "/onboarding");
   assert.equal(organizationDestination({ onboarding_completado: true }), "/inicio");
 });
+
+test("Horizonte demo entra directamente aunque no tenga onboarding histórico", () => {
+  assert.equal(organizationDestination({ organizacion_id: "DEMO_HORIZONTE", onboarding_completado: false }), "/inicio");
+  assert.equal(organizationDestination({ organizacion_id: "TENANT_REAL", onboarding_completado: false }), "/onboarding");
+});

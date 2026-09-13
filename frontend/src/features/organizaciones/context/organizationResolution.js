@@ -28,7 +28,11 @@ export function resolveOrganizationAccess({ status, resolving, error, organizati
 }
 
 export function organizationDestination(organization, fallback = "/inicio") {
-  return organization?.onboarding_completado === false ? "/onboarding" : fallback;
+  return organization?.onboarding_completado === false && !isDemoOrganization(organization) ? "/onboarding" : fallback;
+}
+
+export function isDemoOrganization(organization) {
+  return String(organization?.organizacion_id || "").toUpperCase() === "DEMO_HORIZONTE";
 }
 
 export function resolveOnboardingScreen({ organizationLoading, organizationsResolved = true, organizationError, activeOrganizationId, organizationCount, onboardingStatus, hasState }) {

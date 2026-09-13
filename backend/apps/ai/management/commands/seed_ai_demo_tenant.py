@@ -177,7 +177,7 @@ class Command(BaseCommand):
             organizacion_id=DEMO_ORG_ID,
             defaults={
                 "nombre": "Constructora Horizonte Demo SpA", "preset": "construccion",
-                "activa": True,
+                "activa": True, "onboarding_completado": True, "onboarding_step": 4,
             },
         )
         User = get_user_model()
