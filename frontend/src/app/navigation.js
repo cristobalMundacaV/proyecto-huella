@@ -54,14 +54,7 @@ export function getNavigationForPreset(preset = {}) {
 
 const operationItems = (base) => [
   { id: "operationOverview", domain: "operacion", label: "Resumen operacional", path: `${base}/operacion`, icon: Activity },
-  { id: "energy", domain: "energia", label: "Energía", path: `${base}/operacion/energia`, icon: Zap },
-  { id: "water", domain: "agua", label: "Agua", path: `${base}/operacion/agua`, icon: Droplets },
-  { id: "fuel", domain: "combustibles", label: "Combustibles", path: `${base}/operacion/combustibles`, icon: Fuel },
-  { id: "transport", domain: "transporte", label: "Transporte", path: `${base}/operacion/transporte`, icon: Truck },
-  { id: "materials", domain: "materiales", label: "Materiales", path: `${base}/operacion/materiales`, icon: Package },
-  { id: "waste", domain: "residuos", capabilities: ["residuos", "residuos_no_peligrosos", "residuos_peligrosos"], label: "Residuos", path: `${base}/operacion/residuos`, icon: Trash2 },
-  { id: "noise", domain: "ruido", label: "Ruido", path: `${base}/operacion/ruido`, icon: Volume2 },
-  { id: "atmosphericEmissions", domain: "emisiones_atmosfericas", label: "Emisiones atmosféricas", path: `${base}/operacion/emisiones-atmosfericas`, icon: Cloud },
+  { id: "activityData", domain: "operacion", label: "Datos de actividad", path: `${base}/operacion/indicadores`, icon: BarChart3 },
 ];
 
 export function getWorkNavigation({ obraId, applicability = [] }) {
@@ -91,7 +84,6 @@ export function getWorkNavigation({ obraId, applicability = [] }) {
         { id: "pdf", label: "PDF", path: `${base}/reportes?salida=pdf`, icon: FileBarChart2 },
         { id: "excel", label: "Excel", path: `${base}/reportes?salida=excel`, icon: DatabaseZap },
         { id: "charts", label: "Gráficos", path: `${base}/reportes#graficos`, icon: BarChart3 },
-        { id: "closing", label: "Cierre", path: `${base}/reportes#cierre`, icon: ClipboardCheck },
       ] },
       { id: "configuration", label: "Configuración", items: [
         { id: "environmentalProfile", label: "Perfil ambiental", path: `${base}/diagnostico`, icon: Gauge },

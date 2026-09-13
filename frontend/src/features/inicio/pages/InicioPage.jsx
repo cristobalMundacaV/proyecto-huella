@@ -26,7 +26,11 @@ import {
     Timeline,
     TimelineItem,
 } from "@/shared/ui";
-import { formatDateTime } from "@/shared/utils/formatters";
+import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
+import ChartCard from "@/shared/charts/ChartCard";
+import EnvironmentalBarChart from "@/shared/charts/EnvironmentalBarChart";
+import EnvironmentalDonutChart, { DonutLegend } from "@/shared/charts/EnvironmentalDonutChart";
+import { getFlowChartColor } from "@/shared/config/environmentalDomains";
 
 import AttentionList from "../components/AttentionList";
 import CompactWorkCard from "../components/CompactWorkCard";
@@ -301,6 +305,7 @@ export default function InicioPage() {
     const highRisks = (data.workDashboards || []).filter(
         dashboard => ["alto", "critico"].includes(dashboard.risk?.nivel)
     ).length;
+    const portfolio = buildPortfolioImpact(data.works, data.workDashboards || []);
 
     const attentionHelper = attentionWorks.length
         ? `${attentionWorks.length === 1 ? "Revisa su estado" : "Revisa sus estados"}${incompleteCount
@@ -360,6 +365,11 @@ export default function InicioPage() {
                             ? "Requiere seguimiento"
                             : "Operación estable"}
                     </p>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/10 pt-4">
+                        <div><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-100/70">Huella consolidada</p><p className="mt-1 text-2xl font-black">{formatNumber(portfolio.total)} <span className="text-xs">tCO2e</span></p></div>
+                        <div><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-100/70">Readiness promedio</p><p className="mt-1 text-2xl font-black">{portfolio.readiness === null ? "—" : `${formatNumber(portfolio.readiness)}%`}</p></div>
+                    </div>
 
                     <p className="mt-2 text-sm leading-6 text-emerald-50/80">
                         {attentionWorks.length
@@ -463,12 +473,30 @@ export default function InicioPage() {
                 </div>
             </section>
 
+            <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Impacto consolidado">
+                <KpiCard icon={ShieldAlert} label="Huella total empresa" value={portfolio.total} unit="tCO2e" status="info" />
+                <KpiCard label="Alcance 1 total" value={portfolio.scopes[0].value} unit="tCO2e" status="success" />
+                <KpiCard label="Alcance 2 total" value={portfolio.scopes[1].value} unit="tCO2e" status="warning" />
+                <KpiCard label="Alcance 3 total" value={portfolio.scopes[2].value} unit="tCO2e" status="info" />
+                <KpiCard label="Obras activas" value={data.works.length} helper="Unidades del portafolio" status="success" />
+                <KpiCard label="Obras con riesgo" value={highRisks} helper="Riesgo alto o crítico" status={highRisks ? "danger" : "success"} />
+                <KpiCard label="Cobertura de evidencia" value={portfolio.evidence} unit="%" status="warning" />
+                <KpiCard label="Readiness promedio" value={portfolio.readiness} unit="%" status="info" />
+            </section>
+
+            <section className="grid gap-3 xl:grid-cols-2">
+                <ChartCard title="Emisiones por obra" description="Huella calculada por el motor ambiental para cada obra."><EnvironmentalBarChart data={portfolio.works} height={250} valueFormatter={(value) => `${formatNumber(value)} tCO2e`} /></ChartCard>
+                <ChartCard title="GEI por alcance" description="Distribución consolidada del portafolio."><PortfolioDonut data={portfolio.scopes} total={portfolio.total} /></ChartCard>
+                <ChartCard title="Distribución por flujo" description="Impacto consolidado de los flujos reportados por obra."><PortfolioDonut data={portfolio.flows} total={portfolio.total} /></ChartCard>
+                <ChartCard title="Readiness por obra" description="Cobertura de registros del período por obra."><EnvironmentalBarChart data={portfolio.readinessByWork} height={250} valueFormatter={(value) => `${formatNumber(value)}%`} color="#059669" /></ChartCard>
+            </section>
+
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.7fr)]">
                 <div className="space-y-6">
                     <section
                         id="priorities"
                         className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">                   <SectionHeader
-                            title="Requiere tu atención"
+                            title="Prioridades de la organización"
                             description={
                                 priorities.length
                                     ? "Pendientes priorizados según riesgo, seguimiento y necesidad de intervención."
@@ -694,8 +722,29 @@ function buildPriorities({
     return items
         .map((item, index) => ({ item, index }))
         .sort((left, right) => rank(left.item.severity) - rank(right.item.severity) || left.index - right.index)
-        .slice(0, 4)
+        .slice(0, 3)
         .map(({ item }) => item);
+}
+
+function buildPortfolioImpact(works, dashboards) {
+    const valid = dashboards.filter((item) => !item.unavailable && item.kpis);
+    const sum = key => valid.reduce((total, item) => total + Number(item.kpis?.[key] || 0), 0);
+    const average = key => valid.length ? valid.reduce((total, item) => total + Number(item.readiness?.[key] || 0), 0) / valid.length : null;
+    const scopes = [1, 2, 3].map((scope) => ({ name: `Alcance ${scope}`, value: sum(`alcance_${scope}_tco2e`), color: ["#059669", "#f59e0b", "#1976d2"][scope - 1] }));
+    const flowTotals = new Map();
+    valid.forEach((item) => Object.entries(item.kpis?.impacto_por_flujo_tco2e || {}).forEach(([key, value]) => flowTotals.set(key, (flowTotals.get(key) || 0) + Number(value || 0))));
+    const nameById = new Map(works.map((work) => [String(work.id || work.obra_id), work.nombre || work.codigo_obra || "Obra"]));
+    return {
+        total: sum("huella_total_tco2e"), scopes,
+        evidence: average("evidencia_pct"), readiness: average("cobertura_registros_pct"),
+        flows: [...flowTotals].map(([key, value]) => ({ name: String(key).replaceAll("_", " "), value, color: getFlowChartColor(key) })),
+        works: valid.map((item) => ({ name: nameById.get(String(item.obra_id)) || item.obra_nombre || "Obra", value: Number(item.kpis.huella_total_tco2e || 0) })),
+        readinessByWork: valid.map((item) => ({ name: nameById.get(String(item.obra_id)) || item.obra_nombre || "Obra", value: item.readiness?.cobertura_registros_pct })),
+    };
+}
+
+function PortfolioDonut({ data, total }) {
+    return <div className="grid gap-3 sm:grid-cols-[200px_1fr] sm:items-center"><EnvironmentalDonutChart data={data} height={205} innerRadius={66} outerRadius={94} centerLabel="Total" centerValue={formatNumber(total)} centerUnit="tCO2e" valueFormatter={(value) => `${formatNumber(value)} tCO2e`} /><DonutLegend data={data} valueFormatter={(value) => `${formatNumber(value)} tCO2e`} /></div>;
 }
 
 function countByWork(evidence) {

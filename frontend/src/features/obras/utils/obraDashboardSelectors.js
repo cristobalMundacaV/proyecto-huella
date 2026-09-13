@@ -6,7 +6,7 @@ const SCOPE_LABELS = {
   3: "Alcance 3 · Otras fuentes",
 };
 
-const SCOPE_COLORS = { 1: "#c2410c", 2: "#a16207", 3: "#0369a1" };
+const SCOPE_COLORS = { 1: "#059669", 2: "#f59e0b", 3: "#1976d2" };
 
 const FLOW_ROUTE = {
   energia: "energia",
@@ -100,7 +100,7 @@ const METRIC_ROUTE = {
 export function buildRecommendations(dashboard) {
   const findings = Array.isArray(dashboard?.top_findings) ? dashboard.top_findings : [];
   const obraId = dashboard?.obra_id;
-  return findings.map((finding) => ({
+  return findings.slice(0, 3).map((finding) => ({
     key: `${finding.code}-${finding.entity_id ?? "obra"}-${finding.metric ?? ""}`,
     tone: SEVERITY_TONE[finding.severity] || "neutral",
     priorityLabel: SEVERITY_LABEL[finding.severity] || finding.severity,
@@ -110,4 +110,34 @@ export function buildRecommendations(dashboard) {
     recommendations: Array.isArray(finding.recommendations) ? finding.recommendations : [],
     href: METRIC_ROUTE[finding.metric] ? `/obras/${obraId}/operacion/${METRIC_ROUTE[finding.metric]}` : `/obras/${obraId}/problemas`,
   }));
+}
+
+export function describeEmissionState(dashboard) {
+  const code = dashboard?.estado_ejecutivo?.codigo;
+  const level = dashboard?.risk?.nivel;
+  if (code === "critica" || level === "critico") return { label: "Emisiones críticas", helper: "Prioridad ambiental inmediata", tone: "rose" };
+  if (code === "atencion" || level === "alto") return { label: "Emisiones altas", helper: "Requieren atención y seguimiento", tone: "rose" };
+  if (level === "medio") return { label: "Emisiones en atención", helper: "Seguimiento recomendado", tone: "amber" };
+  if (code === "estable" || code === "lista_para_reporte") return { label: "Emisiones estables", helper: "Sin señal crítica en el período", tone: "emerald" };
+  return { label: "Estado en evaluación", helper: "Período todavía incompleto", tone: "neutral" };
+}
+
+export function buildExecutiveReading(dashboard) {
+  const kpis = dashboard?.kpis || {};
+  const total = Number(kpis.huella_total_tco2e || 0);
+  const flows = buildFlowImpactDonutData(kpis).toSorted((a, b) => Number(b.value) - Number(a.value));
+  const scopes = buildScopeDonutData(kpis).toSorted((a, b) => Number(b.value) - Number(a.value));
+  const dominantFlow = flows[0];
+  const dominantScope = scopes[0];
+  const flowShare = total > 0 && dominantFlow ? Math.round((Number(dominantFlow.value) / total) * 100) : null;
+  const scopeShare = total > 0 && dominantScope ? Math.round((Number(dominantScope.value) / total) * 100) : null;
+  const evidence = kpis.cobertura_evidencia_pct;
+  const findings = dashboard?.resumen_ejecutivo?.hallazgos_altos ?? 0;
+  const parts = [];
+  if (total > 0) parts.push(`La huella alcanza ${total.toLocaleString("es-CL")} tCO2e${dominantFlow ? ` y se concentra en ${dominantFlow.name}${flowShare !== null ? ` (${flowShare}%)` : ""}` : ""}${dominantScope ? ` y ${dominantScope.name.split(" · ")[0]}${scopeShare !== null ? ` (${scopeShare}%)` : ""}` : ""}.`);
+  else parts.push("La huella del período no registra emisiones calculadas con la información disponible.");
+  parts.push(evidence === null || evidence === undefined ? "La cobertura de evidencia aún no está disponible." : `La cobertura de evidencia es ${evidence}%${Number(evidence) < 80 ? ", por debajo del nivel esperado para el cierre" : ""}.`);
+  parts.push(dashboard?.readiness?.listo_para_reporte ? "El período está listo para reporte." : "El período aún no está listo para cierre.");
+  parts.push(findings ? `Se identifican ${findings} hallazgo${findings === 1 ? "" : "s"} de alta severidad que requieren atención.` : "No se identifican hallazgos de alta severidad en el período.");
+  return parts.join(" ");
 }

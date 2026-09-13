@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildExecutiveReading,
   buildFlowImpactDonutData,
   buildFlowPhysicalCards,
   buildReadinessRings,
   buildScopeDonutData,
+  buildRecommendations,
 } from "./obraDashboardSelectors.js";
 
 test("dashboard chart selectors preserve backend values", () => {
@@ -19,6 +21,23 @@ test("dashboard chart selectors preserve backend values", () => {
 
   assert.deepEqual(buildScopeDonutData(kpis).map(({ value }) => value), [1, 2, 3]);
   assert.deepEqual(buildFlowImpactDonutData(kpis).map(({ value }) => value), [2, 4]);
+});
+
+test("executive dashboard limits insights to three and handles missing data", () => {
+  const findings = Array.from({ length: 7 }, (_, index) => ({
+    code: `F-${index}`, severity: "high", title: `Hallazgo ${index}`,
+    description: "Detalle trazable", recommendations: [],
+  }));
+  const dashboard = {
+    obra_id: 9,
+    kpis: { huella_total_tco2e: 0, cobertura_evidencia_pct: null },
+    readiness: { listo_para_reporte: false },
+    resumen_ejecutivo: { hallazgos_altos: 0 },
+    top_findings: findings,
+  };
+  assert.equal(buildRecommendations(dashboard).length, 3);
+  assert.match(buildExecutiveReading(dashboard), /no registra emisiones calculadas/i);
+  assert.match(buildExecutiveReading(dashboard), /aún no está disponible/i);
 });
 
 test("readiness and physical flows expose missing values without inventing data", () => {

@@ -84,6 +84,7 @@ export default function ObraWorkspaceLayout() {
     obraId,
   } = useParams();
   const isSummaryRoute = /\/obras\/[^/]+\/resumen\/?$/.test(pathname);
+  const showLegacySummaryHero = false;
 
   const {
     activeOrganizacion,
@@ -254,7 +255,7 @@ export default function ObraWorkspaceLayout() {
       </Link>
 
 
-      {isSummaryRoute && <section className="overflow-hidden rounded-[28px] border border-emerald-700/20 bg-[linear-gradient(135deg,rgba(6,78,59,0.98)_0%,rgba(6,95,70,0.94)_48%,rgba(15,118,110,0.84)_100%)] p-6 text-white shadow-[0_18px_45px_rgba(6,78,59,0.16)]">
+      {showLegacySummaryHero && isSummaryRoute && <section className="overflow-hidden rounded-[28px] border border-emerald-700/20 bg-[linear-gradient(135deg,rgba(6,78,59,0.98)_0%,rgba(6,95,70,0.94)_48%,rgba(15,118,110,0.84)_100%)] p-6 text-white shadow-[0_18px_45px_rgba(6,78,59,0.16)]">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-center">
 
           <div className="min-w-0">
