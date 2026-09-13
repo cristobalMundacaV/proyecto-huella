@@ -1,751 +1,115 @@
-import {
-  Activity,
-  Bot,
-  Boxes,
-  ArrowLeft,
-  BarChart3,
-  Clock3,
-  FileCheck2,
-  Gauge,
-  TriangleAlert,
-  CheckCircle2,
-  Cloud,
-  ClipboardCheck,
-  DatabaseZap,
-  Factory,
-  Flame,
-  Layers3,
-  LayoutDashboard,
-  Droplets,
-  Fuel,
-  LandPlot,
-  Package,
-  Trash2,
-  Volume2,
-  Zap,
-  Recycle,
-  Settings,
-  ShieldCheck,
-  Trees,
-  Truck,
-} from "lucide-react";
-
-import {
-  getConfirmedWorkCapabilityKeys,
-  hasPendingWorkApplicability,
-  isWorkModuleConfirmed,
-} from "@/app/workNavigationApplicability";
+import { Activity, ArrowLeft, BarChart3, Bot, Boxes, CheckCircle2, ClipboardCheck, Clock3, Cloud, DatabaseZap, Droplets, FileBarChart2, FileCheck2, Fuel, Gauge, Package, Settings, ShieldCheck, SlidersHorizontal, Trash2, Truck, Volume2, Zap } from "lucide-react";
+import { getConfirmedWorkCapabilityKeys, hasPendingWorkApplicability, isWorkModuleConfirmed } from "@/app/workNavigationApplicability";
 
 export const NAV_ITEMS = {
-  home: {
-    id: "home",
-    label: "Inicio",
-    title: "Inicio",
-    description: "Resumen ejecutivo de tu operación ambiental.",
-    path: "/inicio",
-    icon: LayoutDashboard,
-  },
-
-  primaryUnit: {
-    id: "primaryUnit",
-    title: "Unidades operacionales",
-    description: "Gestiona las unidades ambientales de tu organización.",
-    path: "/obras",
-    icon: Boxes,
-  },
-
-  assets: {
-    id: "assets",
-    label: "Activos",
-    title: "Activos",
-    description: "Equipos y activos vinculados a tu operación ambiental.",
-    path: "/operacion/activos",
-    icon: Truck,
-  },
-
-  sensors: {
-    id: "sensors",
-    label: "Sensores",
-    title: "Sensores",
-    description: "Monitorea dispositivos y lecturas de tu operación.",
-    path: "/operacion/sensores",
-    icon: Activity,
-  },
-
-  evidence: {
-    id: "evidence",
-    label: "Evidencias",
-    title: "Evidencias",
-    description: "Documentos y antecedentes que respaldan la trazabilidad ambiental.",
-    path: "/datos/evidencias",
-    icon: FileCheck2,
-  },
-
-  imports: {
-    id: "imports",
-    label: "Importaciones",
-    title: "Importaciones",
-    description: "Incorpora información operacional desde archivos y fuentes externas.",
-    path: "/datos/importaciones",
-    icon: DatabaseZap,
-  },
-
-  intelligence: {
-    id: "intelligence",
-    label: "Inteligencia",
-    title: "Inteligencia",
-    description: "Señales y análisis que ayudan a identificar dónde profundizar.",
-    path: "/inteligencia",
-    icon: Activity,
-  },
-
-  improvement: {
-    id: "improvement",
-    label: "Problemas y acciones",
-    title: "Problemas y acciones",
-    description: "Gestiona situaciones ambientales desde su detección hasta verificar el resultado.",
-    path: "/inteligencia/problemas",
-    icon: CheckCircle2,
-  },
-
-  copilot: {
-    id: "copilot",
-    label: "Copiloto",
-    title: "Copiloto ambiental",
-    description: "Consulta el contexto de un problema y prepara decisiones mejor informadas.",
-    path: "/inteligencia/copiloto",
-    icon: Bot,
-  },
-
-  governance: {
-    id: "governance",
-    label: "Gobernanza",
-    title: "Gobernanza",
-    description: "Controla revisiones, discrepancias y decisiones ambientales formales.",
-    path: "/gobernanza",
-    icon: ShieldCheck,
-  },
-
-  professionalReview: {
-    id: "professionalReview",
-    label: "Revisión profesional",
-    title: "Revisión profesional",
-    description: "Elementos que requieren evaluación y decisión profesional.",
-    path: "/gobernanza/revision",
-    icon: ClipboardCheck,
-  },
-
-  administration: {
-    id: "administration",
-    label: "Configuración",
-    title: "Configuración",
-    description: "Gestiona la organización, sus usuarios y preferencias de funcionamiento.",
-    path: "/administracion",
-    icon: Settings,
-  },
+  home: { id: "home", label: "Inicio", title: "Inicio", description: "Estado ejecutivo de tu portafolio ambiental.", path: "/inicio", icon: Gauge },
+  primaryUnit: { id: "primaryUnit", label: "Obras", title: "Obras", description: "Gestiona las obras de tu organización.", path: "/obras", icon: Boxes },
+  reports: { id: "reports", label: "Reportes", title: "Reportes", description: "Informes ambientales consolidados por obra y período.", path: "/reportes", icon: FileBarChart2 },
+  control: { id: "control", label: "Control", title: "Control", description: "Revisión, gobernanza, calidad y trazabilidad ambiental.", path: "/gobernanza", icon: ShieldCheck },
+  administration: { id: "administration", label: "Configuración", title: "Configuración", description: "Organización, usuarios y parámetros de funcionamiento.", path: "/administracion", icon: Settings },
 };
 
 const PAGE_CONTEXTS = [
-  {
-    pattern: "/datos",
-    title: "Datos",
-    description: "Revisa qué información tienes, qué falta y qué requiere atención.",
-  },
-
-  {
-    pattern: "/datos/evidencias/:evidenceId",
-    title: "Detalle de evidencia",
-    description: "Revisa el documento, su contexto, versiones y trazabilidad.",
-  },
-
-  {
-    pattern: "/datos/importaciones/:processId",
-    title: "Detalle de importación",
-    description: "Revisa el estado, progreso y resultado de la importación.",
-  },
-
-  {
-    pattern: "/operacion/sensores/:sensorId",
-    title: "Detalle de sensor",
-    description: "Revisa el dispositivo, sus lecturas y su trazabilidad operacional.",
-  },
-
-  {
-    pattern: "/obras/:obraId/resumen",
-    title: "Resumen de unidad",
-    description: "Estado ambiental y señales principales de esta unidad.",
-  },
-
-
-  {
-    pattern: "/obras/:obraId/operacion",
-    title: "Operación",
-    description: "Revisa qué está ocurriendo físicamente en esta unidad.",
-  },
-
-  {
-    pattern: "/obras/:obraId/operacion/energia",
-    title: "Energía",
-    description: "Consumos y registros energéticos asociados a esta unidad.",
-  },
-
-  {
-    pattern: "/obras/:obraId/operacion/agua",
-    title: "Agua",
-    description: "Consumos y registros hídricos asociados a esta unidad.",
-  },
-
-  {
-    pattern: "/obras/:obraId/operacion/combustibles",
-    title: "Combustibles",
-    description: "Uso de combustibles registrado en esta unidad.",
-  },
-
-  {
-    pattern: "/obras/:obraId/operacion/transporte",
-    title: "Transporte",
-    description: "Movimientos, distancias y carga registrados en esta unidad.",
-  },
-
-  {
-    pattern: "/obras/:obraId/operacion/materiales",
-    title: "Materiales",
-    description: "Movimientos y balances de materiales registrados en esta unidad.",
-  },
-
-  {
-    pattern: "/obras/:obraId/operacion/residuos",
-    title: "Residuos",
-    description: "Registros de residuos asociados a la operación de esta unidad.",
-  },
-
-  {
-    pattern: "/obras/:obraId/operacion/ruido",
-    title: "Ruido",
-    description: "Mediciones y registros acústicos asociados a esta unidad.",
-  },
-
-  {
-    pattern: "/obras/:obraId/operacion/emisiones-atmosfericas",
-    title: "Emisiones atmosféricas",
-    description: "Mediciones y registros de fuentes atmosféricas asociados a esta unidad.",
-  },
-
-  {
-    pattern: "/obras/:obraId/operacion/suelo",
-    title: "Suelo",
-    description: "Condiciones, intervenciones y afectaciones del suelo registradas en esta unidad.",
-  },
-
-  {
-    pattern: "/obras/:obraId/indicadores",
-    title: "Indicadores",
-    description: "Indicadores ambientales y operacionales de esta unidad.",
-  },
-  {
-    pattern: "/obras/:obraId/reportes",
-    title: "Reportes",
-    description: "Lectura ejecutiva, evolución y focos ambientales de esta unidad.",
-  },
-
-  {
-    pattern: "/obras/:obraId/problemas/:problemId",
-    title: "Detalle de problema",
-    description: "Revisa el problema, su acción actual, seguimiento y resultado.",
-  },
-
-  {
-    pattern: "/obras/:obraId/problemas",
-    title: "Problemas",
-    description: "Situaciones ambientales gestionadas dentro de esta unidad.",
-  },
-
-  {
-    pattern: "/obras/:obraId/evidencias/:evidenceId",
-    title: "Detalle de evidencia de la unidad",
-    description: "Revisa el documento y su trazabilidad sin perder el contexto de la unidad.",
-  },
-
-  {
-    pattern: "/obras/:obraId/evidencias",
-    title: "Evidencias de la unidad",
-    description: "Antecedentes y documentos vinculados a esta unidad.",
-  },
-
-  {
-    pattern: "/obras/:obraId/timeline",
-    title: "Historial",
-    description: "Actividad y cambios registrados a lo largo del tiempo.",
-  },
-
-  {
-    pattern: "/inteligencia/problemas/:problemId",
-    title: "Detalle de problema",
-    description: "Revisa qué se intenta resolver, qué acción se tomó y cuál fue el resultado.",
-  },
-
-  {
-    pattern: "/gobernanza/expedientes/:dossierId",
-    title: "Detalle de expediente",
-    description: "Revisa el alcance, antecedentes y decisiones asociadas al expediente.",
-  },
-
-  {
-    pattern: "/gobernanza/expedientes",
-    title: "Expedientes",
-    description: "Antecedentes ambientales preparados para control, revisión y uso formal.",
-  },
-
-  {
-    pattern: "/gobernanza/factores",
-    title: "Factores y metodologías",
-    description: "Consulta referencias y metodologías utilizadas por el cálculo gobernado.",
-  },
-
-  {
-    pattern: "/gobernanza/calidad",
-    title: "Calidad y discrepancias",
-    description: "Revisa datos que presentan diferencias o requieren validación.",
-  },
-
-  {
-    pattern: "/gobernanza/auditoria",
-    title: "Auditoría",
-    description: "Historial verificable de acciones y decisiones gobernadas.",
-  },
-
-  {
-    pattern: "/gobernanza/conocimiento",
-    title: "Conocimiento",
-    description: "Conocimiento ambiental validado y disponible para la plataforma.",
-  },
-
-  {
-    pattern: "/gobernanza/informes",
-    title: "Informes gobernados",
-    description: "Expedientes e informes preparados a partir de antecedentes controlados.",
-  },
-
-  {
-    pattern: "/administracion/organizacion",
-    title: "Organización",
-    description: "Administra la identidad y configuración general de tu organización.",
-  },
-
-  {
-    pattern: "/administracion/usuarios",
-    title: "Usuarios y roles",
-    description: "Gestiona quién tiene acceso y qué rol posee dentro de la organización.",
-  },
-
-  {
-    pattern: "/administracion/configuracion",
-    title: "Preferencias",
-    description: "Configura preferencias operativas, documentales y de presentación.",
-  },
-
-  {
-    pattern: "/administracion/diagnostico",
-    title: "Diagnóstico de contexto",
-    description: "Define el contexto organizacional que determina qué aplica a tu operación.",
-  },
-
-  {
-    pattern: "/administracion/estructura",
-    title: "Estructura operacional",
-    description: "Organiza las etapas y componentes que estructuran tu operación.",
-  },
-
-  {
-    pattern: "/operacion/recepcion-trozas",
-    title: "Recepción",
-    description: "Registra y revisa la recepción de materia prima de la operación.",
-  },
-
-  {
-    pattern: "/operacion/produccion",
-    title: "Producción",
-    description: "Revisa la actividad productiva registrada en la operación.",
-  },
-
-  {
-    pattern: "/operacion/secado",
-    title: "Secado",
-    description: "Monitorea los procesos y registros asociados al secado.",
-  },
-
-  {
-    pattern: "/operacion/energia",
-    title: "Energía",
-    description: "Revisa el consumo energético asociado al proceso productivo.",
-  },
-
-  {
-    pattern: "/operacion/transporte-forestal",
-    title: "Transporte forestal",
-    description: "Gestiona los movimientos y transporte asociados a la operación forestal.",
-  },
-
-  {
-    pattern: "/operacion/residuos-subproductos",
-    title: "Residuos y subproductos",
-    description: "Revisa residuos, subproductos y movimientos derivados de la operación.",
-  },
-
-  {
-    pattern: "/operacion/lotes-forestales",
-    title: "Lotes",
-    description: "Consulta los lotes y su trazabilidad dentro de la operación.",
-  },
-];
-
-const GROUPS = {
-  operation: "Mi operación",
-  data: "Datos",
-  environmental: "Gestión ambiental",
-  control: "Control",
-  configuration: "Configuración",
-};
-
-const defaultProfile = {
-  operation: ["primaryUnit", "assets", "sensors"],
-  data: ["evidence", "imports"],
-  environmental: ["intelligence", "improvement", "copilot"],
-  control: ["governance", "professionalReview"],
-  configuration: ["administration"],
-};
-
-function capability(id, preset) {
-  const item = NAV_ITEMS[id];
-
-  if (!item) return null;
-
-  if (id === "primaryUnit") {
-    return {
-      ...item,
-      label: preset.unitPluralLabel,
-      title: preset.unitPluralLabel,
-      description: `Gestiona las ${preset.unitPluralLabel.toLowerCase()} de tu organización.`,
-    };
-  }
-
-  return item;
-}
-
-function sectorOperations(preset) {
-  if (!preset.navigationExtensions?.length) return null;
-
-  return {
-    id: "sectorOperations",
-    label:
-      preset.navigationProfile?.processesLabel ||
-      `${preset.processPluralLabel} de ${preset.unitLabel.toLowerCase()}`,
-    icon: Factory,
-    children: preset.navigationExtensions.map((item, index) => ({
-      ...item,
-      id: `sector-${index}`,
-      icon: sectorIcon(item.path),
-    })),
-  };
-}
-
-function sectorIcon(path) {
-  if (path.includes("recepcion")) return Trees;
-  if (path.includes("secado") || path.includes("energia")) return Flame;
-  if (path.includes("transporte")) return Truck;
-  if (path.includes("residuos")) return Recycle;
-  if (path.includes("lotes")) return Layers3;
-
-  return Factory;
-}
+  ["/reportes", "Centro de reportes", "Informes ambientales por obra, período y estado de preparación."],
+  ["/obras/:obraId/resumen", "Resumen de obra", "Estado ejecutivo ambiental de esta obra."],
+  ["/obras/:obraId/operacion", "Resumen operacional", "Qué está ocurriendo físicamente en esta obra."],
+  ["/obras/:obraId/operacion/energia", "Energía", "Consumos y registros energéticos de la obra."],
+  ["/obras/:obraId/operacion/agua", "Agua", "Consumos y registros hídricos de la obra."],
+  ["/obras/:obraId/operacion/combustibles", "Combustibles", "Uso de combustibles registrado en la obra."],
+  ["/obras/:obraId/operacion/transporte", "Transporte", "Movimientos, distancias y carga de la obra."],
+  ["/obras/:obraId/operacion/materiales", "Materiales", "Movimientos y balances de materiales."],
+  ["/obras/:obraId/operacion/residuos", "Residuos", "Registros y trazabilidad de residuos."],
+  ["/obras/:obraId/operacion/ruido", "Ruido", "Mediciones y registros acústicos."],
+  ["/obras/:obraId/operacion/emisiones-atmosfericas", "Emisiones atmosféricas", "Mediciones de fuentes atmosféricas."],
+  ["/obras/:obraId/evidencias", "Evidencias", "Respaldo documental y cobertura de la obra."],
+  ["/obras/:obraId/problemas", "Problemas y acciones", "Seguimiento desde la detección hasta el cierre."],
+  ["/obras/:obraId/cumplimiento", "Cumplimiento", "Obligaciones y estado de cumplimiento."],
+  ["/obras/:obraId/timeline", "Historial", "Actividad y cambios de la obra."],
+  ["/obras/:obraId/reportes", "Informes", "Lectura ejecutiva y salidas ambientales de la obra."],
+  ["/datos/evidencias", "Evidencias", "Documentos y antecedentes ambientales."],
+  ["/datos/importaciones", "Importaciones", "Incorporación gobernada de información."],
+  ["/inteligencia", "Inteligencia", "Radar de prioridades ambientales."],
+  ["/gobernanza/revision", "Revisión profesional", "Cola de revisión y decisiones profesionales."],
+  ["/gobernanza/expedientes", "Expedientes", "Antecedentes preparados para uso formal."],
+  ["/gobernanza/calidad", "Calidad y discrepancias", "Control de diferencias y validaciones."],
+  ["/gobernanza", "Control", "Gobernanza y control ambiental."],
+  ["/administracion", "Configuración", "Parámetros de organización y operación."],
+].map(([pattern, title, description]) => ({ pattern, title, description }));
 
 function matchesPattern(pathname, pattern) {
-  const pathnameParts = pathname
-    .split("/")
-    .filter(Boolean);
+  const path = pathname.split("/").filter(Boolean);
+  const target = pattern.split("/").filter(Boolean);
+  return path.length === target.length && target.every((part, index) => part.startsWith(":") || part === path[index]);
+}
 
-  const patternParts = pattern
-    .split("/")
-    .filter(Boolean);
-
-  if (pathnameParts.length !== patternParts.length) {
-    return false;
+export function getNavigationForPreset(preset = {}) {
+  const works = { ...NAV_ITEMS.primaryUnit };
+  if (preset.unitPluralLabel) {
+    works.label = preset.unitPluralLabel;
+    works.title = preset.unitPluralLabel;
+    works.description = `Gestiona las ${preset.unitPluralLabel.toLowerCase()} de tu organización.`;
   }
-
-  return patternParts.every((part, index) => {
-    if (part.startsWith(":")) return true;
-
-    return part === pathnameParts[index];
-  });
+  return { home: NAV_ITEMS.home, groups: [{ id: "platform", label: "Plataforma", items: [works, NAV_ITEMS.reports, NAV_ITEMS.control, NAV_ITEMS.administration] }] };
 }
 
-export function getNavigationForPreset(preset) {
-  const selected = preset || {};
+const operationItems = (base) => [
+  { id: "operationOverview", domain: "operacion", label: "Resumen operacional", path: `${base}/operacion`, icon: Activity },
+  { id: "energy", domain: "energia", label: "Energía", path: `${base}/operacion/energia`, icon: Zap },
+  { id: "water", domain: "agua", label: "Agua", path: `${base}/operacion/agua`, icon: Droplets },
+  { id: "fuel", domain: "combustibles", label: "Combustibles", path: `${base}/operacion/combustibles`, icon: Fuel },
+  { id: "transport", domain: "transporte", label: "Transporte", path: `${base}/operacion/transporte`, icon: Truck },
+  { id: "materials", domain: "materiales", label: "Materiales", path: `${base}/operacion/materiales`, icon: Package },
+  { id: "waste", domain: "residuos", capabilities: ["residuos", "residuos_no_peligrosos", "residuos_peligrosos"], label: "Residuos", path: `${base}/operacion/residuos`, icon: Trash2 },
+  { id: "noise", domain: "ruido", label: "Ruido", path: `${base}/operacion/ruido`, icon: Volume2 },
+  { id: "atmosphericEmissions", domain: "emisiones_atmosfericas", label: "Emisiones atmosféricas", path: `${base}/operacion/emisiones-atmosfericas`, icon: Cloud },
+];
 
-  const profile = {
-    ...defaultProfile,
-    ...(selected.navigationProfile || {}),
-  };
-
-  const groups = Object.entries(GROUPS)
-    .map(([id, label]) => ({
-      id,
-      label,
-      items: (profile[id] || [])
-        .map(itemId =>
-          itemId === "sectorOperations"
-            ? sectorOperations(selected)
-            : capability(itemId, selected)
-        )
-        .filter(Boolean),
-    }))
-    .filter(group => group.items.length);
-
+export function getWorkNavigation({ obraId, applicability = [] }) {
+  const base = `/obras/${obraId}`;
+  const confirmed = getConfirmedWorkCapabilityKeys(applicability);
+  const operation = operationItems(base).filter((item) => item.domain === "operacion" || isWorkModuleConfirmed(item, confirmed));
   return {
-    home: NAV_ITEMS.home,
-    groups,
-  };
-}
-
-export function getWorkNavigation({
-  obraId,
-  applicability = [],
-}) {
-  const base =
-    `/obras/${obraId}`;
-  const confirmedCapabilities = getConfirmedWorkCapabilityKeys(applicability);
-  const hasPendingApplicability = hasPendingWorkApplicability(applicability);
-
-  return {
-    exit: {
-      id: "generalView",
-      label: "Visión general",
-      path: "/inicio",
-      icon: ArrowLeft,
-    },
-
+    exit: { id: "generalView", label: "Visión general", path: "/inicio", icon: ArrowLeft },
     groups: [
-      {
-        id: "work",
-        label: "Obra",
-        items: [
-          {
-            id: "summary",
-            label: "Resumen",
-            path: `${base}/resumen`,
-            icon: Gauge,
-          },
-          ...(hasPendingApplicability ? [{
-            id: "pendingApplicability",
-            label: "Diagnóstico inicial",
-            path: `${base}/diagnostico`,
-            icon: ClipboardCheck,
-          }] : []),
-        ],
-      },
-
-      {
-        id: "operation",
-        label: "Operación",
-        items: [
-          {
-            id: "operationOverview",
-            domain: "operacion",
-            label: "Resumen operacional",
-            path: `${base}/operacion`,
-            icon: Activity,
-          },
-
-          {
-            id: "energy",
-            domain: "energia",
-            label: "Energía",
-            path: `${base}/operacion/energia`,
-            icon: Zap,
-          },
-
-          {
-            id: "water",
-            domain: "agua",
-            label: "Agua",
-            path: `${base}/operacion/agua`,
-            icon: Droplets,
-          },
-
-          {
-            id: "fuel",
-            domain: "combustibles",
-            label: "Combustibles",
-            path: `${base}/operacion/combustibles`,
-            icon: Fuel,
-          },
-
-          {
-            id: "transport",
-            domain: "transporte",
-            label: "Transporte",
-            path: `${base}/operacion/transporte`,
-            icon: Truck,
-          },
-
-          {
-            id: "materials",
-            domain: "materiales",
-            label: "Materiales",
-            path: `${base}/operacion/materiales`,
-            icon: Package,
-          },
-
-          {
-            id: "waste",
-            domain: "residuos",
-            capabilities: ["residuos", "residuos_no_peligrosos", "residuos_peligrosos"],
-            label: "Residuos",
-            path: `${base}/operacion/residuos`,
-            icon: Trash2,
-          },
-
-          {
-            id: "noise",
-            domain: "ruido",
-            label: "Ruido",
-            path: `${base}/operacion/ruido`,
-            icon: Volume2,
-          },
-
-          {
-            id: "atmosphericEmissions",
-            domain: "emisiones_atmosfericas",
-            label: "Emisiones atmosféricas",
-            path: `${base}/operacion/emisiones-atmosfericas`,
-            icon: Cloud,
-          },
-
-          {
-            id: "soil",
-            domain: "suelo",
-            label: "Suelo",
-            path: `${base}/operacion/suelo`,
-            icon: LandPlot,
-          },
-
-          {
-            id: "indicators",
-            domain: "indicadores",
-            label: "Indicadores",
-            path: `${base}/indicadores`,
-            icon: BarChart3,
-          },
-          {
-            id: "reports",
-            domain: "reportes",
-            label: "Reportes",
-            path: `${base}/reportes`,
-            icon: BarChart3,
-          },
-          {
-            id: "compliance",
-            domain: "cumplimiento",
-            label: "Cumplimiento",
-            path: `${base}/cumplimiento`,
-            icon: BarChart3,
-          },
-        ].filter((item) =>
-          !item.domain ||
-          ["operacion", "indicadores", "reportes", "cumplimiento"].includes(item.domain) ||
-          isWorkModuleConfirmed(item, confirmedCapabilities)
-        ),
-      },
-
-      {
-        id: "environmental",
-        label: "Gestión ambiental",
-        items: [
-          {
-            id: "problems",
-            domain: "problemas",
-            label: "Problemas",
-            path: `${base}/problemas`,
-            icon: TriangleAlert,
-          },
-
-          {
-            id: "evidence",
-            domain: "evidencias",
-            label: "Evidencias",
-            path: `${base}/evidencias`,
-            icon: FileCheck2,
-          },
-
-          {
-            id: "history",
-            label: "Historial",
-            path: `${base}/timeline`,
-            icon: Clock3,
-          },
-        ],
-      },
+      { id: "summary", label: "Resumen", items: [{ id: "summary", label: "Resumen ejecutivo", path: `${base}/resumen`, icon: Gauge }, ...(hasPendingWorkApplicability(applicability) ? [{ id: "pendingApplicability", label: "Diagnóstico inicial", path: `${base}/diagnostico`, icon: ClipboardCheck }] : [])] },
+      { id: "operation", label: "Operación", items: operation },
+      { id: "management", label: "Gestión", items: [
+        { id: "evidence", label: "Evidencias", path: `${base}/evidencias`, icon: FileCheck2 },
+        { id: "problems", label: "Problemas y acciones", path: `${base}/problemas`, icon: CheckCircle2 },
+        { id: "compliance", label: "Cumplimiento", path: `${base}/cumplimiento`, icon: ClipboardCheck },
+        { id: "history", label: "Historial", path: `${base}/timeline`, icon: Clock3 },
+      ] },
+      { id: "control", label: "Control", items: [
+        { id: "professionalReview", label: "Revisión profesional", path: "/gobernanza/revision", icon: ClipboardCheck },
+        { id: "governance", label: "Gobernanza", path: "/gobernanza", icon: ShieldCheck },
+        { id: "discrepancies", label: "Discrepancias", path: "/gobernanza/calidad", icon: SlidersHorizontal },
+        { id: "dossiers", label: "Expedientes", path: "/gobernanza/expedientes", icon: FileCheck2 },
+        { id: "quality", label: "Calidad", path: "/gobernanza/calidad", icon: ShieldCheck },
+      ] },
+      { id: "reports", label: "Reportes", items: [
+        { id: "reports", label: "Informes", path: `${base}/reportes`, icon: BarChart3 },
+        { id: "pdf", label: "PDF", path: `${base}/reportes?salida=pdf`, icon: FileBarChart2 },
+        { id: "excel", label: "Excel", path: `${base}/reportes?salida=excel`, icon: DatabaseZap },
+        { id: "charts", label: "Gráficos", path: `${base}/reportes#graficos`, icon: BarChart3 },
+        { id: "closing", label: "Cierre", path: `${base}/reportes#cierre`, icon: ClipboardCheck },
+      ] },
+      { id: "configuration", label: "Configuración", items: [
+        { id: "environmentalProfile", label: "Perfil ambiental", path: `${base}/diagnostico`, icon: Gauge },
+        { id: "scopes", label: "Ámbitos", path: "/administracion/ambiental", icon: Boxes },
+        { id: "factors", label: "Factores", path: "/gobernanza/factores", icon: SlidersHorizontal },
+        { id: "methodologies", label: "Metodologías", path: "/gobernanza/factores", icon: Bot },
+        { id: "parameters", label: "Parámetros", path: "/administracion/calculo", icon: Settings },
+      ] },
     ],
   };
 }
 
 export function getPageContext(pathname, preset) {
+  const exact = [...PAGE_CONTEXTS].sort((a, b) => b.pattern.length - a.pattern.length).find((item) => matchesPattern(pathname, item.pattern));
+  if (exact) return exact;
   const navigation = getNavigationForPreset(preset);
-
-  const navigationItems = [
-    navigation.home,
-    ...navigation.groups.flatMap(group =>
-      group.items.flatMap(item =>
-        item.children?.length
-          ? item.children
-          : [item]
-      )
-    ),
-  ].filter(Boolean);
-
-  const exactPageContext = PAGE_CONTEXTS
-    .sort(
-      (a, b) =>
-        b.pattern.split("/").length -
-        a.pattern.split("/").length
-    )
-    .find(item =>
-      matchesPattern(pathname, item.pattern)
-    );
-
-  if (exactPageContext) {
-    return exactPageContext;
-  }
-
-  const navigationItem = [...navigationItems]
-    .filter(item => item.path)
-    .sort(
-      (a, b) =>
-        b.path.length -
-        a.path.length
-    )
-    .find(item =>
-      pathname === item.path ||
-      pathname.startsWith(`${item.path}/`)
-    );
-
-  if (navigationItem) {
-    return {
-      title:
-        navigationItem.title ||
-        navigationItem.label,
-      description:
-        navigationItem.description ||
-        "",
-    };
-  }
-
-  return {
-    title: "Carbono Zero",
-    description:
-      "Gestión e inteligencia ambiental para tu organización.",
-  };
+  const item = [navigation.home, ...navigation.groups.flatMap((group) => group.items)].sort((a, b) => b.path.length - a.path.length).find((candidate) => pathname === candidate.path || pathname.startsWith(`${candidate.path}/`));
+  return item ? { title: item.title || item.label, description: item.description || "" } : { title: "Carbono Zero", description: "Gestión e inteligencia ambiental para tu organización." };
 }
 
-export const navigationForPreset =
-  getNavigationForPreset;
+export const navigationForPreset = getNavigationForPreset;

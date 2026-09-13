@@ -455,7 +455,7 @@ function WorkSidebar({
                                 <NavItem
                                     exact
                                     item={item}
-                                    key={item.path}
+                                    key={item.id || item.path}
                                     onNavigate={onNavigate}
                                 />
                             ))}

@@ -28,6 +28,10 @@ import {
   StatusBadge,
 } from "@/shared/ui";
 
+import ChartCard from "@/shared/charts/ChartCard";
+import EnvironmentalDonutChart, { DonutLegend } from "@/shared/charts/EnvironmentalDonutChart";
+import CoverageProgressChart from "@/shared/charts/CoverageProgressChart";
+
 import {
   transportMetrics,
 } from "@/features/operacion/utils/operationSelectors";
@@ -41,6 +45,19 @@ import {
   obraReportExcelUrl,
   obraReportPdfUrl,
 } from "@/features/obras/services/obraDashboardApi";
+
+import {
+  AiRecommendationsPanel,
+  FlowStatusGrid,
+} from "@/features/obras/components/ObraDashboardPanels";
+
+import {
+  buildFlowImpactDonutData,
+  buildFlowPhysicalCards,
+  buildReadinessRings,
+  buildRecommendations,
+  buildScopeDonutData,
+} from "@/features/obras/utils/obraDashboardSelectors";
 
 const ESTADO_TONE = {
   estable: "success",
@@ -87,12 +104,18 @@ function EnvironmentalExecutiveStatus({ organizacionId, obraNumericId }) {
   const pdfUrl = obraReportPdfUrl(organizacionId, obraNumericId, { relative_months: 3 });
   const excelUrl = obraReportExcelUrl(organizacionId, obraNumericId, { relative_months: 3 });
 
+  const scopeDonut = buildScopeDonutData(kpis);
+  const flowDonut = buildFlowImpactDonutData(kpis);
+  const readinessRings = buildReadinessRings(dashboard.readiness);
+  const flowCards = buildFlowPhysicalCards(kpis, obraNumericId);
+  const recommendations = buildRecommendations(dashboard);
+
   return (
-    <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+    <section className="space-y-4 rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SectionHeader
-          title="Estado ambiental"
-          description={`Período ${dashboard.period.start} a ${dashboard.period.end} · calculado por el motor determinista de indicadores.`}
+          title="Cabina de mando ambiental"
+          description={`Período ${dashboard.period.start} a ${dashboard.period.end} · un único motor determinista de indicadores (mismo número en dashboard, informe y copiloto).`}
         />
         <div className="flex items-center gap-3">
           <StatusBadge tone={tone}>{dashboard.estado_ejecutivo.label}</StatusBadge>
@@ -111,51 +134,97 @@ function EnvironmentalExecutiveStatus({ organizacionId, obraNumericId }) {
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {/* KPIS EJECUTIVOS */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard icon={Gauge} label="Huella total" value={kpis.huella_total_tco2e} unit="tCO2e" />
-        <KpiCard icon={Gauge} label="Alcance 1" value={kpis.alcance_1_tco2e} unit="tCO2e" />
-        <KpiCard icon={Gauge} label="Alcance 2" value={kpis.alcance_2_tco2e} unit="tCO2e" />
-        <KpiCard icon={Gauge} label="Alcance 3" value={kpis.alcance_3_tco2e} unit="tCO2e" />
+        <KpiCard icon={Gauge} label="Alcance 1" value={kpis.alcance_1_tco2e} unit="tCO2e" helper="Combustión directa" />
+        <KpiCard icon={Gauge} label="Alcance 2" value={kpis.alcance_2_tco2e} unit="tCO2e" helper="Energía comprada" />
+        <KpiCard icon={Gauge} label="Alcance 3" value={kpis.alcance_3_tco2e} unit="tCO2e" helper="Otras fuentes" />
       </div>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          icon={Activity}
-          label="Combustible"
-          value={Object.values(kpis.combustible || {})[0]?.total ?? null}
-          unit={Object.keys(kpis.combustible || {})[0]}
-        />
-        <KpiCard
-          icon={Activity}
-          label="Agua"
-          value={Object.values(kpis.agua || {})[0]?.total ?? null}
-          unit={Object.keys(kpis.agua || {})[0]}
-        />
-        <KpiCard
-          icon={Activity}
-          label="Energía"
-          value={Object.values(kpis.energia || {})[0]?.total ?? null}
-          unit={Object.keys(kpis.energia || {})[0]}
-        />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           icon={ShieldCheck}
           label="Cobertura de evidencia"
           value={kpis.cobertura_evidencia_pct}
           unit="%"
+          status={kpis.cobertura_evidencia_pct >= 90 ? "success" : kpis.cobertura_evidencia_pct >= 70 ? "warning" : "danger"}
+        />
+        <KpiCard
+          icon={Activity}
+          label="Tasa de valorización"
+          value={kpis.tasa_valorizacion_pct}
+          unit="%"
+        />
+        <KpiCard
+          icon={AlertTriangle}
+          label="Riesgo ambiental"
+          value={dashboard.risk?.risk_score ?? null}
+          helper={dashboard.risk?.nivel ? `Nivel ${label(dashboard.risk.nivel)}` : undefined}
+          status={dashboard.risk?.nivel === "critico" ? "danger" : dashboard.risk?.nivel === "alto" ? "warning" : "success"}
+        />
+        <KpiCard
+          icon={ListChecks}
+          label="Hallazgos de alta severidad"
+          value={dashboard.resumen_ejecutivo.hallazgos_altos}
+          status={dashboard.resumen_ejecutivo.hallazgos_altos ? "warning" : "success"}
         />
       </div>
 
-      <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-        <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">
-          Resumen ejecutivo
-        </p>
-        <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-          {dashboard.resumen_ejecutivo.hallazgos_altos} hallazgo(s) de alta severidad ·{" "}
-          {dashboard.resumen_ejecutivo.evidencias_faltantes} evidencia(s) faltante(s) ·{" "}
-          {dashboard.resumen_ejecutivo.factores_pendientes} factor(es) pendiente(s) ·{" "}
-          {dashboard.resumen_ejecutivo.cobertura_periodo_pct ?? "—"}% cobertura del período.
-        </p>
-        <p className="mt-2 text-sm font-bold text-[var(--text-primary)]">
+      {/* GRAFICOS */}
+      <div className="grid gap-3 xl:grid-cols-3">
+        <ChartCard
+          title="GEI por alcance"
+          description="Distribución de la huella total entre Alcance 1, 2 y 3."
+          empty={!scopeDonut.length}
+        >
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,180px)_1fr] sm:items-center">
+            <EnvironmentalDonutChart
+              data={scopeDonut}
+              height={180}
+              centerLabel="Total"
+              centerValue={kpis.huella_total_tco2e ?? "—"}
+              centerUnit="tCO2e"
+              valueFormatter={(value) => `${value} tCO2e`}
+            />
+            <DonutLegend data={scopeDonut} valueFormatter={(value) => `${value} tCO2e`} />
+          </div>
+        </ChartCard>
+
+        <ChartCard
+          title="Distribución por flujo"
+          description="Impacto (kgCO2e → tCO2e) por flujo ambiental, mismo dato que alimenta el Alcance."
+          empty={!flowDonut.length}
+        >
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,180px)_1fr] sm:items-center">
+            <EnvironmentalDonutChart data={flowDonut} height={180} valueFormatter={(value) => `${value} tCO2e`} />
+            <DonutLegend data={flowDonut} valueFormatter={(value) => `${value} tCO2e`} />
+          </div>
+        </ChartCard>
+
+        <ChartCard
+          title="Readiness del período"
+          description="Cobertura, evidencia, factores y validación profesional requeridos para cierre."
+        >
+          <div className="grid gap-3">
+            {readinessRings.map((ring) => (
+              <CoverageProgressChart key={ring.key} label={ring.label} value={ring.value} size={64} strokeWidth={7} />
+            ))}
+          </div>
+        </ChartCard>
+      </div>
+
+      {/* ESTADO POR FLUJO */}
+      <div>
+        <SectionHeader title="Estado por flujo" description="Consumo físico real registrado en el período, por flujo ambiental." />
+        <FlowStatusGrid flows={flowCards} />
+      </div>
+
+      {/* RECOMENDACIONES IA */}
+      <AiRecommendationsPanel recommendations={recommendations} pendientes={dashboard.readiness.pendientes || []} />
+
+      <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+        <p className="text-sm font-bold text-[var(--text-primary)]">
           {dashboard.readiness.listo_para_reporte
             ? "Este período está LISTO PARA REPORTE."
             : "Este período NO ESTÁ LISTO PARA CIERRE."}

@@ -36,6 +36,7 @@ const ObraWorkspaceLayout = lazy(() => import("@/app/layouts/ObraWorkspaceLayout
 const ObraResumenPage = lazy(() => import("@/features/obras/pages/ObraResumenPage"));
 const ObraIndicatorsPage = lazy(() => import("@/features/obras/pages/ObraIndicatorsPage"));
 const ReportsPage = lazy(() => import("@/features/reportes/pages/ReportsPage"));
+const ReportsCenterPage = lazy(() => import("@/features/reportes/pages/ReportsCenterPage"));
 const WorkCompliancePage = lazy(
   () =>
     import(
@@ -159,6 +160,7 @@ export default function AppRouter() {
               element={<RequireCapability permission="environmental_profile.view"><WorkDiagnosticPage /></RequireCapability>}
             />
           </Route>
+          <Route path="reportes" element={<ReportsCenterPage />} />
           <Route path="datos" element={<DataOverviewPage />} />
           <Route path="datos/evidencias" element={<RequireCapability permission="evidence.view"><EvidencePage /></RequireCapability>} />
           <Route path="datos/evidencias/:evidenceId" element={<EvidenceDetailPage />} />

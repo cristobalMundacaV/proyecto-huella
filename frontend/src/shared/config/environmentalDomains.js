@@ -24,10 +24,31 @@ export const ENVIRONMENTAL_DOMAINS = {
   indicadores: { key: "indicadores", label: "Indicadores", icon: Boxes, text: "text-sky-700", softBg: "bg-sky-50", border: "border-sky-200", accent: "from-sky-50 via-white to-white" },
 };
 
-const aliases = { "hidrica-suelo": "hidrica_suelo", "emisiones-atmosfericas": "emisiones_atmosfericas", waterSoil: "hidrica_suelo", energy: "energia", water: "agua", fuel: "combustibles", transport: "transporte", materials: "materiales", waste: "residuos", noise: "ruido", compliance: "cumplimiento", problems: "problemas", evidence: "evidencias", operationOverview: "operacion", indicators: "indicadores" };
+const aliases = { "hidrica-suelo": "hidrica_suelo", "emisiones-atmosfericas": "emisiones_atmosfericas", waterSoil: "hidrica_suelo", energy: "energia", water: "agua", fuel: "combustibles", combustible: "combustibles", transport: "transporte", materials: "materiales", waste: "residuos", noise: "ruido", compliance: "cumplimiento", problems: "problemas", evidence: "evidencias", operationOverview: "operacion", indicators: "indicadores" };
 
 export function getEnvironmentalDomain(key) {
   return ENVIRONMENTAL_DOMAINS[aliases[key] || key] || null;
 }
 
 export const OPERATIONAL_DOMAIN_KEYS = ["energia", "agua", "combustibles", "transporte", "materiales", "residuos", "ruido", "emisiones_atmosfericas", "suelo"];
+
+// Real hex values (not Tailwind classes) for the same domain, for use in
+// chart fills (recharts/SVG cannot resolve Tailwind utility classes) — kept
+// in lockstep with the `text-*-700` colors above so a flow reads as the
+// same color everywhere: sidebar, KPI cards, charts and reports.
+export const FLOW_CHART_HEX = {
+  energia: "#a16207",
+  agua: "#1d4ed8",
+  combustibles: "#c2410c",
+  maquinaria: "#334155",
+  transporte: "#4338ca",
+  materiales: "#57534e",
+  residuos: "#047857",
+  ruido: "#6d28d9",
+  emisiones_atmosfericas: "#0369a1",
+  suelo: "#92400e",
+};
+
+export function getFlowChartColor(key) {
+  return FLOW_CHART_HEX[aliases[key] || key] || "#64748b";
+}

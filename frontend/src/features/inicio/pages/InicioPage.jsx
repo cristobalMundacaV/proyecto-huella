@@ -7,7 +7,9 @@ import {
 } from "react";
 import {
     AlertTriangle,
+    CheckCircle2,
     FileCheck2,
+    ShieldAlert,
     Plus,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -293,6 +295,12 @@ export default function InicioPage() {
         .slice(0, 3);
 
     const incompleteCount = unknownWorkIds.size;
+    const readyPeriods = (data.workDashboards || []).filter(
+        dashboard => dashboard.readiness?.listo_para_reporte
+    ).length;
+    const highRisks = (data.workDashboards || []).filter(
+        dashboard => ["alto", "critico"].includes(dashboard.risk?.nivel)
+    ).length;
 
     const attentionHelper = attentionWorks.length
         ? `${attentionWorks.length === 1 ? "Revisa su estado" : "Revisa sus estados"}${incompleteCount
@@ -370,7 +378,7 @@ export default function InicioPage() {
 
             <section
                 aria-label="Resumen"
-                className="grid gap-3 md:grid-cols-3"
+                className="grid gap-3 md:grid-cols-3 xl:grid-cols-5"
             >
                 <div className="overflow-hidden rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-100 to-emerald-50 shadow-[0_8px_24px_rgba(6,78,59,0.08)]">
                     <KpiCard
@@ -433,6 +441,24 @@ export default function InicioPage() {
                                 ? "warning"
                                 : "success"
                         }
+                    />
+                </div>
+                <div className="overflow-hidden rounded-2xl border border-cyan-200/70 bg-gradient-to-br from-cyan-100 to-cyan-50 shadow-[0_8px_24px_rgba(8,145,178,0.07)]">
+                    <KpiCard
+                        icon={CheckCircle2}
+                        label="Períodos listos"
+                        value={readyPeriods}
+                        helper={`${Math.max(0, data.works.length - readyPeriods)} aún requieren preparación`}
+                        status={readyPeriods === data.works.length ? "success" : "info"}
+                    />
+                </div>
+                <div className="overflow-hidden rounded-2xl border border-rose-200/70 bg-gradient-to-br from-rose-100 to-rose-50 shadow-[0_8px_24px_rgba(190,18,60,0.07)]">
+                    <KpiCard
+                        icon={ShieldAlert}
+                        label="Riesgos altos"
+                        value={highRisks}
+                        helper={highRisks ? "Prioriza estas obras" : "Sin riesgo alto detectado"}
+                        status={highRisks ? "danger" : "success"}
                     />
                 </div>
             </section>

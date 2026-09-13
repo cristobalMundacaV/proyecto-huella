@@ -38,6 +38,8 @@ import { useOrganizacionActiva } from "@/features/organizaciones/context/Organiz
 import DomainSensorsPanel from "../components/DomainSensorsPanel";
 import DomainQualityPanel from "../components/DomainQualityPanel";
 import { getEnvironmentalDomain } from "@/shared/config/environmentalDomains";
+import { getFlowChartColor } from "@/shared/config/environmentalDomains";
+import EnvironmentalTrendChart from "@/shared/charts/EnvironmentalTrendChart";
 
 const PAGE_SIZE = 8;
 
@@ -356,6 +358,22 @@ export default function SectorDomainPage({ domain }) {
   const unresolved = ["pendiente", "no_determinado"].includes(applicabilityState);
   useEffect(() => { setPage(1); }, [domain, measurements.length, persistedWorkId]);
   const pagedMeasurements = useMemo(() => measurements.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [measurements, page]);
+  const trendData = useMemo(() => {
+    const numericRows = measurements
+      .filter(({ observation }) => observation?.valor_numerico !== null && observation?.valor_numerico !== undefined)
+      .map(({ observation, record }) => ({
+      label: formatDateTime(observation.timestamp_observacion || record?.periodo_inicio),
+      value: Number(observation.valor_numerico),
+      unit: observation.unidad,
+      timestamp: observation.timestamp_observacion || record?.periodo_inicio,
+      }))
+      .filter((item) => Number.isFinite(item.value));
+    const latestUnit = numericRows.at(-1)?.unit;
+    return numericRows
+      .filter((item) => item.unit === latestUnit)
+      .toSorted((left, right) => String(left.timestamp || "").localeCompare(String(right.timestamp || "")))
+      .slice(-12);
+  }, [measurements]);
   const latestMeasurement =
     useMemo(
       () => {
@@ -520,6 +538,21 @@ export default function SectorDomainPage({ domain }) {
             unit={metric.unit}
             helper={metric.helper}
           />)}</div>
+        </section>}
+
+        {!noApplicable && !unresolved && measurements.length > 0 && <section className="rounded-[22px] border border-[var(--border-subtle)] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+          <SectionHeader
+            eyebrow="EVOLUCIÓN"
+            title="Tendencia de mediciones"
+            description="Lectura cronológica de los valores numéricos disponibles, sin completar períodos ni estimar datos faltantes."
+          />
+          <div className="mt-4">
+            <EnvironmentalTrendChart
+              data={trendData}
+              color={getFlowChartColor(domain)}
+              valueFormatter={(value) => `${formatNumber(value)}${trendData[0]?.unit ? ` ${trendData[0].unit}` : ""}`}
+            />
+          </div>
         </section>}
 
         {noApplicable

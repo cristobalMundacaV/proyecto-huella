@@ -69,10 +69,13 @@ def _impact_and_scopes(organizacion, obra, start, end):
     totals = material_ledger_totals(organizacion, work=obra, start=start, end=end, group_by="categoria")
     total_kg = totals["totales_por_unidad"].get("kgCO2e", {}).get("total", Decimal("0"))
     scope_totals = {1: Decimal("0"), 2: Decimal("0"), 3: Decimal("0")}
+    impact_by_category = {}
     for categoria, por_unidad in (totals.get("por_grupo") or {}).items():
         kg = por_unidad.get("kgCO2e", {}).get("total", Decimal("0"))
         scope_totals[SCOPE_BY_CATEGORY.get(categoria, 3)] += kg
-    return total_kg, scope_totals, totals["entradas_totales"]
+        if kg:
+            impact_by_category[categoria] = kg
+    return total_kg, scope_totals, impact_by_category, totals["entradas_totales"]
 
 
 def _flow_kpis(organizacion, user, obra, start, end):
@@ -226,7 +229,7 @@ def build_obra_dashboard(organizacion, user, obra, *, date_from=None, date_to=No
         date_from=date_from, date_to=date_to, relative_months=relative_months,
     )
 
-    total_kg, scope_totals, entradas_impacto = _impact_and_scopes(organizacion, obra, cur_start, cur_end)
+    total_kg, scope_totals, impact_by_category, entradas_impacto = _impact_and_scopes(organizacion, obra, cur_start, cur_end)
     flow_kpis = _flow_kpis(organizacion, user, obra, cur_start, cur_end)
     valorizacion_pct = _waste_valorization_rate(organizacion, obra, cur_start, cur_end)
 
@@ -264,6 +267,9 @@ def build_obra_dashboard(organizacion, user, obra, *, date_from=None, date_to=No
             "tasa_valorizacion_pct": valorizacion_pct,
             "calidad_datos_pct": readiness["evidencia_pct"],
             "cobertura_evidencia_pct": readiness["evidencia_pct"],
+            "impacto_por_flujo_tco2e": {
+                categoria: _round(kg / Decimal("1000"), 3) for categoria, kg in impact_by_category.items()
+            },
         },
         "resumen_ejecutivo": {
             "hallazgos_altos": findings_altos, "evidencias_faltantes": evidencia_faltante,

@@ -16,6 +16,8 @@ import {
 } from "../utils/operationSelectors";
 import OperationDomainCard from "../components/OperationDomainCard";
 import { getEnvironmentalDomain, OPERATIONAL_DOMAIN_KEYS } from "@/shared/config/environmentalDomains";
+import { getFlowChartColor } from "@/shared/config/environmentalDomains";
+import EnvironmentalBarChart from "@/shared/charts/EnvironmentalBarChart";
 
 const domains = OPERATIONAL_DOMAIN_KEYS.map((key) => {
   const identity = getEnvironmentalDomain(key);
@@ -164,14 +166,15 @@ export default function OperacionOverviewPage() {
     || (!isResourceReady(operation.transport) && isResourceReady(operation.journeys))
     || (!isResourceReady(operation.materials) && isResourceReady(operation.materialEvents)),
   );
+  const activityByDomain = operationalDescriptors.map((domain) => ({
+    name: domain.title,
+    value: domain.activityCount,
+    color: getFlowChartColor(domain.key),
+  }));
 
   return <div className="space-y-6">
-    <section>
-      <SectionHeader
-        eyebrow="ESTADO OPERACIONAL"
-        title="Resumen de operación"
-        description="Actividad registrada, cambios recientes y ámbitos que necesitan revisión."
-      />
+    <section className="overflow-hidden rounded-[28px] border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-cyan-50/60 p-6 shadow-[0_16px_42px_rgba(15,23,42,0.07)] sm:p-7">
+      <SectionHeader eyebrow="PULSO DE LA OBRA" title="Qué está ocurriendo físicamente" description="Actividad, cobertura y alertas operacionales de los flujos ambientales aplicables a esta obra." />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard icon={Layers3} label="Ámbitos aplicables" value={operationalDescriptors.length} helper="Confirmados para esta obra" />
@@ -207,6 +210,11 @@ export default function OperacionOverviewPage() {
           to={domain.to}
         ><span><b>{domain.title}</b><span className="block text-xs text-[var(--text-muted)]">{domain.signal || "Actividad registrada"}</span></span><span className="shrink-0 text-xs text-[var(--text-muted)]">{formatDateTime(domain.latestAt)}</span></Link>)}</div>
       </CardContent></Card>}
+    </section>}
+
+    {operationalDescriptors.length > 0 && <section className="rounded-[22px] border border-[var(--border-subtle)] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+      <SectionHeader eyebrow="DISTRIBUCIÓN OPERACIONAL" title="Actividad por ámbito" description="Cantidad de registros disponibles por flujo; compara actividad, no impacto ambiental." />
+      <div className="mt-4"><EnvironmentalBarChart data={activityByDomain} height={280} valueFormatter={(value) => `${formatNumber(value)} registros`} /></div>
     </section>}
 
     <section>
