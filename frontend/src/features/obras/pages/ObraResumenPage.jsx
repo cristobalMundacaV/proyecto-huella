@@ -1,9 +1,16 @@
 import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
   Activity,
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  Download,
   FileCheck2,
+  Gauge,
   ListChecks,
   ShieldCheck,
 } from "lucide-react";
@@ -24,6 +31,139 @@ import {
 import {
   transportMetrics,
 } from "@/features/operacion/utils/operationSelectors";
+
+import {
+  useOrganizacionActiva,
+} from "@/features/organizaciones/context/OrganizacionActivaContext";
+
+import {
+  getObraDashboard,
+  obraReportExcelUrl,
+  obraReportPdfUrl,
+} from "@/features/obras/services/obraDashboardApi";
+
+const ESTADO_TONE = {
+  estable: "success",
+  atencion: "warning",
+  critica: "danger",
+  periodo_incompleto: "neutral",
+  lista_para_reporte: "success",
+};
+
+function EnvironmentalExecutiveStatus({ organizacionId, obraNumericId }) {
+  const [state, setState] = useState({ status: "loading", dashboard: null });
+
+  useEffect(() => {
+    if (!organizacionId || !obraNumericId) return undefined;
+    let cancelled = false;
+    setState({ status: "loading", dashboard: null });
+    getObraDashboard(organizacionId, obraNumericId, { relative_months: 3 })
+      .then((dashboard) => {
+        if (!cancelled) setState({ status: "ready", dashboard });
+      })
+      .catch(() => {
+        if (!cancelled) setState({ status: "error", dashboard: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [organizacionId, obraNumericId]);
+
+  if (state.status === "loading") {
+    return (
+      <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+        <p className="text-sm text-[var(--text-muted)]">Calculando estado ambiental de la obra…</p>
+      </section>
+    );
+  }
+
+  if (state.status === "error" || !state.dashboard) {
+    return null;
+  }
+
+  const { dashboard } = state;
+  const kpis = dashboard.kpis;
+  const tone = ESTADO_TONE[dashboard.estado_ejecutivo.codigo] || "neutral";
+  const pdfUrl = obraReportPdfUrl(organizacionId, obraNumericId, { relative_months: 3 });
+  const excelUrl = obraReportExcelUrl(organizacionId, obraNumericId, { relative_months: 3 });
+
+  return (
+    <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SectionHeader
+          title="Estado ambiental"
+          description={`Período ${dashboard.period.start} a ${dashboard.period.end} · calculado por el motor determinista de indicadores.`}
+        />
+        <div className="flex items-center gap-3">
+          <StatusBadge tone={tone}>{dashboard.estado_ejecutivo.label}</StatusBadge>
+          <a
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-[var(--text-secondary)] hover:border-emerald-400 hover:text-emerald-700"
+            href={pdfUrl}
+          >
+            <Download size={14} aria-hidden="true" /> PDF
+          </a>
+          <a
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-[var(--text-secondary)] hover:border-emerald-400 hover:text-emerald-700"
+            href={excelUrl}
+          >
+            <Download size={14} aria-hidden="true" /> Excel
+          </a>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard icon={Gauge} label="Huella total" value={kpis.huella_total_tco2e} unit="tCO2e" />
+        <KpiCard icon={Gauge} label="Alcance 1" value={kpis.alcance_1_tco2e} unit="tCO2e" />
+        <KpiCard icon={Gauge} label="Alcance 2" value={kpis.alcance_2_tco2e} unit="tCO2e" />
+        <KpiCard icon={Gauge} label="Alcance 3" value={kpis.alcance_3_tco2e} unit="tCO2e" />
+      </div>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          icon={Activity}
+          label="Combustible"
+          value={Object.values(kpis.combustible || {})[0]?.total ?? null}
+          unit={Object.keys(kpis.combustible || {})[0]}
+        />
+        <KpiCard
+          icon={Activity}
+          label="Agua"
+          value={Object.values(kpis.agua || {})[0]?.total ?? null}
+          unit={Object.keys(kpis.agua || {})[0]}
+        />
+        <KpiCard
+          icon={Activity}
+          label="Energía"
+          value={Object.values(kpis.energia || {})[0]?.total ?? null}
+          unit={Object.keys(kpis.energia || {})[0]}
+        />
+        <KpiCard
+          icon={ShieldCheck}
+          label="Cobertura de evidencia"
+          value={kpis.cobertura_evidencia_pct}
+          unit="%"
+        />
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+        <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">
+          Resumen ejecutivo
+        </p>
+        <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+          {dashboard.resumen_ejecutivo.hallazgos_altos} hallazgo(s) de alta severidad ·{" "}
+          {dashboard.resumen_ejecutivo.evidencias_faltantes} evidencia(s) faltante(s) ·{" "}
+          {dashboard.resumen_ejecutivo.factores_pendientes} factor(es) pendiente(s) ·{" "}
+          {dashboard.resumen_ejecutivo.cobertura_periodo_pct ?? "—"}% cobertura del período.
+        </p>
+        <p className="mt-2 text-sm font-bold text-[var(--text-primary)]">
+          {dashboard.readiness.listo_para_reporte
+            ? "Este período está LISTO PARA REPORTE."
+            : "Este período NO ESTÁ LISTO PARA CIERRE."}
+        </p>
+      </div>
+    </section>
+  );
+}
 
 
 const label = (value) =>
@@ -191,6 +331,10 @@ export default function ObraResumenPage() {
   const {
     obraId,
   } = useParams();
+
+  const {
+    activeOrganizacionId,
+  } = useOrganizacionActiva();
 
   const {
     obra,
@@ -387,6 +531,8 @@ export default function ObraResumenPage() {
         </div>
       </section>
 
+
+      <EnvironmentalExecutiveStatus organizacionId={activeOrganizacionId} obraNumericId={obra.id} />
 
       {profileCompleted && (
         <section className="rounded-[22px] border border-emerald-200 bg-[linear-gradient(135deg,rgba(236,253,245,0.95),rgba(240,253,250,0.78))] p-5 shadow-[0_10px_30px_rgba(6,78,59,0.06)]">

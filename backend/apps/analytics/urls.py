@@ -166,6 +166,12 @@ from .views_construction_v1 import (
     work_materials,
     work_timeline,
 )
+from .views_obra_dashboard import (
+    obra_environmental_dashboard,
+    obra_environmental_report_excel,
+    obra_environmental_report_pdf,
+    obra_period_readiness,
+)
 from .views_activity_core import (
     actividad_operacional_detail,
     actividades_operacionales,
@@ -725,6 +731,22 @@ urlpatterns = [
     path(
         "organizaciones/<str:organizacion_id>/obras/<int:obra_id>/contexto/",
         work_context_view,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/obras/<int:obra_id>/dashboard-ambiental/",
+        obra_environmental_dashboard,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/obras/<int:obra_id>/readiness-periodo/",
+        obra_period_readiness,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/obras/<int:obra_id>/informe-ambiental.pdf",
+        obra_environmental_report_pdf,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/obras/<int:obra_id>/informe-ambiental.xlsx",
+        obra_environmental_report_excel,
     ),
     path("organizaciones/<str:organizacion_id>/fuentes-datos/", fuentes_datos),
     path(
