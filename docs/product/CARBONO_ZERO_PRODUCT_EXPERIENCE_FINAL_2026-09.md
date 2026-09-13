@@ -281,3 +281,54 @@ El grupo inicialmente expandido ahora se calcula en el `useState` inicial (perez
 ### Pendientes reales (agregado)
 
 - La verificación de "un solo loader visible"/paridad de comportamiento en tablet/responsive de esta corrección fue visual (Chrome DevTools-equivalente vía el navegador de la sesión), no automatizada con una suite de regresión visual.
+
+## UNIFIED SIDEBAR REFINEMENT (corrección posterior)
+
+### Decisión de UX aplicada
+
+Se eliminó por completo el bloque separado "OBRA ACTIVA" (y sus headings redundantes "OPERACIÓN"/"GESTIÓN"). Ahora `getUnifiedNavigation` produce UN SOLO árbol cuyos ítems principales cambian según el contexto:
+
+- **Portafolio**: Inicio, Obras, Reportes, Control, Configuración.
+- **Obra**: Resumen, Operación (expandible), Gestión (expandible), Reportes, Control, Configuración — "Obras" ya no es un ítem principal.
+
+"Operación" y "Gestión" son simplemente ítems con `.children`, renderizados por el mecanismo `item.children` que `GeneralNavigation` ya tenía desde antes de la macrofase de unificación (estaba inactivo porque ningún ítem lo usaba) — el mismo componente, el mismo árbol, sin una segunda superficie de navegación.
+
+### Selector de contexto
+
+Se agregó "Ver todas las obras" (→ `/obras`) dentro del dropdown del `ContextSelector`, debajo del listado de obras — cubre el acceso al listado que "Obras" resolvía antes como ítem principal.
+
+### Operación / Gestión
+
+- Operación: Resumen operacional + los 8 flujos, con ícono y color por dominio (vía `ENVIRONMENTAL_DOMAINS`) y un punto de estado (relleno = aplica, contorno = pendiente) idéntico al de la iteración anterior — sólo que ahora vive directamente en `NavItem` (ya no hay un `SubnavItem` paralelo).
+- Gestión: Evidencias, Problemas y acciones, Cumplimiento, Historial — nunca gateado por aplicabilidad.
+- `withObraFlowStates` (reescrito): opera sobre el nodo `operation.children` del árbol unificado en vez de un subnav separado; misma regla (`no_aplica` oculta, todo lo demás visible con estado).
+- RBAC: `filterNavigation` ahora también filtra `item.children` por permiso y descarta el ítem padre si queda sin hijos — antes sólo filtraba el nivel superior.
+
+### Estado activo / expansión
+
+Reutiliza el `useEffect` de auto-expansión que ya existía en `Sidebar.jsx` (antes nunca se activaba, porque ningún ítem tenía `.children`): expande automáticamente "Operación" o "Gestión" cuando la ruta activa pertenece a alguno de sus hijos. Sin ruta coincidente (ej. en "Resumen"), ambos quedan colapsados — más limpio que forzar "Operación" abierto por defecto.
+
+### Verificación visual
+
+Confirmado en pantalla contra "Constructora Andina SpA" (usuario temporal, desactivado al terminar):
+- Portafolio: exactamente Inicio/Obras/Reportes/Control/Configuración, sin Operación/Gestión.
+- Obra → Resumen: Resumen/Operación/Gestión/Reportes/Control/Configuración, Operación y Gestión colapsados.
+- Click en Operación: expande mostrando Resumen operacional + 8 flujos con íconos/colores y puntos de estado "pendiente".
+- Click en Energía: Energía queda activa (fondo ámbar), Operación permanece expandida.
+- Dropdown del selector de contexto: incluye "Ver todas las obras".
+- Navegación directa a `/obras/1/evidencias`: Gestión se expande automáticamente y Evidencias queda activa.
+
+### Tests actualizados
+
+- `navigation.test.js` (reescrito): portafolio muestra exactamente 4 ítems (Obras/Reportes/Control/Configuración) más Inicio; obra muestra exactamente Operación/Gestión/Reportes/Control/Configuración más Resumen, sin ítem Obras; hijos de Operación y Gestión verificados uno a uno.
+- `obraSubnavVisibility.test.js` (reescrito): mismas 6 garantías (no_aplica oculta, pendiente visible, aplica visible, resumen/gestión nunca gateados, default a pendiente sin datos) sobre la nueva forma del árbol; portafolio no tiene ítem "operation".
+- `Sidebar.layout.test.js` (reescrito): confirma que `ObraActiveSubnav`/`SubnavItem`/`getObraContextualSubnav` ya no existen en el código; `GeneralNavigation` vuelve a ser dueña de `flex-1`/`overflow-y-auto` (única región de scroll, sin wrapper adicional); sin `mt-auto`/`justify-between`; el selector ofrece "Ver todas las obras".
+
+### Verificación final
+
+- Frontend: 115/115 tests, lint limpio, build limpio.
+- Sin cambios de backend.
+
+### Pendientes reales (agregado)
+
+- El punto de estado de cada flujo dentro de "Operación" sigue reflejando sólo aplicabilidad (aplica/pendiente), no el estado de datos real por flujo — mismo pendiente documentado en la iteración anterior, ahora aplicado al ítem unificado en vez del subnav separado.

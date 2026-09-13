@@ -20,7 +20,6 @@ import {
 } from "react-router-dom";
 
 import {
-    getObraContextualSubnav,
     getUnifiedNavigation,
 } from "@/app/navigation";
 
@@ -57,12 +56,23 @@ const NAV_PERMISSIONS = {
     reports: "reports.view", assets: "assets.view", sensors: "sensors.view", audit: "audit.view",
 };
 
+function allowedByRbac(id, can) {
+    return !NAV_PERMISSIONS[id] || can(NAV_PERMISSIONS[id]);
+}
+
 function filterNavigation(navigation, can) {
     return {
         ...navigation,
         groups: navigation.groups.map((group) => ({
             ...group,
-            items: group.items.filter((item) => !NAV_PERMISSIONS[item.id] || can(NAV_PERMISSIONS[item.id])),
+            items: group.items
+                .filter((item) => allowedByRbac(item.id, can))
+                .map((item) => (
+                    item.children
+                        ? { ...item, children: item.children.filter((child) => allowedByRbac(child.id, can)) }
+                        : item
+                ))
+                .filter((item) => !item.children || item.children.length > 0),
         })).filter((group) => group.items.length),
     };
 }
@@ -126,17 +136,11 @@ export default function Sidebar({
         [workId],
     );
 
-    const navigation =
-        useMemo(
-            () => filterNavigation(getUnifiedNavigation({ preset, scope }), can),
-            [can, preset, scope]
-        );
-
     // Obra-level applicability (aplica/pendiente/no_aplica per flow), fetched
-    // once per obra — powers ONLY the "OBRA ACTIVA" subnav's visibility/dot
-    // below; it never re-introduces a second sidebar, just decides which of
-    // the always-existing operation routes get a mini status dot and which
-    // (only `no_aplica`) are left out.
+    // once per obra — powers ONLY the "Operación" item's children (their
+    // visibility/status dot) below; it never introduces a second sidebar,
+    // just decides which of the always-existing operation routes get a
+    // mini status dot and which (only `no_aplica`) are left out.
     const applicabilityScope = activeOrganizacionId && workId ? `${activeOrganizacionId}:${workId}` : "";
     const [workApplicability, setWorkApplicability] = useState({ scope: "", rows: [] });
 
@@ -186,11 +190,11 @@ export default function Sidebar({
         [applicabilityScope, workApplicability],
     );
 
-    const obraSubnav = useMemo(() => {
-        if (!workId) return null;
-        const subnav = filterNavigation(getObraContextualSubnav(workId), can);
-        return withObraFlowStates(subnav, applicabilityRows);
-    }, [applicabilityRows, can, workId]);
+    const navigation =
+        useMemo(
+            () => withObraFlowStates(filterNavigation(getUnifiedNavigation({ preset, scope }), can), applicabilityRows),
+            [applicabilityRows, can, preset, scope]
+        );
 
 
     const exactPaths =
@@ -330,40 +334,23 @@ export default function Sidebar({
                 scope={scope}
             />
 
-            {/* ONE scrollable region for BOTH the primary nav and the obra
-                subnav — this is the fix: `GeneralNavigation`'s <nav> used to
-                carry `flex-1` on its own, growing to fill the aside and
-                pushing `ObraActiveSubnav` (its next DOM sibling) all the way
-                to the bottom behind a huge empty gap. Now `flex-1`/scroll
-                live on this wrapper only, so the subnav sits immediately
-                after the primary nav in normal document flow. */}
-            <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-2">
-                <GeneralNavigation
-                    navigation={
-                        navigation
-                    }
-                    expanded={
-                        expanded
-                    }
-                    setExpanded={
-                        setExpanded
-                    }
-                    exactPaths={
-                        exactPaths
-                    }
-                    onNavigate={
-                        onNavigate
-                    }
-                />
-
-                {obraSubnav && (
-                    <ObraActiveSubnav
-                        onNavigate={onNavigate}
-                        pathname={pathname}
-                        subnav={obraSubnav}
-                    />
-                )}
-            </div>
+            <GeneralNavigation
+                navigation={
+                    navigation
+                }
+                expanded={
+                    expanded
+                }
+                setExpanded={
+                    setExpanded
+                }
+                exactPaths={
+                    exactPaths
+                }
+                onNavigate={
+                    onNavigate
+                }
+            />
         </aside>
     );
 }
@@ -373,101 +360,6 @@ const FLOW_STATE_DOT = {
     aplica: "bg-current",
     pendiente: "border border-current bg-transparent",
 };
-
-/** The compact "OBRA ACTIVA" subnav — rendered UNDER the same five unified
- * items, never a second sidebar. Two collapsible groups (Operación,
- * Gestión); whichever contains the active route starts expanded. Every
- * `path` here is an existing route (see router.jsx) — this component only
- * decides what's visible/expanded, never creates a page. */
-function activeGroupFor(subnav, pathname) {
-    return subnav.groups.find((group) => group.items.some((item) => pathname === item.path || pathname.startsWith(`${item.path}/`)));
-}
-
-function ObraActiveSubnav({ onNavigate, pathname, subnav }) {
-    const [expandedGroups, setExpandedGroups] = useState(() => {
-        const active = activeGroupFor(subnav, pathname);
-        return new Set([active ? active.id : "operation"]);
-    });
-
-    useEffect(() => {
-        const active = activeGroupFor(subnav, pathname);
-        if (active) setExpandedGroups((current) => (current.has(active.id) ? current : new Set([...current, active.id])));
-    }, [pathname, subnav]);
-
-    function toggleGroup(id) {
-        setExpandedGroups((current) => {
-            const next = new Set(current);
-            if (next.has(id)) next.delete(id); else next.add(id);
-            return next;
-        });
-    }
-
-    return (
-        <nav aria-label="Obra activa" className="mt-3 border-t border-[var(--sidebar-border)] pt-3">
-            <p className="mb-1.5 px-2 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                Obra activa
-            </p>
-
-            <div className="space-y-2">
-                {subnav.groups.map((group) => {
-                    const isOpen = expandedGroups.has(group.id);
-                    return (
-                        <div key={group.id}>
-                            <button
-                                aria-expanded={isOpen}
-                                className="flex w-full items-center gap-2 rounded-[var(--radius-md)] px-2 py-1.5 text-left text-[11px] font-black uppercase tracking-[0.1em] text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-subtle)] hover:text-[var(--text-primary)]"
-                                onClick={() => toggleGroup(group.id)}
-                                type="button"
-                            >
-                                <span className="min-w-0 flex-1 truncate">{group.label}</span>
-                                <ChevronDown aria-hidden="true" className={`shrink-0 transition ${isOpen ? "rotate-180" : ""}`} size={13} />
-                            </button>
-
-                            {isOpen && (
-                                <div className="space-y-0.5 pl-1">
-                                    {group.items.map((item) => (
-                                        <SubnavItem item={item} key={item.id} onNavigate={onNavigate} />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-        </nav>
-    );
-}
-
-
-function SubnavItem({ item, onNavigate }) {
-    const domain = getEnvironmentalDomain(item.domain);
-    const Icon = domain?.icon || item.icon;
-    const dotStyle = FLOW_STATE_DOT[item.state];
-
-    return (
-        <NavLink
-            end
-            to={item.path}
-            onClick={onNavigate}
-            className={({ isActive }) =>
-                `flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${isActive
-                    ? domain ? `${domain.softBg} ${domain.text}` : "bg-[var(--sidebar-active)] text-[var(--brand-primary)]"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-subtle)] hover:text-[var(--text-primary)]"
-                }`
-            }
-        >
-            {Icon && <Icon aria-hidden="true" className={domain?.text || ""} size={15} />}
-            <span className="min-w-0 flex-1 truncate">{item.label}</span>
-            {dotStyle && (
-                <span
-                    aria-hidden="true"
-                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${domain?.text || "text-amber-600"} ${dotStyle}`}
-                    title={item.state === "pendiente" ? "Requiere configuración" : "Aplica"}
-                />
-            )}
-        </NavLink>
-    );
-}
 
 
 /** ONE-SIDEBAR selector: switches the whole product's context between
@@ -604,6 +496,15 @@ function ContextSelector({
                             </button>
                         );
                     })}
+
+                    <button
+                        className="mt-1 flex w-full items-center gap-2 rounded-lg border-t border-slate-100 px-3 pb-1.5 pt-2.5 text-left text-xs font-black text-emerald-700 transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+                        onClick={() => { setOpen(false); navigate("/obras"); onNavigate?.(); }}
+                        type="button"
+                    >
+                        <Boxes aria-hidden="true" size={14} />
+                        Ver todas las obras
+                    </button>
                 </div>
             )}
         </section>
@@ -695,7 +596,7 @@ function GeneralNavigation({
     return (
         <nav
             aria-label="Navegación principal"
-            className="space-y-3"
+            className="min-h-0 flex-1 space-y-3 overflow-y-auto px-1 pb-2"
         >
             <NavItem
                 exact
@@ -831,6 +732,7 @@ function NavItem({
 }) {
     const domain = getEnvironmentalDomain(item.domain);
     const Icon = domain?.icon || item.icon;
+    const dotStyle = FLOW_STATE_DOT[item.state];
 
     return (
         <NavLink
@@ -867,9 +769,17 @@ function NavItem({
                 }
             />
 
-            <span className="truncate">
+            <span className="min-w-0 flex-1 truncate">
                 {item.label}
             </span>
+
+            {dotStyle && (
+                <span
+                    aria-hidden="true"
+                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${domain?.text || "text-amber-600"} ${dotStyle}`}
+                    title={item.state === "pendiente" ? "Requiere configuración" : "Aplica"}
+                />
+            )}
         </NavLink>
     );
 }
