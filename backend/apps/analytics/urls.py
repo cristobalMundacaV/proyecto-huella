@@ -171,6 +171,7 @@ from .views_obra_dashboard import (
     obra_environmental_report_excel,
     obra_environmental_report_pdf,
     obra_period_readiness,
+    organization_environmental_dashboard,
 )
 from .views_activity_core import (
     actividad_operacional_detail,
@@ -731,6 +732,10 @@ urlpatterns = [
     path(
         "organizaciones/<str:organizacion_id>/obras/<int:obra_id>/contexto/",
         work_context_view,
+    ),
+    path(
+        "organizaciones/<str:organizacion_id>/dashboard-portafolio/",
+        organization_environmental_dashboard,
     ),
     path(
         "organizaciones/<str:organizacion_id>/obras/<int:obra_id>/dashboard-ambiental/",

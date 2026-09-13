@@ -15,6 +15,7 @@ from .models import Obra, Organizacion, UsuarioOrganizacion
 from .permissions import Permission, require_tenant_permission, require_work_access
 from .services.obra_environmental_dashboard import build_obra_dashboard, build_period_readiness
 from .services.obra_report import render_report_excel, render_report_pdf
+from .services.organization_environmental_dashboard import build_organization_dashboard
 
 
 def _scope(request, organizacion_id, obra_id):
@@ -27,6 +28,16 @@ def _scope(request, organizacion_id, obra_id):
     obra = get_object_or_404(Obra, pk=obra_id, organizacion=organizacion)
     require_work_access(request.user, organizacion, obra)
     return organizacion, obra
+
+
+def _scope_organization(request, organizacion_id):
+    organizacion = get_object_or_404(Organizacion, organizacion_id=organizacion_id)
+    if not request.user.is_superuser and not UsuarioOrganizacion.objects.filter(
+        user=request.user, organizacion=organizacion, activo=True,
+    ).exists():
+        raise Http404("Recurso no encontrado.")
+    require_tenant_permission(request.user, organizacion, Permission.DATA_VIEW)
+    return organizacion
 
 
 def _period_params(request):
@@ -75,3 +86,11 @@ def obra_environmental_report_excel(request, organizacion_id, obra_id):
     response = HttpResponse(content, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     response["Content-Disposition"] = f'attachment; filename="informe-ambiental-obra-{obra.id}.xlsx"'
     return response
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def organization_environmental_dashboard(request, organizacion_id):
+    organizacion = _scope_organization(request, organizacion_id)
+    data = build_organization_dashboard(organizacion, request.user, **_period_params(request))
+    return Response(data)

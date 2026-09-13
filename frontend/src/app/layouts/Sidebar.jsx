@@ -1,6 +1,8 @@
 import {
     ArrowLeft,
+    Boxes,
     Building2,
+    Check,
     ChevronDown,
     Loader2,
 } from "lucide-react";
@@ -18,8 +20,7 @@ import {
 } from "react-router-dom";
 
 import {
-    getNavigationForPreset,
-    getWorkNavigation,
+    getUnifiedNavigation,
 } from "@/app/navigation";
 
 import {
@@ -32,7 +33,6 @@ import {
 } from "@/presets/registry";
 import { getOrganizacionObras } from "@/shared/services/api";
 import { getEnvironmentalDomain } from "@/shared/config/environmentalDomains";
-import { getWorkContext } from "@/features/obras/services/workspaceApi";
 import { usePermissions } from "@/features/auth/hooks/usePermissions";
 import { useOperationalWorkspace } from "@/features/workspace/context/OperationalWorkspaceContext";
 
@@ -107,68 +107,15 @@ export default function Sidebar({
             pathname
         );
 
-    const applicabilityScope = activeOrganizacionId && workId ? `${activeOrganizacionId}:${workId}` : "";
-    const [workApplicability, setWorkApplicability] = useState({ scope: "", rows: [] });
-
-    useEffect(() => {
-        let active = true;
-        if (!applicabilityScope) {
-            setWorkApplicability({ scope: "", rows: [] });
-            return () => { active = false; };
-        }
-        setWorkApplicability({ scope: applicabilityScope, rows: [] });
-        getWorkContext(activeOrganizacionId, workId)
-            .then((workspace) => {
-                if (!active) return;
-                const rows = workspace?.context?.diagnostico_obra?.aplicabilidad;
-                const organizationCapabilities = workspace?.context?.capacidades_organizacion;
-                const enabledKeys = new Set(
-                    (Array.isArray(organizationCapabilities) ? organizationCapabilities : [])
-                        .filter((item) => item?.estado_organizacion !== "no_aplica")
-                        .map((item) => item?.clave),
-                );
-                setWorkApplicability({
-                    scope: applicabilityScope,
-                    rows: (Array.isArray(rows) ? rows : []).filter((item) => enabledKeys.has(item?.clave)),
-                });
-            })
-            .catch(() => {
-                if (active) setWorkApplicability({ scope: applicabilityScope, rows: [] });
-            });
-        return () => { active = false; };
-    }, [activeOrganizacionId, applicabilityScope, workId]);
-
-    useEffect(() => {
-        const updateApplicability = (event) => {
-            const detail = event.detail || {};
-            if (String(detail.organizationId) !== String(activeOrganizacionId) || String(detail.workId) !== String(workId)) return;
-            setWorkApplicability((current) => ({
-                ...current,
-                rows: current.rows.map((item) => item.clave === detail.key ? { ...item, estado_obra: detail.estado } : item),
-            }));
-        };
-        window.addEventListener("carbono-zero:work-applicability-updated", updateApplicability);
-        return () => window.removeEventListener("carbono-zero:work-applicability-updated", updateApplicability);
-    }, [activeOrganizacionId, workId]);
-
+    const scope = useMemo(
+        () => (workId ? { type: "obra", obraId: workId } : { type: "portfolio" }),
+        [workId],
+    );
 
     const navigation =
         useMemo(
-            () => filterNavigation(getNavigationForPreset(preset), can),
-            [can, preset]
-        );
-
-
-    const workNavigation =
-        useMemo(
-            () =>
-                workId
-                    ? filterNavigation(getWorkNavigation({
-                        obraId: workId,
-                        applicability: workApplicability.scope === applicabilityScope ? workApplicability.rows : [],
-                    }), can)
-                    : null,
-            [applicabilityScope, can, workApplicability, workId]
+            () => filterNavigation(getUnifiedNavigation({ preset, scope }), can),
+            [can, preset, scope]
         );
 
 
@@ -284,186 +231,180 @@ export default function Sidebar({
     return (
         <aside className="flex min-h-full w-full shrink-0 flex-col border-b border-[var(--sidebar-border)] bg-[var(--sidebar)] px-3 py-4 text-[var(--text-main)] shadow-[18px_0_50px_rgba(19,34,56,0.05)] lg:sticky lg:top-[72px] lg:h-[calc(100vh-72px)] lg:w-64 lg:border-b-0 lg:border-r">
 
-            {workNavigation ? (
-                <WorkSidebar
-                    navigation={workNavigation}
-                    preset={preset}
-                    workId={workId}
-                    onNavigate={onNavigate}
-                    onExit={returnToGeneralView}
-                />
-            ) : (
-                <>
-                    <OrganizationSelector
-                        activeOrganizacionId={
-                            activeOrganizacionId
-                        }
-                        organizaciones={
-                            organizaciones
-                        }
-                        loadingOrganizaciones={
-                            loadingOrganizaciones
-                        }
-                        presetKey={
-                            presetKey
-                        }
-                        onChange={
-                            switchOrganization
-                        }
-                    />
+            <OrganizationSelector
+                activeOrganizacionId={
+                    activeOrganizacionId
+                }
+                organizaciones={
+                    organizaciones
+                }
+                loadingOrganizaciones={
+                    loadingOrganizaciones
+                }
+                presetKey={
+                    presetKey
+                }
+                onChange={
+                    switchOrganization
+                }
+            />
 
-                    <GeneralNavigation
-                        navigation={
-                            navigation
-                        }
-                        expanded={
-                            expanded
-                        }
-                        setExpanded={
-                            setExpanded
-                        }
-                        exactPaths={
-                            exactPaths
-                        }
-                        onNavigate={
-                            onNavigate
-                        }
-                    />
-                </>
-            )}
+            <ContextSelector
+                activeOrganizacionId={activeOrganizacionId}
+                onNavigate={onNavigate}
+                preset={preset}
+                scope={scope}
+            />
+
+            <GeneralNavigation
+                navigation={
+                    navigation
+                }
+                expanded={
+                    expanded
+                }
+                setExpanded={
+                    setExpanded
+                }
+                exactPaths={
+                    exactPaths
+                }
+                onNavigate={
+                    onNavigate
+                }
+            />
         </aside>
     );
 }
 
-function WorkSidebar({
-    navigation,
-    preset,
-    workId,
+
+/** ONE-SIDEBAR selector: switches the whole product's context between
+ * PORTAFOLIO (the organization) and a single OBRA — never a second,
+ * separate sidebar. Same 5 nav items below just change target/content. */
+function ContextSelector({
+    activeOrganizacionId,
     onNavigate,
-    onExit,
+    preset,
+    scope,
 }) {
     const navigate = useNavigate();
     const { pathname } = useLocation();
-    const { activeOrganizacionId } = useOrganizacionActiva();
-    const [selectorOpen, setSelectorOpen] = useState(false);
-    const [worksState, setWorksState] = useState({ status: "loading", rows: [], error: "" });
+    const [open, setOpen] = useState(false);
+    const [worksState, setWorksState] = useState({ status: "loading", rows: [] });
 
     useEffect(() => {
         let active = true;
-        setSelectorOpen(false);
+        setOpen(false);
         if (!activeOrganizacionId) {
-            setWorksState({ status: "ready", rows: [], error: "" });
+            setWorksState({ status: "ready", rows: [] });
             return () => { active = false; };
         }
-        setWorksState({ status: "loading", rows: [], error: "" });
+        setWorksState({ status: "loading", rows: [] });
         getOrganizacionObras(activeOrganizacionId)
             .then((data) => {
-                if (active) setWorksState({ status: "ready", rows: Array.isArray(data) ? data : data?.results || [], error: "" });
+                if (active) setWorksState({ status: "ready", rows: Array.isArray(data) ? data : data?.results || [] });
             })
             .catch(() => {
-                if (active) setWorksState({ status: "error", rows: [], error: "No se pudieron cargar las obras." });
+                if (active) setWorksState({ status: "error", rows: [] });
             });
         return () => { active = false; };
     }, [activeOrganizacionId]);
 
     const routeId = (work) => work.id || work.obra_id || work.codigo_obra;
-    const currentWork = worksState.rows.find((work) => String(routeId(work)) === String(workId));
-    const canSwitch = worksState.status === "ready" && worksState.rows.length > 1;
+    const isObra = scope.type === "obra";
+    const currentWork = isObra ? worksState.rows.find((work) => String(routeId(work)) === String(scope.obraId)) : null;
 
-    function selectWork(nextWork) {
-        const nextId = routeId(nextWork);
-        if (!nextId || String(nextId) === String(workId)) {
-            setSelectorOpen(false);
-            return;
-        }
+    function selectPortfolio() {
+        setOpen(false);
+        if (!isObra) return;
+        navigate("/inicio");
+        onNavigate?.();
+    }
+
+    function selectWork(work) {
+        const nextId = routeId(work);
+        setOpen(false);
+        if (!nextId || String(nextId) === String(scope.obraId)) return;
         const encodedId = encodeURIComponent(nextId);
-        const preserved = pathname.replace(/^\/obras\/[^/]+/, `/obras/${encodedId}`);
+        const preserved = isObra ? pathname.replace(/^\/obras\/[^/]+/, `/obras/${encodedId}`) : `/obras/${encodedId}/resumen`;
         navigate(preserved.startsWith(`/obras/${encodedId}/`) ? preserved : `/obras/${encodedId}/resumen`);
-        setSelectorOpen(false);
         onNavigate?.();
     }
 
     return (
-        <>
-            <button
-                type="button"
-                onClick={onExit}
-                className="
-                    mb-5 flex items-center gap-2
-                    rounded-[var(--radius-md)]
-                    border border-emerald-200/80
-                    bg-white
-                    px-3 py-2.5
-                    text-sm font-black
-                    text-[var(--brand-primary)]
-                    shadow-sm
-                    transition
-                    hover:border-emerald-300
-                    hover:bg-emerald-50
-                    focus-visible:outline-none
-                    focus-visible:shadow-[var(--focus-ring)]
-                "
-            >
-                <navigation.exit.icon
-                    aria-hidden="true"
-                    size={17}
-                />
+        <section className="relative mb-4 px-1">
+            <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                Contexto
+            </p>
 
-                Volver a visión general
+            <button
+                aria-expanded={open}
+                aria-haspopup="listbox"
+                className="flex w-full items-center gap-2.5 rounded-[var(--radius-md)] border border-emerald-200 bg-white px-3 py-2.5 text-left shadow-sm transition hover:border-emerald-300 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                onClick={() => setOpen((current) => !current)}
+                type="button"
+            >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+                    {isObra ? <Building2 aria-hidden="true" size={16} /> : <Boxes aria-hidden="true" size={16} />}
+                </span>
+
+                <span className="min-w-0 flex-1">
+                    <span className="block text-[10px] font-black uppercase tracking-[0.1em] text-emerald-700">
+                        {isObra ? preset.unitLabel : "Portafolio"}
+                    </span>
+                    <span className="block truncate text-sm font-black text-[var(--text-primary)]">
+                        {isObra ? (currentWork?.nombre || "Cargando…") : "Vista consolidada"}
+                    </span>
+                </span>
+
+                <ChevronDown aria-hidden="true" className={`shrink-0 text-emerald-700 transition ${open ? "rotate-180" : ""}`} size={15} />
             </button>
 
-            <div className="relative mb-5 px-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">
-                    Obra activa
-                </p>
-                {worksState.status === "loading" ? <div className="mt-2 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs text-[var(--text-muted)]"><Loader2 aria-hidden="true" size={15} className="animate-spin" />Cargando obra</div> : worksState.status === "error" ? <div className="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{worksState.error}</div> : !currentWork ? <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">Obra no disponible</div> : <>
-                    <button type="button" disabled={!canSwitch} aria-expanded={canSwitch ? selectorOpen : undefined} aria-haspopup={canSwitch ? "listbox" : undefined} onClick={() => canSwitch && setSelectorOpen((open) => !open)} className="mt-2 flex w-full items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-left shadow-sm transition hover:border-emerald-300 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:cursor-default">
-                        <Building2 aria-hidden="true" size={17} className="shrink-0 text-emerald-700" />
-                        <span className="min-w-0 flex-1"><span className="block truncate text-sm font-black text-[var(--text-primary)]">{currentWork.nombre || preset.unitLabel}</span></span>
-                        {canSwitch && <ChevronDown aria-hidden="true" size={15} className={`shrink-0 text-emerald-700 transition ${selectorOpen ? "rotate-180" : ""}`} />}
-                    </button>
-                    {selectorOpen && <div role="listbox" aria-label="Seleccionar obra" className="absolute left-1 right-1 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">{worksState.rows.map((work) => { const id = routeId(work); const selected = String(id) === String(workId); return <button key={id} type="button" role="option" aria-selected={selected} onClick={() => selectWork(work)} className={`w-full rounded-lg px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${selected ? "bg-emerald-50 text-emerald-900" : "hover:bg-slate-50"}`}><span className="block truncate text-xs font-black">{work.nombre || preset.unitLabel}</span></button>; })}</div>}
-                </>}
-            </div>
-
-            <nav
-                aria-label="Navegación de obra"
-                className="min-h-0 flex-1 space-y-4 overflow-y-auto px-1 pb-2"
-            >
-                {navigation.groups.map(group => (
-                    <section
-                        key={group.id}
-                        aria-labelledby={`work-nav-${group.id}`}
+            {open && (
+                <div className="absolute left-1 right-1 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl" role="listbox">
+                    <button
+                        aria-selected={!isObra}
+                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${!isObra ? "bg-emerald-50 text-emerald-900" : "hover:bg-slate-50"}`}
+                        onClick={selectPortfolio}
+                        role="option"
+                        type="button"
                     >
-                        <p
-                            id={`work-nav-${group.id}`}
-                            className="
-                                mb-1
-                                px-2
-                                text-[10px]
-                                font-black
-                                uppercase
-                                tracking-[0.15em]
-                                text-[var(--text-muted)]
-                            "
-                        >
-                            {group.label}
-                        </p>
+                        <Boxes aria-hidden="true" size={14} />
+                        Portafolio
+                        {!isObra && <Check aria-hidden="true" className="ml-auto" size={13} />}
+                    </button>
 
-                        <div className="space-y-0.5">
-                            {group.items.map(item => (
-                                <NavItem
-                                    exact
-                                    item={item}
-                                    key={item.id || item.path}
-                                    onNavigate={onNavigate}
-                                />
-                            ))}
-                        </div>
-                    </section>
-                ))}
-            </nav>
-        </>
+                    {worksState.status === "loading" && (
+                        <p className="flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-muted)]">
+                            <Loader2 aria-hidden="true" className="animate-spin" size={13} /> Cargando obras
+                        </p>
+                    )}
+
+                    {worksState.status === "error" && (
+                        <p className="px-3 py-2 text-xs text-rose-700">No se pudieron cargar las obras.</p>
+                    )}
+
+                    {worksState.rows.map((work) => {
+                        const id = routeId(work);
+                        const selected = isObra && String(id) === String(scope.obraId);
+                        return (
+                            <button
+                                aria-selected={selected}
+                                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${selected ? "bg-emerald-50 text-emerald-900" : "hover:bg-slate-50"}`}
+                                key={id}
+                                onClick={() => selectWork(work)}
+                                role="option"
+                                type="button"
+                            >
+                                <Building2 aria-hidden="true" size={14} />
+                                <span className="truncate">{work.nombre || preset.unitLabel}</span>
+                                {selected && <Check aria-hidden="true" className="ml-auto shrink-0" size={13} />}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </section>
     );
 }
 
@@ -476,7 +417,7 @@ function OrganizationSelector({
     onChange,
 }) {
     return (
-        <section className="mb-4 px-2">
+        <section className="mb-3 px-2">
             <label
                 className="sr-only"
                 htmlFor="active-organization"

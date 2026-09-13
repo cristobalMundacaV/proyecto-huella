@@ -1,5 +1,4 @@
-import { Activity, ArrowLeft, BarChart3, Bot, Boxes, CheckCircle2, ClipboardCheck, Clock3, Cloud, DatabaseZap, Droplets, FileBarChart2, FileCheck2, Fuel, Gauge, Package, Settings, ShieldCheck, SlidersHorizontal, Trash2, Truck, Volume2, Zap } from "lucide-react";
-import { getConfirmedWorkCapabilityKeys, hasPendingWorkApplicability, isWorkModuleConfirmed } from "@/app/workNavigationApplicability";
+import { Boxes, FileBarChart2, Gauge, Settings, ShieldCheck } from "lucide-react";
 
 export const NAV_ITEMS = {
   home: { id: "home", label: "Inicio", title: "Inicio", description: "Estado ejecutivo de tu portafolio ambiental.", path: "/inicio", icon: Gauge },
@@ -10,7 +9,7 @@ export const NAV_ITEMS = {
 };
 
 const PAGE_CONTEXTS = [
-  ["/reportes", "Centro de reportes", "Informes ambientales por obra, período y estado de preparación."],
+  ["/reportes", "Centro de reportes", "Informes ambientales consolidados por obra y período de preparación."],
   ["/obras/:obraId/resumen", "Resumen de obra", "Estado ejecutivo ambiental de esta obra."],
   ["/obras/:obraId/operacion", "Resumen operacional", "Qué está ocurriendo físicamente en esta obra."],
   ["/obras/:obraId/operacion/energia", "Energía", "Consumos y registros energéticos de la obra."],
@@ -26,6 +25,8 @@ const PAGE_CONTEXTS = [
   ["/obras/:obraId/cumplimiento", "Cumplimiento", "Obligaciones y estado de cumplimiento."],
   ["/obras/:obraId/timeline", "Historial", "Actividad y cambios de la obra."],
   ["/obras/:obraId/reportes", "Informes", "Lectura ejecutiva y salidas ambientales de la obra."],
+  ["/obras/:obraId/control", "Control de obra", "Revisión profesional, gobernanza, discrepancias, expedientes y calidad de esta obra."],
+  ["/obras/:obraId/configuracion", "Configuración de obra", "Perfil ambiental, ámbitos, factores, metodologías y parámetros aplicables a esta obra."],
   ["/datos/evidencias", "Evidencias", "Documentos y antecedentes ambientales."],
   ["/datos/importaciones", "Importaciones", "Incorporación gobernada de información."],
   ["/inteligencia", "Inteligencia", "Radar de prioridades ambientales."],
@@ -42,64 +43,42 @@ function matchesPattern(pathname, pattern) {
   return path.length === target.length && target.every((part, index) => part.startsWith(":") || part === path[index]);
 }
 
-export function getNavigationForPreset(preset = {}) {
+/** The single source of navigation truth: ONE sidebar (Inicio/Obras/
+ * Reportes/Control/Configuración) whose targets shift with `scope` —
+ * `{ type: "portfolio" }` or `{ type: "obra", obraId }` — instead of a
+ * second, obra-specific menu. Deep obra navigation (flows, evidencias,
+ * revisión, etc.) lives as in-page links/tabs, never as extra sidebar
+ * entries (see ObraResumenPage, OperacionOverviewPage, WorkControlPage,
+ * WorkConfigPage). */
+export function getUnifiedNavigation({ preset = {}, scope } = {}) {
+  const isObra = scope?.type === "obra" && Boolean(scope.obraId);
+  const base = isObra ? `/obras/${scope.obraId}` : null;
+
   const works = { ...NAV_ITEMS.primaryUnit };
   if (preset.unitPluralLabel) {
     works.label = preset.unitPluralLabel;
     works.title = preset.unitPluralLabel;
     works.description = `Gestiona las ${preset.unitPluralLabel.toLowerCase()} de tu organización.`;
   }
-  return { home: NAV_ITEMS.home, groups: [{ id: "platform", label: "Plataforma", items: [works, NAV_ITEMS.reports, NAV_ITEMS.control, NAV_ITEMS.administration] }] };
+
+  const home = { ...NAV_ITEMS.home, path: isObra ? `${base}/resumen` : "/inicio" };
+  const reports = { ...NAV_ITEMS.reports, path: isObra ? `${base}/reportes` : "/reportes" };
+  const control = { ...NAV_ITEMS.control, path: isObra ? `${base}/control` : "/gobernanza" };
+  const administration = { ...NAV_ITEMS.administration, path: isObra ? `${base}/configuracion` : "/administracion" };
+
+  return { home, groups: [{ id: "platform", label: "Plataforma", items: [works, reports, control, administration] }] };
 }
 
-const operationItems = (base) => [
-  { id: "operationOverview", domain: "operacion", label: "Resumen operacional", path: `${base}/operacion`, icon: Activity },
-  { id: "activityData", domain: "operacion", label: "Datos de actividad", path: `${base}/operacion/indicadores`, icon: BarChart3 },
-];
-
-export function getWorkNavigation({ obraId, applicability = [] }) {
-  const base = `/obras/${obraId}`;
-  const confirmed = getConfirmedWorkCapabilityKeys(applicability);
-  const operation = operationItems(base).filter((item) => item.domain === "operacion" || isWorkModuleConfirmed(item, confirmed));
-  return {
-    exit: { id: "generalView", label: "Visión general", path: "/inicio", icon: ArrowLeft },
-    groups: [
-      { id: "summary", label: "Resumen", items: [{ id: "summary", label: "Resumen ejecutivo", path: `${base}/resumen`, icon: Gauge }, ...(hasPendingWorkApplicability(applicability) ? [{ id: "pendingApplicability", label: "Diagnóstico inicial", path: `${base}/diagnostico`, icon: ClipboardCheck }] : [])] },
-      { id: "operation", label: "Operación", items: operation },
-      { id: "management", label: "Gestión", items: [
-        { id: "evidence", label: "Evidencias", path: `${base}/evidencias`, icon: FileCheck2 },
-        { id: "problems", label: "Problemas y acciones", path: `${base}/problemas`, icon: CheckCircle2 },
-        { id: "compliance", label: "Cumplimiento", path: `${base}/cumplimiento`, icon: ClipboardCheck },
-        { id: "history", label: "Historial", path: `${base}/timeline`, icon: Clock3 },
-      ] },
-      { id: "control", label: "Control", items: [
-        { id: "professionalReview", label: "Revisión profesional", path: "/gobernanza/revision", icon: ClipboardCheck },
-        { id: "governance", label: "Gobernanza", path: "/gobernanza", icon: ShieldCheck },
-        { id: "discrepancies", label: "Discrepancias", path: "/gobernanza/calidad", icon: SlidersHorizontal },
-        { id: "dossiers", label: "Expedientes", path: "/gobernanza/expedientes", icon: FileCheck2 },
-        { id: "quality", label: "Calidad", path: "/gobernanza/calidad", icon: ShieldCheck },
-      ] },
-      { id: "reports", label: "Reportes", items: [
-        { id: "reports", label: "Informes", path: `${base}/reportes`, icon: BarChart3 },
-        { id: "pdf", label: "PDF", path: `${base}/reportes?salida=pdf`, icon: FileBarChart2 },
-        { id: "excel", label: "Excel", path: `${base}/reportes?salida=excel`, icon: DatabaseZap },
-        { id: "charts", label: "Gráficos", path: `${base}/reportes#graficos`, icon: BarChart3 },
-      ] },
-      { id: "configuration", label: "Configuración", items: [
-        { id: "environmentalProfile", label: "Perfil ambiental", path: `${base}/diagnostico`, icon: Gauge },
-        { id: "scopes", label: "Ámbitos", path: "/administracion/ambiental", icon: Boxes },
-        { id: "factors", label: "Factores", path: "/gobernanza/factores", icon: SlidersHorizontal },
-        { id: "methodologies", label: "Metodologías", path: "/gobernanza/factores", icon: Bot },
-        { id: "parameters", label: "Parámetros", path: "/administracion/calculo", icon: Settings },
-      ] },
-    ],
-  };
+/** Backward-compatible portfolio-scope alias — most callers only ever
+ * needed the organization-level menu before the context selector existed. */
+export function getNavigationForPreset(preset = {}) {
+  return getUnifiedNavigation({ preset, scope: { type: "portfolio" } });
 }
 
-export function getPageContext(pathname, preset) {
+export function getPageContext(pathname, preset, scope) {
   const exact = [...PAGE_CONTEXTS].sort((a, b) => b.pattern.length - a.pattern.length).find((item) => matchesPattern(pathname, item.pattern));
   if (exact) return exact;
-  const navigation = getNavigationForPreset(preset);
+  const navigation = getUnifiedNavigation({ preset, scope: scope || { type: "portfolio" } });
   const item = [navigation.home, ...navigation.groups.flatMap((group) => group.items)].sort((a, b) => b.path.length - a.path.length).find((candidate) => pathname === candidate.path || pathname.startsWith(`${candidate.path}/`));
   return item ? { title: item.title || item.label, description: item.description || "" } : { title: "Carbono Zero", description: "Gestión e inteligencia ambiental para tu organización." };
 }

@@ -7,8 +7,10 @@ import {
 } from "react";
 import {
     AlertTriangle,
+    ArrowRight,
     CheckCircle2,
     FileCheck2,
+    Lightbulb,
     ShieldAlert,
     Plus,
 } from "lucide-react";
@@ -20,9 +22,9 @@ import {
     EmptyState,
     ErrorState,
     KpiCard,
-    LoadingState,
     PageHeader,
     SectionHeader,
+    StatusBadge,
     Timeline,
     TimelineItem,
 } from "@/shared/ui";
@@ -30,11 +32,15 @@ import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
 import ChartCard from "@/shared/charts/ChartCard";
 import EnvironmentalBarChart from "@/shared/charts/EnvironmentalBarChart";
 import EnvironmentalDonutChart, { DonutLegend } from "@/shared/charts/EnvironmentalDonutChart";
-import { getFlowChartColor } from "@/shared/config/environmentalDomains";
 
 import AttentionList from "../components/AttentionList";
 import CompactWorkCard from "../components/CompactWorkCard";
 import { getInicioOverview } from "../services/inicioApi";
+import { getOrganizationDashboard } from "@/features/organizaciones/services/organizationDashboardApi";
+import { mapPortfolioDashboard } from "../utils/portfolioSelectors";
+
+const INSIGHT_TONE = { alta: "danger", media: "warning", baja: "info" };
+const ESTADO_TONE = { estable: "success", atencion: "warning", critica: "danger", periodo_incompleto: "neutral", lista_para_reporte: "success" };
 
 const isOpen = problem =>
     !["cerrada", "resuelta"].includes(problem.estado);
@@ -100,14 +106,24 @@ export default function InicioPage() {
             data: null,
         });
 
-        getInicioOverview(activeOrganizacionId)
-            .then(data => {
-                if (requestRef.current === requestId) {
-                    setState({
-                        status: "ready",
-                        data,
-                    });
+        Promise.allSettled([
+            getInicioOverview(activeOrganizacionId),
+            getOrganizationDashboard(activeOrganizacionId, { relative_months: 3 }),
+        ])
+            .then(([overviewResult, portfolioResult]) => {
+                if (requestRef.current !== requestId) return;
+                if (overviewResult.status !== "fulfilled") {
+                    setState({ status: "error", data: null });
+                    return;
                 }
+                setState({
+                    status: "ready",
+                    data: {
+                        ...overviewResult.value,
+                        portfolioDashboard: portfolioResult.status === "fulfilled" ? portfolioResult.value : null,
+                        portfolioUnavailable: portfolioResult.status !== "fulfilled",
+                    },
+                });
             })
             .catch(() => {
                 if (requestRef.current === requestId) {
@@ -299,13 +315,8 @@ export default function InicioPage() {
         .slice(0, 3);
 
     const incompleteCount = unknownWorkIds.size;
-    const readyPeriods = (data.workDashboards || []).filter(
-        dashboard => dashboard.readiness?.listo_para_reporte
-    ).length;
-    const highRisks = (data.workDashboards || []).filter(
-        dashboard => ["alto", "critico"].includes(dashboard.risk?.nivel)
-    ).length;
-    const portfolio = buildPortfolioImpact(data.works, data.workDashboards || []);
+    const portfolio = mapPortfolioDashboard(data.portfolioDashboard);
+    const { readyPeriods, highRisks } = portfolio;
 
     const attentionHelper = attentionWorks.length
         ? `${attentionWorks.length === 1 ? "Revisa su estado" : "Revisa sus estados"}${incompleteCount
@@ -473,11 +484,17 @@ export default function InicioPage() {
                 </div>
             </section>
 
+            {data.portfolioUnavailable && (
+                <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+                    Las métricas ambientales consolidadas (huella, alcance, riesgo, readiness) no están disponibles en este momento. El resto del resumen sigue siendo real.
+                </p>
+            )}
+
             <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Impacto consolidado">
                 <KpiCard icon={ShieldAlert} label="Huella total empresa" value={portfolio.total} unit="tCO2e" status="info" />
-                <KpiCard label="Alcance 1 total" value={portfolio.scopes[0].value} unit="tCO2e" status="success" />
-                <KpiCard label="Alcance 2 total" value={portfolio.scopes[1].value} unit="tCO2e" status="warning" />
-                <KpiCard label="Alcance 3 total" value={portfolio.scopes[2].value} unit="tCO2e" status="info" />
+                <KpiCard label="Alcance 1 total" value={portfolio.scopes[0]?.value ?? null} unit="tCO2e" status="success" />
+                <KpiCard label="Alcance 2 total" value={portfolio.scopes[1]?.value ?? null} unit="tCO2e" status="warning" />
+                <KpiCard label="Alcance 3 total" value={portfolio.scopes[2]?.value ?? null} unit="tCO2e" status="info" />
                 <KpiCard label="Obras activas" value={data.works.length} helper="Unidades del portafolio" status="success" />
                 <KpiCard label="Obras con riesgo" value={highRisks} helper="Riesgo alto o crítico" status={highRisks ? "danger" : "success"} />
                 <KpiCard label="Cobertura de evidencia" value={portfolio.evidence} unit="%" status="warning" />
@@ -485,18 +502,61 @@ export default function InicioPage() {
             </section>
 
             <section className="grid gap-3 xl:grid-cols-2">
-                <ChartCard title="Emisiones por obra" description="Huella calculada por el motor ambiental para cada obra."><EnvironmentalBarChart data={portfolio.works} height={250} valueFormatter={(value) => `${formatNumber(value)} tCO2e`} /></ChartCard>
-                <ChartCard title="GEI por alcance" description="Distribución consolidada del portafolio."><PortfolioDonut data={portfolio.scopes} total={portfolio.total} /></ChartCard>
-                <ChartCard title="Distribución por flujo" description="Impacto consolidado de los flujos reportados por obra."><PortfolioDonut data={portfolio.flows} total={portfolio.total} /></ChartCard>
-                <ChartCard title="Readiness por obra" description="Cobertura de registros del período por obra."><EnvironmentalBarChart data={portfolio.readinessByWork} height={250} valueFormatter={(value) => `${formatNumber(value)}%`} color="#059669" /></ChartCard>
+                <ChartCard title="Emisiones por obra" description="Huella calculada por el motor ambiental para cada obra." empty={!portfolio.works.length}><EnvironmentalBarChart data={portfolio.works} height={250} valueFormatter={(value) => `${formatNumber(value)} tCO2e`} /></ChartCard>
+                <ChartCard title="GEI por alcance" description="Distribución consolidada del portafolio." empty={!portfolio.scopes.length}><PortfolioDonut data={portfolio.scopes} total={portfolio.total} /></ChartCard>
+                <ChartCard title="Distribución por flujo" description="Impacto consolidado de los flujos reportados por obra." empty={!portfolio.flows.length}><PortfolioDonut data={portfolio.flows} total={portfolio.total} /></ChartCard>
+                <ChartCard title="Readiness por obra" description="Cobertura de registros del período por obra." empty={!portfolio.readinessByWork.length}><EnvironmentalBarChart data={portfolio.readinessByWork} height={250} valueFormatter={(value) => `${formatNumber(value)}%`} color="#059669" /></ChartCard>
             </section>
+
+            {portfolio.insights.length > 0 && (
+                <section className="rounded-2xl border border-violet-200 bg-violet-50/50 p-5 shadow-[0_10px_30px_rgba(91,33,182,0.06)]">
+                    <SectionHeader title="Prioridades de la organización" description="Máximo 3 insights, derivados del mismo motor de diagnóstico que usa cada obra." />
+                    <div className="grid gap-3 lg:grid-cols-3">
+                        {portfolio.insights.map((insight) => (
+                            <article key={insight.code} className="rounded-[18px] border border-violet-200 bg-white p-4 shadow-sm">
+                                <div className="flex items-start gap-3">
+                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700"><Lightbulb aria-hidden="true" size={16} /></span>
+                                    <div className="min-w-0">
+                                        <StatusBadge tone={INSIGHT_TONE[insight.priority] || "neutral"}>{insight.priority}</StatusBadge>
+                                        <h3 className="mt-1.5 font-black text-[var(--text-primary)]">{insight.title}</h3>
+                                        <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{insight.description}</p>
+                                    </div>
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {portfolio.topWorks.length > 0 && (
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+                    <SectionHeader title="Obras prioritarias" description="Ordenadas por riesgo, hallazgos críticos y brecha de readiness." />
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {portfolio.topWorks.map((work) => (
+                            <Link key={work.obra_id} to={`/obras/${work.obra_id}/resumen`} className="group rounded-[18px] border border-slate-200 bg-slate-50/60 p-4 transition hover:border-emerald-300 hover:shadow-md">
+                                <div className="flex items-center justify-between gap-2">
+                                    <h3 className="truncate font-black text-[var(--text-primary)]">{work.obra_nombre}</h3>
+                                    <StatusBadge tone={ESTADO_TONE[work.estado_ejecutivo?.codigo] || "neutral"}>{work.estado_ejecutivo?.label}</StatusBadge>
+                                </div>
+                                <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                                    <div><dt className="font-bold uppercase tracking-wide text-[var(--text-muted)]">Emisiones</dt><dd className="mt-0.5 font-black text-[var(--text-primary)]">{work.huella_total_tco2e ?? "—"} tCO2e</dd></div>
+                                    <div><dt className="font-bold uppercase tracking-wide text-[var(--text-muted)]">Readiness</dt><dd className="mt-0.5 font-black text-[var(--text-primary)]">{work.readiness_pct ?? "—"}%</dd></div>
+                                    <div><dt className="font-bold uppercase tracking-wide text-[var(--text-muted)]">Riesgo</dt><dd className="mt-0.5 font-black text-[var(--text-primary)]">{work.risk?.nivel || "—"}</dd></div>
+                                    <div><dt className="font-bold uppercase tracking-wide text-[var(--text-muted)]">Hallazgos</dt><dd className="mt-0.5 font-black text-[var(--text-primary)]">{work.hallazgos_altos}</dd></div>
+                                </dl>
+                                <span className="mt-3 inline-flex items-center gap-1 text-xs font-black text-emerald-700 group-hover:text-emerald-900">Abrir obra <ArrowRight aria-hidden="true" size={13} /></span>
+                            </Link>
+                        ))}
+                    </div>
+                </section>
+            )}
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.7fr)]">
                 <div className="space-y-6">
                     <section
                         id="priorities"
                         className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">                   <SectionHeader
-                            title="Prioridades de la organización"
+                            title="Requiere tu atención"
                             description={
                                 priorities.length
                                     ? "Pendientes priorizados según riesgo, seguimiento y necesidad de intervención."
@@ -726,22 +786,6 @@ function buildPriorities({
         .map(({ item }) => item);
 }
 
-function buildPortfolioImpact(works, dashboards) {
-    const valid = dashboards.filter((item) => !item.unavailable && item.kpis);
-    const sum = key => valid.reduce((total, item) => total + Number(item.kpis?.[key] || 0), 0);
-    const average = key => valid.length ? valid.reduce((total, item) => total + Number(item.readiness?.[key] || 0), 0) / valid.length : null;
-    const scopes = [1, 2, 3].map((scope) => ({ name: `Alcance ${scope}`, value: sum(`alcance_${scope}_tco2e`), color: ["#059669", "#f59e0b", "#1976d2"][scope - 1] }));
-    const flowTotals = new Map();
-    valid.forEach((item) => Object.entries(item.kpis?.impacto_por_flujo_tco2e || {}).forEach(([key, value]) => flowTotals.set(key, (flowTotals.get(key) || 0) + Number(value || 0))));
-    const nameById = new Map(works.map((work) => [String(work.id || work.obra_id), work.nombre || work.codigo_obra || "Obra"]));
-    return {
-        total: sum("huella_total_tco2e"), scopes,
-        evidence: average("evidencia_pct"), readiness: average("cobertura_registros_pct"),
-        flows: [...flowTotals].map(([key, value]) => ({ name: String(key).replaceAll("_", " "), value, color: getFlowChartColor(key) })),
-        works: valid.map((item) => ({ name: nameById.get(String(item.obra_id)) || item.obra_nombre || "Obra", value: Number(item.kpis.huella_total_tco2e || 0) })),
-        readinessByWork: valid.map((item) => ({ name: nameById.get(String(item.obra_id)) || item.obra_nombre || "Obra", value: item.readiness?.cobertura_registros_pct })),
-    };
-}
 
 function PortfolioDonut({ data, total }) {
     return <div className="grid gap-3 sm:grid-cols-[200px_1fr] sm:items-center"><EnvironmentalDonutChart data={data} height={205} innerRadius={66} outerRadius={94} centerLabel="Total" centerValue={formatNumber(total)} centerUnit="tCO2e" valueFormatter={(value) => `${formatNumber(value)} tCO2e`} /><DonutLegend data={data} valueFormatter={(value) => `${formatNumber(value)} tCO2e`} /></div>;
