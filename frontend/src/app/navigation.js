@@ -1,4 +1,4 @@
-import { Boxes, FileBarChart2, Gauge, Settings, ShieldCheck } from "lucide-react";
+import { CheckCircle2, ClipboardCheck, Clock3, Boxes, FileBarChart2, FileCheck2, Gauge, Settings, ShieldCheck } from "lucide-react";
 
 export const NAV_ITEMS = {
   home: { id: "home", label: "Inicio", title: "Inicio", description: "Estado ejecutivo de tu portafolio ambiental.", path: "/inicio", icon: Gauge },
@@ -67,6 +67,59 @@ export function getUnifiedNavigation({ preset = {}, scope } = {}) {
   const administration = { ...NAV_ITEMS.administration, path: isObra ? `${base}/configuracion` : "/administracion" };
 
   return { home, groups: [{ id: "platform", label: "", items: [works, reports, control, administration] }] };
+}
+
+// Domain key here doubles as: the CapacidadOrganizacion/aplicabilidad
+// lookup key (via DOMAIN_CONFIG in operationSelectors.js), the route
+// segment under `/obras/:id/operacion/`, AND the ENVIRONMENTAL_DOMAINS
+// icon/color key (via its alias table for the one hyphenated case) — one
+// name, three lookups, deliberately kept as the single source of truth so
+// the sidebar subnav never invents its own routes or capability keys.
+export const OBRA_OPERATION_FLOWS = [
+  { id: "energy", domain: "energia", label: "Energía" },
+  { id: "water", domain: "agua", label: "Agua" },
+  { id: "fuel", domain: "combustibles", label: "Combustibles" },
+  { id: "transport", domain: "transporte", label: "Transporte" },
+  { id: "materials", domain: "materiales", label: "Materiales" },
+  { id: "waste", domain: "residuos", label: "Residuos" },
+  { id: "noise", domain: "ruido", label: "Ruido" },
+  { id: "atmosphericEmissions", domain: "emisiones-atmosfericas", label: "Emisiones atmosféricas" },
+];
+
+/** The obra-scoped subnav shown UNDER the same five unified sidebar items
+ * (never a second sidebar) when the current context is an obra — this is
+ * the compact "OBRA ACTIVA" section: Operación (resumen + the 8 flows) and
+ * Gestión (evidencias/problemas/cumplimiento/historial). Every path here
+ * is an existing route (see router.jsx); this never creates a new page. */
+export function getObraContextualSubnav(obraId) {
+  const base = `/obras/${obraId}`;
+  return {
+    groups: [
+      {
+        id: "operation",
+        label: "Operación",
+        items: [
+          { id: "operationOverview", label: "Resumen operacional", path: `${base}/operacion`, domain: "operacion" },
+          ...OBRA_OPERATION_FLOWS.map((flow) => ({
+            id: flow.id,
+            label: flow.label,
+            path: `${base}/operacion/${flow.domain}`,
+            domain: flow.domain,
+          })),
+        ],
+      },
+      {
+        id: "management",
+        label: "Gestión",
+        items: [
+          { id: "evidence", label: "Evidencias", path: `${base}/evidencias`, icon: FileCheck2 },
+          { id: "problems", label: "Problemas y acciones", path: `${base}/problemas`, icon: CheckCircle2 },
+          { id: "compliance", label: "Cumplimiento", path: `${base}/cumplimiento`, icon: ClipboardCheck },
+          { id: "history", label: "Historial", path: `${base}/timeline`, icon: Clock3 },
+        ],
+      },
+    ],
+  };
 }
 
 /** Backward-compatible portfolio-scope alias — most callers only ever

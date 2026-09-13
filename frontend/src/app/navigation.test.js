@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getPageContext, getUnifiedNavigation } from "./navigation.js";
+import { getObraContextualSubnav, getPageContext, getUnifiedNavigation, OBRA_OPERATION_FLOWS } from "./navigation.js";
 
 const preset = { unitPluralLabel: "Obras", unitLabel: "Obra" };
 
@@ -47,4 +47,24 @@ test("getPageContext resolves the new obra control/configuración routes by exac
 test("getPageContext falls back to the unified nav item for an untitled path", () => {
   const context = getPageContext("/reportes", preset);
   assert.equal(context.title, "Centro de reportes");
+});
+
+test("the obra contextual subnav has exactly two groups: operation (resumen + 8 flows) and management (4 items)", () => {
+  const subnav = getObraContextualSubnav("71");
+  assert.deepEqual(subnav.groups.map((group) => group.id), ["operation", "management"]);
+  assert.equal(subnav.groups[0].items.length, 1 + OBRA_OPERATION_FLOWS.length);
+  assert.equal(subnav.groups[1].items.length, 4);
+});
+
+test("every obra subnav item reuses an existing route — never a new page", () => {
+  const subnav = getObraContextualSubnav("71");
+  const paths = subnav.groups.flatMap((group) => group.items.map((item) => item.path));
+  assert.ok(paths.every((path) => path.startsWith("/obras/71/")));
+  assert.ok(paths.includes("/obras/71/operacion"));
+  assert.ok(paths.includes("/obras/71/operacion/energia"));
+  assert.ok(paths.includes("/obras/71/operacion/emisiones-atmosfericas"));
+  assert.ok(paths.includes("/obras/71/evidencias"));
+  assert.ok(paths.includes("/obras/71/problemas"));
+  assert.ok(paths.includes("/obras/71/cumplimiento"));
+  assert.ok(paths.includes("/obras/71/timeline"));
 });

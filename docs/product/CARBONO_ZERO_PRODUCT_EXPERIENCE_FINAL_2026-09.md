@@ -213,3 +213,40 @@ Se quitó la etiqueta de grupo "Plataforma" (sin aportar nada sobre un único gr
 - La reparación marca todas las capacidades nuevas como `PENDIENTE_DIAGNOSTICO`; no infiere automáticamente cuáles tienen actividad real para marcarlas `APLICA` — requiere confirmación humana (o una futura iteración que cruce `MaterialOperacional.categoria`/`RegistroFlujoAmbiental.flujo` reales).
 - "Constructora Horizonte Demo SpA" no fue localizada en la base de datos de desarrollo accesible desde esta sesión; si vive en un ambiente desplegado distinto, el comando `repair_legacy_onboarding_state` (idempotente y no destructivo) puede ejecutarse ahí de la misma forma.
 - El prefetch en hover no cubre navegación por teclado sin foco explícito en la opción (cubierto vía `onFocus`, pero no hay prefetch al abrir el listado completo).
+
+## OBRA CONTEXT SUBNAV FIX (corrección posterior)
+
+La simplificación del sidebar global (macrofase de unificación) eliminó, sin querer, toda navegación operacional/gestión específica de obra: al entrar a una obra sólo quedaban los 5 destinos globales, sin forma de llegar a Energía/Agua/Combustibles/etc. desde el sidebar.
+
+### Solución
+
+Un ÚNICO sidebar sigue existiendo (`Sidebar.jsx`) — no se reintrodujo `WorkSidebar` ni un segundo componente. Cuando `scope.type === "obra"`, se añade debajo de los 5 ítems una sección compacta **"Obra activa"** con dos grupos colapsables:
+
+- **Operación**: Resumen operacional + los 8 flujos (Energía, Agua, Combustibles, Transporte, Materiales, Residuos, Ruido, Emisiones atmosféricas).
+- **Gestión**: Evidencias, Problemas y acciones, Cumplimiento, Historial.
+
+Nuevas piezas:
+- `app/navigation.js::getObraContextualSubnav(obraId)` — define los grupos/rutas (todas ya existentes en `router.jsx`, ninguna nueva).
+- `app/obraSubnavVisibility.js::withObraFlowStates(subnav, applicabilityRows)` — pura, testeable: sólo `no_aplica` oculta un flujo; `pendiente`/`no_determinado` lo dejan visible con un punto de estado "requiere configuración"; `aplica` lo muestra con un punto de color relleno. Reutiliza `applicability()`/`capabilityKeyForDomain()` (nuevo) de `operationSelectors.js` — la MISMA lógica que ya usa `OperacionOverviewPage`, nunca una segunda regla de aplicabilidad.
+- `Sidebar.jsx` recuperó (adaptado) el fetch de aplicabilidad por obra que existía antes de la unificación (`getWorkContext` → `diagnostico_obra.aplicabilidad` filtrado por `capacidades_organizacion` habilitadas) — es la única llamada nueva, una por obra, no por flujo.
+- RBAC: los ítems de "Gestión" pasan por el mismo `filterNavigation`/`NAV_PERMISSIONS` que ya gateaba evidencias/problemas/cumplimiento en el sidebar global — sin regla nueva.
+- Grupo activo por ruta: un `useEffect` expande el grupo (`operation`/`management`) que contiene la ruta actual; "Operación" está expandido por defecto al entrar a una obra.
+
+### Verificación visual
+
+Se levantó el frontend real (`vite --host`) contra el backend Docker existente, con un usuario temporal (creado y luego desactivado/desvinculado al terminar) sobre el tenant real "Constructora Andina SpA". Confirmado en pantalla: entrar a `/obras/1/resumen` muestra el sidebar con Inicio/Obras/Reportes/Control/Configuración apuntando a rutas de esa obra, y debajo la sección "Obra activa" con "Operación" expandida mostrando los 8 flujos con su punto de estado "Requiere configuración" (la organización no tenía capacidades `aplica` explícitas) y su color por dominio; "Gestión" colapsada con sus 4 ítems disponibles al expandir.
+
+### Tests nuevos
+
+- `app/navigation.test.js` (+2 casos): forma de `getObraContextualSubnav` (2 grupos, 9+4 ítems), todas las rutas ya existentes.
+- `app/obraSubnavVisibility.test.js` (5 casos): `no_aplica` oculta, `pendiente` visible con estado, `aplica` visible con estado, Resumen operacional/Gestión nunca gateados, sin datos de aplicabilidad todo cae en `pendiente` (visible, nunca oculto).
+
+### Verificación final
+
+- Frontend: 109/109 tests, lint limpio, build limpio.
+- No hubo cambios de backend en esta corrección.
+
+### Pendientes reales (agregado)
+
+- El punto de estado del subnav sólo refleja aplicabilidad (aplica/pendiente), no el estado de datos real (con datos/sin datos/requiere revisión) por flujo — evitar fetches pesados por ítem en el sidebar; esa granularidad ya vive en `OperacionOverviewPage` al entrar al ámbito.
+- El grupo "Gestión" no se auto-expande junto con "Operación" al entrar por primera vez a una obra (por diseño, para no alargar el sidebar); el usuario debe expandirlo manualmente o navegar a una de sus rutas.

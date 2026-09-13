@@ -142,6 +142,15 @@ export function primaryAdditiveMetric(indicators, domain) {
     .toSorted((left, right) => `${left.concepto}:${left.unidad}`.localeCompare(`${right.concepto}:${right.unidad}`))[0] || null;
 }
 
+/** The CapacidadOrganizacion/aplicabilidad key(s) a given operational
+ * domain maps to — `DOMAIN_CONFIG` covers most flows explicitly (e.g.
+ * residuos needs BOTH residuos_no_peligrosos/residuos_peligrosos); a
+ * domain without an entry (transporte, materiales) uses its own key
+ * directly, matching `apps.analytics.services.onboarding.FLOW_CATALOG`. */
+export function capabilityKeyForDomain(domain) {
+  return DOMAIN_CONFIG[domain]?.capabilities || DOMAIN_CONFIG[domain]?.capability || domain;
+}
+
 export function applicability(context, capability) {
   const capabilities = Array.isArray(capability) ? capability : [capability];
   const states = capabilities.map((key) =>
