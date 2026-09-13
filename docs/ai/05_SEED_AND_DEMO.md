@@ -47,6 +47,13 @@ contiene datos reales de clientes.
 - Un dato deliberadamente incompleto: el material de agua no tiene
   observación en el mes más reciente — el asistente debe decir que no hay
   datos de ese período, nunca interpolar.
+- **AI-INTELLIGENCE-02**: 2 `ActivoOperacional` en "Edificio Horizonte
+  Norte" ("Excavadora Hidráulica EX-14", "Camión Tolva CT-07") con su
+  propio `RegistroFlujoAmbiental` (flujo `combustible_movil`, granularidad
+  `PUNTO` — la única que permite atar simultáneamente un activo y una
+  obra) y consumo de combustible real y distinto (320 L/mes vs 150 L/mes)
+  — un ganador claro, sin empate, para responder "qué maquinaria consumió
+  más combustible" (`_machinery_history`).
 
 ## Comportamiento del estado EC3 según configuración
 

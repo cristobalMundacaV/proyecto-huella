@@ -110,7 +110,10 @@ OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "")
 AI_REQUEST_TIMEOUT_SECONDS = int(os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "30"))
 AI_MAX_OUTPUT_TOKENS = int(os.getenv("AI_MAX_OUTPUT_TOKENS", "1200"))
 AI_TEMPERATURE = float(os.getenv("AI_TEMPERATURE", "0.2"))
-AI_MAX_TOOL_ITERATIONS = int(os.getenv("AI_MAX_TOOL_ITERATIONS", "4"))
+# AI-INTELLIGENCE-02/03 + macrofase: a real chain (resolve obra -> resolve
+# material/categoria -> diagnose -> risk/prioritize -> provenance) can need
+# more than 8 tool calls in one turn; raised from 4 (AI-01) -> 8 (AI-02) -> 10.
+AI_MAX_TOOL_ITERATIONS = int(os.getenv("AI_MAX_TOOL_ITERATIONS", "10"))
 AI_MAX_MESSAGES_PER_CONVERSATION = int(os.getenv("AI_MAX_MESSAGES_PER_CONVERSATION", "200"))
 AI_MAX_REQUESTS_PER_ORG_PER_HOUR = int(os.getenv("AI_MAX_REQUESTS_PER_ORG_PER_HOUR", "60"))
 

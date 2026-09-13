@@ -9,6 +9,8 @@ source of data in its context — never invents a result a tool did not
 provide.
 """
 import json
+import logging
+import time
 from datetime import timedelta
 
 from django.conf import settings
@@ -16,12 +18,20 @@ from django.utils import timezone
 
 from apps.analytics.policies.intelligence import IntelligenceOperation, validate_ai_operation
 
+from .context import apply_conversation_defaults, build_context_note
 from .models import Conversation, Message
 from .providers import AIProviderError
 from .system_prompt import SYSTEM_PROMPT_VERSION, build_messages
 from .tools import execute_tool, openai_tool_schemas
 
 MAX_HISTORY_MESSAGES = 20
+
+# AI INTELLIGENCE macrofase — observability. Structured, greppable log
+# lines for every turn/tool call — never the message content or any
+# credential, only ids/names/timings/outcomes (safe to ship to any log
+# aggregator). No metrics backend is assumed; this is the minimal,
+# dependency-free layer a real one would be wired to.
+logger = logging.getLogger("apps.ai")
 
 
 class OrchestratorError(Exception):
@@ -82,17 +92,24 @@ def run_turn(*, conversation, organization, user, user_message, provider):
     tool round-trip and the final assistant message, and returns it."""
     validate_ai_operation(IntelligenceOperation.READ_CONTEXT)
     enforce_cost_controls(conversation, organization)
+    turn_started_at = time.monotonic()
+    logger.info(
+        "ai_turn_start conversation_id=%s organizacion_id=%s provider=%s model=%s",
+        conversation.pk, organization.organizacion_id, provider.name, provider.model,
+    )
 
     Message.objects.create(conversation=conversation, role=Message.Role.USER, content=user_message[:4000])
 
     history = _load_history_for_prompt(conversation)
-    messages = build_messages(history=history)
+    messages = build_messages(history=history, context_note=build_context_note(conversation))
     tools = openai_tool_schemas()
     provenance = []
     total_input_tokens = 0
     total_output_tokens = 0
+    iterations_used = 0
 
     if not provider.available:
+        logger.warning("ai_turn_provider_unavailable conversation_id=%s provider=%s", conversation.pk, provider.name)
         content = _provider_error_message(AIProviderError("provider_disabled"))
         return Message.objects.create(
             conversation=conversation, role=Message.Role.ASSISTANT, content=content,
@@ -100,9 +117,14 @@ def run_turn(*, conversation, organization, user, user_message, provider):
         )
 
     for _ in range(settings.AI_MAX_TOOL_ITERATIONS):
+        iterations_used += 1
         try:
             result = provider.chat(messages=messages, tools=tools)
         except AIProviderError as exc:
+            logger.error(
+                "ai_turn_provider_error conversation_id=%s provider=%s code=%s iterations=%d",
+                conversation.pk, provider.name, exc.code, iterations_used,
+            )
             return Message.objects.create(
                 conversation=conversation, role=Message.Role.ASSISTANT,
                 content=_provider_error_message(exc), model=provider.model, provenance=provenance,
@@ -112,6 +134,11 @@ def run_turn(*, conversation, organization, user, user_message, provider):
         total_output_tokens += result.tokens_output or 0
 
         if not result.tool_calls:
+            logger.info(
+                "ai_turn_end conversation_id=%s iterations=%d tools_used=%d tokens_in=%s tokens_out=%s duration_ms=%d",
+                conversation.pk, iterations_used, len(provenance), total_input_tokens, total_output_tokens,
+                int((time.monotonic() - turn_started_at) * 1000),
+            )
             return Message.objects.create(
                 conversation=conversation, role=Message.Role.ASSISTANT,
                 content=result.content or "", model=result.model or provider.model,
@@ -136,7 +163,16 @@ def run_turn(*, conversation, organization, user, user_message, provider):
         })
 
         for call in result.tool_calls:
-            tool_result = execute_tool(call.name, organization=organization, user=user, arguments=call.arguments)
+            effective_arguments = apply_conversation_defaults(conversation, call.name, call.arguments)
+            tool_started_at = time.monotonic()
+            tool_result = execute_tool(
+                call.name, organization=organization, user=user, arguments=effective_arguments, conversation=conversation,
+            )
+            logger.info(
+                "ai_tool_call conversation_id=%s tool=%s ok=%s duration_ms=%d",
+                conversation.pk, call.name, tool_result.get("ok"),
+                int((time.monotonic() - tool_started_at) * 1000),
+            )
             Message.objects.create(
                 conversation=conversation, role=Message.Role.TOOL, tool_name=call.name,
                 tool_call_id=call.id, tool_result=tool_result,
@@ -147,6 +183,10 @@ def run_turn(*, conversation, organization, user, user_message, provider):
 
     # Exhausted the iteration budget without a final answer — never let the
     # model keep chaining tool calls unboundedly (cost control).
+    logger.warning(
+        "ai_turn_iteration_limit_reached conversation_id=%s iterations=%d tools_used=%d",
+        conversation.pk, iterations_used, len(provenance),
+    )
     return Message.objects.create(
         conversation=conversation, role=Message.Role.ASSISTANT,
         content="No pude completar la consulta dentro del límite de pasos permitidos. "

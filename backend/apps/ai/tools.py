@@ -1,9 +1,10 @@
-"""AI-INTELLIGENCE-01 — read-only backend tools.
+"""AI-INTELLIGENCE-01/02 — read-only backend tools.
 
 Every tool is a thin, tenant-checked adapter over an already-existing,
 deterministic service (`ContextGateway`, `material_hotspots`,
 `material_opportunities`, `material_ledger`, `material_quality`, the `ec3`
-app, `apps.knowledge`). No tool computes anything itself, no tool mutates
+app, `apps.knowledge`, and — since AI-INTELLIGENCE-02 — `analytics_tools`,
+`resolvers`, `periods`). No tool computes anything itself, no tool mutates
 anything, and no tool ever returns more than a bounded number of rows. The
 LLM never sees a raw queryset or a raw model instance — only these plain
 dict payloads.
@@ -21,7 +22,7 @@ from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.http import Http404
 from rest_framework.exceptions import PermissionDenied
 
-from apps.analytics.models import IndicadorAmbiental, MaterialOperacional, ProblematicaAmbiental
+from apps.analytics.models import IndicadorAmbiental, MaterialOperacional, Obra, ProblematicaAmbiental
 from apps.analytics.permissions import Permission, has_tenant_permission, require_work_access
 from apps.analytics.selectors.environmental_flows import work_for_organization
 from apps.analytics.services.context_gateway import ContextGateway
@@ -35,6 +36,9 @@ from apps.ec3.models import Candidate
 from apps.ec3.opportunity import material_candidate_opportunities
 from apps.ec3.services import candidate_data
 from apps.knowledge.models import EnvironmentalSource, ExternalRecord
+
+from . import analytics_tools
+from .resolvers import RESOLVERS
 
 MAX_ROWS = 15
 RIESGO_WEIGHT = {"critico": 3, "alto": 2, "medio": 1, "bajo": 0}
@@ -76,6 +80,52 @@ def _resolve_obra(organization, user, obra_id):
     except Http404:
         return None, _not_found(f"No existe la obra {obra_id} en esta organización.")
     return obra, None
+
+
+def _resolve_obra_arg(organization, user, obra_id, obra_name):
+    """AI-INTELLIGENCE macrofase: shared obra resolution for every tool
+    that accepts EITHER `obra_id` OR a free-text `obra` name — resolves
+    the name via `resolvers.resolve_obra` (RBAC-aware) and never asks the
+    caller to guess an id. Returns (obra, error_or_ambiguous_response,
+    resolved_early). `resolved_early` is truthy when the caller should
+    return `error_or_ambiguous_response` immediately (not_found/ambiguous
+    are informational, ok=True, results — not fatal errors)."""
+    from .resolvers import resolve_obra as resolve_obra_by_name
+
+    if not obra_id and not obra_name:
+        return None, {"ok": False, "error": "missing_argument", "reason": "Se requiere obra_id u obra (nombre)."}, True
+    if obra_id:
+        obra_obj, error = _resolve_obra(organization, user, obra_id)
+        if error:
+            return None, error, True
+        return obra_obj, None, False
+    resolution = resolve_obra_by_name(organization, user, obra_name)
+    if resolution["status"] in ("not_found", "ambiguous"):
+        return None, {"ok": True, "data": resolution}, True
+    obra_obj, error = _resolve_obra(organization, user, resolution["match"]["id"])
+    if error:
+        return None, error, True
+    return obra_obj, None, False
+
+
+def _resolve_material_arg(organization, user, material_id, material_name):
+    """Same pattern as `_resolve_obra_arg`, for material_id/material."""
+    from .resolvers import resolve_material as resolve_material_by_name
+
+    if not material_id and not material_name:
+        return None, None, False
+    if material_id:
+        material_obj, error = _resolve_material(organization, user, material_id)
+        if error:
+            return None, error, True
+        return material_obj, None, False
+    resolution = resolve_material_by_name(organization, material_name)
+    if resolution["status"] in ("not_found", "ambiguous"):
+        return None, {"ok": True, "data": resolution}, True
+    material_obj, error = _resolve_material(organization, user, resolution["match"]["id"])
+    if error:
+        return None, error, True
+    return material_obj, None, False
 
 
 def get_current_organization(organization, user, **_):
@@ -179,20 +229,83 @@ def get_material_hotspots(organization, user, obra_id=None, categoria=None, stan
     return {"ok": True, "data": trimmed}
 
 
-def get_evidence_quality(organization, user, material_id=None, **_):
+def get_evidence_quality(organization, user, material_id=None, material=None, obra_id=None,
+                          date_from=None, date_to=None, relative_months=None, **_):
+    """Reports four DISTINCT axes for a material — never conflated:
+    (a) whether a consumption record (`EventoMaterial`) exists at all;
+    (b) whether evidence (`EvidenciaObra`) is attached to those records;
+    (c) the data-quality evaluation (`EvaluacionCalidadDato`) of the
+        underlying observations, if any exist;
+    (d) whether a governed environmental factor is mapped for the material
+        (unchanged from AI-INTELLIGENCE-01 — `select_material_factor` +
+        `assess_factor_data_quality`).
+    "No hay evidencia" and "no hay factor ambiental" are different facts
+    about different things and must never be reported as one.
+
+    Accepts a material NAME (`material`, e.g. "agua") as an alternative to
+    `material_id` — resolved internally via `resolvers.resolve_material` —
+    so the model never has to ask the user for an id when it already has a
+    name to work with."""
+    from .diagnostics.evidence import gather_evidence_stats
+    from .periods import resolve_period
+    from .resolvers import resolve_material as resolve_material_by_name
+
     guard = _guarded(user, organization, Permission.EVIDENCE_VIEW)
     if guard:
         return guard
-    if not material_id:
-        return {"ok": False, "error": "missing_argument", "reason": "Se requiere material_id."}
-    material, error = _resolve_material(organization, user, material_id)
+    if not material_id and not material:
+        return {"ok": False, "error": "missing_argument", "reason": "Se requiere material_id o material (nombre/categoría)."}
+    if material_id:
+        material_obj, error = _resolve_material(organization, user, material_id)
+        if error:
+            return error
+    else:
+        resolution = resolve_material_by_name(organization, material)
+        if resolution["status"] == "not_found":
+            return _not_found(f"No se encontró ningún material que coincida con '{material}' en esta organización.")
+        if resolution["status"] == "ambiguous":
+            return {"ok": True, "data": {"status": "ambiguous", "candidates": resolution["candidates"]}}
+        material_obj, error = _resolve_material(organization, user, resolution["match"]["id"])
+        if error:
+            return error
+    material = material_obj
+    obra, error = _resolve_obra(organization, user, obra_id) if obra_id else (None, None)
     if error:
         return error
+    start, end = resolve_period(date_from=date_from, date_to=date_to, relative_months=relative_months)
+
+    stats = gather_evidence_stats(organization, materials=[material], obra=obra, start=start, end=end)
+
+    registro_consumo = {
+        "existe": stats["total_eventos"] > 0,
+        "cantidad_eventos": stats["total_eventos"],
+        "ultimo_evento": stats["ultimo_evento"],
+    }
+    evidencia_operacional = {
+        "existe": stats["con_evidencia"] > 0,
+        "eventos_con_evidencia": stats["con_evidencia"],
+        "eventos_totales": stats["total_eventos"],
+        "cobertura": (stats["con_evidencia"] / stats["total_eventos"]) if stats["total_eventos"] else None,
+    }
+    calidad_dato = {
+        "evaluado": stats["evaluated_count"] > 0,
+        "distribucion_estados": stats["estado_counts"],
+        "observaciones_sin_evaluar": stats["observaciones_sin_evaluar"],
+    }
+
     selection = select_material_factor(organization, material, material.unidad_base, date_cls.today())
     if selection["status"] != "calculable":
-        return {"ok": True, "data": {"material_id": material.pk, "factor_disponible": False, "razon": selection["reason"]}}
-    quality = assess_factor_data_quality(selection["factor_version"].factor)
-    return {"ok": True, "data": {"material_id": material.pk, "factor_disponible": True, "calidad": quality}}
+        factor_ambiental = {"mapeado": False, "razon": selection["reason"]}
+    else:
+        factor_ambiental = {"mapeado": True, "calidad": assess_factor_data_quality(selection["factor_version"].factor)}
+
+    return {"ok": True, "data": {
+        "material_id": material.pk,
+        "registro_consumo": registro_consumo,
+        "evidencia_operacional": evidencia_operacional,
+        "calidad_dato": calidad_dato,
+        "factor_ambiental": factor_ambiental,
+    }}
 
 
 def get_open_alerts(organization, user, obra_id=None, **_):
@@ -265,6 +378,273 @@ def get_historical_trends(organization, user, indicador_id=None, **_):
     if indicator is None:
         return _not_found(f"No existe el indicador {indicador_id} en esta organización.")
     return {"ok": True, "data": ContextGateway().indicator_history(indicator, organization)}
+
+
+def resolve_entity(organization, user, entity_type=None, query=None, **_):
+    """Resolves a free-text reference ("agua", "hormigón", an obra's name,
+    an asset's name) against the tenant's REAL data — never an internal
+    id guessed by the model. Returns exactly one match, several candidates
+    (ambiguous), or none — the model must never ask the user for an id or
+    a full list when this can resolve it directly."""
+    if entity_type not in RESOLVERS:
+        return {"ok": False, "error": "invalid_argument", "reason": f"entity_type debe ser uno de: {sorted(RESOLVERS)}."}
+    if not query or not query.strip():
+        return {"ok": False, "error": "missing_argument", "reason": "Se requiere query."}
+    result = RESOLVERS[entity_type](organization, user, query)
+    return {"ok": True, "data": result}
+
+
+def get_operational_timeseries(organization, user, obra_id=None, material_id=None, metric=None, categoria=None,
+                                date_from=None, date_to=None, relative_months=None, **_):
+    guard = _guarded(user, organization, Permission.DATA_VIEW)
+    if guard:
+        return guard
+    if not metric and not categoria and not material_id:
+        return {"ok": False, "error": "missing_argument", "reason": "Se requiere metric (agua/energia/combustible/residuo/materiales), categoria o material_id."}
+    obra, error = _resolve_obra(organization, user, obra_id) if obra_id else (None, None)
+    if error:
+        return error
+    material, error = _resolve_material(organization, user, material_id) if material_id else (None, None)
+    if error:
+        return error
+    result = analytics_tools.operational_timeseries(
+        organization, user, obra=obra, material=material, metric=metric, categoria=categoria,
+        date_from=date_from, date_to=date_to, relative_months=relative_months,
+    )
+    return result
+
+
+def get_operational_aggregate(organization, user, obra_id=None, material_id=None, metric=None, categoria=None,
+                               date_from=None, date_to=None, relative_months=None, **_):
+    guard = _guarded(user, organization, Permission.DATA_VIEW)
+    if guard:
+        return guard
+    if not metric and not categoria and not material_id:
+        return {"ok": False, "error": "missing_argument", "reason": "Se requiere metric (agua/energia/combustible/residuo/materiales), categoria o material_id."}
+    obra, error = _resolve_obra(organization, user, obra_id) if obra_id else (None, None)
+    if error:
+        return error
+    material, error = _resolve_material(organization, user, material_id) if material_id else (None, None)
+    if error:
+        return error
+    result = analytics_tools.operational_aggregate(
+        organization, user, obra=obra, material=material, metric=metric, categoria=categoria,
+        date_from=date_from, date_to=date_to, relative_months=relative_months,
+    )
+    return result
+
+
+def rank_operational_entities(organization, user, entity_type=None, metric=None, obra_id=None,
+                               categoria=None, date_from=None, date_to=None,
+                               relative_months=None, top_n=10, **_):
+    guard = _guarded(user, organization, Permission.DATA_VIEW)
+    if guard:
+        return guard
+    if entity_type not in {"obra", "material", "categoria", "standard", "activo", "periodo"}:
+        return {"ok": False, "error": "invalid_argument", "reason": "entity_type debe ser uno de: obra, material, categoria, standard, activo, periodo."}
+    obra, error = _resolve_obra(organization, user, obra_id) if obra_id else (None, None)
+    if error:
+        return error
+    result = analytics_tools.rank_operational_entities(
+        organization, user, entity_type=entity_type, metric=metric, obra=obra, categoria=categoria,
+        date_from=date_from, date_to=date_to, relative_months=relative_months, top_n=top_n,
+    )
+    return result
+
+
+def compare_projects(organization, user, metric=None, categoria=None, date_from=None,
+                      date_to=None, relative_months=None, top_n=5, **_):
+    guard = _guarded(user, organization, Permission.DATA_VIEW)
+    if guard:
+        return guard
+    result = analytics_tools.compare_projects(
+        organization, user, metric=metric, categoria=categoria,
+        date_from=date_from, date_to=date_to, relative_months=relative_months, top_n=top_n,
+    )
+    return result
+
+
+def diagnose_environmental_performance(organization, user, obra_id=None, obra=None, date_from=None,
+                                        date_to=None, relative_months=None, metrics=None, max_findings=None, **_):
+    """AI-INTELLIGENCE-03 — thin adapter. Every finding is produced by
+    `apps.ai.diagnostics.engine.run_environmental_diagnostics`, which only
+    ever reads through already-guarded AI-INTELLIGENCE-02 analytics
+    functions; this function's only job is obra resolution + RBAC, exactly
+    like every other obra-scoped tool in this file."""
+    from .diagnostics import run_environmental_diagnostics
+
+    guard = _guarded(user, organization, Permission.DATA_VIEW)
+    if guard:
+        return guard
+    obra_obj, response, resolved_early = _resolve_obra_arg(organization, user, obra_id, obra)
+    if resolved_early:
+        return response
+    if metrics is not None and not isinstance(metrics, list):
+        return {"ok": False, "error": "invalid_arguments", "reason": "metrics debe ser una lista de strings."}
+    data = run_environmental_diagnostics(
+        organization, user, obra=obra_obj, date_from=date_from, date_to=date_to,
+        relative_months=relative_months, metrics=metrics, max_findings=max_findings or 20,
+    )
+    return {"ok": True, "data": data}
+
+
+def forecast_environmental_metric(organization, user, obra_id=None, obra=None, material_id=None, material=None,
+                                   metric=None, categoria=None, periods_back=6, periods_ahead=3, **_):
+    """AI INTELLIGENCE macrofase — deterministic trend + projection
+    (`forecasting.forecast_metric`). Never presented as certain: every
+    result carries `confidence` (nivel/r_squared/n_points)."""
+    from . import forecasting
+
+    guard = _guarded(user, organization, Permission.DATA_VIEW)
+    if guard:
+        return guard
+    if not metric and not categoria and not material_id and not material:
+        return {"ok": False, "error": "missing_argument", "reason": "Se requiere metric, categoria o material_id/material."}
+    obra_obj, response, resolved_early = _resolve_obra_arg(organization, user, obra_id, obra)
+    if resolved_early:
+        return response
+    material_obj, response, resolved_early = _resolve_material_arg(organization, user, material_id, material)
+    if resolved_early:
+        return response
+    return forecasting.forecast_metric(
+        organization, user, obra=obra_obj, material=material_obj, metric=metric, categoria=categoria,
+        periods_back=periods_back, periods_ahead=periods_ahead,
+    )
+
+
+def detect_environmental_anomalies(organization, user, obra_id=None, obra=None, material_id=None, material=None,
+                                    metric=None, categoria=None, periods_back=6, threshold=None, **_):
+    """AI INTELLIGENCE macrofase — deterministic outlier detection
+    (`anomalies.detect_anomalies`, z-score). Always reports method,
+    threshold and observed deviation — never "this looks anomalous"
+    without a number."""
+    from . import anomalies
+
+    guard = _guarded(user, organization, Permission.DATA_VIEW)
+    if guard:
+        return guard
+    if not metric and not categoria and not material_id and not material:
+        return {"ok": False, "error": "missing_argument", "reason": "Se requiere metric, categoria o material_id/material."}
+    obra_obj, response, resolved_early = _resolve_obra_arg(organization, user, obra_id, obra)
+    if resolved_early:
+        return response
+    material_obj, response, resolved_early = _resolve_material_arg(organization, user, material_id, material)
+    if resolved_early:
+        return response
+    return anomalies.detect_anomalies(
+        organization, user, obra=obra_obj, material=material_obj, metric=metric, categoria=categoria,
+        periods_back=periods_back, threshold=threshold,
+    )
+
+
+def score_environmental_risk(organization, user, obra_id=None, obra=None, date_from=None, date_to=None,
+                              relative_months=None, metrics=None, **_):
+    """AI INTELLIGENCE macrofase — risk score built EXCLUSIVELY from real
+    `diagnose_environmental_performance` findings (`risk.score_environmental_risk`)
+    — never the LLM's own judgment."""
+    from . import risk
+
+    guard = _guarded(user, organization, Permission.DATA_VIEW)
+    if guard:
+        return guard
+    obra_obj, response, resolved_early = _resolve_obra_arg(organization, user, obra_id, obra)
+    if resolved_early:
+        return response
+    if metrics is not None and not isinstance(metrics, list):
+        return {"ok": False, "error": "invalid_arguments", "reason": "metrics debe ser una lista de strings."}
+    return risk.score_environmental_risk(
+        organization, user, obra=obra_obj, date_from=date_from, date_to=date_to,
+        relative_months=relative_months, metrics=metrics,
+    )
+
+
+def prioritize_environmental_actions(organization, user, obra_id=None, obra=None, date_from=None, date_to=None,
+                                      relative_months=None, metrics=None, max_actions=10, **_):
+    """AI INTELLIGENCE macrofase — deduplicated, ordered action list built
+    from real diagnostics findings (`prioritization.prioritize_actions`).
+    Every action's `accion` text comes from the controlled recommendations
+    catalog — never invented here or by the model."""
+    from . import prioritization
+
+    guard = _guarded(user, organization, Permission.DATA_VIEW)
+    if guard:
+        return guard
+    obra_obj, response, resolved_early = _resolve_obra_arg(organization, user, obra_id, obra)
+    if resolved_early:
+        return response
+    if metrics is not None and not isinstance(metrics, list):
+        return {"ok": False, "error": "invalid_arguments", "reason": "metrics debe ser una lista de strings."}
+    return prioritization.prioritize_actions(
+        organization, user, obra=obra_obj, date_from=date_from, date_to=date_to,
+        relative_months=relative_months, metrics=metrics, max_actions=max_actions,
+    )
+
+
+def simulate_environmental_scenario(organization, user, obra_id=None, obra=None, material_id=None, material=None,
+                                     metric=None, categoria=None, percent_change=None, absolute_value=None,
+                                     date_from=None, date_to=None, relative_months=None, **_):
+    """AI INTELLIGENCE macrofase — hypothetical what-if
+    (`scenarios.simulate_scenario`). Never writes to the database; the
+    hypothetical number is classified with the SAME rules diagnostics uses
+    for real data — never a separate, looser judgment."""
+    from . import scenarios
+
+    guard = _guarded(user, organization, Permission.DATA_VIEW)
+    if guard:
+        return guard
+    if not metric and not categoria and not material_id and not material:
+        return {"ok": False, "error": "missing_argument", "reason": "Se requiere metric, categoria o material_id/material."}
+    obra_obj, response, resolved_early = _resolve_obra_arg(organization, user, obra_id, obra)
+    if resolved_early:
+        return response
+    if obra_obj is None:
+        return {"ok": False, "error": "missing_argument", "reason": "Se requiere obra_id u obra para simular un escenario."}
+    material_obj, response, resolved_early = _resolve_material_arg(organization, user, material_id, material)
+    if resolved_early:
+        return response
+    return scenarios.simulate_scenario(
+        organization, user, obra=obra_obj, material=material_obj, metric=metric, categoria=categoria,
+        percent_change=percent_change, absolute_value=absolute_value,
+        date_from=date_from, date_to=date_to, relative_months=relative_months,
+    )
+
+
+def trace_metric_provenance(organization, user, obra_id=None, obra=None, material_id=None, material=None,
+                             date_from=None, date_to=None, relative_months=None, limit=10, **_):
+    """AI INTELLIGENCE macrofase — full dato -> evidencia -> factor ->
+    cálculo chain for a material's ledger entries
+    (`provenance.trace_metric_provenance`), reusing
+    `material_ledger.ledger_entry_provenance` (AI-INTELLIGENCE-01)."""
+    from . import provenance as provenance_module
+
+    guard = _guarded(user, organization, Permission.FACTOR_VIEW)
+    if guard:
+        return guard
+    material_obj, response, resolved_early = _resolve_material_arg(organization, user, material_id, material)
+    if resolved_early:
+        return response
+    if material_obj is None:
+        return {"ok": False, "error": "missing_argument", "reason": "Se requiere material_id o material (nombre)."}
+    obra_obj, response, resolved_early = _resolve_obra_arg(organization, user, obra_id, obra) if (obra_id or obra) else (None, None, False)
+    if resolved_early:
+        return response
+    return provenance_module.trace_metric_provenance(
+        organization, user, obra=obra_obj, material=material_obj,
+        date_from=date_from, date_to=date_to, relative_months=relative_months, limit=limit,
+    )
+
+
+def get_conversation_context(organization, user, conversation=None, **_):
+    """AI INTELLIGENCE macrofase — multi-turn recall: the last obra/metric/
+    period actually used in THIS conversation's own tool history (never a
+    guess — see `apps.ai.context.infer_conversation_context`). Use this
+    instead of asking the user to repeat the obra/period/metric they
+    already gave in an earlier turn."""
+    from .context import infer_conversation_context
+
+    if conversation is None:
+        return {"ok": True, "data": {"obra_id": None, "obra_nombre": None, "metric": None, "period": None}}
+    return {"ok": True, "data": infer_conversation_context(conversation)}
 
 
 def search_environmental_knowledge(organization, user, query=None, **_):
@@ -347,10 +727,21 @@ TOOLS = {
     },
     "get_evidence_quality": {
         "function": get_evidence_quality,
-        "description": "Calidad de la evidencia/factor ambiental que respalda un material: qué se sabe, qué falta, y advertencias.",
+        "description": (
+            "Estado de evidencia y calidad de un material, en CUATRO ejes SIEMPRE distintos: "
+            "(1) si existe un registro de consumo, (2) si ese registro tiene evidencia adjunta, "
+            "(3) la calidad/trazabilidad de la observación, y (4) si hay un factor ambiental mapeado. "
+            "Nunca combinar 'no hay evidencia' con 'no hay factor ambiental': son hechos distintos. "
+            "Acepta el nombre del material directamente (p.ej. 'agua') — no es obligatorio tener el ID."
+        ),
         "parameters": {"type": "object", "properties": {
-            "material_id": {"type": "integer", "description": "ID del material operacional."},
-        }, "required": ["material_id"], "additionalProperties": False},
+            "material_id": {"type": "integer", "description": "ID del material operacional, si ya se conoce."},
+            "material": {"type": "string", "description": "Alternativa a material_id: nombre o categoría del material (p.ej. 'agua', 'hormigón')."},
+            "obra_id": {"type": "integer", "description": "Opcional: acota a una obra."},
+            "date_from": {"type": "string", "description": "Fecha ISO (YYYY-MM-DD) de inicio, opcional."},
+            "date_to": {"type": "string", "description": "Fecha ISO (YYYY-MM-DD) de fin, opcional."},
+            "relative_months": {"type": "integer", "description": "Opcional: últimos N meses en vez de date_from/date_to."},
+        }, "additionalProperties": False},
     },
     "get_open_alerts": {
         "function": get_open_alerts,
@@ -388,6 +779,220 @@ TOOLS = {
             "indicador_id": {"type": "integer", "description": "ID del indicador ambiental."},
         }, "required": ["indicador_id"], "additionalProperties": False},
     },
+    "resolve_entity": {
+        "function": resolve_entity,
+        "description": (
+            "Resuelve una referencia en lenguaje natural (nombre de obra, nombre/categoría de material, "
+            "nombre de activo/maquinaria) contra los datos REALES de este tenant. Úsalo SIEMPRE antes de "
+            "pedirle un ID al usuario o antes de listar todas las obras/materiales para que el usuario elija: "
+            "si el sistema puede resolverlo, nunca preguntes 'dame el ID' ni 'dime cuáles obras existen'."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "entity_type": {"type": "string", "enum": ["obra", "material", "activo"], "description": "Tipo de entidad a resolver."},
+            "query": {"type": "string", "description": "Texto libre a resolver (nombre completo o parcial)."},
+        }, "required": ["entity_type", "query"], "additionalProperties": False},
+    },
+    "get_operational_timeseries": {
+        "function": get_operational_timeseries,
+        "description": (
+            "Serie temporal mensual de una métrica operacional (agua, energia, combustible, residuo) o de un "
+            "material/categoria, para la organización o una obra, en un rango de fechas o 'últimos N meses'. "
+            "Cada valor es una suma real ya calculada por el backend — nunca la calcules tú."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "obra_id": {"type": "integer", "description": "Opcional: acota a una obra (usa resolve_entity para obtenerlo desde un nombre)."},
+            "metric": {"type": "string", "description": "Categoría de consumo: agua, combustible, energia, residuo, materiales."},
+            "categoria": {"type": "string", "description": "Alternativa a metric: categoría de material tal cual está en el sistema."},
+            "material_id": {"type": "integer", "description": "Alternativa a metric/categoria: un material específico (usa resolve_entity si el usuario dio un nombre)."},
+            "date_from": {"type": "string", "description": "Fecha ISO (YYYY-MM-DD) de inicio, opcional."},
+            "date_to": {"type": "string", "description": "Fecha ISO (YYYY-MM-DD) de fin, opcional."},
+            "relative_months": {"type": "integer", "description": "Opcional: últimos N meses en vez de date_from/date_to."},
+        }, "additionalProperties": False},
+    },
+    "get_operational_aggregate": {
+        "function": get_operational_aggregate,
+        "description": (
+            "Total/promedio/máximo/mínimo/variación/cobertura de una métrica operacional o material en un "
+            "período — agregación calculada íntegramente en el backend, nunca por el modelo."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "obra_id": {"type": "integer", "description": "Opcional: acota a una obra."},
+            "metric": {"type": "string", "description": "Categoría de consumo: agua, combustible, energia, residuo, materiales."},
+            "categoria": {"type": "string", "description": "Alternativa a metric: categoría de material tal cual está en el sistema."},
+            "material_id": {"type": "integer", "description": "Alternativa a metric/categoria: un material específico."},
+            "date_from": {"type": "string", "description": "Fecha ISO (YYYY-MM-DD) de inicio, opcional."},
+            "date_to": {"type": "string", "description": "Fecha ISO (YYYY-MM-DD) de fin, opcional."},
+            "relative_months": {"type": "integer", "description": "Opcional: últimos N meses en vez de date_from/date_to."},
+        }, "additionalProperties": False},
+    },
+    "rank_operational_entities": {
+        "function": rank_operational_entities,
+        "description": (
+            "Ranking determinista (ordenado y calculado por el backend) de obras, materiales, categorías, "
+            "activos/maquinaria o períodos por consumo/impacto de una métrica. Úsalo para '¿cuál obra/material/"
+            "maquinaria tiene mayor...?' — nunca pidas al usuario que elija entre obras si esto puede resolverlo."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "entity_type": {"type": "string", "enum": ["obra", "material", "categoria", "standard", "activo", "periodo"], "description": "Qué se está rankeando."},
+            "metric": {"type": "string", "description": "Métrica de flujo operacional (agua/energia/combustible/residuo) — requerida para entity_type='activo'."},
+            "obra_id": {"type": "integer", "description": "Opcional: acota el ranking a una obra (irrelevante si entity_type='obra')."},
+            "categoria": {"type": "string", "description": "Opcional: acota por categoría de material."},
+            "date_from": {"type": "string", "description": "Fecha ISO de inicio, opcional."},
+            "date_to": {"type": "string", "description": "Fecha ISO de fin, opcional."},
+            "relative_months": {"type": "integer", "description": "Opcional: últimos N meses."},
+            "top_n": {"type": "integer", "description": "Cuántas filas devolver (por defecto 10)."},
+        }, "required": ["entity_type"], "additionalProperties": False},
+    },
+    "compare_projects": {
+        "function": compare_projects,
+        "description": (
+            "Compara TODAS las obras accesibles del tenant por impacto/consumo y devuelve la de mayor valor "
+            "más una razón (principal contribuyente). Resuelve las obras automáticamente — nunca pidas IDs "
+            "ni le pidas al usuario que enumere las obras."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "metric": {"type": "string", "description": "Métrica de flujo operacional (agua/energia/combustible/residuo); si se omite, compara impacto A1-A3 total."},
+            "categoria": {"type": "string", "description": "Opcional: acota por categoría de material."},
+            "date_from": {"type": "string", "description": "Fecha ISO de inicio, opcional."},
+            "date_to": {"type": "string", "description": "Fecha ISO de fin, opcional."},
+            "relative_months": {"type": "integer", "description": "Opcional: últimos N meses."},
+            "top_n": {"type": "integer", "description": "Cuántas obras devolver (por defecto 5)."},
+        }, "additionalProperties": False},
+    },
+    "diagnose_environmental_performance": {
+        "function": diagnose_environmental_performance,
+        "description": (
+            "Diagnóstico ambiental determinista de una obra: qué cambió respecto del período anterior, "
+            "qué entidad concentra el consumo/impacto, y qué datos tienen evidencia/calidad/factor "
+            "insuficientes — todo calculado por el backend (nunca por el modelo), ordenado por prioridad. "
+            "Úsalo para preguntas como '¿qué debería preocuparme de esta obra?', '¿qué cambió más?', "
+            "'¿cuál es la principal fuente de impacto?', '¿hay problemas de evidencia?', '¿qué debería "
+            "revisar primero?'. Resuelve la obra por nombre — nunca pidas un ID si el usuario ya dio un nombre."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "obra_id": {"type": "integer", "description": "ID de la obra, si ya se conoce."},
+            "obra": {"type": "string", "description": "Alternativa a obra_id: nombre de la obra."},
+            "date_from": {"type": "string", "description": "Fecha ISO de inicio del período actual, opcional."},
+            "date_to": {"type": "string", "description": "Fecha ISO de fin del período actual, opcional."},
+            "relative_months": {"type": "integer", "description": "Opcional: últimos N meses en vez de date_from/date_to."},
+            "metrics": {"type": "array", "items": {"type": "string"}, "description": "Opcional: subconjunto de métricas a analizar (agua, combustible, energia, residuos, materiales). Por defecto analiza todas."},
+            "max_findings": {"type": "integer", "description": "Máximo de hallazgos a devolver, ordenados por prioridad (por defecto 20)."},
+        }, "additionalProperties": False},
+    },
+    "forecast_environmental_metric": {
+        "function": forecast_environmental_metric,
+        "description": (
+            "Proyección determinista (tendencia lineal + confianza) de una métrica/material hacia adelante, "
+            "a partir del histórico real. Incluye SIEMPRE 'confidence' (nivel/r_squared/n_points) — nunca "
+            "presentes una proyección como un hecho cierto."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "obra_id": {"type": "integer", "description": "Opcional: acota a una obra."},
+            "obra": {"type": "string", "description": "Alternativa a obra_id: nombre de la obra."},
+            "material_id": {"type": "integer", "description": "Opcional: un material específico."},
+            "material": {"type": "string", "description": "Alternativa a material_id: nombre del material."},
+            "metric": {"type": "string", "description": "Categoría de consumo: agua, combustible, energia, residuos, materiales."},
+            "categoria": {"type": "string", "description": "Alternativa a metric: categoría tal cual está en el sistema."},
+            "periods_back": {"type": "integer", "description": "Meses históricos a usar para ajustar la tendencia (por defecto 6)."},
+            "periods_ahead": {"type": "integer", "description": "Meses a proyectar hacia adelante (por defecto 3)."},
+        }, "additionalProperties": False},
+    },
+    "detect_environmental_anomalies": {
+        "function": detect_environmental_anomalies,
+        "description": (
+            "Detección determinista de valores atípicos (z-score) en el histórico mensual de una métrica/material. "
+            "Cada anomalía reportada incluye método, umbral y desviación observada — nunca 'esto parece raro' sin número."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "obra_id": {"type": "integer", "description": "Opcional: acota a una obra."},
+            "obra": {"type": "string", "description": "Alternativa a obra_id: nombre de la obra."},
+            "material_id": {"type": "integer", "description": "Opcional: un material específico."},
+            "material": {"type": "string", "description": "Alternativa a material_id: nombre del material."},
+            "metric": {"type": "string", "description": "Categoría de consumo: agua, combustible, energia, residuos, materiales."},
+            "categoria": {"type": "string", "description": "Alternativa a metric: categoría tal cual está en el sistema."},
+            "periods_back": {"type": "integer", "description": "Meses históricos a analizar (por defecto 6)."},
+            "threshold": {"type": "number", "description": "Umbral de z-score (por defecto 2.0)."},
+        }, "additionalProperties": False},
+    },
+    "score_environmental_risk": {
+        "function": score_environmental_risk,
+        "description": (
+            "Puntaje de riesgo ambiental-operacional (0-100) de una obra, construido EXCLUSIVAMENTE a partir de "
+            "los hallazgos reales de diagnose_environmental_performance — nunca una opinión del modelo."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "obra_id": {"type": "integer", "description": "ID de la obra, si ya se conoce."},
+            "obra": {"type": "string", "description": "Alternativa a obra_id: nombre de la obra."},
+            "date_from": {"type": "string", "description": "Fecha ISO de inicio del período actual, opcional."},
+            "date_to": {"type": "string", "description": "Fecha ISO de fin del período actual, opcional."},
+            "relative_months": {"type": "integer", "description": "Opcional: últimos N meses."},
+            "metrics": {"type": "array", "items": {"type": "string"}, "description": "Opcional: subconjunto de métricas a considerar."},
+        }, "additionalProperties": False},
+    },
+    "prioritize_environmental_actions": {
+        "function": prioritize_environmental_actions,
+        "description": (
+            "Lista de acciones ordenada por prioridad determinista, derivada de los hallazgos reales de "
+            "diagnose_environmental_performance — cada acción viene del catálogo controlado de recomendaciones, "
+            "nunca inventada por el modelo."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "obra_id": {"type": "integer", "description": "ID de la obra, si ya se conoce."},
+            "obra": {"type": "string", "description": "Alternativa a obra_id: nombre de la obra."},
+            "date_from": {"type": "string", "description": "Fecha ISO de inicio, opcional."},
+            "date_to": {"type": "string", "description": "Fecha ISO de fin, opcional."},
+            "relative_months": {"type": "integer", "description": "Opcional: últimos N meses."},
+            "metrics": {"type": "array", "items": {"type": "string"}, "description": "Opcional: subconjunto de métricas a considerar."},
+            "max_actions": {"type": "integer", "description": "Máximo de acciones a devolver (por defecto 10)."},
+        }, "additionalProperties": False},
+    },
+    "simulate_environmental_scenario": {
+        "function": simulate_environmental_scenario,
+        "description": (
+            "Simulación hipotética 'qué pasaría si': aplica un cambio porcentual o un valor absoluto hipotético "
+            "sobre el total real de una métrica/material y lo clasifica con las MISMAS reglas del diagnóstico real. "
+            "NUNCA modifica datos reales ni se persiste — es puramente hipotético."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "obra_id": {"type": "integer", "description": "ID de la obra (requerido)."},
+            "obra": {"type": "string", "description": "Alternativa a obra_id: nombre de la obra."},
+            "material_id": {"type": "integer", "description": "Opcional: un material específico."},
+            "material": {"type": "string", "description": "Alternativa a material_id: nombre del material."},
+            "metric": {"type": "string", "description": "Categoría de consumo: agua, combustible, energia, residuos, materiales."},
+            "categoria": {"type": "string", "description": "Alternativa a metric."},
+            "percent_change": {"type": "number", "description": "Cambio porcentual hipotético sobre el valor real actual (p.ej. 20 para +20%, -15 para -15%)."},
+            "absolute_value": {"type": "number", "description": "Alternativa a percent_change: un valor hipotético absoluto."},
+            "date_from": {"type": "string", "description": "Fecha ISO de inicio del período actual, opcional."},
+            "date_to": {"type": "string", "description": "Fecha ISO de fin del período actual, opcional."},
+            "relative_months": {"type": "integer", "description": "Opcional: últimos N meses."},
+        }, "required": ["obra_id"], "additionalProperties": False},
+    },
+    "trace_metric_provenance": {
+        "function": trace_metric_provenance,
+        "description": (
+            "Cadena de trazabilidad completa dato -> evidencia -> factor -> cálculo para un material (y opcionalmente "
+            "una obra) en un período: responde '¿de dónde salió este número?' citando cada cálculo ambiental real, "
+            "su fuente, su factor/versión y su calidad."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "material_id": {"type": "integer", "description": "ID del material, si ya se conoce."},
+            "material": {"type": "string", "description": "Alternativa a material_id: nombre o categoría del material."},
+            "obra_id": {"type": "integer", "description": "Opcional: acota a una obra."},
+            "obra": {"type": "string", "description": "Alternativa a obra_id: nombre de la obra."},
+            "date_from": {"type": "string", "description": "Fecha ISO de inicio, opcional."},
+            "date_to": {"type": "string", "description": "Fecha ISO de fin, opcional."},
+            "relative_months": {"type": "integer", "description": "Opcional: últimos N meses."},
+            "limit": {"type": "integer", "description": "Máximo de cálculos a devolver (por defecto 10)."},
+        }, "additionalProperties": False},
+    },
+    "get_conversation_context": {
+        "function": get_conversation_context,
+        "description": (
+            "Recupera la obra/métrica/período usados más recientemente EN ESTA MISMA conversación — úsalo antes "
+            "de volver a preguntarle al usuario algo que ya dijo en un turno anterior."
+        ),
+        "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
     "search_environmental_knowledge": {
         "function": search_environmental_knowledge,
         "description": "Busca por palabra clave en las fuentes y registros ya conocidos de la base de conocimiento ambiental (SOURCE-WATCH: RETC, HuellaChile, BCN/LeyChile, SNIFA, SEA, SIMBIO, IDE-MMA, ÖKOBAUDAT). Nunca inventa una fuente no encontrada.",
@@ -407,12 +1012,12 @@ def openai_tool_schemas():
     ]
 
 
-def execute_tool(name, *, organization, user, arguments):
+def execute_tool(name, *, organization, user, arguments, conversation=None):
     spec = TOOLS.get(name)
     if spec is None:
         return {"ok": False, "error": "unknown_tool", "reason": f"Herramienta '{name}' no existe."}
     try:
-        return spec["function"](organization, user, **(arguments or {}))
+        return spec["function"](organization, user, conversation=conversation, **(arguments or {}))
     except (PermissionDenied, DjangoPermissionDenied):
         return _denied("Permiso denegado para esta consulta.")
     except Http404:

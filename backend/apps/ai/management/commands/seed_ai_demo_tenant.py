@@ -26,10 +26,12 @@ from django.utils import timezone
 
 from apps.analytics.models import (
     ActividadOperacional, EventoMaterial, FactorAmbiental, FuenteDatos, IndicadorAmbiental,
-    MaterialOperacional, Obra, Observacion, Organizacion, ProblematicaAmbiental, UsuarioOrganizacion,
-    ValorIndicador, VersionFactorAmbiental,
+    MaterialOperacional, Obra, Observacion, Organizacion, ProblematicaAmbiental, RegistroFlujoAmbiental,
+    UsuarioOrganizacion, ValorIndicador, VersionFactorAmbiental,
 )
+from apps.analytics.models.assets import ActivoOperacional, PuntoAmbientalOperacional
 from apps.analytics.services.calculation_v2 import calculate_activity
+from apps.analytics.services.capture import capture_observation
 from apps.analytics.services.factor_governance import transition_factor_version
 from apps.analytics.services.material_factor_mapping import approve_material_mapping, propose_material_mapping
 from apps.analytics.services.system_environmental_catalog import ensure_system_environmental_catalog
@@ -48,6 +50,15 @@ MATERIALS = [
     ("HORIZONTE-ELECTRICIDAD", "Electricidad obra", "energia", "kWh", Decimal("0.39"), Decimal("3200"), False),
     ("HORIZONTE-AGUA", "Agua faena", "agua", "m3", Decimal("0.45"), Decimal("180"), False),
     ("HORIZONTE-RESIDUOS", "Retiro de escombros", "residuos", "kg", Decimal("0.08"), Decimal("2600"), False),
+]
+
+MACHINES = [
+    # codigo, nombre, tipo_activo, destino_operacional, litros_mensuales — deliberately
+    # not tied, so "qué maquinaria consumió más combustible" has one real winner.
+    ("HORIZONTE-EXC-01", "Excavadora Hidráulica EX-14", ActivoOperacional.Tipo.MAQUINARIA,
+     RegistroFlujoAmbiental.DestinoOperacional.MAQUINARIA, Decimal("320")),
+    ("HORIZONTE-CAM-01", "Camión Tolva CT-07", ActivoOperacional.Tipo.VEHICULO,
+     RegistroFlujoAmbiental.DestinoOperacional.VEHICULO, Decimal("150")),
 ]
 
 MONTHS_OF_HISTORY = 4
@@ -118,6 +129,7 @@ class Command(BaseCommand):
             self._map_materials(org, admin, materials, factors)
             self._ec3_material(org, admin, materials["HORIZONTE-HORMIGON"])
             self._activity_history(org, admin, materials, obras)
+            self._machinery_history(org, admin, obras)
             self._indicators(org, obras)
             self._alert(org, obras[0])
         self.stdout.write(self.style.SUCCESS(
@@ -275,6 +287,53 @@ class Command(BaseCommand):
                     fuente=source,
                 )
                 calculate_activity(activity)
+
+    def _machinery_history(self, org, admin, obras):
+        """AI-INTELLIGENCE-02: per-asset fuel consumption, needed to answer
+        "qué maquinaria consumió más combustible" — the material-ledger path
+        (`_activity_history` above) has no per-asset attribution at all, so
+        this is deliberately built on `RegistroFlujoAmbiental.activo`
+        instead (the only place in the schema with real asset attribution).
+
+        `RegistroFlujoAmbiental.clean()` only allows `obra` and `activo` to
+        be set together at `Granularidad.PUNTO` (confirmed by audit — at
+        `Granularidad.ACTIVO`, `obra` is outside the allowed scope), so this
+        seeds one `PuntoAmbientalOperacional` per machine, tying it to both.
+        """
+        source, _ = FuenteDatos.objects.get_or_create(organizacion=org, nombre="Registro manual demo", tipo="manual")
+        obra = obras[0]  # Edificio Horizonte Norte — every machine below works there.
+        for codigo, nombre, tipo, destino, litros_mensuales in MACHINES:
+            activo_op, _ = ActivoOperacional.objects.update_or_create(
+                organizacion=org, codigo=codigo, defaults={"nombre": nombre, "tipo": tipo},
+            )
+            punto, _ = PuntoAmbientalOperacional.objects.update_or_create(
+                organizacion=org, codigo=f"{codigo}-PUNTO",
+                defaults={"nombre": f"Punto combustible {nombre}",
+                         "tipo": PuntoAmbientalOperacional.Tipo.OTRO, "activo": activo_op, "obra": obra},
+            )
+            for month_index in range(MONTHS_OF_HISTORY):
+                at = timezone.make_aware(
+                    timezone.datetime.combine(TODAY - timedelta(days=30 * month_index), timezone.datetime.min.time()),
+                )
+                activity_code = f"{DEMO_ORG_ID}_{codigo}_COMBUSTIBLE_{month_index:02d}"
+                if ActividadOperacional.objects.filter(organizacion=org, codigo=activity_code).exists():
+                    continue
+                activity = ActividadOperacional.objects.create(
+                    organizacion=org, obra=obra, codigo=activity_code,
+                    nombre=f"Consumo combustible {nombre} — mes {month_index}",
+                    tipo=ActividadOperacional.Tipo.CONSUMO_COMBUSTIBLE, timestamp_inicio=at,
+                )
+                record = RegistroFlujoAmbiental(
+                    organizacion=org, actividad=activity, flujo=RegistroFlujoAmbiental.Flujo.COMBUSTIBLE_MOVIL,
+                    periodo_inicio=at, periodo_fin=at + timedelta(days=29),
+                    granularidad=RegistroFlujoAmbiental.Granularidad.PUNTO,
+                    punto=punto, activo=activo_op, obra=obra, destino_operacional=destino,
+                )
+                record.save()
+                capture_observation(
+                    channel="manual", organization=org, activity=activity, timestamp=at, actor=admin,
+                    source=source, concept="combustible_consumido", numeric_value=litros_mensuales, unit="L",
+                )
 
     def _indicators(self, org, obras):
         indicator, _ = IndicadorAmbiental.objects.update_or_create(

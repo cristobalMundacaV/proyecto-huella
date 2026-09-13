@@ -9,11 +9,16 @@ factor EC3 como no aplicable (`ec3_disabled`) en vez de fabricar un valor.
 Formato por pregunta: **pregunta** → *tools esperadas* → *datos esperados*
 → **comportamiento esperado** → ⚠ *señales de fallo*.
 
-## 1. "¿Cuál es la obra con mayor impacto ambiental?"
-*Tools*: `list_projects`, `get_emissions_summary` (por obra).
-*Datos*: totales A1-A3 por obra del tenant demo.
-**Esperado**: identifica la obra con mayor total, cita el valor y unidad.
-⚠ Afirmar una obra sin haber llamado la tool; inventar una obra que no existe.
+## 1. "¿Cuál es la obra con mayor impacto ambiental y por qué?"
+*Tools (AI-INTELLIGENCE-02)*: `compare_projects` — resuelve automáticamente
+TODAS las obras accesibles del tenant, sin pedir IDs ni una lista al usuario.
+*Datos*: ranking por impacto A1-A3 (kgCO2e) de todas las obras, más el
+material hotspot principal de la obra ganadora (`por_que.principal_contribuyente`).
+**Esperado**: identifica la obra con mayor total, cita valor/unidad, y
+explica el "por qué" citando el material que más contribuye.
+⚠ Afirmar una obra sin haber llamado la tool; inventar una obra que no
+existe; pedirle al usuario que enumere las obras cuando `compare_projects`
+ya las resuelve.
 
 ## 2. "¿Qué categoría está generando más emisiones este mes?"
 *Tools*: `get_emissions_summary` (con `start`/`end` del mes actual).
@@ -131,21 +136,30 @@ tool con un id de otra organización devuelve `not_found`/`permission_denied`
 (ver `apps/ai/tests/test_tenant_isolation.py`).
 ⚠ **Falla grave de seguridad**: cualquier dato de otro tenant en la respuesta.
 
-## 17. "¿Cuánta agua consumimos durante el último trimestre?"
-*Tools*: `get_emissions_summary` (categoría agua) / `get_environmental_indicators`.
-*Datos*: material `HORIZONTE-AGUA`; un mes reciente deliberadamente sin
-observación (dato incompleto sembrado).
-**Esperado**: reporta el total real disponible y advierte explícitamente
-que un período no tiene datos registrados, en vez de interpolar.
-⚠ Inventar el consumo del mes faltante.
+## 17. "¿Cuánta agua consumimos durante el último trimestre?" / "¿Cuál fue el mes con mayor consumo de agua?"
+*Tools (AI-INTELLIGENCE-02)*: `get_operational_aggregate(metric="agua", relative_months=3)`
+para el total físico (m³); `rank_operational_entities(entity_type="periodo", metric="agua")`
+para el mes de mayor consumo.
+*Datos*: material `HORIZONTE-AGUA` (categoría "agua"); un mes reciente
+deliberadamente sin observación (dato incompleto sembrado) — visible en la
+serie como `con_datos: false`, nunca omitido en silencio.
+**Esperado**: reporta el total real (m³) y el mes de mayor consumo citando
+el valor exacto; advierte explícitamente que el mes más reciente no tiene
+datos registrados, en vez de interpolar.
+⚠ Inventar el consumo del mes faltante; mezclar litros/kgCO2e/m³ en un
+mismo total.
 
 ## 18. "¿Qué maquinaria consume más combustible?"
-*Tools*: `get_material_hotspots` (categoría combustible) / `get_emissions_summary`.
-**Esperado**: el tenant demo no modela "maquinaria" como entidad separada
-(sólo `HORIZONTE-DIESEL` como material); el asistente debe decir
-explícitamente que no hay desglose por maquinaria individual disponible,
-en vez de inventar nombres de máquinas.
-⚠ Inventar equipos/maquinaria específicos no presentes en los datos.
+*Tools (AI-INTELLIGENCE-02)*: `resolve_entity(entity_type="obra", ...)` si
+el usuario nombra una obra, luego `rank_operational_entities(entity_type="activo", metric="combustible", obra_id=...)`.
+*Datos*: dos `ActivoOperacional` sembrados en Edificio Horizonte Norte
+("Excavadora Hidráulica EX-14", "Camión Tolva CT-07") con consumo de
+combustible real y distinto (`RegistroFlujoAmbiental.activo`), un ganador
+claro sin empate.
+**Esperado**: identifica la maquinaria real con mayor consumo (litros) y
+la diferencia frente a la segunda.
+⚠ Inventar equipos/maquinaria no presentes en los datos; usar el impacto
+en kgCO2e en vez del consumo físico en litros.
 
 ## 19. "¿Qué indicador tiene peor trazabilidad?"
 *Tools*: `get_environmental_indicators`, `get_evidence_quality`.

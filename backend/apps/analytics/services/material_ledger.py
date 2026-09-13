@@ -163,3 +163,60 @@ def _group_value(entry, group_by):
     if group_by == "periodo":
         return entry.fecha_calculo.date().isoformat()[:7]
     raise ValueError(f"Agrupación no soportada: {group_by}")
+
+
+def material_physical_totals(organization, *, work=None, material=None, start=None, end=None, categoria=None, group_by=None):
+    """AI-INTELLIGENCE-02: sum of the RAW physical quantity received
+    (``Observacion.valor_numerico`` for the reception's own
+    ``observacion_cantidad``, concepto ``cantidad_material``), grouped by
+    unidad (never mixed) and optionally by one grouping key — the exact
+    same grouping keys as `material_ledger_totals`.
+
+    Distinct from `material_ledger_totals`, which sums the *calculated
+    environmental impact* (kgCO2e) instead: this answers "cuántos m3/L/kWh/
+    kg", that answers "cuántos kgCO2e". Neither duplicates the other — they
+    read the same `EventoMaterial` receptions but sum a different field."""
+    events = EventoMaterial.objects.filter(
+        organizacion=organization, tipo=EventoMaterial.Tipo.RECEPCION, estado=EventoMaterial.Estado.REGISTRADO,
+        observacion_cantidad__isnull=False, observacion_cantidad__valor_numerico__isnull=False,
+    ).select_related("material", "observacion_cantidad")
+    if work is not None:
+        events = events.filter(obra=work)
+    if material is not None:
+        events = events.filter(material=material)
+    if categoria:
+        events = events.filter(material__categoria=categoria)
+    if start:
+        events = events.filter(fecha_hora__date__gte=start)
+    if end:
+        events = events.filter(fecha_hora__date__lte=end)
+    events = list(events)
+
+    totals = defaultdict(lambda: {"total": Decimal("0"), "entradas": 0})
+    groups = defaultdict(lambda: defaultdict(lambda: {"total": Decimal("0"), "entradas": 0}))
+    for event in events:
+        observation = event.observacion_cantidad
+        unit_key = _dimension_key(observation.unidad)
+        totals[unit_key]["total"] += observation.valor_numerico
+        totals[unit_key]["entradas"] += 1
+        if group_by:
+            group_value = _physical_group_value(event, group_by)
+            bucket = groups[group_value][unit_key]
+            bucket["total"] += observation.valor_numerico
+            bucket["entradas"] += 1
+    result = {"totales_por_unidad": dict(totals), "entradas_totales": len(events)}
+    if group_by:
+        result["por_grupo"] = {key: dict(value) for key, value in groups.items()}
+    return result
+
+
+def _physical_group_value(event, group_by):
+    if group_by == "obra":
+        return event.obra_id
+    if group_by == "material":
+        return event.material_id
+    if group_by == "categoria":
+        return event.material.categoria
+    if group_by == "periodo":
+        return event.fecha_hora.date().isoformat()[:7]
+    raise ValueError(f"Agrupación no soportada: {group_by}")
