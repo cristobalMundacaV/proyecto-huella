@@ -1,21 +1,31 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getPageContext, getUnifiedNavigation, OBRA_OPERATION_FLOWS } from "./navigation.js";
+import { ASSETS_SUBNAV, getPageContext, getUnifiedNavigation, OBRA_OPERATION_FLOWS } from "./navigation.js";
 
 const preset = { unitPluralLabel: "Obras", unitLabel: "Obra" };
 const rootItems = (nav) => nav.groups.flatMap((group) => group.items);
 
-test("portfolio scope shows exactly Inicio/Obras/Reportes/Control/Configuración", () => {
+test("portfolio scope shows exactly Inicio/Obras/Activos/Reportes/Configuración — no Control", () => {
   const nav = getUnifiedNavigation({ preset, scope: { type: "portfolio" } });
   assert.equal(nav.home.label, "Inicio");
   assert.equal(nav.home.path, "/inicio");
-  assert.deepEqual(rootItems(nav).map((item) => item.label), ["Inicio", "Obras", "Reportes", "Control", "Configuración"]);
-  const [, works, reports, control, administration] = rootItems(nav);
+  assert.deepEqual(rootItems(nav).map((item) => item.label), ["Inicio", "Obras", "Activos", "Reportes", "Configuración"]);
+  assert.ok(!rootItems(nav).some((item) => item.label === "Control"), "Control must not be a portfolio-level item");
+  const [, works, assets, reports, administration] = rootItems(nav);
   assert.equal(works.path, "/obras");
   assert.equal(reports.path, "/reportes");
-  assert.equal(control.path, "/gobernanza");
   assert.equal(administration.path, "/administracion");
+  assert.equal(assets.path, undefined, "Activos is an expand/collapse toggle like obra's Operación, not a direct link");
+  assert.deepEqual(assets.children, ASSETS_SUBNAV);
+});
+
+test("Activos' children are vista general/flota/equipos/sensores/mantenciones", () => {
+  const nav = getUnifiedNavigation({ preset, scope: { type: "portfolio" } });
+  const assets = rootItems(nav).find((item) => item.id === "assets");
+  assert.deepEqual(assets.children.map((child) => child.path), [
+    "/activos", "/activos/flota", "/activos/equipos", "/activos/sensores", "/activos/mantenciones",
+  ]);
 });
 
 test("obra scope shows exactly Resumen/Operación/Gestión/Reportes/Control/Configuración — no Obras item", () => {
@@ -61,19 +71,27 @@ test("Gestión's children are evidencias/problemas/cumplimiento/historial, all e
 test("portfolio and obra use one grouped navigation tree with editorial sections", () => {
   const portfolio = getUnifiedNavigation({ preset, scope: { type: "portfolio" } });
   const obra = getUnifiedNavigation({ preset, scope: { type: "obra", obraId: "1" } });
-  assert.deepEqual(portfolio.groups.map((group) => group.label), ["General", "Seguimiento", "Sistema"]);
+  assert.deepEqual(portfolio.groups.map((group) => group.label), ["General", "Operación", "Salidas", "Sistema"]);
   assert.deepEqual(obra.groups.map((group) => group.label), ["General", "Operación", "Gestión", "Seguimiento", "Sistema"]);
 });
 
 test("an obra scope without an obraId falls back to the portfolio targets", () => {
   const nav = getUnifiedNavigation({ preset, scope: { type: "obra", obraId: null } });
   assert.equal(nav.home.path, "/inicio");
-  assert.deepEqual(rootItems(nav).map((item) => item.label), ["Inicio", "Obras", "Reportes", "Control", "Configuración"]);
+  assert.deepEqual(rootItems(nav).map((item) => item.label), ["Inicio", "Obras", "Activos", "Reportes", "Configuración"]);
 });
 
 test("getPageContext resolves the obra control/configuración routes by exact pattern", () => {
   assert.equal(getPageContext("/obras/42/control", preset).title, "Control de obra");
   assert.equal(getPageContext("/obras/42/configuracion", preset).title, "Configuración de obra");
+});
+
+test("getPageContext resolves every Activos route by exact pattern", () => {
+  assert.equal(getPageContext("/activos", preset).title, "Activos de la organización");
+  assert.equal(getPageContext("/activos/flota", preset).title, "Flota y maquinaria");
+  assert.equal(getPageContext("/activos/equipos", preset).title, "Equipos e infraestructura");
+  assert.equal(getPageContext("/activos/sensores", preset).title, "Sensores y medidores");
+  assert.equal(getPageContext("/activos/mantenciones", preset).title, "Mantenciones");
 });
 
 test("getPageContext falls back to the unified nav item for an untitled path", () => {

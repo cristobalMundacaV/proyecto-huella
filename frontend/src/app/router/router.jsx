@@ -11,6 +11,7 @@ import { useOrganizacionActiva } from "@/features/organizaciones/context/Organiz
 import { useOperationalWorkspace } from "@/features/workspace/context/OperationalWorkspaceContext";
 import { organizationDestination, resolveOrganizationAccess } from "@/features/organizaciones/context/organizationResolution";
 import { isNewTenant } from "@/app/onboardingGate";
+import { EQUIPMENT_TYPE_GROUP, FLEET_TYPE_GROUP } from "@/features/activos/utils/assetSelectors";
 
 const IntelligencePage = lazy(() => import("@/features/intelligence/pages/IntelligencePage"));
 const CopilotoAmbientalPage = lazy(() => import("@/features/intelligence/pages/CopilotPage"));
@@ -53,6 +54,8 @@ const EvidenceDetailPage = lazy(() => import("@/features/datos/pages/EvidenceDet
 const ImportsPage = lazy(() => import("@/features/datos/pages/ImportsPage"));
 const ImportDetailPage = lazy(() => import("@/features/datos/pages/ImportDetailPage"));
 const ActivosPage = lazy(() => import("@/features/activos/pages/ActivosPage"));
+const AssetsOverviewPage = lazy(() => import("@/features/activos/pages/AssetsOverviewPage"));
+const AssetsMaintenancePage = lazy(() => import("@/features/activos/pages/AssetsMaintenancePage"));
 const SensoresPage = lazy(() => import("@/features/sensores/pages/SensoresPage"));
 const SensorDetailPage = lazy(() => import("@/features/sensores/pages/SensorDetailPage"));
 const OperationLayout = lazy(() => import("@/features/operacion/components/OperationLayout"));
@@ -171,6 +174,12 @@ export default function AppRouter() {
             />
           </Route>
           <Route path="reportes" element={<ReportsCenterPage />} />
+          <Route path="activos" element={<RequireCapability permission="assets.view"><AssetsOverviewPage /></RequireCapability>} />
+          <Route path="activos/flota" element={<RequireCapability permission="assets.view"><ActivosPage typeGroup={FLEET_TYPE_GROUP} /></RequireCapability>} />
+          <Route path="activos/equipos" element={<RequireCapability permission="assets.view"><ActivosPage typeGroup={EQUIPMENT_TYPE_GROUP} /></RequireCapability>} />
+          <Route path="activos/sensores" element={<RequireCapability permission="sensors.view"><SensoresPage /></RequireCapability>} />
+          <Route path="activos/sensores/:sensorId" element={<RequireCapability permission="sensors.view"><SensorDetailPage /></RequireCapability>} />
+          <Route path="activos/mantenciones" element={<RequireCapability permission="assets.view"><AssetsMaintenancePage /></RequireCapability>} />
           <Route path="datos" element={<DataOverviewPage />} />
           <Route path="datos/evidencias" element={<RequireCapability permission="evidence.view"><EvidencePage /></RequireCapability>} />
           <Route path="datos/evidencias/:evidenceId" element={<EvidenceDetailPage />} />

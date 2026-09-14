@@ -81,8 +81,9 @@ const optionLabel = (options, value) =>
       character.toUpperCase()
     );
 
-export default function ActivosPage() {
+export default function ActivosPage({ typeGroup } = {}) {
   const { activeOrganizacionId } = useOrganizacionActiva();
+  const typeOptions = typeGroup ? ASSET_TYPE_OPTIONS.filter((option) => typeGroup.types.includes(option.value)) : ASSET_TYPE_OPTIONS;
 
   const [state, setState] = useState({
     loading: true,
@@ -109,13 +110,13 @@ export default function ActivosPage() {
     }));
 
     getAssets(activeOrganizacionId, {
-      tipo: filters.tipo,
+      tipo: typeGroup ? "" : filters.tipo,
       estado: filters.estado,
     })
       .then((rows) =>
         setState({
           loading: false,
-          rows,
+          rows: typeGroup ? rows.filter((item) => typeGroup.types.includes(item.tipo) && (!filters.tipo || item.tipo === filters.tipo)) : rows,
           error: "",
         })
       )
@@ -130,6 +131,7 @@ export default function ActivosPage() {
     activeOrganizacionId,
     filters.estado,
     filters.tipo,
+    typeGroup,
   ]);
 
   useEffect(() => {
@@ -205,16 +207,15 @@ export default function ActivosPage() {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-3xl">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-100">
-              Operación · Mundo físico
+              {typeGroup ? "Activos · Inventario" : "Operación · Mundo físico"}
             </p>
 
             <h1 className="mt-2 text-3xl font-black">
-              Activos operacionales
+              {typeGroup ? typeGroup.heroTitle : "Activos operacionales"}
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50/80">
-              Gestiona equipos, maquinaria, medidores e infraestructura
-              que forman parte real de tu operación.
+              {typeGroup ? typeGroup.heroDescription : "Gestiona equipos, maquinaria, medidores e infraestructura que forman parte real de tu operación."}
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -278,7 +279,7 @@ export default function ActivosPage() {
               Todos los tipos
             </option>
 
-            {ASSET_TYPE_OPTIONS.map((option) => (
+            {typeOptions.map((option) => (
               <option
                 key={option.value}
                 value={option.value}
@@ -604,7 +605,7 @@ export default function ActivosPage() {
 
             <Select
               label="Tipo"
-              value={dialog?.tipo || "vehiculo"}
+              value={dialog?.tipo || typeGroup?.types[0] || "vehiculo"}
               onChange={(e) =>
                 setDialog({
                   ...dialog,
@@ -612,7 +613,7 @@ export default function ActivosPage() {
                 })
               }
             >
-              {ASSET_TYPE_OPTIONS.map((option) => (
+              {typeOptions.map((option) => (
                 <option
                   key={option.value}
                   value={option.value}

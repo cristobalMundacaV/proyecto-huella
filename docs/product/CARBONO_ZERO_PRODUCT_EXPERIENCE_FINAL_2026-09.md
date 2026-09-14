@@ -332,3 +332,67 @@ Confirmado en pantalla contra "Constructora Andina SpA" (usuario temporal, desac
 ### Pendientes reales (agregado)
 
 - El punto de estado de cada flujo dentro de "Operación" sigue reflejando sólo aplicabilidad (aplica/pendiente), no el estado de datos real por flujo — mismo pendiente documentado en la iteración anterior, ahora aplicado al ítem unificado en vez del subnav separado.
+
+## ORGANIZATIONAL OPERATIONS REFINEMENT — Activos + eliminación de Control (2026-09-14)
+
+> Nota: entre el cierre anterior y esta macrofase, el sidebar de portafolio evolucionó por fuera de esta serie de fases (commits "Refinaciones"/"Mejoras dashboard organizacional") a una estructura agrupada (General/Seguimiento/Sistema) con colapso persistente. Esta sección documenta el trabajo hecho sobre ESA base, no sobre el estado descrito arriba.
+
+### Decisión de producto
+
+"Control" deja de ser un ítem de primer nivel del sidebar organizacional (portafolio). Sus dos mitades ya vivían — o pasan a vivir — en otro lugar, sin romper ninguna ruta:
+
+- **A nivel obra**: revisión profesional, problemas, cumplimiento, discrepancias, expedientes y calidad ya estaban servidos por `/obras/:id/control` (`WorkControlPage`) desde una fase anterior — no se tocó nada aquí.
+- **A nivel organizacional**: auditoría, calidad/políticas, metodologías y factores (`/gobernanza/auditoria`, `/gobernanza/calidad`, `/gobernanza/factores`) ya estaban enlazados desde dentro de Configuración (`AdministracionPage`/`SettingsNav`/`SettingsSectionPage`) — tampoco se tocó. Las rutas `/gobernanza*` originales (incluida la vista `/gobernanza` en sí) se dejaron intactas para no romper deep links; simplemente dejaron de tener una entrada directa en el sidebar.
+
+En su lugar se agrega **Activos**, la superficie que faltaba para que el portafolio represente lo que existe transversal a las obras.
+
+### Sidebar organizacional final
+
+```
+GENERAL     → Inicio
+OPERACIÓN   → Obras, Activos
+SALIDAS     → Reportes
+SISTEMA     → Configuración
+```
+
+`Activos` sigue el mismo patrón que `Operación`/`Gestión` a nivel obra: un ítem `.children` sin `path` propio (toggle de expandir/colapsar, nunca un link directo), renderizado por el mismo `GeneralNavigation` — no hay un segundo sidebar ni un mecanismo nuevo. Al expandirlo: Vista general, Flota y maquinaria, Equipos e infraestructura, Sensores y medidores, Mantenciones.
+
+### Activos — qué ya existía vs. qué se creó
+
+Antes de escribir código se inspeccionó el backend (`apps/analytics/models/assets.py`, `apps/iot/models.py`) y el frontend existentes. Ya había una base real: `ActivoOperacional` (+ `Vehiculo`/`Maquinaria`), `MantenimientoActivo`, `CondicionOperacionalActivo`, endpoints `/organizaciones/:id/activos/*` y las páginas `ActivosPage`/`SensoresPage`/`SensorDetailPage` (CRUD funcional, sin dashboard). Se reutilizó todo eso; lo nuevo fue:
+
+- `AssetsOverviewPage` (`/activos`): dashboard con `CZPageHero`, 8 `CZMetricCard` y 4 visualizaciones (Estado de la flota, Activos por obra, Activos por tipo, Próximas mantenciones), construido enteramente client-side sobre la misma respuesta de `getAssets()` — no existe (ni se creó) un endpoint de agregación en el backend.
+- `AssetsMaintenancePage` (`/activos/mantenciones`): agregación de todas las `mantenimientos[]` embebidas por activo, con tabs Próximas/Vencidas/En proceso/Historial.
+- `ActivosPage` ganó un prop opcional `typeGroup` (no rompe `/operacion/activos`, que sigue sin filtro) para servir `/activos/flota` (vehículo+maquinaria) y `/activos/equipos` (equipo+medidor+infraestructura+otro) sin duplicar las ~700 líneas de CRUD/modal existentes.
+- `/activos/sensores` y `/activos/sensores/:sensorId` reutilizan `SensoresPage`/`SensorDetailPage` sin cambios — Sensores nunca fue un módulo independiente, solo una nueva puerta de entrada.
+- `features/activos/utils/assetSelectors.js` (+ tests): toda la lógica de agregación (bucket de estado de flota, próximas/vencidas, resumen) vive aquí, pura y testeada — 12 tests nuevos.
+
+### Límite honesto del modelo de datos (no se inventó nada)
+
+`ActivoOperacional` no tiene FK a `Obra` — un activo es hoy un recurso puramente organizacional, sin concepto de asignación/reasignación a obra ni historial de eso. El dashboard lo refleja tal cual: "Asignados a obras" = 0 real, "Sin asignar" = total real, con una nota visible explicando por qué. No se creó un modelo `AsignacionActivoObra` ni ninguna migración — es el pendiente más importante para la próxima fase, documentado también en el código (`assetSelectors.js`).
+
+### RBAC
+
+Las rutas nuevas se protegen con `RequireCapability` sobre `assets.view` (Activos, Flota, Equipos, Mantenciones) y `sensors.view` (Sensores), permisos que ya existían en el backend (`apps/analytics/permissions.py`) y ya estaban precableados — sin usar — en `NAV_PERMISSIONS` de `Sidebar.jsx`. Las rutas legacy (`/operacion/activos`, `/operacion/sensores*`, la mayoría de `/gobernanza/*`) se dejaron sin tocar (seguían sin gate antes de esta fase); extenderles RBAC ahora habría sido un cambio de comportamiento no pedido.
+
+### Verificación visual
+
+Confirmado en pantalla contra "Constructora Andina SpA" (usuario temporal, activos de prueba creados y eliminados al terminar):
+- Sidebar de portafolio: exactamente Inicio/Obras/Activos/Reportes/Configuración, sin Control.
+- Activos expande mostrando los 5 hijos; "Vista general" resalta activo en `/activos`.
+- Con 0 activos: estado vacío con CTA a `/activos/flota`.
+- Con 2 activos reales (uno con mantención programada, otro `requiere_revision`): las 8 KPI cards, el bar chart de estado de flota, el donut de "por obra" (con la nota honesta) y la lista de "Próximas mantenciones" reflejan exactamente los datos creados.
+- `/activos/flota` y `/activos/equipos`: el filtro de Tipo queda restringido al grupo correspondiente.
+- `/activos/sensores` y `/activos/mantenciones`: renderizan correctamente, tabs con conteos reales.
+- Mobile (375px): hero, KPIs y acciones se apilan sin overflow horizontal.
+
+### Tests / Lint / Build
+
+131/131 tests (12 nuevos en `assetSelectors.test.js`, más ajustes en `navigation.test.js` para el portafolio sin Control), lint limpio, build limpio.
+
+### Pendientes reales
+
+- No existe modelo de asignación de activos a obra — "Activos por obra" es honesto pero vacío por diseño.
+- No existe endpoint de agregación para mantenciones a nivel organización — `AssetsOverviewPage`/`AssetsMaintenancePage` calculan todo client-side sobre `getAssets()`; con muchos activos esto puede volverse pesado y eventualmente conviene un endpoint dedicado.
+- Detalle de activo individual (sección 7 del brief) no se construyó — el backend no expone historial de asignaciones, horas/km/uso, consumo ni emisiones atribuibles por activo; se dejó fuera en vez de construir una página con secciones mayormente vacías.
+- Los enlaces dispersos a `/operacion/sensores/:id` dentro de los flujos de obra (WastePage, TransportPage, SectorDomainPage, MaterialsPage, DomainSensorsPanel) no se migraron a `/activos/sensores/:id` — deliberado, para no tocar código de obra no relacionado; ambas rutas sirven el mismo componente.

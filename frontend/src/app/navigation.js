@@ -1,14 +1,33 @@
-import { Activity, CheckCircle2, ClipboardCheck, Clock3, Boxes, FileBarChart2, FileCheck2, Gauge, Settings, ShieldCheck } from "lucide-react";
+import { Activity, CheckCircle2, ClipboardCheck, Clock3, Boxes, Factory, FileBarChart2, FileCheck2, Gauge, LayoutDashboard, Package, Radio, Settings, ShieldCheck, Truck, Wrench } from "lucide-react";
 
 export const NAV_ITEMS = {
   home: { id: "home", label: "Inicio", title: "Inicio", description: "Estado ejecutivo de tu portafolio ambiental.", path: "/inicio", icon: Gauge },
   primaryUnit: { id: "primaryUnit", label: "Obras", title: "Obras", description: "Gestiona las obras de tu organización.", path: "/obras", icon: Boxes },
+  assets: { id: "assets", label: "Activos", title: "Activos", description: "Flota, maquinaria, equipos y sensores de tu organización.", path: "/activos", icon: Factory },
   reports: { id: "reports", label: "Reportes", title: "Reportes", description: "Informes ambientales consolidados por obra y período.", path: "/reportes", icon: FileBarChart2 },
   control: { id: "control", label: "Control", title: "Control", description: "Revisión, gobernanza, calidad y trazabilidad ambiental.", path: "/gobernanza", icon: ShieldCheck },
   administration: { id: "administration", label: "Configuración", title: "Configuración", description: "Organización, usuarios y parámetros de funcionamiento.", path: "/administracion", icon: Settings },
 };
 
+// Activos (portfolio-only — assets have no obra assignment in the data
+// model today, see docs/product) mirrors the obra-scope Operación/Gestión
+// pattern: a `.children`-bearing item with NO path of its own, so it is a
+// pure expand/collapse toggle handled by the SAME GeneralNavigation code —
+// never a second sidebar or a new interaction model.
+export const ASSETS_SUBNAV = [
+  { id: "assetsOverview", label: "Vista general", path: "/activos", icon: LayoutDashboard },
+  { id: "assetsFleet", label: "Flota y maquinaria", path: "/activos/flota", icon: Truck },
+  { id: "assetsEquipment", label: "Equipos e infraestructura", path: "/activos/equipos", icon: Package },
+  { id: "assetsSensors", label: "Sensores y medidores", path: "/activos/sensores", icon: Radio },
+  { id: "assetsMaintenance", label: "Mantenciones", path: "/activos/mantenciones", icon: Wrench },
+];
+
 const PAGE_CONTEXTS = [
+  ["/activos", "Activos de la organización", "Flota, maquinaria, equipos y sensores que participan en tu operación."],
+  ["/activos/flota", "Flota y maquinaria", "Vehículos y maquinaria registrados en tu organización."],
+  ["/activos/equipos", "Equipos e infraestructura", "Equipos, medidores e infraestructura operacional."],
+  ["/activos/sensores", "Sensores y medidores", "Dispositivos y seguimiento de mediciones de tus activos."],
+  ["/activos/mantenciones", "Mantenciones", "Mantenciones preventivas, correctivas, próximas y vencidas de tus activos."],
   ["/reportes", "Centro de reportes", "Informes ambientales consolidados por obra y período de preparación."],
   ["/obras/:obraId/resumen", "Resumen de obra", "Estado ejecutivo ambiental de esta obra."],
   ["/obras/:obraId/operacion/energia", "Energía", "Consumos y registros energéticos de la obra."],
@@ -63,7 +82,11 @@ export const OBRA_OPERATION_FLOWS = [
  * shifts with `scope` — `{ type: "portfolio" }` or `{ type: "obra",
  * obraId }` — instead of a second, obra-specific menu bolted on below it.
  *
- * Portfolio: Inicio, Obras, Reportes, Control, Configuración.
+ * Portfolio: Inicio, Obras, Activos (expandable: vista general/flota/
+ * equipos/sensores/mantenciones), Reportes, Configuración — "Control" is
+ * not a portfolio-level destination: its obra-relevant parts already live
+ * at `/obras/:id/control`, and its organizational parts (auditoría,
+ * factores, calidad) are reachable from Configuración.
  * Obra: Resumen, Operación (expandable: 8 flujos),
  * Gestión (expandable: evidencias/problemas/cumplimiento/historial),
  * Reportes, Control, Configuración — "Obras" drops out (the context
@@ -92,11 +115,14 @@ export function getUnifiedNavigation({ preset = {}, scope } = {}) {
       works.title = preset.unitPluralLabel;
       works.description = `Gestiona las ${preset.unitPluralLabel.toLowerCase()} de tu organización.`;
     }
+    const { path: _assetsOwnPath, ...assetsBase } = NAV_ITEMS.assets;
+    const assets = { ...assetsBase, children: ASSETS_SUBNAV };
     return {
       home,
       groups: [
-        { id: "general", label: "General", items: [home, works] },
-        { id: "tracking", label: "Seguimiento", items: [reports, control] },
+        { id: "general", label: "General", items: [home] },
+        { id: "operation", label: "Operación", items: [works, assets] },
+        { id: "outputs", label: "Salidas", items: [reports] },
         { id: "system", label: "Sistema", items: [administration] },
       ],
     };
