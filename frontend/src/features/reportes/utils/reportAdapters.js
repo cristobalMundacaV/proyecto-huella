@@ -1,4 +1,7 @@
+import { getFlowChartColor } from "@/shared/config/environmentalDomains";
+
 const CATEGORY_ORDER = ["Materiales", "Energía", "Maquinaria", "Residuos", "Transporte", "Agua", "Otros"];
+const CATEGORY_DOMAIN_KEYS = { Materiales: "materiales", Energía: "energia", Maquinaria: "maquinaria", Residuos: "residuos", Transporte: "transporte", Agua: "agua", Otros: "otros" };
 
 const CATEGORY_ALIASES = {
   materiales: "Materiales", material: "Materiales", energia: "Energía", energía: "Energía",
@@ -69,7 +72,6 @@ export function buildEnvironmentalReport(impacts = [], filters = {}) {
   };
 }
 
-export const REPORT_CATEGORY_COLORS = {
-  Materiales: "#ea580c", Energía: "#7c3aed", Maquinaria: "#65a30d", Residuos: "#059669",
-  Transporte: "#2563eb", Agua: "#0891b2", Otros: "#475569",
-};
+export const REPORT_CATEGORY_COLORS = Object.fromEntries(
+  CATEGORY_ORDER.map((name) => [name, getFlowChartColor(CATEGORY_DOMAIN_KEYS[name] || name)]),
+);
