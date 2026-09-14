@@ -10,7 +10,6 @@ import {
     ArrowRight,
     CheckCircle2,
     FileCheck2,
-    Lightbulb,
     ShieldAlert,
     Plus,
 } from "lucide-react";
@@ -20,6 +19,10 @@ import { hasIncompleteConfiguration } from "@/app/onboardingGate";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
 import { getActivePreset } from "@/presets/registry";
 import {
+    CZAlertBanner,
+    CZInsightCard,
+    CZMetricCard,
+    CZPageHero,
     EmptyState,
     ErrorState,
     PageHeader,
@@ -36,12 +39,6 @@ import { getInicioOverview } from "../services/inicioApi";
 import { getOrganizationDashboard } from "@/features/organizaciones/services/organizationDashboardApi";
 import { mapPortfolioDashboard } from "../utils/portfolioSelectors";
 
-const INSIGHT_TONE = { alta: "danger", media: "warning", baja: "info" };
-const INSIGHT_CARD_TONE = {
-    alta: "border-rose-200 bg-gradient-to-br from-rose-50 via-white to-rose-50/45 shadow-[0_8px_24px_rgba(190,18,60,0.08)]",
-    media: "border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50/45 shadow-[0_8px_24px_rgba(180,83,9,0.08)]",
-    baja: "border-blue-200 bg-gradient-to-br from-blue-50 via-white to-blue-50/45 shadow-[0_8px_24px_rgba(29,78,216,0.07)]",
-};
 const ESTADO_TONE = { estable: "success", atencion: "warning", critica: "danger", periodo_incompleto: "warning", lista_para_reporte: "success" };
 
 const isOpen = problem =>
@@ -298,7 +295,7 @@ export default function InicioPage() {
             : "Todas al día";
     return (
         <main className="space-y-3 pb-4">
-            <section className="rounded-[28px] border border-emerald-700/20 bg-[radial-gradient(circle_at_72%_25%,rgba(110,231,183,0.18),transparent_30%),linear-gradient(118deg,#064e3b_0%,#066657_54%,#0f766e_100%)] p-6 text-white shadow-[0_18px_45px_rgba(6,78,59,0.18)] lg:p-7">
+            <CZPageHero>
                 <div className="flex flex-col gap-6 lg:min-h-[205px] lg:flex-row lg:items-center lg:justify-between">
                 <div className="max-w-3xl">
                     <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-100">
@@ -363,32 +360,32 @@ export default function InicioPage() {
                     </p>
                 </div>
             </div>
-            </section>
+            </CZPageHero>
 
             {hasIncompleteConfiguration(activeOrganizacion) && (
-                <div className="flex min-h-14 flex-wrap items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
-                    <AlertTriangle aria-hidden="true" className="shrink-0" size={18} />
-                    <div className="min-w-0 flex-1 leading-5">
-                        <b>Configuración incompleta.</b> Algunos flujos ambientales todavía no están habilitados. Completa la configuración para acceder a todas las capacidades.
-                    </div>
-                    <Link className="shrink-0 rounded-lg bg-amber-800 px-3 py-1.5 text-xs font-black text-white" to="/onboarding">
-                        Completar configuración
-                    </Link>
-                </div>
+                <CZAlertBanner
+                    action={
+                        <Link className="shrink-0 rounded-lg bg-amber-800 px-3 py-1.5 text-xs font-black text-white" to="/onboarding">
+                            Completar configuración
+                        </Link>
+                    }
+                >
+                    <b>Configuración incompleta.</b> Algunos flujos ambientales todavía no están habilitados. Completa la configuración para acceder a todas las capacidades.
+                </CZAlertBanner>
             )}
 
             <section className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" aria-label="Indicadores ejecutivos del portafolio">
-                <PortfolioKpi icon={ShieldAlert} label="Huella consolidada" value={portfolio.total} unit="tCO2e" helper="Impacto total del portafolio" tone="blue" />
-                <PortfolioKpi icon={AlertTriangle} label={`${preset.unitPluralLabel} con atención`} value={attentionWorks.length} helper={attentionHelper} tone={attentionWorks.length ? "amber" : "emerald"} />
-                <PortfolioKpi icon={AlertTriangle} label="Problemas abiertos" value={data.resourceErrors.problems ? null : openProblems.length} helper={data.resourceErrors.problems ? "Información no disponible" : openProblems.length ? "Requieren seguimiento" : "Sin problemas abiertos"} tone={openProblems.length ? "rose" : "emerald"} />
-                <PortfolioKpi icon={FileCheck2} label="Evidencias pendientes" value={data.resourceErrors.evidence ? null : pendingEvidence.length} helper={data.resourceErrors.evidence ? "Información no disponible" : pendingEvidence.length ? "Requieren revisión" : "Sin pendientes documentales"} tone={pendingEvidence.length ? "amber" : "emerald"} />
-                <PortfolioKpi icon={CheckCircle2} label="Readiness promedio" value={portfolio.readiness} unit="%" helper={`${readyPeriods} de ${data.works.length} períodos listos`} tone="emerald" progress={portfolio.readiness} />
+                <CZMetricCard icon={ShieldAlert} label="Huella consolidada" value={portfolio.total} unit="tCO2e" supportingText="Impacto total del portafolio" tone="blue" />
+                <CZMetricCard icon={AlertTriangle} label={`${preset.unitPluralLabel} con atención`} value={attentionWorks.length} supportingText={attentionHelper} tone={attentionWorks.length ? "amber" : "emerald"} />
+                <CZMetricCard icon={AlertTriangle} label="Problemas abiertos" value={data.resourceErrors.problems ? null : openProblems.length} supportingText={data.resourceErrors.problems ? "Información no disponible" : openProblems.length ? "Requieren seguimiento" : "Sin problemas abiertos"} tone={openProblems.length ? "rose" : "emerald"} />
+                <CZMetricCard icon={FileCheck2} label="Evidencias pendientes" value={data.resourceErrors.evidence ? null : pendingEvidence.length} supportingText={data.resourceErrors.evidence ? "Información no disponible" : pendingEvidence.length ? "Requieren revisión" : "Sin pendientes documentales"} tone={pendingEvidence.length ? "amber" : "emerald"} />
+                <CZMetricCard icon={CheckCircle2} label="Readiness promedio" value={portfolio.readiness} unit="%" supportingText={`${readyPeriods} de ${data.works.length} períodos listos`} tone="emerald" progress={portfolio.readiness} />
             </section>
 
             {data.portfolioUnavailable && (
-                <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+                <CZAlertBanner tone="info">
                     Las métricas ambientales consolidadas (huella, alcance, riesgo, readiness) no están disponibles en este momento. El resto del resumen sigue siendo real.
-                </p>
+                </CZAlertBanner>
             )}
 
             <section className="grid gap-3 xl:grid-cols-2">
@@ -403,16 +400,7 @@ export default function InicioPage() {
                     <SectionHeader title="Insights y recomendaciones IA" description="Prioridades del portafolio según impacto, evidencia y riesgo ambiental." />
                     <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
                         {portfolio.insights.map((insight) => (
-                            <article key={insight.code} className={`relative h-full min-h-[145px] rounded-[18px] border p-4 pr-20 ${INSIGHT_CARD_TONE[insight.priority] || "border-slate-200 bg-slate-50"}`}>
-                                <StatusBadge className="absolute right-4 top-4 capitalize" tone={INSIGHT_TONE[insight.priority] || "neutral"}>{insight.priority}</StatusBadge>
-                                <div className="flex items-start gap-3">
-                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-700"><Lightbulb aria-hidden="true" size={17} /></span>
-                                    <div className="min-w-0 pt-0.5">
-                                        <h3 className="font-black leading-5 text-[var(--text-primary)]">{insight.title}</h3>
-                                        <p className="mt-3 text-sm font-medium leading-5 text-slate-700">{insight.description}</p>
-                                    </div>
-                                </div>
-                            </article>
+                            <CZInsightCard key={insight.code} priority={insight.priority} title={insight.title} description={insight.description} />
                         ))}
                     </div>
                 </section>
@@ -577,41 +565,4 @@ function buildPriorities({
 
 function PortfolioDonut({ data, total }) {
     return <div className="grid gap-3 sm:grid-cols-[200px_1fr] sm:items-center"><EnvironmentalDonutChart data={data} height={205} innerRadius={66} outerRadius={94} centerLabel="Total" centerValue={formatNumber(total)} centerUnit="tCO2e" valueFormatter={(value) => `${formatNumber(value)} tCO2e`} /><DonutLegend data={data} valueFormatter={(value) => `${formatNumber(value)} tCO2e`} /></div>;
-}
-
-function PortfolioKpi({ icon: Icon, label, value, unit, helper, tone = "neutral", progress }) {
-    const tones = {
-        neutral: "border-slate-200 bg-white text-slate-600",
-        blue: "border-blue-200 bg-blue-50/45 text-blue-700",
-        emerald: "border-emerald-200 bg-emerald-50/55 text-emerald-700",
-        amber: "border-amber-200 bg-amber-50/55 text-amber-700",
-        rose: "border-rose-200 bg-rose-50/55 text-rose-700",
-    };
-    const missing = value === null || value === undefined;
-    const normalizedProgress = progress === null || progress === undefined
-        ? null
-        : Math.min(100, Math.max(0, Number(progress) || 0));
-
-    return (
-        <article className={`flex min-h-[116px] items-center rounded-[18px] border p-3.5 shadow-[0_6px_18px_rgba(15,23,42,0.04)] ${tones[tone] || tones.neutral}`}>
-            <div className="flex w-full items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-current/10 bg-white/80 shadow-sm">
-                    <Icon aria-hidden="true" size={19} />
-                </span>
-                <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-black text-slate-600">{label}</p>
-                    <p className="mt-0.5 text-2xl font-black leading-none text-slate-950">
-                        {missing ? "—" : typeof value === "number" ? formatNumber(value) : value}
-                        {unit && !missing && <span className="ml-1 text-xs font-black text-slate-600">{unit}</span>}
-                    </p>
-                    {normalizedProgress !== null && (
-                        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200/90" aria-hidden="true">
-                            <div className="h-full rounded-full bg-current transition-[width]" style={{ width: `${normalizedProgress}%` }} />
-                        </div>
-                    )}
-                    <p className="mt-2 truncate text-xs text-slate-500">{helper}</p>
-                </div>
-            </div>
-        </article>
-    );
 }
