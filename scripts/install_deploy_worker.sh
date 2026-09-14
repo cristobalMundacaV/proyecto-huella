@@ -13,6 +13,7 @@ APP_USER="${APP_USER:-${SUDO_USER:-ubuntu}}"
 APP_DIR="${APP_DIR:-$REPO_DIR}"
 BRANCH="${BRANCH:-main}"
 MAX_ROUNDS="${MAX_ROUNDS:-4}"
+RETRY_DELAY_SECONDS="${RETRY_DELAY_SECONDS:-15}"
 
 id "$APP_USER" >/dev/null 2>&1 || fail "No existe el usuario $APP_USER"
 [[ "$APP_USER" != "root" ]] || fail "APP_USER debe ser una cuenta de aplicación no root"
@@ -20,7 +21,7 @@ id "$APP_USER" >/dev/null 2>&1 || fail "No existe el usuario $APP_USER"
 [[ -f "$APP_DIR/deploy.sh" ]] || fail "No existe $APP_DIR/deploy.sh"
 [[ "$(stat -c '%U' "$APP_DIR")" == "$APP_USER" ]] || fail "APP_DIR debe pertenecer a $APP_USER"
 
-for command in docker git install runuser stat systemctl systemd-analyze; do
+for command in docker git install runuser stat systemctl systemd-analyze flock fuser; do
   command -v "$command" >/dev/null 2>&1 || fail "Falta el comando requerido: $command"
 done
 runuser -u "$APP_USER" -- git -C "$APP_DIR" rev-parse --is-inside-work-tree >/dev/null \
@@ -30,7 +31,7 @@ runuser -u "$APP_USER" -- git -C "$APP_DIR" remote get-url origin >/dev/null \
 runuser -u "$APP_USER" -- docker info >/dev/null 2>&1 \
   || fail "$APP_USER no puede acceder al daemon Docker"
 
-for value in "$APP_DIR" "$APP_USER" "$BRANCH" "$MAX_ROUNDS"; do
+for value in "$APP_DIR" "$APP_USER" "$BRANCH" "$MAX_ROUNDS" "$RETRY_DELAY_SECONDS"; do
   [[ "$value" != *$'\n'* ]] || fail "La configuración contiene saltos de línea"
 done
 
@@ -46,6 +47,7 @@ umask 022
   printf 'APP_USER=%q\n' "$APP_USER"
   printf 'BRANCH=%q\n' "$BRANCH"
   printf 'MAX_ROUNDS=%q\n' "$MAX_ROUNDS"
+  printf 'RETRY_DELAY_SECONDS=%q\n' "$RETRY_DELAY_SECONDS"
 } > /etc/default/carbonozero-deploy
 chmod 0644 /etc/default/carbonozero-deploy
 
@@ -54,6 +56,7 @@ systemd-analyze verify \
   /etc/systemd/system/carbonozero-deploy-worker.timer
 systemctl daemon-reload
 systemctl enable --now carbonozero-deploy-worker.timer
+systemctl start --no-block carbonozero-deploy-worker.service
 
 printf '\nINFRA-DEPLOY-01 instalado.\n'
 printf 'Timer:   systemctl status carbonozero-deploy-worker.timer\n'

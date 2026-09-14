@@ -25,7 +25,7 @@ on_error() {
 }
 trap 'on_error $LINENO' ERR
 
-for command in git docker npm rsync curl; do
+for command in git docker npm rsync curl flock fuser sha256sum awk; do
   command -v "$command" >/dev/null 2>&1 || fail "Falta el comando requerido: $command"
 done
 
@@ -36,9 +36,29 @@ docker compose version >/dev/null 2>&1 || fail "Docker Compose no está disponib
 
 cd "$APP_DIR"
 
+DEPLOY_LOCK_FILE="${DEPLOY_LOCK_FILE:-$APP_DIR/.git/carbonozero-deploy.lock}"
+if [[ "${DEPLOY_LOCK_HELD:-0}" != "1" ]]; then
+  exec 8>"$DEPLOY_LOCK_FILE"
+  if ! flock -n 8; then
+    fail "Ya existe otro despliegue activo. Sigue sus logs en lugar de iniciar uno en paralelo."
+  fi
+fi
+
+clear_stale_git_lock() {
+  local index_lock="$APP_DIR/.git/index.lock"
+  [[ -e "$index_lock" ]] || return 0
+  if fuser "$index_lock" >/dev/null 2>&1; then
+    fail "Existe una operación Git activa usando $index_lock"
+  fi
+  log "Retirando lock Git huérfano: $index_lock"
+  rm -f -- "$index_lock"
+}
+
 if [[ "$SKIP_GIT_UPDATE" != "1" ]]; then
   log "Sincronizando origin/$BRANCH"
+  clear_stale_git_lock
   git fetch origin "$BRANCH"
+  clear_stale_git_lock
   git reset --hard "origin/$BRANCH"
 fi
 
@@ -47,8 +67,8 @@ log "Desplegando commit $DEPLOY_SHA"
 
 log "Construyendo y levantando servicios Docker"
 
-docker compose down --remove-orphans || true
-docker container prune -f >/dev/null 2>&1 || true
+# Reconcilia servicios y elimina huérfanos sin detener previamente la base de
+# datos ni provocar una ventana de caída innecesaria.
 docker compose up -d --build --remove-orphans
 
 log "Esperando al backend"
@@ -70,7 +90,17 @@ log "Construyendo frontend"
 cd "$FRONTEND_DIR"
 rm -rf dist node_modules/.vite
 if [[ -f package-lock.json ]]; then
-  npm ci
+  dependency_fingerprint="$(sha256sum package-lock.json | awk '{print $1}')"
+  installed_fingerprint=""
+  [[ -f node_modules/.carbonozero-lock.sha256 ]] \
+    && installed_fingerprint="$(tr -d '[:space:]' < node_modules/.carbonozero-lock.sha256)"
+  if [[ ! -d node_modules || "$dependency_fingerprint" != "$installed_fingerprint" ]]; then
+    log "Instalando dependencias frontend (package-lock actualizado)"
+    npm ci
+    printf '%s\n' "$dependency_fingerprint" > node_modules/.carbonozero-lock.sha256
+  else
+    log "Dependencias frontend sin cambios; reutilizando node_modules"
+  fi
 else
   npm install
 fi

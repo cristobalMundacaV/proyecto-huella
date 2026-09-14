@@ -9,6 +9,8 @@ EnvironmentFile=/etc/default/carbonozero-deploy
 ExecStart=/usr/local/sbin/carbonozero-deploy-worker
 TimeoutStartSec=2h
 Nice=10
+Restart=on-failure
+RestartSec=15s
 
 [Install]
 WantedBy=multi-user.target

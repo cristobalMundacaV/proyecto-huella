@@ -7,7 +7,7 @@ otro daemon residente:
 
 ```text
 origin/main
-    ↓ cada 2 minutos
+    ↓ cada 15 segundos
 systemd timer
     ↓
 worker oneshot + flock
@@ -63,7 +63,8 @@ permisos existentes no son suficientes, el deploy falla y `deployed.sha` no camb
 
 ## Reconciliación y concurrencia
 
-El timer usa `OnBootSec=2min`, `OnUnitInactiveSec=2min` y `Persistent=true`. El worker
+El timer usa `OnBootSec=15s`, `OnUnitInactiveSec=15s`, `AccuracySec=1s` y
+`Persistent=true`. El worker
 adquiere `flock` sin espera; si ya hay otro deploy registra “Ya existe un despliegue
 activo” y termina correctamente.
 
@@ -74,7 +75,7 @@ es deliberadamente descartable y no debe contener cambios locales.
 El worker invoca:
 
 ```bash
-SKIP_GIT_UPDATE=1 bash "$APP_DIR/deploy.sh"
+DEPLOY_LOCK_HELD=1 SKIP_GIT_UPDATE=1 bash "$APP_DIR/deploy.sh"
 ```
 
 Así `deploy.sh` conserva una única implementación de build, migraciones, frontend,
@@ -84,8 +85,19 @@ reload y endpoints `/` y `/app` terminen correctamente se reemplaza atómicament
 `deployed.sha`.
 
 Tras cada despliegue se consulta otra vez `origin/main`. Si hubo un push durante el
-build, se ejecuta otra ronda. `MAX_ROUNDS=4` evita un loop infinito; si todavía quedan
-cambios, el siguiente timer continúa desde el último SHA exitoso.
+build, se ejecuta otra ronda. `MAX_ROUNDS=4` evita un loop infinito. Los fallos se
+reintentan cada 15 segundos y, si se agotan las rondas, systemd reactiva el worker sin
+marcar el SHA fallido como desplegado.
+
+Antes de operar sobre Git, el worker revisa `.git/index.lock`: si un proceso mantiene
+el archivo abierto, se detiene sin interferir; si nadie lo usa, lo reconoce como lock
+huérfano y lo retira automáticamente. El mismo criterio se aplica al despliegue manual.
+Un segundo `flock` compartido cubre checkout, reset y deploy completo para impedir
+carreras entre el timer y una ejecución manual.
+
+Docker se reconcilia con `docker compose up -d --build --remove-orphans`, sin ejecutar
+`compose down`, de modo que elimina servicios huérfanos sin bajar primero la base de
+datos. El frontend reutiliza `node_modules` mientras no cambie `package-lock.json`.
 
 ## Operación
 
@@ -127,7 +139,7 @@ bash deploy.sh
 5. Observar `journalctl -u carbonozero-deploy-worker.service -f`.
 6. Confirmar `/var/lib/carbonozero-deploy/deployed.sha`.
 7. Hacer un push pequeño y seguro a `main`.
-8. Esperar hasta dos minutos.
+8. Esperar aproximadamente 15 segundos para que el worker detecte el cambio.
 9. Confirmar el nuevo SHA, healthchecks y estado de contenedores.
 
 ## Rollback manual
@@ -150,8 +162,9 @@ volver completamente al binario anterior y requiere un plan de datos propio.
 
 - **No despliega:** revisar timer, `journalctl`, conectividad de `origin` y
   `/etc/default/carbonozero-deploy`.
-- **Lock ocupado:** comprobar el worker activo; no borrar el lock mientras exista un
-  despliegue. `flock` libera el bloqueo cuando termina el proceso.
+- **Lock ocupado:** comprobar el worker activo. Los locks Git huérfanos se recuperan
+  automáticamente; un lock realmente abierto nunca se elimina. `flock` libera el
+  bloqueo de despliegue cuando termina el proceso.
 - **Docker denegado:** revisar membresía del usuario de aplicación en el grupo Docker.
 - **Nginx/sudo solicita contraseña:** configurar únicamente permisos no interactivos y
   acotados a las operaciones requeridas; no usar `NOPASSWD: ALL`.
@@ -180,9 +193,9 @@ ningún workflow de GitHub Actions ni webhook.
 - No existe `scripts/backup_db.sh` ni mecanismo equivalente. No se improvisó una
   política de backups en este alcance. Antes de migraciones sensibles se requiere
   definir almacenamiento, retención, cifrado y restauración verificada.
-- `npm ci` y `docker compose up --build` siguen siendo los principales consumidores de
-  memoria. `flock`, ausencia de Jenkins, eliminación de builds duplicados y `Nice=10`
-  reducen presión sin imponer límites arbitrarios de Node.
+- `docker compose up --build` sigue siendo el principal consumidor de recursos. La
+  instalación `npm ci` solo se repite cuando cambia el lockfile; `flock`, ausencia de
+  Jenkins y `Nice=10` reducen presión sin imponer límites arbitrarios de Node.
 - El primer alta debe validarse una vez en el VPS porque systemd, permisos Docker,
   credenciales Git, sudo mínimo, Nginx y endpoints públicos no pueden certificarse desde
   Windows local.

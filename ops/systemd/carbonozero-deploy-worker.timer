@@ -1,9 +1,10 @@
 [Unit]
-Description=Reconcile Carbono Zero with origin/main every two minutes
+Description=Reconcile Carbono Zero with origin/main in near real time
 
 [Timer]
-OnBootSec=2min
-OnUnitInactiveSec=2min
+OnBootSec=15s
+OnUnitInactiveSec=15s
+AccuracySec=1s
 Persistent=true
 Unit=carbonozero-deploy-worker.service
 
