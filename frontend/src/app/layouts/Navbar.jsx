@@ -116,16 +116,16 @@ export default function Navbar({
             <Building2 aria-hidden="true" size={16} />
           </span>
           <label className="min-w-0" htmlFor="navbar-active-organization">
-            <span className="block text-[9px] font-extrabold uppercase tracking-[0.14em] text-slate-500">OrganizaciÃ³n</span>
+            <span className="block text-[9px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Organización</span>
             <select
               id="navbar-active-organization"
-              aria-label="OrganizaciÃ³n activa"
+              aria-label="Organización activa"
               className="block max-w-52 cursor-pointer truncate border-0 bg-transparent p-0 pr-1 text-xs font-extrabold text-slate-800 outline-none"
               disabled={loadingOrganizaciones}
               onChange={handleOrganizationChange}
               value={activeOrganizacionId || ""}
             >
-              <option value="">Selecciona una organizaciÃ³n</option>
+              <option value="">Selecciona una organización</option>
               {organizaciones.map((organization) => (
                 <option key={organization.organizacion_id} value={organization.organizacion_id}>
                   {organization.nombre}

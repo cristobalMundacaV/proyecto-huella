@@ -554,9 +554,9 @@ function GeneralNavigation({
     return (
         <nav
             aria-label="Navegación principal"
-            className="min-h-0 flex-1 space-y-5 overflow-y-auto px-1 pb-3"
+            className="min-h-0 flex-1 space-y-2 overflow-y-auto px-1 pb-3"
         >
-            <p className="px-3 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-500">NavegaciÃ³n</p>
+            <p className="px-3 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-500">Navegación</p>
             <NavItem
                 exact
                 item={
