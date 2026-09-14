@@ -1,4 +1,5 @@
 import {
+  Building2,
   ChevronDown,
   LogOut,
   Menu,
@@ -17,7 +18,7 @@ import {
 import { getPageContext } from "@/app/navigation";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
-import { getActivePreset } from "@/presets/registry";
+import { getActivePreset, getPresetLabel } from "@/presets/registry";
 import { IconButton } from "@/shared/ui/Button";
 
 export default function Navbar({
@@ -27,6 +28,11 @@ export default function Navbar({
 
   const {
     activeOrganizacion,
+    activeOrganizacionId,
+    clearActiveOrganizacion,
+    loadingOrganizaciones,
+    organizaciones,
+    setActiveOrganizacion,
   } = useOrganizacionActiva();
 
   const { pathname } = useLocation();
@@ -56,6 +62,15 @@ export default function Navbar({
     navigate("/login", {
       replace: true,
     });
+  };
+
+  const handleOrganizationChange = (event) => {
+    const selected = organizaciones.find(
+      (organization) => String(organization.organizacion_id) === event.target.value,
+    );
+    if (selected) setActiveOrganizacion(selected);
+    else clearActiveOrganizacion();
+    navigate("/inicio");
   };
 
   return (
@@ -96,7 +111,32 @@ export default function Navbar({
           </p>
         </div>
 
-        <div className="relative ml-auto">
+        <div className="ml-auto hidden min-w-0 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3 py-2 shadow-sm transition hover:border-emerald-700/20 lg:flex">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+            <Building2 aria-hidden="true" size={16} />
+          </span>
+          <label className="min-w-0" htmlFor="navbar-active-organization">
+            <span className="block text-[9px] font-extrabold uppercase tracking-[0.14em] text-slate-500">OrganizaciÃ³n</span>
+            <select
+              id="navbar-active-organization"
+              aria-label="OrganizaciÃ³n activa"
+              className="block max-w-52 cursor-pointer truncate border-0 bg-transparent p-0 pr-1 text-xs font-extrabold text-slate-800 outline-none"
+              disabled={loadingOrganizaciones}
+              onChange={handleOrganizationChange}
+              value={activeOrganizacionId || ""}
+            >
+              <option value="">Selecciona una organizaciÃ³n</option>
+              {organizaciones.map((organization) => (
+                <option key={organization.organizacion_id} value={organization.organizacion_id}>
+                  {organization.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="hidden text-[10px] text-slate-400 xl:inline">{getPresetLabel(activeOrganizacion?.preset || "construccion")}</span>
+        </div>
+
+        <div className="relative">
           <button
             type="button"
             onClick={() =>

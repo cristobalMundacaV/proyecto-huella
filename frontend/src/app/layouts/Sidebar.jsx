@@ -4,6 +4,7 @@ import {
     Building2,
     Check,
     ChevronDown,
+    ExternalLink,
     Loader2,
 } from "lucide-react";
 
@@ -105,10 +106,6 @@ export default function Sidebar({
     const {
         activeOrganizacion,
         activeOrganizacionId,
-        clearActiveOrganizacion,
-        organizaciones,
-        loadingOrganizaciones,
-        setActiveOrganizacion,
     } = useOrganizacionActiva();
 
 
@@ -270,33 +267,6 @@ export default function Sidebar({
     ]);
 
 
-    function switchOrganization(
-        event
-    ) {
-        const selected =
-            organizaciones.find(
-                org =>
-                    String(
-                        org.organizacion_id
-                    ) ===
-                    event.target.value
-            );
-
-        if (selected) {
-            setActiveOrganizacion(
-                selected
-            );
-
-            navigate(
-                "/inicio"
-            );
-        } else {
-            clearActiveOrganizacion();
-        }
-
-        onNavigate?.();
-    }
-
     function returnToGeneralView() {
         exitWorkspace();
         navigate("/inicio");
@@ -307,25 +277,7 @@ export default function Sidebar({
     if (simplified) return <aside className="flex min-h-full w-full shrink-0 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar)] px-3 py-5 lg:sticky lg:top-[72px] lg:h-[calc(100vh-72px)] lg:w-64"><button type="button" onClick={returnToGeneralView} className="mb-4 flex w-full items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-left text-sm font-black text-emerald-800 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"><ArrowLeft aria-hidden="true" size={17} />Volver a vista general</button><div className="mb-6 rounded-2xl bg-emerald-50 p-4"><p className="text-xs font-black uppercase tracking-wide text-emerald-700">{activeWorkspace.area.nombre}</p><p className="mt-1 text-sm font-bold text-slate-800">{activeWorkspace.obra?.nombre || activeWorkspace.organizacion.nombre}</p></div><nav className="space-y-1"><NavLink end to="/inicio" onClick={onNavigate} className={({ isActive }) => `block rounded-xl px-3 py-2.5 text-sm font-bold ${isActive ? "bg-emerald-100 text-emerald-900" : "text-slate-700 hover:bg-slate-100"}`}>Inicio</NavLink><a href="/inicio#subir-informacion" className="block rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Subir información</a><a href="/inicio#ultimos-envios" className="block rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Documentos enviados</a><a href="/inicio#pendientes" className="block rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Pendientes</a></nav></aside>;
 
     return (
-        <aside className="flex min-h-full w-full shrink-0 flex-col border-b border-[var(--sidebar-border)] bg-[var(--sidebar)] px-3 py-4 text-[var(--text-main)] shadow-[18px_0_50px_rgba(19,34,56,0.05)] lg:sticky lg:top-[72px] lg:h-[calc(100vh-72px)] lg:w-64 lg:border-b-0 lg:border-r">
-
-            <OrganizationSelector
-                activeOrganizacionId={
-                    activeOrganizacionId
-                }
-                organizaciones={
-                    organizaciones
-                }
-                loadingOrganizaciones={
-                    loadingOrganizaciones
-                }
-                presetKey={
-                    presetKey
-                }
-                onChange={
-                    switchOrganization
-                }
-            />
+        <aside className="flex min-h-full w-full shrink-0 flex-col border-b border-[var(--sidebar-border)] bg-[var(--sidebar)] px-4 py-5 text-[var(--text-main)] shadow-[16px_0_40px_rgba(15,42,36,0.045)] lg:sticky lg:top-[72px] lg:h-[calc(100vh-72px)] lg:w-[280px] lg:border-b-0 lg:border-r">
 
             <ContextSelector
                 activeOrganizacionId={activeOrganizacionId}
@@ -374,6 +326,7 @@ function ContextSelector({
     const navigate = useNavigate();
     const { pathname } = useLocation();
     const [open, setOpen] = useState(false);
+    const showWorkPicker = false;
     const [worksState, setWorksState] = useState({ status: "loading", rows: [] });
 
     useEffect(() => {
@@ -416,35 +369,30 @@ function ContextSelector({
     }
 
     return (
-        <section className="relative mb-4 px-1">
-            <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                Contexto
-            </p>
+        <section className="relative mb-6 rounded-2xl border border-emerald-900/10 bg-white/80 p-3 shadow-[0_8px_24px_rgba(15,80,65,0.06)]">
 
             <button
-                aria-expanded={open}
-                aria-haspopup="listbox"
-                className="flex w-full items-center gap-2.5 rounded-[var(--radius-md)] border border-emerald-200 bg-white px-3 py-2.5 text-left shadow-sm transition hover:border-emerald-300 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                onClick={() => setOpen((current) => !current)}
+                className="flex w-full items-center gap-2.5 rounded-xl px-1 py-1 text-left transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                onClick={() => { navigate("/obras"); onNavigate?.(); }}
                 type="button"
             >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
                     {isObra ? <Building2 aria-hidden="true" size={16} /> : <Boxes aria-hidden="true" size={16} />}
                 </span>
 
                 <span className="min-w-0 flex-1">
-                    <span className="block text-[10px] font-black uppercase tracking-[0.1em] text-emerald-700">
-                        {isObra ? preset.unitLabel : "Portafolio"}
+                    <span className="block text-[9px] font-black uppercase tracking-[0.17em] text-emerald-700">
+                        {isObra ? "Obra activa" : "Portafolio activo"}
                     </span>
-                    <span className="block truncate text-sm font-black text-[var(--text-primary)]">
+                    <span className="mt-1 block truncate text-[13px] font-extrabold leading-5 text-[var(--text-primary)]">
                         {isObra ? (currentWork?.nombre || "Cargando…") : "Vista consolidada"}
                     </span>
                 </span>
 
-                <ChevronDown aria-hidden="true" className={`shrink-0 text-emerald-700 transition ${open ? "rotate-180" : ""}`} size={15} />
+                <ExternalLink aria-hidden="true" className="shrink-0 text-emerald-700" size={14} />
             </button>
 
-            {open && (
+            {showWorkPicker && open && (
                 <div className="absolute left-1 right-1 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl" role="listbox">
                     <button
                         aria-selected={!isObra}
@@ -507,6 +455,14 @@ function ContextSelector({
                     </button>
                 </div>
             )}
+            <button
+                className="mt-3 flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-xs font-bold text-emerald-800 transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                onClick={() => { setOpen(false); navigate("/obras"); onNavigate?.(); }}
+                type="button"
+            >
+                <ExternalLink aria-hidden="true" size={13} />
+                Ver todas las obras
+            </button>
         </section>
     );
 }
@@ -593,11 +549,14 @@ function GeneralNavigation({
     exactPaths,
     onNavigate,
 }) {
+    const { pathname } = useLocation();
+
     return (
         <nav
             aria-label="Navegación principal"
-            className="min-h-0 flex-1 space-y-3 overflow-y-auto px-1 pb-2"
+            className="min-h-0 flex-1 space-y-5 overflow-y-auto px-1 pb-3"
         >
+            <p className="px-3 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-500">NavegaciÃ³n</p>
             <NavItem
                 exact
                 item={
@@ -622,7 +581,7 @@ function GeneralNavigation({
                             </p>
                         )}
 
-                        <div className="space-y-0.5">
+                        <div className="space-y-2">
                             {group.items.map(
                                 item =>
                                     item.children ? (
@@ -649,11 +608,11 @@ function GeneralNavigation({
                                                         })
                                                     )
                                                 }
-                                                className="flex w-full items-center gap-2.5 rounded-[var(--radius-md)] px-3 py-2 text-left text-sm font-bold text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-subtle)] hover:text-[var(--text-primary)]"
+                                                className={`flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[13px] font-extrabold transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${item.children.some((child) => pathname === child.path || pathname.startsWith(`${child.path}/`)) ? "bg-emerald-50 text-emerald-900" : "text-slate-700 hover:bg-white/80 hover:text-slate-950"}`}
                                             >
                                                 <item.icon
                                                     aria-hidden="true"
-                                                    size={17}
+                                                    size={18}
                                                 />
 
                                                 <span className="min-w-0 flex-1 truncate">
@@ -663,7 +622,7 @@ function GeneralNavigation({
                                                 <ChevronDown
                                                     aria-hidden="true"
                                                     size={15}
-                                                    className={`transition ${expanded[
+                                                    className={`text-slate-400 transition ${expanded[
                                                         item.id
                                                     ]
                                                         ? "rotate-180"
@@ -675,7 +634,7 @@ function GeneralNavigation({
                                             {expanded[
                                                 item.id
                                             ] && (
-                                                    <div className="ml-5 border-l border-[var(--sidebar-border)] pl-2">
+                                                    <div className="ml-5 mt-1 space-y-1 border-l border-emerald-900/10 py-1 pl-3">
                                                         {item.children.map(
                                                             child => (
                                                                 <NavItem
@@ -750,12 +709,12 @@ function NavItem({
             className={({
                 isActive,
             }) =>
-                `flex items-center gap-2.5 rounded-[var(--radius-md)] px-3 ${compact
-                    ? "py-1.5 text-xs"
-                    : "py-2 text-sm"
+                `flex items-center gap-3 rounded-xl px-3 ${compact
+                    ? "min-h-9 py-2 text-xs"
+                    : "h-11 text-[13px]"
                 } font-bold transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${isActive
-                    ? domain ? `${domain.softBg} ${domain.text}` : "bg-[var(--sidebar-active)] text-[var(--brand-primary)]"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-subtle)] hover:text-[var(--text-primary)]"
+                    ? domain ? `${domain.softBg} ${domain.text} shadow-[inset_3px_0_0_currentColor]` : "bg-emerald-100/80 text-emerald-900 shadow-[inset_3px_0_0_#059669]"
+                    : "text-slate-600 hover:bg-white/80 hover:text-slate-950"
                 }`
             }
         >
@@ -765,7 +724,7 @@ function NavItem({
                 size={
                     compact
                         ? 15
-                        : 17
+                        : 18
                 }
             />
 
