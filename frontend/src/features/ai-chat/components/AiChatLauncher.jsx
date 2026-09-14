@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 
 import { usePermissions } from "@/features/auth/hooks/usePermissions";
@@ -7,8 +7,14 @@ import AiChatPanel from "./AiChatPanel";
 
 export default function AiChatLauncher() {
   const [open, setOpen] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
   const { can } = usePermissions();
   const { activeOrganizacionId } = useOrganizacionActiva();
+
+  useEffect(() => {
+    setConversationId(null);
+    setOpen(false);
+  }, [activeOrganizacionId]);
 
   if (!activeOrganizacionId || !can("intelligence_chat.view")) return null;
 
@@ -23,7 +29,7 @@ export default function AiChatLauncher() {
       >
         <Sparkles size={22} />
       </button>
-      {open && <AiChatPanel onClose={() => setOpen(false)} />}
+      {open && <AiChatPanel conversationId={conversationId} onConversationReady={setConversationId} onClose={() => setOpen(false)} />}
     </>
   );
 }

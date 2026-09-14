@@ -6,7 +6,7 @@ import remarkGfm from "remark-gfm";
 import { Button } from "@/shared/ui/Button";
 import { humanizeApiError } from "@/shared/utils/apiErrors";
 import { useOrganizacionActiva } from "@/features/organizaciones/context/OrganizacionActivaContext";
-import { createConversation, getConversation, listConversations, sendMessage } from "../services/aiChatApi";
+import { createConversation, getConversation, sendMessage } from "../services/aiChatApi";
 
 const SUGGESTED_QUESTIONS = [
   "¿Cuál es la obra con mayor impacto ambiental?",
@@ -111,7 +111,7 @@ function TypingIndicator() {
   );
 }
 
-export default function AiChatPanel({ onClose }) {
+export default function AiChatPanel({ conversationId, onConversationReady, onClose }) {
   const { activeOrganizacionId } = useOrganizacionActiva();
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -127,16 +127,16 @@ export default function AiChatPanel({ onClose }) {
     if (!activeOrganizacionId) return undefined;
     setLoadingConversation(true);
     setError(null);
-    listConversations(activeOrganizacionId)
-      .then((existing) =>
-        existing?.length
-          ? getConversation(activeOrganizacionId, existing[0].id)
-          : createConversation(activeOrganizacionId),
-      )
+    const loadConversation = conversationId
+      ? getConversation(activeOrganizacionId, conversationId)
+          .catch(() => createConversation(activeOrganizacionId))
+      : createConversation(activeOrganizacionId);
+    loadConversation
       .then((data) => {
         if (cancelled) return;
         setConversation(data);
         setMessages(data.messages || []);
+        onConversationReady?.(data.id);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -146,7 +146,7 @@ export default function AiChatPanel({ onClose }) {
     return () => {
       cancelled = true;
     };
-  }, [activeOrganizacionId]);
+  }, [activeOrganizacionId, conversationId, onConversationReady]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });

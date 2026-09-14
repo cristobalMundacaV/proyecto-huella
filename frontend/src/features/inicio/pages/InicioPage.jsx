@@ -22,20 +22,16 @@ import { getActivePreset } from "@/presets/registry";
 import {
     EmptyState,
     ErrorState,
-    KpiCard,
     PageHeader,
     SectionHeader,
     StatusBadge,
-    Timeline,
-    TimelineItem,
 } from "@/shared/ui";
-import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
+import { formatNumber } from "@/shared/utils/formatters";
 import ChartCard from "@/shared/charts/ChartCard";
 import EnvironmentalBarChart from "@/shared/charts/EnvironmentalBarChart";
 import EnvironmentalDonutChart, { DonutLegend } from "@/shared/charts/EnvironmentalDonutChart";
 
 import AttentionList from "../components/AttentionList";
-import CompactWorkCard from "../components/CompactWorkCard";
 import { getInicioOverview } from "../services/inicioApi";
 import { getOrganizationDashboard } from "@/features/organizaciones/services/organizationDashboardApi";
 import { mapPortfolioDashboard } from "../utils/portfolioSelectors";
@@ -280,38 +276,9 @@ export default function InicioPage() {
             </main>
         );
     }
-    const evidenceByWork = countByWork(
-        pendingEvidence
-    );
-
-    const orderedWorks = [...data.works]
-        .sort(
-            (a, b) =>
-                Number(
-                    attentionWorks.some(
-                        work => workId(work) === workId(b)
-                    )
-                ) -
-                Number(
-                    attentionWorks.some(
-                        work => workId(work) === workId(a)
-                    )
-                )
-        )
-        .slice(0, 4);
-
-    const recentEvents = (data.workContexts || [])
-        .flatMap(context => context.timeline || [])
-        .sort((a, b) =>
-            String(b.fecha).localeCompare(
-                String(a.fecha)
-            )
-        )
-        .slice(0, 3);
-
     const incompleteCount = unknownWorkIds.size;
     const portfolio = mapPortfolioDashboard(data.portfolioDashboard);
-    const { readyPeriods, highRisks } = portfolio;
+    const { readyPeriods } = portfolio;
 
     const attentionHelper = attentionWorks.length
         ? `${attentionWorks.length === 1 ? "Revisa su estado" : "Revisa sus estados"}${incompleteCount
@@ -325,8 +292,9 @@ export default function InicioPage() {
             }`
             : "Todas al día";
     return (
-        <main className="space-y-7">
-            <section className="rounded-3xl border border-emerald-700/20 bg-[linear-gradient(135deg,rgba(6,78,59,0.96)_0%,rgba(6,95,70,0.92)_45%,rgba(15,118,110,0.82)_100%)] p-6 text-white shadow-[0_18px_45px_rgba(6,78,59,0.18)]">                <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        <main className="space-y-3 pb-4">
+            <section className="rounded-[28px] border border-emerald-700/20 bg-[radial-gradient(circle_at_72%_25%,rgba(110,231,183,0.18),transparent_30%),linear-gradient(118deg,#064e3b_0%,#066657_54%,#0f766e_100%)] p-6 text-white shadow-[0_18px_45px_rgba(6,78,59,0.18)] lg:p-7">
+                <div className="flex flex-col gap-6 lg:min-h-[205px] lg:flex-row lg:items-center lg:justify-between">
                 <div className="max-w-3xl">
                     <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-100">
                         Resumen ambiental
@@ -404,91 +372,12 @@ export default function InicioPage() {
                 </div>
             )}
 
-            <section
-                aria-label="Resumen"
-                className="grid gap-3 md:grid-cols-3 xl:grid-cols-5"
-            >
-                <div className="overflow-hidden rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-100 to-emerald-50 shadow-[0_8px_24px_rgba(6,78,59,0.08)]">
-                    <KpiCard
-                        icon={AlertTriangle}
-                        label={`${preset.unitPluralLabel} con atención`}
-                        value={attentionWorks.length}
-                        helper={attentionHelper}
-                        status={
-                            attentionWorks.length
-                                ? "warning"
-                                : incompleteCount
-                                    ? "info"
-                                    : "success"
-                        }
-                    />
-                </div>
-                <div className="overflow-hidden rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-100 to-amber-50 shadow-[0_8px_24px_rgba(120,53,15,0.07)]">
-                    <KpiCard
-                        icon={AlertTriangle}
-                        label="Problemas abiertos"
-                        value={
-                            data.resourceErrors.problems
-                                ? "No disponible"
-                                : openProblems.length
-                        }
-                        helper={
-                            data.resourceErrors.problems
-                                ? "No fue posible consultarlos"
-                                : openProblems.length
-                                    ? "Requieren seguimiento"
-                                    : "Sin problemas abiertos"
-                        }
-                        status={
-                            openProblems.length
-                                ? "danger"
-                                : "success"
-                        }
-                    />
-                </div>
-
-                <div className="overflow-hidden rounded-2xl border border-teal-200/70 bg-gradient-to-br from-teal-100 to-teal-50 shadow-[0_8px_24px_rgba(15,118,110,0.07)]">
-
-                    <KpiCard
-                        icon={FileCheck2}
-                        label="Evidencias pendientes"
-                        value={
-                            data.resourceErrors.evidence
-                                ? "No disponible"
-                                : pendingEvidence.length
-                        }
-                        helper={
-                            data.resourceErrors.evidence
-                                ? "No fue posible consultarlas"
-                                : pendingEvidence.length
-                                    ? "Requieren revisión"
-                                    : "Sin pendientes documentales"
-                        }
-                        status={
-                            pendingEvidence.length
-                                ? "warning"
-                                : "success"
-                        }
-                    />
-                </div>
-                <div className="overflow-hidden rounded-2xl border border-cyan-200/70 bg-gradient-to-br from-cyan-100 to-cyan-50 shadow-[0_8px_24px_rgba(8,145,178,0.07)]">
-                    <KpiCard
-                        icon={CheckCircle2}
-                        label="Períodos listos"
-                        value={readyPeriods}
-                        helper={`${Math.max(0, data.works.length - readyPeriods)} aún requieren preparación`}
-                        status={readyPeriods === data.works.length ? "success" : "info"}
-                    />
-                </div>
-                <div className="overflow-hidden rounded-2xl border border-rose-200/70 bg-gradient-to-br from-rose-100 to-rose-50 shadow-[0_8px_24px_rgba(190,18,60,0.07)]">
-                    <KpiCard
-                        icon={ShieldAlert}
-                        label="Riesgos altos"
-                        value={highRisks}
-                        helper={highRisks ? "Prioriza estas obras" : "Sin riesgo alto detectado"}
-                        status={highRisks ? "danger" : "success"}
-                    />
-                </div>
+            <section className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" aria-label="Indicadores ejecutivos del portafolio">
+                <PortfolioKpi icon={ShieldAlert} label="Huella consolidada" value={portfolio.total} unit="tCO2e" helper="Impacto total del portafolio" tone="blue" />
+                <PortfolioKpi icon={AlertTriangle} label={`${preset.unitPluralLabel} con atención`} value={attentionWorks.length} helper={attentionHelper} tone={attentionWorks.length ? "amber" : "emerald"} />
+                <PortfolioKpi icon={AlertTriangle} label="Problemas abiertos" value={data.resourceErrors.problems ? null : openProblems.length} helper={data.resourceErrors.problems ? "Información no disponible" : openProblems.length ? "Requieren seguimiento" : "Sin problemas abiertos"} tone={openProblems.length ? "rose" : "emerald"} />
+                <PortfolioKpi icon={FileCheck2} label="Evidencias pendientes" value={data.resourceErrors.evidence ? null : pendingEvidence.length} helper={data.resourceErrors.evidence ? "Información no disponible" : pendingEvidence.length ? "Requieren revisión" : "Sin pendientes documentales"} tone={pendingEvidence.length ? "amber" : "emerald"} />
+                <PortfolioKpi icon={CheckCircle2} label="Readiness promedio" value={portfolio.readiness} unit="%" helper={`${readyPeriods} de ${data.works.length} períodos listos`} tone="emerald" progress={portfolio.readiness} />
             </section>
 
             {data.portfolioUnavailable && (
@@ -496,17 +385,6 @@ export default function InicioPage() {
                     Las métricas ambientales consolidadas (huella, alcance, riesgo, readiness) no están disponibles en este momento. El resto del resumen sigue siendo real.
                 </p>
             )}
-
-            <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Impacto consolidado">
-                <KpiCard icon={ShieldAlert} label="Huella total empresa" value={portfolio.total} unit="tCO2e" status="info" />
-                <KpiCard label="Alcance 1 total" value={portfolio.scopes[0]?.value ?? null} unit="tCO2e" status="success" />
-                <KpiCard label="Alcance 2 total" value={portfolio.scopes[1]?.value ?? null} unit="tCO2e" status="warning" />
-                <KpiCard label="Alcance 3 total" value={portfolio.scopes[2]?.value ?? null} unit="tCO2e" status="info" />
-                <KpiCard label="Obras activas" value={data.works.length} helper="Unidades del portafolio" status="success" />
-                <KpiCard label="Obras con riesgo" value={highRisks} helper="Riesgo alto o crítico" status={highRisks ? "danger" : "success"} />
-                <KpiCard label="Cobertura de evidencia" value={portfolio.evidence} unit="%" status="warning" />
-                <KpiCard label="Readiness promedio" value={portfolio.readiness} unit="%" status="info" />
-            </section>
 
             <section className="grid gap-3 xl:grid-cols-2">
                 <ChartCard title="Emisiones por obra" description="Huella calculada por el motor ambiental para cada obra." empty={!portfolio.works.length}><EnvironmentalBarChart data={portfolio.works} height={250} valueFormatter={(value) => `${formatNumber(value)} tCO2e`} /></ChartCard>
@@ -516,17 +394,17 @@ export default function InicioPage() {
             </section>
 
             {portfolio.insights.length > 0 && (
-                <section className="rounded-2xl border border-violet-200 bg-violet-50/50 p-5 shadow-[0_10px_30px_rgba(91,33,182,0.06)]">
-                    <SectionHeader title="Prioridades de la organización" description="Máximo 3 insights, derivados del mismo motor de diagnóstico que usa cada obra." />
-                    <div className="grid gap-3 lg:grid-cols-3">
+                <section className="rounded-[22px] border border-slate-200 bg-white/90 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+                    <SectionHeader title="Insights y recomendaciones IA" description="Prioridades del portafolio según impacto, evidencia y riesgo ambiental." />
+                    <div className="grid items-start gap-3 lg:grid-cols-3">
                         {portfolio.insights.map((insight) => (
-                            <article key={insight.code} className="rounded-[18px] border border-violet-200 bg-white p-4 shadow-sm">
+                            <article key={insight.code} className="relative rounded-[18px] border border-slate-200 bg-slate-50/55 p-4 pr-20 shadow-sm">
+                                <StatusBadge className="absolute right-4 top-4 capitalize" tone={INSIGHT_TONE[insight.priority] || "neutral"}>{insight.priority}</StatusBadge>
                                 <div className="flex items-start gap-3">
-                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700"><Lightbulb aria-hidden="true" size={16} /></span>
-                                    <div className="min-w-0">
-                                        <StatusBadge tone={INSIGHT_TONE[insight.priority] || "neutral"}>{insight.priority}</StatusBadge>
-                                        <h3 className="mt-1.5 font-black text-[var(--text-primary)]">{insight.title}</h3>
-                                        <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{insight.description}</p>
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-700"><Lightbulb aria-hidden="true" size={17} /></span>
+                                    <div className="min-w-0 pt-0.5">
+                                        <h3 className="font-black leading-5 text-[var(--text-primary)]">{insight.title}</h3>
+                                        <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">{insight.description}</p>
                                     </div>
                                 </div>
                             </article>
@@ -558,128 +436,26 @@ export default function InicioPage() {
                 </section>
             )}
 
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.7fr)]">
-                <div className="space-y-6">
-                    <section
-                        id="priorities"
-                        className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">                   <SectionHeader
-                            title="Requiere tu atención"
-                            description={
-                                priorities.length
-                                    ? "Pendientes priorizados según riesgo, seguimiento y necesidad de intervención."
-                                    : incompleteCount
-                                        ? "No hay pendientes detectados en la información disponible."
-                                        : "No hay pendientes disponibles."
-                            }
-                        />
-
-                        <AttentionList
-                            contextIncomplete={incompleteCount > 0}
-                            items={priorities}
-                            unitPluralLabel={preset.unitPluralLabel}
-                        />
-                    </section>
-
-                    <section className="rounded-[28px] border border-emerald-200/80 bg-white px-6 py-6 shadow-[0_12px_36px_rgba(15,23,42,0.05)]">
-                        <SectionHeader
-                            title={`Mis ${preset.unitPluralLabel.toLowerCase()}`}
-                            description={`Estado breve de tus ${preset.unitPluralLabel.toLowerCase()}.`}
-                            action={
-                                <Link
-                                    className="inline-flex items-center gap-2 text-sm font-black text-emerald-700 transition hover:text-emerald-800"
-                                    to="/obras"
-                                >
-                                    Ver todas
-                                </Link>
-                            }
-                        />
-
-                        <div
-                            className={`mt-5 grid gap-4 ${orderedWorks.length > 1 ? "xl:grid-cols-2" : ""
-                                }`}
-                        >
-                            {orderedWorks.map(work => (
-                                <CompactWorkCard
-                                    context={contextByWork.get(workId(work))}
-                                    contextError={contextErrorIds.has(workId(work))}
-                                    evidenceCount={evidenceByWork.get(workId(work)) || 0}
-                                    key={workId(work) || work.codigo_obra}
-                                    unitLabel={preset.unitLabel}
-                                    work={work}
-                                />
-                            ))}
-                        </div>
-                    </section>
-                </div>
-
-                <aside className="space-y-6">
-                    {recentEvents.length > 0 && (
-                        <section className="rounded-2xl border border-emerald-900/10 bg-[#f8fbf9]/95 p-5 shadow-[0_10px_30px_rgba(6,78,59,0.06)]">
-                            <SectionHeader
-                                title="Actividad reciente"
-                                description="Últimos movimientos registrados."
-                            />
-
-                            <Timeline>
-                                {recentEvents.map(
-                                    (event, index) => (
-                                        <TimelineItem
-                                            key={`${event.tipo}-${event.referencia_id}-${index}`}
-                                            type={event.tipo}
-                                            timestamp={formatDateTime(
-                                                event.fecha
-                                            )}
-                                            title={
-                                                event.titulo ||
-                                                "Actividad registrada"
-                                            }
-                                            description={String(
-                                                event.tipo || ""
-                                            ).replaceAll("_", " ")}
-                                        />
-                                    )
-                                )}
-                            </Timeline>
-                        </section>
-                    )}
-
-                    <section className="rounded-2xl border border-emerald-700/20 bg-[linear-gradient(145deg,#dff7ea_0%,#ecfdf5_55%,#f0fdfa_100%)] p-5 shadow-[0_10px_30px_rgba(6,78,59,0.08)]">
-                        <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">
-                            Siguiente paso
-                        </p>
-
-                        <h2 className="mt-2 text-lg font-black text-[var(--text-primary)]">
-                            Mantén el control ambiental al día
-                        </h2>
-
-                        <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
-                            {attentionWorks.length
-                                ? "Revisa las unidades con atención antes de continuar con nuevas cargas."
-                                : pendingEvidence.length
-                                    ? "Completa la revisión documental pendiente."
-                                    : openProblems.length
-                                        ? "Continúa el seguimiento de los problemas ambientales abiertos."
-                                        : "Puedes continuar con nuevas evidencias, importaciones o seguimiento operacional."}
-                        </p>
-
-                        <div className="mt-4 flex flex-wrap gap-2">
-                            <Link
-                                className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-bold text-emerald-800"
-                                to="/datos/evidencias"
-                            >
-                                Ver evidencias
-                            </Link>
-
-                            <Link
-                                className="rounded-xl bg-emerald-800 px-3 py-2 text-sm font-bold text-white transition hover:bg-emerald-900"
-                                to="/inteligencia/problemas"
-                            >
-                                Revisar problemas
-                            </Link>
-                        </div>
-                    </section>
-                </aside>
-            </div>
+            <section
+                id="priorities"
+                className="rounded-[22px] border border-slate-200 bg-white/90 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)]"
+            >
+                <SectionHeader
+                    title="Requiere tu atención"
+                    description={
+                        priorities.length
+                            ? "Pendientes priorizados según riesgo, seguimiento y necesidad de intervención."
+                            : incompleteCount
+                                ? "No hay pendientes detectados en la información disponible."
+                                : "No hay pendientes disponibles."
+                    }
+                />
+                <AttentionList
+                    contextIncomplete={incompleteCount > 0}
+                    items={priorities}
+                    unitPluralLabel={preset.unitPluralLabel}
+                />
+            </section>
         </main >
     );
 }
@@ -798,19 +574,39 @@ function PortfolioDonut({ data, total }) {
     return <div className="grid gap-3 sm:grid-cols-[200px_1fr] sm:items-center"><EnvironmentalDonutChart data={data} height={205} innerRadius={66} outerRadius={94} centerLabel="Total" centerValue={formatNumber(total)} centerUnit="tCO2e" valueFormatter={(value) => `${formatNumber(value)} tCO2e`} /><DonutLegend data={data} valueFormatter={(value) => `${formatNumber(value)} tCO2e`} /></div>;
 }
 
-function countByWork(evidence) {
-    const counts = new Map();
+function PortfolioKpi({ icon: Icon, label, value, unit, helper, tone = "neutral", progress }) {
+    const tones = {
+        neutral: "border-slate-200 bg-white text-slate-600",
+        blue: "border-blue-200 bg-blue-50/45 text-blue-700",
+        emerald: "border-emerald-200 bg-emerald-50/55 text-emerald-700",
+        amber: "border-amber-200 bg-amber-50/55 text-amber-700",
+        rose: "border-rose-200 bg-rose-50/55 text-rose-700",
+    };
+    const missing = value === null || value === undefined;
+    const normalizedProgress = progress === null || progress === undefined
+        ? null
+        : Math.min(100, Math.max(0, Number(progress) || 0));
 
-    evidence.forEach(item => {
-        const id = referenceId(item.obra);
-
-        if (id) {
-            counts.set(
-                id,
-                (counts.get(id) || 0) + 1
-            );
-        }
-    });
-
-    return counts;
+    return (
+        <article className={`flex min-h-[116px] items-center rounded-[18px] border p-3.5 shadow-[0_6px_18px_rgba(15,23,42,0.04)] ${tones[tone] || tones.neutral}`}>
+            <div className="flex w-full items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-current/10 bg-white/80 shadow-sm">
+                    <Icon aria-hidden="true" size={19} />
+                </span>
+                <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-black text-slate-600">{label}</p>
+                    <p className="mt-0.5 text-2xl font-black leading-none text-slate-950">
+                        {missing ? "—" : typeof value === "number" ? formatNumber(value) : value}
+                        {unit && !missing && <span className="ml-1 text-xs font-black text-slate-600">{unit}</span>}
+                    </p>
+                    {normalizedProgress !== null && (
+                        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200/90" aria-hidden="true">
+                            <div className="h-full rounded-full bg-current transition-[width]" style={{ width: `${normalizedProgress}%` }} />
+                        </div>
+                    )}
+                    <p className="mt-2 truncate text-xs text-slate-500">{helper}</p>
+                </div>
+            </div>
+        </article>
+    );
 }
