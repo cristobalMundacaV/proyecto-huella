@@ -1,6 +1,11 @@
 import { getEnvironmentalDomain, getFlowChartColor } from "../../../shared/config/environmentalDomains.js";
 
 const SCOPE_COLORS = { 1: "#c2410c", 2: "#a16207", 3: "#0369a1" };
+const SCOPE_LABELS = {
+  1: "Alcance 1 · Combustión directa",
+  2: "Alcance 2 · Energía adquirida",
+  3: "Alcance 3 · Otras fuentes",
+};
 
 /** Pure display transform of the organization dashboard payload (already
  * aggregated server-side by `build_organization_dashboard`) into the shape
@@ -15,7 +20,7 @@ export function mapPortfolioDashboard(dashboard) {
 
   const kpis = dashboard.kpis || {};
   const scopes = [1, 2, 3]
-    .map((scope) => ({ name: `Alcance ${scope}`, value: kpis[`alcance_${scope}_tco2e`], color: SCOPE_COLORS[scope] }))
+    .map((scope) => ({ name: SCOPE_LABELS[scope], value: kpis[`alcance_${scope}_tco2e`], color: SCOPE_COLORS[scope] }))
     .filter((row) => row.value !== null && row.value !== undefined && Number(row.value) > 0);
 
   const flows = Object.entries(kpis.impacto_por_flujo_tco2e || {})

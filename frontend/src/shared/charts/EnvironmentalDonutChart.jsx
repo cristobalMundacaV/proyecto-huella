@@ -81,7 +81,7 @@ export function DonutLegend({ data = [], valueFormatter = (value) => formatNumbe
         <li className="flex items-center justify-between gap-3 text-sm" key={row.name}>
           <span className="flex min-w-0 items-center gap-2">
             <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: row.color || FALLBACK_COLOR }} />
-            <span className="truncate text-[var(--text-secondary)]">{row.name}</span>
+            <span className="min-w-0 leading-4 text-[var(--text-secondary)]">{row.name}</span>
           </span>
 
           <span className="shrink-0 font-bold text-[var(--text-primary)]">

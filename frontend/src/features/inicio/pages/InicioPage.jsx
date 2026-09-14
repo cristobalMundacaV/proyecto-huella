@@ -37,7 +37,12 @@ import { getOrganizationDashboard } from "@/features/organizaciones/services/org
 import { mapPortfolioDashboard } from "../utils/portfolioSelectors";
 
 const INSIGHT_TONE = { alta: "danger", media: "warning", baja: "info" };
-const ESTADO_TONE = { estable: "success", atencion: "warning", critica: "danger", periodo_incompleto: "neutral", lista_para_reporte: "success" };
+const INSIGHT_CARD_TONE = {
+    alta: "border-rose-200 bg-gradient-to-br from-rose-50 via-white to-rose-50/45 shadow-[0_8px_24px_rgba(190,18,60,0.08)]",
+    media: "border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50/45 shadow-[0_8px_24px_rgba(180,83,9,0.08)]",
+    baja: "border-blue-200 bg-gradient-to-br from-blue-50 via-white to-blue-50/45 shadow-[0_8px_24px_rgba(29,78,216,0.07)]",
+};
+const ESTADO_TONE = { estable: "success", atencion: "warning", critica: "danger", periodo_incompleto: "warning", lista_para_reporte: "success" };
 
 const isOpen = problem =>
     !["cerrada", "resuelta"].includes(problem.estado);
@@ -396,15 +401,15 @@ export default function InicioPage() {
             {portfolio.insights.length > 0 && (
                 <section className="rounded-[22px] border border-slate-200 bg-white/90 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
                     <SectionHeader title="Insights y recomendaciones IA" description="Prioridades del portafolio según impacto, evidencia y riesgo ambiental." />
-                    <div className="grid items-start gap-3 lg:grid-cols-3">
+                    <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
                         {portfolio.insights.map((insight) => (
-                            <article key={insight.code} className="relative rounded-[18px] border border-slate-200 bg-slate-50/55 p-4 pr-20 shadow-sm">
+                            <article key={insight.code} className={`relative h-full min-h-[145px] rounded-[18px] border p-4 pr-20 ${INSIGHT_CARD_TONE[insight.priority] || "border-slate-200 bg-slate-50"}`}>
                                 <StatusBadge className="absolute right-4 top-4 capitalize" tone={INSIGHT_TONE[insight.priority] || "neutral"}>{insight.priority}</StatusBadge>
                                 <div className="flex items-start gap-3">
                                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-700"><Lightbulb aria-hidden="true" size={17} /></span>
                                     <div className="min-w-0 pt-0.5">
                                         <h3 className="font-black leading-5 text-[var(--text-primary)]">{insight.title}</h3>
-                                        <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">{insight.description}</p>
+                                        <p className="mt-3 text-sm font-medium leading-5 text-slate-700">{insight.description}</p>
                                     </div>
                                 </div>
                             </article>
@@ -426,10 +431,10 @@ export default function InicioPage() {
                                 <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
                                     <div><dt className="font-bold uppercase tracking-wide text-[var(--text-muted)]">Emisiones</dt><dd className="mt-0.5 font-black text-[var(--text-primary)]">{work.huella_total_tco2e ?? "—"} tCO2e</dd></div>
                                     <div><dt className="font-bold uppercase tracking-wide text-[var(--text-muted)]">Readiness</dt><dd className="mt-0.5 font-black text-[var(--text-primary)]">{work.readiness_pct ?? "—"}%</dd></div>
-                                    <div><dt className="font-bold uppercase tracking-wide text-[var(--text-muted)]">Riesgo</dt><dd className="mt-0.5 font-black text-[var(--text-primary)]">{work.risk?.nivel || "—"}</dd></div>
+                                    <div><dt className="font-bold uppercase tracking-wide text-[var(--text-muted)]">Riesgo</dt><dd className="mt-0.5 font-black capitalize text-[var(--text-primary)]">{work.risk?.nivel || "—"}</dd></div>
                                     <div><dt className="font-bold uppercase tracking-wide text-[var(--text-muted)]">Hallazgos</dt><dd className="mt-0.5 font-black text-[var(--text-primary)]">{work.hallazgos_altos}</dd></div>
                                 </dl>
-                                <span className="mt-3 inline-flex items-center gap-1 text-xs font-black text-emerald-700 group-hover:text-emerald-900">Abrir obra <ArrowRight aria-hidden="true" size={13} /></span>
+                                <span className="mt-3 flex items-center justify-end gap-1 text-xs font-black text-emerald-700 group-hover:text-emerald-900">Abrir obra <ArrowRight aria-hidden="true" size={13} /></span>
                             </Link>
                         ))}
                     </div>

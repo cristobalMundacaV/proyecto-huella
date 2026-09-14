@@ -52,5 +52,5 @@ test("a scope with a zero value is dropped from the donut data, not shown as a f
     kpis: { alcance_1_tco2e: 0, alcance_2_tco2e: 12, alcance_3_tco2e: null, impacto_por_flujo_tco2e: {} },
     emisiones_por_obra: [], readiness_por_obra: [], riesgo_por_obra: [], top_obras_prioritarias: [], prioridades: [],
   });
-  assert.deepEqual(mapped.scopes.map((row) => row.name), ["Alcance 2"]);
+  assert.deepEqual(mapped.scopes.map((row) => row.name), ["Alcance 2 · Energía adquirida"]);
 });

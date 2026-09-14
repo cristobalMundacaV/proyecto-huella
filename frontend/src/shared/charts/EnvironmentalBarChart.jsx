@@ -31,14 +31,27 @@ export default function EnvironmentalBarChart({
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="name" interval={0} angle={rows.length > 4 ? -15 : 0} height={rows.length > 4 ? 52 : 30} textAnchor={rows.length > 4 ? "end" : "middle"} />
           <YAxis tickFormatter={(value) => formatNumber(value, 0)} width={56} />
-          <Tooltip formatter={(value) => valueFormatter(value)} />
-          <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+          <Tooltip cursor={false} content={<EnvironmentalBarTooltip valueFormatter={valueFormatter} />} />
+          <Bar activeBar={{ fill: "#94a3b8" }} dataKey="value" radius={[8, 8, 0, 0]}>
             {rows.map((row) => (
               <Cell fill={row.color || color} key={row.name} />
             ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
+    </div>
+  );
+}
+
+function EnvironmentalBarTooltip({ active, label, payload, valueFormatter }) {
+  if (!active || !payload?.length) return null;
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-lg">
+      <p className="text-xs font-semibold text-slate-600">{label}</p>
+      <p className="mt-1 text-sm font-black text-emerald-700">
+        {valueFormatter(payload[0].value)}
+      </p>
     </div>
   );
 }
