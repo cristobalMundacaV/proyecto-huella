@@ -25,9 +25,23 @@ export function AiRecommendationsPanel({ recommendations = [] }) {
   const visible = recommendations.slice(0, 3);
   return <Card className="border-slate-200 bg-white/90"><CardContent>
     <SectionHeader title="Insights y recomendaciones IA" description="Priorizadas según impacto potencial en la huella, evidencia y riesgo ambiental." />
-    {!visible.length ? <p className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">El motor de diagnóstico no identificó recomendaciones prioritarias con la información disponible.</p> : <div className="grid gap-3 lg:grid-cols-3">{visible.map((item) => <article className="rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#fff,#f8fafc)] p-4 shadow-[0_7px_20px_rgba(15,23,42,.04)]" key={item.key}>
-      <div className="flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-50 text-violet-700"><Sparkles size={17} /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><StatusBadge tone={item.tone}>{item.priorityLabel}</StatusBadge><h3 className="font-black text-slate-950">{item.title}</h3></div><p className="mt-2 line-clamp-3 text-xs leading-5 text-slate-600">{item.description}</p></div></div>
-      <Link className="mt-3 inline-flex items-center gap-1 text-xs font-black text-emerald-800" to={item.href}>{item.recommendations[0] || "Ver detalle"} <ArrowRight size={13} /></Link>
+    {!visible.length ? <p className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">El motor de diagnóstico no identificó recomendaciones prioritarias con la información disponible.</p> : <div className="grid gap-3 lg:grid-cols-3">{visible.map((item) => <article className="relative flex min-h-[210px] flex-col rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#fff,#f8fafc)] p-4 shadow-[0_7px_20px_rgba(15,23,42,.04)]" key={item.key}>
+      <StatusBadge className="absolute right-4 top-4" tone={item.tone}>{item.priorityLabel}</StatusBadge>
+      <div className="flex items-start gap-3 pr-16"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-50 text-violet-700"><Sparkles size={17} /></span><div className="min-w-0"><h3 className="font-black text-slate-950">{item.title}</h3><p className="mt-2 text-xs leading-5 text-slate-600">{item.description}</p></div></div>
+      {item.comparison && <ComparisonValues comparison={item.comparison} />}
+      <Link className="mt-auto inline-flex items-center gap-1 pt-3 text-xs font-black text-emerald-800" to={item.href}>Revisar <ArrowRight size={13} /></Link>
     </article>)}</div>}
   </CardContent></Card>;
+}
+
+function ComparisonValues({ comparison }) {
+  return <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-end gap-2" aria-label="Comparación con el período anterior">
+    <ComparisonValue label="Antes" value={comparison.before} unit={comparison.unit} muted />
+    <ArrowRight className="mb-3 text-slate-400" size={16} />
+    <ComparisonValue label="Después" value={comparison.after} unit={comparison.unit} />
+  </div>;
+}
+
+function ComparisonValue({ label, value, unit, muted = false }) {
+  return <div><p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500">{label}</p><div className={`flex items-end justify-between gap-2 rounded-xl border px-3 py-2 ${muted ? "border-slate-200 bg-slate-50" : "border-emerald-200 bg-emerald-50"}`}><span className="text-lg font-black leading-none text-slate-950">{formatNumber(value)}</span>{unit && <span className="text-[10px] font-bold leading-none text-slate-500">{unit}</span>}</div></div>;
 }

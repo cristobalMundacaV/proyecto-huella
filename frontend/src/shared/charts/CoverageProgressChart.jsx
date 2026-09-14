@@ -24,6 +24,7 @@ export default function CoverageProgressChart({
   size = 132,
   strokeWidth = 12,
   tone,
+  valueClassName = "text-base text-[var(--text-primary)]",
   thresholds = { success: 90, warning: 70 },
 }) {
   const missing = value === null || value === undefined;
@@ -57,7 +58,7 @@ export default function CoverageProgressChart({
         </svg>
 
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-xl font-black text-[var(--text-primary)]">{missing ? "—" : `${Math.round(clamped)}%`}</span>
+          <span className={`font-black leading-none ${valueClassName}`}>{missing ? "—" : `${Math.round(clamped)}%`}</span>
         </div>
       </div>
 

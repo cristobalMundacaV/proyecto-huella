@@ -54,3 +54,21 @@ test("readiness and physical flows expose missing values without inventing data"
   assert.equal(flows.find(({ key }) => key === "agua").value, null);
   assert.equal(flows.find(({ key }) => key === "energia").href, "/obras/9/operacion/energia");
 });
+
+test("consumption insights separate the human message from before and after values", () => {
+  const [insight] = buildRecommendations({
+    obra_id: 73,
+    top_findings: [{
+      code: "CONSUMPTION_INCREASE",
+      severity: "critical",
+      metric: "energia",
+      title: "Aumento relevante de energía",
+      description: "El consumo de energía aumentó 200.0% respecto del período anterior (3200.00 -> 9600.00 kWh).",
+      evidence: { previous_value: 3200, current_value: 9600, unit: "kWh" },
+      recommendations: ["Revisar el detalle operacional del período para confirmar la causa del aumento."],
+    }],
+  });
+  assert.equal(insight.description, "El consumo de energía aumentó 200.0% respecto del período anterior.");
+  assert.deepEqual(insight.comparison, { before: 3200, after: 9600, unit: "kWh" });
+  assert.equal(insight.href, "/obras/73/operacion/energia");
+});

@@ -6,13 +6,11 @@ import {
 } from "react";
 
 import {
-  ArrowLeft,
   CalendarDays,
   MapPin,
 } from "lucide-react";
 
 import {
-  Link,
   Outlet,
   useLocation,
   useParams,
@@ -245,22 +243,6 @@ export default function ObraWorkspaceLayout() {
 
   return (
     <main className="space-y-6">
-
-      {/* VOLVER */}
-      <Link
-        className="inline-flex items-center gap-2 text-sm font-bold text-[var(--text-secondary)] transition hover:text-[var(--brand-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-        to="/obras"
-      >
-        <ArrowLeft
-          aria-hidden="true"
-          size={16}
-        />
-
-        Volver a{" "}
-        {preset.unitPluralLabel.toLowerCase()}
-      </Link>
-
-
       {showLegacySummaryHero && isSummaryRoute && <section className="overflow-hidden rounded-[28px] border border-emerald-700/20 bg-[linear-gradient(135deg,rgba(6,78,59,0.98)_0%,rgba(6,95,70,0.94)_48%,rgba(15,118,110,0.84)_100%)] p-6 text-white shadow-[0_18px_45px_rgba(6,78,59,0.16)]">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-center">
 

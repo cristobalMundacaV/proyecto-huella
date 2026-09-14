@@ -105,11 +105,19 @@ export function buildRecommendations(dashboard) {
     tone: SEVERITY_TONE[finding.severity] || "neutral",
     priorityLabel: SEVERITY_LABEL[finding.severity] || finding.severity,
     title: finding.title,
-    description: finding.description,
+    description: String(finding.description || "").replace(/\s*\([^)]*\)(?=\.)/, ""),
     reason: finding.reason,
     recommendations: Array.isArray(finding.recommendations) ? finding.recommendations : [],
+    comparison: buildFindingComparison(finding),
     href: METRIC_ROUTE[finding.metric] ? `/obras/${obraId}/operacion/${METRIC_ROUTE[finding.metric]}` : `/obras/${obraId}/problemas`,
   }));
+}
+
+function buildFindingComparison(finding) {
+  const evidence = finding?.evidence || {};
+  if (!["CONSUMPTION_INCREASE", "CONSUMPTION_DECREASE"].includes(finding?.code)) return null;
+  if (evidence.previous_value === null || evidence.previous_value === undefined || evidence.current_value === null || evidence.current_value === undefined) return null;
+  return { before: evidence.previous_value, after: evidence.current_value, unit: evidence.unit || "" };
 }
 
 export function describeEmissionState(dashboard) {
