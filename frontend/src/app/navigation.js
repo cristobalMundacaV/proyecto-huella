@@ -11,7 +11,6 @@ export const NAV_ITEMS = {
 const PAGE_CONTEXTS = [
   ["/reportes", "Centro de reportes", "Informes ambientales consolidados por obra y período de preparación."],
   ["/obras/:obraId/resumen", "Resumen de obra", "Estado ejecutivo ambiental de esta obra."],
-  ["/obras/:obraId/operacion", "Resumen operacional", "Qué está ocurriendo físicamente en esta obra."],
   ["/obras/:obraId/operacion/energia", "Energía", "Consumos y registros energéticos de la obra."],
   ["/obras/:obraId/operacion/agua", "Agua", "Consumos y registros hídricos de la obra."],
   ["/obras/:obraId/operacion/combustibles", "Combustibles", "Uso de combustibles registrado en la obra."],
@@ -65,7 +64,7 @@ export const OBRA_OPERATION_FLOWS = [
  * obraId }` — instead of a second, obra-specific menu bolted on below it.
  *
  * Portfolio: Inicio, Obras, Reportes, Control, Configuración.
- * Obra: Resumen, Operación (expandable: resumen operacional + 8 flujos),
+ * Obra: Resumen, Operación (expandable: 8 flujos),
  * Gestión (expandable: evidencias/problemas/cumplimiento/historial),
  * Reportes, Control, Configuración — "Obras" drops out (the context
  * selector's own "Ver todas las obras" link covers that), and Operación/
@@ -101,7 +100,6 @@ export function getUnifiedNavigation({ preset = {}, scope } = {}) {
     label: "Operación",
     icon: Activity,
     children: [
-      { id: "operationOverview", label: "Resumen operacional", path: `${base}/operacion`, domain: "operacion" },
       ...OBRA_OPERATION_FLOWS.map((flow) => ({
         id: flow.id,
         label: flow.label,

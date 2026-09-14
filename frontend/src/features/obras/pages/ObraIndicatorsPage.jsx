@@ -156,7 +156,7 @@ export default function ObraIndicatorsPage() {
         guidance="Incorpora antecedentes operacionales y evidencias; los indicadores aparecerán cuando exista información gobernada suficiente."
         suggestions={["Consumos y mediciones", "Documentos de respaldo", "Períodos comparables"]}
         primaryAction={<ButtonLink to="../evidencias" leftIcon={FileUp}>Agregar evidencia</ButtonLink>}
-        secondaryAction={<Link className="inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-bold text-emerald-900" to="../operacion">Registrar información</Link>}
+        secondaryAction={<Link className="inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-bold text-emerald-900" to="../operacion/energia">Registrar información</Link>}
       /> : <>
 
       {availableIndicators.length ? (

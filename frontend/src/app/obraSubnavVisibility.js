@@ -6,9 +6,8 @@ import { applicability, capabilityKeyForDomain } from "../features/operacion/uti
  * applicability is `no_aplica` (organization or obra explicitly said it
  * doesn't apply) is dropped; a flow still `pendiente` stays visible with a
  * "needs configuration" dot. RBAC itself is handled separately by
- * `filterNavigation` before this ever runs. "Resumen operacional" and the
- * whole "Gestión" item are never gated by applicability — they always
- * show. */
+ * `filterNavigation` before this ever runs. The whole "Gestión" item is
+ * outside this filter and always remains available. */
 export function withObraFlowStates(navigation, applicabilityRows = []) {
   const fakeContext = { diagnostico_obra: { aplicabilidad: applicabilityRows } };
   return {
@@ -21,7 +20,6 @@ export function withObraFlowStates(navigation, applicabilityRows = []) {
           ...item,
           children: item.children
             .map((child) => {
-              if (child.id === "operationOverview") return { ...child, state: "always" };
               return { ...child, state: applicability(fakeContext, capabilityKeyForDomain(child.domain)) };
             })
             .filter((child) => child.state !== "no_aplica"),

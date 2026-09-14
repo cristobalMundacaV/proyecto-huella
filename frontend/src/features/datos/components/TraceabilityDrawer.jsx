@@ -435,7 +435,7 @@ export default function TraceabilityDrawer({
               <ButtonLink
                 variant="secondary"
                 leftIcon={ClipboardList}
-                to={`/obras/${workId}/operacion`}
+                to={`/obras/${workId}/resumen`}
                 className="
                   w-full
                   border-emerald-200
@@ -444,7 +444,7 @@ export default function TraceabilityDrawer({
                   hover:bg-emerald-100
                 "
               >
-                Ver operación de la obra
+                Ver resumen de la obra
               </ButtonLink>
             )}
           </div>

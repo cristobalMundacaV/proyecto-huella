@@ -38,17 +38,16 @@ test("a flow marked aplica keeps an aplica state", () => {
   assert.equal(agua.state, "aplica");
 });
 
-test("resumen operacional and every gestión item are never gated by applicability", () => {
+test("every gestión item remains outside operation applicability", () => {
   const nav = withObraFlowStates(getUnifiedNavigation({ preset, scope: { type: "obra", obraId: "71" } }), []);
-  const overview = operationChildren(nav).find((item) => item.id === "operationOverview");
-  assert.equal(overview.state, "always");
+  assert.equal(operationChildren(nav).some((item) => item.id === "operationOverview"), false);
   const management = nav.groups[0].items.find((item) => item.id === "management");
   assert.equal(management.children.length, 4);
 });
 
 test("with no applicability data at all, flows default to pendiente (visible), not hidden", () => {
   const nav = withObraFlowStates(getUnifiedNavigation({ preset, scope: { type: "obra", obraId: "71" } }), []);
-  const flows = operationChildren(nav).filter((item) => item.id !== "operationOverview");
+  const flows = operationChildren(nav);
   assert.equal(flows.length > 0, true);
   assert.ok(flows.every((item) => item.state === "pendiente"));
 });

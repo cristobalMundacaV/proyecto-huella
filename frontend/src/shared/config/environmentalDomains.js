@@ -24,7 +24,7 @@ export const ENVIRONMENTAL_DOMAINS = {
   indicadores: { key: "indicadores", label: "Indicadores", icon: Boxes, text: "text-sky-700", softBg: "bg-sky-50", border: "border-sky-200", accent: "from-sky-50 via-white to-white" },
 };
 
-const aliases = { "hidrica-suelo": "hidrica_suelo", "emisiones-atmosfericas": "emisiones_atmosfericas", waterSoil: "hidrica_suelo", energy: "energia", water: "agua", fuel: "combustibles", combustible: "combustibles", transport: "transporte", materials: "materiales", waste: "residuos", noise: "ruido", compliance: "cumplimiento", problems: "problemas", evidence: "evidencias", operationOverview: "operacion", indicators: "indicadores" };
+const aliases = { "hidrica-suelo": "hidrica_suelo", "emisiones-atmosfericas": "emisiones_atmosfericas", waterSoil: "hidrica_suelo", energy: "energia", water: "agua", fuel: "combustibles", combustible: "combustibles", transport: "transporte", materials: "materiales", waste: "residuos", noise: "ruido", compliance: "cumplimiento", problems: "problemas", evidence: "evidencias", indicators: "indicadores" };
 
 export function getEnvironmentalDomain(key) {
   return ENVIRONMENTAL_DOMAINS[aliases[key] || key] || null;

@@ -13,9 +13,10 @@ test("la raíz renderiza la landing pública sin entrar a guards autenticados", 
   assert.doesNotMatch(router, /<Route index element=\{<Navigate to="\/inicio" replace \/>\} \/>/);
 });
 
-test("conserva los index de saas, obra y operación", () => {
+test("conserva los index de saas y obra, y redirige la ruta operacional legacy", () => {
   assert.match(router, /<Route index element=\{<SaaSDashboardPage \/>\} \/>/);
   assert.match(router, /<Route index element=\{<Navigate to="resumen" replace \/>\} \/>/);
-  assert.match(router, /<Route index element=\{<OperacionOverviewPage \/>\} \/>/);
-  assert.equal(router.match(/<Route index /g)?.length, 3);
+  assert.match(router, /<Route path="operacion" element=\{<Navigate to="\.\.\/resumen" replace \/>\} \/>/);
+  assert.doesNotMatch(router, /OperacionOverviewPage/);
+  assert.equal(router.match(/<Route index /g)?.length, 2);
 });

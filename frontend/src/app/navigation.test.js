@@ -27,15 +27,17 @@ test("obra scope shows exactly Resumen/Operación/Gestión/Reportes/Control/Conf
   assert.equal(reports.path, "/obras/42/reportes");
   assert.equal(control.path, "/obras/42/control");
   assert.equal(administration.path, "/obras/42/configuracion");
-  assert.equal(operation.children.length, 1 + OBRA_OPERATION_FLOWS.length);
+  assert.equal(operation.children.length, OBRA_OPERATION_FLOWS.length);
   assert.equal(management.children.length, 4);
 });
 
-test("Operación's children are resumen operacional + the 8 flows, all existing routes", () => {
+test("Operación's children are only the 8 environmental flows", () => {
   const nav = getUnifiedNavigation({ preset, scope: { type: "obra", obraId: "71" } });
   const operation = nav.groups[0].items.find((item) => item.id === "operation");
   const paths = operation.children.map((child) => child.path);
-  assert.ok(paths.includes("/obras/71/operacion"));
+  assert.equal(paths.length, 8);
+  assert.ok(!paths.includes("/obras/71/operacion"));
+  assert.ok(!operation.children.some((child) => child.label === "Resumen operacional"));
   assert.ok(paths.includes("/obras/71/operacion/energia"));
   assert.ok(paths.includes("/obras/71/operacion/agua"));
   assert.ok(paths.includes("/obras/71/operacion/combustibles"));

@@ -56,7 +56,6 @@ const ActivosPage = lazy(() => import("@/features/activos/pages/ActivosPage"));
 const SensoresPage = lazy(() => import("@/features/sensores/pages/SensoresPage"));
 const SensorDetailPage = lazy(() => import("@/features/sensores/pages/SensorDetailPage"));
 const OperationLayout = lazy(() => import("@/features/operacion/components/OperationLayout"));
-const OperacionOverviewPage = lazy(() => import("@/features/operacion/pages/OperacionOverviewPage"));
 const SectorDomainPage = lazy(() => import("@/features/operacion/pages/SectorDomainPage"));
 const TransportPage = lazy(() => import("@/features/operacion/pages/TransportPage"));
 const MaterialsPage = lazy(() => import("@/features/operacion/pages/MaterialsPage"));
@@ -133,17 +132,17 @@ export default function AppRouter() {
           <Route path="obras/:obraId" element={<ObraWorkspaceLayout />}>
             <Route index element={<Navigate to="resumen" replace />} />
             <Route path="resumen" element={<ObraResumenPage />} />
-            <Route path="operacion" element={<OperationLayout />}>
-              <Route index element={<OperacionOverviewPage />} />
-              <Route path="energia" element={<SectorDomainPage domain="energia" />} />
-              <Route path="agua" element={<SectorDomainPage domain="agua" />} />
-              <Route path="combustibles" element={<SectorDomainPage domain="combustibles" />} />
-              <Route path="transporte" element={<TransportPage />} />
-              <Route path="materiales" element={<MaterialsPage />} />
-              <Route path="residuos" element={<WastePage />} />
-              <Route path="ruido" element={<SectorDomainPage domain="ruido" />} />
-              <Route path="emisiones-atmosfericas" element={<SectorDomainPage domain="emisiones-atmosfericas" />} />
-              <Route path="suelo" element={<SectorDomainPage domain="suelo" />} />
+            <Route path="operacion" element={<Navigate to="../resumen" replace />} />
+            <Route element={<OperationLayout />}>
+              <Route path="operacion/energia" element={<SectorDomainPage domain="energia" />} />
+              <Route path="operacion/agua" element={<SectorDomainPage domain="agua" />} />
+              <Route path="operacion/combustibles" element={<SectorDomainPage domain="combustibles" />} />
+              <Route path="operacion/transporte" element={<TransportPage />} />
+              <Route path="operacion/materiales" element={<MaterialsPage />} />
+              <Route path="operacion/residuos" element={<WastePage />} />
+              <Route path="operacion/ruido" element={<SectorDomainPage domain="ruido" />} />
+              <Route path="operacion/emisiones-atmosfericas" element={<SectorDomainPage domain="emisiones-atmosfericas" />} />
+              <Route path="operacion/suelo" element={<SectorDomainPage domain="suelo" />} />
             </Route>
             <Route
               path="indicadores"
