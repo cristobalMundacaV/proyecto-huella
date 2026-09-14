@@ -7,7 +7,7 @@ import { withObraFlowStates } from "./obraSubnavVisibility.js";
 const preset = { unitPluralLabel: "Obras", unitLabel: "Obra" };
 
 function operationChildren(navigation) {
-  return navigation.groups[0].items.find((item) => item.id === "operation").children;
+  return navigation.groups.flatMap((group) => group.items).find((item) => item.id === "operation").children;
 }
 
 test("a flow marked no_aplica is dropped from Operación's children", () => {
@@ -41,7 +41,7 @@ test("a flow marked aplica keeps an aplica state", () => {
 test("every gestión item remains outside operation applicability", () => {
   const nav = withObraFlowStates(getUnifiedNavigation({ preset, scope: { type: "obra", obraId: "71" } }), []);
   assert.equal(operationChildren(nav).some((item) => item.id === "operationOverview"), false);
-  const management = nav.groups[0].items.find((item) => item.id === "management");
+  const management = nav.groups.flatMap((group) => group.items).find((item) => item.id === "management");
   assert.equal(management.children.length, 4);
 });
 
@@ -54,5 +54,5 @@ test("with no applicability data at all, flows default to pendiente (visible), n
 
 test("portfolio-scope navigation passes through untouched (no operation item to gate)", () => {
   const nav = withObraFlowStates(getUnifiedNavigation({ preset, scope: { type: "portfolio" } }), []);
-  assert.ok(!nav.groups[0].items.some((item) => item.id === "operation"));
+  assert.ok(!nav.groups.flatMap((group) => group.items).some((item) => item.id === "operation"));
 });

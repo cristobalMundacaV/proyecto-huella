@@ -88,6 +88,7 @@ export default function AuthenticatedLayout() {
                   />
 
                   <Sidebar
+                    collapsible={false}
                     onNavigate={() => setMobileMenuOpen(false)}
                   />
                 </motion.div>

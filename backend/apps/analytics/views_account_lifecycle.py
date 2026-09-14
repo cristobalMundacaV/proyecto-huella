@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth import update_session_auth_hash
@@ -13,7 +15,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from .models import AreaOperacional, UsuarioOrganizacion
+from .models import AreaOperacional, Organizacion, UsuarioOrganizacion
 from .services.email_service import EmailService
 from .services.onboarding import AREA_FLOW_SUGGESTIONS, FLOW_CATALOG, apply_onboarding_step, area_catalog_for
 
@@ -78,6 +80,9 @@ def change_password(request):
 
 def _onboarding_membership(request):
     organization_id = request.headers.get("X-Organization-ID") or request.data.get("organizacion_id") or request.query_params.get("organizacion_id")
+    if request.user.is_superuser and organization_id:
+        organization = get_object_or_404(Organizacion, organizacion_id=organization_id)
+        return SimpleNamespace(organizacion=organization)
     queryset = UsuarioOrganizacion.objects.select_related("organizacion").filter(user=request.user, activo=True, rol=UsuarioOrganizacion.Rol.ADMIN)
     return get_object_or_404(queryset, organizacion__organizacion_id=organization_id) if organization_id else get_object_or_404(queryset, organizacion__onboarding_completado=False)
 

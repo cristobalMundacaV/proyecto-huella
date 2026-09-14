@@ -118,6 +118,23 @@ class SaaSOnboardingE2ETests(TestCase):
         response = self.client.get("/api/onboarding/", HTTP_X_ORGANIZATION_ID=first.organizacion_id)
         self.assertEqual(response.status_code, 404)
 
+    def test_platform_admin_can_open_legacy_demo_onboarding_without_membership(self):
+        organization = Organizacion.objects.create(
+            nombre="Tenant demo legacy",
+            preset="construccion",
+            onboarding_completado=True,
+            onboarding_step=4,
+        )
+
+        response = self.client.get(
+            "/api/onboarding/",
+            HTTP_X_ORGANIZATION_ID=organization.organizacion_id,
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["organizacion"]["id"], organization.organizacion_id)
+        self.assertEqual(response.data["step"], 4)
+
     def test_cancelled_tenant_can_be_reactivated(self):
         provisioned = self.provision(); organization_id = provisioned.data["organizacion_id"]
         self.assertEqual(self.client.post(f"/api/saas/organizaciones/{organization_id}/acciones/", {"action": "cancelar"}, format="json").status_code, 200)

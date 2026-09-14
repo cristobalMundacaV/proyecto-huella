@@ -92,7 +92,14 @@ export function getUnifiedNavigation({ preset = {}, scope } = {}) {
       works.title = preset.unitPluralLabel;
       works.description = `Gestiona las ${preset.unitPluralLabel.toLowerCase()} de tu organización.`;
     }
-    return { home, groups: [{ id: "platform", label: "", items: [works, reports, control, administration] }] };
+    return {
+      home,
+      groups: [
+        { id: "general", label: "General", items: [home, works] },
+        { id: "tracking", label: "Seguimiento", items: [reports, control] },
+        { id: "system", label: "Sistema", items: [administration] },
+      ],
+    };
   }
 
   const operation = {
@@ -121,7 +128,16 @@ export function getUnifiedNavigation({ preset = {}, scope } = {}) {
     ],
   };
 
-  return { home, groups: [{ id: "platform", label: "", items: [operation, management, reports, control, administration] }] };
+  return {
+    home,
+    groups: [
+      { id: "general", label: "General", items: [home] },
+      { id: "operation", label: "Operación", items: [operation] },
+      { id: "management", label: "Gestión", items: [management] },
+      { id: "tracking", label: "Seguimiento", items: [reports, control] },
+      { id: "system", label: "Sistema", items: [administration] },
+    ],
+  };
 }
 
 /** Backward-compatible portfolio-scope alias — most callers only ever
@@ -135,7 +151,6 @@ export function getPageContext(pathname, preset, scope) {
   if (exact) return exact;
   const navigation = getUnifiedNavigation({ preset, scope: scope || { type: "portfolio" } });
   const flatItems = [
-    navigation.home,
     ...navigation.groups.flatMap((group) => group.items.flatMap((item) => (item.children?.length ? item.children : [item]))),
   ];
   const item = [...flatItems].sort((a, b) => b.path.length - a.path.length).find((candidate) => pathname === candidate.path || pathname.startsWith(`${candidate.path}/`));

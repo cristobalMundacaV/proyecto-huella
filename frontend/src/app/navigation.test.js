@@ -4,13 +4,14 @@ import test from "node:test";
 import { getPageContext, getUnifiedNavigation, OBRA_OPERATION_FLOWS } from "./navigation.js";
 
 const preset = { unitPluralLabel: "Obras", unitLabel: "Obra" };
+const rootItems = (nav) => nav.groups.flatMap((group) => group.items);
 
 test("portfolio scope shows exactly Inicio/Obras/Reportes/Control/Configuración", () => {
   const nav = getUnifiedNavigation({ preset, scope: { type: "portfolio" } });
   assert.equal(nav.home.label, "Inicio");
   assert.equal(nav.home.path, "/inicio");
-  assert.deepEqual(nav.groups[0].items.map((item) => item.label), ["Obras", "Reportes", "Control", "Configuración"]);
-  const [works, reports, control, administration] = nav.groups[0].items;
+  assert.deepEqual(rootItems(nav).map((item) => item.label), ["Inicio", "Obras", "Reportes", "Control", "Configuración"]);
+  const [, works, reports, control, administration] = rootItems(nav);
   assert.equal(works.path, "/obras");
   assert.equal(reports.path, "/reportes");
   assert.equal(control.path, "/gobernanza");
@@ -21,9 +22,9 @@ test("obra scope shows exactly Resumen/Operación/Gestión/Reportes/Control/Conf
   const nav = getUnifiedNavigation({ preset, scope: { type: "obra", obraId: "42" } });
   assert.equal(nav.home.label, "Resumen");
   assert.equal(nav.home.path, "/obras/42/resumen");
-  assert.deepEqual(nav.groups[0].items.map((item) => item.label), ["Operación", "Gestión", "Reportes", "Control", "Configuración"]);
-  assert.ok(!nav.groups[0].items.some((item) => item.label === "Obras"), "Obras must not be a primary item in obra scope");
-  const [operation, management, reports, control, administration] = nav.groups[0].items;
+  assert.deepEqual(rootItems(nav).map((item) => item.label), ["Resumen", "Operación", "Gestión", "Reportes", "Control", "Configuración"]);
+  assert.ok(!rootItems(nav).some((item) => item.label === "Obras"), "Obras must not be a primary item in obra scope");
+  const [, operation, management, reports, control, administration] = rootItems(nav);
   assert.equal(reports.path, "/obras/42/reportes");
   assert.equal(control.path, "/obras/42/control");
   assert.equal(administration.path, "/obras/42/configuracion");
@@ -33,7 +34,7 @@ test("obra scope shows exactly Resumen/Operación/Gestión/Reportes/Control/Conf
 
 test("Operación's children are only the 8 environmental flows", () => {
   const nav = getUnifiedNavigation({ preset, scope: { type: "obra", obraId: "71" } });
-  const operation = nav.groups[0].items.find((item) => item.id === "operation");
+  const operation = rootItems(nav).find((item) => item.id === "operation");
   const paths = operation.children.map((child) => child.path);
   assert.equal(paths.length, 8);
   assert.ok(!paths.includes("/obras/71/operacion"));
@@ -50,24 +51,24 @@ test("Operación's children are only the 8 environmental flows", () => {
 
 test("Gestión's children are evidencias/problemas/cumplimiento/historial, all existing routes", () => {
   const nav = getUnifiedNavigation({ preset, scope: { type: "obra", obraId: "71" } });
-  const management = nav.groups[0].items.find((item) => item.id === "management");
+  const management = rootItems(nav).find((item) => item.id === "management");
   const paths = management.children.map((child) => child.path);
   assert.deepEqual(paths, [
     "/obras/71/evidencias", "/obras/71/problemas", "/obras/71/cumplimiento", "/obras/71/timeline",
   ]);
 });
 
-test("there is exactly one navigation group in both scopes (a single unified sidebar, never a second obra menu)", () => {
+test("portfolio and obra use one grouped navigation tree with editorial sections", () => {
   const portfolio = getUnifiedNavigation({ preset, scope: { type: "portfolio" } });
   const obra = getUnifiedNavigation({ preset, scope: { type: "obra", obraId: "1" } });
-  assert.equal(portfolio.groups.length, 1);
-  assert.equal(obra.groups.length, 1);
+  assert.deepEqual(portfolio.groups.map((group) => group.label), ["General", "Seguimiento", "Sistema"]);
+  assert.deepEqual(obra.groups.map((group) => group.label), ["General", "Operación", "Gestión", "Seguimiento", "Sistema"]);
 });
 
 test("an obra scope without an obraId falls back to the portfolio targets", () => {
   const nav = getUnifiedNavigation({ preset, scope: { type: "obra", obraId: null } });
   assert.equal(nav.home.path, "/inicio");
-  assert.deepEqual(nav.groups[0].items.map((item) => item.label), ["Obras", "Reportes", "Control", "Configuración"]);
+  assert.deepEqual(rootItems(nav).map((item) => item.label), ["Inicio", "Obras", "Reportes", "Control", "Configuración"]);
 });
 
 test("getPageContext resolves the obra control/configuración routes by exact pattern", () => {

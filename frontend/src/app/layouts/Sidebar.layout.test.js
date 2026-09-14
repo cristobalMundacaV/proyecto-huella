@@ -25,3 +25,9 @@ test("no stray push-to-bottom pattern (mt-auto / justify-between) exists in the 
 test("the context selector offers 'Ver todas las obras'", () => {
   assert.ok(source.includes("Ver todas las obras"));
 });
+
+test("desktop collapse is persisted and mobile keeps the sidebar expanded", () => {
+  assert.ok(source.includes("carbono-zero.sidebar-collapsed"));
+  assert.ok(source.includes("lg:w-[76px]"));
+  assert.ok(source.includes("lg:w-[288px]"));
+});

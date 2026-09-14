@@ -4,8 +4,9 @@ import {
     Building2,
     Check,
     ChevronDown,
-    ExternalLink,
     Loader2,
+    PanelLeftClose,
+    PanelLeftOpen,
 } from "lucide-react";
 
 import {
@@ -93,6 +94,7 @@ function resolveWorkId(
 
 export default function Sidebar({
     onNavigate,
+    collapsible = true,
 }) {
     const { can } = usePermissions();
     const { activeWorkspace, exitWorkspace } = useOperationalWorkspace();
@@ -140,6 +142,11 @@ export default function Sidebar({
     // mini status dot and which (only `no_aplica`) are left out.
     const applicabilityScope = activeOrganizacionId && workId ? `${activeOrganizacionId}:${workId}` : "";
     const [workApplicability, setWorkApplicability] = useState({ scope: "", rows: [] });
+    const [collapsed, setCollapsed] = useState(() => collapsible && window.localStorage.getItem("carbono-zero.sidebar-collapsed") === "true");
+
+    useEffect(() => {
+        if (collapsible) window.localStorage.setItem("carbono-zero.sidebar-collapsed", String(collapsed));
+    }, [collapsed, collapsible]);
 
     useEffect(() => {
         let active = true;
@@ -277,10 +284,23 @@ export default function Sidebar({
     if (simplified) return <aside className="flex min-h-full w-full shrink-0 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar)] px-3 py-5 lg:sticky lg:top-[72px] lg:h-[calc(100vh-72px)] lg:w-64"><button type="button" onClick={returnToGeneralView} className="mb-4 flex w-full items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-left text-sm font-black text-emerald-800 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"><ArrowLeft aria-hidden="true" size={17} />Volver a vista general</button><div className="mb-6 rounded-2xl bg-emerald-50 p-4"><p className="text-xs font-black uppercase tracking-wide text-emerald-700">{activeWorkspace.area.nombre}</p><p className="mt-1 text-sm font-bold text-slate-800">{activeWorkspace.obra?.nombre || activeWorkspace.organizacion.nombre}</p></div><nav className="space-y-1"><NavLink end to="/inicio" onClick={onNavigate} className={({ isActive }) => `block rounded-xl px-3 py-2.5 text-sm font-bold ${isActive ? "bg-emerald-100 text-emerald-900" : "text-slate-700 hover:bg-slate-100"}`}>Inicio</NavLink><a href="/inicio#subir-informacion" className="block rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Subir información</a><a href="/inicio#ultimos-envios" className="block rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Documentos enviados</a><a href="/inicio#pendientes" className="block rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Pendientes</a></nav></aside>;
 
     return (
-        <aside className="flex min-h-full w-full shrink-0 flex-col border-b border-[var(--sidebar-border)] bg-[var(--sidebar)] px-4 py-5 text-[var(--text-main)] shadow-[16px_0_40px_rgba(15,42,36,0.045)] lg:sticky lg:top-[72px] lg:h-[calc(100vh-72px)] lg:w-[280px] lg:border-b-0 lg:border-r">
+        <aside className={`relative flex min-h-full w-full shrink-0 flex-col border-b border-[var(--sidebar-border)] bg-[linear-gradient(180deg,#f7fbf9_0%,#f3f8f6_100%)] py-5 text-[var(--text-main)] shadow-[16px_0_40px_rgba(15,42,36,0.045)] transition-[width,padding] duration-200 lg:sticky lg:top-[72px] lg:h-[calc(100vh-72px)] lg:border-b-0 lg:border-r ${collapsed ? "px-2 lg:w-[76px]" : "px-4 lg:w-[288px]"}`}>
+
+            {collapsible && (
+                <button
+                    aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+                    className="absolute -right-3 top-5 z-40 hidden h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-md transition hover:border-emerald-300 hover:text-emerald-700 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] lg:flex"
+                    onClick={() => setCollapsed((current) => !current)}
+                    title={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+                    type="button"
+                >
+                    {collapsed ? <PanelLeftOpen aria-hidden="true" size={14} /> : <PanelLeftClose aria-hidden="true" size={14} />}
+                </button>
+            )}
 
             <ContextSelector
                 activeOrganizacionId={activeOrganizacionId}
+                collapsed={collapsed}
                 onNavigate={onNavigate}
                 preset={preset}
                 scope={scope}
@@ -299,6 +319,11 @@ export default function Sidebar({
                 exactPaths={
                     exactPaths
                 }
+                collapsed={collapsed}
+                onExpand={(itemId) => {
+                    setCollapsed(false);
+                    if (itemId) setExpanded((current) => ({ ...current, [itemId]: true }));
+                }}
                 onNavigate={
                     onNavigate
                 }
@@ -319,6 +344,7 @@ const FLOW_STATE_DOT = {
  * separate sidebar. Same 5 nav items below just change target/content. */
 function ContextSelector({
     activeOrganizacionId,
+    collapsed,
     onNavigate,
     preset,
     scope,
@@ -326,7 +352,6 @@ function ContextSelector({
     const navigate = useNavigate();
     const { pathname } = useLocation();
     const [open, setOpen] = useState(false);
-    const showWorkPicker = false;
     const [worksState, setWorksState] = useState({ status: "loading", rows: [] });
 
     useEffect(() => {
@@ -369,31 +394,34 @@ function ContextSelector({
     }
 
     return (
-        <section className="relative mb-6 rounded-2xl border border-emerald-900/10 bg-white/80 p-3 shadow-[0_8px_24px_rgba(15,80,65,0.06)]">
+        <section className={`relative mb-5 rounded-2xl border border-emerald-900/10 bg-white/90 shadow-[0_8px_24px_rgba(15,80,65,0.06)] ${collapsed ? "p-1.5" : "p-2.5"}`}>
 
             <button
-                className="flex w-full items-center gap-2.5 rounded-xl px-1 py-1 text-left transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                onClick={() => { navigate("/obras"); onNavigate?.(); }}
+                aria-expanded={open}
+                aria-haspopup="listbox"
+                className={`flex w-full items-center rounded-xl text-left transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${collapsed ? "justify-center p-1" : "gap-2.5 px-1 py-1"}`}
+                onClick={() => setOpen((current) => !current)}
+                title={collapsed ? (isObra ? (currentWork?.nombre || "Obra") : "Vista consolidada") : undefined}
                 type="button"
             >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
                     {isObra ? <Building2 aria-hidden="true" size={16} /> : <Boxes aria-hidden="true" size={16} />}
                 </span>
 
-                <span className="min-w-0 flex-1">
+                <span className={collapsed ? "sr-only" : "min-w-0 flex-1"}>
                     <span className="block text-[9px] font-black uppercase tracking-[0.17em] text-emerald-700">
-                        {isObra ? "Obra activa" : "Portafolio activo"}
+                        {isObra ? "Obra" : "Portafolio"}
                     </span>
                     <span className="mt-1 block truncate text-[13px] font-extrabold leading-5 text-[var(--text-primary)]">
                         {isObra ? (currentWork?.nombre || "Cargando…") : "Vista consolidada"}
                     </span>
                 </span>
 
-                <ExternalLink aria-hidden="true" className="shrink-0 text-emerald-700" size={14} />
+                {!collapsed && <ChevronDown aria-hidden="true" className={`shrink-0 text-emerald-700 transition-transform ${open ? "rotate-180" : ""}`} size={15} />}
             </button>
 
-            {showWorkPicker && open && (
-                <div className="absolute left-1 right-1 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl" role="listbox">
+            {open && (
+                <div className={`absolute top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl ${collapsed ? "left-0 w-64" : "left-1 right-1"}`} role="listbox">
                     <button
                         aria-selected={!isObra}
                         className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${!isObra ? "bg-emerald-50 text-emerald-900" : "hover:bg-slate-50"}`}
@@ -455,14 +483,6 @@ function ContextSelector({
                     </button>
                 </div>
             )}
-            <button
-                className="mt-3 flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-xs font-bold text-emerald-800 transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                onClick={() => { setOpen(false); navigate("/obras"); onNavigate?.(); }}
-                type="button"
-            >
-                <ExternalLink aria-hidden="true" size={13} />
-                Ver todas las obras
-            </button>
         </section>
     );
 }
@@ -548,25 +568,16 @@ function GeneralNavigation({
     setExpanded,
     exactPaths,
     onNavigate,
+    collapsed,
+    onExpand,
 }) {
     const { pathname } = useLocation();
 
     return (
         <nav
             aria-label="Navegación principal"
-            className="min-h-0 flex-1 space-y-2 overflow-y-auto px-1 pb-3"
+            className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-3 ${collapsed ? "space-y-3 px-0" : "space-y-5 px-1"}`}
         >
-            <p className="px-3 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-500">Navegación</p>
-            <NavItem
-                exact
-                item={
-                    navigation.home
-                }
-                onNavigate={
-                    onNavigate
-                }
-            />
-
             {navigation.groups.map(
                 group => (
                     <section
@@ -575,13 +586,13 @@ function GeneralNavigation({
                         }
                         aria-label={group.label || undefined}
                     >
-                        {group.label && (
-                            <p className="mb-1 px-2 text-[10px] font-black uppercase tracking-[0.15em] text-[var(--text-muted)]">
+                        {group.label && !collapsed && (
+                            <p className="mb-1.5 px-3 text-[9px] font-black uppercase tracking-[0.19em] text-slate-400">
                                 {group.label}
                             </p>
                         )}
 
-                        <div className="space-y-2">
+                        <div className="space-y-1">
                             {group.items.map(
                                 item =>
                                     item.children ? (
@@ -597,29 +608,23 @@ function GeneralNavigation({
                                                     item.id
                                                     ]
                                                 )}
-                                                onClick={() =>
-                                                    setExpanded(
-                                                        current => ({
-                                                            ...current,
-                                                            [item.id]:
-                                                                !current[
-                                                                item.id
-                                                                ],
-                                                        })
-                                                    )
+                                                onClick={() => collapsed
+                                                    ? onExpand(item.id)
+                                                    : setExpanded(current => ({ ...current, [item.id]: !current[item.id] }))
                                                 }
-                                                className={`flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[13px] font-extrabold transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${item.children.some((child) => pathname === child.path || pathname.startsWith(`${child.path}/`)) ? "bg-emerald-50 text-emerald-900" : "text-slate-700 hover:bg-white/80 hover:text-slate-950"}`}
+                                                className={`flex h-10 w-full items-center rounded-xl text-left text-[13px] font-extrabold transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${collapsed ? "justify-center px-0" : "gap-3 px-3"} ${item.children.some((child) => pathname === child.path || pathname.startsWith(`${child.path}/`)) ? "bg-emerald-100/80 text-emerald-900 shadow-[inset_3px_0_0_#059669]" : "text-slate-700 hover:bg-white hover:text-slate-950"}`}
+                                                title={collapsed ? item.label : undefined}
                                             >
                                                 <item.icon
                                                     aria-hidden="true"
                                                     size={18}
                                                 />
 
-                                                <span className="min-w-0 flex-1 truncate">
+                                                <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>
                                                     {item.label}
                                                 </span>
 
-                                                <ChevronDown
+                                                {!collapsed && <ChevronDown
                                                     aria-hidden="true"
                                                     size={15}
                                                     className={`text-slate-400 transition ${expanded[
@@ -628,10 +633,10 @@ function GeneralNavigation({
                                                         ? "rotate-180"
                                                         : ""
                                                         }`}
-                                                />
+                                                />}
                                             </button>
 
-                                            {expanded[
+                                            {!collapsed && expanded[
                                                 item.id
                                             ] && (
                                                     <div className="ml-5 mt-1 space-y-1 border-l border-emerald-900/10 py-1 pl-3">
@@ -639,6 +644,7 @@ function GeneralNavigation({
                                                             child => (
                                                                 <NavItem
                                                                     compact
+                                                                    collapsed={false}
                                                                     exact={exactPaths.has(
                                                                         child.path
                                                                     )}
@@ -665,6 +671,7 @@ function GeneralNavigation({
                                             item={
                                                 item
                                             }
+                                            collapsed={collapsed}
                                             key={
                                                 item.path
                                             }
@@ -685,6 +692,7 @@ function GeneralNavigation({
 
 function NavItem({
     compact = false,
+    collapsed = false,
     exact = false,
     item,
     onNavigate,
@@ -706,12 +714,13 @@ function NavItem({
             onClick={
                 onNavigate
             }
+            title={collapsed ? item.label : undefined}
             className={({
                 isActive,
             }) =>
-                `flex items-center gap-3 rounded-xl px-3 ${compact
-                    ? "min-h-9 py-2 text-xs"
-                    : "h-11 text-[13px]"
+                `flex items-center rounded-xl ${collapsed ? "justify-center px-0" : "gap-3 px-3"} ${compact
+                     ? "min-h-9 py-2 text-xs"
+                    : "h-10 text-[13px]"
                 } font-bold transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${isActive
                     ? domain ? `${domain.softBg} ${domain.text} shadow-[inset_3px_0_0_currentColor]` : "bg-emerald-100/80 text-emerald-900 shadow-[inset_3px_0_0_#059669]"
                     : "text-slate-600 hover:bg-white/80 hover:text-slate-950"
@@ -728,11 +737,11 @@ function NavItem({
                 }
             />
 
-            <span className="min-w-0 flex-1 truncate">
+            <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>
                 {item.label}
             </span>
 
-            {dotStyle && (
+            {dotStyle && !collapsed && (
                 <span
                     aria-hidden="true"
                     className={`h-1.5 w-1.5 shrink-0 rounded-full ${domain?.text || "text-amber-600"} ${dotStyle}`}
