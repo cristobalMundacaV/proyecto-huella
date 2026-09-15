@@ -146,6 +146,15 @@ export default function AppRouter() {
               <Route path="operacion/ruido" element={<SectorDomainPage domain="ruido" />} />
               <Route path="operacion/emisiones-atmosfericas" element={<SectorDomainPage domain="emisiones-atmosfericas" />} />
               <Route path="operacion/suelo" element={<SectorDomainPage domain="suelo" />} />
+              <Route path="operacion/energia/:section" element={<SectorDomainPage domain="energia" />} />
+              <Route path="operacion/agua/:section" element={<SectorDomainPage domain="agua" />} />
+              <Route path="operacion/combustibles/:section" element={<SectorDomainPage domain="combustibles" />} />
+              <Route path="operacion/transporte/:section" element={<TransportPage />} />
+              <Route path="operacion/materiales/:section" element={<MaterialsPage />} />
+              <Route path="operacion/residuos/:section" element={<WastePage />} />
+              <Route path="operacion/ruido/:section" element={<SectorDomainPage domain="ruido" />} />
+              <Route path="operacion/emisiones-atmosfericas/:section" element={<SectorDomainPage domain="emisiones-atmosfericas" />} />
+              <Route path="operacion/suelo/:section" element={<SectorDomainPage domain="suelo" />} />
             </Route>
             <Route
               path="indicadores"

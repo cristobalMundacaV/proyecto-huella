@@ -40,6 +40,8 @@ import DomainQualityPanel from "../components/DomainQualityPanel";
 import { getEnvironmentalDomain } from "@/shared/config/environmentalDomains";
 import { getFlowChartColor } from "@/shared/config/environmentalDomains";
 import EnvironmentalTrendChart from "@/shared/charts/EnvironmentalTrendChart";
+import { useFlowSection } from "../components/FlowWorkspaceNav";
+import FlowQuickRead from "../components/FlowQuickRead";
 
 const PAGE_SIZE = 8;
 
@@ -127,6 +129,7 @@ function rangeHelper(metric) {
 }
 
 export default function SectorDomainPage({ domain }) {
+  const section = useFlowSection();
   const [trace, setTrace] = useState(null);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -511,16 +514,28 @@ export default function SectorDomainPage({ domain }) {
       {recordsReady && resourceErrors?.indicators && <Alert tone="warning">No fue posible cargar el resumen de mediciones. Los registros disponibles se mantienen visibles, pero no se infiere agregación ni ausencia de ambigüedades.</Alert>}
 
       {recordsReady && <>
+        {section === "resumen" && noApplicable && <EmptyState title="No aplica a esta obra" description="Este ámbito está marcado como no aplicable. La ausencia de registros no se interpreta como cero." />}
+        {section === "resumen" && unresolved && <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si este ámbito aplica a la obra." />}
+        {section === "resumen" && !noApplicable && !unresolved && !records.length && <EmptyState title="Sin información registrada" description={`Aún no hay registros de ${config.label.toLowerCase()} para esta obra.`} />}
+        {section === "resumen" && <FlowQuickRead
+          base={`/obras/${obraId}/operacion/${domain}`}
+          records={records.length}
+          latest={latestMeasurement ? formatDateTime(latestMeasurement.observation?.timestamp_observacion || latestMeasurement.record?.periodo_inicio) : null}
+          quality={latestMeasurement?.observation?.estado ? humanize(latestMeasurement.observation.estado) : null}
+          evidence={`${measurements.filter(({ observation }) => observation?.evidencia).length} con evidencia vinculada`}
+          alert={ambiguous.length ? `${ambiguous.length} métricas con registros ambiguos requieren revisión.` : null}
+          noData={!records.length}
+        />}
         {ambiguous.length > 0 && <Alert tone="warning" title="Requiere revisión">
           Hay registros con múltiples mediciones que el sistema marca como ambiguos. No se agregaron automáticamente.
         </Alert>}
 
-        {generationRecords.length > 0 && <section className={`flex items-center gap-3 rounded-[20px] border p-4 ${generationIdentity.border} ${generationIdentity.softBg}`}>
+        {section === "resumen" && generationRecords.length > 0 && <section className={`flex items-center gap-3 rounded-[20px] border p-4 ${generationIdentity.border} ${generationIdentity.softBg}`}>
           <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white ${generationIdentity.text}`}><GenerationIcon aria-hidden="true" size={19} /></span>
           <div><p className="font-black">Generación propia</p><p className="mt-1 text-sm text-[var(--text-muted)]">{generationRecords.length} {generationRecords.length === 1 ? "registro diferenciado del consumo eléctrico" : "registros diferenciados del consumo eléctrico"}.</p></div>
         </section>}
 
-        {!noApplicable && !unresolved && visibleMetricCards.length > 0 && <section>
+        {section === "resumen" && !noApplicable && !unresolved && visibleMetricCards.length > 0 && <section>
           <SectionHeader
             eyebrow="LECTURA DEL ÁMBITO"
             title="Resumen"
@@ -540,7 +555,7 @@ export default function SectorDomainPage({ domain }) {
           />)}</div>
         </section>}
 
-        {!noApplicable && !unresolved && measurements.length > 0 && <section className="rounded-[22px] border border-[var(--border-subtle)] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+        {(["resumen", "tendencias"].includes(section)) && !noApplicable && !unresolved && trendData.length > 0 && <section className="rounded-[22px] border border-[var(--border-subtle)] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
           <SectionHeader
             eyebrow="EVOLUCIÓN"
             title="Tendencia de mediciones"
@@ -554,8 +569,11 @@ export default function SectorDomainPage({ domain }) {
             />
           </div>
         </section>}
+        {section === "tendencias" && noApplicable && <EmptyState title="No aplica a esta obra" description="Este ámbito está marcado como no aplicable. La ausencia de registros no se interpreta como cero." />}
+        {section === "tendencias" && unresolved && <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si este ámbito aplica a la obra." />}
+        {section === "tendencias" && !noApplicable && !unresolved && !trendData.length && <EmptyState title="Sin tendencia disponible" description="No hay mediciones numéricas compatibles para representar una serie temporal." />}
 
-        {noApplicable
+        {section === "registros" && (noApplicable
           ? <EmptyState
             title="No aplica a esta obra"
             description="Este ámbito está marcado como no aplicable. La ausencia de registros no se interpreta como cero."
@@ -863,9 +881,11 @@ export default function SectorDomainPage({ domain }) {
                     </TableShell>
                   )}
                 <Pagination page={page} totalItems={measurements.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel={domain === "ruido" ? "mediciones acústicas" : "registros"} />
-              </section>}
+              </section>)}
       </>}
-      {!noApplicable && !unresolved && records.length > 0 && <>
+      {section === "calidad" && noApplicable && <EmptyState title="No aplica a esta obra" description="Este ámbito está marcado como no aplicable. La ausencia de registros no se interpreta como cero." />}
+      {section === "calidad" && unresolved && <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si este ámbito aplica a la obra." />}
+      {section === "calidad" && !noApplicable && !unresolved && <>
         <DomainQualityPanel
           domain={domain}
           organizationId={
@@ -888,7 +908,10 @@ export default function SectorDomainPage({ domain }) {
           }
         />
 
-        <DomainSensorsPanel
+      </>}
+      {section === "sensores" && noApplicable && <EmptyState title="No aplica a esta obra" description="Este ámbito está marcado como no aplicable. La ausencia de registros no se interpreta como cero." />}
+      {section === "sensores" && unresolved && <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si este ámbito aplica a la obra." />}
+      {section === "sensores" && !noApplicable && !unresolved && <DomainSensorsPanel
           domain={domain}
           operation={operation}
           organizationId={
@@ -900,8 +923,7 @@ export default function SectorDomainPage({ domain }) {
           onCreated={
             reloadOperation
           }
-        />
-      </>}
+        />}
 
       <TraceabilityDrawer
         observation={trace}

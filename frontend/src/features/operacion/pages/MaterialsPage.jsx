@@ -22,6 +22,10 @@ import MaterialReceptionLinkModal from "../components/MaterialReceptionLinkModal
 import DomainSensorsPanel from "../components/DomainSensorsPanel";
 import DomainQualityPanel from "../components/DomainQualityPanel";
 import DomainCalculationPanel from "../components/DomainCalculationPanel";
+import { useFlowSection } from "../components/FlowWorkspaceNav";
+import FlowQuickRead from "../components/FlowQuickRead";
+import EnvironmentalTrendChart from "@/shared/charts/EnvironmentalTrendChart";
+import { getFlowChartColor } from "@/shared/config/environmentalDomains";
 
 
 const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
@@ -33,6 +37,7 @@ function measurement(value, unit) {
 }
 
 export default function MaterialsPage() {
+  const section = useFlowSection();
   const { obraId } = useParams();
   const {
     obra,
@@ -75,6 +80,12 @@ export default function MaterialsPage() {
   const applicabilityBadge = noApplicable ? "No aplica" : unresolved ? "Aplicabilidad por definir" : "Aplica";
   useEffect(() => { setPage(1); }, [events.length, persistedWorkId]);
   const pagedEvents = useMemo(() => events.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [events, page]);
+  const trendRows = useMemo(() => {
+    const rows = events.filter((event) => event.cantidad_detalle?.valor_numerico !== null && event.cantidad_detalle?.valor_numerico !== undefined && Number.isFinite(Number(event.cantidad_detalle.valor_numerico)))
+      .map((event) => ({ label: formatDateTime(event.fecha_hora), value: Number(event.cantidad_detalle.valor_numerico), unit: event.cantidad_detalle.unidad, timestamp: event.fecha_hora }));
+    const unit = rows.at(-1)?.unit;
+    return rows.filter((row) => row.unit === unit).toSorted((a, b) => String(a.timestamp).localeCompare(String(b.timestamp))).slice(-12);
+  }, [events]);
 
   return (
     <OperationDomainShell
@@ -85,6 +96,23 @@ export default function MaterialsPage() {
       primaryAction={!noApplicable && (unresolved ? <ButtonLink leftIcon={ClipboardCheck} to={`/obras/${obraId}/diagnostico`}>Revisar perfil ambiental</ButtonLink> : <Button leftIcon={Plus} onClick={() => setRecordOpen(true)}>Registrar movimiento</Button>)}
       secondaryAction={!noApplicable && <ButtonLink leftIcon={Plus} variant="secondary" to={`/obras/${obraId}/evidencias`}>{unresolved ? "Agregar evidencia" : "Agregar documento"}</ButtonLink>}
     >
+      {section === "resumen" && noApplicable && <EmptyState title="No aplica a esta obra" description="Materiales está marcado como no aplicable; la ausencia de movimientos no se interpreta como cero." />}
+      {section === "resumen" && unresolved && <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si materiales aplica a esta obra." />}
+      {section === "resumen" && !noApplicable && !unresolved && eventsReady && !events.length && <EmptyState title="Sin información registrada" description="Aún no hay movimientos de materiales registrados para esta obra." />}
+      {section === "resumen" && eventsReady && <FlowQuickRead
+        base={`/obras/${obraId}/operacion/materiales`}
+        records={eventsReady ? events.length : null}
+        latest={events.length ? formatDateTime(events.at(-1)?.fecha_hora) : null}
+        quality={signals.length ? `${signals.length} señales para revisar` : "Sin señales del balance disponibles"}
+        evidence={`${events.filter((event) => event.evidencia).length} movimientos con evidencia`}
+        noData={!events.length}
+      />}
+      {section === "tendencias" && noApplicable && <EmptyState title="No aplica a esta obra" description="Materiales está marcado como no aplicable; la ausencia de movimientos no se interpreta como cero." />}
+      {section === "tendencias" && unresolved && <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si materiales aplica a esta obra." />}
+      {section === "tendencias" && !noApplicable && !unresolved && (trendRows.length ? <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+        <SectionHeader title="Tendencia de movimientos" description="Últimos valores registrados en una misma unidad; no se suman materiales diferentes." />
+        <EnvironmentalTrendChart data={trendRows} color={getFlowChartColor("materiales")} valueFormatter={(value) => `${formatNumber(value)} ${trendRows[0]?.unit || ""}`.trim()} />
+      </section> : <EmptyState title="Sin tendencia disponible" description="No hay mediciones numéricas compatibles para representar una serie." />)}
       {!noApplicable && !unresolved && !balancesReady && <ErrorState title="No fue posible cargar los balances de materiales" description="Los eventos continúan disponibles si pudieron cargarse." />}
 
       {!noApplicable && !unresolved && balancesReady && signals.length > 0 && <Alert tone="warning" title="Requiere revisión">
@@ -95,7 +123,9 @@ export default function MaterialsPage() {
         </details>
       </Alert>}
 
-      {!noApplicable && !unresolved && balancesReady && balanceRows.length > 0 && <section>
+      {section === "calidad" && noApplicable && <EmptyState title="No aplica a esta obra" description="Materiales está marcado como no aplicable; la ausencia de movimientos no se interpreta como cero." />}
+      {section === "calidad" && unresolved && <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si materiales aplica a esta obra." />}
+      {section === "calidad" && !noApplicable && !unresolved && balancesReady && balanceRows.length > 0 && <section>
         <SectionHeader
           eyebrow="BALANCE OPERACIONAL"
           title="Balances disponibles"
@@ -121,7 +151,7 @@ export default function MaterialsPage() {
         </TableShell>
       </section>}
 
-      {noApplicable
+      {section === "registros" && (noApplicable
         ? <EmptyState title="No aplica a esta unidad" description="Materiales está marcado como no aplicable. La ausencia de movimientos no se presenta como cero." />
         : unresolved
           ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si materiales aplica a esta obra." />
@@ -175,9 +205,10 @@ export default function MaterialsPage() {
               })}</TableBody>
             </TableShell>
             <Pagination page={page} totalItems={events.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel="movimientos" />
-          </section>}
-      {!noApplicable && !unresolved && events.length > 0 && <>
-      <DomainSensorsPanel
+          </section>)}
+      {section === "sensores" && noApplicable && <EmptyState title="No aplica a esta obra" description="Materiales está marcado como no aplicable; la ausencia de movimientos no se interpreta como cero." />}
+      {section === "sensores" && unresolved && <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si materiales aplica a esta obra." />}
+      {section === "sensores" && !noApplicable && !unresolved && <DomainSensorsPanel
         domain="materiales"
         operation={operation}
         organizationId={
@@ -187,7 +218,8 @@ export default function MaterialsPage() {
         onCreated={
           reloadOperation
         }
-      />
+      />}
+      {section === "calidad" && !noApplicable && !unresolved && <>
       <DomainQualityPanel
         domain="materiales"
         organizationId={

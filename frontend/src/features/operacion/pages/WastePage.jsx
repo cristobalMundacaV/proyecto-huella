@@ -4,6 +4,7 @@ import { ErrorState, Pagination, SectionHeader, TableBody, TableCell, TableHead,
 import { formatDateTime, formatNumber } from "@/shared/utils/formatters";
 import SectorDomainPage from "./SectorDomainPage";
 import { isResourceReady, resourceData, wasteClassification } from "../utils/operationSelectors";
+import { useFlowSection } from "../components/FlowWorkspaceNav";
 
 function measurement(value, unit) {
   if (value === null || value === undefined) return "Sin datos";
@@ -12,6 +13,7 @@ function measurement(value, unit) {
 const PAGE_SIZE = 8;
 
 export default function WastePage() {
+  const section = useFlowSection();
   const { operation } = useOutletContext();
   const [page, setPage] = useState(1);
   const eventsReady = isResourceReady(operation.materialEvents);
@@ -23,7 +25,7 @@ export default function WastePage() {
   const pagedWaste = useMemo(() => materialWaste.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [materialWaste, page]);
 
   return <div className="space-y-8">
-    <section>
+    {section === "resumen" && <section>
       <SectionHeader
         eyebrow="SUBFLUJOS AMBIENTALES"
         title="Clasificación de residuos"
@@ -41,12 +43,12 @@ export default function WastePage() {
           <p className="mt-1 text-sm text-amber-900/70">registros clasificados</p>
         </div>
       </div>
-    </section>
+    </section>}
     <SectorDomainPage domain="residuos" />
 
-    {!eventsReady && <ErrorState title="No fue posible cargar los residuos provenientes de materiales" description="Los registros de residuos del dominio principal permanecen disponibles si pudieron cargarse." />}
+    {section === "registros" && !eventsReady && <ErrorState title="No fue posible cargar los residuos provenientes de materiales" description="Los registros de residuos del dominio principal permanecen disponibles si pudieron cargarse." />}
 
-    {materialWaste.length > 0 && <section>
+    {section === "registros" && materialWaste.length > 0 && <section>
       <SectionHeader
         eyebrow="TRAZABILIDAD DE RESIDUOS"
         title="Residuos provenientes de materiales"

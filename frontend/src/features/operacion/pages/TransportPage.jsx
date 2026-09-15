@@ -9,6 +9,10 @@ import OperationDomainShell from "../components/OperationDomainShell";
 import DomainSensorsPanel from "../components/DomainSensorsPanel";
 import DomainQualityPanel from "../components/DomainQualityPanel";
 import DomainCalculationPanel from "../components/DomainCalculationPanel";
+import { useFlowSection } from "../components/FlowWorkspaceNav";
+import FlowQuickRead from "../components/FlowQuickRead";
+import EnvironmentalTrendChart from "@/shared/charts/EnvironmentalTrendChart";
+import { getFlowChartColor } from "@/shared/config/environmentalDomains";
 
 const humanize = (value) => value ? String(value).replaceAll("_", " ") : "Sin información";
 const PAGE_SIZE = 8;
@@ -28,6 +32,7 @@ function observationOrigin(label, observation) {
 }
 
 export default function TransportPage() {
+  const section = useFlowSection();
   const { obraId } = useParams();
   const {
     obra,
@@ -57,6 +62,9 @@ export default function TransportPage() {
   const applicabilityBadge = noApplicable ? "No aplica" : unresolved ? "Aplicabilidad por definir" : "Aplica";
   useEffect(() => { setPage(1); }, [journeys.length, persistedWorkId]);
   const pagedJourneys = useMemo(() => journeys.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [journeys, page]);
+  const distanceTrend = useMemo(() => journeys.filter((journey) => journey.metricas?.distancia_km !== null && journey.metricas?.distancia_km !== undefined && Number.isFinite(Number(journey.metricas.distancia_km)))
+    .map((journey) => ({ label: formatDateTime(journey.fecha_salida), value: Number(journey.metricas.distancia_km), unit: "km", timestamp: journey.fecha_salida }))
+    .toSorted((a, b) => String(a.timestamp).localeCompare(String(b.timestamp))).slice(-12), [journeys]);
   const transportActivities = useMemo(
     () => explicitDomainActivities(
       journeys.map((journey) => journey.actividad_detalle),
@@ -74,7 +82,24 @@ export default function TransportPage() {
       primaryAction={!noApplicable && (unresolved ? <ButtonLink leftIcon={ClipboardCheck} to={`/obras/${obraId}/diagnostico`}>Revisar perfil ambiental</ButtonLink> : <Button leftIcon={Plus} onClick={() => setRecordOpen(true)}>Registrar viaje</Button>)}
       secondaryAction={!noApplicable && <ButtonLink leftIcon={Plus} variant="secondary" to={`/obras/${obraId}/evidencias`}>{unresolved ? "Agregar evidencia" : "Agregar documento"}</ButtonLink>}
     >
-      {!noApplicable && !unresolved && (indicatorsReady
+      {section === "resumen" && noApplicable && <EmptyState title="No aplica a esta obra" description="Transporte está marcado como no aplicable; la ausencia de viajes no se interpreta como cero." />}
+      {section === "resumen" && unresolved && <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si transporte aplica a esta obra." />}
+      {section === "resumen" && !noApplicable && !unresolved && journeysReady && !journeys.length && <EmptyState title="Sin viajes registrados" description="Aún no hay viajes registrados para esta obra." />}
+      {section === "resumen" && journeysReady && <FlowQuickRead
+        base={`/obras/${obraId}/operacion/transporte`}
+        records={journeysReady ? journeys.length : null}
+        latest={journeys.length ? formatDateTime(journeys.at(-1)?.fecha_salida) : null}
+        quality={"Ver estado de los viajes"}
+        evidence={`${journeys.filter((journey) => journey.distancia_detalle?.evidencia || journey.carga_detalle?.evidencia || journey.combustible_detalle?.evidencia).length} viajes con evidencia`}
+        noData={!journeys.length}
+      />}
+      {section === "tendencias" && noApplicable && <EmptyState title="No aplica a esta obra" description="Transporte está marcado como no aplicable; la ausencia de viajes no se interpreta como cero." />}
+      {section === "tendencias" && unresolved && <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si transporte aplica a esta obra." />}
+      {section === "tendencias" && !noApplicable && !unresolved && (distanceTrend.length ? <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+        <SectionHeader title="Distancia por viaje" description="Distancias observadas en orden cronológico, sin estimar viajes faltantes." />
+        <EnvironmentalTrendChart data={distanceTrend} color={getFlowChartColor("transporte")} valueFormatter={(value) => `${formatNumber(value)} km`} />
+      </section> : <EmptyState title="Sin tendencia disponible" description="No hay distancias numéricas registradas para representar una serie." />)}
+      {section === "resumen" && !noApplicable && !unresolved && (indicatorsReady
         ? summaryMetrics.length > 0 && <section>
           <SectionHeader
             eyebrow="LECTURA DEL ÁMBITO"
@@ -90,7 +115,7 @@ export default function TransportPage() {
         </section>
         : <ErrorState title="No fue posible cargar el resumen de transporte" description="Los viajes continúan disponibles si pudieron cargarse." />)}
 
-      {noApplicable
+      {section === "registros" && (noApplicable
         ? <EmptyState title="No aplica a esta unidad" description="Transporte está marcado como no aplicable. La ausencia de viajes no se presenta como cero operacional." />
         : unresolved
           ? <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si transporte aplica a esta obra." />
@@ -164,9 +189,10 @@ export default function TransportPage() {
               })}</TableBody>
             </TableShell>
             <Pagination page={page} totalItems={journeys.length} pageSize={PAGE_SIZE} onChange={setPage} itemLabel="viajes" />
-          </section>}
-      {!noApplicable && !unresolved && journeys.length > 0 && <>
-      <DomainSensorsPanel
+          </section>)}
+      {section === "sensores" && noApplicable && <EmptyState title="No aplica a esta obra" description="Transporte está marcado como no aplicable; la ausencia de viajes no se interpreta como cero." />}
+      {section === "sensores" && unresolved && <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si transporte aplica a esta obra." />}
+      {section === "sensores" && !noApplicable && !unresolved && <DomainSensorsPanel
         domain="transporte"
         operation={operation}
         organizationId={
@@ -176,7 +202,10 @@ export default function TransportPage() {
         onCreated={
           reloadOperation
         }
-      />
+      />}
+      {section === "calidad" && noApplicable && <EmptyState title="No aplica a esta obra" description="Transporte está marcado como no aplicable; la ausencia de viajes no se interpreta como cero." />}
+      {section === "calidad" && unresolved && <EmptyState title="Aplicabilidad por definir" description="Aún no existe información suficiente para determinar si transporte aplica a esta obra." />}
+      {section === "calidad" && !noApplicable && !unresolved && <>
       <DomainQualityPanel
         domain="transporte"
         organizationId={

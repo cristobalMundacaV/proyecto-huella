@@ -1,4 +1,5 @@
 import EnvironmentalFlowHero from "./EnvironmentalFlowHero";
+import FlowWorkspaceNav from "./FlowWorkspaceNav";
 
 export default function OperationDomainShell({
   title,
@@ -23,6 +24,8 @@ export default function OperationDomainShell({
         primaryAction={primaryAction}
         secondaryAction={secondaryAction}
       />
+
+      <FlowWorkspaceNav />
 
       {alerts}
       {metrics}
