@@ -64,13 +64,13 @@ export default function AttentionList({ items = [], contextIncomplete = false })
       const SignalIcon = signalIcon(item, DomainIcon);
       const severity = severityInfo(item.severity);
 
-      return <article className={`relative rounded-[18px] border border-l-4 p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] ${severity.card}`} key={item.key}>
-        <div className="absolute right-4 top-4 flex max-w-[48%] flex-wrap justify-end gap-2 text-xs font-bold">
+      return <article className={`relative flex min-h-[134px] flex-col justify-center rounded-[18px] border border-l-4 p-4 pb-14 shadow-[0_8px_24px_rgba(15,23,42,0.04)] sm:pb-4 ${severity.card}`} key={item.key}>
+        <div className="mb-3 flex flex-wrap justify-end gap-2 text-xs font-bold sm:absolute sm:right-4 sm:top-4 sm:mb-0 sm:max-w-[48%]">
           {category && <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${category.border} ${category.softBg} ${category.text}`}><DomainIcon aria-hidden="true" size={14} />{category.label}</span>}
           {item.risk && <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${severity.risk}`}><ShieldAlert aria-hidden="true" size={14} />Riesgo: {riskLabel(item.risk)}</span>}
           {!item.risk && !category && item.reason && <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-600">{item.reason}</span>}
         </div>
-        <div className="flex items-center gap-3 pr-[48%]">
+        <div className="flex items-center gap-3 sm:pr-[48%]">
           <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${severity.icon}`}>
             <SignalIcon aria-hidden="true" size={19} />
           </span>
@@ -79,7 +79,7 @@ export default function AttentionList({ items = [], contextIncomplete = false })
             {item.description && <p className="mt-1 line-clamp-2 text-sm text-[var(--text-secondary)]">{item.description}</p>}
           </div>
         </div>
-        <div className="mt-4 flex justify-end">
+        <div className="absolute bottom-4 right-4 flex justify-end">
           {item.path && <ButtonLink className="ml-auto" size="sm" variant="secondary" rightIcon={ArrowRight} to={item.path}>{item.action || "Ver gestión"}</ButtonLink>}
         </div>
       </article>;
