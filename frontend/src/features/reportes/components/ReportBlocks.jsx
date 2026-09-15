@@ -18,7 +18,7 @@ export function ExecutiveSummary({ report, workName }) {
   const behavior = trend(report.variation);
   const title = !report.records ? "Aún no existe una lectura de emisiones para este período" : report.variation === null ? "La obra ya cuenta con una base ambiental consolidada" : report.variation > 0 ? "Las emisiones recientes aumentaron y requieren atención" : report.variation < 0 ? "Las emisiones recientes disminuyeron" : "Las emisiones recientes se mantienen estables";
   return <CZSection className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-    <div><p className="text-xs font-black uppercase tracking-[0.15em] text-emerald-700">Resumen ejecutivo</p><h2 className="mt-2 max-w-3xl text-2xl font-black leading-tight sm:text-3xl">{title}</h2><p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-secondary)]">{report.records ? `${workName} registra ${emission(report.total)} en ${report.records} resultados ambientales trazables dentro del período seleccionado.` : `No hay resultados en kg CO2e disponibles para ${workName} bajo el filtro actual. La ausencia de datos no se interpreta como cero.`}</p>
+    <div className="flex flex-col justify-center"><p className="text-xs font-black uppercase tracking-[0.15em] text-emerald-700">Resumen ejecutivo</p><h2 className="mt-2 max-w-3xl text-2xl font-black leading-tight sm:text-3xl">{title}</h2><p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-secondary)]">{report.records ? `${workName} registra ${emission(report.total)} en ${report.records} resultados ambientales trazables dentro del período seleccionado.` : `No hay resultados en kg CO2e disponibles para ${workName} bajo el filtro actual. La ausencia de datos no se interpreta como cero.`}</p>
       <ul className="mt-5 space-y-2 text-sm text-[var(--text-secondary)]">
         <li className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />{report.dominantSource ? `La fuente prioritaria es ${report.dominantSource.name}, con ${formatPercent(report.dominantSource.percentage)} del total.` : "No hay una fuente prioritaria determinable."}</li>
         <li className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-500" />{report.dominantCategory ? `${report.dominantCategory.name} concentra la mayor contribución ambiental del período.` : "No existe distribución por categoría disponible."}</li>
@@ -120,12 +120,17 @@ export function ReportCharts({ report }) {
           <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" vertical={false} />
           <XAxis angle={-15} axisLine={false} dataKey="name" height={58} interval={0} textAnchor="end" tick={{ fontSize: 11, fontWeight: 700 }} tickLine={false} />
           <YAxis axisLine={false} tick={{ fontSize: 11 }} tickFormatter={(value) => formatNumber(value, 0)} tickLine={false} width={64} />
-          <Tooltip formatter={(value) => emission(value)} {...TOOLTIP_STYLE} />
-          <Bar dataKey="value" name="Emisiones" radius={[8, 8, 0, 0]}>{categoryData.map((row) => <Cell fill={REPORT_CATEGORY_COLORS[row.name]} fillOpacity={row.name === dominantName ? 1 : 0.55} key={row.name} />)}</Bar>
+          <Tooltip cursor={false} content={<CategoryBarTooltip />} />
+          <Bar activeBar={{ fill: "#94a3b8" }} dataKey="value" name="Emisiones" radius={[8, 8, 0, 0]}>{categoryData.map((row) => <Cell fill={REPORT_CATEGORY_COLORS[row.name]} fillOpacity={row.name === dominantName ? 1 : 0.55} key={row.name} />)}</Bar>
         </BarChart>
       </ResponsiveContainer>
     </Chart>
   </section>;
+}
+
+function CategoryBarTooltip({ active, label, payload }) {
+  if (!active || !payload?.length) return null;
+  return <div className="rounded-xl border border-[var(--border-default)] bg-white px-3 py-2 shadow-[var(--shadow-card-v1)]"><p className="text-xs font-bold text-[var(--text-secondary)]">{label}</p><p className="mt-1 flex items-baseline gap-1"><span className="text-sm font-black text-teal-700">{formatNumber(payload[0].value)}</span><span className="text-xs font-bold text-slate-500">kg CO2e</span></p></div>;
 }
 
 export function ClosingActions({ onOpenFilters }) {
