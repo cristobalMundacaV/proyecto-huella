@@ -1,4 +1,4 @@
-import { getFlowChartColor } from "@/shared/config/environmentalDomains";
+import { getFlowChartColor } from "../../../shared/config/environmentalDomains.js";
 
 const CATEGORY_ORDER = ["Materiales", "Energía", "Maquinaria", "Residuos", "Transporte", "Agua", "Otros"];
 const CATEGORY_DOMAIN_KEYS = { Materiales: "materiales", Energía: "energia", Maquinaria: "maquinaria", Residuos: "residuos", Transporte: "transporte", Agua: "agua", Otros: "otros" };
@@ -48,12 +48,59 @@ export function buildEnvironmentalReport(impacts = [], filters = {}) {
   });
 
   const categoryRows = CATEGORY_ORDER.map((name) => ({ name, value: categories.get(name) || 0, percentage: total > 0 ? ((categories.get(name) || 0) / total) * 100 : 0 }));
-  const sourceRows = [...sources.values()].sort((a, b) => b.value - a.value).map((row) => ({ ...row, percentage: total > 0 ? (row.value / total) * 100 : 0 }));
   const timeline = [...months.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => ({ key, label: monthLabel(key), value }));
   const latest = timeline.at(-1) || null;
   const previous = timeline.at(-2) || null;
   const variation = latest && previous && previous.value !== 0 ? ((latest.value - previous.value) / previous.value) * 100 : null;
   const peak = timeline.reduce((best, row) => !best || row.value > best.value ? row : best, null);
+
+  // Per-source comparison: reuses the exact same filtered records, sliced by
+  // the same two adjacent months `latest`/`previous` already computed above
+  // — no new endpoint, no new grouping rule, just the existing month bucket
+  // applied a second time per source instead of only in aggregate.
+  const bySourceInMonth = (monthEntry) => {
+    const map = new Map();
+    if (!monthEntry) return map;
+    filtered.filter((item) => monthKey(item.timestamp || item.created_at) === monthEntry.key).forEach((item) => {
+      const name = item.actividad_nombre || "Fuente sin nombre";
+      map.set(name, (map.get(name) || 0) + Number(item.valor));
+    });
+    return map;
+  };
+  const latestBySource = bySourceInMonth(latest);
+  const previousBySource = bySourceInMonth(previous);
+  const hasComparison = Boolean(latest && previous);
+
+  const sourceRows = [...sources.values()].sort((a, b) => b.value - a.value).map((row) => {
+    const percentage = total > 0 ? (row.value / total) * 100 : 0;
+    if (!hasComparison) return { ...row, percentage, delta: null };
+    const current = latestBySource.get(row.name) || 0;
+    const before = previousBySource.get(row.name) || 0;
+    return { ...row, percentage, delta: before !== 0 ? ((current - before) / before) * 100 : current > 0 ? null : 0 };
+  });
+
+  let topMover = null;
+  if (hasComparison) {
+    const names = new Set([...latestBySource.keys(), ...previousBySource.keys()]);
+    names.forEach((name) => {
+      const current = latestBySource.get(name) || 0;
+      const before = previousBySource.get(name) || 0;
+      const change = current - before;
+      if (!topMover || Math.abs(change) > Math.abs(topMover.change)) {
+        topMover = { name, current, previous: before, change, category: sources.get(name)?.category || "Otros" };
+      }
+    });
+  }
+
+  const dominantSource = sourceRows[0] || null;
+  const comparison = {
+    available: hasComparison,
+    latestLabel: latest?.label || null,
+    previousLabel: previous?.label || null,
+    totalVariation: variation,
+    topMover,
+    coverage: !latest ? "none" : !previous ? "single" : "full",
+  };
 
   return {
     total,
@@ -68,8 +115,61 @@ export function buildEnvironmentalReport(impacts = [], filters = {}) {
     peak,
     average: timeline.length ? total / timeline.length : null,
     dominantCategory: categoryRows.filter((row) => row.value > 0).sort((a, b) => b.value - a.value)[0] || null,
-    dominantSource: sourceRows[0] || null,
+    dominantSource,
+    comparison,
   };
+}
+
+/** Up to 3 short, evidence-backed comparative insights — never fabricated:
+ * each one only appears when the underlying comparison data supports it. */
+export function buildComparativeInsights(report) {
+  const insights = [];
+  const { comparison } = report;
+
+  if (comparison.available && comparison.topMover && comparison.topMover.change > 0) {
+    insights.push({
+      id: "principal-alza",
+      priority: Math.abs(comparison.totalVariation ?? 0) > 20 ? "alta" : "media",
+      title: `${comparison.topMover.name} concentra el principal aumento`,
+      description: `Pasó de ${emissionText(comparison.topMover.previous)} a ${emissionText(comparison.topMover.current)} entre ${comparison.previousLabel} y ${comparison.latestLabel}.`,
+    });
+  }
+
+  if (comparison.available && report.dominantSource) {
+    const wasAlsoTop = comparison.topMover?.name === report.dominantSource.name;
+    if (wasAlsoTop && comparison.topMover.previous > 0) {
+      insights.push({
+        id: "foco-persistente",
+        priority: "media",
+        title: `${report.dominantSource.name} se mantiene como foco principal`,
+        description: `Concentra la mayor contribución en ${comparison.latestLabel} y ya lo era en ${comparison.previousLabel}.`,
+      });
+    }
+  }
+
+  if (report.excludedRecords > 0) {
+    insights.push({
+      id: "cobertura-insuficiente",
+      priority: "baja",
+      title: "Cobertura parcial del set analizado",
+      description: `${report.excludedRecords} resultado(s) con otras unidades quedaron fuera de la comparación para no mezclar magnitudes.`,
+    });
+  }
+
+  if (comparison.available && comparison.totalVariation !== null && Math.abs(comparison.totalVariation) < 5 && !insights.length) {
+    insights.push({
+      id: "sin-variacion",
+      priority: "baja",
+      title: "Sin variación relevante entre períodos",
+      description: `${comparison.previousLabel} y ${comparison.latestLabel} muestran una huella prácticamente equivalente.`,
+    });
+  }
+
+  return insights.slice(0, 3);
+}
+
+function emissionText(value) {
+  return `${new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 }).format(Number(value) || 0)} kg CO2e`;
 }
 
 export const REPORT_CATEGORY_COLORS = Object.fromEntries(
