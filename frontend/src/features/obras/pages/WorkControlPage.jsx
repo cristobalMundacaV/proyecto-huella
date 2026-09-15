@@ -1,76 +1,35 @@
-import { ArrowRight, ClipboardCheck, FileCheck2, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardCheck, FileCheck2, FolderOpen, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
+import { CZMetricCard, EmptyState, SectionHeader, StatusBadge } from "@/shared/ui";
 
-import { KpiCard, SectionHeader } from "@/shared/ui";
-
-const LINKS = [
-  { id: "professionalReview", label: "Revisión profesional", description: "Hallazgos y decisiones formales registradas por personas autorizadas.", path: "/gobernanza/revision", icon: ClipboardCheck },
-  { id: "governance", label: "Gobernanza", description: "Vista general de revisiones, discrepancias y expedientes de la organización.", path: "/gobernanza", icon: ShieldCheck },
-  { id: "discrepancies", label: "Discrepancias", description: "Diferencias y validaciones pendientes entre fuentes de datos.", path: "/gobernanza/calidad", icon: SlidersHorizontal },
-  { id: "dossiers", label: "Expedientes", description: "Antecedentes ambientales preparados para uso formal.", path: "/gobernanza/expedientes", icon: FileCheck2 },
+const globalCards = [
+  { title: "Revisión profesional", description: "Hallazgos y decisiones formales registradas por personas autorizadas.", path: "/gobernanza/revision", icon: ClipboardCheck, action: "Abrir revisiones", color: "border-blue-200 bg-blue-50/60 text-blue-700" },
+  { title: "Discrepancias", description: "Contradicciones o diferencias pendientes entre fuentes y resultados.", path: "/gobernanza/calidad", icon: SlidersHorizontal, action: "Ver discrepancias", color: "border-amber-200 bg-amber-50/60 text-amber-700" },
+  { title: "Expedientes", description: "Antecedentes consolidados para respaldo y uso formal.", path: "/gobernanza/expedientes", icon: FolderOpen, action: "Ver expedientes", color: "border-violet-200 bg-violet-50/60 text-violet-700" },
 ];
+const known = (value) => value !== null && value !== undefined;
 
-/** Obra-scoped "Control" landing — the unified sidebar's Control item routes
- * here when a specific obra is selected, instead of opening a second,
- * separate obra sidebar. It surfaces this obra's own compliance summary
- * (already fetched by `ObraWorkspaceLayout`, no new call) and links out to
- * the existing revisión/gobernanza/discrepancias/expedientes surfaces —
- * those remain organization-wide today (see product report pendientes),
- * so this page is honest about that rather than fabricating a per-obra
- * filter that doesn't exist yet. */
 export default function WorkControlPage() {
   const { obraId } = useParams();
   const { compliance, resourceErrors = {} } = useOutletContext();
+  const summary = resourceErrors.compliance ? null : compliance;
+  const alerts = summary?.alertas_abiertas;
+  const documents = summary?.documentos_pendientes;
+  const compliancePath = `/obras/${obraId}/cumplimiento`;
+  const critical = Array.isArray(summary?.critical_alerts) ? summary.critical_alerts : [];
+  const attention = [
+    ...critical.map((alert, index) => ({ key: `alert-${alert.id ?? index}`, type: "Alerta de cumplimiento", title: alert.titulo || alert.descripcion || alert.nombre || "Alerta ambiental abierta", severity: alert.severidad === "rojo" ? "Crítica" : "Abierta", date: alert.created_at || alert.fecha })),
+    ...(known(alerts) && alerts > critical.length ? [{ key: "alerts", type: "Cumplimiento", title: `${alerts - critical.length} alerta(s) abierta(s) adicionales`, severity: "Abiertas" }] : []),
+    ...(known(documents) && documents > 0 ? [{ key: "documents", type: "Documentos", title: `${documents} documento(s) pendiente(s) de validación`, severity: "Pendientes" }] : []),
+  ].slice(0, 3);
+  const clear = known(alerts) && known(documents) && alerts === 0 && documents === 0;
+  const status = !summary ? "Sin datos" : summary.alertas_rojas > 0 ? "Crítico" : alerts > 0 || documents > 0 ? "Requiere atención" : summary.compliance_pct == null ? "Sin evaluación" : "Sin pendientes";
+  const statusTone = status === "Crítico" ? "danger" : status === "Requiere atención" ? "warning" : status === "Sin pendientes" ? "success" : "info";
 
-  return (
-    <main className="space-y-6">
-      <SectionHeader
-        title="Control de esta obra"
-        description="Cumplimiento, revisión profesional, gobernanza, discrepancias y expedientes relevantes para esta obra."
-      />
-
-      <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
-        <SectionHeader
-          title="Cumplimiento"
-          description="Estado documental y alertas asociadas exclusivamente a esta obra."
-          action={
-            <Link className="inline-flex items-center gap-1.5 text-sm font-bold text-[var(--brand-primary)]" to={`/obras/${obraId}/cumplimiento`}>
-              Ver cumplimiento <ArrowRight aria-hidden="true" size={15} />
-            </Link>
-          }
-        />
-
-        {resourceErrors.compliance ? (
-          <p className="text-sm text-amber-800">El estado de cumplimiento no está disponible.</p>
-        ) : compliance ? (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <KpiCard icon={FileCheck2} label="Documentos" value={compliance.total_documentos} helper={compliance.documentos_validados === null || compliance.documentos_validados === undefined ? "Validación no disponible" : `${compliance.documentos_validados} validados`} />
-            <KpiCard icon={ShieldCheck} label="Alertas abiertas" value={compliance.alertas_abiertas} status={compliance.alertas_abiertas ? "warning" : "success"} />
-            <KpiCard icon={ShieldCheck} label="Cumplimiento" value={compliance.compliance_pct} unit="%" />
-          </div>
-        ) : (
-          <p className="text-sm text-[var(--text-muted)]">Todavía no existe información suficiente para construir esta lectura.</p>
-        )}
-      </section>
-
-      <section>
-        <SectionHeader
-          title="Gobernanza y revisión"
-          description="Estas superficies siguen siendo organizacionales; el filtrado por obra es un pendiente documentado."
-        />
-        <div className="grid gap-3 sm:grid-cols-2">
-          {LINKS.map((item) => (
-            <Link key={item.id} to={item.path} className="group flex items-start gap-3 rounded-[18px] border border-slate-200 bg-slate-50/60 p-4 transition hover:border-emerald-300 hover:bg-white hover:shadow-md">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-700 shadow-sm"><item.icon aria-hidden="true" size={18} /></span>
-              <span className="min-w-0">
-                <span className="block font-black text-[var(--text-primary)]">{item.label}</span>
-                <span className="mt-0.5 block text-xs leading-5 text-[var(--text-muted)]">{item.description}</span>
-              </span>
-              <ArrowRight aria-hidden="true" className="ml-auto mt-1 shrink-0 text-[var(--text-muted)] transition group-hover:text-emerald-700" size={15} />
-            </Link>
-          ))}
-        </div>
-      </section>
-    </main>
-  );
+  return <main className="space-y-5 pb-8">
+    <section className="rounded-[var(--radius-hero)] border border-emerald-800/20 bg-[linear-gradient(115deg,#064e3b,#087568)] px-5 py-5 text-white shadow-[var(--shadow-card-v1)] lg:px-7"><div className="grid items-center gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(250px,360px)]"><div><p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-100">Control ambiental</p><h1 className="mt-1 text-2xl font-black tracking-tight sm:text-[28px]">Control de obra</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50">Revisa cumplimiento, validaciones profesionales y antecedentes que requieren decisión.</p></div><div className="rounded-2xl border border-white/20 bg-white/10 p-4"><div className="flex items-center justify-between gap-2"><p className="text-[11px] font-black uppercase tracking-wider text-emerald-100">Estado general</p><span className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-bold">{status}</span></div><div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/15 pt-3 text-center"><div><p className="text-lg font-black">{known(documents) && known(alerts) ? documents + alerts : "—"}</p><p className="text-[11px] text-emerald-100">Pendientes*</p></div><div><p className="text-lg font-black">—</p><p className="text-[11px] text-emerald-100">Discrepancias</p></div><div><p className="text-lg font-black">—</p><p className="text-[11px] text-emerald-100">Expedientes</p></div></div><p className="mt-2 text-[10px] text-emerald-100/90">* Documentos y alertas de esta obra. Los otros controles son organizacionales.</p></div></div></section>
+    <section aria-label="Indicadores de control" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><CZMetricCard icon={ShieldCheck} label="Cumplimiento" value={summary?.compliance_pct} unit="%" supportingText={summary?.compliance_pct == null ? "Sin evaluación disponible" : "Porcentaje informado por cumplimiento"} tone={status === "Crítico" ? "danger" : status === "Requiere atención" ? "warning" : status === "Sin pendientes" ? "success" : "info"} /><CZMetricCard icon={ClipboardCheck} label="Revisiones pendientes" value={null} supportingText="Sin dato por obra; revisión organizacional" tone="info" /><CZMetricCard icon={SlidersHorizontal} label="Discrepancias abiertas" value={null} supportingText="Sin dato por obra; calidad organizacional" tone="info" /><CZMetricCard icon={FolderOpen} label="Expedientes activos" value={null} supportingText="Sin dato por obra; expedientes organizacionales" tone="info" /></section>
+    <section className="rounded-[var(--radius-panel)] border border-[var(--border-default)] bg-white p-4 shadow-[var(--shadow-card-v1)] sm:p-5"><SectionHeader title="Requiere atención" description="Controles de esta obra visibles en la información disponible." />{attention.length ? <div className="mt-4 grid gap-2.5">{attention.map((item) => <Link key={item.key} to={compliancePath} className="group flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] border border-amber-200 bg-amber-50/55 p-3.5 transition hover:border-amber-400 hover:bg-amber-50 hover:shadow-[var(--shadow-card-v1)]"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-amber-700"><AlertTriangle aria-hidden="true" size={17} /></span><div className="min-w-0 flex-1"><p className="text-[11px] font-black uppercase tracking-wide text-amber-800">{item.type}</p><p className="font-bold text-slate-950">{item.title}</p>{item.date && <p className="text-xs text-slate-500">{new Date(item.date).toLocaleDateString("es-CL")}</p>}</div><StatusBadge tone={item.severity === "Crítica" ? "danger" : "warning"}>{item.severity}</StatusBadge><span className="inline-flex items-center gap-1 text-xs font-black text-emerald-800">Revisar <ArrowRight aria-hidden="true" size={14} /></span></Link>)}</div> : clear ? <EmptyState className="mt-4 !p-5" icon={CheckCircle2} title="No hay controles pendientes para esta obra" description="No se registran revisiones, discrepancias o expedientes abiertos en la información disponible." guidance="La ausencia de documentos y alertas pendientes sí corresponde a esta obra; revisiones, discrepancias y expedientes sólo se consultan a nivel organizacional." primaryAction={<Link to={compliancePath} className="inline-flex items-center gap-1 text-sm font-bold text-emerald-800">Ver historial de control <ArrowRight aria-hidden="true" size={15} /></Link>} /> : <div className="mt-4 rounded-[var(--radius-card)] border border-blue-200 bg-blue-50/60 p-4 text-sm text-blue-900">No hay datos suficientes para confirmar los pendientes de control de esta obra. <Link className="ml-1 font-bold underline" to={compliancePath}>Ver cumplimiento</Link></div>}</section>
+    <section><SectionHeader title="Superficies de control" description="Cumplimiento de la obra y vistas organizacionales para revisiones, discrepancias y expedientes." /><div className="mt-3 grid gap-3 sm:grid-cols-2">{[...globalCards, { title: "Cumplimiento", description: "Estado documental, alertas y requisitos ambientales de la obra.", path: compliancePath, icon: FileCheck2, action: "Ver cumplimiento", color: "border-emerald-200 bg-emerald-50/60 text-emerald-700" }].map((item) => <Link key={item.title} to={item.path} className={`group flex min-h-[142px] flex-col rounded-[var(--radius-card)] border p-4 shadow-[var(--shadow-card-v1)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] ${item.color}`}><div className="flex items-start justify-between gap-2"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/85 shadow-sm"><item.icon aria-hidden="true" size={20} /></span><StatusBadge tone={item.title === "Cumplimiento" ? statusTone : "info"}>{item.title === "Cumplimiento" ? status : "Vista organizacional"}</StatusBadge></div><h3 className="mt-2 font-black text-slate-950">{item.title}</h3><p className="mt-1 text-xs leading-5 text-slate-600">{item.description}</p><span className="mt-auto flex items-center justify-end gap-1 pt-3 text-xs font-black">{item.action} <ArrowRight aria-hidden="true" size={15} /></span></Link>)}</div></section>
+  </main>;
 }
