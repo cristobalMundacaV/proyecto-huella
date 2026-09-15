@@ -5,6 +5,9 @@ import { Alert, Button, CZPageHero, EmptyState, Input } from "@/shared/ui";
 import { formatDate } from "@/shared/utils/formatters";
 import { buildComparativeInsights, buildEnvironmentalReport } from "../utils/reportAdapters";
 import { CategoryGrid, ClosingActions, ComparativeInsights, ComparisonStrip, CriticalSources, ExecutiveSummary, ReportCharts, ReportKpis, SourceParticipation } from "../components/ReportBlocks";
+import EnvironmentalBalanceSection from "@/features/obras/components/EnvironmentalBalanceSection";
+import { buildEnvironmentalBalance } from "@/features/obras/utils/environmentalPerformance";
+import { resourceData } from "@/features/operacion/utils/operationSelectors";
 
 export default function ReportsPage() {
   const workspace = useOutletContext();
@@ -12,6 +15,12 @@ export default function ReportsPage() {
   const [filters, setFilters] = useState({ from: "", to: "" });
   const report = useMemo(() => buildEnvironmentalReport(Array.isArray(workspace.impacts) ? workspace.impacts : [], filters), [filters, workspace.impacts]);
   const comparativeInsights = useMemo(() => buildComparativeInsights(report), [report]);
+  const balance = useMemo(() => buildEnvironmentalBalance({
+    records: resourceData(workspace.operation?.records, []),
+    journeys: resourceData(workspace.operation?.journeys, []),
+    materials: resourceData(workspace.operation?.materials, []),
+  }), [workspace.operation]);
+  const hasPhysicalData = balance.some((flow) => flow.state === "con_datos");
   const workName = workspace.obra?.nombre || "Esta obra";
   const impactsError = workspace.resourceErrors?.impacts;
   const periodLabel = filters.from || filters.to
@@ -55,7 +64,11 @@ export default function ReportsPage() {
       <ExecutiveSummary report={report} workName={workName} />
       <ReportKpis report={report} />
       <ComparativeInsights insights={comparativeInsights} />
+
+      {hasPhysicalData && <EnvironmentalBalanceSection flows={balance} obraId={workspace.obra?.id} />}
+
       {!report.records ? <EmptyState description="No existen resultados ambientales gobernados para construir este reporte. La ausencia de información no se presenta como una huella igual a cero." guidance="Agrega evidencia o registra información operacional para habilitar cálculos trazables." primaryAction={<Link className="inline-flex min-h-11 items-center rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white" to="../evidencias">Agregar evidencia</Link>} secondaryAction={<Link className="inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-bold text-emerald-900" to="../operacion/energia">Registrar información</Link>} suggestions={["0 resultados trazables", "Sin fuente prioritaria", "Sin comparación temporal"]} title="Sin lectura disponible en el período" /> : <>
+        <div className="flex items-center gap-3 px-1"><span className="h-px flex-1 bg-slate-200" /><p className="shrink-0 text-xs font-black uppercase tracking-[0.16em] text-emerald-700">Cambio climático / GEI</p><span className="h-px flex-1 bg-slate-200" /></div>
         <CategoryGrid categories={report.categories} total={report.total} />
         <SourceParticipation report={report} />
         <CriticalSources report={report} />

@@ -299,7 +299,7 @@ export default function InicioPage() {
                 <div className="flex flex-col gap-6 lg:min-h-[205px] lg:flex-row lg:items-center lg:justify-between">
                 <div className="max-w-3xl">
                     <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-100">
-                        Resumen ambiental
+                        Estado ambiental del portafolio
                     </p>
 
                     <h1 className="mt-2 text-3xl font-black text-white">

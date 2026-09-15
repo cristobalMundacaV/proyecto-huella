@@ -23,6 +23,7 @@ import { useOrganizacionActiva } from "@/features/organizaciones/context/Organiz
 import { getWorkWorkspace } from "@/features/obras/services/workspaceApi";
 import { getObraDashboard } from "@/features/obras/services/obraDashboardApi";
 import { consumePrefetchedWork } from "@/features/obras/services/workspacePrefetch";
+import { getWorkOperation } from "@/features/operacion/services/operationApi";
 
 import {
   environmentalProfileLabel,
@@ -84,6 +85,12 @@ export default function ObraWorkspaceLayout() {
     obraId,
   } = useParams();
   const isSummaryRoute = /\/obras\/[^/]+\/resumen\/?$/.test(pathname);
+  const isReportsRoute = /\/obras\/[^/]+\/reportes\/?$/.test(pathname);
+  // The multi-flow environmental performance model (resumen + reportes)
+  // needs the same real per-flow physical data `SectorDomainPage` already
+  // fetches via `getWorkOperation` — reused here instead of duplicated so
+  // both surfaces read from the exact same source of truth.
+  const needsOperationData = isSummaryRoute || isReportsRoute;
   const showLegacySummaryHero = false;
 
   const {
@@ -105,6 +112,7 @@ export default function ObraWorkspaceLayout() {
     workspace: null,
     dashboard: null,
     dashboardError: false,
+    operation: null,
   });
 
   const requestRef =
@@ -131,6 +139,7 @@ export default function ObraWorkspaceLayout() {
         // this path since `load` only re-runs when org/obraId change.
         dashboard: null,
         dashboardError: false,
+        operation: null,
       }));
 
       // Reuse a prefetch kicked off on hover/focus of this obra in the
@@ -138,16 +147,17 @@ export default function ObraWorkspaceLayout() {
       // second request for the same data.
       const prefetched = consumePrefetchedWork(activeOrganizacionId, obraId);
 
-      // Workspace + (only on the summary route) dashboard are fetched IN
-      // PARALLEL and gated behind a single loading state — this is what
-      // used to be two sequential loaders ("Cargando obra" then
-      // "Calculando cabina ambiental") stacked one after the other.
+      // Workspace + (only on the summary/reportes routes) dashboard AND
+      // operation are fetched IN PARALLEL and gated behind a single loading
+      // state — this is what used to be two sequential loaders ("Cargando
+      // obra" then "Calculando cabina ambiental") stacked one after the other.
       Promise.allSettled([
         prefetched?.workspace || getWorkWorkspace(activeOrganizacionId, obraId),
         isSummaryRoute
           ? prefetched?.dashboard || getObraDashboard(activeOrganizacionId, obraId, { relative_months: 3 })
           : Promise.resolve(null),
-      ]).then(([workspaceResult, dashboardResult]) => {
+        needsOperationData ? getWorkOperation(activeOrganizacionId, obraId) : Promise.resolve(null),
+      ]).then(([workspaceResult, dashboardResult, operationResult]) => {
         if (requestRef.current !== requestId) return;
 
         if (workspaceResult.status === "rejected") {
@@ -156,6 +166,7 @@ export default function ObraWorkspaceLayout() {
             workspace: null,
             dashboard: null,
             dashboardError: false,
+            operation: null,
           });
           return;
         }
@@ -165,11 +176,13 @@ export default function ObraWorkspaceLayout() {
           workspace: workspaceResult.value,
           dashboard: dashboardResult.status === "fulfilled" ? dashboardResult.value : null,
           dashboardError: isSummaryRoute && dashboardResult.status !== "fulfilled",
+          operation: operationResult.status === "fulfilled" ? operationResult.value : null,
         });
       });
     }, [
       activeOrganizacionId,
       isSummaryRoute,
+      needsOperationData,
       obraId,
     ]);
 
@@ -331,6 +344,7 @@ export default function ObraWorkspaceLayout() {
           ...state.workspace,
           dashboard: state.dashboard,
           dashboardError: state.dashboardError,
+          operation: state.operation,
         }}
       />
     </main>
